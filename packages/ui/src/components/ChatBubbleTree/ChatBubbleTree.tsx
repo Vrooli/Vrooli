@@ -1,6 +1,6 @@
 import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointsReaction, getObjectUrl, getTranslation, noop } from "@local/shared";
-import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, IconButtonProps, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SessionContext } from "../../contexts.js";
@@ -619,25 +619,21 @@ export function ChatBubble({
     );
 }
 
-const SCROLL_POSITION_CHECK_INTERVAL_MS = 2_000;
+const SCROLL_THRESHOLD_PX = 200;
+const HIDE_SCROLL_BUTTON_CLASS = "hide-scroll-button";
 
-interface ScrollToBottomIconButtonProps extends IconButtonProps {
-    isVisible: boolean;
-}
-
-const ScrollToBottomIconButton = styled(IconButton, {
-    shouldForwardProp: (prop) => prop !== "isVisible",
-})<ScrollToBottomIconButtonProps>(({ isVisible, theme }) => ({
+const ScrollToBottomIconButton = styled(IconButton)(({ theme }) => ({
     background: theme.palette.background.paper,
-    position: "absolute",
-    bottom: theme.spacing(1),
+    position: "sticky",
+    bottom: theme.spacing(2),
     left: "50%",
     transform: "translateX(-50%)",
     width: "36px",
     height: "36px",
-    // eslint-disable-next-line no-magic-numbers
-    opacity: isVisible ? 0.8 : 0,
+    opacity: 0.8,
     transition: "opacity 0.2s ease-in-out !important",
+    zIndex: 1,
+    boxShadow: theme.shadows[2],
 }));
 
 export function ScrollToBottomButton({
@@ -646,43 +642,86 @@ export function ScrollToBottomButton({
     containerRef: RefObject<HTMLElement>,
 }) {
     const { palette } = useTheme();
-    const [isVisible, setIsVisible] = useState(false);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const lastScrollTop = useRef(0);
+    const shouldAutoScroll = useRef(false);
 
-    useEffect(() => {
-        function checkScrollPosition() {
-            const scroll = containerRef.current;
-            if (!scroll) return;
+    const scrollToBottom = useCallback(function scrollToBottomCallback() {
+        const container = containerRef.current;
+        if (!container) return;
 
-            // Threshold to determine "close to the bottom"
-            // Adjust this value based on your needs
-            const threshold = 100;
-            const isCloseToBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < threshold;
-
-            setIsVisible(!isCloseToBottom);
-        }
-
-        const scroll = containerRef.current;
-        scroll?.addEventListener("scroll", checkScrollPosition);
-        setTimeout(checkScrollPosition, SCROLL_POSITION_CHECK_INTERVAL_MS);
-        return () => {
-            scroll?.removeEventListener("scroll", checkScrollPosition);
-        };
-    }, [containerRef]); // Re-run effect if containerRef changes
-
-    function scrollToBottom() {
-        const scroll = containerRef.current;
-        if (!scroll) return;
-        // Directly using smooth scrolling to the calculated bottom
-        scroll.scroll({
-            top: scroll.scrollHeight - scroll.clientHeight,
+        container.scroll({
+            top: container.scrollHeight,
             behavior: "smooth",
         });
-    }
+        shouldAutoScroll.current = true;
+    }, [containerRef]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        // Create mutation observer to watch for content changes
+        const mutationObserver = new MutationObserver(() => {
+            if (shouldAutoScroll.current) {
+                scrollToBottom();
+            }
+        });
+
+        // Watch for changes to the container's content
+        mutationObserver.observe(container, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+        });
+
+        // Handle scroll events to show/hide button and track scroll position
+        function handleScroll() {
+            if (!container || !buttonRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = container;
+
+            // Detect scroll direction
+            const isScrollingUp = scrollTop < lastScrollTop.current;
+            lastScrollTop.current = scrollTop;
+
+            // If scrolling up at all, disable auto-scroll
+            if (isScrollingUp) {
+                shouldAutoScroll.current = false;
+            }
+
+            // Only re-enable auto-scroll when manually scrolled to bottom
+            const isAtBottom = scrollHeight - scrollTop - clientHeight === 0;
+            if (isAtBottom) {
+                shouldAutoScroll.current = true;
+            }
+
+            // Show/hide the scroll button based on being close to the bottom
+            if (buttonRef.current) {
+                const isNearBottom = scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_PX;
+                if (isNearBottom) {
+                    buttonRef.current.classList.add(HIDE_SCROLL_BUTTON_CLASS);
+                } else {
+                    buttonRef.current.classList.remove(HIDE_SCROLL_BUTTON_CLASS);
+                }
+            }
+        }
+
+        container.addEventListener("scroll", handleScroll);
+
+        // Initial check
+        handleScroll();
+
+        return () => {
+            mutationObserver.disconnect();
+            container.removeEventListener("scroll", handleScroll);
+        };
+    }, [containerRef, scrollToBottom]);
 
     return (
         <ScrollToBottomIconButton
-            isVisible={isVisible}
             onClick={scrollToBottom}
+            ref={buttonRef}
             size="small"
         >
             <IconCommon
@@ -728,6 +767,9 @@ const OuterMessageList = styled(Box)(() => ({
     overflowY: "auto",
     height: "100%",
     justifyContent: "space-between",
+    [`& .${HIDE_SCROLL_BUTTON_CLASS}`]: {
+        opacity: 0,
+    },
 }));
 
 interface InnerMessageListProps extends BoxProps {
@@ -757,7 +799,7 @@ export function ChatBubbleTree({
     const session = useContext(SessionContext);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
-    const { dimensions, ref: dimRef } = useDimensions();
+    const { dimensions, ref: outerBoxRef } = useDimensions();
 
     const messageData = useMemo<MessageRenderData[]>(() => {
         function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {
@@ -801,7 +843,7 @@ export function ChatBubbleTree({
     }, [branches, removeMessages, setBranches, tree, userId]);
 
     return (
-        <OuterMessageList id={id} ref={dimRef}>
+        <OuterMessageList id={id} ref={outerBoxRef}>
             <InnerMessageList isEditingOrReplying={isEditingMessage || isReplyingToMessage}>
                 {messageData.map((data) => (
                     <ChatBubble
@@ -851,6 +893,8 @@ export function ChatBubbleTree({
                     />
                 )}
             </InnerMessageList>
+            <ScrollToBottomButton containerRef={outerBoxRef} />
         </OuterMessageList>
     );
 }
+
