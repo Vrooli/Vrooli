@@ -3,16 +3,20 @@ import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, Ico
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
 import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
-import { AddIcon, CameraOpenIcon, CloseIcon, CompleteIcon, EllipsisIcon, FileIcon, ImageIcon, InfoIcon, InvisibleIcon, LinkIcon, PauseIcon, PlayIcon, RoutineIcon, SendIcon } from "../../../icons/common.js";
+import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
+import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButton.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
+import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 
 interface ExternalApp {
     id: string;
     name: string;
-    icon: React.ReactNode;
+    iconInfo: IconInfo;
     connected: boolean;
 }
 
@@ -34,7 +38,7 @@ export enum ToolState {
 }
 export interface Tool {
     displayName: string;
-    icon: React.ReactNode;
+    iconInfo: IconInfo;
     type: string;
     name: string;
     state: ToolState;
@@ -46,6 +50,7 @@ export interface ContextItem {
     type: "file" | "image" | "text";
     label: string;
     src?: string;
+    file?: File;
 }
 
 export interface AdvancedInputProps {
@@ -53,6 +58,8 @@ export interface AdvancedInputProps {
     tools: Tool[];
     contextData: ContextItem[];
     maxChars?: number;
+    message?: string;
+    onMessageChange?: (message: string) => unknown;
     onToolsChange?: (updatedTools: Tool[]) => unknown;
     onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
     onSubmit?: (message: string) => unknown;
@@ -97,6 +104,7 @@ const Outer = styled("div")(({ theme }) => ({
     backgroundColor: theme.palette.background.paper,
     borderRadius: theme.spacing(3),
     padding: theme.spacing(1),
+    position: "relative",
 }));
 
 type StyledIconButtonProps = IconButtonProps & {
@@ -124,7 +132,7 @@ type ToolChipProps = Tool & {
 
 function ToolChip({
     displayName,
-    icon,
+    iconInfo,
     index,
     name,
     onRemoveTool,
@@ -196,7 +204,11 @@ function ToolChip({
                         onClick={handlePlayClick}
                         sx={{ padding: 0, paddingRight: 0.5 }}
                     >
-                        <PlayIcon width={20} height={20} />
+                        <IconCommon
+                            decorative
+                            name="Play"
+                            size={20}
+                        />
                     </IconButton>
                 );
             }
@@ -206,12 +218,16 @@ function ToolChip({
                     onClick={handlePlayClick}
                     sx={{ padding: 0, paddingRight: 0.5 }}
                 >
-                    <PauseIcon width={20} height={20} />
+                    <IconCommon
+                        decorative
+                        name="Pause"
+                        size={20}
+                    />
                 </IconButton>
             );
         }
-        return icon as React.ReactElement;
-    }, [isHovered, icon, state, handlePlayClick]);
+        return <Icon decorative info={iconInfo} />;
+    }, [isHovered, iconInfo, state, handlePlayClick]);
 
     return (
         <Chip
@@ -345,39 +361,109 @@ type ContextItemDisplayProps = {
     imgStyle: CSSProperties;
     item: ContextItem;
     onRemove: (id: string) => unknown;
-    theme: Theme;
 };
+
+const MAX_LABEL_LENGTH = 20;
+const CONTEXT_ITEM_LIMIT = 20;
+const IMAGE_FILE_REGEX = /\.(jpg|jpeg|png|gif|bmp|tiff|ico|webp|svg|heic|heif|ppt|pptx)$/i;
+const TEXT_FILE_REGEX = /\.(md|txt|markdown|word|doc|docx|pdf)$/i;
+const CODE_FILE_REGEX = /\.(js|jsx|ts|tsx|json|xls|xlsx|yaml|yml|xml|html|css|scss|less|py|java|c|cpp|h|hxx|cxx|hpp|hxx|rb|php|go|swift|kotlin|scala|groovy|rust|haskell|erlang|elixir|dart|typescript|kotlin|swift|ruby|php|go|rust|haskell|erlang|elixir|dart|typescript)$/i;
+const VIDEO_FILE_REGEX = /\.(mp4|mov|avi|wmv|flv|mpeg|mpg|m4v|webm|mkv)$/i;
+const ENV_FILE_REGEX = /\.(env|env-example|env-local|env-production|env-development|env-test)$/i;
+const EXECUTABLE_FILE_REGEX = /\.(exe|bat|sh|bash|cmd|ps1|ps2|ps3|ps4|ps5|ps6|ps7|ps8|ps9|ps10)$/i;
+
+function truncateLabel(label: string, maxLength: number): string {
+    if (label.length <= maxLength) return label;
+    const extension = label.split(".").pop();
+    const nameWithoutExt = label.slice(0, label.lastIndexOf("."));
+    if (!extension || nameWithoutExt.length <= maxLength - 4) return label;
+    return `${nameWithoutExt.slice(0, maxLength - 4)}...${extension}`;
+}
 
 function ContextItemDisplay({
     imgStyle,
     item,
     onRemove,
-    theme,
 }: ContextItemDisplayProps) {
     function handleRemove() {
         onRemove(item.id);
     }
 
-    if (item.type === "image" || item.type === "file") {
+    const fallbackIconInfo = useMemo<IconInfo>(function fallbackInfoBasedOnTypeMemo() {
+        if (item.type === "image") return { name: "Image", type: "Common" } as const;
+        if (item.type === "text") return { name: "Article", type: "Common" } as const;
+        // For files, check if it's a text-based file
+        if (item.type === "file" && item.file?.type) {
+            // Image files
+            if (item.file.type.startsWith("image/") || IMAGE_FILE_REGEX.test(item.file.name)) {
+                return { name: "Image", type: "Common" } as const;
+            }
+            // Text/document files
+            if (item.file.type.startsWith("text/") || TEXT_FILE_REGEX.test(item.file.name)) {
+                return { name: "Article", type: "Common" } as const;
+            }
+            // Code files
+            if (item.file.type.includes("javascript") ||
+                item.file.type.includes("json") ||
+                CODE_FILE_REGEX.test(item.file.name)) {
+                return { name: "Object", type: "Common" } as const;
+            }
+            // Video files
+            if (item.file.type.startsWith("video/") || VIDEO_FILE_REGEX.test(item.file.name)) {
+                return { name: "SocialVideo", type: "Common" } as const;
+            }
+            // Environment files
+            if (ENV_FILE_REGEX.test(item.file.name)) {
+                return { name: "Invisible", type: "Common" } as const;
+            }
+            // Executable files
+            if (EXECUTABLE_FILE_REGEX.test(item.file.name)) {
+                return { name: "Terminal", type: "Common" } as const;
+            }
+        }
+        return { name: "File", type: "Common" } as const;
+    }, [item.type, item.file?.type, item.file?.name]);
+
+    // Check if this is an image that should be displayed as a preview
+    const shouldShowPreview = useMemo(() => {
+        if (item.type === "image") return true;
+        if (item.type === "file" && item.file?.type?.startsWith("image/")) return true;
+        if (item.type === "file" && IMAGE_FILE_REGEX.test(item.file?.name ?? "")) return true;
+        return false;
+    }, [item.type, item.file?.type, item.file?.name]);
+
+    const truncatedLabel = useMemo(() => truncateLabel(item.label, MAX_LABEL_LENGTH), [item.label]);
+
+    if (shouldShowPreview) {
         return (
             <PreviewContainer>
-                {item.type === "image" && item.src ? (
+                {item.src ? (
                     <img src={item.src} alt={item.label} style={imgStyle} />
                 ) : (
                     <PreviewImageAvatar variant="square">
-                        <ImageIcon />
+                        <Icon
+                            decorative
+                            info={fallbackIconInfo}
+                        />
                     </PreviewImageAvatar>
                 )}
                 <RemoveIconButton onClick={handleRemove}>
-                    <CloseIcon fill={theme.palette.background.default} />
+                    <IconCommon
+                        decorative
+                        fill="background.default"
+                        name="Close"
+                    />
                 </RemoveIconButton>
             </PreviewContainer>
         );
     }
+
     return (
         <ContextItemChip
-            label={item.label}
+            icon={<Icon decorative info={fallbackIconInfo} />}
+            label={truncatedLabel}
             onDelete={handleRemove}
+            title={item.label} // Show full name on hover
         />
     );
 }
@@ -425,25 +511,37 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                     <Box>
                         <MenuItem onClick={onAttachFile}>
                             <ListItemIcon>
-                                <FileIcon />
+                                <IconCommon
+                                    decorative
+                                    name="File"
+                                />
                             </ListItemIcon>
                             <ListItemText primary="Attach File" secondary="Attach a file from your device" />
                         </MenuItem>
                         {externalApps.length > 0 && <MenuItem onClick={handleOpenExternalApps}>
                             <ListItemIcon>
-                                <LinkIcon />
+                                <IconCommon
+                                    decorative
+                                    name="Link"
+                                />
                             </ListItemIcon>
                             <ListItemText primary="Connect External App" secondary="Connect an external app to your account" />
                         </MenuItem>}
                         <MenuItem onClick={onTakePhoto}>
                             <ListItemIcon>
-                                <CameraOpenIcon />
+                                <IconCommon
+                                    decorative
+                                    name="CameraOpen"
+                                />
                             </ListItemIcon>
                             <ListItemText primary="Take Photo" secondary="Take a photo from your device" />
                         </MenuItem>
                         <MenuItem onClick={onAddRoutine}>
                             <ListItemIcon>
-                                <RoutineIcon />
+                                <IconRoutine
+                                    decorative
+                                    name="Routine"
+                                />
                             </ListItemIcon>
                             <ListItemText primary="Add Routine" secondary="Allow the AI to perform actions" />
                         </MenuItem>
@@ -465,10 +563,13 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                             }}
                         >
                             <ListItemIcon>
-                                {app.icon}
+                                <Icon decorative info={app.iconInfo} />
                             </ListItemIcon>
                             <ListItemText primary={app.name} secondary="Description about the app" />
-                            {app.connected && <CompleteIcon />}
+                            {app.connected && <IconCommon
+                                decorative
+                                name="Complete"
+                            />}
                         </MenuItem>
                     ))}
                 </Menu>
@@ -491,6 +592,7 @@ interface InfoMemoProps {
     onToggleToolbar: () => void;
 }
 
+const infoButtonStyle = { padding: "4px", opacity: 0.5 } as const;
 const infoMenuAnchorOrigin = { vertical: "bottom", horizontal: "left" } as const;
 const infoMenuPaperProps = {
     style: {
@@ -518,7 +620,7 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
                 anchorOrigin={infoMenuAnchorOrigin}
                 PaperProps={infoMenuPaperProps}
             >
-                <Typography m={2} mb={1} variant="h6" sx={{ color: "text.secondary" }}>
+                <Typography m={2} mb={1} variant="h6" color="text.secondary">
                     Settings
                 </Typography>
                 <Divider />
@@ -587,7 +689,7 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
                     />
                 </MenuItem> */}
                 <Divider />
-                <Typography variant="h6" m={2} mb={1} sx={{ color: "text.secondary" }}>
+                <Typography variant="h6" m={2} mb={1} color="text.secondary">
                     Info
                 </Typography>
                 <Box p={2}>
@@ -613,18 +715,95 @@ To run a tool directly, first enable it and then press the 'Run' button. This wi
 );
 InfoMemo.displayName = "InfoMemo";
 
+const dragOverlayStyles = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    borderRadius: (theme: Theme) => theme.spacing(3),
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: theme => theme.zIndex.modal - 1,
+    pointerEvents: "none",
+} as const;
+
 export function AdvancedInput({
     enterWillSubmit,
     tools,
     contextData,
     maxChars,
+    message,
+    onMessageChange,
     onToolsChange,
     onContextDataChange,
     onSubmit,
 }: AdvancedInputProps) {
     const theme = useTheme();
 
-    const [textValue, setTextValue] = useState("");
+    // Local state for the input value
+    const [localMessage, setLocalMessage] = useState(message ?? "");
+    const [debouncedMessageChange] = useDebounce((value: string) => {
+        onMessageChange?.(value);
+    }, 300);
+
+    // Add dropzone functionality
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        noClick: true,
+        noKeyboard: true,
+        onDrop: (acceptedFiles) => {
+            if (!onContextDataChange || acceptedFiles.length === 0) return;
+
+            // Calculate how many new items we can add
+            const remainingSlots = CONTEXT_ITEM_LIMIT - contextData.length;
+            if (remainingSlots <= 0) {
+                PubSub.get().publish("snack", {
+                    message: `Cannot add more items. Maximum of ${CONTEXT_ITEM_LIMIT} items allowed.`,
+                    severity: SnackSeverity.Error,
+                });
+                return;
+            }
+
+            // Only take as many files as we have slots for
+            const filesToAdd = acceptedFiles.slice(0, remainingSlots);
+
+            const newContextItems: ContextItem[] = filesToAdd.map(file => ({
+                id: crypto.randomUUID(),
+                type: file.type.startsWith("image/") ? "image" : "file",
+                label: file.name,
+                src: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+                file,
+            }));
+
+            onContextDataChange([...contextData, ...newContextItems]);
+
+            // If we couldn't add all files, show a warning
+            if (acceptedFiles.length > remainingSlots) {
+                PubSub.get().publish("snack", {
+                    message: `Only added ${remainingSlots} out of ${acceptedFiles.length} files due to the ${CONTEXT_ITEM_LIMIT} item limit.`,
+                    severity: SnackSeverity.Error,
+                });
+            }
+        },
+    });
+
+    // Clean up object URLs when component unmounts
+    useEffect(() => () => {
+        contextData.forEach(item => {
+            if (item.src?.startsWith("blob:")) {
+                URL.revokeObjectURL(item.src);
+            }
+        });
+    }, [contextData]);
+
+    useEffect(function updateLocalMessageEffect() {
+        if (message !== undefined && message !== localMessage) {
+            setLocalMessage(message);
+        }
+    }, [localMessage, message]);
+
     const [anchorPlus, setAnchorPlus] = useState<HTMLElement | null>(null);
     const [anchorSettings, setAnchorSettings] = useState<HTMLElement | null>(null);
 
@@ -770,34 +949,32 @@ export function AdvancedInput({
         [onContextDataChange, contextData],
     );
 
-    const handleSend = useCallback(() => {
-        if (onSubmit && textValue.trim() && (!maxChars || textValue.length <= maxChars)) {
-            onSubmit(textValue.trim());
-            setTextValue("");
+    function handleMessageChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const newValue = event.target.value;
+        setLocalMessage(newValue);
+        debouncedMessageChange(newValue);
+    }
+
+    const handleSubmit = useCallback(() => {
+        if (onSubmit) {
+            onSubmit(localMessage);
+            setLocalMessage("");
         }
-    }, [onSubmit, textValue, maxChars]);
-
-    const handleInputChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-            setTextValue(e.target.value);
-        },
-        [],
-    );
-
+    }, [localMessage, onSubmit]);
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
             if (e.key === "Enter" && !e.shiftKey) {
                 if (localEnterWillSubmit) {
                     e.preventDefault();
-                    handleSend();
+                    handleSubmit();
                 }
             }
         },
-        [handleSend, localEnterWillSubmit],
+        [handleSubmit, localEnterWillSubmit],
     );
 
     const handleTranscriptChange = useCallback((recognizedText: string) => {
-        setTextValue((prev) => {
+        setLocalMessage((prev) => {
             // Append recognized text to whatever is currently typed
             if (!prev.trim()) return recognizedText;
             return `${prev} ${recognizedText}`;
@@ -824,8 +1001,8 @@ export function AdvancedInput({
         gap: theme.spacing(1),
     }), [isToolsExpanded, theme]);
 
-    const charsProgress = maxChars ? Math.min(100, Math.ceil((textValue.length / maxChars) * 100)) : 0;
-    const charsOverLimit = maxChars ? Math.max(0, textValue.length - maxChars) : 0;
+    const charsProgress = maxChars ? Math.min(100, Math.ceil((localMessage.length / maxChars) * 100)) : 0;
+    const charsOverLimit = maxChars ? Math.max(0, localMessage.length - maxChars) : 0;
 
     const progressStyle = useMemo(() => {
         let progressStyle = { color: theme.palette.success.main };
@@ -838,7 +1015,15 @@ export function AdvancedInput({
     }, [charsOverLimit, charsProgress, theme.palette.error.main, theme.palette.success.main, theme.palette.warning.main]);
 
     return (
-        <Outer>
+        <Outer {...getRootProps()}>
+            <input {...getInputProps()} />
+            {isDragActive && (
+                <Box sx={dragOverlayStyles}>
+                    <Typography variant="body1" color="text.secondary">
+                        Drop files here...
+                    </Typography>
+                </Box>
+            )}
             <Collapse in={tools.some((tool) => tool.state === ToolState.Exclusive)} unmountOnExit>
                 <Box height={400} >
                     {/* <Formik
@@ -861,7 +1046,11 @@ export function AdvancedInput({
                 <>
                     <Box sx={toolbarRowStyles}>
                         <IconButton onClick={handleOpenInfoMemo} sx={{ padding: "4px", opacity: 0.5 }}>
-                            <InfoIcon fill={theme.palette.background.textSecondary} />
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Info"
+                            />
                         </IconButton>
                         <Typography variant="body2" ml={1} color="text.secondary">
                             [Toolbar placeholder: Bold, Italic, Link, etc.]
@@ -874,15 +1063,18 @@ export function AdvancedInput({
                                 item={item}
                                 imgStyle={imgStyle}
                                 onRemove={handleRemoveContextItem}
-                                theme={theme}
                             />
                         ))}
                     </Box>
                 </>
             ) : (
                 <Box sx={topRowStyles}>
-                    <IconButton onClick={handleOpenInfoMemo} sx={{ padding: "4px", opacity: 0.5 }}>
-                        <InfoIcon fill={theme.palette.background.textSecondary} />
+                    <IconButton onClick={handleOpenInfoMemo} sx={infoButtonStyle}>
+                        <IconCommon
+                            decorative
+                            fill="background.textSecondary"
+                            name="Info"
+                        />
                     </IconButton>
                     {sortedContextData.map((item) => (
                         <ContextItemDisplay
@@ -890,7 +1082,6 @@ export function AdvancedInput({
                             item={item}
                             imgStyle={imgStyle}
                             onRemove={handleRemoveContextItem}
-                            theme={theme}
                         />
                     ))}
                 </Box>
@@ -906,12 +1097,15 @@ export function AdvancedInput({
                     </Box>
                 ) : (
                     <InputBase
+                        inputProps={{
+                            className: "advanced-input-field",
+                        }}
                         multiline
                         fullWidth
                         minRows={1}
                         maxRows={6}
-                        value={textValue}
-                        onChange={handleInputChange}
+                        value={localMessage}
+                        onChange={handleMessageChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Type your message..."
                     />
@@ -922,7 +1116,11 @@ export function AdvancedInput({
             <Box sx={bottomRowStyles}>
                 <Box ref={toolsContainerRef} sx={toolsContainerStyles}>
                     <StyledIconButton disabled={false} onClick={handleOpenPlusMenu}>
-                        <AddIcon fill={theme.palette.background.textSecondary} />
+                        <IconCommon
+                            decorative
+                            fill="background.textSecondary"
+                            name="Add"
+                        />
                     </StyledIconButton>
                     {tools.map((tool, index) => {
                         function onToggleTool() {
@@ -941,7 +1139,10 @@ export function AdvancedInput({
                         return (
                             <>
                                 {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
-                                    <EllipsisIcon />
+                                    <IconCommon
+                                        decorative
+                                        name="Ellipsis"
+                                    />
                                 </ShowHideIconButton>}
                                 <ToolChip
                                     {...tool}
@@ -953,7 +1154,10 @@ export function AdvancedInput({
                                     onToggleTool={onToggleTool}
                                 />
                                 {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
-                                    <InvisibleIcon />
+                                    <IconCommon
+                                        decorative
+                                        name="Invisible"
+                                    />
                                 </ShowHideIconButton>}
                             </>
                         );
@@ -995,18 +1199,20 @@ export function AdvancedInput({
                                         ? theme.palette.background.textPrimary
                                         : theme.palette.primary.main
                                 }
-                                disabled={!textValue.trim() || charsOverLimit > 0}
-                                onClick={handleSend}
+                                disabled={!localMessage.trim() || charsOverLimit > 0}
+                                onClick={handleSubmit}
                             >
-                                <SendIcon
-                                    fill={!textValue.trim()
-                                        ? theme.palette.background.textSecondary
+                                <IconCommon
+                                    decorative
+                                    fill={!localMessage.trim()
+                                        ? "background.textSecondary"
                                         : maxChars
-                                            ? theme.palette.background.textPrimary
+                                            ? "background.textPrimary"
                                             : theme.palette.mode === "dark"
-                                                ? theme.palette.background.default
-                                                : theme.palette.primary.contrastText
+                                                ? "background.default"
+                                                : "primary.contrastText"
                                     }
+                                    name="Send"
                                 />
                             </StyledIconButton>}
                         </Box>

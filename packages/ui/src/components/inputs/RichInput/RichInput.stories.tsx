@@ -1,7 +1,6 @@
 import { action } from "@storybook/addon-actions";
 import { useMemo, useState } from "react";
 import { ActiveChatContext, SessionContext } from "../../../contexts.js";
-import { BoldIcon, ItalicIcon } from "../../../icons/common.js";
 import { RichInputBase } from "./RichInput.js";
 
 // Mock contexts
@@ -74,12 +73,12 @@ export function WithActionButtons() {
     const [value, setValue] = useState("");
     const actionButtons = useMemo(() => [
         {
-            Icon: BoldIcon,
+            iconInfo: { name: "Bold", type: "Text" } as const,
             onClick: action("bold-clicked"),
             tooltip: "Bold",
         },
         {
-            Icon: ItalicIcon,
+            iconInfo: { name: "Italic", type: "Text" } as const,
             onClick: action("italic-clicked"),
             tooltip: "Italic",
         },
