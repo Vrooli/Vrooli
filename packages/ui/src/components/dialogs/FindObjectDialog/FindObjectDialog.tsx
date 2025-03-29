@@ -1,5 +1,5 @@
 import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, funcFalse, getObjectUrl } from "@local/shared";
-import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
@@ -9,7 +9,6 @@ import { useTabs } from "../../../hooks/useTabs.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { removeSearchParams } from "../../../route/searchParams.js";
-import { SideActionsButton } from "../../../styles.js";
 import { CrudProps } from "../../../types.js";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
@@ -483,14 +482,12 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                     </Stack>
                 )}
                 <SideActionsButtons display="dialog">
-                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Add"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton
+                        aria-label="create-new"
+                        onClick={onCreateStart}
+                    >
+                        <IconCommon name="Add" />
+                    </IconButton>
                 </SideActionsButtons>
             </LargeDialog>
         </>

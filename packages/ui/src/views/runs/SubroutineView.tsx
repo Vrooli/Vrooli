@@ -2,8 +2,8 @@ import { FormBuilder, ResourceListShape, ResourceList as ResourceListType, Routi
 import { Box, Stack } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
-import { TextCollapse } from "../../components/containers/TextCollapse/TextCollapse.js";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
+import { TextCollapse } from "../../components/containers/TextCollapse.js";
 import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
 import { TagList } from "../../components/lists/TagList/TagList.js";

@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
-import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../components/containers/ListContainer.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsToggleListItem } from "../../components/lists/SettingsToggleListItem/SettingsToggleListItem.js";
 import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";

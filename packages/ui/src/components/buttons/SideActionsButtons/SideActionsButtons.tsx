@@ -32,6 +32,22 @@ const OuterBox = styled(Box, {
         marginBottom: `calc(16px + ${isMobile && display === "page" ? "56px" : "0px"} + env(safe-area-inset-bottom))!important`,
         pointerEvents: "auto",
     },
+    "& button": {
+        background: theme.palette.secondary.main,
+        opacity: 0.8,
+        width: "54px",
+        height: "54px",
+        padding: 0,
+        transition: "opacity 0.2s ease-in-out",
+        "&:hover": {
+            opacity: 1,
+        },
+        "& svg": {
+            fill: theme.palette.secondary.contrastText,
+            width: "36px",
+            height: "36px",
+        },
+    },
     ...(sx ?? {}),
 } as any));
 

@@ -1,5 +1,5 @@
 import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
-import { useTheme } from "@mui/material";
+import { IconButton } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
@@ -11,7 +11,6 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { SideActionsButton } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -29,7 +28,6 @@ export function SearchVersionView({
 }: SearchVersionViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -85,28 +83,19 @@ export function SearchVersionView({
                 scrollContainerId={scrollContainerId}
             />}
             <SideActionsButtons display={display}>
-                <SideActionsButton
+                <IconButton
                     aria-label={t("FilterList")}
                     onClick={focusSearch}
                 >
-                    <IconCommon
-                        decorative
-                        fill={palette.secondary.contrastText}
-                        name="Search"
-                        size={36}
-                    />
-                </SideActionsButton>
+                    <IconCommon name="Search" />
+                </IconButton>
                 {userId ? (
-                    <SideActionsButton
+                    <IconButton
                         aria-label={t("Add")}
                         onClick={onCreateStart}
                     >
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Add"
-                        />
-                    </SideActionsButton>
+                        <IconCommon name="Add" />
+                    </IconButton>
                 ) : null}
             </SideActionsButtons>
         </SearchListScrollContainer>

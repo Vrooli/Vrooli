@@ -5,10 +5,10 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { AddIcon, CompleteIcon, DeleteIcon, EmailIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../containers/ListContainer.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { EmailListItemProps, EmailListProps } from "./types.js";
 
@@ -42,7 +42,7 @@ export function EmailListItem({
             }}
         >
             {/* Left informational column */}
-            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
+            <Stack direction="column" spacing={1} pl={2} mr="auto">
                 <ListItemText
                     primary={data.emailAddress}
                     sx={{ ...multiLineEllipsis(1) }}
@@ -69,14 +69,22 @@ export function EmailListItem({
                     <IconButton
                         onClick={onVerify}
                     >
-                        <CompleteIcon fill={palette.error.main} />
+                        <IconCommon
+                            decorative
+                            fill="error.main"
+                            name="Complete"
+                        />
                     </IconButton>
                 </Tooltip>}
                 <Tooltip title={t("EmailDelete")}>
                     <IconButton
                         onClick={onDelete}
                     >
-                        <DeleteIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill="secondary.main"
+                            name="Delete"
+                        />
                     </IconButton>
                 </Tooltip>
             </Stack>
@@ -87,7 +95,10 @@ export function EmailListItem({
 const emailInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <EmailIcon />
+            <IconCommon
+                decorative
+                name="Email"
+            />
         </InputAdornment>
     ),
 } as const;
@@ -217,7 +228,10 @@ export function EmailList({
                         borderRadius: "0 5px 5px 0",
                         height: "56px",
                     }}>
-                    <AddIcon />
+                    <IconCommon
+                        decorative
+                        name="Add"
+                    />
                 </IconButton>
             </Stack>
         </form>

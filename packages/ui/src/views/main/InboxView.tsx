@@ -1,10 +1,10 @@
 import { Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
-import { Tooltip, useTheme } from "@mui/material";
+import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { ObjectListActions } from "../../components/lists/types.js";
@@ -18,7 +18,7 @@ import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { pagePaddingBottom, SideActionsButton } from "../../styles.js";
+import { pagePaddingBottom } from "../../styles.js";
 import { ArgsType } from "../../types.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { DUMMY_LIST_LENGTH } from "../../utils/consts.js";
@@ -28,6 +28,7 @@ import { InboxViewProps } from "./types.js";
 type InboxObject = Chat | Notification;
 
 const scrollContainerId = "inbox-scroll-container";
+const cancelIconInfo = { name: "Cancel", type: "Common" } as const;
 
 export function InboxView({
     display,
@@ -157,7 +158,7 @@ export function InboxView({
             </ListContainer>
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <SideActionsButton
+                    <IconButton
                         aria-label={t("Delete")}
                         onClick={handleDelete}
                     >
@@ -167,38 +168,23 @@ export function InboxView({
                             name="Delete"
                             size={36}
                         />
-                    </SideActionsButton>
+                    </IconButton>
                 </Tooltip> : null}
                 <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <SideActionsButton
+                    <IconButton
                         aria-label={t(isSelecting ? "Cancel" : "Select")}
                         onClick={handleToggleSelecting}
                     >
-                        {isSelecting ? <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Cancel"
-                            size={36}
-                        /> : <Icon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            info={actionButtonIconInfo}
-                            size={36}
-                        />}
-                    </SideActionsButton>
+                        <Icon info={isSelecting ? cancelIconInfo : actionButtonIconInfo} />
+                    </IconButton>
                 </Tooltip>
                 {!isSelecting ? <Tooltip title={t(actionTooltip)}>
-                    <SideActionsButton
+                    <IconButton
                         aria-label={t(actionTooltip)}
                         onClick={onActionButtonPress}
                     >
-                        <Icon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            info={actionButtonIconInfo}
-                            size={36}
-                        />
-                    </SideActionsButton>
+                        <Icon info={actionButtonIconInfo} />
+                    </IconButton>
                 </Tooltip> : null}
             </SideActionsButtons>
         </SearchListScrollContainer>

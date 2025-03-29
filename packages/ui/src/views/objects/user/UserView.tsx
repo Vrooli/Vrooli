@@ -23,10 +23,11 @@ import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useTabs } from "../../../hooks/useTabs.js";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, SearchIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { BotIcon, CommentIcon, EllipsisIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
-import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "../../../styles.js";
+import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox } from "../../../styles.js";
 import { PartialWithType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
@@ -509,21 +510,36 @@ export function UserView({
                 </Box>}
             </Box>
             <SideActionsButtons display={display}>
-                {currTab.key !== UserPageTabOption.Details ? <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton> : null}
-                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={startActionEdit}>
-                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton> : null}
-                <SideActionsButton aria-label={t("Share")} onClick={startActionShare}>
-                    <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
-                </SideActionsButton>
-                <SideActionsButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite}>
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton>
-                <SideActionsButton aria-label={t("MessageSend")} onClick={handleStartChat}>
-                    <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton>
+                {currTab.key !== UserPageTabOption.Details ? <IconButton
+                    aria-label={t("FilterList")}
+                    onClick={toggleSearchFilters}
+                >
+                    <IconCommon name="Search" />
+                </IconButton> : null}
+                {permissions.canUpdate ? <IconButton
+                    aria-label={t("Edit")}
+                    onClick={startActionEdit}
+                >
+                    <IconCommon name="Edit" />
+                </IconButton> : null}
+                <IconButton
+                    aria-label={t("Share")}
+                    onClick={startActionShare}
+                >
+                    <IconCommon name="Export" />
+                </IconButton>
+                <IconButton
+                    aria-label={t("AddToTeam")}
+                    onClick={handleAddOrInvite}
+                >
+                    <IconCommon name="Add" />
+                </IconButton>
+                <IconButton
+                    aria-label={t("MessageSend")}
+                    onClick={handleStartChat}
+                >
+                    <IconCommon name="Comment" />
+                </IconButton>
             </SideActionsButtons>
         </ScrollBox>
     );

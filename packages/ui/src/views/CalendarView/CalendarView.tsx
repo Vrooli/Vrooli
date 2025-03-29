@@ -14,7 +14,7 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { bottomNavHeight, SideActionsButton } from "../../styles.js";
+import { bottomNavHeight } from "../../styles.js";
 import { PartialWithType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
@@ -567,17 +567,12 @@ export function CalendarView({
                 />
             </FlexContainer>
             <SideActionsButtons display={display}>
-                <SideActionsButton
+                <IconButton
                     aria-label={t("CreateEvent")}
                     onClick={handleAddSchedule}
                 >
-                    <IconCommon
-                        decorative
-                        fill={palette.secondary.contrastText}
-                        name="Add"
-                        size={36}
-                    />
-                </SideActionsButton>
+                    <IconCommon name="Add" />
+                </IconButton>
             </SideActionsButtons>
         </Box>
     );

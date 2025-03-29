@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
-import { TitleContainer } from "../../components/containers/TitleContainer/TitleContainer.js";
+import { TitleContainer } from "../../components/containers/TitleContainer.js";
 import { TitleContainerProps } from "../../components/containers/types.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { FocusModeInfo, useFocusModesStore } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";

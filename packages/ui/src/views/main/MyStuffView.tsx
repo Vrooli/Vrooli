@@ -1,5 +1,5 @@
 import { ListObject, ModelType, SearchType, getObjectUrlBase, uuidValidate } from "@local/shared";
-import { ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
+import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
@@ -14,7 +14,6 @@ import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { SideActionsButton } from "../../styles.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
@@ -176,48 +175,28 @@ export function MyStuffView({
             />}
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <SideActionsButton
+                    <IconButton
                         aria-label={t("Delete")}
                         onClick={startBulkDelete}
                     >
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Delete"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                        <IconCommon name="Delete" />
+                    </IconButton>
                 </Tooltip> : null}
                 <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <SideActionsButton
+                    <IconButton
                         aria-label={t(isSelecting ? "Cancel" : "Select")}
                         onClick={handleToggleSelecting}
                     >
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name={isSelecting ? "Cancel" : "Action"}
-                            size={36}
-                        />
-                    </SideActionsButton>
+                        <IconCommon name={isSelecting ? "Cancel" : "Action"} />
+                    </IconButton>
                 </Tooltip>
-                {!isSelecting ? <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <IconCommon
-                        decorative
-                        fill={palette.secondary.contrastText}
-                        name="Search"
-                        size={36}
-                    />
-                </SideActionsButton> : null}
+                {!isSelecting ? <IconButton aria-label={t("FilterList")} onClick={focusSearch}>
+                    <IconCommon name="Search" />
+                </IconButton> : null}
                 {userId ? (
-                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Add"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Add")} onClick={onCreateStart}>
+                        <IconCommon name="Add" />
+                    </IconButton>
                 ) : null}
             </SideActionsButtons>
         </SearchListScrollContainer>

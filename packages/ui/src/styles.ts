@@ -240,17 +240,6 @@ export const CardBox = styled(Box)(({ theme }) => ({
     },
 })) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
 
-export const SideActionsButton = styled(IconButton)(({ theme }) => ({
-    background: theme.palette.secondary.main,
-    width: "54px",
-    height: "54px",
-    padding: 0,
-    "& > *": {
-        width: "36px",
-        height: "36px",
-    },
-}));
-
 export const ScrollBox = styled(Box)(() => ({
     height: "100%",
     width: "100%",

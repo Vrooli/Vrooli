@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../../api/ai.js";
 import { LoadableButton } from "../../../components/buttons/LoadableButton/LoadableButton.js";
 import { RunPickerMenu } from "../../../components/buttons/RunButton/RunButton.js";
-import { ContentCollapse } from "../../../components/containers/ContentCollapse/ContentCollapse.js";
+import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";

@@ -1,10 +1,14 @@
 import { LINKS, ModelType, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
-import { Icon, IconInfo } from "../../icons/Icons.js";
+import { Icon, IconFavicon, IconInfo } from "../../icons/Icons.js";
 import { getCookiePartialData } from "../../utils/localStorage.js";
 import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
 import { extractImageUrl } from "./imageTools.js";
 import { getDisplay, placeholderColor } from "./listTools.js";
+
+// Constants
+const ICON_SIZE = 24;
+const AVATAR_SIZE = 50;
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: IconInfo } = {
     [ResourceUsedFor.Community]: { name: "Team", type: "Common" },
@@ -22,18 +26,6 @@ export const ResourceIconMap: { [key in ResourceUsedFor]?: IconInfo } = {
     [ResourceUsedFor.Researching]: { name: "Research", type: "Common" },
     [ResourceUsedFor.Scheduling]: { name: "Schedule", type: "Common" },
     [ResourceUsedFor.Tutorial]: { name: "Help", type: "Common" },
-};
-
-export const ResourceSocialIconMap: { [key: string]: IconInfo } = {
-    "default": { name: "DefaultSocial", type: "Service" },
-    "facebook": { name: "Facebook", type: "Service" },
-    "instagram": { name: "Instagram", type: "Service" },
-    "tiktok": { name: "SocialVideo", type: "Common" },
-    "odysee": { name: "SocialVideo", type: "Common" },
-    "x": { name: "X", type: "Service" },
-    "vimeo": { name: "SocialVideo", type: "Common" },
-    "youtube": { name: "YouTube", type: "Service" },
-    "reddit": { name: "Reddit", type: "Service" },
 };
 
 const LinkIconMap: { [key in LINKS]?: IconInfo } = {
@@ -91,90 +83,96 @@ function getRoute(pathname: string): LINKS | undefined {
  */
 export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette?: Palette): JSX.Element {
     // Determine default icon
-    const defaultIcon = usedFor === ResourceUsedFor.Social ? ResourceSocialIconMap.default : (ResourceIconMap[usedFor] ?? LinkIconMap[usedFor]);
-    // Create URL object from link safely
-    let url: URL | null = null;
-    try {
-        if (link) {
-            url = new URL(link);
-        }
-    } catch (err) {
-        // Invalid URL, return default icon
-        console.error(`Invalid URL passed to getResourceIcon: ${link}`, err);
-        return defaultIcon;
-    }
-    if (!url) {
-        return defaultIcon;
-    }
-    // Find host name
-    const host = url.hostname; // eg. www.youtube.com
-    // Remove beginning of hostname (usually "www", but sometimes "m")
-    const hostParts = host.split(".").filter(p => !["www", "m"].includes(p)); // eg. ['youtube', 'com']
-    // If no host name found, return default icon
-    if (hostParts.length === 0) {
-        return defaultIcon;
-    }
-    const hostName = hostParts[0].toLowerCase();
-    // ResourceUsedFor.Context is a special case, as we can replace it with a Vrooli route's icon
-    if (usedFor === ResourceUsedFor.Context && hostName === (process.env.PROD ? "vrooli.com" : "localhost")) {
-        // Get route info
-        const route = getRoute(url.pathname);
-        const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
-        // Check if it corresponds to a cached item
-        const urlParams = parseSingleItemUrl({ href: link });
-        const cachedItem = getCookiePartialData({ __typename: routeKey as ModelType, ...urlParams }) as { __typename: ModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
-        const profileIconInfo: IconInfo = cachedItem.isBot ?
-            { name: "Bot", type: "Common" }
-            : routeKey === "User"
-                ? { name: "User", type: "Common" }
-                : { name: "Team", type: "Common" };
-        // If cached item has a profileImage, return it as an Avatar
-        if (cachedItem.profileImage) {
-            return (<Avatar
-                alt={`${getDisplay(cachedItem).title}'s profile picture`}
-                src={extractImageUrl(cachedItem.profileImage, cachedItem.updated_at, 50)}
-                sx={{
-                    backgroundColor: placeholderColor()[0],
-                    width: "24px",
-                    height: "24px",
-                    pointerEvents: "none",
-                    ...(cachedItem.isBot ? { borderRadius: "4px" } : {}),
-                }}
-            >
-                <Icon
-                    decorative
-                    fill={palette?.background?.textPrimary ?? "white"}
-                    info={profileIconInfo}
-                    size={24}
-                />
-            </Avatar>);
-        }
-        // If cached item is a bot, return bot icon
-        if ((cachedItem as { isBot?: boolean }).isBot) {
-            return <Icon
-                decorative
-                fill={palette?.background?.textPrimary ?? "white"}
-                info={profileIconInfo}
-                size={24}
-            />;
-        }
-        // Otherwise, return route icon or default icon
-        return LinkIconMap[route as LINKS] ?? defaultIcon;
-    }
-    // ResourceUsedFor.Social is a special case, as the icon depends on the url
-    if (usedFor === ResourceUsedFor.Social) {
-        const iconInfo = ResourceSocialIconMap[hostName] ?? ResourceSocialIconMap.default;
+    const defaultIcon: IconInfo = usedFor === ResourceUsedFor.Social
+        ? { name: "DefaultSocial", type: "Service" }
+        : (ResourceIconMap[usedFor] ?? LinkIconMap[usedFor] ?? { name: "Website", type: "Common" });
+
+    // If no link provided, return default icon
+    if (!link) {
         return <Icon
             decorative
             fill={palette?.background?.textPrimary ?? "white"}
-            info={iconInfo}
-            size={24}
+            info={defaultIcon}
+            size={ICON_SIZE}
         />;
     }
-    return <Icon
-        decorative
-        fill={palette?.background?.textPrimary ?? "white"}
-        info={defaultIcon}
-        size={24}
-    />;
+
+    // ResourceUsedFor.Context is a special case, as we can replace it with a Vrooli route's icon
+    try {
+        const url = new URL(link);
+        const hostName = url.hostname.split(".").filter(p => !["www", "m"].includes(p))[0]?.toLowerCase();
+
+        if (usedFor === ResourceUsedFor.Context && hostName === (process.env.PROD ? "vrooli.com" : "localhost")) {
+            // Get route info
+            const route = getRoute(url.pathname);
+            const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
+            // Check if it corresponds to a cached item
+            const urlParams = parseSingleItemUrl({ href: link });
+            const cachedItem = getCookiePartialData({ __typename: routeKey as ModelType, ...urlParams }) as { __typename: ModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
+            const profileIconInfo: IconInfo = cachedItem.isBot ?
+                { name: "Bot", type: "Common" }
+                : routeKey === "User"
+                    ? { name: "User", type: "Common" }
+                    : { name: "Team", type: "Common" };
+
+            // If cached item has a profileImage, return it as an Avatar
+            if (cachedItem.profileImage) {
+                return (<Avatar
+                    alt={`${getDisplay(cachedItem).title}'s profile picture`}
+                    src={extractImageUrl(cachedItem.profileImage, cachedItem.updated_at, AVATAR_SIZE)}
+                    sx={{
+                        backgroundColor: placeholderColor()[0],
+                        width: "24px",
+                        height: "24px",
+                        pointerEvents: "none",
+                        ...(cachedItem.isBot ? { borderRadius: "4px" } : {}),
+                    }}
+                >
+                    <Icon
+                        decorative
+                        fill={palette?.background?.textPrimary ?? "white"}
+                        info={profileIconInfo}
+                        size={ICON_SIZE}
+                    />
+                </Avatar>);
+            }
+
+            // If cached item is a bot, return bot icon
+            if (cachedItem.isBot) {
+                return <Icon
+                    decorative
+                    fill={palette?.background?.textPrimary ?? "white"}
+                    info={profileIconInfo}
+                    size={ICON_SIZE}
+                />;
+            }
+
+            // Otherwise, return route icon or default icon
+            const routeIcon = LinkIconMap[route as LINKS];
+            return <Icon
+                decorative
+                fill={palette?.background?.textPrimary ?? "white"}
+                info={routeIcon ?? defaultIcon}
+                size={ICON_SIZE}
+            />;
+        }
+
+        // For all other cases, use IconFavicon with the appropriate fallback
+        return <IconFavicon
+            href={link}
+            size={ICON_SIZE}
+            fill={palette?.background?.textPrimary ?? "white"}
+            decorative
+            fallbackIcon={defaultIcon}
+        />;
+    } catch (err) {
+        // Invalid URL, return default icon
+        console.error(`Invalid URL passed to getResourceIcon: ${link}`, err);
+        return <Icon
+            decorative
+            fill={palette?.background?.textPrimary ?? "white"}
+            info={defaultIcon}
+            size={ICON_SIZE}
+        />;
+    }
 }

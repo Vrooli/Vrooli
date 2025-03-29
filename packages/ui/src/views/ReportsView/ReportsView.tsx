@@ -4,7 +4,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { SortButton } from "../../components/buttons/SearchButtons/SearchButtons.js";
-import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectActionMenu } from "../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectListItem } from "../../components/lists/ObjectList/ObjectList.js";
 import { ReportListItem } from "../../components/lists/ReportListItem/ReportListItem.js";

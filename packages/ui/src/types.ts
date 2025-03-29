@@ -16,23 +16,6 @@ export type PartialOrArrayWithType<T> = T extends { __typename: string }[] ?
     T extends { __typename: string } ?
     PartialWithType<T> :
     never;
-export interface SvgProps {
-    className?: string;
-    fill?: string;
-    iconTitle?: string;
-    id?: string;
-    style?: {
-        [key: string]: string | number | null,
-    } & {
-        [key: `&:${string}`]: { [key: string]: string | number | null },
-        [key: `@media ${string}`]: { [key: string]: string | number | null },
-    };
-    onClick?: () => unknown;
-    width?: number | string | null;
-    height?: number | string | null;
-}
-
-export type SvgComponent = (props: SvgProps) => JSX.Element;
 
 export type FormErrors = { [key: string]: string | string[] | null | undefined | FormErrors | FormErrors[] };
 

@@ -11,7 +11,7 @@ import { ArgsType } from "../../../types.js";
 import { getDummyListLength } from "../../../utils/consts.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { SearchButtons } from "../../buttons/SearchButtons/SearchButtons.js";
-import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../containers/ListContainer.js";
 import { BasicSearchBar, PaperSearchBar } from "../../inputs/search/SiteSearchBar.js";
 import { ObjectList } from "../ObjectList/ObjectList.js";
 import { ObjectListActions, SearchListProps } from "../types.js";

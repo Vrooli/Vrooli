@@ -51,6 +51,7 @@ export function HelpButton({
     markdown,
     onMarkdownChange,
     onClick,
+    size = 24,
     sxRoot,
 }: HelpButtonProps) {
     const { palette } = useTheme();
@@ -121,6 +122,7 @@ export function HelpButton({
                                 decorative
                                 fill={palette.secondary.main}
                                 name="Help"
+                                size={size}
                             />
                         </IconButton>)
                     }

@@ -1,5 +1,5 @@
 import { ListObject, uuidValidate } from "@local/shared";
-import { Box, Button, Checkbox, Divider, FormControlLabel, Stack, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { Field } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,6 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { SideActionsButton } from "../../styles.js";
 import { memberTabParams } from "../../utils/search/objectToSearch.js";
 import { MemberManageViewProps } from "../types.js";
 
@@ -235,42 +234,27 @@ export function MemberManageView({
             switch (currTab.key) {
                 case "Members":
                     return (
-                        <SideActionsButton aria-label={t("RemoveMembers")} onClick={handleRemoveMembers}>
-                            <IconCommon
-                                decorative
-                                fill={palette.secondary.contrastText}
-                                name="Delete"
-                                size={36}
-                            />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("RemoveMembers")} onClick={handleRemoveMembers}>
+                            <IconCommon name="Delete" />
+                        </IconButton>
                     );
                 case "Invites":
                     return (
-                        <SideActionsButton aria-label={t("CancelInvites")} onClick={handleCancelInvites}>
-                            <IconCommon
-                                decorative
-                                fill={palette.secondary.contrastText}
-                                name="Delete"
-                                size={36}
-                            />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("CancelInvites")} onClick={handleCancelInvites}>
+                            <IconCommon name="Delete" />
+                        </IconButton>
                     );
                 case "NonMembers":
                     return (
-                        <SideActionsButton aria-label={t("InviteMembers")} onClick={handleInviteMembers}>
-                            <IconCommon
-                                decorative
-                                fill={palette.secondary.contrastText}
-                                name="Add"
-                                size={36}
-                            />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("InviteMembers")} onClick={handleInviteMembers}>
+                            <IconCommon name="Add" />
+                        </IconButton>
                     );
             }
         }
 
         return null;
-    }, [currTab.key, isSelecting, selectedData.length, palette.secondary.contrastText, t, handleRemoveMembers, handleCancelInvites, handleInviteMembers]);
+    }, [currTab.key, isSelecting, selectedData.length, t, handleRemoveMembers, handleCancelInvites, handleInviteMembers]);
 
 
     return (
@@ -306,23 +290,13 @@ export function MemberManageView({
                 {renderTabContent}
                 <SideActionsButtons display={display}>
                     {renderActionButtons}
-                    <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name={isSelecting ? "Cancel" : "Action"}
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
+                        <IconCommon name={isSelecting ? "Cancel" : "Action"} />
+                    </IconButton>
                     {!isSelecting ? (
-                        <SideActionsButton aria-label={t("Search")} onClick={toggleSearchFilters}>
-                            <IconCommon
-                                decorative
-                                fill={palette.secondary.contrastText}
-                                name="Search"
-                                size={36}
-                            />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("Search")} onClick={toggleSearchFilters}>
+                            <IconCommon name="Search" />
+                        </IconButton>
                     ) : null}
                 </SideActionsButtons>
             </SearchListScrollContainer>

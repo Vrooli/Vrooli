@@ -1,11 +1,11 @@
 import { CommentFor, ResourceListShape, StandardShape, StandardVersion, TagShape, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
-import { Box, Stack, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { CommentContainer } from "../../../components/containers/CommentContainer/CommentContainer.js";
-import { TextCollapse } from "../../../components/containers/TextCollapse/TextCollapse.js";
+import { CommentContainer } from "../../../components/containers/CommentContainer.js";
+import { TextCollapse } from "../../../components/containers/TextCollapse.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
@@ -17,9 +17,9 @@ import { VersionDisplay } from "../../../components/text/VersionDisplay.js";
 import { SessionContext } from "../../../contexts.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { EditIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
-import { FormSection, SideActionsButton } from "../../../styles.js";
+import { FormSection } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
@@ -172,9 +172,9 @@ export function PromptView({
             <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <SideActionsButton aria-label={t("UpdatePrompt")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("UpdatePrompt")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
+                        <IconCommon name="Edit" />
+                    </IconButton>
                 ) : null}
             </SideActionsButtons>
         </>

@@ -20,9 +20,10 @@ import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTabs } from "../../../hooks/useTabs.js";
-import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { EllipsisIcon, TeamIcon } from "../../../icons/common.js";
 import { useLocation } from "../../../route/router.js";
-import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "../../../styles.js";
+import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox } from "../../../styles.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
@@ -275,15 +276,24 @@ export function TeamView({
             </Box>
             <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
-                {currTab.key !== TeamPageTabOption.Resource ? <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton> : null}
-                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }}>
-                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton> : null}
-                <SideActionsButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }}>
-                    <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
-                </SideActionsButton>
+                {currTab.key !== TeamPageTabOption.Resource ? <IconButton
+                    aria-label={t("FilterList")}
+                    onClick={toggleSearchFilters}
+                >
+                    <IconCommon name="Search" />
+                </IconButton> : null}
+                {permissions.canUpdate ? <IconButton
+                    aria-label={t("Edit")}
+                    onClick={() => { actionData.onActionStart("Edit"); }}
+                >
+                    <IconCommon name="Edit" />
+                </IconButton> : null}
+                <IconButton
+                    aria-label={t("Share")}
+                    onClick={() => { actionData.onActionStart("Share"); }}
+                >
+                    <IconCommon name="Export" />
+                </IconButton>
             </SideActionsButtons>
         </ScrollBox>
     );

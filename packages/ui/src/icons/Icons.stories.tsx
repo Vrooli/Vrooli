@@ -1,7 +1,7 @@
 import { Box, Button, ButtonGroup, IconButton, InputAdornment, Slider, Stack, TextField, Tooltip } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import React, { useEffect, useRef, useState } from "react";
-import { IconCommon, IconRoutine, IconService, IconText } from "./Icons.js";
+import { IconCommon, IconFavicon, IconInfo, IconRoutine, IconService, IconText } from "./Icons.js";
 import { iconNames as commonIconNames } from "./types/commonIcons.js";
 import { iconNames as routineIconNames } from "./types/routineIcons.js";
 import { iconNames as serviceIconNames } from "./types/serviceIcons.js";
@@ -666,6 +666,172 @@ AllIcons.parameters = {
     docs: {
         description: {
             story: "A comprehensive display of all available icons across all categories: Common, Routine, Service, and Text icons.",
+        },
+    },
+};
+
+// Add IconFavicon story
+export function Favicons() {
+    const validUrls = [
+        "https://vrooli.com",
+        "https://www.google.com",
+        "https://github.com",
+        "https://facebook.com",
+        "https://twitter.com",
+        "https://linkedin.com",
+    ];
+
+    const invalidUrls = [
+        "not-a-url",
+        "mailto:user@example.com",
+        "tel:+1234567890",
+        "",
+    ];
+
+    const customFallbacks: IconInfo[] = [
+        { name: "Website", type: "Common" },
+        { name: "Bot", type: "Common" },
+        { name: "User", type: "Common" },
+        { name: "Team", type: "Common" },
+    ];
+
+    return (
+        <Stack spacing={4}>
+            <Box>
+                <h3>Valid Website Favicons</h3>
+                <Stack direction="row" spacing={4} alignItems="center">
+                    {validUrls.map((url) => (
+                        <Stack key={url} alignItems="center">
+                            <IconFavicon href={url} size={24} />
+                            <Box sx={labelStyle}>{new URL(url).hostname}</Box>
+                        </Stack>
+                    ))}
+                </Stack>
+            </Box>
+
+            <Box>
+                <h3>Invalid URLs (Default Fallback Icon)</h3>
+                <Stack direction="row" spacing={4} alignItems="center">
+                    {invalidUrls.map((url) => (
+                        <Stack key={url} alignItems="center">
+                            <IconFavicon href={url} size={24} />
+                            <Box sx={labelStyle}>{url || "(empty string)"}</Box>
+                        </Stack>
+                    ))}
+                </Stack>
+            </Box>
+
+            <Box>
+                <h3>Custom Fallback Icons</h3>
+                <Stack direction="row" spacing={4} alignItems="center">
+                    {customFallbacks.map((fallbackIcon) => (
+                        <Stack key={`${fallbackIcon.type}-${fallbackIcon.name}`} alignItems="center">
+                            <IconFavicon
+                                href="not-a-url"
+                                size={24}
+                                fallbackIcon={fallbackIcon}
+                            />
+                            <Box sx={labelStyle}>{fallbackIcon.name}</Box>
+                        </Stack>
+                    ))}
+                </Stack>
+            </Box>
+
+            <Box>
+                <h3>Custom Styling</h3>
+                <Stack direction="row" spacing={4} alignItems="center">
+                    <Stack alignItems="center">
+                        <IconFavicon
+                            href="https://github.com"
+                            size={32}
+                            fill="primary"
+                        />
+                        <Box sx={labelStyle}>Primary Color</Box>
+                    </Stack>
+                    <Stack alignItems="center">
+                        <IconFavicon
+                            href="https://github.com"
+                            size={32}
+                            fill="#FF5733"
+                        />
+                        <Box sx={labelStyle}>Custom Color</Box>
+                    </Stack>
+                    <Stack alignItems="center">
+                        <IconFavicon
+                            href="https://github.com"
+                            size={48}
+                            style={shadowAndScaleStyle}
+                        />
+                        <Box sx={labelStyle}>With Shadow & Scale</Box>
+                    </Stack>
+                    <Stack alignItems="center">
+                        <IconFavicon
+                            href="https://github.com"
+                            size={32}
+                            style={spinAnimationStyle}
+                        />
+                        <Box sx={labelStyle}>Animated</Box>
+                        <style>{spinKeyframes}</style>
+                    </Stack>
+                </Stack>
+            </Box>
+
+            <Box>
+                <h3>Accessibility Examples</h3>
+                <Stack direction="row" spacing={4} alignItems="center">
+                    <Stack alignItems="center">
+                        <IconFavicon
+                            href="https://github.com"
+                            size={24}
+                            decorative={true}
+                        />
+                        <Box sx={labelStyle}>Decorative (hidden from screen readers)</Box>
+                    </Stack>
+                    <Stack alignItems="center">
+                        <IconFavicon
+                            href="https://github.com"
+                            size={24}
+                            decorative={false}
+                            aria-label="GitHub favicon"
+                        />
+                        <Box sx={labelStyle}>With aria-label</Box>
+                    </Stack>
+                </Stack>
+            </Box>
+
+            <Box>
+                <h3>In Components</h3>
+                <Stack direction="row" spacing={4} alignItems="center">
+                    <Button
+                        variant="contained"
+                        startIcon={
+                            <IconFavicon href="https://github.com" size={16} />
+                        }
+                    >
+                        Open in GitHub
+                    </Button>
+                    <TextField
+                        label="Website URL"
+                        defaultValue="https://github.com"
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <IconFavicon href="https://github.com" size={16} />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={searchFieldContainerStyle}
+                    />
+                </Stack>
+            </Box>
+        </Stack>
+    );
+}
+
+Favicons.parameters = {
+    docs: {
+        description: {
+            story: "IconFavicon component for displaying website favicons with various configurations and use cases.",
         },
     },
 }; 

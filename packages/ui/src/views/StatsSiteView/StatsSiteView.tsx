@@ -2,7 +2,7 @@ import { DAYS_1_MS, endpointsStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, 
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { DateRangeMenu } from "../../components/lists/DateRangeMenu/DateRangeMenu.js";
 import { LineGraphCard } from "../../components/lists/LineGraphCard/LineGraphCard.js";

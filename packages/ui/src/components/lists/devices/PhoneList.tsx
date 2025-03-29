@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { AddIcon, DeleteIcon, RefreshIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../containers/ListContainer.js";
 import { PhoneNumberInputBase } from "../../inputs/PhoneNumberInput/PhoneNumberInput.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { PhoneListItemProps, PhoneListProps } from "./types.js";
@@ -86,7 +86,10 @@ export function PhoneListItem({
                             borderRadius: "0 5px 5px 0",
                             height: "56px",
                         }}>
-                        <RefreshIcon />
+                        <IconCommon
+                            decorative
+                            name="Refresh"
+                        />
                     </IconButton>
                 </span>
             </Tooltip>
@@ -139,7 +142,11 @@ export function PhoneListItem({
                             <IconButton
                                 onClick={onDelete}
                             >
-                                <DeleteIcon fill={palette.secondary.main} />
+                                <IconCommon
+                                    decorative
+                                    fill="secondary.main"
+                                    name="Delete"
+                                />
                             </IconButton>
                         </Tooltip>
                     </Stack>
@@ -293,7 +300,10 @@ export function PhoneList({
                         borderRadius: "0 5px 5px 0",
                         height: "56px",
                     }}>
-                    <AddIcon />
+                    <IconCommon
+                        decorative
+                        name="Add"
+                    />
                 </IconButton>
             </Stack>
         </form>

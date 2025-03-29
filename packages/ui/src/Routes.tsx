@@ -65,23 +65,10 @@ const { UserView } = lazily(() => import("./views/objects/user/UserView.js"));
 const { RunView } = lazily(() => import("./views/runs/RunView.js"));
 const { ReportsView } = lazily(() => import("./views/ReportsView/ReportsView.js"));
 
-const fallbackNavbarStyle = {
-    background: (t) => t.palette.primary.dark,
-    height: "64px!important",
-    zIndex: 1000,
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-} as const;
-
 /**
  * Fallback displayed while route is being loaded.
  */
 const Fallback = <Box>
-    {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
-    <Box sx={fallbackNavbarStyle} />
-    {/* Loading spinner */}
     <FullPageSpinner />
 </Box>;
 

@@ -3,13 +3,13 @@ import { Box, Button, IconButton, ListItem, ListItemText, Stack, TextField, Tool
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { AddIcon, DeleteIcon, EditIcon, SendIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { setupPush } from "../../../utils/push.js";
+import { ListContainer } from "../../containers/ListContainer.js";
 import { PushListItemProps, PushListProps } from "./types.js";
 
 const InformationalColumn = styled(Box)(({ theme }) => ({
@@ -113,7 +113,11 @@ export function PushListItem({
                             onClick={startEditingLabel}
                         />
                         <IconButton onClick={startEditingLabel}>
-                            <EditIcon fill={palette.secondary.main} />
+                            <IconCommon
+                                decorative
+                                fill="secondary.main"
+                                name="Edit"
+                            />
                         </IconButton>
                     </Box>
                 )}
@@ -121,12 +125,20 @@ export function PushListItem({
             <Stack direction="row" spacing={1}>
                 <Tooltip title={"Send test notification"}>
                     <IconButton onClick={onTestPush}>
-                        <SendIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill="secondary.main"
+                            name="Send"
+                        />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={"Delete push device"}>
                     <IconButton onClick={onDelete}>
-                        <DeleteIcon fill={palette.error.main} />
+                        <IconCommon
+                            decorative
+                            fill="error.main"
+                            name="Delete"
+                        />
                     </IconButton>
                 </Tooltip>
             </Stack>
@@ -224,7 +236,10 @@ export function PushList({
                 disabled={loadingAdd}
                 fullWidth
                 onClick={handleAdd}
-                startIcon={<AddIcon />}
+                startIcon={<IconCommon
+                    decorative
+                    name="Add"
+                />}
                 variant="outlined"
                 sx={addButtonStyle}
             >{t("AddThisDevice")}</Button>

@@ -54,6 +54,8 @@ export interface HelpButtonProps extends ButtonProps {
     onMarkdownChange?: (markdown: string) => unknown;
     /** On click event. Not needed to open the menu */
     onClick?: (event: React.MouseEvent) => unknown;
+    /** Size of the button */
+    size?: number;
     /** Style applied to the root element */
     sxRoot?: object;
 }

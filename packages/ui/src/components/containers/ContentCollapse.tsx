@@ -1,9 +1,9 @@
 import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IconCommon } from "../../../icons/Icons.js";
-import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
-import { ContentCollapseProps } from "../types.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { HelpButton } from "../buttons/HelpButton/HelpButton.js";
+import { ContentCollapseProps } from "./types.js";
 
 export function ContentCollapse({
     children,
@@ -58,7 +58,6 @@ export function ContentCollapse({
                 <Typography component={titleComponent ?? "h6"} variant={titleVariant ?? "h6"}>{titleText}</Typography>
                 {helpText && <HelpButton
                     markdown={helpText}
-                    sx={sxs?.helpButton}
                 />}
                 {!disableCollapse && <IconButton
                     id={`toggle-expand-icon-button-${title}`}

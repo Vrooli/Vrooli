@@ -4,7 +4,7 @@ import { TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
-import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../components/navigation/TopBar.js";

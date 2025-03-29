@@ -163,3 +163,86 @@ export const Icon = forwardRef<SVGSVGElement, IconProps>(({
     return <IconBase ref={ref} href={href} {...props} />;
 });
 Icon.displayName = "Icon";
+
+type IconFaviconProps = {
+    /** The URL to fetch the favicon for */
+    href: string;
+    /** The size of the icon in pixels */
+    size?: number | null | undefined;
+    /** The color to fill the fallback icon with */
+    fill?: string | null | undefined;
+    /** Whether the icon is decorative (for accessibility) */
+    decorative?: boolean | null | undefined;
+    /** Additional style properties */
+    style?: React.CSSProperties;
+    /** CSS class name */
+    className?: string;
+    /** ARIA label for accessibility */
+    "aria-label"?: string;
+    /** ARIA hidden attribute */
+    "aria-hidden"?: boolean;
+    /** Custom fallback icon info. If not provided, uses the Website icon */
+    fallbackIcon?: IconInfo;
+};
+
+export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
+    href,
+    size = DEFAULT_SIZE_PX,
+    style,
+    className,
+    "aria-label": ariaLabel,
+    "aria-hidden": ariaHidden,
+    decorative = DEFAULT_DECORATIVE,
+    fill,
+    fallbackIcon,
+    ...props
+}, ref) => {
+    // Extract the domain from the URL
+    let domain;
+    try {
+        const urlObj = new URL(href);
+        domain = urlObj.hostname; // e.g., "www.example.com"
+    } catch (e) {
+        console.error(`[IconFavicon] Invalid URL: ${href}`, e);
+        domain = null; // Handle non-website URLs like "mailto:"
+    }
+
+    // If we have a valid domain, render an img element
+    if (domain) {
+        const finalSize = size ?? DEFAULT_SIZE_PX;
+        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=${finalSize}`;
+        return (
+            <img
+                ref={ref as React.Ref<HTMLImageElement>}
+                src={faviconUrl}
+                width={finalSize}
+                height={finalSize}
+                style={style}
+                className={className}
+                aria-hidden={decorative && ariaHidden !== false ? "true" : undefined}
+                alt={!decorative ? ariaLabel : ""}
+            />
+        );
+    }
+
+    // For invalid URLs, render the fallback icon using IconBase
+    const fallbackHref = fallbackIcon
+        ? `${typeToHrefMap[fallbackIcon.type]}#${fallbackIcon.name}`
+        : `${commonSpriteHref}#Website`;
+
+    return (
+        <IconBase
+            ref={ref as React.Ref<SVGSVGElement>}
+            href={fallbackHref}
+            size={size}
+            style={style}
+            className={className}
+            aria-label={ariaLabel}
+            aria-hidden={ariaHidden}
+            decorative={decorative}
+            fill={fill}
+            {...props}
+        />
+    );
+});
+IconFavicon.displayName = "IconFavicon";

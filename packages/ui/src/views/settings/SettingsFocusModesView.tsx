@@ -3,7 +3,7 @@ import { Box, Button, Chip, Divider, IconButton, ListItem, ListItemProps, ListIt
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../components/containers/ListContainer.js";
 import { FocusModeInfo, useFocusModesStore } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { TagSelectorBase } from "../../components/inputs/TagSelector/TagSelector.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";

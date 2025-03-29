@@ -5,7 +5,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
-import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../components/containers/ListContainer.js";
 import { IntegerInput } from "../../components/inputs/IntegerInput/IntegerInput.js";
 import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PushList } from "../../components/lists/devices/PushList.js";

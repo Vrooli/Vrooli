@@ -1,10 +1,10 @@
 import { CommentFor, endpointsQuestion, exists, Question, Tag, TagShape } from "@local/shared";
-import { Stack, useTheme } from "@mui/material";
+import { IconButton, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { CommentContainer } from "../../../components/containers/CommentContainer/CommentContainer.js";
+import { CommentContainer } from "../../../components/containers/CommentContainer.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
@@ -17,7 +17,7 @@ import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
-import { FormSection, SideActionsButton } from "../../../styles.js";
+import { FormSection } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
@@ -133,14 +133,12 @@ export function QuestionView({
             <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <SideActionsButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Edit"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton
+                        aria-label={t("UpdateQuestion")}
+                        onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}
+                    >
+                        <IconCommon name="Edit" />
+                    </IconButton>
                 ) : null}
             </SideActionsButtons>
         </>

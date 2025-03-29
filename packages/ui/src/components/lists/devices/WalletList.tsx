@@ -3,13 +3,13 @@ import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useThe
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
 import { WalletInstallDialog, WalletSelectDialog } from "../../../components/dialogs/auth.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { AddIcon, CompleteIcon, DeleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { hasWalletExtension, validateWallet } from "../../../utils/authentication/walletIntegration.js";
 import { PubSub } from "../../../utils/pubsub.js";
+import { ListContainer } from "../../containers/ListContainer.js";
 import { WalletListItemProps, WalletListProps } from "./types.js";
 
 export function WalletListItem({
@@ -49,7 +49,7 @@ export function WalletListItem({
             }}
         >
             {/* Left informational column */}
-            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
+            <Stack direction="column" spacing={1} pl={2} mr="auto">
                 <Stack direction="row" spacing={1}>
                     {/* Name (or publich address if not name) */}
                     <ListItemText
@@ -84,14 +84,22 @@ export function WalletListItem({
                     <IconButton
                         onClick={onVerify}
                     >
-                        <CompleteIcon fill={palette.error.main} />
+                        <IconCommon
+                            decorative
+                            fill="error.main"
+                            name="Complete"
+                        />
                     </IconButton>
                 </Tooltip>}
                 <Tooltip title={t("WalletDelete")}>
                     <IconButton
                         onClick={onDelete}
                     >
-                        <DeleteIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill="secondary.main"
+                            name="Delete"
+                        />
                     </IconButton>
                 </Tooltip>
             </Stack>
@@ -273,16 +281,20 @@ export function WalletList({
                 ))}
             </ListContainer>
             {/* Add new button */}
-            <Box id='add-wallet-button' sx={{
-                alignItems: "center",
-                display: "flex",
-                justifyContent: "center",
-                paddingTop: 4,
-            }}>
+            <Box
+                id='add-wallet-button'
+                alignItems="center"
+                display="flex"
+                justifyContent="center"
+                paddingTop={4}
+            >
                 <Button
                     fullWidth
                     onClick={openWalletAddDialog}
-                    startIcon={<AddIcon />}
+                    startIcon={<IconCommon
+                        decorative
+                        name="Add"
+                    />}
                     variant="outlined"
                 >{t("AddWallet")}</Button>
             </Box>

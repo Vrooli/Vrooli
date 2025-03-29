@@ -1,5 +1,5 @@
 import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, uuidValidate } from "@local/shared";
-import { Box, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
@@ -12,7 +12,6 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { SideActionsButton } from "../../styles.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { participantTabParams } from "../../utils/search/objectToSearch.js";
 import { ChatInvitesUpsert } from "../../views/objects/chatInvite/ChatInvitesUpsert.js";
@@ -107,14 +106,9 @@ export function ParticipantManageView({
         // If not selecting, show select button
         if (!isSelecting) {
             buttons.push(<Tooltip title={t("Select")}>
-                <SideActionsButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
-                    <IconCommon
-                        decorative
-                        fill={palette.secondary.contrastText}
-                        name="Select"
-                        size={36}
-                    />
-                </SideActionsButton>
+                <IconButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                    <IconCommon name="Action" />
+                </IconButton>
             </Tooltip>);
             return buttons;
         }
@@ -122,54 +116,34 @@ export function ParticipantManageView({
         if (selectedData.length > 0) {
             if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.key as ParticipantManagePageTabOption)) {
                 buttons.push(<Tooltip title={t("Delete")}>
-                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Delete"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
+                        <IconCommon name="Delete" />
+                    </IconButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.ChatInvite) {
                 buttons.push(<Tooltip title={t("Edit")}>
-                    <SideActionsButton aria-label={t("Edit")} onClick={handleInvitesUpdate}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Edit"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Edit")} onClick={handleInvitesUpdate}>
+                        <IconCommon name="Edit" />
+                    </IconButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.Add) {
                 buttons.push(<Tooltip title={t("Add")}>
-                    <SideActionsButton aria-label={t("Add")} onClick={handleInvitesCreate}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.contrastText}
-                            name="Add"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Add")} onClick={handleInvitesCreate}>
+                        <IconCommon name="Add" />
+                    </IconButton>
                 </Tooltip>);
             }
         }
         // Show cancel button to exit selection mode
         buttons.push(<Tooltip title={t("Cancel")}>
-            <SideActionsButton aria-label={t("Cancel")} onClick={handleToggleSelecting}>
-                <IconCommon
-                    decorative
-                    fill={palette.secondary.contrastText}
-                    name="Cancel"
-                    size={36}
-                />
-            </SideActionsButton>
+            <IconButton aria-label={t("Cancel")} onClick={handleToggleSelecting}>
+                <IconCommon name="Cancel" />
+            </IconButton>
         </Tooltip>);
         return buttons;
-    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
+    }, [palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
 
     return (
         <MaybeLargeDialog
@@ -206,7 +180,7 @@ export function ParticipantManageView({
                         tabs={tabs}
                     />}
                 />
-                <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
+                <Box overflow="auto" flexGrow={1}>
                     {searchType && <SearchList
                         {...findManyData}
                         display={display}

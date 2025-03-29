@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
-import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
+import { Badge, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
 import { Icon, IconInfo } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
@@ -64,7 +64,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
 
 /** Factory for creating action objects */
 function createAction(action: NavActionArray): NavAction {
-    const keys = ["label", "value", "link", "Icon", "numNotifications"];
+    const keys = ["label", "value", "link", "iconInfo", "numNotifications"];
     return action.reduce((obj, val, i) => { obj[keys[i]] = val; return obj; }, {}) as NavAction;
 }
 
@@ -97,45 +97,6 @@ export function actionsToMenu({ actions, setLocation, sx = {} }: ActionsToMenuPr
             >
                 {i18next.t(label, { count: 2 })}
             </Button>
-        );
-    });
-}
-
-// Display actions in a bottom navigation
-interface ActionsToBottomNavProps {
-    actions: NavAction[];
-    setLocation: SetLocation;
-}
-const navActionStyle = {
-    color: "white",
-    minWidth: "58px", // Default min width is too big for some screens, like closed Galaxy Fold 
-};
-export function actionsToBottomNav({ actions, setLocation }: ActionsToBottomNavProps) {
-    return actions.map(({ label, value, iconInfo, link, numNotifications }) => {
-        function handleNavActionClick(e: React.MouseEvent) {
-            e.preventDefault();
-            // Check if link is different from current location
-            const shouldScroll = link === window.location.pathname;
-            // If same, scroll to top of page instead of navigating
-            if (shouldScroll) window.scrollTo({ top: 0, behavior: "smooth" });
-            // Otherwise, navigate to link
-            else openLink(setLocation, link);
-        }
-        return (
-            <BottomNavigationAction
-                key={value}
-                label={i18next.t(label, { count: 2 })}
-                value={value}
-                href={link}
-                onClick={handleNavActionClick}
-                icon={<Badge badgeContent={numNotifications} color="error">
-                    <Icon
-                        decorative
-                        info={iconInfo}
-                    />
-                </Badge>}
-                sx={navActionStyle}
-            />
         );
     });
 }

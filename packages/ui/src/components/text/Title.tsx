@@ -2,7 +2,6 @@ import { Box, BoxProps, IconButton, Tooltip, Typography, styled, useTheme } from
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, IconInfo } from "../../icons/Icons.js";
-import { multiLineEllipsis } from "../../styles.js";
 import { SxType } from "../../types.js";
 import { fontSizeToPixels } from "../../utils/display/stringTools.js";
 import { HelpButton } from "../buttons/HelpButton/HelpButton.js";
@@ -16,6 +15,7 @@ interface OuterBoxProps extends BoxProps {
 const OuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "addSidePadding" && prop !== "numberOfLines" && prop !== "stackSx",
 })<OuterBoxProps>(({ addSidePadding, numberOfLines, stackSx, theme }) => ({
+    color: theme.palette.text.secondary,
     display: "flex",
     flexDirection: numberOfLines >= 2 ? "column" : "row",
     justifyContent: "flex-start",
@@ -27,6 +27,7 @@ const OuterBox = styled(Box, {
     wordBreak: "break-word",
     ...(stackSx as object),
 }));
+const iconStyle = { marginRight: "8px" } as const;
 
 export function Title({
     addSidePadding = true,
@@ -78,19 +79,13 @@ export function Title({
                     fill={palette.background.textPrimary}
                     info={iconInfo}
                     size={30}
-                    style={{ marginRight: 8 }}
+                    style={iconStyle}
                 />}
                 {/* Title */}
                 {titleComponent ?? <Typography
                     ref={textRef}
                     component={variant === "header" ? "h1" : variant === "subheader" ? "h2" : "h4"}
-                    variant={variant === "header" ? "h3" : variant === "subheader" ? "h4" : "h5"}
-                    textAlign="center"
-                    sx={{
-                        fontSize,
-                        ...multiLineEllipsis(3),
-                        ...sxs?.text,
-                    }}
+                    variant={variant === "header" ? "h4" : variant === "subheader" ? "h5" : "h6"}
                 >{title}</Typography>}
                 {/* Adornments */}
                 {adornments && adornments.map(({ Adornment, key }) => (
@@ -106,10 +101,8 @@ export function Title({
                 {/* Help button */}
                 {help && help.length > 0 ? <HelpButton
                     markdown={help}
-                    sx={{
-                        width: variant === "header" ? "40px" : variant === "subheader" ? "30px" : "25px",
-                        height: variant === "header" ? "40px" : variant === "subheader" ? "30px" : "25px",
-                    }}
+                    // eslint-disable-next-line no-magic-numbers
+                    size={variant === "header" ? 40 : variant === "subheader" ? 30 : 25}
                 /> : null}
                 {/* Additional options */}
                 {options?.filter(({ iconInfo }) => Boolean(iconInfo)).map(({ iconInfo, label, onClick }, index) => (

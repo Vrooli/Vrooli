@@ -27,30 +27,12 @@ const simulationButtonsStyle = {
     marginBottom: 2,
 } as const;
 
-const buttonRowStyle = {
-    display: "flex",
-    gap: 2,
-} as const;
-
 const mockSingleLineText = "This is a single line of text that simulates pasting content.";
 const mockMultiLineText = `First line of text
 Second line that shows multiple lines
 Third line to demonstrate scrolling
 Fourth line of content
 Fifth line to make it longer`;
-
-const mockImageItem: ContextItem = {
-    id: "mock-img-1",
-    type: "image",
-    label: "Sample Image",
-    src: "https://via.placeholder.com/150",
-};
-
-const mockFileItem: ContextItem = {
-    id: "mock-file-1",
-    type: "file",
-    label: "example.pdf",
-};
 
 const mockSomeTools: Tool[] = [
     {

@@ -3,7 +3,7 @@ import { CreateFormInputProps, FormBuildViewProps, FormBuilder, FormDividerType,
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
-import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { FormDivider } from "../../components/inputs/form/FormDivider.js";
 import { FORM_HEADER_SIZE_OPTIONS, FormHeader } from "../../components/inputs/form/FormHeader.js";
 import { FormImage } from "../../components/inputs/form/FormImage.js";

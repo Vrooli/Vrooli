@@ -1,8 +1,8 @@
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons/common.js";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { VersionInputProps } from "../types.js";
 
@@ -115,26 +115,23 @@ export function VersionInput({
             />
             <Tooltip placement="top" title="Major bump (increment the first number)">
                 <IconButton
-                    aria-label='major-bump'
                     onClick={bumpMajor}
                     sx={bumpMajorIconButtonStyle}>
-                    <BumpMajorIcon fill="white" />
+                    <IconCommon decorative name="BumpMajor" />
                 </IconButton>
             </Tooltip>
             <Tooltip placement="top" title="Moderate bump (increment the middle number)">
                 <IconButton
-                    aria-label='moderate-bump'
                     onClick={bumpModerate}
                     sx={bumpModerateIconButtonStyle}>
-                    <BumpModerateIcon fill="white" />
+                    <IconCommon decorative name="BumpModerate" />
                 </IconButton>
             </Tooltip>
             <Tooltip placement="top" title="Minor bump (increment the last number)">
                 <IconButton
-                    aria-label='minor-bump'
                     onClick={bumpMinor}
                     sx={bumpMinorIconButtonStyle}>
-                    <BumpMinorIcon fill="white" />
+                    <IconCommon decorative name="BumpMinor" />
                 </IconButton>
             </Tooltip>
         </Stack>

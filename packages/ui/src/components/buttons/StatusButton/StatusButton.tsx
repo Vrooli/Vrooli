@@ -2,7 +2,7 @@ import { Status } from "@local/shared";
 import { Stack, Tooltip, Typography } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "../../../icons/common.js";
+import { Icon } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
 import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
@@ -22,9 +22,9 @@ const STATUS_LABEL = {
     [Status.Valid]: "Valid",
 };
 const STATUS_ICON = {
-    [Status.Incomplete]: RoutineIncompleteIcon,
-    [Status.Invalid]: RoutineInvalidIcon,
-    [Status.Valid]: RoutineValidIcon,
+    [Status.Incomplete]: { name: "RoutineIncomplete", type: "Routine" } as const,
+    [Status.Invalid]: { name: "RoutineInvalid", type: "Routine" } as const,
+    [Status.Valid]: { name: "RoutineValid", type: "Routine" } as const,
 };
 
 /**
@@ -50,7 +50,7 @@ export function StatusButton({
 
     const statusMarkdown = useMemo(() => formatStatusMessages(messages), [messages]);
 
-    const StatusIcon = useMemo(() => STATUS_ICON[status], [status]);
+    const statusIconInfo = useMemo(() => STATUS_ICON[status], [status]);
 
     const [anchorEl, open, close] = usePopover();
     const openPopover = useCallback((event: React.MouseEvent<HTMLElement>) => {
@@ -76,7 +76,11 @@ export function StatusButton({
                         borderRadius: "16px",
                         ...(sx ?? {}),
                     }}>
-                    <StatusIcon fill='white' />
+                    <Icon
+                        decorative
+                        fill='white'
+                        info={statusIconInfo}
+                    />
                     <Typography
                         variant='body2'
                         sx={{

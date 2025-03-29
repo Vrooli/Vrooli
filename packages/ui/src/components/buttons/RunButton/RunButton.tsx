@@ -1,5 +1,5 @@
 import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, RoutineVersionTranslation, RunProject, RunRoutine, RunStatus, RunViewSearchParams, Status, camelCase, funcFalse, getTranslation, noop } from "@local/shared";
-import { Box, Button, Menu, Tooltip, styled, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts.js";
@@ -8,13 +8,12 @@ import { useFindMany } from "../../../hooks/useFindMany.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
-import { SideActionsButton } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
 import { getDummyListLength } from "../../../utils/consts.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { createRunPath } from "../../../views/runs/RunView.js";
-import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../containers/ListContainer.js";
 import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
 import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
@@ -314,17 +313,11 @@ export function RunButton({
             <Tooltip title="Run Routine" placement="top">
                 {/* Button wrapped in div so it can be pressed when disabled */}
                 <Box onClick={runStart}>
-                    <SideActionsButton
-                        aria-label="Run routine"
+                    <IconButton
                         disabled={status === Status.Invalid}
                     >
-                        <IconCommon
-                            decorative
-                            fill="secondary.contrastText"
-                            name="Play"
-                            size={36}
-                        />
-                    </SideActionsButton>
+                        <IconCommon name="Play" />
+                    </IconButton>
                 </Box>
             </Tooltip>
         </>

@@ -14,7 +14,7 @@ import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
-import { AddIcon, CloseIcon, DeleteIcon, EditIcon, LinkIcon, OpenInNewIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
 import { CardBox, multiLineEllipsis } from "../../../styles.js";
@@ -103,9 +103,9 @@ export function ResourceListItem({
                     width: "48px",
                     height: "48px",
                 }}>
-                    {typeof Icon === "function" ? <Icon fill={palette.background.textPrimary} width="80%" height="80%" /> : Icon}
+                    {Icon}
                 </IconButton>
-                <Stack direction="column" spacing={1} pl={2} sx={{ width: "-webkit-fill-available" }}>
+                <Stack direction="column" spacing={1} pl={2} width="-webkit-fill-available">
                     {/* Name/Title */}
                     {loading ? <TextLoading /> : <ListItemText
                         primary={firstString(title, data.link)}
@@ -119,16 +119,25 @@ export function ResourceListItem({
                 </Stack>
                 {
                     canUpdate && <IconButton id='delete-icon-button' onClick={onDelete}>
-                        <DeleteIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            fill="background.textPrimary"
+                            name="Delete"
+                        />
                     </IconButton>
                 }
                 {
                     canUpdate && <IconButton id='edit-icon-button' onClick={onEdit}>
-                        <EditIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            fill="background.textPrimary"
+                            name="Edit"
+                        />
                     </IconButton>
                 }
                 <IconButton>
-                    <OpenInNewIcon fill={palette.background.textPrimary} />
+                    <IconCommon
+                        fill="background.textPrimary"
+                        name="OpenInNew"
+                    />
                 </IconButton>
             </StyledListItem>
         </Tooltip>
@@ -213,7 +222,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                                 id='edit-icon-button'
                                 sx={{ background: "#c5ab17", position: "absolute", top: 4, left: 4 }}
                             >
-                                <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
+                                <IconCommon id='edit-icon' fill={palette.secondary.contrastText} name="Edit" />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title={t("Delete")}>
@@ -221,7 +230,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                                 id='delete-icon-button'
                                 sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
                             >
-                                <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
+                                <IconCommon id='delete-icon' fill={palette.secondary.contrastText} name="Delete" />
                             </IconButton>
                         </Tooltip>
                     </>
@@ -237,7 +246,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                         textOverflow: "ellipsis",
                     }}
                 >
-                    {typeof Icon === "function" ? <Icon fill={palette.primary.contrastText} /> : Icon}
+                    {Icon}
                     <Typography
                         gutterBottom
                         variant="body2"
@@ -350,7 +359,7 @@ export function ResourceListHorizontal({
                         variant="text"
                         color="primary"
                         onClick={openAddDialog}
-                        startIcon={<LinkIcon />}
+                        startIcon={<IconCommon name="Link" />}
                         sx={{ paddingBottom: 1 }}
                     >
                         {t("AddResource")}
@@ -431,7 +440,7 @@ export function ResourceListHorizontal({
                                         justifyContent: "center",
                                     }}
                                 >
-                                    <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
+                                    <IconCommon name="Link" fill="secondary.contrastText" size={56} />
                                 </CardBox>
                             </Tooltip> : null}
                             {providedDrop.placeholder}
@@ -482,7 +491,7 @@ export function ResourceListVertical({
             }}>
                 <Button
                     fullWidth onClick={openAddDialog}
-                    startIcon={<AddIcon />}
+                    startIcon={<IconCommon name="Add" />}
                     variant="outlined"
                 >{t("AddResource")}</Button>
             </Box>}
@@ -653,10 +662,7 @@ export function ResourceList(props: ResourceListProps) {
                 <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
                 {true && <Tooltip title={t("Edit")}>
                     <IconButton onClick={() => { setIsEditing(e => !e); }}>
-                        {isEditing ?
-                            <CloseIcon fill={palette.secondary.main} style={editingIconButtonStyle} /> :
-                            <EditIcon fill={palette.secondary.main} style={editingIconButtonStyle} />
-                        }
+                        <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
                     </IconButton>
                 </Tooltip>}
             </Box>}

@@ -1,10 +1,10 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, endpointsBookmarkList, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
+import { ListContainer } from "../../../components/containers/ListContainer.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { ObjectListActions } from "../../../components/lists/types.js";
@@ -13,9 +13,8 @@ import { SessionContext } from "../../../contexts.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { AddIcon, DeleteIcon, EditIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
-import { SideActionsButton } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { DUMMY_LIST_LENGTH } from "../../../utils/consts.js";
 import { listToAutocomplete } from "../../../utils/display/listTools.js";
@@ -28,7 +27,6 @@ export function BookmarkListView({
     isOpen,
     onClose,
 }: BookmarkListViewProps) {
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -123,7 +121,7 @@ export function BookmarkListView({
 
     const topBarOptions = useMemo(function topBarOptionsMemo() {
         return [{
-            Icon: DeleteIcon,
+            iconInfo: { name: "Delete", type: "Common" } as const,
             label: t("Delete"),
             onClick: handleDelete,
         }];
@@ -169,12 +167,12 @@ export function BookmarkListView({
                 />
             </ListContainer>
             <SideActionsButtons display={display} >
-                <SideActionsButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
-                    <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton>
-                <SideActionsButton aria-label={t("AddBookmark")} onClick={openSearch}>
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton>
+                <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
+                    <IconCommon name="Edit" />
+                </IconButton>
+                <IconButton aria-label={t("AddBookmark")} onClick={openSearch}>
+                    <IconCommon name="Add" />
+                </IconButton>
             </SideActionsButtons>
         </>
     );

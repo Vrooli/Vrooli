@@ -5,15 +5,15 @@ import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidat
 import { Button, Stack, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useFindMany } from "../../../hooks/useFindMany.js";
-import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { CreateIcon } from "../../../icons/common.js";
-import { scrollIntoFocusedView } from "../../../utils/display/scroll.js";
-import { CommentUpsert } from "../../../views/objects/comment/CommentUpsert.js";
-import { SearchButtons } from "../../buttons/SearchButtons/SearchButtons.js";
-import { CommentThread } from "../../lists/CommentThread/CommentThread.js";
-import { ContentCollapse } from "../ContentCollapse/ContentCollapse.js";
-import { CommentContainerProps } from "../types.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
+import { CommentUpsert } from "../../views/objects/comment/CommentUpsert.js";
+import { SearchButtons } from "../buttons/SearchButtons/SearchButtons.js";
+import { CommentThread } from "../lists/CommentThread/CommentThread.js";
+import { ContentCollapse } from "./ContentCollapse.js";
+import { CommentContainerProps } from "./types.js";
 
 export function CommentContainer({
     forceAddCommentOpen,
@@ -100,7 +100,7 @@ export function CommentContainer({
                 {/* Add comment button */}
                 {!isAddCommentOpen && isMobile && <Button
                     fullWidth
-                    startIcon={<CreateIcon />}
+                    startIcon={<IconCommon decorative name="Create" />}
                     onClick={handleAddCommentOpen}
                     sx={{ marginTop: 2 }}
                     variant="outlined"
