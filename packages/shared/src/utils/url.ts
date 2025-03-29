@@ -1,3 +1,4 @@
+import { TranslationKeyCommon } from "@local/shared";
 import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, Member, ModelType, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/types.js";
 import { LINKS } from "../consts/ui.js";
 import { isOfType } from "./objects.js";
@@ -82,11 +83,26 @@ export interface ShortcutOption {
     id: string; // Actually URL, but id makes it easier to use
 }
 
-export interface ActionOption {
+export type PreActionOption = {
     __typename: "Action";
     canPerform: (session: Session) => boolean;
     id: string;
     isFromHistory?: boolean;
+    /**
+     * Key for the label
+     */
+    label: TranslationKeyCommon;
+    /**
+     * Arguments for the label
+     */
+    labelArgs?: { [key: string]: string | number };
+    /**
+     * Keys (and possibly arguments) for the keywords
+     */
+    keywords?: readonly (TranslationKeyCommon | ({ key: TranslationKeyCommon; } & { [key: string]: string | number }))[];
+}
+
+export type ActionOption = Omit<PreActionOption, "label" | "labelArgs" | "keywords"> & {
     keywords: string[];
     label: string;
 }

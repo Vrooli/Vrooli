@@ -1,4 +1,5 @@
-import { SvgComponent, SxType, ViewDisplayType } from "../../types.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType, ViewDisplayType } from "../../types.js";
 import { TitleProps } from "../text/types.js";
 
 export type NavbarProps = {
@@ -6,7 +7,7 @@ export type NavbarProps = {
     help?: string | undefined;
     keepVisible?: boolean | undefined;
     options?: {
-        Icon: SvgComponent;
+        iconInfo?: IconInfo | null | undefined;
         label: string;
         onClick: (e?: any) => unknown;
     }[];
@@ -31,7 +32,6 @@ export type NavbarProps = {
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
     sxs?: {
-        appBar?: SxType,
         root?: SxType,
     }
 }

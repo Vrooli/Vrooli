@@ -127,7 +127,7 @@ success "Kubernetes secrets set successfully"
 # Specify non-sensitive environment variables, which will be replaced with their values in the Docker Compose file.
 # DO NOT INCLUDE VARIABLES FOR PASSWORDS OR OTHER SENSITIVE INFORMATION!!!
 # NOTE: Variables used in ports must be included here, because Kompose doesn't support environment variables in ports.
-NON_SENSITIVE_VARS=("CREATE_MOCK_DATA" "DB_PULL" "DB_USER" "GENERATE_SOURCEMAP" "PORT_DB" "PORT_DOCS" "PORT_REDIS" "PORT_SERVER" "PORT_TRANSLATE" "PORT_UI" "PROJECT_DIR" "SERVER_LOCATION")
+NON_SENSITIVE_VARS=("CREATE_MOCK_DATA" "DB_PULL" "DB_USER" "GENERATE_SOURCEMAP" "PORT_DB" "PORT_REDIS" "PORT_SERVER" "PORT_TRANSLATE" "PORT_UI" "PROJECT_DIR" "SERVER_LOCATION")
 
 # Load environment variables from .env file
 set -a

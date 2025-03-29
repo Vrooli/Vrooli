@@ -17,6 +17,7 @@
         "target": "es2017"
     },
     "module": {
+        // NOTE: If changing to or from "commonjs", make sure package.json and tsconfig.json are updated as well
         "type": "es6"
     },
     "sourceMaps": true
