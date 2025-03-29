@@ -1,14 +1,15 @@
 import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "@hello-pangea/dnd";
 import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
-import { LineGraphProps } from "components/graphs/types.js";
-import { UsePressEvent } from "hooks/gestures.js";
-import { type UseObjectActionsReturn } from "hooks/objectActions.js";
-import { type UseFindManyResult } from "hooks/useFindMany.js";
 import { ReactNode } from "react";
-import { SvgComponent, SxType, ViewDisplayType } from "types";
-import { ObjectAction } from "utils/actions/objectActions.js";
-import { RelationshipButtonType } from "utils/consts.js";
-import { ObjectType } from "utils/navigation/openObject.js";
+import { UsePressEvent } from "../../hooks/gestures.js";
+import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
+import { type UseFindManyResult } from "../../hooks/useFindMany.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType, ViewDisplayType } from "../../types.js";
+import { ObjectAction } from "../../utils/actions/objectActions.js";
+import { RelationshipButtonType } from "../../utils/consts.js";
+import { ObjectType } from "../../utils/navigation/openObject.js";
+import { LineGraphProps } from "../graphs/types.js";
 import { ObjectListProps } from "./ObjectList/ObjectList.js";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
@@ -173,10 +174,12 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
         scrollContainerId: string;
-        searchPlaceholder?: TranslationKeyCommon;
+        searchBarVariant?: "basic" | "paper";
+        searchPlaceholder?: string;
         searchType: SearchType | `${SearchType}`;
         sxs?: {
             search?: SxType;
+            searchBarAndButtonsBox?: SxType;
             buttons?: SxType;
             listContainer?: SxType;
         }
@@ -232,8 +235,8 @@ export interface TIDCardProps {
     below?: ReactNode;
     buttonText?: string;
     description: string;
+    iconInfo: IconInfo | null | undefined;
     key: string | number;
-    Icon?: SvgComponent | null | undefined;
     id?: string;
     onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
     size?: TIDCardSize;
