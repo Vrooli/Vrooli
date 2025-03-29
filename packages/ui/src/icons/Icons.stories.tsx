@@ -1,9 +1,11 @@
-import { Box, Button, ButtonGroup, IconButton, InputAdornment, Stack, TextField, Tooltip } from "@mui/material";
+import { Box, Button, ButtonGroup, IconButton, InputAdornment, Slider, Stack, TextField, Tooltip } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import React, { useEffect, useRef, useState } from "react";
 import { IconCommon, IconRoutine, IconService, IconText } from "./Icons.js";
-
-// Styles as constants to avoid linter errors
+import { iconNames as commonIconNames } from "./types/commonIcons.js";
+import { iconNames as routineIconNames } from "./types/routineIcons.js";
+import { iconNames as serviceIconNames } from "./types/serviceIcons.js";
+import { iconNames as textIconNames } from "./types/textIcons.js";
 
 const cursorPointerStyle = {
     cursor: "pointer",
@@ -494,4 +496,176 @@ const serviceIconContainerStyle = {
     width: 24,
     height: 24,
     padding: "4px",
-} as const; 
+} as const;
+
+// Add new style constants for the AllIcons story
+const iconGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+    gap: 2,
+} as const;
+
+const iconNameStyle = {
+    fontSize: "0.75rem",
+    color: "text.secondary",
+    textAlign: "center",
+} as const;
+
+const sliderContainerStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    mb: 4,
+} as const;
+
+// Add new constants for the AllIcons story
+const DEFAULT_ICON_SIZE = 24;
+const MIN_ICON_SIZE = 16;
+const MAX_ICON_SIZE = 64;
+const ICON_SIZE_STEP = 4;
+
+const ICON_SIZE_MARKS = [
+    { value: 16, label: "16px" },
+    { value: 24, label: "24px" },
+    { value: 32, label: "32px" },
+    { value: 48, label: "48px" },
+    { value: 64, label: "64px" },
+] as const;
+
+const controlPanelStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    mb: 4,
+} as const;
+
+const controlRowStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+} as const;
+
+const flexGrowStyle = {
+    flexGrow: 1,
+    maxWidth: 300,
+} as const;
+
+const categoryVisibilityStyle = {
+    display: "block",
+} as const;
+
+const categoryHiddenStyle = {
+    display: "none",
+} as const;
+
+const searchInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <IconCommon name="Search" size={20} />
+        </InputAdornment>
+    ),
+} as const;
+
+// Function to filter icons by search term
+function filterIconsByName(names: readonly string[], searchTerm: string): string[] {
+    const normalizedSearch = searchTerm.toLowerCase();
+    return names.filter(name => name.toLowerCase().includes(normalizedSearch));
+}
+
+// Update AllIcons story with search and proper constants
+export function AllIcons() {
+    const [iconSize, setIconSize] = useState(DEFAULT_ICON_SIZE);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    // Memoize filtered icon names
+    const filteredCommonIcons = React.useMemo(
+        () => filterIconsByName(commonIconNames, searchTerm),
+        [searchTerm],
+    );
+    const filteredRoutineIcons = React.useMemo(
+        () => filterIconsByName(routineIconNames, searchTerm),
+        [searchTerm],
+    );
+    const filteredServiceIcons = React.useMemo(
+        () => filterIconsByName(serviceIconNames, searchTerm),
+        [searchTerm],
+    );
+    const filteredTextIcons = React.useMemo(
+        () => filterIconsByName(textIconNames, searchTerm),
+        [searchTerm],
+    );
+
+    // Handler functions
+    const handleSizeChange = React.useCallback((_event: Event, newValue: number | number[]) => {
+        setIconSize(newValue as number);
+    }, []);
+
+    const handleSearchChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(event.target.value);
+    }, []);
+
+    // Update renderIconCategory function
+    const renderIconCategory = React.useCallback((
+        title: string,
+        IconComponent: typeof IconCommon | typeof IconRoutine | typeof IconService | typeof IconText,
+        icons: string[],
+    ) => (
+        <Box sx={icons.length ? categoryVisibilityStyle : categoryHiddenStyle}>
+            <h2>{title} ({icons.length})</h2>
+            <Box sx={iconGridStyle}>
+                {icons.map((name) => (
+                    <Stack key={name} alignItems="center" spacing={1}>
+                        <Tooltip title={name}>
+                            <IconComponent name={name} size={iconSize} />
+                        </Tooltip>
+                        <Box sx={iconNameStyle}>
+                            {name}
+                        </Box>
+                    </Stack>
+                ))}
+            </Box>
+        </Box>
+    ), [iconSize]);
+
+    return (
+        <Stack spacing={4}>
+            <Box sx={controlPanelStyle}>
+                <Box sx={controlRowStyle}>
+                    <Box>Icon Size:</Box>
+                    <Box sx={flexGrowStyle}>
+                        <Slider
+                            value={iconSize}
+                            onChange={handleSizeChange}
+                            min={MIN_ICON_SIZE}
+                            max={MAX_ICON_SIZE}
+                            step={ICON_SIZE_STEP}
+                            marks={ICON_SIZE_MARKS}
+                            valueLabelDisplay="auto"
+                        />
+                    </Box>
+                </Box>
+                <Box sx={controlRowStyle}>
+                    <TextField
+                        fullWidth
+                        placeholder="Search icons..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        InputProps={searchInputProps}
+                    />
+                </Box>
+            </Box>
+
+            {renderIconCategory("Common Icons", IconCommon, filteredCommonIcons)}
+            {renderIconCategory("Routine Icons", IconRoutine, filteredRoutineIcons)}
+            {renderIconCategory("Service Icons", IconService, filteredServiceIcons)}
+            {renderIconCategory("Text Icons", IconText, filteredTextIcons)}
+        </Stack>
+    );
+}
+AllIcons.parameters = {
+    docs: {
+        description: {
+            story: "A comprehensive display of all available icons across all categories: Common, Routine, Service, and Text icons.",
+        },
+    },
+}; 

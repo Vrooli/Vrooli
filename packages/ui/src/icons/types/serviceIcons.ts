@@ -3,15 +3,22 @@
 export const iconNames = [
   "YouTube",
   "X",
+  "TikTok",
   "Reddit",
   "LinkedIn",
   "Instagram",
+  "GoogleMaps",
   "Google",
+  "Goodreads",
   "GitHub",
   "Facebook",
+  "Dropbox",
   "Docker",
   "Discord",
   "DefaultSocial",
+  "ChatGPT",
+  "Apple",
+  "Amazon",
 ] as const
 
 export type IconName = typeof iconNames[number]
