@@ -1,67 +1,67 @@
 import { LINKS } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
-import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, SearchIcon, VisibleIcon, WalletIcon } from "icons/common.js";
 import { ChangeEvent, FormEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch.js";
-import { SessionContext } from "../../../../contexts.js";
-import { SettingsSearchBarProps } from "../types.js";
+import { SessionContext } from "../../../contexts.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "../../../utils/search/siteToSearch.js";
+import { SettingsSearchBarProps } from "./types.js";
 
 const DEFAULT_DEBOUNCE_MS = 200;
 
 const searchItems: PreSearchItem[] = [
     {
-        Icon: ProfileIcon,
+        iconInfo: { name: "Profile", type: "Common" },
         label: "Profile",
         keywords: ["Bio", "Handle", "Name"],
         value: LINKS.SettingsProfile,
     },
     {
-        Icon: VisibleIcon,
+        iconInfo: { name: "Visible", type: "Common" },
         label: "Privacy",
         keywords: ["History", "Private"],
         value: LINKS.SettingsPrivacy,
     },
     {
-        Icon: ObjectIcon,
+        iconInfo: { name: "Object", type: "Common" },
         label: "Data",
         keywords: ["Export"],
         value: LINKS.SettingsData,
     },
     {
-        Icon: LockIcon,
+        iconInfo: { name: "Lock", type: "Common" },
         label: "Authentication",
         keywords: [{ key: "Wallet", count: 1 }, { key: "Wallet", count: 2 }, { key: "Email", count: 1 }, { key: "Email", count: 2 }, "LogOut", "Security"],
         value: LINKS.SettingsAuthentication,
     },
     {
-        Icon: WalletIcon,
+        iconInfo: { name: "Wallet", type: "Common" },
         label: "Payment",
         labelArgs: { count: 2 },
         keywords: [],
         value: LINKS.SettingsPayments,
     },
     {
-        Icon: ApiIcon,
+        iconInfo: { name: "Api", type: "Common" },
         label: "Api",
         keywords: [{ key: "Api", count: 2 }],
         value: LINKS.SettingsApi,
     },
     {
-        Icon: LightModeIcon,
+        iconInfo: { name: "LightMode", type: "Common" },
         label: "Display",
         keywords: ["Theme", "Light", "Dark", "Interests", "Hidden", { key: "Tag", count: 1 }, { key: "Tag", count: 2 }, "History"],
         value: LINKS.SettingsDisplay,
     },
     {
-        Icon: NotificationsCustomizedIcon,
+        iconInfo: { name: "NotificationsCustomized", type: "Common" },
         label: "Notification",
         labelArgs: { count: 2 },
         keywords: [{ key: "Alert", count: 1 }, { key: "Alert", count: 2 }, { key: "PushNotification", count: 1 }, { key: "PushNotification", count: 2 }],
         value: LINKS.SettingsNotifications,
     },
     {
-        Icon: HistoryIcon,
+        iconInfo: { name: "History", type: "Common" },
         label: "FocusMode",
         labelArgs: { count: 2 },
         keywords: [{ key: "Schedule", count: 1 }, { key: "Schedule", count: 2 }, { key: "FocusMode", count: 1 }],
@@ -164,7 +164,7 @@ export function SettingsSearchBar({
             onChange={onSubmit}
             PopperComponent={FullWidthPopper}
             renderOption={(props, option) => {
-                const { Icon, keywords, label, unshapedKeywords, value } = option;
+                const { iconInfo, keywords, label, unshapedKeywords, value } = option;
                 // Check if any of the keywords matches the search string
                 const shapedSearchString = shapeSearchText(internalValue);
                 let displayedKeyword = "";
@@ -195,8 +195,8 @@ export function SettingsSearchBar({
                         }}
                     >
                         {/* Icon */}
-                        {Icon && (
-                            <Icon fill={palette.background.textSecondary} style={{
+                        {iconInfo && (
+                            <Icon decorative info={iconInfo} style={{
                                 width: "24px",
                                 height: "24px",
                                 marginRight: "8px",
@@ -271,11 +271,17 @@ export function SettingsSearchBar({
                             },
                         }}
                     />
-                    <IconButton sx={{
-                        width: "48px",
-                        height: "48px",
-                    }} aria-label="main-search-icon">
-                        <SearchIcon fill={palette.background.textSecondary} />
+                    <IconButton
+                        sx={{
+                            width: "48px",
+                            height: "48px",
+                        }}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textSecondary}
+                            name="Search"
+                        />
                     </IconButton>
                 </Paper>
             )}
