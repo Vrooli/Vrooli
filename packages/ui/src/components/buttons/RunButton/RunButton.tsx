@@ -6,7 +6,7 @@ import { SessionContext } from "../../../contexts.js";
 import { useUpsertRunProject, useUpsertRunRoutine } from "../../../hooks/runs.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { ArrowRightIcon, PlayIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { SideActionsButton } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
@@ -192,7 +192,7 @@ export function RunPickerMenu({
                     </ListContainer>
                     {allData.length > 0 && <Box display="flex" alignItems="center" justifyContent="flex-end">
                         <Button
-                            endIcon={<ArrowRightIcon />}
+                            endIcon={<IconCommon decorative name="ArrowRight" />}
                             href={`${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"&routineVersionId="${objectId}"`}
                             variant="text"
                         >
@@ -223,7 +223,7 @@ export function RunButton({
     runnableObject,
 }: RunButtonProps) {
     const session = useContext(SessionContext);
-    const languages = useMemo(() => getUserLanguages(session), [session]);
+    // const languages = useMemo(() => getUserLanguages(session), [session]);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -233,7 +233,7 @@ export function RunButton({
         // Add logic to check if the routine is valid if needed. 
         // Othwerwise, we'll just let users try to run it and see what happens.
         return Status.Valid;
-    }, [languages, runnableObject]);
+    }, [runnableObject]);
 
     const [selectRunAnchor, openSelectRunDialog, closeSelectRunDialog] = usePopover();
     const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
@@ -315,10 +315,15 @@ export function RunButton({
                 {/* Button wrapped in div so it can be pressed when disabled */}
                 <Box onClick={runStart}>
                     <SideActionsButton
-                        aria-label="run-routine"
+                        aria-label="Run routine"
                         disabled={status === Status.Invalid}
                     >
-                        <PlayIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        <IconCommon
+                            decorative
+                            fill="secondary.contrastText"
+                            name="Play"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Box>
             </Tooltip>

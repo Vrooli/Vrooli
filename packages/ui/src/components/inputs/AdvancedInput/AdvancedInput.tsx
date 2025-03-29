@@ -90,6 +90,28 @@ const contextRowStyles: SxProps<Theme> = {
 const inputRowStyles: SxProps<Theme> = {
     mb: 1,
     px: 2, // additional left/right padding
+    transition: "max-height 0.3s ease",
+};
+
+const expandedInputStyles: SxProps<Theme> = {
+    maxHeight: "calc(100vh - 500px)", // Leave space for other UI elements
+    overflow: "auto",
+};
+
+const compactInputStyles: SxProps<Theme> = {
+    maxHeight: "unset",
+    overflow: "visible",
+};
+
+const expandButtonStyles: SxProps<Theme> = {
+    position: "absolute",
+    top: (theme) => theme.spacing(1),
+    right: (theme) => theme.spacing(1),
+    padding: "4px",
+    opacity: 0.5,
+    "&:hover": {
+        opacity: 0.8,
+    },
 };
 
 const bottomRowStyles: SxProps<Theme> = {
@@ -121,6 +143,7 @@ const StyledIconButton = styled(IconButton)<StyledIconButtonProps>(({ disabled, 
 const ShowHideIconButton = styled(StyledIconButton)(() => ({
     border: "none",
 }));
+const toolChipIconButtonStyle = { padding: 0, paddingRight: 0.5 } as const;
 
 
 type ToolChipProps = Tool & {
@@ -202,7 +225,7 @@ function ToolChip({
                     <IconButton
                         size="small"
                         onClick={handlePlayClick}
-                        sx={{ padding: 0, paddingRight: 0.5 }}
+                        sx={toolChipIconButtonStyle}
                     >
                         <IconCommon
                             decorative
@@ -216,7 +239,7 @@ function ToolChip({
                 <IconButton
                     size="small"
                     onClick={handlePlayClick}
-                    sx={{ padding: 0, paddingRight: 0.5 }}
+                    sx={toolChipIconButtonStyle}
                 >
                     <IconCommon
                         decorative
@@ -730,6 +753,32 @@ const dragOverlayStyles = {
     pointerEvents: "none",
 } as const;
 
+// Add this function before the AdvancedInput component
+async function getFilesFromEvent(event: any): Promise<(File | DataTransferItem)[]> {
+    const items = event.dataTransfer ? [...event.dataTransfer.items] : [];
+    const files = event.dataTransfer ? [...event.dataTransfer.files] : [];
+
+    // Handle text drops
+    const textItems = items.filter(item => item.kind === "string" && item.type === "text/plain");
+    const textPromises = textItems.map(item => new Promise<File>((resolve) => {
+        item.getAsString((text: string) => {
+            // Create a file-like object for the text
+            const file = new File([text], "dropped-text.txt", { type: "text/plain" });
+            resolve(file);
+        });
+    }));
+
+    // Wait for all text items to be processed
+    const textFiles = await Promise.all(textPromises);
+
+    // Return both regular files and text files
+    return [...files, ...textFiles];
+}
+
+const inputBaseInputProps = {
+    className: "advanced-input-field",
+} as const;
+
 export function AdvancedInput({
     enterWillSubmit,
     tools,
@@ -743,16 +792,35 @@ export function AdvancedInput({
 }: AdvancedInputProps) {
     const theme = useTheme();
 
+    // Add expanded view state
+    const [isExpanded, setIsExpanded] = useState(false);
+    const handleToggleExpand = useCallback(() => {
+        setIsExpanded(prev => !prev);
+    }, []);
+
     // Local state for the input value
     const [localMessage, setLocalMessage] = useState(message ?? "");
+    const latestMessageRef = useRef(localMessage);
     const [debouncedMessageChange] = useDebounce((value: string) => {
-        onMessageChange?.(value);
+        // Only notify parent if the value has actually changed
+        if (value !== latestMessageRef.current) {
+            onMessageChange?.(value);
+        }
     }, 300);
+
+    // Update local message when parent message changes, but only if it's different from what we have
+    useEffect(function updateLocalMessageEffect() {
+        if (message !== undefined && message !== latestMessageRef.current) {
+            setLocalMessage(message);
+            latestMessageRef.current = message;
+        }
+    }, [message]);
 
     // Add dropzone functionality
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         noClick: true,
         noKeyboard: true,
+        getFilesFromEvent,
         onDrop: (acceptedFiles) => {
             if (!onContextDataChange || acceptedFiles.length === 0) return;
 
@@ -769,13 +837,19 @@ export function AdvancedInput({
             // Only take as many files as we have slots for
             const filesToAdd = acceptedFiles.slice(0, remainingSlots);
 
-            const newContextItems: ContextItem[] = filesToAdd.map(file => ({
-                id: crypto.randomUUID(),
-                type: file.type.startsWith("image/") ? "image" : "file",
-                label: file.name,
-                src: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
-                file,
-            }));
+            const newContextItems: ContextItem[] = filesToAdd.map(file => {
+                // Check if this is a dropped text file
+                const isDroppedText = file.name === "dropped-text.txt" && file.type === "text/plain";
+
+                return {
+                    id: crypto.randomUUID(),
+                    type: isDroppedText ? "text" :
+                        file.type.startsWith("image/") ? "image" : "file",
+                    label: isDroppedText ? "Dropped Text" : file.name,
+                    src: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+                    file,
+                };
+            });
 
             onContextDataChange([...contextData, ...newContextItems]);
 
@@ -797,12 +871,6 @@ export function AdvancedInput({
             }
         });
     }, [contextData]);
-
-    useEffect(function updateLocalMessageEffect() {
-        if (message !== undefined && message !== localMessage) {
-            setLocalMessage(message);
-        }
-    }, [localMessage, message]);
 
     const [anchorPlus, setAnchorPlus] = useState<HTMLElement | null>(null);
     const [anchorSettings, setAnchorSettings] = useState<HTMLElement | null>(null);
@@ -952,6 +1020,7 @@ export function AdvancedInput({
     function handleMessageChange(event: React.ChangeEvent<HTMLInputElement>) {
         const newValue = event.target.value;
         setLocalMessage(newValue);
+        latestMessageRef.current = newValue;
         debouncedMessageChange(newValue);
     }
 
@@ -1024,6 +1093,17 @@ export function AdvancedInput({
                     </Typography>
                 </Box>
             )}
+            <IconButton
+                onClick={handleToggleExpand}
+                sx={expandButtonStyles}
+                title={isExpanded ? "Collapse" : "Expand"}
+            >
+                <IconCommon
+                    decorative
+                    fill="background.textSecondary"
+                    name={isExpanded ? "ExpandLess" : "ExpandMore"}
+                />
+            </IconButton>
             <Collapse in={tools.some((tool) => tool.state === ToolState.Exclusive)} unmountOnExit>
                 <Box height={400} >
                     {/* <Formik
@@ -1096,19 +1176,22 @@ export function AdvancedInput({
                         </Typography>
                     </Box>
                 ) : (
-                    <InputBase
-                        inputProps={{
-                            className: "advanced-input-field",
-                        }}
-                        multiline
-                        fullWidth
-                        minRows={1}
-                        maxRows={6}
-                        value={localMessage}
-                        onChange={handleMessageChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Type your message..."
-                    />
+                    <Box
+                        maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
+                        overflow="auto"
+                    >
+                        <InputBase
+                            inputProps={inputBaseInputProps}
+                            multiline
+                            fullWidth
+                            minRows={isExpanded ? 5 : 1}
+                            maxRows={isExpanded ? 50 : 6}
+                            value={localMessage}
+                            onChange={handleMessageChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Type your message..."
+                        />
+                    </Box>
                 )}
             </Box>
 
