@@ -2,7 +2,7 @@ import { TranslationFuncCommon } from "@local/shared";
 import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useIsLeftHanded, useRichInputToolbarViewSize } from "../../../hooks/subscriptions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { IconCommon, IconText } from "../../../icons/Icons.js";

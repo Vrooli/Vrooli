@@ -1,7 +1,7 @@
 import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, uuid } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
-import { ActiveChatContext } from "../contexts.js";
+import { ActiveChatContext } from "../contexts/activeChat.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
 import { getCookieTasksForChat, setCookieTasksForChat } from "../utils/localStorage.js";
 import { ChatTaskPub, ContextConnect, PubSub } from "../utils/pubsub.js";

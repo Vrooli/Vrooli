@@ -3,7 +3,7 @@ import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, Sta
 import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { usePress } from "../../hooks/gestures.js";
 import { MessageTree } from "../../hooks/messages.js";
 import { useDeleter } from "../../hooks/objectActions.js";

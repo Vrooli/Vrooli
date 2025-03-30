@@ -9,7 +9,7 @@ import { TagSelectorBase } from "../../components/inputs/TagSelector/TagSelector
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";

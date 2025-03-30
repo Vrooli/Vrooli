@@ -2,7 +2,7 @@ import { AITaskInfo, ChatMessageShape, ChatParticipantShape, ListObject, LlmTask
 import { Box, Button, Chip, ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import useDraggableScroll from "../../../hooks/gestures.js";
 import { useShowBotWarning } from "../../../hooks/subscriptions.js";
 import { UseChatTaskReturn } from "../../../hooks/tasks.js";

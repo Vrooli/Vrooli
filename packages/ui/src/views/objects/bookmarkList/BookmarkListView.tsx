@@ -9,7 +9,7 @@ import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/F
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { ObjectListActions } from "../../../components/lists/types.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";

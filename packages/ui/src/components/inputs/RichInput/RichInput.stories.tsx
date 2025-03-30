@@ -1,6 +1,7 @@
 import { action } from "@storybook/addon-actions";
 import { useMemo, useState } from "react";
-import { ActiveChatContext, SessionContext } from "../../../contexts.js";
+import { ActiveChatContext } from "../../../contexts/activeChat.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { RichInputBase } from "./RichInput.js";
 
 // Mock contexts

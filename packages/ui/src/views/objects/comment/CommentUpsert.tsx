@@ -9,7 +9,7 @@ import { LargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog
 import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";

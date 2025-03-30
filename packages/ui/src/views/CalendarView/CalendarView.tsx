@@ -9,7 +9,7 @@ import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { FullPageSpinner } from "../../components/Spinners.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";

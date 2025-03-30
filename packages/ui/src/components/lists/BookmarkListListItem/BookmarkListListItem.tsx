@@ -1,6 +1,6 @@
 import { useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";

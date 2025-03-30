@@ -1,6 +1,6 @@
 import { Suspense, useContext } from "react";
 import { lazily } from "react-lazily";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 import { HomeViewProps } from "./types.js";
 

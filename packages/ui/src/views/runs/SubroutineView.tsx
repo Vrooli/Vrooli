@@ -9,7 +9,7 @@ import { ResourceList } from "../../components/lists/ResourceList/ResourceList.j
 import { TagList } from "../../components/lists/TagList/TagList.js";
 import { DateDisplay } from "../../components/text/DateDisplay.js";
 import { VersionDisplay } from "../../components/text/VersionDisplay.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { FormSection } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";

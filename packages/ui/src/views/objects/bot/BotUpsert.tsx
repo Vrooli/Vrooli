@@ -18,7 +18,7 @@ import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";

@@ -3,7 +3,7 @@ import { Box, SwipeableDrawer, SwipeableDrawerProps, styled, useTheme } from "@m
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Routes } from "../Routes.js";
-import { SessionContext } from "../contexts.js";
+import { SessionContext } from "../contexts/session.js";
 import { useIsLeftHanded } from "../hooks/subscriptions.js";
 import { useMenu } from "../hooks/useMenu.js";
 import { useWindowSize } from "../hooks/useWindowSize.js";

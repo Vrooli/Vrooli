@@ -238,8 +238,6 @@ export type MenuPub = { id: "all", isOpen: false } | MenuPayloads[keyof MenuPayl
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
-    /** Can be used to move content based on the appearance of a banner ad */
-    banner: { isDisplayed: boolean };
     celebration: CelebrationPub;
     chatTask: ChatTaskPub;
     clearSnack: ClearSnackPub;

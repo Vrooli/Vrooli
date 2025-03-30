@@ -9,7 +9,7 @@ import { BulkDeleteDialog } from "../components/dialogs/BulkDeleteDialog/BulkDel
 import { DeleteAccountDialog } from "../components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
 import { DeleteDialog } from "../components/dialogs/DeleteDialog/DeleteDialog.js";
 import { ObjectListItemProps } from "../components/lists/types.js";
-import { SessionContext } from "../contexts.js";
+import { SessionContext } from "../contexts/session.js";
 import { useLocation } from "../route/router.js";
 import { type SetLocation } from "../route/types.js";
 import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "../utils/actions/bulkObjectActions.js";

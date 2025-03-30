@@ -12,7 +12,7 @@ import { TagList } from "../../../components/lists/TagList/TagList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { IconCommon } from "../../../icons/Icons.js";

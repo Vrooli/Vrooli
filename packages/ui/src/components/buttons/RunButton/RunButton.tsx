@@ -2,7 +2,7 @@ import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, Rou
 import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useUpsertRunProject, useUpsertRunRoutine } from "../../../hooks/runs.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { usePopover } from "../../../hooks/usePopover.js";

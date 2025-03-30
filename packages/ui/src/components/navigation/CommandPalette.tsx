@@ -2,7 +2,7 @@ import { ActionOption, ListObject, AutocompleteOption as SearchResult, ShortcutO
 import { Box, DialogContent, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useInfiniteScroll } from "../../hooks/gestures.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useMenu } from "../../hooks/useMenu.js";

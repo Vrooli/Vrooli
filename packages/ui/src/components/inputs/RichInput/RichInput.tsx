@@ -2,7 +2,8 @@ import { TaskContextInfo, getDotNotationValue, noop, setDotNotationValue } from 
 import { Box, Chip, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ActiveChatContext, SessionContext } from "../../../contexts.js";
+import { ActiveChatContext } from "../../../contexts/activeChat.js";
+import { SessionContext } from "../../../contexts/session.js";
 import useDraggableScroll from "../../../hooks/gestures.js";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { generateContextLabel } from "../../../hooks/tasks.js";

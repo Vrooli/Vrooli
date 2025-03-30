@@ -7,7 +7,7 @@ import { useField } from "formik";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
 import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";

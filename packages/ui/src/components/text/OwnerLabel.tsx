@@ -1,7 +1,7 @@
 import { getObjectUrl, getTranslation } from "@local/shared";
 import { Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useLocation } from "../../route/router.js";
 import { firstString } from "../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";

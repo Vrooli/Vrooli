@@ -6,7 +6,7 @@ import { PageContainer } from "../../components/Page/Page.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useStripe } from "../../hooks/useStripe.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";

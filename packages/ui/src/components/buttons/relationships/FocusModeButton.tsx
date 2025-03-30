@@ -3,7 +3,7 @@ import { Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { Icon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";

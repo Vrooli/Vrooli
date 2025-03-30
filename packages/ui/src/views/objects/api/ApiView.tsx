@@ -11,7 +11,7 @@ import { ResourceList } from "../../../components/lists/ResourceList/ResourceLis
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { Title } from "../../../components/text/Title.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { IconCommon } from "../../../icons/Icons.js";

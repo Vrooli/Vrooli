@@ -2,7 +2,7 @@ import { LINKS } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
 import { ChangeEvent, FormEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "../../../utils/search/siteToSearch.js";
 import { SettingsSearchBarProps } from "./types.js";

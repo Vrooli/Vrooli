@@ -13,7 +13,7 @@ import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { ObjectListActions } from "../../../components/lists/types.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";

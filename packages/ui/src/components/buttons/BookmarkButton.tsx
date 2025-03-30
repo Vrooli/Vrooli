@@ -2,7 +2,7 @@ import { Bookmark, BookmarkFor, uuidValidate } from "@local/shared";
 import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useBookmarkListsStore, useBookmarker } from "../../hooks/objectActions.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";

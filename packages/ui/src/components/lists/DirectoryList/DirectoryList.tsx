@@ -10,7 +10,7 @@ import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/O
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { TextLoading } from "../../../components/lists/TextLoading/TextLoading.js";
 import { ObjectListActions } from "../../../components/lists/types.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
 import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";

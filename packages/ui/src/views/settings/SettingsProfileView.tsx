@@ -11,7 +11,7 @@ import { TranslatedRichInput } from "../../components/inputs/RichInput/RichInput
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";

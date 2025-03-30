@@ -1,7 +1,7 @@
 import { LINKS, UrlTools } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo } from "react";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { Redirect, useLocation } from "../../route/router.js";
 import { pagePaddingBottom } from "../../styles.js";
 import { PageProps, SxType } from "../../types.js";

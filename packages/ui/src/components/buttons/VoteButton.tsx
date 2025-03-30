@@ -2,7 +2,7 @@ import { getReactionScore, removeModifiers } from "@local/shared";
 import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useVoter } from "../../hooks/objectActions.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";

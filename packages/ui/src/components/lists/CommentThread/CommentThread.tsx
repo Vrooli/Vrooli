@@ -2,7 +2,7 @@ import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionF
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";

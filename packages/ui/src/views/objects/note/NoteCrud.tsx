@@ -14,7 +14,8 @@ import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/Obj
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
-import { SessionContext } from "../../../contexts.js";
+import { ActiveChatContext } from "../../../contexts/activeChat.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm, InnerForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";

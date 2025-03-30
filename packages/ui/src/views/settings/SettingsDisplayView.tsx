@@ -13,7 +13,7 @@ import { ThemeSwitch } from "../../components/inputs/ThemeSwitch/ThemeSwitch.js"
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
 import { useShowBotWarning } from "../../hooks/subscriptions.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";

@@ -1,7 +1,7 @@
 import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointsChatMessage, getTranslation, noop, uuid } from "@local/shared";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
-import { SessionContext } from "../contexts.js";
+import { SessionContext } from "../contexts/session.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
 import { getUserLanguages } from "../utils/display/translationTools.js";
 import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "../utils/localStorage.js";

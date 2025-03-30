@@ -2,7 +2,7 @@ import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Avatar, Badge, Box, BoxProps, Button, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
 import { useMenu } from "../../hooks/useMenu.js";

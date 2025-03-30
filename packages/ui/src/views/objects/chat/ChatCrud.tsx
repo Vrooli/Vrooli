@@ -16,7 +16,7 @@ import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextI
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useMessageActions, useMessageInput, useMessageTree } from "../../../hooks/messages.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";

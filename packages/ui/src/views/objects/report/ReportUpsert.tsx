@@ -11,7 +11,7 @@ import { RichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { Selector } from "../../../components/inputs/Selector/Selector.js";
 import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";

@@ -14,7 +14,7 @@ import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { TimezoneSelector } from "../../../components/inputs/TimezoneSelector/TimezoneSelector.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { Title } from "../../../components/text/Title.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";

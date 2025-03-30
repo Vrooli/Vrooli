@@ -5,7 +5,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SocketService } from "../../../api/socket.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";

@@ -8,7 +8,7 @@ import { ContentCollapse } from "../../components/containers/ContentCollapse.js"
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useFetch } from "../../hooks/useFetch.js";
 import { ScrollBox } from "../../styles.js";
 import { AwardDisplay } from "../../types.js";

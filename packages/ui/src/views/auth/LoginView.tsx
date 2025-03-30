@@ -10,7 +10,7 @@ import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";

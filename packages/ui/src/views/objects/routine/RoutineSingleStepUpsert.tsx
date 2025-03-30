@@ -18,7 +18,7 @@ import { VersionInput } from "../../../components/inputs/VersionInput/VersionInp
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceListInput } from "../../../components/lists/ResourceList/ResourceList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";

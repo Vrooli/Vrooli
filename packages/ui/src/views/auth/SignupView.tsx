@@ -12,7 +12,7 @@ import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { formSubmit } from "../../forms/styles.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";

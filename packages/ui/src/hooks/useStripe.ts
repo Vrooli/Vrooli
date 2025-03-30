@@ -2,7 +2,7 @@ import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscripti
 import { loadStripe } from "@stripe/stripe-js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { fetchData } from "../api/fetchData.js";
-import { SessionContext } from "../contexts.js";
+import { SessionContext } from "../contexts/session.js";
 import { openLink } from "../route/openLink.js";
 import { useLocation } from "../route/router.js";
 import { addSearchParams, removeSearchParams } from "../route/searchParams.js";

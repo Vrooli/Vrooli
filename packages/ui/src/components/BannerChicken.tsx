@@ -1,20 +1,23 @@
-import { LINKS } from "@local/shared";
 import { useContext, useEffect, useMemo } from "react";
-import { SessionContext } from "../contexts.js";
-import { useLocation } from "../route/router.js";
-import { getCurrentUser } from "../utils/authentication/session.js";
-import { PubSub } from "../utils/pubsub.js";
+import { SessionContext } from "../contexts/session.js";
+
+/**
+ * Routes that should never display ads.
+ * 
+ * NOTE: These are hard-coded instead of using the LINKS object because 
+ * we need to minimize imports to reduce the bundle size.
+ */
+const BLACKLIST_ROUTES = [
+    "/about",
+    "/auth/forgot-password",
+    "/",
+    "/auth/login",
+    "/pro",
+    "/auth/password-reset",
+    "/auth/signup",
+] as const;
 
 const HALF = 0.5;
-const BLACKLIST_ROUTES = [
-    LINKS.About,
-    LINKS.ForgotPassword,
-    LINKS.Home,
-    LINKS.Login,
-    LINKS.Pro,
-    LINKS.ResetPassword,
-    LINKS.Signup,
-] as string[];
 
 type BannerChickenProps = {
     backgroundColor: string;
@@ -36,26 +39,25 @@ export function BannerChicken({
     isMobile,
 }: BannerChickenProps) {
     const session = useContext(SessionContext);
-    const [location] = useLocation();
 
     const adFrequency = useMemo(() => {
-        const user = getCurrentUser(session);
+        if (!session?.isLoggedIn) return "full";
+        const user = session.users?.[0];
         if (!user) return "full";
         if (user.hasPremium) return "none";
-        if (session?.isLoggedIn) return "half";
-        return "full";
+        return "half";
     }, [session]);
 
     const shouldDisplayAd = useMemo(() => {
         // Don't display ads on certain routes
-        if (BLACKLIST_ROUTES.includes(location.pathname)) return false;
+        if (BLACKLIST_ROUTES.includes(window.location.pathname as any)) return false;
         if (adFrequency === "none") return false;
         if (adFrequency === "full") return true;
         // Pick a random number between 0 and 1
         const random = Math.random();
         // If the random number is less than 0.5, display the ad
         return random < HALF;
-    }, [adFrequency, location.pathname]);
+    }, [adFrequency]);
 
     useEffect(function renderAdEffect() {
         if (!shouldDisplayAd || !process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID) {
@@ -67,8 +69,6 @@ export function BannerChicken({
         script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`;
         script.async = true;
         script.crossOrigin = "anonymous";
-        script.onload = () => PubSub.get().publish("banner", { isDisplayed: true });
-        script.onerror = () => PubSub.get().publish("banner", { isDisplayed: false });
         document.body.appendChild(script);
 
         return () => {

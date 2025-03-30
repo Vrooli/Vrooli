@@ -14,7 +14,7 @@ import { ResourceList } from "../../components/lists/ResourceList/ResourceList.j
 import { ObjectListActions } from "../../components/lists/types.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useMessageActions, useMessageInput, useMessageTree } from "../../hooks/messages.js";
 import { useChatTasks } from "../../hooks/tasks.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";

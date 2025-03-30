@@ -1,14 +1,12 @@
-import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, SEEDED_IDS, Session, endpointsChat, noop, uuidValidate } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, SEEDED_IDS, endpointsChat, noop, uuidValidate } from "@local/shared";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchLazyWrapper } from "./api/fetchWrapper.js";
-import { ServerResponseParser } from "./api/responseParser.js";
-import { useLazyFetch } from "./hooks/useLazyFetch.js";
-import { getCurrentUser } from "./utils/authentication/session.js";
-import { getCookieMatchingChat, setCookieMatchingChat } from "./utils/localStorage.js";
-import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "./views/objects/chat/ChatCrud.js";
-
-export const SessionContext = createContext<Session | undefined>(undefined);
+import { fetchLazyWrapper } from "../api/fetchWrapper.js";
+import { ServerResponseParser } from "../api/responseParser.js";
+import { useLazyFetch } from "../hooks/useLazyFetch.js";
+import { getCurrentUser } from "../utils/authentication/session.js";
+import { getCookieMatchingChat, setCookieMatchingChat } from "../utils/localStorage.js";
+import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "../views/objects/chat/ChatCrud.js";
 
 export type ActiveChatContext = {
     /** 

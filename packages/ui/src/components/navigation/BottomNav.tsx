@@ -1,7 +1,7 @@
 import { Badge, BottomNavigation, BottomNavigationAction, styled, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../contexts.js";
+import { SessionContext } from "../../contexts/session.js";
 import { useKeyboardOpen } from "../../hooks/useKeyboardOpen.js";
 import { Icon } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";

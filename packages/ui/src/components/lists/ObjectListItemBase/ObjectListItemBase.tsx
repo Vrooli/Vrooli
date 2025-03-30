@@ -2,7 +2,7 @@ import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberI
 import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";

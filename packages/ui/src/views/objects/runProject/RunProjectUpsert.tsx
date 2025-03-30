@@ -8,7 +8,7 @@ import { BottomActionsButtons } from "../../../components/buttons/BottomActionsB
 import { ListContainer } from "../../../components/containers/ListContainer.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";

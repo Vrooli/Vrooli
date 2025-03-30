@@ -1,7 +1,7 @@
 import { AutocompleteOption, ListObject, SearchType, TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SearchQueryVariablesInput } from "../components/lists/types.js";
-import { SessionContext } from "../contexts.js";
+import { SessionContext } from "../contexts/session.js";
 import { useLocation } from "../route/router.js";
 import { addSearchParams } from "../route/searchParams.js";
 import { SetLocation } from "../route/types.js";

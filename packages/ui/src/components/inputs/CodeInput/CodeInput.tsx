@@ -9,7 +9,8 @@ import { StatusButton } from "../../buttons/StatusButton/StatusButton.js";
 import { SelectorBase } from "../../inputs/Selector/Selector.js";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import React from "react";
-import { ActiveChatContext, SessionContext } from "../../../contexts.js";
+import { ActiveChatContext } from "../../../contexts/activeChat.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { generateContextLabel } from "../../../hooks/tasks.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";

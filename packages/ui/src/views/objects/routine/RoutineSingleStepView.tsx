@@ -17,7 +17,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { StatsCompact } from "../../../components/text/StatsCompact.js";
 import { VersionDisplay } from "../../../components/text/VersionDisplay.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useSocketRun, useUpsertRunRoutine } from "../../../hooks/runs.js";
 import { useErrorPopover } from "../../../hooks/useErrorPopover.js";

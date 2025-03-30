@@ -18,7 +18,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { Title } from "../../../components/text/Title.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";

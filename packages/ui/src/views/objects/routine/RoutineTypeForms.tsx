@@ -11,7 +11,7 @@ import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js
 import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { FormTip } from "../../../components/inputs/form/FormTip.js";
 import { Title } from "../../../components/text/Title.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { FormView } from "../../../forms/FormView/FormView.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { IconCommon } from "../../../icons/Icons.js";

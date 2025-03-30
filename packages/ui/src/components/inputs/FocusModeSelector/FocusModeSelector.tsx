@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { fetchData } from "../../../api/fetchData.js";
 import { ServerResponseParser } from "../../../api/responseParser.js";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";

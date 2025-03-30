@@ -3,7 +3,7 @@
  */
 import { Stack, Typography } from "@mui/material";
 import { useCallback, useContext } from "react";
-import { SessionContext } from "../../../contexts.js";
+import { SessionContext } from "../../../contexts/session.js";
 import { getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { SelectLanguageMenu } from "../../dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { LanguageInputProps } from "../types.js";
