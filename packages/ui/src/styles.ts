@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackProps, styled, SxProps, Theme } from "@mui/material";
+import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackProps, styled, Theme } from "@mui/material";
 
 /**
  * Lighthouse recommended size for clickable elements, to improve SEO
@@ -116,21 +116,16 @@ export const FormSection = styled(Stack, {
     ...formSection(theme, variant),
 }));
 
-
-export function formContainer(theme: Theme): SxProps {
-    return {
-        flexDirection: "column",
-        gap: theme.spacing(3),
-        width: "100%",
-        margin: theme.spacing(2),
-        // Smaller margin on mobile
-        [theme.breakpoints.down("sm")]: {
-            margin: theme.spacing(1),
-        },
-    };
-}
-export const FormContainer = styled(Stack)(({ theme }) => ({
-    ...formContainer(theme),
+export const FormContainer = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    gap: theme.spacing(3),
+    width: "100%",
+    margin: theme.spacing(2),
+    // Smaller margin on mobile
+    [theme.breakpoints.down("sm")]: {
+        margin: theme.spacing(1),
+    },
 }));
 
 export const BannerImageContainer = styled(Box)(({ theme }) => ({

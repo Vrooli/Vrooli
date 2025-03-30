@@ -1,5 +1,5 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointsAuth, LINKS, Session, SignUpPageTabOption } from "@local/shared";
-import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, useTheme } from "@mui/material";
+import { alpha, Box, BoxProps, Button, Checkbox, Divider, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, Typography, useTheme } from "@mui/material";
 import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,7 @@ import { useTabs } from "../../hooks/useTabs.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { FormContainer, FormSection } from "../../styles.js";
+import { FormContainer } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { removeCookie } from "../../utils/localStorage.js";
@@ -58,6 +58,10 @@ const baseFormStyle = {
 const breadcrumbsStyle = {
     margin: "auto",
 } as const;
+const agreementTextStyle = {
+    fontStyle: "italic",
+    margin: 0,
+} as const;
 
 const nameInputProps = {
     startAdornment: (
@@ -74,6 +78,41 @@ const emailInputProps = {
         </InputAdornment>
     ),
 } as const;
+
+const StyledSignUpButton = styled(Button)(({ theme }) => ({
+    ...formSubmit,
+    background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
+    fontSize: "1.1rem",
+    padding: "12px",
+    textTransform: "none",
+    fontWeight: 600,
+    transition: "all 0.3s ease",
+    "& .MuiTouchRipple-root": {
+        transition: "transform 0.3s ease",
+    },
+    "&:hover": {
+        background: `linear-gradient(45deg, ${theme.palette.secondary.dark}, ${theme.palette.primary.dark})`,
+        // eslint-disable-next-line no-magic-numbers
+        boxShadow: `0 8px 20px ${alpha(theme.palette.secondary.main, 0.4)}`,
+        transform: "scale(1.05)",
+    },
+}));
+
+const formContainerStyle = {
+    padding: 2,
+    gap: 2,
+} as const;
+
+const BREADCRUMB_PATHS = [
+    {
+        textKey: "LogIn",
+        link: LINKS.Login,
+    },
+    {
+        textKey: "ForgotPassword",
+        link: LINKS.ForgotPassword,
+    },
+] as const;
 
 function SignupForm() {
     const session = useContext(SessionContext);
@@ -104,6 +143,11 @@ function SignupForm() {
             });
         }
     }, [userId, redirect, setLocation]);
+
+    const breadcrumbPaths = useMemo(() => BREADCRUMB_PATHS.map(path => ({
+        text: t(path.textKey),
+        link: path.link,
+    })), [t]);
 
     const handleSubmit = useCallback(function handleSubmitCallback(values: FormInput, helpers: FormikHelpers<FormInput>) {
         if (values.password !== values.confirmPassword) {
@@ -156,18 +200,7 @@ function SignupForm() {
                 helpers.setSubmitting(false);
             },
         });
-    }, [emailSignUp, palette.mode, setLocation]);
-
-    const breadcrumbPaths = [
-        {
-            text: t("LogIn"),
-            link: LINKS.Login,
-        },
-        {
-            text: t("ForgotPassword"),
-            link: LINKS.ForgotPassword,
-        },
-    ] as const;
+    }, [emailSignUp, palette.mode, redirect, setLocation]);
 
     return (
         <Box sx={outerFormStyle}>
@@ -181,44 +214,41 @@ function SignupForm() {
                     isLoading={loading}
                     style={baseFormStyle}
                 >
-                    <FormContainer>
-                        <FormSection variant="transparent">
-                            <Field
-                                fullWidth
-                                autoComplete="name"
-                                name="name"
-                                label={t("Name")}
-                                placeholder={t("NamePlaceholder")}
-                                as={TextInput}
-                                InputProps={nameInputProps}
-                            />
-                            <Field
-                                fullWidth
-                                autoComplete="email"
-                                name="email"
-                                label={t("Email", { count: 1 })}
-                                placeholder={t("EmailPlaceholder")}
-                                as={TextInput}
-                                InputProps={emailInputProps}
-                                helperText={formik.touched.email && formik.errors.email}
-                                error={formik.touched.email && Boolean(formik.errors.email)}
-                            />
-                        </FormSection>
-                        <FormSection variant="transparent">
-                            <PasswordTextInput
-                                fullWidth
-                                name="password"
-                                autoComplete="new-password"
-                                label={t("Password")}
-                            />
-                            <PasswordTextInput
-                                fullWidth
-                                name="confirmPassword"
-                                autoComplete="new-password"
-                                label={t("PasswordConfirm")}
-                            />
-                        </FormSection>
-                        <FormSection variant="transparent">
+                    <FormContainer sx={formContainerStyle}>
+                        <Field
+                            fullWidth
+                            autoComplete="name"
+                            name="name"
+                            label={t("Name")}
+                            placeholder={t("NamePlaceholder")}
+                            as={TextInput}
+                            InputProps={nameInputProps}
+                        />
+                        <Field
+                            fullWidth
+                            autoComplete="email"
+                            name="email"
+                            label={t("Email", { count: 1 })}
+                            placeholder={t("EmailPlaceholder")}
+                            as={TextInput}
+                            InputProps={emailInputProps}
+                            helperText={formik.touched.email && formik.errors.email}
+                            error={formik.touched.email && Boolean(formik.errors.email)}
+                        />
+                        <Divider />
+                        <PasswordTextInput
+                            fullWidth
+                            name="password"
+                            autoComplete="new-password"
+                            label={t("Password")}
+                        />
+                        <PasswordTextInput
+                            fullWidth
+                            name="confirmPassword"
+                            autoComplete="new-password"
+                            label={t("PasswordConfirm")}
+                        />
+                        <Box>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -230,7 +260,11 @@ function SignupForm() {
                                         onChange={formik.handleChange}
                                     />
                                 }
-                                label="I agree to receive marketing promotions and updates via email."
+                                label={
+                                    <Typography variant="caption">
+                                        Send me updates and offers
+                                    </Typography>
+                                }
                             />
                             <FormControl required error={!formik.values.agreeToTerms && formik.touched.agreeToTerms}>
                                 <FormControlLabel
@@ -245,37 +279,38 @@ function SignupForm() {
                                         />
                                     }
                                     label={
-                                        <>
+                                        <Typography variant="caption">
                                             I agree to the{" "}
                                             <Link
-                                                href="/terms-and-conditions"
+                                                href={LINKS.Terms}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 onClick={stopPropagation}
                                             >
-                                                terms and conditions
+                                                terms
                                             </Link>
                                             .
-                                        </>
+                                        </Typography>
                                     }
                                 />
-                                <FormHelperText>
-                                    {formik.touched.agreeToTerms !== true && "You must agree to the terms and conditions"}
-                                </FormHelperText>
+                                {!formik.values.agreeToTerms && formik.touched.agreeToTerms && (
+                                    <FormHelperText component="p" sx={agreementTextStyle}>
+                                        Please accept the terms to continue
+                                    </FormHelperText>
+                                )}
                             </FormControl>
-                        </FormSection>
-                        <Box width="100%" display="flex" flexDirection="column" p={2}>
-                            <Button
+                        </Box>
+                        <Box display="flex" flexDirection="column">
+                            <StyledSignUpButton
                                 id="sign-up-button"
                                 fullWidth
                                 disabled={loading}
                                 type="submit"
                                 color="secondary"
                                 variant="contained"
-                                sx={formSubmit}
                             >
                                 {t("SignUp")}
-                            </Button>
+                            </StyledSignUpButton>
                             <BreadcrumbsBase
                                 paths={breadcrumbPaths}
                                 separator={"•"}
@@ -418,7 +453,7 @@ export function SignupView({
     const signUpBoxStyle = useMemo(function signUpBoxStyleMemo() {
         return {
             flexGrow: 1,
-            maxWidth: isMobile ? "unset" : "min(400px, 30%)",
+            width: isMobile ? "100%" : "min(400px, 50%)",
             background: palette.background.paper,
             display: isMobile && currTab.key !== SignUpPageTabOption.SignUp
                 ? "none"

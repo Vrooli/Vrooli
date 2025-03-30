@@ -1,5 +1,5 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointsAuth, getOAuthInitRoute, LINKS, OAUTH_PROVIDERS, Session } from "@local/shared";
-import { Box, Button, Divider, InputAdornment, styled } from "@mui/material";
+import { Box, Button, Divider, InputAdornment, keyframes, styled } from "@mui/material";
 import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +17,7 @@ import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
 import { IconCommon, IconFavicon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "../../styles.js";
+import { CenteredContentPage, CenteredContentPageWrap, pagePaddingBottom } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { removeCookie } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -34,26 +34,56 @@ const OAUTH_PROVIDERS_INFO = [
         name: "X",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.X),
         site: "https://x.com",
+        style: {
+            background: "#000000",
+            color: "#ffffff",
+            hoverBackground: "#14171a",
+            border: "none",
+        },
     },
     {
         name: "Google",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.Google),
         site: "https://google.com",
+        style: {
+            background: "#4285f4",
+            color: "#ffffff",
+            border: "none",
+            hoverBackground: "#357ABD",
+        },
     },
     {
         name: "Apple",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.Apple),
         site: "https://apple.com",
+        style: {
+            background: "#000000",
+            color: "#ffffff",
+            hoverBackground: "#333333",
+            border: "none",
+        },
     },
     {
         name: "GitHub",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.GitHub),
         site: "https://github.com",
+        style: {
+            background: "#171a21",
+            color: "#ffffff",
+            hoverBackground: "#2a475e",
+            border: "none",
+        },
     },
     {
         name: "Facebook",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.Facebook),
         site: "https://facebook.com",
+        style: {
+            background: "#1877f2",
+            color: "#ffffff",
+            hoverBackground: "#0a66c2",
+            border: "none",
+        },
     },
     // Add more providers as needed
 ] as const;
@@ -63,20 +93,119 @@ const initialValues = {
     password: "",
 };
 
+// eslint-disable-next-line no-magic-numbers
+const ANIMATION_DURATION = 0.5;
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const SPACING_LARGE = 4;
+const SPACING_MEDIUM = 2;
+
+const LoginContainer = styled(Box)(({ theme }) => ({
+    width: "100%",
+    maxWidth: "900px",
+    background: theme.palette.background.paper,
+    borderRadius: theme.spacing(2),
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+    animation: `${fadeIn} ${ANIMATION_DURATION}s ease-out`,
+    overflow: "hidden",
+    margin: theme.spacing(SPACING_LARGE, SPACING_MEDIUM),
+    display: "flex",
+    flexDirection: "row",
+    [theme.breakpoints.down("md")]: {
+        maxWidth: "450px",
+        flexDirection: "column",
+    },
+    [theme.breakpoints.down("sm")]: {
+        maxWidth: "100%",
+        margin: theme.spacing(2),
+    },
+}));
+
+const LoginFormContainer = styled(Box)(({ theme }) => ({
+    flex: "1 1 60%",
+    borderRight: `1px solid ${theme.palette.divider}`,
+    display: "flex",
+    flexDirection: "column",
+    margin: "auto",
+    [theme.breakpoints.down("md")]: {
+        flex: "1 1 auto",
+        borderRight: "none",
+        borderBottom: `1px solid ${theme.palette.divider}`,
+    },
+}));
+
+const OAuthContainer = styled(Box)(({ theme }) => ({
+    flex: "1 1 40%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    padding: theme.spacing(SPACING_MEDIUM),
+    [theme.breakpoints.down("md")]: {
+        flex: "1 1 auto",
+        padding: theme.spacing(SPACING_MEDIUM),
+    },
+}));
+
 const OrDivider = styled(Divider)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     width: "100%",
+    margin: theme.spacing(2, 0),
+    "&::before, &::after": {
+        borderColor: theme.palette.divider,
+    },
+    [theme.breakpoints.up("md")]: {
+        display: "none",
+    },
 }));
-const OAuthButton = styled(Button)(() => ({
-    background: "white",
-    color: "black",
-    borderRadius: "16px",
+
+interface OAuthButtonProps {
+    providerStyle: typeof OAUTH_PROVIDERS_INFO[number]["style"];
+}
+
+const OAuthButton = styled(Button, {
+    shouldForwardProp: (prop) => prop !== "providerStyle",
+})<OAuthButtonProps>(({ theme, providerStyle }) => ({
+    background: providerStyle.background,
+    color: providerStyle.color,
+    borderRadius: theme.spacing(2),
     textTransform: "none",
+    border: providerStyle.border,
+    padding: theme.spacing(2),
+    transition: "all 0.2s ease-in-out",
     "& .MuiButton-icon": {
         marginRight: "auto",
     },
     "&:hover": {
-        background: "#dcdcdc",
+        background: providerStyle.hoverBackground,
+        transform: "translateY(-1px)",
+        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+    },
+}));
+
+const FormSection = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        padding: theme.spacing(2),
+    },
+}));
+
+const OAuthSection = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(0, 2, 2),
+    display: "flex",
+    flexDirection: "column",
+    gap: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        padding: theme.spacing(0, 2, 2),
     },
 }));
 
@@ -100,9 +229,26 @@ const emailStartAdornment = {
     ),
 };
 
-function LoginForm({
-    onClose,
-}: LoginFormProps) {
+const FormContainer = styled(Box)(() => ({
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    marginBottom: pagePaddingBottom,
+}));
+
+const BREADCRUMB_PATHS = [
+    {
+        textKey: "ForgotPassword",
+        link: LINKS.ForgotPassword,
+    },
+    {
+        textKey: "SignUp",
+        link: LINKS.Signup,
+    },
+] as const;
+
+function LoginForm() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -208,74 +354,71 @@ function LoginForm({
         });
     }, [emailLogIn, redirect, setLocation, verificationCode]);
 
-    const breadcrumbPaths = [
-        {
-            text: t("ForgotPassword"),
-            link: LINKS.ForgotPassword,
-        },
-        {
-            text: t("SignUp"),
-            link: LINKS.Signup,
-        },
-    ] as const;
+    const breadcrumbPaths = useMemo(() => BREADCRUMB_PATHS.map(path => ({
+        text: t(path.textKey),
+        link: path.link,
+    })), [t]);
 
     return (
-        <Box>
-            <TopBar
-                display="dialog"
-                onClose={onClose}
-                title={t("LogIn")}
-            />
-            <Formik
-                initialValues={initialValues}
-                onSubmit={onSubmit}
-                validationSchema={emailLogInFormValidation}
-            >
-                {(formik) => <InnerForm
-                    display={"dialog"}
-                    isLoading={loading}
-                    style={baseFormStyle}
-                >
-                    <FormContainer width="unset" maxWidth="unset">
-                        <FormSection variant="transparent">
-                            <Field
-                                fullWidth
-                                autoComplete="email"
-                                name="email"
-                                label={t("Email", { count: 1 })}
-                                placeholder={t("EmailPlaceholder")}
-                                as={TextInput}
-                                InputProps={emailStartAdornment}
-                                helperText={formik.touched.email && formik.errors.email}
-                                error={formik.touched.email && Boolean(formik.errors.email)}
-                            />
-                            <PasswordTextInput
-                                fullWidth
-                                name="password"
-                                autoComplete="current-password"
-                            />
-                        </FormSection>
-                    </FormContainer>
-                    <Box width="100%" display="flex" flexDirection="column" p={2} pt={0}>
-                        <Button
-                            fullWidth
-                            disabled={loading}
-                            type="submit"
-                            color="secondary"
-                            variant='contained'
-                            sx={formSubmit}
-                        >
-                            {t("LogIn")}
-                        </Button>
-                        <BreadcrumbsBase
-                            paths={breadcrumbPaths}
-                            separator={"•"}
-                            sx={breadcrumbsStyle}
-                        />
-                    </Box>
+        <FormContainer>
+            <LoginContainer>
+                <LoginFormContainer>
+                    <Formik
+                        initialValues={initialValues}
+                        onSubmit={onSubmit}
+                        validationSchema={emailLogInFormValidation}
+                    >
+                        {(formik) => (
+                            <InnerForm
+                                display="dialog"
+                                isLoading={loading}
+                                style={baseFormStyle}
+                            >
+                                <FormSection>
+                                    <Field
+                                        fullWidth
+                                        autoComplete="email"
+                                        name="email"
+                                        label={t("Email", { count: 1 })}
+                                        placeholder={t("EmailPlaceholder")}
+                                        as={TextInput}
+                                        InputProps={emailStartAdornment}
+                                        helperText={formik.touched.email && formik.errors.email}
+                                        error={formik.touched.email && Boolean(formik.errors.email)}
+                                    />
+                                    <Box mt={2}>
+                                        <PasswordTextInput
+                                            fullWidth
+                                            name="password"
+                                            autoComplete="current-password"
+                                        />
+                                    </Box>
+                                    <Box mt={3} display="flex" flexDirection="column">
+                                        <Button
+                                            fullWidth
+                                            disabled={loading}
+                                            type="submit"
+                                            color="secondary"
+                                            variant="contained"
+                                            sx={formSubmit}
+                                        >
+                                            {t("LogIn")}
+                                        </Button>
+                                        <BreadcrumbsBase
+                                            paths={breadcrumbPaths}
+                                            separator="•"
+                                            sx={breadcrumbsStyle}
+                                        />
+                                    </Box>
+                                </FormSection>
+                            </InnerForm>
+                        )}
+                    </Formik>
+                </LoginFormContainer>
+                <OAuthContainer>
                     <OrDivider>or</OrDivider>
-                    <Box display="flex" flexDirection="column" width="100%" maxWidth="400px" gap={1} p={2}>
-                        {OAUTH_PROVIDERS_INFO.map(({ name, url, site }) => {
+                    <OAuthSection>
+                        {OAUTH_PROVIDERS_INFO.map(({ name, url, site, style }) => {
                             function handleOAuthClick() {
                                 window.location.href = url;
                             }
@@ -287,6 +430,7 @@ function LoginForm({
                                     variant="contained"
                                     fullWidth
                                     startIcon={<IconFavicon href={site} />}
+                                    providerStyle={style}
                                 >
                                     <span style={oAuthSpanStyle}>
                                         {t("SignInWith", { provider: name })}
@@ -294,28 +438,29 @@ function LoginForm({
                                 </OAuthButton>
                             );
                         })}
-                    </Box>
-                </InnerForm>}
-            </Formik>
-        </Box>
+                    </OAuthSection>
+                </OAuthContainer>
+            </LoginContainer>
+        </FormContainer>
     );
 }
 
+const contentWrapStyle = {
+    minHeight: "100%",
+    alignItems: "flex-start",
+} as const;
+
 export function LoginView({
     display,
-    onClose,
 }: LoginViewProps) {
     return (
         <CenteredContentPage>
             <TopBar
                 display={display}
-                onClose={onClose}
                 titleBehaviorDesktop="ShowBelow"
             />
-            <CenteredContentPageWrap>
-                <CenteredContentPaper maxWidth={600}>
-                    <LoginForm onClose={onClose} />
-                </CenteredContentPaper>
+            <CenteredContentPageWrap sx={contentWrapStyle}>
+                <LoginForm />
             </CenteredContentPageWrap>
         </CenteredContentPage>
     );

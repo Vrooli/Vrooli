@@ -25,7 +25,6 @@ Enhance the project's AI-readability and automation capabilities.
 - [x] Create ARCHITECTURE.md
 - [x] Add package-level documentation
 - [x] Create TASKS.md for better task tracking
-- [ ] Add AI-specific configuration files
 - [ ] Enhance code documentation for better AI understanding
 
 ## ⌚ Backlog

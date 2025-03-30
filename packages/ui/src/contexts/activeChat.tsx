@@ -7,6 +7,7 @@ import { useLazyFetch } from "../hooks/useLazyFetch.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
 import { getCookieMatchingChat, setCookieMatchingChat } from "../utils/localStorage.js";
 import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "../views/objects/chat/ChatCrud.js";
+import { SessionContext } from "./session.js";
 
 export type ActiveChatContext = {
     /** 
