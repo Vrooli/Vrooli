@@ -1,5 +1,5 @@
 import { CodeLanguage, StripeEndpoint, User, uuid } from '@local/shared';
-import { CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material';
+import { CssBaseline, GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
 import type { Preview } from '@storybook/react';
 import { HttpResponse, http } from 'msw';
 import { initialize, mswLoader } from 'msw-storybook-addon';
@@ -19,9 +19,9 @@ import { BottomNav } from '../src/components/navigation/BottomNav.js';
 import { CommandPalette } from '../src/components/navigation/CommandPalette.js';
 import { FindInPage } from '../src/components/navigation/FindInPage.js';
 import { SnackStack } from '../src/components/snacks/SnackStack/SnackStack.js';
-import { ActiveChatProvider, SessionContext } from "../src/contexts.js";
+import { ActiveChatProvider } from "../src/contexts/activeChat.js";
+import { SessionContext } from "../src/contexts/session.js";
 import { useHotkeys } from '../src/hooks/useHotkeys.js';
-import { useWindowSize } from "../src/hooks/useWindowSize.js";
 import i18n from '../src/i18n';
 import { ELEMENT_IDS, Z_INDEX } from '../src/utils/consts.js';
 import { DEFAULT_THEME, themes } from '../src/utils/display/theme';
@@ -99,6 +99,17 @@ function generateDummyStandards() {
     };
     return response;
 }
+
+const isLeftHandedMapping = {
+    "Right-handed (default)": false,
+    "Left-handed": true,
+};
+
+const fontSizeMapping = {
+    small: 12,
+    medium: 16,
+    large: 20,
+};
 
 const preview: Preview = {
     loaders: [mswLoader],
@@ -195,10 +206,19 @@ const preview: Preview = {
         isLeftHanded: {
             name: 'Is Left Handed',
             description: 'Switch between left and right handed mode',
-            defaultValue: false,
+            defaultValue: "Right-handed (default)",
             toolbar: {
                 icon: 'circlehollow',
-                items: [true, false],
+                items: ["Right-handed (default)", "Left-handed"],
+            },
+        },
+        fontSize: {
+            name: 'Font Size',
+            description: 'Switch between font sizes',
+            defaultValue: 'medium',
+            toolbar: {
+                icon: 'circlehollow',
+                items: ['small', 'medium', 'large'],
             },
         },
     },
@@ -213,11 +233,16 @@ const preview: Preview = {
                     ? sessionOverrides.users.map(user => ({ ...user, theme: themeMode }))
                     : baseSession.users.map(user => ({ ...user, theme: themeMode })),
             };
-            const theme = themes[themeMode];
-            const isLeftHanded = context.globals.isLeftHanded || false;
+            // const [theme, setTheme] = useState<Theme>(themes[themeMode]);
+            const theme = createTheme({
+                ...themes[themeMode],
+                typography: {
+                    fontSize: fontSizeMapping[context.globals.fontSize] || fontSizeMapping.medium,
+                },
+                isLeftHanded: isLeftHandedMapping[context.globals.isLeftHanded] || false,
+            });
 
             useCssVariables();
-            const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
 
             const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
             const closePopupVideo = useCallback(function closePopupVideoCallback() {
