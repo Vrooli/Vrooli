@@ -1,12 +1,12 @@
 import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid } from "@mui/material";
 import { Field, Formik, useField } from "formik";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
-import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "../../icons/common.js";
 import { useLocation } from "../../route/router.js";
 import { SettingsDataFormProps, SettingsDataViewProps } from "./types.js";
 
@@ -42,6 +42,11 @@ function DataOption({
     );
 }
 
+const userIconInfo = { name: "User", type: "Common" } as const;
+const favoriteIconInfo = { name: "HeartFilled", type: "Common" } as const;
+const teamIconInfo = { name: "Team", type: "Common" } as const;
+const routineIconInfo = { name: "Routine", type: "Routine" } as const;
+
 function SettingsDataForm({
     display,
     dirty,
@@ -71,7 +76,7 @@ function SettingsDataForm({
                     <Divider sx={{ marginTop: 2 }} />
                     <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
                         <Title
-                            Icon={UserIcon}
+                            iconInfo={userIconInfo}
                             title={"Personal"}
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
@@ -141,7 +146,7 @@ function SettingsDataForm({
                     <Divider sx={{ marginTop: 2 }} />
                     <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
                         <Title
-                            Icon={HeartFilledIcon}
+                            iconInfo={favoriteIconInfo}
                             title={"Engagement & Contributions"}
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
@@ -205,7 +210,7 @@ function SettingsDataForm({
                     <Divider sx={{ marginTop: 2 }} />
                     <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
                         <Title
-                            Icon={TeamIcon}
+                            iconInfo={teamIconInfo}
                             title={"Collaborative"}
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
@@ -241,7 +246,7 @@ function SettingsDataForm({
                     <Divider sx={{ marginTop: 2 }} />
                     <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
                         <Title
-                            Icon={RoutineIcon}
+                            iconInfo={routineIconInfo}
                             title={"Automations"}
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
@@ -335,6 +340,39 @@ export function SettingsDataView({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
+    const initialValues = useMemo(function initialValuesMemo() {
+        return {
+            requestType: "Download" as const,
+            all: false,
+            account: false, // Profile, emails, wallets, awards, focus modes, payment history, api usage, user stats
+            apis: false,
+            bookmarks: false,
+            bots: false,
+            chats: false,
+            codes: false,
+            comments: false,
+            issues: false,
+            notes: false,
+            //posts: false,
+            pullRequests: false,
+            projects: false,
+            questions: false,
+            questionAnswers: false,
+            // quizzes: false,
+            // quizResponses: false, // Includes attempts, answers, etc.
+            reactions: false,
+            reminders: false,
+            reports: false,
+            routines: false,
+            runs: false,
+            schedules: false,
+            standards: false,
+            // tags: false,
+            teams: false, // Includes meetings and roles
+            views: false,
+        };
+    }, []);
+
     return (
         <>
             <SettingsTopBar
@@ -359,36 +397,7 @@ export function SettingsDataView({
                     </Box>
                     <Formik
                         enableReinitialize={true}
-                        initialValues={{
-                            requestType: "Download",
-                            all: false,
-                            account: false, // Profile, emails, wallets, awards, focus modes, payment history, api usage, user stats
-                            apis: false,
-                            bookmarks: false,
-                            bots: false,
-                            chats: false,
-                            codes: false,
-                            comments: false,
-                            issues: false,
-                            notes: false,
-                            //posts: false,
-                            pullRequests: false,
-                            projects: false,
-                            questions: false,
-                            questionAnswers: false,
-                            // quizzes: false,
-                            // quizResponses: false, // Includes attempts, answers, etc.
-                            reactions: false,
-                            reminders: false,
-                            reports: false,
-                            routines: false,
-                            runs: false,
-                            schedules: false,
-                            standards: false,
-                            // tags: false,
-                            teams: false, // Includes meetings and roles
-                            views: false,
-                        }}
+                        initialValues={initialValues}
                         onSubmit={(values, helpers) => {
                             console.log("onsubmit", values);
                             //TODO make sure they have at least one validated email address to send a download link to, if not just deleting

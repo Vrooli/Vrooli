@@ -25,7 +25,7 @@ import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, Use
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { HelpIcon, LinkIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
@@ -442,7 +442,7 @@ components:
 const callLinkInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <LinkIcon />
+            <IconCommon name="Link" />
         </InputAdornment>
     ),
 } as const;
@@ -691,7 +691,7 @@ function ApiForm({
                                         color="secondary"
                                         onClick={showExample}
                                         variant="outlined"
-                                        startIcon={<HelpIcon />}
+                                        startIcon={<IconCommon name="Help" />}
                                     >Show example</Button>
                                 </Stack >
                             </ContentCollapse>

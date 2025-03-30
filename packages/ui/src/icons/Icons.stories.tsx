@@ -671,7 +671,7 @@ AllIcons.parameters = {
 };
 
 // Add IconFavicon story
-export function Favicons() {
+function Favicons() {
     const validUrls = [
         "https://vrooli.com",
         "https://www.google.com",

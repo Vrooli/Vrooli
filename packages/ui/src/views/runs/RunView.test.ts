@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
 import { act } from "react";
-import { useStepMetrics } from "./RunView";
+import { useStepMetrics } from "./RunView.js";
 
 // Mock the Date.now() function
 const mockDateNow = jest.spyOn(Date, "now");
@@ -24,36 +25,36 @@ describe("useStepMetrics", () => {
         jest.restoreAllMocks();
     });
 
-    test("initializes with zero elapsed time and context switches", () => {
+    it("initializes with zero elapsed time and context switches", () => {
         const { result } = renderHook(() => useStepMetrics([], null));
-        expect(result.current.getElapsedTime()).toBe(0);
-        expect(result.current.getContextSwitches()).toBe(0);
+        expect(result.current.getElapsedTime()).to.equal(0);
+        expect(result.current.getContextSwitches()).to.equal(0);
     });
 
-    test("initializes with provided step data", () => {
+    it("initializes with provided step data", () => {
         const initialData = { contextSwitches: 5, elapsedTime: 1000 };
         const { result } = renderHook(() => useStepMetrics([1], initialData));
-        expect(result.current.getElapsedTime()).toBe(1000);
-        expect(result.current.getContextSwitches()).toBe(5);
+        expect(result.current.getElapsedTime()).to.equal(1000);
+        expect(result.current.getContextSwitches()).to.equal(5);
     });
 
-    test("updates elapsed time while tab is focused", () => {
+    it("updates elapsed time while tab is focused", () => {
         const { result } = renderHook(() => useStepMetrics([1, 4], null));
         advanceTime(5000);
-        expect(result.current.getElapsedTime()).toBe(5000);
+        expect(result.current.getElapsedTime()).to.equal(5000);
     });
 
-    test("does not update elapsed time while tab is not focused", () => {
+    it("does not update elapsed time while tab is not focused", () => {
         const { result } = renderHook(() => useStepMetrics([], null));
         act(() => {
             Object.defineProperty(document, "hidden", { value: true });
             document.dispatchEvent(new Event("visibilitychange"));
         });
         advanceTime(5000);
-        expect(result.current.getElapsedTime()).toBe(0);
+        expect(result.current.getElapsedTime()).to.equal(0);
     });
 
-    test("resumes updating elapsed time when tab regains focus", () => {
+    it("resumes updating elapsed time when tab regains focus", () => {
         const { result } = renderHook(() => useStepMetrics([4, 3], null));
         act(() => {
             Object.defineProperty(document, "hidden", { value: true });
@@ -65,10 +66,10 @@ describe("useStepMetrics", () => {
             document.dispatchEvent(new Event("visibilitychange"));
         });
         advanceTime(3000);
-        expect(result.current.getElapsedTime()).toBe(3000);
+        expect(result.current.getElapsedTime()).to.equal(3000);
     });
 
-    test("increments context switches when tab gains focus", () => {
+    it("increments context switches when tab gains focus", () => {
         const { result } = renderHook(() => useStepMetrics([2], {}));
         act(() => {
             Object.defineProperty(document, "hidden", { value: true });
@@ -78,10 +79,10 @@ describe("useStepMetrics", () => {
             Object.defineProperty(document, "hidden", { value: false });
             document.dispatchEvent(new Event("visibilitychange"));
         });
-        expect(result.current.getContextSwitches()).toBe(1);
+        expect(result.current.getContextSwitches()).to.equal(1);
     });
 
-    test("handles multiple focus changes correctly", () => {
+    it("handles multiple focus changes correctly", () => {
         const { result } = renderHook(() => useStepMetrics([], null));
         advanceTime(2000);
         act(() => {
@@ -94,29 +95,29 @@ describe("useStepMetrics", () => {
             document.dispatchEvent(new Event("visibilitychange"));
         });
         advanceTime(4000);
-        expect(result.current.getElapsedTime()).toBe(6000);
-        expect(result.current.getContextSwitches()).toBe(1);
+        expect(result.current.getElapsedTime()).to.equal(6000);
+        expect(result.current.getContextSwitches()).to.equal(1);
     });
 
-    test("updates elapsed time before unload", () => {
+    it("updates elapsed time before unload", () => {
         const { result } = renderHook(() => useStepMetrics([7, 7, 7, 7], null));
         advanceTime(5000);
         act(() => {
             window.dispatchEvent(new Event("beforeunload"));
         });
-        expect(result.current.getElapsedTime()).toBe(5000);
+        expect(result.current.getElapsedTime()).to.equal(5000);
     });
 
-    test("does not update context switches when tab loses focus", () => {
+    it("does not update context switches when tab loses focus", () => {
         const { result } = renderHook(() => useStepMetrics([], {}));
         act(() => {
             Object.defineProperty(document, "hidden", { value: true });
             document.dispatchEvent(new Event("visibilitychange"));
         });
-        expect(result.current.getContextSwitches()).toBe(0);
+        expect(result.current.getContextSwitches()).to.equal(0);
     });
 
-    test("handles rapid focus changes correctly", () => {
+    it("handles rapid focus changes correctly", () => {
         const { result } = renderHook(() => useStepMetrics([], null));
         for (let i = 0; i < 5; i++) {
             act(() => {
@@ -130,18 +131,18 @@ describe("useStepMetrics", () => {
             });
             advanceTime(100);
         }
-        expect(result.current.getElapsedTime()).toBe(500);
-        expect(result.current.getContextSwitches()).toBe(5);
+        expect(result.current.getElapsedTime()).to.equal(500);
+        expect(result.current.getContextSwitches()).to.equal(5);
     });
 
-    test("restarts metrics when the location array changes", () => {
+    it("restarts metrics when the location array changes", () => {
         const { result, rerender } = renderHook(
             ({ steps }) => useStepMetrics(steps, null),
             { initialProps: { steps: [1, 2, 3] } },
         );
         advanceTime(2000);
         rerender({ steps: [4, 5, 6] });
-        expect(result.current.getElapsedTime()).toBe(0);
-        expect(result.current.getContextSwitches()).toBe(0);
+        expect(result.current.getElapsedTime()).to.equal(0);
+        expect(result.current.getContextSwitches()).to.equal(0);
     });
 });

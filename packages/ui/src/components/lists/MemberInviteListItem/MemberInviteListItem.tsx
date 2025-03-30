@@ -1,5 +1,5 @@
 import { Box, Typography, useTheme } from "@mui/material";
-import { NoteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { MemberInviteListItemProps } from "../types.js";
 
@@ -14,8 +14,14 @@ export function MemberInviteListItem({
             {...props}
             belowTags={
                 data?.message && data.message.length > 0 ?
-                    <Box sx={{ display: "flex", flexDirection: "row", gap: 1, justifyContent: "flex-start", alignItems: "center" }}>
-                        <NoteIcon fill={palette.background.textSecondary} width={16} height={16} />
+                    <Box
+                        display="flex"
+                        flexDirection="row"
+                        gap={1}
+                        justifyContent="flex-start"
+                        alignItems="center"
+                    >
+                        <IconCommon name="Note" fill="background.textSecondary" size={16} />
                         <Typography variant="body2" sx={{ color: palette.background.textSecondary }}>
                             {data.message}
                         </Typography>

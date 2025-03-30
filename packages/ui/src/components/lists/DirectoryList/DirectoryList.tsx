@@ -16,7 +16,7 @@ import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectAct
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
-import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { CardBox, multiLineEllipsis } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
@@ -138,7 +138,7 @@ function DirectorySearchButtons({
                     id="card-list-toggle-button"
                     onClick={toggleViewMode}
                 >
-                    {viewMode === "list" ? <ListIcon fill={palette.secondary.main} /> : <GridIcon fill={palette.secondary.main} />}
+                    <IconCommon name={viewMode === "list" ? "List" : "Grid"} fill="secondary.main" />
                 </StyledSearchButton>
             </Tooltip>
         </Box>
@@ -164,16 +164,16 @@ export function DirectoryCard({
 
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
 
-    const Icon = useMemo(() => {
-        if (!data || !data.__typename) return HelpIcon;
-        if (isOfType(data, "ApiVersion")) return ApiIcon;
-        if (isOfType(data, "CodeVersion")) return TerminalIcon;
-        if (isOfType(data, "NoteVersion")) return NoteIcon;
-        if (isOfType(data, "ProjectVersion")) return ProjectIcon;
-        if (isOfType(data, "RoutineVersion")) return RoutineIcon;
-        if (isOfType(data, "StandardVersion")) return StandardIcon;
-        if (isOfType(data, "Team")) return TeamIcon;
-        return HelpIcon;
+    const iconInfo = useMemo(() => {
+        if (!data || !data.__typename) return { name: "Help", type: "Common" } as const;
+        if (isOfType(data, "ApiVersion")) return { name: "Api", type: "Common" } as const;
+        if (isOfType(data, "CodeVersion")) return { name: "Terminal", type: "Common" } as const;
+        if (isOfType(data, "NoteVersion")) return { name: "Note", type: "Common" } as const;
+        if (isOfType(data, "ProjectVersion")) return { name: "Project", type: "Common" } as const;
+        if (isOfType(data, "RoutineVersion")) return { name: "Routine", type: "Routine" } as const;
+        if (isOfType(data, "StandardVersion")) return { name: "Standard", type: "Common" } as const;
+        if (isOfType(data, "Team")) return { name: "Team", type: "Common" } as const;
+        return { name: "Help", type: "Common" } as const;
     }, [data]);
 
     const href = useMemo(() => data ? getObjectUrl(data) : "#", [data]);
@@ -225,7 +225,7 @@ export function DirectoryCard({
                                 id='delete-icon-button'
                                 sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
                             >
-                                <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
+                                <IconCommon name="Delete" id='delete-icon' fill="secondary.contrastText" />
                             </IconButton>
                         </Tooltip>
                     </>
@@ -241,7 +241,10 @@ export function DirectoryCard({
                         textOverflow: "ellipsis",
                     }}
                 >
-                    <Icon fill="white" />
+                    <Icon
+                        fill="white"
+                        info={iconInfo}
+                    />
                     <Typography
                         gutterBottom
                         variant="body2"
@@ -351,7 +354,7 @@ export function DirectoryListHorizontal({
                             justifyContent: "center",
                         }}
                     >
-                        <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
+                        <IconCommon name="Link" fill="secondary.contrastText" size={56} />
                     </CardBox>
                 </Tooltip> : null)}
             </Box>
@@ -393,13 +396,13 @@ export function DirectoryListVertical({
                 />
             </ListContainer>
             {/* Add button */}
-            {canUpdate && <Box sx={{
-                margin: "auto",
-                width: "100%",
-            }}>
+            {canUpdate && <Box
+                margin="auto"
+                width="100%"
+            >
                 <Button
                     fullWidth onClick={openAddDialog}
-                    startIcon={<AddIcon />}
+                    startIcon={<IconCommon name="Add" />}
                     variant="outlined"
                 >{t("AddItem")}</Button>
             </Box>}
@@ -583,14 +586,14 @@ export function DirectoryList(props: DirectoryListProps) {
                 handleComplete={onAdd as (item: object) => unknown}
             />
             {BulkDeleteDialogComponent}
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 1,
-                paddingBottom: "80px",
-            }}>
+            <Box
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                gap={1}
+                paddingBottom="80px"
+            >
                 <DirectorySearchButtons
                     setSortBy={setSortBy}
                     setTimeFrame={setTimeFrame}

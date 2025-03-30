@@ -1,8 +1,4 @@
-import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
-import { useWindowSize } from "hooks/useWindowSize.js";
-import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "icons/common.js";
-import { useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Box, IconButton, styled } from "@mui/material";
 import { GraphActionsProps } from "../types.js";
 
 const ActionsContainer = styled(Box)(({ theme }) => ({
@@ -28,67 +24,68 @@ const ActionsButton = styled(IconButton)(({ theme }) => ({
 }));
 
 export function GraphActions({
-    canRedo,
-    canUndo,
-    handleCleanUpGraph,
-    handleNodeDelete,
-    handleOpenLinkDialog,
-    handleRedo,
-    handleUndo,
-    isEditing,
-    language,
-    nodesOffGraph,
+    // canRedo,
+    // canUndo,
+    // handleCleanUpGraph,
+    // handleNodeDelete,
+    // handleOpenLinkDialog,
+    // handleRedo,
+    // handleUndo,
+    // isEditing,
+    // language,
+    // nodesOffGraph,
 }: GraphActionsProps) {
-    const { t } = useTranslation();
-    const { breakpoints, palette } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
+    // const { t } = useTranslation();
+    // const { breakpoints, palette } = useTheme();
+    // const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
-    const [unlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState(false);
-    const handleUnlinkedToggle = useCallback(() => { setIsUnlinkedNodesOpen(!unlinkedNodesOpen); }, [unlinkedNodesOpen, setIsUnlinkedNodesOpen]);
+    // const [unlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState(false);
+    // const handleUnlinkedToggle = useCallback(() => { setIsUnlinkedNodesOpen(!unlinkedNodesOpen); }, [unlinkedNodesOpen, setIsUnlinkedNodesOpen]);
 
-    const show = useMemo(() => (isEditing || nodesOffGraph.length > 0) && !(isMobile && unlinkedNodesOpen), [isEditing, isMobile, nodesOffGraph.length, unlinkedNodesOpen]);
+    // const show = useMemo(() => (isEditing || nodesOffGraph.length > 0) && !(isMobile && unlinkedNodesOpen), [isEditing, isMobile, nodesOffGraph.length, unlinkedNodesOpen]);
 
-    if (!show) return null;
-    return (
-        <ActionsContainer>
-            <Tooltip title={canUndo ? t("Undo") : ""}>
-                <ActionsButton
-                    id="undo-button"
-                    disabled={!canUndo}
-                    onClick={handleUndo}
-                    aria-label={t("Undo")}
-                >
-                    <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                </ActionsButton>
-            </Tooltip>
-            <Tooltip title={canRedo ? t("Redo") : ""}>
-                <ActionsButton
-                    id="redo-button"
-                    disabled={!canRedo}
-                    onClick={handleRedo}
-                    aria-label={t("Redo")}
-                >
-                    <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                </ActionsButton>
-            </Tooltip>
-            <Tooltip title={t("CleanGraph")}>
-                <ActionsButton
-                    id="clean-graph-button"
-                    onClick={handleCleanUpGraph}
-                    aria-label={t("CleanGraph")}
-                >
-                    <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                </ActionsButton>
-            </Tooltip>
-            <Tooltip title={t("AddNewLink")}>
-                <ActionsButton
-                    id="add-link-button"
-                    onClick={handleOpenLinkDialog}
-                    aria-label={t("AddNewLink")}
-                >
-                    <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                </ActionsButton>
-            </Tooltip>
-        </ActionsContainer>
-    );
+    // if (!show) return null;
+    // return (
+    //     <ActionsContainer>
+    //         <Tooltip title={canUndo ? t("Undo") : ""}>
+    //             <ActionsButton
+    //                 id="undo-button"
+    //                 disabled={!canUndo}
+    //                 onClick={handleUndo}
+    //                 aria-label={t("Undo")}
+    //             >
+    //                 <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
+    //             </ActionsButton>
+    //         </Tooltip>
+    //         <Tooltip title={canRedo ? t("Redo") : ""}>
+    //             <ActionsButton
+    //                 id="redo-button"
+    //                 disabled={!canRedo}
+    //                 onClick={handleRedo}
+    //                 aria-label={t("Redo")}
+    //             >
+    //                 <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
+    //             </ActionsButton>
+    //         </Tooltip>
+    //         <Tooltip title={t("CleanGraph")}>
+    //             <ActionsButton
+    //                 id="clean-graph-button"
+    //                 onClick={handleCleanUpGraph}
+    //                 aria-label={t("CleanGraph")}
+    //             >
+    //                 <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
+    //             </ActionsButton>
+    //         </Tooltip>
+    //         <Tooltip title={t("AddNewLink")}>
+    //             <ActionsButton
+    //                 id="add-link-button"
+    //                 onClick={handleOpenLinkDialog}
+    //                 aria-label={t("AddNewLink")}
+    //             >
+    //                 <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
+    //             </ActionsButton>
+    //         </Tooltip>
+    //     </ActionsContainer>
+    // );
+    return null;
 }

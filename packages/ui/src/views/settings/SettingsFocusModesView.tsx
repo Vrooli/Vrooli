@@ -11,7 +11,7 @@ import { SettingsContent, SettingsTopBar } from "../../components/navigation/Set
 import { Title } from "../../components/text/Title.js";
 import { SessionContext } from "../../contexts.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { AddIcon, DeleteIcon, FocusModeIcon, SaveIcon, WarningIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { FormSection, multiLineEllipsis, ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
@@ -84,7 +84,7 @@ const WarningBox = styled(Box)(({ theme }) => ({
     marginBottom: theme.spacing(2),
 }));
 
-const focusModeIconStyle = { width: "40px", height: "40px", marginRight: 8 } as const;
+const focusModeIconStyle = { marginRight: 8 } as const;
 const fallbackOverrideObject = { __typename: "FocusMode" } as const;
 const listContainerStyle = { maxWidth: "500px" } as const;
 const warningIconStyle = { fontSize: 20, marginRight: "8px" } as const;
@@ -258,14 +258,22 @@ export function SettingsFocusModesView({
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <TitleStack>
-                        <FocusModeIcon fill={palette.background.textPrimary} style={focusModeIconStyle} />
+                        <IconCommon
+                            fill="background.textPrimary"
+                            name="FocusMode"
+                            size={40}
+                            style={focusModeIconStyle}
+                        />
                         <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
                         <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
                             <AddIconButton
                                 size="medium"
                                 onClick={handleAdd}
                             >
-                                <AddIcon fill={canAdd ? palette.secondary.main : palette.grey[500]} width='1.5em' height='1.5em' />
+                                <IconCommon
+                                    fill={canAdd ? "secondary.main" : "grey.500"}
+                                    name="Add"
+                                />
                             </AddIconButton>
                         </Tooltip>
                     </TitleStack>
@@ -304,7 +312,7 @@ export function SettingsFocusModesView({
                                     Use the tag selector below to pick topics that you&apos;d like to see more when in this focus mode.
                                 </Typography>
                                 <WarningBox>
-                                    <WarningIcon style={warningIconStyle} />
+                                    <IconCommon name="Warning" style={warningIconStyle} />
                                     <Typography variant="body2">In the future, this will be used to customize the upcoming <i>Explore</i> page.</Typography>
                                 </WarningBox>
                                 <TagSelectorBase handleTagsUpdate={handleShowMoreTagsUpdate} tags={showMoreTags} />
@@ -315,13 +323,13 @@ export function SettingsFocusModesView({
                                 disabled
                                 fullWidth
                                 onClick={noop}
-                                startIcon={<SaveIcon />}
+                                startIcon={<IconCommon name="Save" />}
                                 sx={updateActiveFocusModeButtonStyle}
                             >
                                 Update
                             </Button>
                             <WarningBox>
-                                <WarningIcon style={warningIconStyle} />
+                                <IconCommon name="Warning" style={warningIconStyle} />
                                 <Typography variant="body2">This feature is not yet implemented.</Typography>
                             </WarningBox>
                         </Box>
@@ -396,7 +404,7 @@ const FocusModeListItem = memo(function FocusModeListItem({
                     component="a"
                     onClick={handleDeleteClick}
                 >
-                    <DeleteIcon fill={palette.secondary.main} />
+                    <IconCommon name="Delete" fill="secondary.main" />
                 </DeleteFocusModeBox>
             )}
         </StyledFocusModeListItem>

@@ -25,7 +25,7 @@ import { UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { HelpIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
@@ -304,7 +304,7 @@ function DataConverterForm({
                             <Button
                                 variant="outlined"
                                 onClick={showExample}
-                                startIcon={<HelpIcon />}
+                                startIcon={<IconCommon name="Help" />}
                                 sx={exampleButtonStyle}
                             >
                                 Show example

@@ -23,7 +23,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { MagicIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
@@ -237,7 +237,7 @@ function NoteForm({
                         onClick={openAssistantDialog}
                         sx={{ background: palette.secondary.main }}
                     >
-                        <MagicIcon fill={palette.secondary.contrastText} width="36px" height="36px" />
+                        <IconCommon name="Magic" fill="secondary.contrastText" size={36} />
                     </IconButton>
                 </Tooltip>,
             );

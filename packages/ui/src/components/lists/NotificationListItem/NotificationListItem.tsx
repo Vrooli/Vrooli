@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { VisibleIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { NotificationListItemProps } from "../types.js";
@@ -48,7 +48,7 @@ export function NotificationListItem({
                 <Stack direction="row" spacing={1}>
                     {!data?.isRead && <Tooltip title={t("MarkAsRead")}>
                         <IconButton edge="end" size="small" onClick={onMarkAsRead}>
-                            <VisibleIcon fill={palette.secondary.main} />
+                            <IconCommon name="Visible" fill="secondary.main" />
                         </IconButton>
                     </Tooltip>}
                 </Stack>

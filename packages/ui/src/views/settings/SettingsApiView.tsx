@@ -1,18 +1,19 @@
 import { API_CREDITS_FREE, ApiKey, ApiKeyCreateInput, ApiKeyCreated, ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput, ApiKeyUpdateInput, DeleteOneInput, DeleteType, FormStructureType, Success, User, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop } from "@local/shared";
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Select, Stack, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Select, Stack, Typography, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { LazyRequestWithResult } from "../../api/types.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
-import { FormTip } from "../../components/inputs/form/FormTip/FormTip.js";
+import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
+import { FormTip } from "../../components/inputs/form/FormTip.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
-import { DeleteIcon, EditIcon, PlusIcon, SuccessIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { ScrollBox } from "../../styles.js";
 import { randomString } from "../../utils/codes.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
@@ -76,7 +77,7 @@ function ApiKeyViewDialog({
                         This is your new API key. Please store it in a secure location.
                     </Typography>
                     <Typography variant="body2" color="error">
-                        Important: This key will only be shown once. You won't be able to see it again after closing this dialog.
+                        Important: This key will only be shown once. You won&apos;t be able to see it again after closing this dialog.
                     </Typography>
                     <Box
                         position="relative"
@@ -86,7 +87,7 @@ function ApiKeyViewDialog({
                         borderRadius={1}
                         bgcolor={palette.background.paper}
                     >
-                        <Typography variant="body2" sx={{ wordBreak: "break-all", pr: 4 }}>
+                        <Typography variant="body2" pr={4} sx={{ wordBreak: "break-all" }}>
                             {apiKey}
                         </Typography>
                         <Button
@@ -99,9 +100,7 @@ function ApiKeyViewDialog({
                             }}
                             onClick={handleCopyKey}
                         >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" />
-                            </svg>
+                            <IconCommon name="Copy" />
                         </Button>
                     </Box>
                 </Box>
@@ -166,27 +165,29 @@ function InternalKeyEditDialog({
 
     return (
         <Dialog open={open} onClose={onClose} PaperProps={dialogPaperProps}>
-            <DialogTitle>{t("EditApiKey")}</DialogTitle>
+            <DialogTitle>Edit API key</DialogTitle>
             <DialogContent>
                 <Formik enableReinitialize initialValues={initialValues} onSubmit={handleSubmit}>
                     {({ handleSubmit, values, setFieldValue }) => (
                         <form onSubmit={handleSubmit}>
-                            <TextField
+                            <TextInput
                                 fullWidth
+                                isRequired={true}
                                 label={t("Name")}
                                 value={values.name}
                                 onChange={(e) => setFieldValue("name", e.target.value)}
                                 sx={{ mb: 2 }}
                             />
-                            <TextField
+                            <TextInput
                                 fullWidth
+                                isRequired={true}
                                 label={t("HardLimit")}
                                 type="number"
                                 value={values.limitHard}
                                 onChange={(e) => setFieldValue("limitHard", e.target.value)}
                                 sx={{ mb: 2 }}
                             />
-                            <TextField
+                            <TextInput
                                 fullWidth
                                 label={t("SoftLimit")}
                                 type="number"
@@ -286,30 +287,33 @@ function ExternalKeyDialog({
                                 displayEmpty
                                 sx={{ mb: 2 }}
                             >
-                                <MenuItem value="" disabled>{t("SelectService")}</MenuItem>
+                                <MenuItem value="" disabled>Select service</MenuItem>
                                 {KNOWN_SERVICES.map(service => (
                                     <MenuItem key={service} value={service}>{service}</MenuItem>
                                 ))}
                                 <MenuItem value="Other">{t("Other")}</MenuItem>
                             </Select>
                             {values.serviceSelect === "Other" && (
-                                <TextField
+                                <TextInput
                                     fullWidth
-                                    label={t("CustomServiceName")}
+                                    isRequired={true}
+                                    label="Custom service name"
                                     value={values.customService}
                                     onChange={(e) => setFieldValue("customService", e.target.value)}
                                     sx={{ mb: 2 }}
                                 />
                             )}
-                            <TextField
+                            <TextInput
                                 fullWidth
-                                label={t("NameOptional")}
+                                isRequired={false}
+                                label="Name"
                                 value={values.name}
                                 onChange={(e) => setFieldValue("name", e.target.value)}
                                 sx={{ mb: 2 }}
                             />
                             <PasswordTextInput
                                 fullWidth
+                                isRequired={true}
                                 name="key"
                                 label={t("ApiKey")}
                                 value={values.key}
@@ -382,6 +386,10 @@ export function SettingsApiView({
 
     // Handler to revoke an API key
     const revokeInternalKey = useCallback((keyId: string) => {
+        if (!profile) {
+            console.error("This error shouldn't happen. Please report it.", { component: "SettingsApiView", function: "revokeInternalKey", profile });
+            return;
+        }
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteOne,
             inputs: { id: keyId, objectType: DeleteType.ApiKey },
@@ -479,10 +487,10 @@ export function SettingsApiView({
                                             <Typography>{key.name}</Typography>
                                             <Box>
                                                 <IconButton onClick={handleEdit}>
-                                                    <EditIcon fill={palette.secondary.main} />
+                                                    <IconCommon name="Edit" fill="secondary.main" />
                                                 </IconButton>
                                                 <IconButton onClick={handleRevoke}>
-                                                    <DeleteIcon fill={palette.error.main} />
+                                                    <IconCommon name="Delete" fill="error.main" />
                                                 </IconButton>
                                             </Box>
                                         </Box>
@@ -491,7 +499,13 @@ export function SettingsApiView({
                             ) : (
                                 <Typography variant="body1" color="text.secondary">{t("NoApiKeys")}</Typography>
                             )}
-                            <Button onClick={generateNewInternalKey} startIcon={<PlusIcon />} sx={{ mt: 2 }}>{t("CreateNew")}</Button>
+                            <Button
+                                onClick={generateNewInternalKey}
+                                startIcon={<IconCommon name="Plus" />}
+                                sx={{ mt: 2 }}
+                            >
+                                {t("CreateNew")}
+                            </Button>
                         </Box>
                         <Divider />
                         <Box>
@@ -520,10 +534,10 @@ export function SettingsApiView({
                                             <Typography>{key.service}{key.name ? `: ${key.name}` : ""}</Typography>
                                             <Box>
                                                 <IconButton onClick={handleUpdate}>
-                                                    <EditIcon fill={palette.secondary.main} />
+                                                    <IconCommon name="Edit" fill="secondary.main" />
                                                 </IconButton>
                                                 <IconButton onClick={handleDelete}>
-                                                    <DeleteIcon fill={palette.error.main} />
+                                                    <IconCommon name="Delete" fill="error.main" />
                                                 </IconButton>
                                             </Box>
                                         </Box>
@@ -546,8 +560,8 @@ export function SettingsApiView({
                                                 key={integration.name}
                                                 onClick={() => window.open(integration.url, "_blank")}
                                                 variant="contained"
-                                                startIcon={<img src={integration.logo} alt={`${integration.name} logo`} style={{ height: "24px" }} />}
-                                                endIcon={isConnected ? <SuccessIcon /> : null}
+                                                startIcon={<IconFavicon href={integration.url} />}
+                                                endIcon={isConnected ? <IconCommon name="Success" /> : null}
                                             >
                                                 {integration.name}
                                             </Button>

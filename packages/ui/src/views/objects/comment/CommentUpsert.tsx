@@ -16,7 +16,6 @@ import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { SendIcon } from "../../../icons/common.js";
 import { defaultYou, getDisplay, getYou } from "../../../utils/display/listTools.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
@@ -124,7 +123,7 @@ function CommentForm({
                     minRows={3}
                     maxRows={15}
                     actionButtons={[{
-                        Icon: SendIcon,
+                        iconInfo: { name: "Send", type: "Common" } as const,
                         onClick: () => {
                             const message = values.translations.find(t => t.language === language)?.text;
                             if (!message || message.trim().length === 0) return;

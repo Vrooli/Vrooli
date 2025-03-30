@@ -26,7 +26,7 @@ import { getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../..
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { BuildIcon, HelpIcon, VisibleIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
@@ -100,6 +100,8 @@ const relationshipListStyle = { marginBottom: 2 } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
 const resourceListStyle = { list: { marginBottom: 2 } } as const;
 const exampleButtonStyle = { marginLeft: "auto" } as const;
+const offIconInfo = { name: "Build", type: "Common" } as const;
+const onIconInfo = { name: "Visible", type: "Common" } as const;
 
 function DataStructureForm({
     disabled,
@@ -275,14 +277,14 @@ function DataStructureForm({
                                 <ToggleSwitch
                                     checked={isPreviewOn}
                                     onChange={onPreviewChange}
-                                    OffIcon={BuildIcon}
-                                    OnIcon={VisibleIcon}
+                                    offIconInfo={offIconInfo}
+                                    onIconInfo={onIconInfo}
                                     tooltip={isPreviewOn ? "Switch to edit" : "Switch to preview"}
                                 />
                                 <Button
                                     variant="outlined"
                                     onClick={showExample}
-                                    startIcon={<HelpIcon />}
+                                    startIcon={<IconCommon name="Help" />}
                                     sx={exampleButtonStyle}
                                 >
                                     Show example

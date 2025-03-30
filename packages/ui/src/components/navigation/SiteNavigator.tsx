@@ -1,15 +1,17 @@
-import { API_CREDITS_MULTIPLIER, ListObject, getObjectUrl } from "@local/shared";
+import { API_CREDITS_MULTIPLIER } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Toolbar, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { ExpandLessIcon, ExpandMoreIcon, ListIcon, PlusIcon, ProfileIcon, SearchIcon } from "../../icons/common.js";
+import { Icon, IconCommon, IconInfo, IconText } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { extractImageUrl } from "../../utils/display/imageTools.js";
+import { NAV_ACTION_TAGS, getUserActions } from "../../utils/navigation/userActions.js";
 import { MenuPayloads, PubSub } from "../../utils/pubsub.js";
 import { PageContainer } from "../Page/Page.js";
 
@@ -19,12 +21,22 @@ const LOW_CREDIT_THRESHOLD = BigInt(5_00) * API_CREDITS_MULTIPLIER;
 const SHORT_TAKE = 10;
 const AVATAR_SIZE_PX = 50;
 
-const NoResultsText = styled(Typography)(({ theme }) => ({
-    color: theme.palette.background.textSecondary,
-    fontStyle: "italic",
-    padding: theme.spacing(1),
-    textAlign: "center",
-}));
+// Extract styles to constants to avoid linter errors
+const projectItemStyles = {
+    selected: { pl: 4, bgcolor: "#3B82F6" },
+    default: { pl: 4, bgcolor: "transparent" },
+};
+
+const addProjectStyles = { pl: 4 };
+const dividerStyles = { my: 1, bgcolor: "#333333" };
+const yesterdayLabelStyles = { color: "#9CA3AF" };
+const yesterdayItemStyles = {
+    noWrap: true,
+    sx: { color: "#9CA3AF" },
+};
+const viewPlansStyles = { color: "#9CA3AF", cursor: "pointer" };
+const captionStyles = { color: "#6B7280" };
+const creditsStyles = { color: "#9CA3AF", cursor: "pointer" };
 
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
     backgroundColor: theme.palette.primary.dark,
@@ -47,16 +59,6 @@ const ProfileAvatar = styled(Avatar)(({ theme }) => ({
     cursor: "pointer",
 }));
 
-// Should be both bots and teams
-const navItems = [
-    { text: "ChatGPT", icon: <Avatar sx={{ bgcolor: "#3B82F6" }}>CG</Avatar> },
-    { text: "Sora", icon: <Avatar sx={{ bgcolor: "#10B981" }}>S</Avatar> },
-    { text: "DALL-E", icon: <Avatar sx={{ bgcolor: "#F59E0B" }}>D</Avatar> },
-    { text: "Vrooli Product Manager", icon: <Avatar sx={{ bgcolor: "#8B5CF6" }}>V</Avatar> },
-    { text: "Tweet Responder", icon: <Avatar sx={{ bgcolor: "#EC4899" }}>T</Avatar> },
-    { text: "Explore GPTs", icon: <Avatar sx={{ bgcolor: "#6B7280" }}>E</Avatar> },
-];
-
 const projects = [
     { text: "Local Vrooli" },
     { text: "Routine graphs", selected: true },
@@ -70,11 +72,57 @@ const yesterdayItems = [
     "Command Palette Search Res...",
 ];
 
+// Separate component for navigation items
+function NavItem({
+    iconInfo,
+    label,
+    link,
+    onClick,
+}: {
+    iconInfo: IconInfo;
+    label: string;
+    link: string;
+    onClick: (url: string) => void;
+}) {
+    const handleClick = useCallback(() => {
+        onClick(link);
+    }, [onClick, link]);
+
+    return (
+        <ListItem button onClick={handleClick}>
+            <ListItemIcon>
+                <Icon decorative info={iconInfo} />
+            </ListItemIcon>
+            <ListItemText primary={label} />
+        </ListItem>
+    );
+}
+
 export function SiteNavigator() {
     const session = useContext(SessionContext);
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+
+    // Handler for navigation items
+    const handleNavClick = useCallback((url: string) => {
+        setLocation(url);
+    }, [setLocation]);
+
+    // Get navigation actions as list items
+    const navItems = useMemo(() => {
+        const actions = getUserActions({ session, exclude: [NAV_ACTION_TAGS.Inbox, NAV_ACTION_TAGS.Pricing, NAV_ACTION_TAGS.LogIn, NAV_ACTION_TAGS.About] });
+        return actions.map((action, index) => (
+            <NavItem
+                key={index}
+                iconInfo={action.iconInfo}
+                label={action.label}
+                link={action.link}
+                onClick={handleNavClick}
+            />
+        ));
+    }, [session, handleNavClick]);
 
     const user = useMemo(() => getCurrentUser(session), [session]);
     const { credits, hasPremium } = user;
@@ -108,15 +156,11 @@ export function SiteNavigator() {
         onEvent,
     });
 
-    const handleItemClick = useCallback((data: ListObject) => {
-        setLocation(getObjectUrl(data));
-    }, [setLocation]);
-
     const [projectsOpen, setProjectsOpen] = useState(true);
 
-    const handleProjectsClick = () => {
+    function handleProjectsClick() {
         setProjectsOpen(!projectsOpen);
-    };
+    }
 
     // Handlers for Projects buttons
     const handleAddProject = useCallback(() => {
@@ -135,55 +179,85 @@ export function SiteNavigator() {
     // Always show footer on mobile, or when user has premium or low credit balance
     const showFooter = isMobile || (isLoggedIn && (!hasPremium || showLowCreditBalance));
 
-    // Define styles to avoid linter errors
-    function projectItemStyle(selected: boolean) {
-        return {
-            pl: 4,
-            bgcolor: selected ? "#3B82F6" : "transparent",
-        };
+    // Update the projectItemStyle function
+    function getProjectItemStyle(selected: boolean) {
+        return selected ? projectItemStyles.selected : projectItemStyles.default;
     }
-    const addProjectStyle = { pl: 4 };
-    const dividerStyle = { my: 1, bgcolor: "#333333" };
-    const yesterdayLabelStyle = { color: "#9CA3AF" };
-    const yesterdayItemStyle = {
-        noWrap: true,
-        sx: { color: "#9CA3AF" },
-    };
-    const viewPlansStyle = { color: "#9CA3AF", cursor: "pointer" };
-    const captionStyle = { color: "#6B7280" };
-    const creditsStyle = { color: "#9CA3AF", cursor: "pointer" };
 
     return (
         <PageContainer size="fullSize">
             <ScrollBox>
                 {/* Header */}
                 <StyledToolbar>
-                    <IconButton edge="start" color="inherit" aria-label="menu" onClick={handleClose}>
-                        <ListIcon fill={palette.primary.contrastText} />
+                    <IconButton
+                        aria-label={t("Menu")}
+                        color="inherit"
+                        edge="start"
+                        onClick={handleClose}
+                    >
+                        <IconText
+                            decorative
+                            fill={palette.primary.contrastText}
+                            name="List"
+                        />
                     </IconButton>
                     <Box ml="auto">
-                        <IconButton color="inherit" aria-label="search" onClick={handleOpenSearch}>
-                            <SearchIcon fill={palette.primary.contrastText} />
+                        <IconButton
+                            aria-label={t("Search")}
+                            color="inherit"
+                            onClick={handleOpenSearch}
+                        >
+                            <IconCommon
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="Search"
+                            />
                         </IconButton>
-                        <IconButton color="inherit" aria-label="new-chat">
-                            <PlusIcon fill={palette.primary.contrastText} />
+                        <IconButton
+                            aria-label={t("NewChat")}
+                            color="inherit"
+                            onClick={handleOpenSearch}
+                        >
+                            <IconCommon
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="Plus"
+                            />
                         </IconButton>
                     </Box>
                 </StyledToolbar>
 
                 {/* Navigation List */}
                 <List>
-                    {navItems.map((item, index) => (
-                        <ListItem button key={index} onClick={() => handleItemClick(item)}>
-                            <ListItemIcon>{item.icon}</ListItemIcon>
-                            <ListItemText primary={item.text} />
-                        </ListItem>
-                    ))}
+                    {/* Only show nav items on desktop */}
+                    {!isMobile && navItems}
 
                     {/* Projects Section */}
-                    <ListItem button onClick={handleProjectsClick}>
-                        <ListItemText primary="Projects" />
-                        {projectsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    <ListItem
+                        aria-label={t("Project", { count: 2 })}
+                        button
+                        onClick={handleProjectsClick}
+                    >
+                        <ListItemIcon>
+                            <IconCommon
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="Project"
+                            />
+                        </ListItemIcon>
+                        <ListItemText primary={t("Project", { count: 2 })} />
+                        {
+                            projectsOpen
+                                ? <IconCommon
+                                    decorative
+                                    fill={palette.primary.contrastText}
+                                    name="ExpandLess"
+                                />
+                                : <IconCommon
+                                    decorative
+                                    fill={palette.primary.contrastText}
+                                    name="ExpandMore" />
+                        }
                     </ListItem>
                     <Collapse in={projectsOpen} timeout="auto" unmountOnExit>
                         <List component="div" disablePadding>
@@ -192,34 +266,47 @@ export function SiteNavigator() {
                                     button
                                     key={index}
                                     selected={project.selected}
-                                    sx={projectItemStyle(project.selected)}
+                                    sx={getProjectItemStyle(project.selected || false)}
                                 >
                                     <ListItemText primary={project.text} />
                                 </ListItem>
                             ))}
                             {/* Add and See More buttons for Projects */}
-                            <ListItem button onClick={handleAddProject} sx={addProjectStyle}>
+                            <ListItem
+                                aria-label={t("AddProject")}
+                                button onClick={handleAddProject}
+                                sx={addProjectStyles}
+                            >
                                 <ListItemIcon>
-                                    <PlusIcon />
+                                    <IconCommon
+                                        decorative
+                                        fill={palette.primary.contrastText}
+                                        name="Plus"
+                                    />
                                 </ListItemIcon>
-                                <ListItemText primary="Add Project" />
+                                <ListItemText primary={t("AddProject")} />
                             </ListItem>
-                            <ListItem button onClick={handleSeeMoreProjects} sx={addProjectStyle}>
-                                <ListItemText primary="See more" />
+                            <ListItem
+                                aria-label={t("SeeAll")}
+                                button
+                                onClick={handleSeeMoreProjects}
+                                sx={addProjectStyles}
+                            >
+                                <ListItemText primary={t("SeeAll")} />
                             </ListItem>
                         </List>
                     </Collapse>
 
                     {/* Yesterday Section */}
-                    <Divider sx={dividerStyle} />
+                    <Divider sx={dividerStyles} />
                     <ListItem>
-                        <ListItemText primary="Yesterday" sx={yesterdayLabelStyle} />
+                        <ListItemText primary="Yesterday" sx={yesterdayLabelStyles} />
                     </ListItem>
                     {yesterdayItems.map((item, index) => (
                         <ListItem button key={index}>
                             <ListItemText
                                 primary={item}
-                                primaryTypographyProps={yesterdayItemStyle}
+                                primaryTypographyProps={yesterdayItemStyles}
                             />
                         </ListItem>
                     ))}
@@ -231,25 +318,30 @@ export function SiteNavigator() {
                         {/* Always show profile icon on mobile */}
                         {isMobile && (
                             <ProfileAvatar
+                                aria-label={t("Profile")}
                                 id={ELEMENT_IDS.UserMenuProfileIcon}
                                 src={isLoggedIn ? extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX) : undefined}
                                 onClick={openUserMenu}
                             >
-                                <ProfileIcon fill={palette.primary.dark} width="100%" height="100%" />
+                                <IconCommon
+                                    decorative
+                                    fill={palette.primary.dark}
+                                    name="User"
+                                />
                             </ProfileAvatar>
                         )}
                         {/* Show credits info only when logged in */}
                         {isLoggedIn && (
                             hasPremium ? (
-                                <Typography variant="body2" sx={creditsStyle}>
+                                <Typography variant="body2" sx={creditsStyles}>
                                     {`Credits left: $${creditsAsDollars}`}
                                 </Typography>
                             ) : (
                                 <>
-                                    <Typography variant="body2" sx={viewPlansStyle}>
+                                    <Typography variant="body2" sx={viewPlansStyles}>
                                         View plans
                                     </Typography>
-                                    <Typography variant="caption" sx={captionStyle}>
+                                    <Typography variant="caption" sx={captionStyles}>
                                         Unlimited access, team features...
                                     </Typography>
                                 </>
@@ -257,7 +349,7 @@ export function SiteNavigator() {
                         )}
                         {/* Show login prompt when not logged in */}
                         {isMobile && !isLoggedIn && (
-                            <Typography variant="body2" sx={viewPlansStyle}>
+                            <Typography variant="body2" sx={viewPlansStyles}>
                                 Log in to access all features
                             </Typography>
                         )}

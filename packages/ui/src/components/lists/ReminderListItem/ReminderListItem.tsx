@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { DeleteIcon, ScheduleIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
 import { ObjectListItemBase } from "../../lists/ObjectListItemBase/ObjectListItemBase.js";
@@ -133,7 +133,7 @@ export function ReminderListItem({
             dueDate.getFullYear() === today.getFullYear();
         const isPast = dueDate < today;
         const color = isToday ? palette.warning.main : isPast ? palette.error.main : palette.background.textPrimary;
-        return <ScheduleIcon fill={color} style={scheduleIconStyle} />;
+        return <IconCommon name="Schedule" fill={color} style={scheduleIconStyle} />;
     }, [palette.background.textPrimary, palette.error.main, palette.warning.main, data?.dueDate]);
 
     return (
@@ -167,7 +167,7 @@ export function ReminderListItem({
                     {checked && (
                         <Tooltip title="Delete">
                             <IconButton edge="end" size="small" onClick={handleDeleteClick}>
-                                <DeleteIcon fill={palette.error.main} />
+                                <IconCommon name="Delete" fill="error.main" />
                             </IconButton>
                         </Tooltip>
                     )}

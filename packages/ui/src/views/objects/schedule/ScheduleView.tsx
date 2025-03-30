@@ -6,7 +6,7 @@ import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/O
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { EllipsisIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { OverviewContainer } from "../../../styles.js";
 import { ScheduleViewProps } from "./types.js";
@@ -55,7 +55,7 @@ export function ScheduleView({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
+                    <IconCommon name="Ellipsis" fill="background.textSecondary" />
                 </IconButton>
             </Tooltip>
         </OverviewContainer>

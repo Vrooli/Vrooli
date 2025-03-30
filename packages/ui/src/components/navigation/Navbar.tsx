@@ -1,5 +1,5 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Avatar, Box, BoxProps, Button, IconButton, Palette, Stack, Typography, styled, useTheme } from "@mui/material";
+import { AppBar, Avatar, Badge, Box, BoxProps, Button, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts.js";
@@ -7,7 +7,7 @@ import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { ListIcon, LogInIcon, ProfileIcon, VrooliIcon } from "../../icons/common.js";
+import { IconCommon, IconText } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { noSelect } from "../../styles.js";
@@ -25,17 +25,15 @@ import { NavbarProps } from "./types.js";
 const MIN_APP_BAR_HEIGHT_PX = 64;
 const AVATAR_SIZE_PX = 50;
 
-function navItemStyle(palette: Palette) {
-    return {
-        background: "transparent",
-        color: palette.primary.contrastText,
-        textTransform: "none",
-        fontSize: "1.4em",
-        "&:hover": {
-            color: palette.secondary.light,
-        },
-    } as const;
-}
+const navItemStyle = {
+    background: "transparent",
+    color: "text.secondary",
+    textTransform: "none",
+    fontSize: "1.4em",
+    "&:hover": {
+        filter: "brightness(1.05)",
+    },
+} as const;
 
 interface OuterBoxProps extends BoxProps {
     isLeftHanded: boolean;
@@ -81,21 +79,34 @@ const ProfileAvatar = styled(Avatar)(({ theme }) => ({
     cursor: "pointer",
 }));
 
+const iconButtonStyle = {
+    marginRight: "8px",
+} as const;
+
 export function NavList() {
     const session = useContext(SessionContext);
     const user = useMemo(() => getCurrentUser(session), [session]);
     const isLeftHanded = useIsLeftHanded();
     const { t } = useTranslation();
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
-
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
+    const navActions = useMemo<NavAction[]>(() => {
+        if (session?.isLoggedIn) {
+            return [];
+        }
+        return getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] });
+    }, [session]);
+    const numNotifications = 3; //TODO
 
     const { isOpen: isUserMenuOpen } = useMenu({ id: ELEMENT_IDS.UserMenu, isMobile });
     const openUserMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true, data: { anchorEl: event.currentTarget } });
     }, []);
+
+    const toInbox = useCallback(function toInboxCallback() {
+        openLink(setLocation, LINKS.Inbox);
+    }, [setLocation]);
 
     const toLoginPage = useCallback(function toLoginPageCallback(e: React.MouseEvent<HTMLElement>) {
         e.preventDefault();
@@ -109,7 +120,7 @@ export function NavList() {
                 text={t("Contact")}
                 variant="text"
                 size="large"
-                sx={navItemStyle(palette)}
+                sx={navItemStyle}
             >
                 <ContactInfo />
             </PopupMenu>}
@@ -118,7 +129,7 @@ export function NavList() {
                 {!isMobile && !isUserMenuOpen && actionsToMenu({
                     actions: navActions,
                     setLocation,
-                    sx: navItemStyle(palette),
+                    sx: navItemStyle,
                 })}
             </Box>
             {/* Enter button displayed when not logged in */}
@@ -126,21 +137,43 @@ export function NavList() {
                 <EnterButton
                     href={LINKS.Login}
                     onClick={toLoginPage}
-                    startIcon={<LogInIcon />}
+                    startIcon={<IconCommon
+                        decorative
+                        name="LogIn"
+                    />}
                     variant="contained"
                 >
                     {t("LogIn")}
                 </EnterButton>
             )}
-            {/* Show profile icon only if logged in and not on mobile */}
+            {/* Inbox and profile icons if logged in and not on mobile */}
             {checkIfLoggedIn(session) && !isMobile && (
-                <ProfileAvatar
-                    id={ELEMENT_IDS.UserMenuProfileIcon}
-                    src={extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX)}
-                    onClick={openUserMenu}
-                >
-                    <ProfileIcon fill={palette.primary.dark} width="100%" height="100%" />
-                </ProfileAvatar>
+                <>
+                    <IconButton
+                        aria-label="Open inbox"
+                        onClick={toInbox}
+                        sx={iconButtonStyle}
+                    >
+                        <Badge badgeContent={numNotifications} color="error">
+                            <IconCommon
+                                decorative
+                                name={numNotifications > 0 ? "NotificationsAll" : "NotificationsOff"}
+                                size={32}
+                            />
+                        </Badge>
+                    </IconButton>
+                    <ProfileAvatar
+                        id={ELEMENT_IDS.UserMenuProfileIcon}
+                        src={extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX)}
+                        onClick={openUserMenu}
+                    >
+                        <IconCommon
+                            decorative
+                            fill="text.secondary"
+                            name="Profile"
+                        />
+                    </ProfileAvatar>
+                </>
             )}
         </OuterBox>
     );
@@ -153,13 +186,13 @@ type TitleDisplayProps = Pick<NavbarProps, "help" | "options" | "startComponent"
     onLogoClick: () => unknown;
 }
 
-const NameTypography = styled(Typography)(({ theme }) => ({
+const NameTypography = styled(Typography)(() => ({
     position: "relative",
     cursor: "pointer",
     lineHeight: "1.3",
     fontSize: "2.5em",
     fontFamily: "sakbunderan",
-    color: theme.palette.primary.contrastText,
+    color: "text.primary",
 }));
 
 interface StartAndTitleBoxProps extends BoxProps {
@@ -252,7 +285,12 @@ function TitleDisplay({
             aria-label="Go to home page"
             onClick={onLogoClick}
             sx={logoIconStyle}>
-            <VrooliIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+            <IconCommon
+                decorative
+                fill={"text.secondary"}
+                name="Vrooli"
+                size={48}
+            />
         </IconButton>;
     }
 
@@ -283,12 +321,14 @@ const NavListBox = styled(Box, {
     maxHeight: "100%",
 }));
 
-const siteNavigatorMenuButtonStyle = {
-    width: "48px",
-    height: "48px",
-    marginLeft: 1,
-    marginRight: 1,
-    cursor: "pointer",
+const appBarStyle = {
+    ...noSelect,
+    background: "transparent",
+    boxShadow: "none",
+    minHeight: `${MIN_APP_BAR_HEIGHT_PX}px!important`,
+    position: "fixed", // Allows items to be displayed below the navbar
+    justifyContent: "center",
+    zIndex: Z_INDEX.TopBar,
 } as const;
 
 /**
@@ -321,7 +361,7 @@ export const Navbar = forwardRef(({
     titleBehaviorMobile,
     titleComponent,
 }: NavbarProps, ref) => {
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const { dimensions, ref: dimRef } = useDimensions();
     const session = useContext(SessionContext);
@@ -332,8 +372,7 @@ export const Navbar = forwardRef(({
     const toHome = useCallback(() => setLocation(LINKS.Home), [setLocation]);
     const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: "smooth" }), []);
 
-    // Set tab to title
-    useEffect(() => {
+    useEffect(function setTabTitleEffect() {
         document.title = tabTitle || title ? `${tabTitle ?? title} | ${BUSINESS_NAME}` : BUSINESS_NAME;
     }, [tabTitle, title]);
 
@@ -347,23 +386,10 @@ export const Navbar = forwardRef(({
         } as const;
     }, [dimensions.height, sxs]);
 
-    const appBarStyle = useMemo(function appBarStyleMemo() {
-        return {
-            ...noSelect,
-            background: palette.primary.dark,
-            minHeight: `${MIN_APP_BAR_HEIGHT_PX}px!important`,
-            position: "fixed", // Allows items to be displayed below the navbar
-            justifyContent: "center",
-            zIndex: Z_INDEX.TopBar,
-            ...sxs?.appBar,
-        } as const;
-    }, [palette.primary.dark, sxs?.appBar]);
-
     const appBarStackStyle = useMemo(function appBarStackStyleMemo() {
         return {
             paddingLeft: 1,
             paddingRight: 1,
-            // TODO Reverse order on left-handed mobile
             flexDirection: isLeftHanded ? "row-reverse" : "row",
         } as const;
     }, [isLeftHanded]);
@@ -399,15 +425,18 @@ export const Navbar = forwardRef(({
                     aria-label="Open site navigator menu"
                     id={ELEMENT_IDS.SiteNavigatorMenuIcon}
                     onClick={openSiteNavigatorMenu}
-                    sx={siteNavigatorMenuButtonStyle}
                 >
-                    <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+                    <IconText
+                        decorative
+                        fill="text.secondary"
+                        name="List"
+                    />
                 </IconButton>
             );
         }
         // Otherwise, display nothing
         return null;
-    }, [openSiteNavigatorMenu, palette.primary.contrastText, session?.isLoggedIn, startComponent]);
+    }, [openSiteNavigatorMenu, session?.isLoggedIn, startComponent]);
 
     return (
         <Box

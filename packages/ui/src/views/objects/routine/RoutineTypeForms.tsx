@@ -14,7 +14,7 @@ import { Title } from "../../../components/text/Title.js";
 import { SessionContext } from "../../../contexts.js";
 import { FormView } from "../../../forms/FormView/FormView.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { AddIcon, ApiIcon, BotIcon, CancelIcon, LockIcon, MagicIcon, MinusIcon, OpenInNewIcon, PlayIcon, SaveIcon, SmartContractIcon, SuccessIcon, TerminalIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ProfileAvatar } from "../../../styles.js";
 import { PartialWithType } from "../../../types.js";
@@ -102,6 +102,9 @@ type RoutineFormTypeInformational = Omit<RoutineFormPropsBase, "onSchemaOutputCh
 type RoutineFormTypeSmartContract = RoutineFormPropsBase;
 
 const routineTypeTitleSxs = { stack: { paddingLeft: 0 } } as const;
+const apiIconInfo = { name: "Api", type: "Common" } as const;
+const terminalIconInfo = { name: "Terminal", type: "Common" } as const;
+const smartContractIconInfo = { name: "SmartContract", type: "Common" } as const;
 
 export const RoutineApiForm = memo(function RoutineApiFormMemo({
     config,
@@ -127,7 +130,7 @@ export const RoutineApiForm = memo(function RoutineApiFormMemo({
     return (
         <>
             <Title
-                Icon={ApiIcon}
+                iconInfo={apiIconInfo}
                 title={isEditing ? "Connect API" : "Connected API"}
                 help={"Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail."}
                 variant="subsection"
@@ -211,7 +214,7 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
     return (
         <>
             <Title
-                Icon={TerminalIcon}
+                iconInfo={terminalIconInfo}
                 title={isEditing ? "Connect code" : "Connected code"}
                 help={"Connect or create a data converter function to this routine.\n\nThe code will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the code fails or does not return the expected data, the routine will fail."}
                 variant="subsection"
@@ -223,7 +226,7 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
                     color="secondary"
                     variant="contained"
                     onClick={handleCodeButtonClick}
-                    startIcon={codeObject ? <MinusIcon /> : <AddIcon />}
+                    startIcon={<IconCommon name={codeObject ? "Minus" : "Add"} />}
                 >
                     {codeObject ? "Remove code" : "Choose code"}
                 </Button>
@@ -370,7 +373,7 @@ const BotCardAvatar = memo(function BotCardAvatarMemo({ bot }: { bot: BotInfo })
             profileColors={profileColors}
             src={src}
         >
-            <BotIcon width="75%" height="75%" />
+            <IconCommon name="Bot" />
         </BotAvatar>
     );
 });
@@ -403,7 +406,7 @@ const BotCard = memo(function BotCardMemo({ bot }: { bot: BotInfo }) {
                 </BotHandle>}
             </Box>
             <Box sx={botCardOpenIconBoxStyle}>
-                <OpenInNewIcon />
+                <IconCommon name="OpenInNew" />
             </Box>
         </BotCardOuter>
     );
@@ -551,7 +554,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                     fullWidth
                     color="secondary"
                     onClick={handleBotButtonClick}
-                    startIcon={!bot ? <AddIcon /> : null}
+                    startIcon={!bot ? <IconCommon name="Add" /> : null}
                     variant={bot ? "outlined" : "contained"}
                 >{bot ? "Change bot" : "Choose bot"}</Button>}
             </Box>
@@ -575,7 +578,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                             disabled={isRunStepDisabled}
                             fullWidth
                             isLoading={isRunningStep}
-                            startIcon={<MagicIcon />}
+                            startIcon={<IconCommon name="Magic" />}
                             variant="contained"
                         >Generate</LoadableButton>
                     </Box>
@@ -685,7 +688,7 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
                                         disabled={showComplete && isCompleteStepDisabled}
                                         fullWidth
                                         isLoading={isRunningStep}
-                                        startIcon={!isLoggedIn ? <LockIcon /> : showComplete ? <SuccessIcon /> : <SaveIcon />}
+                                        startIcon={<IconCommon name={!isLoggedIn ? "Lock" : showComplete ? "Success" : "Save"} />}
                                         variant="contained"
                                     >{showComplete ? t("Complete") : t("Update")}</LoadableButton>
                                 </Box>
@@ -698,7 +701,7 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
                                         fullWidth
                                         color="secondary"
                                         onClick={showClearRun ? handleClearRun : handleOpenSelectRunDialog}
-                                        startIcon={!isLoggedIn ? <LockIcon /> : showClearRun ? <CancelIcon /> : <PlayIcon />}
+                                        startIcon={<IconCommon name={!isLoggedIn ? "Lock" : showClearRun ? "Cancel" : "Play"} />}
                                         variant="outlined"
                                     >{showClearRun ? t("Clear") : t("SelectRun")}</Button>
                                 </Box>
@@ -734,7 +737,7 @@ export const RoutineSmartContractForm = memo(function RoutineSmartContractFormMe
     return (
         <>
             <Title
-                Icon={SmartContractIcon}
+                iconInfo={smartContractIconInfo}
                 title={isEditing ? "Connect smart contract" : "Connected smart contract"}
                 help={"Connect or create a smart contract to this routine.\n\nThe contract will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the contract fails or does not return the expected data, the routine will fail."}
                 variant="subsection"

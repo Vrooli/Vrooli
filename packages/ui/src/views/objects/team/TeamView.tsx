@@ -21,7 +21,6 @@ import { useFindMany } from "../../../hooks/useFindMany.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTabs } from "../../../hooks/useTabs.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { EllipsisIcon, TeamIcon } from "../../../icons/common.js";
 import { useLocation } from "../../../route/router.js";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox } from "../../../styles.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
@@ -165,7 +164,7 @@ export function TeamView({
                         profileColors={profileColors}
                         src={extractImageUrl(team?.profileImage, team?.updated_at, 100)}
                     >
-                        <TeamIcon width="75%" height="75%" />
+                        <IconCommon name="Team" />
                     </OverviewProfileAvatar>
                     <Tooltip title={t("MoreOptions")}>
                         <IconButton
@@ -178,7 +177,7 @@ export function TeamView({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon fill={palette.background.textSecondary} />
+                            <IconCommon name="Ellipsis" fill="background.textSecondary" />
                         </IconButton>
                     </Tooltip>
                     <BookmarkButton
@@ -189,9 +188,13 @@ export function TeamView({
                         onChange={(isBookmarked: boolean) => { }}
                     />
                 </OverviewProfileStack>
-                <Stack direction="column" spacing={1} p={2} justifyContent="center" sx={{
-                    alignItems: "flex-start",
-                }}>
+                <Stack
+                    direction="column"
+                    spacing={1}
+                    p={2}
+                    justifyContent="center"
+                    alignItems="flex-start"
+                >
                     {/* Title */}
                     {
                         (isLoading && !name) ? (
@@ -231,9 +234,7 @@ export function TeamView({
                             />
                         )
                     }
-                    <Stack direction="row" spacing={2} sx={{
-                        alignItems: "center",
-                    }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
                         {/* Created date */}
                         <DateDisplay
                             loading={isLoading}

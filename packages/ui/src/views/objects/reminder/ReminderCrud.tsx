@@ -22,7 +22,7 @@ import { useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { AddIcon, DeleteIcon, DragIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
@@ -260,7 +260,7 @@ function ReminderForm({
 
     const topBarOptions = useMemo(function topBarOptionsMemo() {
         return !isCreate ? [{
-            Icon: DeleteIcon,
+            iconInfo: { name: "Delete", type: "Common" } as const,
             label: t("Delete"),
             onClick: handleDelete,
         }] : [];
@@ -383,12 +383,12 @@ function ReminderForm({
                                                                         onClick={() => handleDeleteStep(i)}
                                                                         sx={{ margin: "auto" }}
                                                                     >
-                                                                        <DeleteIcon fill={palette.error.light} />
+                                                                        <IconCommon name="Delete" fill="error.light" />
                                                                     </IconButton>
                                                                     <Box
                                                                         {...provided.dragHandleProps}
                                                                     >
-                                                                        <DragIcon fill={palette.background.textPrimary} />
+                                                                        <IconCommon name="Drag" fill="background.textPrimary" />
                                                                     </Box>
                                                                 </Stack>
                                                             </Stack>
@@ -402,7 +402,7 @@ function ReminderForm({
                                 )}
                             </Droppable>
                             <AddStepButton
-                                startIcon={<AddIcon />}
+                                startIcon={<IconCommon name="Add" />}
                                 onClick={handleAddStep}
                                 variant="outlined"
                             >
@@ -464,7 +464,7 @@ export function ReminderCrud({
         return () => {
             abortController.abort();
         };
-    }, [session, isOpen, getFocusModeInfo]);
+    }, [session, isOpen, getFocusModeInfo, display]);
 
     useEffect(function setFocusModeInfoEffect() {
         if (hasUpdatedFocusModeInfo.current || !focusModeInfo) {

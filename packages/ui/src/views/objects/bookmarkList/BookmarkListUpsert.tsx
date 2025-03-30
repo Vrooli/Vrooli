@@ -22,7 +22,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { ActionIcon, AddIcon, CancelIcon, DeleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FormContainer } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
@@ -195,15 +195,17 @@ function BookmarkListForm({
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isDeleteLoading, props.isSubmitting]);
 
-    const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
-
     const sideActionButtons = useMemo(() => {
         const buttons: JSX.Element[] = [];
         if (isSelecting && selectedData.length) {
             buttons.push(
                 <Tooltip title={t("Delete")}>
                     <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
-                        <DeleteIcon {...actionIconProps} />
+                        <IconCommon
+                            fill="secondary.contrastText"
+                            name="Delete"
+                            size={36}
+                        />
                     </IconButton>
                 </Tooltip>,
             );
@@ -211,7 +213,11 @@ function BookmarkListForm({
         buttons.push(
             <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
                 <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
-                    {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
+                    <IconCommon
+                        fill="secondary.contrastText"
+                        name={isSelecting ? "Cancel" : "Action"}
+                        size={36}
+                    />
                 </IconButton>
             </Tooltip>,
         );
@@ -219,7 +225,11 @@ function BookmarkListForm({
             buttons.push(
                 <Tooltip title={"Add Bookmark"}>
                     <IconButton aria-label={"Add new bookmark"} onClick={openSearch} sx={{ background: palette.secondary.main }}>
-                        <AddIcon {...actionIconProps} />
+                        <IconCommon
+                            fill="secondary.contrastText"
+                            name="Add"
+                            size={36}
+                        />
                     </IconButton>
                 </Tooltip>,
             );
@@ -228,7 +238,7 @@ function BookmarkListForm({
             return null;
         }
         return buttons;
-    }, [actionIconProps, handleToggleSelecting, isSelecting, onBulkActionStart, openSearch, palette.secondary.main, selectedData.length, t]);
+    }, [handleToggleSelecting, isSelecting, onBulkActionStart, openSearch, palette.secondary.main, selectedData.length, t]);
 
 
     return (

@@ -1,24 +1,29 @@
 import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Stack, Typography, useTheme } from "@mui/material";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { openLink, useLocation } from "route";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { SessionContext } from "../../contexts.js";
 import { useStripe } from "../../hooks/useStripe.js";
-import { CancelIcon, OpenInNewIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { openLink } from "../../route/openLink.js";
+import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
 import { SettingsPaymentViewProps } from "./types.js";
 
 export function SettingsPaymentView({
     display,
     onClose,
 }: SettingsPaymentViewProps) {
+    const session = useContext(SessionContext);
+    const currentUser = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const {
-        currentUser,
         prices,
         startCheckout,
         redirectToCustomerPortal,
@@ -39,7 +44,7 @@ export function SettingsPaymentView({
                         <Button
                             color="secondary"
                             fullWidth
-                            startIcon={<OpenInNewIcon />}
+                            startIcon={<IconCommon name="OpenInNew" />}
                             onClick={() => openLink(setLocation, LINKS.Pro)}
                             variant={!currentUser.hasPremium ? "outlined" : "contained"}
                             sx={{ marginTop: 2, marginBottom: 2 }}
@@ -74,11 +79,17 @@ export function SettingsPaymentView({
                         {currentUser.hasPremium && <Button
                             fullWidth
                             onClick={redirectToCustomerPortal}
-                            startIcon={<CancelIcon />}
+                            startIcon={<IconCommon name="Cancel" />}
                             variant="outlined"
                             sx={{ color: palette.error.main, borderColor: palette.error.main, marginTop: "48px!important" }}
                         >Cancel Premium</Button>}
                     </Stack>
+                    {/* TODO add opt-in for donating unused monthly credits, with slider 
+                    for what percentage you want to donate. For now, it should be clear that it's 
+                    donated back to us. Later on when we add fundraising, we can let the user pick where it goes to
+                    (not sure about the legal implications here)
+                    
+                    TODO NOTE: Make sure that this doesn't accidentally donate additional credits that someone bought. I think this can be solved by adding the max rollover number to be the monthly credits increment. So the calculation would be if (credits > DONATION_THRESHOLD) ? (MONTHLY_CREDITS_INCREMENT * DONATION_PERCENTAGE) : 0, where the donation threshold is defaulted to 1 month (but maybe we can have another slider for this*/}
                 </Box>
             </SettingsContent>
         </ScrollBox>

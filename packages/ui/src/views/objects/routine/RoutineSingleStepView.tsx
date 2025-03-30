@@ -1,19 +1,19 @@
-import { CommentFor, FindByIdInput, FormBuilder, FormSchema, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RoutineVersionConfig, RunProject, RunRoutine, RunStatus, Tag, TagShape, UrlTools, base36ToUuid, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate } from "@local/shared";
-import { Box, Divider, Stack, Typography, styled, useTheme } from "@mui/material";
+import { CommentFor, FindByIdInput, FormBuilder, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RoutineVersionConfig, RunProject, RunRoutine, RunStatus, Tag, TagShape, UrlTools, base36ToUuid, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate } from "@local/shared";
+import { Box, Divider, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Formik, useFormikContext } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RunButton } from "../../../components/buttons/RunButton/RunButton.js";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { CommentContainer } from "../../../components/containers/CommentContainer/CommentContainer.js";
-import { ContentCollapse } from "../../../components/containers/ContentCollapse/ContentCollapse.js";
-import { TextCollapse } from "../../../components/containers/TextCollapse/TextCollapse.js";
+import { CommentContainer } from "../../../components/containers/CommentContainer.js";
+import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
+import { TextCollapse } from "../../../components/containers/TextCollapse.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceList } from "../../../components/lists/ResourceList/ResourceList.js";
 import { TagList } from "../../../components/lists/TagList/TagList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { StatsCompact } from "../../../components/text/StatsCompact.js";
 import { VersionDisplay } from "../../../components/text/VersionDisplay.js";
@@ -23,10 +23,10 @@ import { useSocketRun, useUpsertRunRoutine } from "../../../hooks/runs.js";
 import { useErrorPopover } from "../../../hooks/useErrorPopover.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { EditIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { addSearchParams } from "../../../route/searchParams.js";
-import { FormSection, ScrollBox, SideActionsButton } from "../../../styles.js";
+import { FormSection, ScrollBox } from "../../../styles.js";
 import { FormErrors, PartialWithType } from "../../../types.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -49,10 +49,9 @@ function handleInvalidUrlParams() {
 }
 
 type RoutineSingleStepTypeViewProps = {
+    config: RoutineVersionConfig;
     existing: PartialWithType<RoutineVersion>;
     isGetRoutineLoading: boolean;
-    schemaInput: FormSchema;
-    schemaOutput: FormSchema;
 }
 
 const IncompleteWarningLabel = styled(Typography)(({ theme }) => ({
@@ -61,10 +60,9 @@ const IncompleteWarningLabel = styled(Typography)(({ theme }) => ({
 }));
 
 function RoutineSingleStepTypeView({
+    config,
     existing,
     isGetRoutineLoading,
-    schemaInput,
-    schemaOutput,
 }: RoutineSingleStepTypeViewProps) {
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
@@ -74,14 +72,6 @@ function RoutineSingleStepTypeView({
         return routineTypes.find((option) => option.type === existing.routineType);
     }, [existing.routineType]);
 
-    const { createRun, updateRun, isCreatingRunRoutine, isUpdatingRunRoutine } = useUpsertRunRoutine();
-    const [run, setRun] = useState<RunRoutine | null>(null);
-    useEffect(function updateUrlOnRunChange() {
-        if (run) {
-            addSearchParams(setLocation, { runId: uuidToBase36(run.id) } as RoutineSingleStepViewSearchParams);
-        }
-    }, [run, setLocation]);
-
     const onRunChange = useCallback(function onRunChangeCallback(newRun: RunRoutine | null) {
         setRun(newRun);
         // Update formik values with run inputs
@@ -89,15 +79,17 @@ function RoutineSingleStepTypeView({
             resetForm();
             return;
         }
-        const values = generateRoutineInitialValues({
-            configFormInput: parseSchemaInput(existing.configFormInput, existing.routineType, console),
-            configFormOutput: parseSchemaOutput(existing.configFormOutput, existing.routineType, console),
-            logger: console,
-            runInputs: newRun.inputs,
-            runOutputs: newRun.outputs,
-        });
+        const values = FormBuilder.generateInitialValuesFromRoutineConfig(config, newRun);
         setValues(values as FormErrors);
-    }, [existing.configFormInput, existing.configFormOutput, existing.routineType, resetForm, setValues]);
+    }, [config, resetForm, setValues]);
+
+    const { createRun, updateRun, isCreatingRunRoutine, isUpdatingRunRoutine } = useUpsertRunRoutine();
+    const [run, setRun] = useState<RunRoutine | null>(null);
+    useEffect(function updateUrlOnRunChange() {
+        if (run) {
+            addSearchParams(setLocation, { runId: uuidToBase36(run.id) } as RoutineSingleStepViewSearchParams);
+        }
+    }, [run, setLocation]);
 
     const [getRun, { data: runData, loading: isLoadingGetRun }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointsRunRoutine.findOne);
     useEffect(function fetchRunFromUrl() {
@@ -125,7 +117,7 @@ function RoutineSingleStepTypeView({
         getFormValues,
         handleRunUpdate: onRunChange as (run: RunRoutine | RunProject) => unknown,
         run,
-        runnableObject: existing as RunnableRoutineVersion,
+        runnableObject: existing as RoutineVersion,
     });
 
     const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting: setSubmitting });
@@ -365,9 +357,6 @@ export function RoutineSingleStepView({
         return RoutineVersionConfig.deserialize({ config: existing.config, routineType: existing.routineType ?? RoutineType.Informational }, console);
     }, [existing.config, existing.routineType]);
 
-    const formInput = config.formInput?.schema ?? defaultConfigFormInputMap[existing.routineType ?? RoutineType.Informational]().schema;
-    const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap[existing.routineType ?? RoutineType.Informational]().schema;
-
     const { formInitialValues, formValidationSchema } = useMemo(function initialValuesMemo() {
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, existing.routineType ?? RoutineType.Informational);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, existing.routineType ?? RoutineType.Informational);
@@ -431,10 +420,9 @@ export function RoutineSingleStepView({
                             validationSchema={formValidationSchema}
                         >
                             <RoutineSingleStepTypeView
+                                config={config}
                                 existing={existing}
                                 isGetRoutineLoading={isGetRoutineLoading}
-                                schemaInput={formInput}
-                                schemaOutput={formOutput}
                             />
                         </Formik>
                     )}
@@ -488,15 +476,18 @@ export function RoutineSingleStepView({
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <SideActionsButton aria-label={t("UpdateRoutine")} onClick={handleEditStart}>
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
+                    <IconButton
+                        aria-label={t("UpdateRoutine")}
+                        onClick={handleEditStart}
+                    >
+                        <IconCommon name="Edit" />
+                    </IconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {Boolean(existing) && existing?.routineType !== RoutineType.Informational ? <RunButton
                     isEditing={false}
                     objectType="RoutineVersion"
-                    runnableObject={existing}
+                    runnableObject={existing as RoutineVersion}
                 /> : null}
             </SideActionsButtons>
         </ScrollBox>

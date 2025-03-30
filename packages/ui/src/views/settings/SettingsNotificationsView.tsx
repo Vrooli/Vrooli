@@ -17,10 +17,13 @@ import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useFetch } from "../../hooks/useFetch.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
-import { EmailIcon, NotificationsAllIcon, PhoneIcon } from "../../icons/common.js";
 import { ScrollBox } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "./types.js";
+
+const notificationsAllIconInfo = { name: "NotificationsAll", type: "Common" } as const;
+const phoneIconInfo = { name: "Phone", type: "Common" } as const;
+const emailIconInfo = { name: "Email", type: "Common" } as const;
 
 function SettingsNotificationForm({
     display,
@@ -72,7 +75,7 @@ function SettingsNotificationForm({
             >
                 <Box>
                     <Title
-                        Icon={NotificationsAllIcon}
+                        iconInfo={notificationsAllIconInfo}
                         title={t("Notification", { count: 2 })}
                         variant="subheader"
                         sxs={{ stack: { marginBottom: 2 } }}
@@ -127,7 +130,7 @@ function SettingsNotificationForm({
                 <Divider />
                 <Box>
                     <Title
-                        Icon={PhoneIcon}
+                        iconInfo={phoneIconInfo}
                         title={t("Device", { count: 2 })}
                         variant="subheader"
                         sxs={{ stack: { marginBottom: 2 } }}
@@ -149,7 +152,7 @@ function SettingsNotificationForm({
                 <Box>
                     <Title
                         help={t("EmailListHelp")}
-                        Icon={EmailIcon}
+                        iconInfo={emailIconInfo}
                         title={t("Email", { count: 2 })}
                         variant="subheader"
                         sxs={{ stack: { marginBottom: 2 } }}

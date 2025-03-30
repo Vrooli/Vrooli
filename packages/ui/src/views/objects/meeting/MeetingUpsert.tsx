@@ -13,12 +13,11 @@ import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { AddIcon, DeleteIcon, EditIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ScheduleUpsert } from "../schedule/ScheduleUpsert.js";
 import { MeetingFormProps, MeetingUpsertProps } from "./types.js";
-
 
 export function meetingInitialValues(
     session: Session | undefined,
@@ -52,6 +51,8 @@ export function transformMeetingValues(values: MeetingShape, existing: MeetingSh
     return isCreate ? shapeMeeting.create(values) : shapeMeeting.update(existing, values);
 }
 
+const defaultScheduleOverrideObject = { __typename: "Schedule" } as const;
+
 function MeetingForm({
     disabled,
     dirty,
@@ -75,20 +76,24 @@ function MeetingForm({
     const [scheduleField, , scheduleHelpers] = useField<Schedule | null>("schedule");
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
-    const handleUpdateSchedule = () => {
+    function handleAddSchedule() {
+        setIsScheduleDialogOpen(true);
+    }
+    function handleUpdateSchedule() {
         setEditingSchedule(scheduleField.value);
         setIsScheduleDialogOpen(true);
-    };
-    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
-    const handleScheduleCompleted = (created: Schedule) => {
+    }
+    function handleCloseScheduleDialog() {
+        setIsScheduleDialogOpen(false);
+    }
+    function handleScheduleCompleted(created: Schedule) {
         scheduleHelpers.setValue(created);
         setIsScheduleDialogOpen(false);
-    };
-    const handleScheduleDeleted = () => {
+    }
+    function handleScheduleDeleted() {
         scheduleHelpers.setValue(null);
         setIsScheduleDialogOpen(false);
-    };
+    }
 
     const { handleCancel, handleCompleted } = useUpsertActions<Meeting>({
         display,
@@ -144,7 +149,7 @@ function MeetingForm({
                 onClose={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 onDeleted={handleScheduleDeleted}
-                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+                overrideObject={editingSchedule ?? defaultScheduleOverrideObject}
             />
             <BaseForm
                 display={display}
@@ -157,7 +162,7 @@ function MeetingForm({
                     {!scheduleField.value && (
                         <Button
                             onClick={handleAddSchedule}
-                            startIcon={<AddIcon />}
+                            startIcon={<IconCommon name="Add" />}
                             variant="outlined"
                             sx={{
                                 display: "flex",
@@ -203,7 +208,7 @@ function MeetingForm({
                                             pointerEvents: "all",
                                             paddingBottom: "4px",
                                         }}>
-                                        <EditIcon fill={palette.secondary.main} />
+                                        <IconCommon name="Edit" fill="secondary.main" />
                                     </Box>
                                     {/* Delete */}
                                     <Box
@@ -217,7 +222,7 @@ function MeetingForm({
                                             pointerEvents: "all",
                                             paddingBottom: "4px",
                                         }}>
-                                        <DeleteIcon fill={palette.secondary.main} />
+                                        <IconCommon name="Delete" fill="secondary.main" />
                                     </Box>
                                 </Stack>
                             </ListItem>

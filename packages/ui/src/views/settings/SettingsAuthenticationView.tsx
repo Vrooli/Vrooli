@@ -19,7 +19,7 @@ import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
-import { DeleteIcon, EmailIcon, LogOutIcon, PhoneIcon, WalletIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { FormSection, ScrollBox } from "../../styles.js";
 import { guestSession, SessionService } from "../../utils/authentication/session.js";
@@ -33,6 +33,9 @@ const initialValues: SettingsAuthenticationFormValues = {
 };
 
 const hiddenInputStyle = { display: "none" } as const;
+const phoneIconInfo = { name: "Phone", type: "Common" } as const;
+const emailIconInfo = { name: "Email", type: "Common" } as const;
+const walletIconInfo = { name: "Wallet", type: "Common" } as const;
 
 function SettingsAuthenticationForm({
     display,
@@ -202,7 +205,7 @@ export function SettingsAuthenticationView({
                     <Box>
                         <Title
                             help={t("PhoneListHelp")}
-                            Icon={PhoneIcon}
+                            iconInfo={phoneIconInfo}
                             title={t("Phone", { count: 2 })}
                             variant="subheader"
                         />
@@ -216,7 +219,7 @@ export function SettingsAuthenticationView({
                     <Box>
                         <Title
                             help={t("EmailListHelp")}
-                            Icon={EmailIcon}
+                            iconInfo={emailIconInfo}
                             title={t("Email", { count: 2 })}
                             variant="subheader"
                         />
@@ -230,7 +233,7 @@ export function SettingsAuthenticationView({
                     <Box>
                         <Title
                             help={t("WalletListHelp")}
-                            Icon={WalletIcon}
+                            iconInfo={walletIconInfo}
                             title={t("Wallet", { count: 2 })}
                             variant="subheader"
                         />
@@ -266,14 +269,14 @@ export function SettingsAuthenticationView({
                         <Button
                             color="secondary"
                             onClick={onLogOut}
-                            startIcon={<LogOutIcon />}
+                            startIcon={<IconCommon name="LogOut" />}
                             variant="outlined"
                             sx={buttonStyles}
                         >{t("LogOut")}</Button>
                         <Button
                             color="secondary"
                             onClick={onLogOutAllDevices}
-                            startIcon={<LogOutIcon />}
+                            startIcon={<IconCommon name="LogOut" />}
                             variant="outlined"
                             sx={buttonStyles}
                         >
@@ -281,7 +284,7 @@ export function SettingsAuthenticationView({
                         </Button>
                         <Button
                             onClick={openDelete}
-                            startIcon={<DeleteIcon />}
+                            startIcon={<IconCommon name="Delete" />}
                             variant="text"
                             sx={{
                                 ...buttonStyles,

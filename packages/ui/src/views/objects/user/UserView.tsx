@@ -23,8 +23,7 @@ import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useTabs } from "../../../hooks/useTabs.js";
-import { IconCommon } from "../../../icons/Icons.js";
-import { BotIcon, CommentIcon, EllipsisIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
+import { IconCommon, IconRoutine } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox } from "../../../styles.js";
@@ -56,49 +55,49 @@ const HandleText = styled(Typography)(({ theme }) => ({
 const occupationInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <TeamIcon />
+            <IconCommon name="Team" />
         </InputAdornment>
     ),
 } as const;
 const personaInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <PersonaIcon />
+            <IconCommon name="Persona" />
         </InputAdornment>
     ),
 } as const;
 const startMessageInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <CommentIcon />
+            <IconCommon name="Comment" />
         </InputAdornment>
     ),
 } as const;
 const toneInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <RoutineValidIcon />
+            <IconRoutine name="RoutineValid" />
         </InputAdornment>
     ),
 } as const;
 const keyPhrasesInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <KeyPhrasesIcon />
+            <IconCommon name="KeyPhrases" />
         </InputAdornment>
     ),
 } as const;
 const domainKnowledgeInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <LearnIcon />
+            <IconCommon name="Learn" />
         </InputAdornment>
     ),
 } as const;
 const biasInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <HeartFilledIcon />
+            <IconCommon name="HeartFilled" />
         </InputAdornment>
     ),
 } as const;
@@ -335,9 +334,7 @@ export function UserView({
                         profileColors={profileColors}
                         src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
                     >
-                        {user?.isBot ?
-                            <BotIcon width="75%" height="75%" /> :
-                            <UserIcon width="75%" height="75%" />}
+                        <IconCommon name={user?.isBot ? "Bot" : "User"} />
                     </OverviewProfileAvatar>
                     <Tooltip title={t("MoreOptions")}>
                         <IconButton
@@ -350,7 +347,7 @@ export function UserView({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon fill={palette.background.textSecondary} />
+                            <IconCommon name="Ellipsis" fill="background.textSecondary" />
                         </IconButton>
                     </Tooltip>
                     <BookmarkButton

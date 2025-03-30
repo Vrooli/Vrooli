@@ -6,11 +6,6 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { SocketService } from "../../api/socket.js";
-import AppleIcon from "../../assets/img/apple.svg";
-import FacebookIcon from "../../assets/img/facebook.svg";
-import GitHubIcon from "../../assets/img/github.svg";
-import GoogleIcon from "../../assets/img/google.svg";
-import XIcon from "../../assets/img/x.svg";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
@@ -20,7 +15,7 @@ import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
-import { EmailIcon } from "../../icons/common.js";
+import { IconCommon, IconFavicon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
@@ -38,27 +33,27 @@ const OAUTH_PROVIDERS_INFO = [
     {
         name: "X",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.X),
-        logo: XIcon,
+        site: "https://x.com",
     },
     {
         name: "Google",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.Google),
-        logo: GoogleIcon,
+        site: "https://google.com",
     },
     {
         name: "Apple",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.Apple),
-        logo: AppleIcon,
+        site: "https://apple.com",
     },
     {
         name: "GitHub",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.GitHub),
-        logo: GitHubIcon,
+        site: "https://github.com",
     },
     {
         name: "Facebook",
         url: getOAuthInitRoute(OAUTH_PROVIDERS.Facebook),
-        logo: FacebookIcon,
+        site: "https://facebook.com",
     },
     // Add more providers as needed
 ] as const;
@@ -93,9 +88,6 @@ const baseFormStyle = {
 const breadcrumbsStyle = {
     margin: "auto",
 } as const;
-const oAuthIconStyle = {
-    height: "24px",
-} as const;
 const oAuthSpanStyle = {
     marginRight: "auto",
 } as const;
@@ -103,7 +95,7 @@ const oAuthSpanStyle = {
 const emailStartAdornment = {
     startAdornment: (
         <InputAdornment position="start">
-            <EmailIcon />
+            <IconCommon name="Email" />
         </InputAdornment>
     ),
 };
@@ -283,21 +275,21 @@ function LoginForm({
                     </Box>
                     <OrDivider>or</OrDivider>
                     <Box display="flex" flexDirection="column" width="100%" maxWidth="400px" gap={1} p={2}>
-                        {OAUTH_PROVIDERS_INFO.map((provider) => {
+                        {OAUTH_PROVIDERS_INFO.map(({ name, url, site }) => {
                             function handleOAuthClick() {
-                                window.location.href = provider.url;
+                                window.location.href = url;
                             }
 
                             return (
                                 <OAuthButton
-                                    key={provider.name}
+                                    key={name}
                                     onClick={handleOAuthClick}
                                     variant="contained"
                                     fullWidth
-                                    startIcon={<img src={provider.logo} alt={`${provider.name} logo`} style={oAuthIconStyle} />}
+                                    startIcon={<IconFavicon href={site} />}
                                 >
                                     <span style={oAuthSpanStyle}>
-                                        {t("SignInWith", { provider: provider.name })}
+                                        {t("SignInWith", { provider: name })}
                                     </span>
                                 </OAuthButton>
                             );

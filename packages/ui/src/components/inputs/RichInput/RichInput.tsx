@@ -1,21 +1,21 @@
 import { TaskContextInfo, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
 import { Box, Chip, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator.js";
 import { useField } from "formik";
-import useDraggableScroll from "hooks/gestures.js";
-import { useIsLeftHanded } from "hooks/subscriptions.js";
-import { generateContextLabel } from "hooks/tasks.js";
-import { useUndoRedo } from "hooks/useUndoRedo.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentUser } from "utils/authentication/session.js";
-import { DEFAULT_MIN_ROWS } from "utils/consts.js";
-import { getDeviceInfo, keyComboToString } from "utils/display/device.js";
-import { generateContext } from "utils/display/stringTools.js";
-import { getTranslationData, handleTranslationChange } from "utils/display/translationTools.js";
-import { getCookie, setCookie } from "utils/localStorage.js";
-import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub.js";
 import { ActiveChatContext, SessionContext } from "../../../contexts.js";
-import { CloseIcon } from "../../../icons/common.js";
+import useDraggableScroll from "../../../hooks/gestures.js";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { generateContextLabel } from "../../../hooks/tasks.js";
+import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { DEFAULT_MIN_ROWS } from "../../../utils/consts.js";
+import { getDeviceInfo, keyComboToString } from "../../../utils/display/device.js";
+import { generateContext } from "../../../utils/display/stringTools.js";
+import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
+import { getCookie, setCookie } from "../../../utils/localStorage.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { CharLimitIndicator } from "../../CharLimitIndicator/CharLimitIndicator.js";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical.js";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown.js";
 import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichInputToolbar.js";
@@ -82,7 +82,12 @@ function ContextsRow({
                         key={context.id}
                         label={context.label}
                         onDelete={onDelete}
-                        deleteIcon={<CloseIcon width={15} height={15} fill={palette.primary.contrastText} />}
+                        deleteIcon={<IconCommon
+                            decorative
+                            fill={palette.primary.contrastText}
+                            name="Close"
+                            size={15}
+                        />}
                     />
                 );
             })}
@@ -163,7 +168,8 @@ export function RichInputBase({
         const contextValue = generateContext(selected, fullText);
 
         // Open the side chat and provide it context
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { tab: "Chat" } });
+        //TODO
+        // PubSub.get().publish("menu", { id: SITE_NAVIGATOR_MENU_ID, isOpen: true, data: { tab: "Chat" } });
         const context = {
             id: `rich-${name}`,
             label: generateContextLabel(contextValue),
@@ -350,14 +356,19 @@ export function RichInputBase({
                             }
                             {/* Action buttons */}
                             {
-                                actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }) => (
+                                actionButtons?.map(({ disabled: buttonDisabled, iconInfo, onClick, tooltip }) => (
                                     <Tooltip key={tooltip} title={tooltip} placement="top">
                                         <ActionButton
+                                            aria-label={tooltip}
                                             disabled={disabled || buttonDisabled}
                                             size="medium"
                                             onClick={onClick}
                                         >
-                                            <Icon fill={palette.primary.contrastText} />
+                                            <Icon
+                                                decorative
+                                                fill={palette.primary.contrastText}
+                                                info={iconInfo}
+                                            />
                                         </ActionButton>
                                     </Tooltip>
                                 ))

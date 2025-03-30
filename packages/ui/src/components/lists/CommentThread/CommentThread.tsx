@@ -4,7 +4,7 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { DeleteIcon, OpenThreadIcon, ReplyIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { getYou, placeholderColor } from "../../../utils/display/listTools.js";
 import { displayDate } from "../../../utils/display/stringTools.js";
@@ -34,12 +34,12 @@ export function CommentConnector({
     // Random color for profile image (since we don't display custom image yet)
     const profileColors = useMemo(() => placeholderColor(), []);
     // Determine profile image type
-    const ProfileIcon = useMemo(() => {
+    const profileIconInfo = useMemo(() => {
         switch (parentType) {
             case "Team":
-                return TeamIcon;
+                return { name: "Team", type: "Common" } as const;
             default:
-                return UserIcon;
+                return { name: "User", type: "Common" } as const;
         }
     }, [parentType]);
 
@@ -55,13 +55,12 @@ export function CommentConnector({
                 minHeight: "48px",
             }}
         >
-            <ProfileIcon
+            <Icon
                 fill={profileColors[1]}
-                width="75%"
-                height="75%"
+                info={profileIconInfo}
             />
         </Avatar>
-    ), [ProfileIcon, profileColors]);
+    ), [profileColors, profileIconInfo]);
 
     // If open, profile image on top of collapsible line
     if (isOpen) {
@@ -102,7 +101,7 @@ export function CommentConnector({
                     height: "48px",
                 }}
             >
-                <OpenThreadIcon fill={profileColors[0]} />
+                <IconCommon name="OpenThread" fill={profileColors[0]} />
             </IconButton>
             {profileImage}
         </Stack>
@@ -266,7 +265,7 @@ export function CommentThreadItem({
                             <IconButton
                                 onClick={() => { handleUpsertCommentOpen(); }}
                             >
-                                <ReplyIcon fill={palette.background.textSecondary} />
+                                <IconCommon name="Reply" fill="background.textSecondary" />
                             </IconButton>
                         </Tooltip>}
                         <ShareButton object={object} />
@@ -279,7 +278,7 @@ export function CommentThreadItem({
                                 onClick={handleDelete}
                                 disabled={loadingDelete}
                             >
-                                <DeleteIcon fill={palette.background.textSecondary} />
+                                <IconCommon name="Delete" fill="background.textSecondary" />
                             </IconButton>
                         </Tooltip>}
                     </Stack>}
@@ -374,7 +373,7 @@ export function CommentThread({
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}
-            <Stack direction="column" spacing={1} sx={{ width: "100%" }}>
+            <Stack direction="column" spacing={1} width="100%">
                 {/* Comment */}
                 <CommentThreadItem
                     data={data.comment}

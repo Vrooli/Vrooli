@@ -20,7 +20,7 @@ import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { EmailIcon, UserIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { FormContainer, FormSection } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
@@ -62,7 +62,7 @@ const breadcrumbsStyle = {
 const nameInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <UserIcon />
+            <IconCommon name="User" />
         </InputAdornment>
     ),
 } as const;
@@ -70,7 +70,7 @@ const nameInputProps = {
 const emailInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <EmailIcon />
+            <IconCommon name="Email" />
         </InputAdornment>
     ),
 } as const;

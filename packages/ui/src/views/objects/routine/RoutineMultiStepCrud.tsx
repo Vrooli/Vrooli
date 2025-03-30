@@ -1,59 +1,34 @@
-import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
-import { DUMMY_ID, DefinedArrayElement, DeleteOneInput, DeleteType, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionShape, RoutineVersionUpdateInput, RunStepBuilder, RunStepNavigator, RunStepType, RunnableRoutineVersion, Session, StartStep, Status, Success, addToArray, deleteArrayIndex, endpointsActions, endpointsRoutineVersion, exists, funcTrue, getTranslation, isEqual, noopSubmit, routineVersionStatusMultiStep, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, updateArray, uuid } from "@local/shared";
-import { Box, Button, Divider, Grid, IconButton, TextField, Typography, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
+import { DUMMY_ID, DefinedArrayElement, RoutineVersion, RoutineVersionShape, Session, addToArray, deleteArrayIndex, exists, getTranslation, shapeRoutineVersion, updateArray, uuid } from "@local/shared";
+import { Box, Button, Divider, Grid, IconButton, styled, useTheme } from "@mui/material";
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";
-import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid/BottomActionsGrid.js";
+import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid.js";
 import { LoadableButton } from "../../../components/buttons/LoadableButton/LoadableButton.js";
 import { StatusMessageArray } from "../../../components/buttons/types.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
-import { GraphLink } from "../../../components/graphs/NodeGraph/GraphLink/GraphLink.js";
-import { EndNode, RoutineListNode } from "../../../components/graphs/NodeGraph/Nodes/Nodes.js";
-import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
-import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
-import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
-import { EditableTitle } from "../../../components/text/EditableTitle.js";
 // eslint-disable-next-line import/extensions
 // import Canvas from "diagram-js/lib/core/Canvas";
-import { Formik } from "formik";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { SessionContext } from "../../../contexts.js";
-import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { useErrorPopover } from "../../../hooks/useErrorPopover.js";
-import { useHotkeys } from "../../../hooks/useHotkeys.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { AddIcon, CancelIcon, CreateIcon, DragIcon, MinusIcon, SaveIcon } from "../../../icons/common.js";
-import { FormContainer, FormSection, ScrollBox, pagePaddingBottom } from "../../../styles.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { pagePaddingBottom } from "../../../styles.js";
 import { FormErrors, FormProps } from "../../../types.js";
-import { ELEMENT_IDS } from "../../../utils/consts.js";
-import { getDisplay } from "../../../utils/display/listTools.js";
-import { getUserLanguages, updateTranslationFields } from "../../../utils/display/translationTools.js";
-import { PubSub } from "../../../utils/pubsub.js";
-import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ROOT_LOCATION } from "../../runs/RunView.js";
-import { routineSingleStepInitialValues } from "./RoutineSingleStepUpsert.js";
 import { RoutineMultiStepCrudProps } from "./types.js";
 
-export type NodeLink = DefinedArrayElement<RoutineVersionShape["nodeLinks"]>;
+enum NodeType {
+    Redirect = "Redirect",
+    RoutineList = "RoutineList",
+    End = "End",
+}
 
-type Node = DefinedArrayElement<RoutineVersionShape["nodes"]>;
-export type NodeEnd = Node & { nodeType: NodeType.End, end: NonNullable<NodeShape["end"]> };
+export type NodeLink = any;//DefinedArrayElement<RoutineVersionShape["nodeLinks"]>;
+
+type Node = any;//DefinedArrayElement<RoutineVersionShape["nodes"]>;
+export type NodeEnd = any;//Node & { nodeType: NodeType.End, end: NonNullable<NodeShape["end"]> };
 export type NodeLoop = Node;
 export type NodeRedirect = Node & { nodeType: NodeType.Redirect };
-export type NodeRoutineList = Node & { nodeType: NodeType.RoutineList, routineList: NonNullable<NodeShape["routineList"]> };
-export type NodeStart = Node & { nodeType: NodeType.Start };
+export type NodeRoutineList = any;//Node & { nodeType: NodeType.RoutineList, routineList: NonNullable<NodeShape["routineList"]> };
+export type NodeStart = any;//Node & { nodeType: NodeType.Start };
 export type SomeNode = NodeEnd | NodeLoop | NodeRedirect | NodeRoutineList | NodeStart;
 
 export type RoutineListItem = DefinedArrayElement<NodeRoutineList["routineList"]["items"]>;
@@ -133,26 +108,26 @@ class GenerateManager {
         language: string,
     ): NodeRoutineList {
         return {
-            __typename: "Node" as const,
-            id: uuid(),
-            nodeType: NodeType.RoutineList,
-            rowIndex: 0, // Deprecated
-            columnIndex: 0, // Deprecated
-            routineList: {
-                __typename: "NodeRoutineList" as const,
-                id: uuid(),
-                isOrdered: false,
-                isOptional: false,
-                items: [],
-            },
-            translations: [{
-                __typename: "NodeTranslation" as const,
-                id: uuid(),
-                language,
-                name: `Node ${(routine.nodes?.length ?? 0) - 1}`,
-                description: "",
-            }],
-        };
+            // __typename: "Node" as const,
+            // id: uuid(),
+            // nodeType: NodeType.RoutineList,
+            // rowIndex: 0, // Deprecated
+            // columnIndex: 0, // Deprecated
+            // routineList: {
+            //     __typename: "NodeRoutineList" as const,
+            //     id: uuid(),
+            //     isOrdered: false,
+            //     isOptional: false,
+            //     items: [],
+            // },
+            // translations: [{
+            //     __typename: "NodeTranslation" as const,
+            //     id: uuid(),
+            //     language,
+            //     name: `Node ${(routine.nodes?.length ?? 0) - 1}`,
+            //     description: "",
+            // }],
+        } as any;
     }
 
     /**
@@ -202,12 +177,13 @@ class NodeManager {
      * @returns A new routineVersion with the created node.
      */
     static create(routine: RoutineVersionShape, node: Node): RoutineVersionShape {
-        const nodes = routine.nodes ?? [];
+        // const nodes = routine.nodes ?? [];
 
-        return {
-            ...routine,
-            nodes: addToArray(nodes, node),
-        };
+        // return {
+        //     ...routine,
+        //     nodes: addToArray(nodes, node),
+        // };
+        return {} as any;
     }
 
     /**
@@ -218,14 +194,15 @@ class NodeManager {
      * @returns A new routineVersion with the updated node.
      */
     static update(routine: RoutineVersionShape, node: Node): RoutineVersionShape {
-        const nodes = routine.nodes ?? [];
-        const nodeIndex = nodes.findIndex(n => n.id === node.id);
-        if (nodeIndex === -1) return routine;
+        // const nodes = routine.nodes ?? [];
+        // const nodeIndex = nodes.findIndex(n => n.id === node.id);
+        // if (nodeIndex === -1) return routine;
 
-        return {
-            ...routine,
-            nodes: updateArray(nodes, nodeIndex, node),
-        };
+        // return {
+        //     ...routine,
+        //     nodes: updateArray(nodes, nodeIndex, node),
+        // };
+        return {} as any;
     }
 
     /**
@@ -236,33 +213,34 @@ class NodeManager {
      * @returns A new routineVersion without the specified node.
      */
     static delete(routine: RoutineVersionShape, node: Pick<Node, "id">): RoutineVersionShape {
-        const nodes = routine.nodes ?? [];
-        const nodeIndex = nodes.findIndex(n => n.id === node.id);
-        if (nodeIndex === -1) return routine;
+        // const nodes = routine.nodes ?? [];
+        // const nodeIndex = nodes.findIndex(n => n.id === node.id);
+        // if (nodeIndex === -1) return routine;
 
-        // Handle links that reference the node
-        const newLinks: ReturnType<typeof Graph.generate.link>[] = [];
-        const deletingLinks = routine.nodeLinks?.filter(l => l.from.id === node.id || l.to.id === node.id) ?? [];
-        // Find all "from" and "to" nodes in the deleting links
-        const fromNodeIds = deletingLinks.map(l => l.from.id).filter(id => id !== node.id);
-        const toNodeIds = deletingLinks.map(l => l.to.id).filter(id => id !== node.id);
-        // If there is only one "from" node, create a link between it and every "to" node
-        if (fromNodeIds.length === 1) {
-            toNodeIds.forEach(toId => { newLinks.push(Graph.generate.link(fromNodeIds[0], toId)); });
-        }
-        // If there is only one "to" node, create a link between it and every "from" node
-        else if (toNodeIds.length === 1) {
-            fromNodeIds.forEach(fromId => { newLinks.push(Graph.generate.link(fromId, toNodeIds[0])); });
-        }
-        // NOTE: Every other case is ambiguous, so we can't auto-create create links
-        // Delete old links
-        const keptLinks = routine.nodeLinks?.filter(l => !deletingLinks.includes(l)) ?? [];
+        // // Handle links that reference the node
+        // const newLinks: ReturnType<typeof Graph.generate.link>[] = [];
+        // const deletingLinks = routine.nodeLinks?.filter(l => l.from.id === node.id || l.to.id === node.id) ?? [];
+        // // Find all "from" and "to" nodes in the deleting links
+        // const fromNodeIds = deletingLinks.map(l => l.from.id).filter(id => id !== node.id);
+        // const toNodeIds = deletingLinks.map(l => l.to.id).filter(id => id !== node.id);
+        // // If there is only one "from" node, create a link between it and every "to" node
+        // if (fromNodeIds.length === 1) {
+        //     toNodeIds.forEach(toId => { newLinks.push(Graph.generate.link(fromNodeIds[0], toId)); });
+        // }
+        // // If there is only one "to" node, create a link between it and every "from" node
+        // else if (toNodeIds.length === 1) {
+        //     fromNodeIds.forEach(fromId => { newLinks.push(Graph.generate.link(fromId, toNodeIds[0])); });
+        // }
+        // // NOTE: Every other case is ambiguous, so we can't auto-create create links
+        // // Delete old links
+        // const keptLinks = routine.nodeLinks?.filter(l => !deletingLinks.includes(l)) ?? [];
 
-        return {
-            ...routine,
-            nodes: deleteArrayIndex(nodes, nodeIndex),
-            nodeLinks: keptLinks.concat(newLinks),
-        };
+        // return {
+        //     ...routine,
+        //     nodes: deleteArrayIndex(nodes, nodeIndex),
+        //     nodeLinks: keptLinks.concat(newLinks),
+        // };
+        return {} as any;
     }
 
     static operate(routine: RoutineVersionShape, node: Node, operation: GraphElementOperation): RoutineVersionShape {
@@ -287,12 +265,14 @@ class NodeManager {
     }
 
     static isNodeStart(node: Node): node is NodeStart {
-        return node.nodeType === NodeType.Start;
+        // return node.nodeType === NodeType.Start;
+        return false;
     }
 
     static find(routine: RoutineVersionShape, nodeId: string): Node | undefined {
-        const node = routine.nodes?.find(n => n.id === nodeId);
-        return node;
+        // const node = routine.nodes?.find(n => n.id === nodeId);
+        // return node;
+        return undefined;
     }
 
     /**
@@ -321,12 +301,13 @@ class LinkManager {
      * @returns A new routineVersion with the created link.
      */
     static create(routine: RoutineVersionShape, link: NodeLink): RoutineVersionShape {
-        const nodeLinks = routine.nodeLinks ?? [];
+        // const nodeLinks = routine.nodeLinks ?? [];
 
-        return {
-            ...routine,
-            nodeLinks: addToArray(nodeLinks, link),
-        };
+        // return {
+        //     ...routine,
+        //     nodeLinks: addToArray(nodeLinks, link),
+        // };
+        return {} as any;
     }
 
     /**
@@ -337,14 +318,15 @@ class LinkManager {
      * @returns A new routineVersion with the updated link.
      */
     static update(routine: RoutineVersionShape, link: NodeLink): RoutineVersionShape {
-        const nodeLinks = routine.nodeLinks ?? [];
-        const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
-        if (nodeLinkIndex !== -1) return routine;
+        // const nodeLinks = routine.nodeLinks ?? [];
+        // const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
+        // if (nodeLinkIndex !== -1) return routine;
 
-        return {
-            ...routine,
-            nodeLinks: updateArray(nodeLinks, nodeLinkIndex, link),
-        };
+        // return {
+        //     ...routine,
+        //     nodeLinks: updateArray(nodeLinks, nodeLinkIndex, link),
+        // };
+        return {} as any;
     }
 
     /**
@@ -355,14 +337,15 @@ class LinkManager {
      * @returns A new routineVersion without the specified link.
      */
     static delete(routine: RoutineVersionShape, link: Pick<NodeLink, "id">): RoutineVersionShape {
-        const nodeLinks = routine.nodeLinks ?? [];
-        const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
-        if (nodeLinkIndex === -1) return routine;
+        // const nodeLinks = routine.nodeLinks ?? [];
+        // const nodeLinkIndex = nodeLinks.findIndex(n => n.id === link.id);
+        // if (nodeLinkIndex === -1) return routine;
 
-        return {
-            ...routine,
-            nodeLinks: deleteArrayIndex(nodeLinks, nodeLinkIndex),
-        };
+        // return {
+        //     ...routine,
+        //     nodeLinks: deleteArrayIndex(nodeLinks, nodeLinkIndex),
+        // };
+        return {} as any;
     }
 
     static operate(routine: RoutineVersionShape, link: NodeLink, operation: GraphElementOperation): RoutineVersionShape {
@@ -379,12 +362,14 @@ class LinkManager {
     }
 
     static find(routine: RoutineVersionShape, linkId: string): NodeLink | undefined {
-        const link = routine.nodeLinks?.find(l => l.id === linkId);
-        return link;
+        // const link = routine.nodeLinks?.find(l => l.id === linkId);
+        // return link;
+        return undefined;
     }
 
     static findMany(routine: RoutineVersionShape, predicate: ((link: NodeLink) => boolean)) {
-        return routine.nodeLinks?.filter(predicate) ?? [];
+        // return routine.nodeLinks?.filter(predicate) ?? [];
+        return [];
     }
 }
 
@@ -450,33 +435,34 @@ class OperationManager {
         nodeToMove: Node,
         dropOnNode: Node,
     ): RoutineVersionShape {
-        // Remove the node from its old position
-        routine = Graph.node.delete(routine, nodeToMove);
+        // // Remove the node from its old position
+        // routine = Graph.node.delete(routine, nodeToMove);
 
-        // Re-add the node to the routine
-        routine = Graph.node.create(routine, nodeToMove);
+        // // Re-add the node to the routine
+        // routine = Graph.node.create(routine, nodeToMove);
 
-        // Find all links that currently point TO the dropOnNode
-        const incomingLinks = (routine.nodeLinks ?? []).filter(
-            (l) => l.to.id === dropOnNode.id,
-        );
+        // // Find all links that currently point TO the dropOnNode
+        // const incomingLinks = (routine.nodeLinks ?? []).filter(
+        //     (l) => l.to.id === dropOnNode.id,
+        // );
 
-        // Redirect each incoming link to nodeToMove instead of dropOnNode
-        for (const incomingLink of incomingLinks) {
-            // Delete the old link pointing to dropOnNode
-            routine = Graph.link.delete(routine, incomingLink);
+        // // Redirect each incoming link to nodeToMove instead of dropOnNode
+        // for (const incomingLink of incomingLinks) {
+        //     // Delete the old link pointing to dropOnNode
+        //     routine = Graph.link.delete(routine, incomingLink);
 
-            // Create a new link that points to nodeToMove
-            const redirectedLink = Graph.generate.link(incomingLink.from.id, nodeToMove.id);
-            routine = Graph.link.create(routine, redirectedLink);
-        }
+        //     // Create a new link that points to nodeToMove
+        //     const redirectedLink = Graph.generate.link(incomingLink.from.id, nodeToMove.id);
+        //     routine = Graph.link.create(routine, redirectedLink);
+        // }
 
-        // Now that nodeToMove has all the incoming links that dropOnNode had,
-        // we create a single link from nodeToMove to dropOnNode.
-        const bridgeLink = Graph.generate.link(nodeToMove.id, dropOnNode.id);
-        routine = Graph.link.create(routine, bridgeLink);
+        // // Now that nodeToMove has all the incoming links that dropOnNode had,
+        // // we create a single link from nodeToMove to dropOnNode.
+        // const bridgeLink = Graph.generate.link(nodeToMove.id, dropOnNode.id);
+        // routine = Graph.link.create(routine, bridgeLink);
 
-        return routine;
+        // return routine;
+        return {} as any;
     }
 
     /**
@@ -549,43 +535,44 @@ class OperationManager {
         mergeNode: Node,
         keepMergeNode: boolean,
     ): RoutineVersionShape {
-        const nodeToRemove = keepMergeNode ? link.to : mergeNode;
-        const nodeToKeep = keepMergeNode ? mergeNode : link.to;
+        return {} as any;
+        // const nodeToRemove = keepMergeNode ? link.to : mergeNode;
+        // const nodeToKeep = keepMergeNode ? mergeNode : link.to;
 
-        // Redirect incoming links of nodeToRemove to nodeToKeep
-        const incomingLinks = (routine.nodeLinks ?? []).filter(
-            (l) => l.to.id === nodeToRemove.id,
-        );
+        // // Redirect incoming links of nodeToRemove to nodeToKeep
+        // const incomingLinks = (routine.nodeLinks ?? []).filter(
+        //     (l) => l.to.id === nodeToRemove.id,
+        // );
 
-        for (const incomingLink of incomingLinks) {
-            // Remove old link
-            routine = Graph.link.delete(routine, incomingLink);
-            // Create new link to nodeToKeep if not linking a node to itself
-            if (incomingLink.from.id !== nodeToKeep.id) {
-                const newLink = Graph.generate.link(incomingLink.from.id, nodeToKeep.id);
-                routine = Graph.link.create(routine, newLink);
-            }
-        }
+        // for (const incomingLink of incomingLinks) {
+        //     // Remove old link
+        //     routine = Graph.link.delete(routine, incomingLink);
+        //     // Create new link to nodeToKeep if not linking a node to itself
+        //     if (incomingLink.from.id !== nodeToKeep.id) {
+        //         const newLink = Graph.generate.link(incomingLink.from.id, nodeToKeep.id);
+        //         routine = Graph.link.create(routine, newLink);
+        //     }
+        // }
 
-        // Redirect outgoing links of nodeToRemove to originate from nodeToKeep
-        const outgoingLinks = (routine.nodeLinks ?? []).filter(
-            (l) => l.from.id === nodeToRemove.id,
-        );
+        // // Redirect outgoing links of nodeToRemove to originate from nodeToKeep
+        // const outgoingLinks = (routine.nodeLinks ?? []).filter(
+        //     (l) => l.from.id === nodeToRemove.id,
+        // );
 
-        for (const outgoingLink of outgoingLinks) {
-            // Remove old link
-            routine = Graph.link.delete(routine, outgoingLink);
-            // Create new link from nodeToKeep if not linking a node to itself
-            if (outgoingLink.to.id !== nodeToKeep.id) {
-                const newLink = Graph.generate.link(nodeToKeep.id, outgoingLink.to.id);
-                routine = Graph.link.create(routine, newLink);
-            }
-        }
+        // for (const outgoingLink of outgoingLinks) {
+        //     // Remove old link
+        //     routine = Graph.link.delete(routine, outgoingLink);
+        //     // Create new link from nodeToKeep if not linking a node to itself
+        //     if (outgoingLink.to.id !== nodeToKeep.id) {
+        //         const newLink = Graph.generate.link(nodeToKeep.id, outgoingLink.to.id);
+        //         routine = Graph.link.create(routine, newLink);
+        //     }
+        // }
 
-        // Remove the node we decided not to keep
-        routine = Graph.node.delete(routine, nodeToRemove);
+        // // Remove the node we decided not to keep
+        // routine = Graph.node.delete(routine, nodeToRemove);
 
-        return routine;
+        // return routine;
     }
 }
 
@@ -695,34 +682,34 @@ class RoutineListItemManager {
     }
 }
 
-interface RenderProps {
-    handleLinkOperation: (operation: LinkOperation, link: NodeLink) => unknown;
-    handleNodeOperation: (operation: GraphElementOperation, node: Node) => unknown;
-    handleNodeSelect: (node: SomeNode) => unknown;
-    handleRoutineListItemOperation: (operation: GraphElementOperation, nodeId: string, item: RoutineListItem) => unknown;
-    /** True if the user is able to edit the graph */
-    isEditing: boolean,
-    /** The user's current language */
-    language: string,
-    /**
-     * The location to start rendering from. Since we're dealing 
-     * with a single graph, we can safely use one number instead of 
-     * an array.
-     */
-    location: number,
-    /** All graph status messages */
-    messages: GraphMessageWithStatus[],
-    /** The root step of the graph */
-    rootStep: MultiRoutineStep,
-    /** The overall routine version being rendered */
-    routine: RoutineVersionShape,
-    /** The scale of the graph */
-    scale: number,
-    /** The currently selected node */
-    selectedNode: SomeNode | null;
-    /** A set of visited locations to prevent infinite loops. Changes as we recurse */
-    visited?: Set<string>,
-}
+type RenderProps = any;
+//     handleLinkOperation: (operation: LinkOperation, link: NodeLink) => unknown;
+//     handleNodeOperation: (operation: GraphElementOperation, node: Node) => unknown;
+//     handleNodeSelect: (node: SomeNode) => unknown;
+//     handleRoutineListItemOperation: (operation: GraphElementOperation, nodeId: string, item: RoutineListItem) => unknown;
+//     /** True if the user is able to edit the graph */
+//     isEditing: boolean,
+//     /** The user's current language */
+//     language: string,
+//     /**
+//      * The location to start rendering from. Since we're dealing 
+//      * with a single graph, we can safely use one number instead of 
+//      * an array.
+//      */
+//     location: number,
+//     /** All graph status messages */
+//     messages: GraphMessageWithStatus[],
+//     /** The root step of the graph */
+//     rootStep: MultiRoutineStep,
+//     /** The overall routine version being rendered */
+//     routine: RoutineVersionShape,
+//     /** The scale of the graph */
+//     scale: number,
+//     /** The currently selected node */
+//     selectedNode: SomeNode | null;
+//     /** A set of visited locations to prevent infinite loops. Changes as we recurse */
+//     visited?: Set<string>,
+// }
 
 export class Graph {
     public static generate = GenerateManager;
@@ -741,19 +728,20 @@ export class Graph {
         session: Session | undefined,
         existing?: Partial<RoutineVersion> | null | undefined,
     ): RoutineVersionShape {
-        let result = routineSingleStepInitialValues(session, existing);
-        result.routineType = RoutineType.MultiStep;
-        const shouldGenerateGraph = !existing || !existing.nodes || !existing.nodeLinks;
-        if (!shouldGenerateGraph) {
-            return {
-                ...result,
-                nodes: existing.nodes,
-                nodeLinks: existing.nodeLinks,
-            };
-        }
+        // let result = routineSingleStepInitialValues(session, existing);
+        // result.routineType = RoutineType.MultiStep;
+        // const shouldGenerateGraph = !existing || !existing.nodes || !existing.nodeLinks;
+        // if (!shouldGenerateGraph) {
+        //     return {
+        //         ...result,
+        //         nodes: existing.nodes,
+        //         nodeLinks: existing.nodeLinks,
+        //     };
+        // }
 
-        result = this.addSwimLane(session, result);
-        return result;
+        // result = this.addSwimLane(session, result);
+        // return result;
+        return {} as any;
     }
 
     /**
@@ -766,79 +754,80 @@ export class Graph {
         session: Session | undefined,
         routineVersion: RoutineVersionShape,
     ): RoutineVersionShape {
-        const language = getUserLanguages(session)[0];
-        const startNode: NodeStart = {
-            __typename: "Node" as const,
-            id: uuid(),
-            nodeType: NodeType.Start,
-            columnIndex: 0, // Deprecated
-            rowIndex: 0, // Deprecated
-            translations: [],
-        };
-        const routineListNodeId = uuid();
-        const routineListNode: NodeRoutineList = {
-            __typename: "Node",
-            id: routineListNodeId,
-            nodeType: NodeType.RoutineList,
-            columnIndex: 0, // Deprecated
-            rowIndex: 0, // Deprecated
-            routineList: {
-                __typename: "NodeRoutineList",
-                id: uuid(),
-                isOptional: false,
-                isOrdered: false,
-                items: [],
-            },
-            translations: [{
-                __typename: "NodeTranslation",
-                id: uuid(),
-                language,
-                name: "Subroutine",
-            }] as Node["translations"],
-        };
-        const endNodeId = uuid();
-        const endNode: NodeEnd = {
-            __typename: "Node",
-            id: endNodeId,
-            nodeType: NodeType.End,
-            columnIndex: 0, // Deprecated
-            rowIndex: 0, // Deprecated
-            end: {
-                __typename: "NodeEnd",
-                id: uuid(),
-                wasSuccessful: true,
-            },
-            translations: [{
-                __typename: "NodeTranslation" as const,
-                id: uuid(),
-                language,
-                name: "End",
-                description: "",
-            }],
-        };
-        const link1: NodeLink = {
-            __typename: "NodeLink",
-            id: uuid(),
-            from: startNode,
-            to: routineListNode,
-            whens: [],
-            operation: null,
-        };
-        const link2: NodeLink = {
-            __typename: "NodeLink",
-            id: uuid(),
-            from: routineListNode,
-            to: endNode,
-            whens: [],
-            operation: null,
-        };
+        // const language = getUserLanguages(session)[0];
+        // const startNode: NodeStart = {
+        //     __typename: "Node" as const,
+        //     id: uuid(),
+        //     nodeType: NodeType.Start,
+        //     columnIndex: 0, // Deprecated
+        //     rowIndex: 0, // Deprecated
+        //     translations: [],
+        // };
+        // const routineListNodeId = uuid();
+        // const routineListNode: NodeRoutineList = {
+        //     __typename: "Node",
+        //     id: routineListNodeId,
+        //     nodeType: NodeType.RoutineList,
+        //     columnIndex: 0, // Deprecated
+        //     rowIndex: 0, // Deprecated
+        //     routineList: {
+        //         __typename: "NodeRoutineList",
+        //         id: uuid(),
+        //         isOptional: false,
+        //         isOrdered: false,
+        //         items: [],
+        //     },
+        //     translations: [{
+        //         __typename: "NodeTranslation",
+        //         id: uuid(),
+        //         language,
+        //         name: "Subroutine",
+        //     }] as Node["translations"],
+        // };
+        // const endNodeId = uuid();
+        // const endNode: NodeEnd = {
+        //     __typename: "Node",
+        //     id: endNodeId,
+        //     nodeType: NodeType.End,
+        //     columnIndex: 0, // Deprecated
+        //     rowIndex: 0, // Deprecated
+        //     end: {
+        //         __typename: "NodeEnd",
+        //         id: uuid(),
+        //         wasSuccessful: true,
+        //     },
+        //     translations: [{
+        //         __typename: "NodeTranslation" as const,
+        //         id: uuid(),
+        //         language,
+        //         name: "End",
+        //         description: "",
+        //     }],
+        // };
+        // const link1: NodeLink = {
+        //     __typename: "NodeLink",
+        //     id: uuid(),
+        //     from: startNode,
+        //     to: routineListNode,
+        //     whens: [],
+        //     operation: null,
+        // };
+        // const link2: NodeLink = {
+        //     __typename: "NodeLink",
+        //     id: uuid(),
+        //     from: routineListNode,
+        //     to: endNode,
+        //     whens: [],
+        //     operation: null,
+        // };
 
-        const result = {
-            ...routineVersion,
-            nodes: [...(routineVersion.nodes ?? []), startNode, routineListNode, endNode],
-            nodeLinks: [...(routineVersion.nodeLinks ?? []), link1, link2],
-        };
-        return result;
+        // const result = {
+        //     ...routineVersion,
+        //     nodes: [...(routineVersion.nodes ?? []), startNode, routineListNode, endNode],
+        //     nodeLinks: [...(routineVersion.nodeLinks ?? []), link1, link2],
+        // };
+        // return result;
+        return {} as any;
     }
 
     /**
@@ -855,162 +844,164 @@ export class Graph {
         visited = new Set<string>(),
         ...props
     }: RenderProps): React.ReactNode {
-        const {
-            handleLinkOperation,
-            handleNodeOperation,
-            handleNodeSelect,
-            handleRoutineListItemOperation,
-            isEditing,
-            language,
-            location,
-            messages,
-            rootStep,
-            routine,
-            scale,
-            selectedNode,
-        } = props;
-        // Use the location to find the current step
-        const currentStep = rootStep.nodes[location];
-        console.log("qqqq starting render", location, currentStep);
-        if (!currentStep) return null;
+        // const {
+        //     handleLinkOperation,
+        //     handleNodeOperation,
+        //     handleNodeSelect,
+        //     handleRoutineListItemOperation,
+        //     isEditing,
+        //     language,
+        //     location,
+        //     messages,
+        //     rootStep,
+        //     routine,
+        //     scale,
+        //     selectedNode,
+        // } = props;
+        // // Use the location to find the current step
+        // const currentStep = rootStep.nodes[location];
+        // console.log("qqqq starting render", location, currentStep);
+        // if (!currentStep) return null;
 
-        // Create a unique key for visited checks. We'll use the location array joined by '-'.
-        const locationKey = location + "";
-        if (visited.has(locationKey)) {
-            // Already visited this step at this location, avoid infinite loops
-            return null;
-        }
-        visited.add(locationKey);
+        // // Create a unique key for visited checks. We'll use the location array joined by '-'.
+        // const locationKey = location + "";
+        // if (visited.has(locationKey)) {
+        //     // Already visited this step at this location, avoid infinite loops
+        //     return null;
+        // }
+        // visited.add(locationKey);
 
-        // Render the current node
-        let renderedStep: React.ReactNode;
-        const nodeId: string | undefined = (currentStep as { nodeId?: string }).nodeId;
-        const commonProps = {
-            isEditing,
-            isLinked: true, // Must be true since we used the graph to find this node
-            isSelected: Boolean(nodeId) && selectedNode?.id === nodeId,
-            language,
-            messages: messages.filter(m => m.nodeId === nodeId),
-            onSelect: handleNodeSelect,
-            scale,
-        } as const;
-        if (commonProps.isSelected) {
-            console.log("in render. Node isssss selected...", selectedNode);
-        }
-        switch (currentStep.__type) {
-            case RunStepType.End: {
-                const currentNode = Graph.node.find(routine, currentStep.nodeId);
-                if (!currentNode || !Graph.node.isNodeEnd(currentNode)) return null;
+        // // Render the current node
+        // let renderedStep: React.ReactNode;
+        // const nodeId: string | undefined = (currentStep as { nodeId?: string }).nodeId;
+        // const commonProps = {
+        //     isEditing,
+        //     isLinked: true, // Must be true since we used the graph to find this node
+        //     isSelected: Boolean(nodeId) && selectedNode?.id === nodeId,
+        //     language,
+        //     messages: messages.filter(m => m.nodeId === nodeId),
+        //     onSelect: handleNodeSelect,
+        //     scale,
+        // } as const;
+        // if (commonProps.isSelected) {
+        //     console.log("in render. Node isssss selected...", selectedNode);
+        // }
+        // switch (currentStep.__type) {
+        //     case RunStepType.End: {
+        //         const currentNode = Graph.node.find(routine, currentStep.nodeId);
+        //         if (!currentNode || !Graph.node.isNodeEnd(currentNode)) return null;
 
-                renderedStep = (
-                    <EndNode
-                        handleAction={handleNodeOperation}
-                        node={currentNode}
-                        {...commonProps}
-                    />
-                );
-                break;
-            }
-            case RunStepType.RoutineList: {
-                const currentNode = Graph.node.find(routine, currentStep.nodeId);
-                if (!currentNode || !Graph.node.isNodeRoutineList(currentNode)) return null;
+        //         renderedStep = (
+        //             <EndNode
+        //                 handleAction={handleNodeOperation}
+        //                 node={currentNode}
+        //                 {...commonProps}
+        //             />
+        //         );
+        //         break;
+        //     }
+        //     case RunStepType.RoutineList: {
+        //         const currentNode = Graph.node.find(routine, currentStep.nodeId);
+        //         if (!currentNode || !Graph.node.isNodeRoutineList(currentNode)) return null;
 
-                renderedStep = (
-                    <RoutineListNode
-                        handleAction={handleNodeOperation}
-                        handleSubroutineAction={handleRoutineListItemOperation}
-                        node={currentNode}
-                        {...commonProps}
-                    />
-                );
-                break;
-            }
-            // For now, everything else gets skipped
-            default: {
-                renderedStep = null;
-                break;
-            }
-        }
+        //         renderedStep = (
+        //             <RoutineListNode
+        //                 handleAction={handleNodeOperation}
+        //                 handleSubroutineAction={handleRoutineListItemOperation}
+        //                 node={currentNode}
+        //                 {...commonProps}
+        //             />
+        //         );
+        //         break;
+        //     }
+        //     // For now, everything else gets skipped
+        //     default: {
+        //         renderedStep = null;
+        //         break;
+        //     }
+        // }
 
-        // If the current step is a DecisionStep, there is a branch in the graph. 
-        // Recurse down each branch to render the entire graph.
-        if (currentStep.__type === RunStepType.Decision) {
-            const links = currentStep.options.map(o => o.link);
+        // // If the current step is a DecisionStep, there is a branch in the graph. 
+        // // Recurse down each branch to render the entire graph.
+        // if (currentStep.__type === RunStepType.Decision) {
+        //     const links = currentStep.options.map(o => o.link);
 
-            // Render GraphLink for branching
-            // GraphLink handles multiple links and places them accordingly
-            const junctionLink = (
-                <GraphLink
-                    key={`links-${locationKey}`}
-                    links={links}
-                    isEditing={isEditing}
-                    onAction={handleLinkOperation}
-                />
-            );
+        //     // Render GraphLink for branching
+        //     // GraphLink handles multiple links and places them accordingly
+        //     const junctionLink = (
+        //         <GraphLink
+        //             key={`links-${locationKey}`}
+        //             links={links}
+        //             isEditing={isEditing}
+        //             onAction={handleLinkOperation}
+        //         />
+        //     );
 
-            // Render each branch
-            const branches = currentStep.options.map((option, idx) => {
-                const optionLocation = option.step.location;
-                const nextLocation = optionLocation[optionLocation.length - 1];
-                const optionSubtree = this.render({
-                    ...props,
-                    location: nextLocation,
-                    visited,
-                });
-                return (
-                    <div key={`branch-${idx}`}>
-                        {optionSubtree}
-                    </div>
-                );
-            });
+        //     // Render each branch
+        //     const branches = currentStep.options.map((option, idx) => {
+        //         const optionLocation = option.step.location;
+        //         const nextLocation = optionLocation[optionLocation.length - 1];
+        //         const optionSubtree = this.render({
+        //             ...props,
+        //             location: nextLocation,
+        //             visited,
+        //         });
+        //         return (
+        //             <div key={`branch-${idx}`}>
+        //                 {optionSubtree}
+        //             </div>
+        //         );
+        //     });
 
-            return (
-                <>
-                    <Box mb={16}>
-                        {renderedStep}
-                    </Box>
-                    {junctionLink}
-                    {branches}
-                </>
-            );
-        }
-        // Otherwise, find the next step and recurse
-        else {
-            // If not an EndStep, attempt to find the next step
-            const nextLocationArray = currentStep.__type !== RunStepType.End
-                ? new RunStepNavigator(console).getNextLocation([...ROOT_LOCATION, location], rootStep)
-                : undefined;
-            const nextLocation = nextLocationArray ? nextLocationArray[nextLocationArray.length - 1] : -1;
-            if (nextLocation >= 0) {
-                const links = Graph.link.findMany(routine, (link) => link.from.id === (currentStep as { nodeId: string }).nodeId);
-                // Render edge from current to next
-                const edge = renderedStep ? (
-                    <GraphLink
-                        key={`links-${locationKey}`}
-                        links={links}
-                        isEditing={isEditing}
-                        onAction={handleLinkOperation}
-                    />
-                ) : null;
-                const nextSubtree = this.render({
-                    ...props,
-                    location: nextLocation,
-                    visited,
-                });
-                return (
-                    <>
-                        {renderedStep ? <Box mb={8}>
-                            {renderedStep}
-                        </Box> : null}
-                        {edge}
-                        {nextSubtree}
-                    </>
-                );
-            } else {
-                // No next step, just return the node
-                return renderedStep;
-            }
-        }
+        //     return (
+        //         <>
+        //             <Box mb={16}>
+        //                 {renderedStep}
+        //             </Box>
+        //             {junctionLink}
+        //             {branches}
+        //         </>
+        //     );
+        // }
+        // // Otherwise, find the next step and recurse
+        // else {
+        //     // If not an EndStep, attempt to find the next step
+        //     // const nextLocationArray = currentStep.__type !== RunStepType.End
+        //     //     ? new RunStepNavigator(console).getNextLocation([...ROOT_LOCATION, location], rootStep)
+        //     //     : undefined;
+        //     const nextLocationArray = []; //TODO
+        //     const nextLocation = nextLocationArray ? nextLocationArray[nextLocationArray.length - 1] : -1;
+        //     if (nextLocation >= 0) {
+        //         const links = Graph.link.findMany(routine, (link) => link.from.id === (currentStep as { nodeId: string }).nodeId);
+        //         // Render edge from current to next
+        //         const edge = renderedStep ? (
+        //             <GraphLink
+        //                 key={`links-${locationKey}`}
+        //                 links={links}
+        //                 isEditing={isEditing}
+        //                 onAction={handleLinkOperation}
+        //             />
+        //         ) : null;
+        //         const nextSubtree = this.render({
+        //             ...props,
+        //             location: nextLocation,
+        //             visited,
+        //         });
+        //         return (
+        //             <>
+        //                 {renderedStep ? <Box mb={8}>
+        //                     {renderedStep}
+        //                 </Box> : null}
+        //                 {edge}
+        //                 {nextSubtree}
+        //             </>
+        //         );
+        //     } else {
+        //         // No next step, just return the node
+        //         return renderedStep;
+        //     }
+        // }
+        return null;
     }
 }
 
@@ -1073,44 +1064,45 @@ export function BpmnModeler({
     onChange,
     xml,
 }: BpmnModelerProps) {
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const modelerRef = useRef<Modeler | null>(null);
+    // const containerRef = useRef<HTMLDivElement | null>(null);
+    // const modelerRef = useRef<Modeler | null>(null);
 
-    useEffect(function setupModelerEffect() {
-        if (!containerRef.current) return;
+    // useEffect(function setupModelerEffect() {
+    //     if (!containerRef.current) return;
 
-        modelerRef.current = new Modeler({
-            container: containerRef.current,
-        });
+    //     modelerRef.current = new Modeler({
+    //         container: containerRef.current,
+    //     });
 
-        return function cleanupModeler() {
-            modelerRef.current?.destroy();
-        };
-    }, []);
+    //     return function cleanupModeler() {
+    //         modelerRef.current?.destroy();
+    //     };
+    // }, []);
 
-    useEffect(function importXmlEffect() {
-        if (!modelerRef.current) return;
+    // useEffect(function importXmlEffect() {
+    //     if (!modelerRef.current) return;
 
-        modelerRef.current.importXML(xml).then(() => {
-            if (!modelerRef.current) return;
+    //     modelerRef.current.importXML(xml).then(() => {
+    //         if (!modelerRef.current) return;
 
-            // If you want to handle changes from the user editing the diagram,
-            // you can hook into the modeler's 'commandStack.changed' event, for example.
-            modelerRef.current.on("commandStack.changed", async function handleCommandStackChanged() {
-                if (!modelerRef.current) return;
-                const { xml } = await modelerRef.current.saveXML();
-                if (xml && typeof onChange === "function") {
-                    onChange(xml);
-                }
-            });
+    //         // If you want to handle changes from the user editing the diagram,
+    //         // you can hook into the modeler's 'commandStack.changed' event, for example.
+    //         modelerRef.current.on("commandStack.changed", async function handleCommandStackChanged() {
+    //             if (!modelerRef.current) return;
+    //             const { xml } = await modelerRef.current.saveXML();
+    //             if (xml && typeof onChange === "function") {
+    //                 onChange(xml);
+    //             }
+    //         });
 
-            const canvas = modelerRef.current.get("canvas") as Canvas;
-            if (!canvas) return;
-            canvas.zoom("fit-viewport");
-        }).catch(err => console.error(err));
-    }, [xml, onChange]);
+    //         const canvas = modelerRef.current.get("canvas") as Canvas;
+    //         if (!canvas) return;
+    //         canvas.zoom("fit-viewport");
+    //     }).catch(err => console.error(err));
+    // }, [xml, onChange]);
 
-    return <div ref={containerRef} style={{ width: "100%", height: "70vh" }} />;
+    // return <div ref={containerRef} style={{ width: "100%", height: "70vh" }} />;
+    return null;
 }
 
 
@@ -1185,7 +1177,7 @@ function ZoomButtons({
                 size="small"
                 sx={iconButtonStyle}
             >
-                <AddIcon />
+                <IconCommon name="Add" />
             </IconButton>
             <Divider sx={dividerStyle} />
             <IconButton
@@ -1194,7 +1186,7 @@ function ZoomButtons({
                 size="small"
                 sx={iconButtonStyle}
             >
-                <MinusIcon />
+                <IconCommon name="Minus" />
             </IconButton>
         </ZoomButtonsOuter>
     );
@@ -1252,7 +1244,7 @@ function FormButtons({
                                 aria-label={t(isCreate ? "Create" : "Save")}
                                 disabled={isSubmitDisabled}
                                 isLoading={loading}
-                                startIcon={isCreate ? <CreateIcon /> : <SaveIcon />}
+                                startIcon={<IconCommon name={isCreate ? "Create" : "Save"} />}
                                 variant="contained"
                             >{t(isCreate ? "Create" : "Save")}</LoadableButton>
                         </Box>
@@ -1263,7 +1255,7 @@ function FormButtons({
                             disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                             fullWidth
                             onClick={onCancel}
-                            startIcon={<CancelIcon />}
+                            startIcon={<IconCommon name="Cancel" />}
                             variant="outlined"
                         >{t("Cancel")}</Button>
                     </Grid>
@@ -1323,104 +1315,105 @@ function SwimLane({
     isEditing,
     startNode,
 }: SwimLaneProps) {
-    const { palette, typography } = useTheme();
-    const session = useContext(SessionContext);
-    const languages = useMemo(() => getUserLanguages(session), [session]);
+    // const { palette, typography } = useTheme();
+    // const session = useContext(SessionContext);
+    // const languages = useMemo(() => getUserLanguages(session), [session]);
 
-    const { draggableId, title } = useMemo(() => {
-        const draggableId = startNode.id;
-        const title = getTranslation(startNode, languages).name ?? `Lane ${index + 1}`;
+    // const { draggableId, title } = useMemo(() => {
+    //     const draggableId = startNode.id;
+    //     const title = getTranslation(startNode, languages).name ?? `Lane ${index + 1}`;
 
-        return { draggableId, title };
-    }, [index, languages, startNode]);
+    //     return { draggableId, title };
+    // }, [index, languages, startNode]);
 
-    const updateLabel = useCallback((updatedLabel: string) => {
-        const translations = updateTranslationFields<NodeTranslationShape, NodeStart>(startNode, languages[0], { name: updatedLabel });
-        handleNodeOperation("update", { ...startNode, translations });
-    }, [handleNodeOperation, languages, startNode]);
-    const {
-        editedLabel,
-        handleLabelChange,
-        handleLabelKeyDown,
-        isEditingLabel,
-        labelEditRef,
-        startEditingLabel,
-        submitLabelChange,
-    } = useEditableLabel({
-        isEditable: isEditing,
-        isMultiline: false,
-        label: title,
-        onUpdate: updateLabel,
-    });
+    // const updateLabel = useCallback((updatedLabel: string) => {
+    //     const translations = updateTranslationFields<NodeTranslationShape, NodeStart>(startNode, languages[0], { name: updatedLabel });
+    //     handleNodeOperation("update", { ...startNode, translations });
+    // }, [handleNodeOperation, languages, startNode]);
+    // const {
+    //     editedLabel,
+    //     handleLabelChange,
+    //     handleLabelKeyDown,
+    //     isEditingLabel,
+    //     labelEditRef,
+    //     startEditingLabel,
+    //     submitLabelChange,
+    // } = useEditableLabel({
+    //     isEditable: isEditing,
+    //     isMultiline: false,
+    //     label: title,
+    //     onUpdate: updateLabel,
+    // });
 
-    const textFieldInputProps = useMemo(function textFieldInputPropsMemo() {
-        return { style: (typography["h6"] as object || {}) };
-    }, [typography]);
-    const labelStyle = useMemo(function labelStyleMemo() {
-        return {
-            color: palette.primary.contrastText,
-            cursor: isEditing ? "pointer" : "default",
-            // Ensure there's a clickable area, even if the text is empty
-            minWidth: "20px",
-            minHeight: "24px",
-            "&:empty::before": {
-                content: "\"\"",
-                display: "inline-block",
-                width: "100%",
-                height: "100%",
-            },
-        };
-    }, [isEditing, palette.primary.contrastText]);
+    // const textFieldInputProps = useMemo(function textFieldInputPropsMemo() {
+    //     return { style: (typography["h6"] as object || {}) };
+    // }, [typography]);
+    // const labelStyle = useMemo(function labelStyleMemo() {
+    //     return {
+    //         color: palette.primary.contrastText,
+    //         cursor: isEditing ? "pointer" : "default",
+    //         // Ensure there's a clickable area, even if the text is empty
+    //         minWidth: "20px",
+    //         minHeight: "24px",
+    //         "&:empty::before": {
+    //             content: "\"\"",
+    //             display: "inline-block",
+    //             width: "100%",
+    //             height: "100%",
+    //         },
+    //     };
+    // }, [isEditing, palette.primary.contrastText]);
 
-    return (
-        <Draggable
-            draggableId={draggableId}
-            index={index}
-        >
-            {(provided) => (
-                <SwimLaneOuter
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                >
-                    <SwimLaneTopBar>
-                        <legend aria-label={`Lane ${index + 1} title`}>
-                            {isEditingLabel ? (
-                                <TextField
-                                    ref={labelEditRef}
-                                    inputMode="text"
-                                    InputProps={textFieldInputProps}
-                                    onBlur={submitLabelChange}
-                                    onChange={handleLabelChange}
-                                    onKeyDown={handleLabelKeyDown}
-                                    placeholder={"Enter lane title..."}
-                                    size="small"
-                                    value={editedLabel}
-                                    sx={swimLaneTitleDisplayStyle}
-                                />
-                            ) : (
-                                <Typography
-                                    onClick={startEditingLabel}
-                                    sx={labelStyle}
-                                    variant="h6"
-                                >
-                                    {editedLabel}
-                                </Typography>
-                            )}
-                        </legend>
-                        <Box
-                            {...provided.dragHandleProps}
-                            ml="auto"
-                        >
-                            <DragIcon fill={palette.primary.contrastText} />
-                        </Box>
-                    </SwimLaneTopBar>
-                    <SwimLaneBody>
-                        {children}
-                    </SwimLaneBody>
-                </SwimLaneOuter>
-            )}
-        </Draggable>
-    );
+    // return (
+    //     <Draggable
+    //         draggableId={draggableId}
+    //         index={index}
+    //     >
+    //         {(provided) => (
+    //             <SwimLaneOuter
+    //                 ref={provided.innerRef}
+    //                 {...provided.draggableProps}
+    //             >
+    //                 <SwimLaneTopBar>
+    //                     <legend aria-label={`Lane ${index + 1} title`}>
+    //                         {isEditingLabel ? (
+    //                             <TextField
+    //                                 ref={labelEditRef}
+    //                                 inputMode="text"
+    //                                 InputProps={textFieldInputProps}
+    //                                 onBlur={submitLabelChange}
+    //                                 onChange={handleLabelChange}
+    //                                 onKeyDown={handleLabelKeyDown}
+    //                                 placeholder={"Enter lane title..."}
+    //                                 size="small"
+    //                                 value={editedLabel}
+    //                                 sx={swimLaneTitleDisplayStyle}
+    //                             />
+    //                         ) : (
+    //                             <Typography
+    //                                 onClick={startEditingLabel}
+    //                                 sx={labelStyle}
+    //                                 variant="h6"
+    //                             >
+    //                                 {editedLabel}
+    //                             </Typography>
+    //                         )}
+    //                     </legend>
+    //                     <Box
+    //                         {...provided.dragHandleProps}
+    //                         ml="auto"
+    //                     >
+    //                         <DragIcon fill={palette.primary.contrastText} />
+    //                     </Box>
+    //                 </SwimLaneTopBar>
+    //                 <SwimLaneBody>
+    //                     {children}
+    //                 </SwimLaneBody>
+    //             </SwimLaneOuter>
+    //         )}
+    //     </Draggable>
+    // );
+    return null;
 }
 
 const AddLaneButtonOuter = styled(Box)(({ theme }) => ({
@@ -1449,15 +1442,16 @@ interface AddLaneButtonProps {
 function AddLaneButton({
     onAddLane,
 }: AddLaneButtonProps) {
-    const { palette } = useTheme();
+    // const { palette } = useTheme();
 
-    return (
-        <AddLaneButtonOuter onClick={onAddLane}>
-            <Typography variant="body1" sx={{ color: palette.primary.main, fontWeight: "bold" }}>
-                + Add new lane
-            </Typography>
-        </AddLaneButtonOuter>
-    );
+    // return (
+    //     <AddLaneButtonOuter onClick={onAddLane}>
+    //         <Typography variant="body1" sx={{ color: palette.primary.main, fontWeight: "bold" }}>
+    //             + Add new lane
+    //         </Typography>
+    //     </AddLaneButtonOuter>
+    // );
+    return null;
 }
 
 function transformRoutineVersionValues(values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) {
@@ -1499,451 +1493,454 @@ type RoutineMultiStepCrudFormProps = FormProps<RoutineVersion, RoutineVersionSha
 }
 
 function RoutineMultiStepCrudForm({
-    disabled,
-    display,
-    existing,
-    graphErrors,
-    handleAddSwimLane,
-    handleNodeOperation,
-    handleLinkOperation,
-    handleRoutineListItemOperation,
-    handleUpdate,
-    hasRoutineChanged,
-    isCreate,
-    isEditing,
-    isOpen,
-    isReadLoading,
-    onCancel,
-    onClose,
-    onCompleted,
-    onDeleted,
-    status,
-    values,
+    // disabled,
+    // display,
+    // existing,
+    // graphErrors,
+    // handleAddSwimLane,
+    // handleNodeOperation,
+    // handleLinkOperation,
+    // handleRoutineListItemOperation,
+    // handleUpdate,
+    // hasRoutineChanged,
+    // isCreate,
+    // isEditing,
+    // isOpen,
+    // isReadLoading,
+    // onCancel,
+    // onClose,
+    // onCompleted,
+    // onDeleted,
+    // status,
+    // values,
     ...props
 }: RoutineMultiStepCrudFormProps) {
-    const session = useContext(SessionContext);
-    const { t } = useTranslation();
-    const { breakpoints } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    // const session = useContext(SessionContext);
+    // const { t } = useTranslation();
+    // const { breakpoints } = useTheme();
+    // const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const [activeView, setActiveView] = useState<"graph" | "info" | "comments" | "issues" | "reports">("graph");
+    // const [activeView, setActiveView] = useState<"graph" | "info" | "comments" | "issues" | "reports">("graph");
 
-    const [selectedNode, setSelectedNode] = useState<SomeNode | null>(null);
-    const handleNodeSelect = useCallback((node: SomeNode) => {
-        // Toggle selection
-        setSelectedNode(s => s?.id === node.id ? null : node);
-    }, []);
-    console.log("selectedNode issssssss", selectedNode?.id?.substring(0, 8), values.nodes?.map(n => n.id.substring(0, 8)));
+    // const [selectedNode, setSelectedNode] = useState<SomeNode | null>(null);
+    // const handleNodeSelect = useCallback((node: SomeNode) => {
+    //     // Toggle selection
+    //     setSelectedNode(s => s?.id === node.id ? null : node);
+    // }, []);
+    // console.log("selectedNode issssssss", selectedNode?.id?.substring(0, 8), values.nodes?.map(n => n.id.substring(0, 8)));
 
-    const {
-        handleAddLanguage,
-        handleDeleteLanguage,
-        language,
-        languages,
-        setLanguage,
-        translationErrors,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
-    });
-
-    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<RoutineVersion>({
-        display,
-        isCreate,
-        objectId: values.id,
-        objectType: "RoutineVersion",
-        ...props,
-    });
-    const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
-        isCreate,
-        isMutate: true,
-        endpointCreate: endpointsRoutineVersion.createOne,
-        endpointUpdate: endpointsRoutineVersion.updateOne,
-    });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
-
-    // Handle delete
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
-    const handleDelete = useCallback(() => {
-        function performDelete() {
-            fetchLazyWrapper<DeleteOneInput, Success>({
-                fetch: deleteMutation,
-                inputs: { id: values.id, objectType: DeleteType.RoutineVersion },
-                successCondition: (data) => data.success,
-                successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { name: getDisplay(values).title ?? t("Routine", { count: 1 }) } }),
-                onSuccess: () => { handleDeleted(values as RoutineVersion); },
-                errorMessage: () => ({ messageKey: "FailedToDelete" }),
-            });
-        }
-        PubSub.get().publish("alertDialog", {
-            messageKey: "DeleteConfirm",
-            buttons: [{
-                labelKey: "Delete",
-                onClick: performDelete,
-            }, {
-                labelKey: "Cancel",
-            }],
-        });
-    }, [deleteMutation, values, t, handleDeleted]);
-
-    const onSubmit = useSubmitHelper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformRoutineVersionValues(values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
-
-    const [scale, setScale] = useState<number>(DEFAULT_SCALE_PERCENT);
-    // usePinchZoom({
-    //     initialScale: scale,
-    //     minScale: MIN_SCALE_PERCENT,
-    //     maxScale: MAX_SCALE_PERCENT,
-    //     onScaleChange: handleScaleChange,
-    //     validTargetIds: [ELEMENT_IDS.RoutineMultiStepCrudGraph, "node-", "subroutine"],
+    // const {
+    //     handleAddLanguage,
+    //     handleDeleteLanguage,
+    //     language,
+    //     languages,
+    //     setLanguage,
+    //     translationErrors,
+    // } = useTranslatedFields({
+    //     defaultLanguage: getUserLanguages(session)[0],
+    //     validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     // });
 
-    const titleTopBarStyle = useMemo(function topBarStyleMemo() {
-        return {
-            stack: {
-                padding: 0,
-                ...(display === "page" && !isMobile ? {
-                    margin: "auto",
-                    maxWidth: "700px",
-                    paddingTop: 1,
-                    paddingBottom: 1,
-                } : {}),
-            },
-        } as const;
-    }, [display, isMobile]);
+    // const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<RoutineVersion>({
+    //     display,
+    //     isCreate,
+    //     objectId: values.id,
+    //     objectType: "RoutineVersion",
+    //     ...props,
+    // });
+    // const {
+    //     fetch,
+    //     isCreateLoading,
+    //     isUpdateLoading,
+    // } = useUpsertFetch<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
+    //     isCreate,
+    //     isMutate: true,
+    //     endpointCreate: endpointsRoutineVersion.createOne,
+    //     endpointUpdate: endpointsRoutineVersion.updateOne,
+    // });
+    // useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
 
-    const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
-        return (
-            <ScrollBox>
-                <BaseForm
-                    display="dialog"
-                    maxWidth={600}
-                    style={titleDialogFormStyle}
-                >
-                    <FormContainer>
-                        <RelationshipList
-                            isEditing={!disabled}
-                            objectType={"Routine"}
-                            sx={{ marginBottom: 4 }}
-                        />
-                        <FormSection sx={formSectionStyle}>
-                            <LanguageInput
-                                currentLanguage={language}
-                                handleAdd={handleAddLanguage}
-                                handleDelete={handleDeleteLanguage}
-                                handleCurrent={setLanguage}
-                                languages={languages}
-                            />
-                            <TranslatedTextInput
-                                fullWidth
-                                label={t("Name")}
-                                language={language}
-                                name="name"
-                            />
-                            <TranslatedRichInput
-                                language={language}
-                                maxChars={2048}
-                                minRows={4}
-                                name="description"
-                                placeholder={t("DescriptionPlaceholder")}
-                            />
-                        </FormSection>
-                    </FormContainer>
-                </BaseForm>
-            </ScrollBox>
-        );
-    }, [disabled, handleAddLanguage, handleDeleteLanguage, language, languages, setLanguage, t]);
+    // // Handle delete
+    // const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
+    // const handleDelete = useCallback(() => {
+    //     function performDelete() {
+    //         fetchLazyWrapper<DeleteOneInput, Success>({
+    //             fetch: deleteMutation,
+    //             inputs: { id: values.id, objectType: DeleteType.RoutineVersion },
+    //             successCondition: (data) => data.success,
+    //             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { name: getDisplay(values).title ?? t("Routine", { count: 1 }) } }),
+    //             onSuccess: () => { handleDeleted(values as RoutineVersion); },
+    //             errorMessage: () => ({ messageKey: "FailedToDelete" }),
+    //         });
+    //     }
+    //     PubSub.get().publish("alertDialog", {
+    //         messageKey: "DeleteConfirm",
+    //         buttons: [{
+    //             labelKey: "Delete",
+    //             onClick: performDelete,
+    //         }, {
+    //             labelKey: "Cancel",
+    //         }],
+    //     });
+    // }, [deleteMutation, values, t, handleDeleted]);
 
-    const { messages, rootStep } = useMemo(function buildRootStepsMemo() {
-        const rootStep = new RunStepBuilder(languages, console).runnableObjectToStep(values as unknown as RunnableRoutineVersion, [...ROOT_LOCATION]);
-        const { messages } = routineVersionStatusMultiStep(values as unknown as RunnableRoutineVersion, rootStep);
-        return { messages, rootStep };
-    }, [values, languages]);
+    // const onSubmit = useSubmitHelper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
+    //     disabled,
+    //     existing,
+    //     fetch,
+    //     inputs: transformRoutineVersionValues(values, existing, isCreate),
+    //     isCreate,
+    //     onSuccess: (data) => { handleCompleted(data); },
+    //     onCompleted: () => { props.setSubmitting(false); },
+    // });
 
-    function onDragEnd(result: DropResult) {
-        //TODO
-        console.log("qqqq onDragEnd", result);
-    }
+    // const [scale, setScale] = useState<number>(DEFAULT_SCALE_PERCENT);
+    // // usePinchZoom({
+    // //     initialScale: scale,
+    // //     minScale: MIN_SCALE_PERCENT,
+    // //     maxScale: MAX_SCALE_PERCENT,
+    // //     onScaleChange: handleScaleChange,
+    // //     validTargetIds: [ELEMENT_IDS.RoutineMultiStepCrudGraph, "node-", "subroutine"],
+    // // });
 
-    const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    // const titleTopBarStyle = useMemo(function topBarStyleMemo() {
+    //     return {
+    //         stack: {
+    //             padding: 0,
+    //             ...(display === "page" && !isMobile ? {
+    //                 margin: "auto",
+    //                 maxWidth: "700px",
+    //                 paddingTop: 1,
+    //                 paddingBottom: 1,
+    //             } : {}),
+    //         },
+    //     } as const;
+    // }, [display, isMobile]);
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id={ELEMENT_IDS.RoutineMultiStepCrudDialog}
-            isOpen={isOpen}
-            onClose={onClose}
-        >
-            <Box
-                id={ELEMENT_IDS.RoutineMultiStepCrudGraph}
-                display="flex"
-                flexDirection="column"
-                minHeight="100vh"
-            >
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    titleBehaviorDesktop="ShowIn"
-                    // TODO needs to modify changestack
-                    titleComponent={<EditableTitle
-                        handleDelete={handleDelete}
-                        isDeletable={!(isCreate || disabled)}
-                        isEditable={!disabled}
-                        language={language}
-                        titleField="name"
-                        subtitleField="description"
-                        variant="subheader"
-                        sxs={titleTopBarStyle}
-                        DialogContentForm={titleDialogContentForm}
-                    />}
-                />
-                <DragDropContext onDragEnd={onDragEnd}>
-                    <BaseForm
-                        display={display}
-                        isLoading={isLoading}
-                        maxWidth={"100%"}
-                        style={baseFormStyle}
-                    >
-                        <Droppable droppableId="graph">
-                            {(provided) => (
-                                <DroppableContainer
-                                    ref={provided.innerRef}
-                                    {...provided.droppableProps}
-                                >
-                                    {
-                                        rootStep?.__type === RunStepType.MultiRoutine ? (
-                                            rootStep.startNodeIndexes.map((startIndex, i) => {
-                                                // Get the start step for this swim lane
-                                                const startStep = rootStep.nodes[startIndex];
-                                                if (!startStep || startStep.__type !== RunStepType.Start) return null;
+    // const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
+    //     return (
+    //         <ScrollBox>
+    //             <BaseForm
+    //                 display="dialog"
+    //                 maxWidth={600}
+    //                 style={titleDialogFormStyle}
+    //             >
+    //                 <FormContainer>
+    //                     <RelationshipList
+    //                         isEditing={!disabled}
+    //                         objectType={"Routine"}
+    //                         sx={{ marginBottom: 4 }}
+    //                     />
+    //                     <FormSection sx={formSectionStyle}>
+    //                         <LanguageInput
+    //                             currentLanguage={language}
+    //                             handleAdd={handleAddLanguage}
+    //                             handleDelete={handleDeleteLanguage}
+    //                             handleCurrent={setLanguage}
+    //                             languages={languages}
+    //                         />
+    //                         <TranslatedTextInput
+    //                             fullWidth
+    //                             label={t("Name")}
+    //                             language={language}
+    //                             name="name"
+    //                         />
+    //                         <TranslatedRichInput
+    //                             language={language}
+    //                             maxChars={2048}
+    //                             minRows={4}
+    //                             name="description"
+    //                             placeholder={t("DescriptionPlaceholder")}
+    //                         />
+    //                     </FormSection>
+    //                 </FormContainer>
+    //             </BaseForm>
+    //         </ScrollBox>
+    //     );
+    // }, [disabled, handleAddLanguage, handleDeleteLanguage, language, languages, setLanguage, t]);
 
-                                                const startNodeId = (startStep as StartStep).nodeId;
-                                                const startNode = Graph.node.find(values, startNodeId);
-                                                if (!startNode || !Graph.node.isNodeStart(startNode)) return null;
+    // const { messages, rootStep } = useMemo(function buildRootStepsMemo() {
+    //     // const rootStep = new RunStepBuilder(languages, console).runnableObjectToStep(values as unknown as RunnableRoutineVersion, [...ROOT_LOCATION]);
+    //     // const { messages } = routineVersionStatusMultiStep(values as unknown as RunnableRoutineVersion, rootStep);
+    //     // return { messages, rootStep };
+    //     return {} as any;
+    // }, [values, languages]);
 
-                                                return (
-                                                    <SwimLane
-                                                        handleNodeOperation={handleNodeOperation}
-                                                        index={i}
-                                                        isEditing={isEditing}
-                                                        key={i}
-                                                        startNode={startNode}
-                                                    >
-                                                        {Graph.render({
-                                                            handleLinkOperation,
-                                                            handleNodeOperation,
-                                                            handleNodeSelect,
-                                                            handleRoutineListItemOperation,
-                                                            isEditing,
-                                                            language,
-                                                            location: startIndex,
-                                                            messages,
-                                                            rootStep,
-                                                            routine: values,
-                                                            scale,
-                                                            selectedNode,
-                                                        })}
-                                                    </SwimLane>
-                                                );
-                                            })
-                                        ) : (
-                                            // If it's not a MultiRoutineStep, either render nothing or handle single-lane scenario
-                                            null
-                                        )
-                                    }
-                                    {provided.placeholder}
-                                    <AddLaneButton onAddLane={handleAddSwimLane} />
-                                </DroppableContainer>
-                            )}
-                        </Droppable>
-                    </BaseForm>
-                </DragDropContext>
-                <ZoomButtons
-                    handleScaleChange={setScale}
-                    scale={scale}
-                />
-                {/* <BpmnModeler xml={exampleBpmnXml} onChange={noop} /> */}
-                <FormButtons
-                    disabledCancel={isLoading}
-                    disabledSubmit={isLoading || !hasRoutineChanged}
-                    errors={graphErrors}
-                    handleCancel={handleCancel}
-                    handleSubmit={onSubmit}
-                    isCreate={isCreate}
-                    isEditing={isEditing}
-                    loading={isLoading}
-                />
-            </Box>
-        </MaybeLargeDialog>
-    );
+    // function onDragEnd(result: DropResult) {
+    //     //TODO
+    //     console.log("qqqq onDragEnd", result);
+    // }
+
+    // const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    // return (
+    //     <MaybeLargeDialog
+    //         display={display}
+    //         id={ELEMENT_IDS.RoutineMultiStepCrudDialog}
+    //         isOpen={isOpen}
+    //         onClose={onClose}
+    //     >
+    //         <Box
+    //             id={ELEMENT_IDS.RoutineMultiStepCrudGraph}
+    //             display="flex"
+    //             flexDirection="column"
+    //             minHeight="100vh"
+    //         >
+    //             <TopBar
+    //                 display={display}
+    //                 onClose={onClose}
+    //                 titleBehaviorDesktop="ShowIn"
+    //                 // TODO needs to modify changestack
+    //                 titleComponent={<EditableTitle
+    //                     handleDelete={handleDelete}
+    //                     isDeletable={!(isCreate || disabled)}
+    //                     isEditable={!disabled}
+    //                     language={language}
+    //                     titleField="name"
+    //                     subtitleField="description"
+    //                     variant="subheader"
+    //                     sxs={titleTopBarStyle}
+    //                     DialogContentForm={titleDialogContentForm}
+    //                 />}
+    //             />
+    //             {/* <DragDropContext onDragEnd={onDragEnd}>
+    //                 <BaseForm
+    //                     display={display}
+    //                     isLoading={isLoading}
+    //                     maxWidth={"100%"}
+    //                     style={baseFormStyle}
+    //                 >
+    //                     <Droppable droppableId="graph">
+    //                         {(provided) => (
+    //                             <DroppableContainer
+    //                                 ref={provided.innerRef}
+    //                                 {...provided.droppableProps}
+    //                             >
+    //                                 {
+    //                                     rootStep?.__type === RunStepType.MultiRoutine ? (
+    //                                         rootStep.startNodeIndexes.map((startIndex, i) => {
+    //                                             // Get the start step for this swim lane
+    //                                             const startStep = rootStep.nodes[startIndex];
+    //                                             if (!startStep || startStep.__type !== RunStepType.Start) return null;
+
+    //                                             const startNodeId = (startStep as StartStep).nodeId;
+    //                                             const startNode = Graph.node.find(values, startNodeId);
+    //                                             if (!startNode || !Graph.node.isNodeStart(startNode)) return null;
+
+    //                                             return (
+    //                                                 <SwimLane
+    //                                                     handleNodeOperation={handleNodeOperation}
+    //                                                     index={i}
+    //                                                     isEditing={isEditing}
+    //                                                     key={i}
+    //                                                     startNode={startNode}
+    //                                                 >
+    //                                                     {Graph.render({
+    //                                                         handleLinkOperation,
+    //                                                         handleNodeOperation,
+    //                                                         handleNodeSelect,
+    //                                                         handleRoutineListItemOperation,
+    //                                                         isEditing,
+    //                                                         language,
+    //                                                         location: startIndex,
+    //                                                         messages,
+    //                                                         rootStep,
+    //                                                         routine: values,
+    //                                                         scale,
+    //                                                         selectedNode,
+    //                                                     })}
+    //                                                 </SwimLane>
+    //                                             );
+    //                                         })
+    //                                     ) : (
+    //                                         // If it's not a MultiRoutineStep, either render nothing or handle single-lane scenario
+    //                                         null
+    //                                     )
+    //                                 }
+    //                                 {provided.placeholder}
+    //                                 <AddLaneButton onAddLane={handleAddSwimLane} />
+    //                             </DroppableContainer>
+    //                         )}
+    //                     </Droppable>
+    //                 </BaseForm>
+    //             </DragDropContext> */}
+    //             <ZoomButtons
+    //                 handleScaleChange={setScale}
+    //                 scale={scale}
+    //             />
+    //             {/* <BpmnModeler xml={exampleBpmnXml} onChange={noop} /> */}
+    //             <FormButtons
+    //                 disabledCancel={isLoading}
+    //                 disabledSubmit={isLoading || !hasRoutineChanged}
+    //                 errors={graphErrors}
+    //                 handleCancel={handleCancel}
+    //                 handleSubmit={onSubmit}
+    //                 isCreate={isCreate}
+    //                 isEditing={isEditing}
+    //                 loading={isLoading}
+    //             />
+    //         </Box>
+    //     </MaybeLargeDialog>
+    // );
+    return null;
 }
 
 export function RoutineMultiStepCrud({
-    display,
-    isCreate,
-    isOpen,
-    onClose,
-    overrideObject,
-    ...props
+    // display,
+    // isCreate,
+    // isOpen,
+    // onClose,
+    // overrideObject,
+    // ...props
 }: RoutineMultiStepCrudProps) {
-    const session = useContext(SessionContext);
-    const languages = useMemo(() => getUserLanguages(session), [session]);
-    const [, setLocation] = useLocation();
+    // const session = useContext(SessionContext);
+    // const languages = useMemo(() => getUserLanguages(session), [session]);
+    // const [, setLocation] = useLocation();
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
-        ...endpointsRoutineVersion.findOne,
-        disabled: false, // Never a dialog, so always enabled
-        isCreate,
-        objectType: "RoutineVersion",
-        overrideObject,
-        transform: (data) => Graph.initialize(session, data),
-    });
+    // const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
+    //     ...endpointsRoutineVersion.findOne,
+    //     disabled: false, // Never a dialog, so always enabled
+    //     isCreate,
+    //     objectType: "RoutineVersion",
+    //     overrideObject,
+    //     transform: (data) => Graph.initialize(session, data),
+    // });
 
-    const [isEditing, setIsEditing] = useState<boolean>(true); //TODO
+    // const [isEditing, setIsEditing] = useState<boolean>(true); //TODO
 
-    const [changedRoutineVersion, setChangedRoutineVersion] = useState<RoutineVersionShape>(existing);
-    const {
-        changeInternalValue: pushToChangeStack,
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        resetStack,
-        stackSize,
-    } = useUndoRedo<RoutineVersionShape>({
-        initialValue: changedRoutineVersion,
-        onChange: setChangedRoutineVersion,
-        forceAddToStack: funcTrue, // Disables debounce. TODO only disable when number/order of nodes or links changes
-    });
+    // const [changedRoutineVersion, setChangedRoutineVersion] = useState<RoutineVersionShape>(existing);
+    // const {
+    //     changeInternalValue: pushToChangeStack,
+    //     undo,
+    //     redo,
+    //     canUndo,
+    //     canRedo,
+    //     resetStack,
+    //     stackSize,
+    // } = useUndoRedo<RoutineVersionShape>({
+    //     initialValue: changedRoutineVersion,
+    //     onChange: setChangedRoutineVersion,
+    //     forceAddToStack: funcTrue, // Disables debounce. TODO only disable when number/order of nodes or links changes
+    // });
 
-    // The routineVersion's status (valid/invalid/incomplete)
-    const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
+    // // The routineVersion's status (valid/invalid/incomplete)
+    // const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ["Calculating..."] });
 
-    useHotkeys([
-        { keys: ["y", "Z"], ctrlKey: true, callback: redo },
-        { keys: ["z"], ctrlKey: true, callback: undo },
-    ]);
+    // useHotkeys([
+    //     { keys: ["y", "Z"], ctrlKey: true, callback: redo },
+    //     { keys: ["z"], ctrlKey: true, callback: undo },
+    // ]);
 
-    const handleLinkOperation = useCallback(function handleLinkCreateCallback(operation: LinkOperation, link: NodeLink) {
-        switch (operation) {
-            case "AddNode":
-                pushToChangeStack(function change(prev) {
-                    const node = Graph.generate.nodeRoutineList(prev, languages[0]);
-                    return Graph.operation.insertNodeAlongLink(prev, link, node);
-                });
-                break;
-            default:
-                //TODO
-                break;
-        }
-    }, [languages, pushToChangeStack]);
-
-    const handleNodeOperation = useCallback(function handleNodeCreateCallback(operation: GraphElementOperation, node: Node) {
-        pushToChangeStack((prev) => Graph.node.operate(prev, node, operation));
-    }, [pushToChangeStack]);
-
-    const handleRoutineListItemOperation = useCallback(function handleRoutineListItemOperationCallback(operation: GraphElementOperation, nodeId: string, item: RoutineListItem) {
-        pushToChangeStack((prev) => Graph.routineListItem.operate(prev, nodeId, item, operation));
-    }, [pushToChangeStack]);
-
-    const handleAddSwimLane = useCallback(function handleAddSwimLaneCallback() {
-        pushToChangeStack((prev) => Graph.addSwimLane(session, prev));
-    }, [pushToChangeStack, session]);
-
-    // const revertChanges = useCallback(function revertChangesCallback() {
-    //     // Helper function to revert changes
-    //     function revert() {
-    //         setCookieAllowFormCache("RoutineVersion", existing.id, false);
-    //         // If adding, go back
-    //         if (isCreate) {
-    //             window.history.back();
-    //         }
-    //         // Otherwise, revert to original object
-    //         else {
-    //             resetStack();
-    //             setIsEditing(false);
-    //         }
+    // const handleLinkOperation = useCallback(function handleLinkCreateCallback(operation: LinkOperation, link: NodeLink) {
+    //     switch (operation) {
+    //         case "AddNode":
+    //             pushToChangeStack(function change(prev) {
+    //                 const node = Graph.generate.nodeRoutineList(prev, languages[0]);
+    //                 return Graph.operation.insertNodeAlongLink(prev, link, node);
+    //             });
+    //             break;
+    //         default:
+    //             //TODO
+    //             break;
     //     }
-    //     // Confirm if changes have been made
-    //     if (stackSize.current > 1) {
-    //         PubSub.get().publish("alertDialog", {
-    //             messageKey: "UnsavedChangesBeforeCancel",
-    //             buttons: [
-    //                 { labelKey: "Yes", onClick: () => { revert(); } },
-    //                 { labelKey: "No" },
-    //             ],
-    //         });
-    //     } else {
-    //         revert();
-    //     }
-    // }, [existing.id, isCreate, resetStack, stackSize]);
+    // }, [languages, pushToChangeStack]);
 
-    // /**
-    //  * If closing with unsaved changes, prompt user to save
-    //  */
-    // const handleClose = useCallback(function handleCloseCallback() {
-    //     if (isEditing) {
-    //         revertChanges();
-    //     } else {
-    //         keepSearchParams(setLocation, []);
-    //         if (isCreate) {
-    //             window.history.back();
-    //         } else {
-    //             tryOnClose(onClose, setLocation);
-    //         }
-    //     }
-    // }, [isEditing, revertChanges, setLocation, isCreate, onClose]);
+    // const handleNodeOperation = useCallback(function handleNodeCreateCallback(operation: GraphElementOperation, node: Node) {
+    //     pushToChangeStack((prev) => Graph.node.operate(prev, node, operation));
+    // }, [pushToChangeStack]);
 
-    const hasRoutineChanged = useMemo(() => !isEqual(existing, changedRoutineVersion), [existing, changedRoutineVersion]);
+    // const handleRoutineListItemOperation = useCallback(function handleRoutineListItemOperationCallback(operation: GraphElementOperation, nodeId: string, item: RoutineListItem) {
+    //     pushToChangeStack((prev) => Graph.routineListItem.operate(prev, nodeId, item, operation));
+    // }, [pushToChangeStack]);
 
-    const graphErrors = useMemo<FormErrors>(function graphErrorsMemo() {
-        return {
-            "graph": status.status === Status.Invalid ? status.messages : null,
-            "unchanged": !hasRoutineChanged ? "No changes made" : null,
-        };
-    }, [hasRoutineChanged, status]);
+    // const handleAddSwimLane = useCallback(function handleAddSwimLaneCallback() {
+    //     pushToChangeStack((prev) => Graph.addSwimLane(session, prev));
+    // }, [pushToChangeStack, session]);
 
-    async function validateValues(values: RoutineVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation);
-    }
+    // // const revertChanges = useCallback(function revertChangesCallback() {
+    // //     // Helper function to revert changes
+    // //     function revert() {
+    // //         setCookieAllowFormCache("RoutineVersion", existing.id, false);
+    // //         // If adding, go back
+    // //         if (isCreate) {
+    // //             window.history.back();
+    // //         }
+    // //         // Otherwise, revert to original object
+    // //         else {
+    // //             resetStack();
+    // //             setIsEditing(false);
+    // //         }
+    // //     }
+    // //     // Confirm if changes have been made
+    // //     if (stackSize.current > 1) {
+    // //         PubSub.get().publish("alertDialog", {
+    // //             messageKey: "UnsavedChangesBeforeCancel",
+    // //             buttons: [
+    // //                 { labelKey: "Yes", onClick: () => { revert(); } },
+    // //                 { labelKey: "No" },
+    // //             ],
+    // //         });
+    // //     } else {
+    // //         revert();
+    // //     }
+    // // }, [existing.id, isCreate, resetStack, stackSize]);
 
-    return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={changedRoutineVersion}
-            onSubmit={noopSubmit}
-            validate={validateValues}
-        >
-            {(formik) => <RoutineMultiStepCrudForm
-                disabled={!(isCreate || permissions.canUpdate)}
-                display={display}
-                existing={existing}
-                graphErrors={graphErrors}
-                handleAddSwimLane={handleAddSwimLane}
-                handleLinkOperation={handleLinkOperation}
-                handleNodeOperation={handleNodeOperation}
-                handleRoutineListItemOperation={handleRoutineListItemOperation}
-                handleUpdate={setExisting}
-                hasRoutineChanged={hasRoutineChanged}
-                isCreate={isCreate}
-                isEditing={isEditing}
-                isReadLoading={isReadLoading}
-                isOpen={isOpen}
-                status={status}
-                {...props}
-                {...formik}
-            />}
-        </Formik>
-    );
+    // // /**
+    // //  * If closing with unsaved changes, prompt user to save
+    // //  */
+    // // const handleClose = useCallback(function handleCloseCallback() {
+    // //     if (isEditing) {
+    // //         revertChanges();
+    // //     } else {
+    // //         keepSearchParams(setLocation, []);
+    // //         if (isCreate) {
+    // //             window.history.back();
+    // //         } else {
+    // //             tryOnClose(onClose, setLocation);
+    // //         }
+    // //     }
+    // // }, [isEditing, revertChanges, setLocation, isCreate, onClose]);
+
+    // const hasRoutineChanged = useMemo(() => !isEqual(existing, changedRoutineVersion), [existing, changedRoutineVersion]);
+
+    // const graphErrors = useMemo<FormErrors>(function graphErrorsMemo() {
+    //     return {
+    //         "graph": status.status === Status.Invalid ? status.messages : null,
+    //         "unchanged": !hasRoutineChanged ? "No changes made" : null,
+    //     };
+    // }, [hasRoutineChanged, status]);
+
+    // async function validateValues(values: RoutineVersionShape) {
+    //     return await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation);
+    // }
+
+    // return (
+    //     <Formik
+    //         enableReinitialize={true}
+    //         initialValues={changedRoutineVersion}
+    //         onSubmit={noopSubmit}
+    //         validate={validateValues}
+    //     >
+    //         {(formik) => <RoutineMultiStepCrudForm
+    //             disabled={!(isCreate || permissions.canUpdate)}
+    //             display={display}
+    //             existing={existing}
+    //             graphErrors={graphErrors}
+    //             handleAddSwimLane={handleAddSwimLane}
+    //             handleLinkOperation={handleLinkOperation}
+    //             handleNodeOperation={handleNodeOperation}
+    //             handleRoutineListItemOperation={handleRoutineListItemOperation}
+    //             handleUpdate={setExisting}
+    //             hasRoutineChanged={hasRoutineChanged}
+    //             isCreate={isCreate}
+    //             isEditing={isEditing}
+    //             isReadLoading={isReadLoading}
+    //             isOpen={isOpen}
+    //             status={status}
+    //             {...props}
+    //             {...formik}
+    //         />}
+    //     </Formik>
+    // );
+    return null;
 }

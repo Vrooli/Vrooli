@@ -1,7 +1,6 @@
 import { DecisionOption } from "@local/shared";
-import { ListItem, ListItemButton, ListItemProps, ListItemText, Stack, Typography, styled, useTheme } from "@mui/material";
+import { ListItem, ListItemProps, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { OpenInNewIcon } from "../../icons/common.js";
 import { multiLineEllipsis } from "../../styles.js";
 import { DecisionViewProps } from "./types.js";
 
@@ -39,11 +38,11 @@ export function DecisionView({
         // const decisions: Decision[] = [];
         if (!data || !Array.isArray(data.options)) return [];
         return data.options.map((option) => {
-            let color = palette.primary.dark;
-            // End steps are colored based on success
-            if (option.step.__type === RunStepType.End) {
-                color = option.step.wasSuccessful ? "#387e30" : "#7c262a";
-            }
+            const color = palette.primary.dark;
+            // // End steps are colored based on success
+            // if (option.step.__type === RunStepType.End) {
+            //     color = option.step.wasSuccessful ? "#387e30" : "#7c262a";
+            // }
             return { color, ...option };
         });
     }, [data, palette.primary.dark]);
@@ -53,7 +52,7 @@ export function DecisionView({
      */
     const toDecision = useCallback(function toDecisionCallback(index: number) {
         const decision = decisions[index];
-        handleDecisionSelect(decision.step);
+        // handleDecisionSelect(decision.step);
     }, [decisions, handleDecisionSelect]);
 
     return (
@@ -68,25 +67,26 @@ export function DecisionView({
             </Stack>
             {/* Each decision as its own ListItem, with name and description */}
             {decisions.map((decision, index) => {
-                const { description, name } = decision.step;
-                function handleClick() {
-                    toDecision(index);
-                }
+                // const { description, name } = decision.step;
+                // function handleClick() {
+                //     toDecision(index);
+                // }
 
-                return (<DecisionListItem
-                    color={decision.color}
-                    disablePadding
-                    key={`decision-${decision.nodeId}`}
-                    onClick={handleClick}
-                >
-                    <ListItemButton component="div" onClick={handleClick}>
-                        <Stack direction="column" spacing={1} pl={2} sx={decisionTextStackStyle}>
-                            <ListItemText primary={name} sx={decisionNameStyle} />
-                            {description && <ListItemText primary={description} sx={decisionDescriptionStyle} />}
-                        </Stack>
-                        <OpenInNewIcon fill="white" />
-                    </ListItemButton>
-                </DecisionListItem>);
+                // return (<DecisionListItem
+                //     color={decision.color}
+                //     disablePadding
+                //     key={`decision-${decision.nodeId}`}
+                //     onClick={handleClick}
+                // >
+                //     <ListItemButton component="div" onClick={handleClick}>
+                //         <Stack direction="column" spacing={1} pl={2} sx={decisionTextStackStyle}>
+                //             <ListItemText primary={name} sx={decisionNameStyle} />
+                //             {description && <ListItemText primary={description} sx={decisionDescriptionStyle} />}
+                //         </Stack>
+                //         <OpenInNewIcon fill="white" />
+                //     </ListItemButton>
+                // </DecisionListItem>);
+                return null;
             })}
         </Stack>
     );

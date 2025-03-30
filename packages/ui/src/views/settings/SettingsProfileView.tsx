@@ -16,7 +16,7 @@ import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { useTranslatedFields } from "../../hooks/useTranslatedFields.js";
-import { HandleIcon, UserIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { FormSection, ScrollBox } from "../../styles.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -25,14 +25,14 @@ import { SettingsProfileFormProps, SettingsProfileViewProps } from "./types.js";
 const nameInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <UserIcon />
+            <IconCommon name="User" />
         </InputAdornment>
     ),
 } as const;
 const handleInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <HandleIcon />
+            <IconCommon name="Handle" />
         </InputAdornment>
     ),
 } as const;

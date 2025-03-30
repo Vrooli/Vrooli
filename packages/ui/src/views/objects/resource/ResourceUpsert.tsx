@@ -16,7 +16,7 @@ import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { CompleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "../../../utils/display/translationTools.js";
@@ -197,7 +197,7 @@ function ResourceForm({
                                 fullWidth
                                 onClick={() => { handleResourceTypeChange("link"); }}
                                 variant={"outlined"}
-                                startIcon={resourceType === "link" ? <CompleteIcon /> : undefined}
+                                startIcon={resourceType === "link" ? <IconCommon name="Complete" /> : undefined}
                             >
                                 {t("Link", { count: 1 })}
                             </Button>
@@ -206,7 +206,7 @@ function ResourceForm({
                                 fullWidth
                                 onClick={() => { handleResourceTypeChange("shortcut"); }}
                                 variant={"outlined"}
-                                startIcon={resourceType === "shortcut" ? <CompleteIcon /> : undefined}
+                                startIcon={resourceType === "shortcut" ? <IconCommon name="Complete" /> : undefined}
                             >
                                 {t("Shortcut", { count: 1 })}
                             </Button>
