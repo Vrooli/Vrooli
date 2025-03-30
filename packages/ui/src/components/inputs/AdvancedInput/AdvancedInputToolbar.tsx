@@ -1,12 +1,13 @@
 import { TranslationFuncCommon, TranslationKeyCommon } from "@local/shared";
-import { Box, BoxProps, Button, IconButton, IconButtonProps, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Breakpoints, Button, IconButton, IconButtonProps, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useIsLeftHanded, useRichInputToolbarViewSize } from "../../../hooks/subscriptions.js";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { useDimensions } from "../../../hooks/useDimensions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { Icon, IconCommon, IconInfo, IconText } from "../../../icons/Icons.js";
+import { Dimensions } from "../../../types.js";
 import { keyComboToString } from "../../../utils/display/device.js";
-import { RichInputToolbarViewSize } from "../../../utils/pubsub.js";
 import { RichInputAction, RichInputActiveStates } from "../types.js";
 
 type PrePopoverActionItem = {
@@ -41,6 +42,7 @@ type TablePopoverProps = {
 }
 
 export const TOOLBAR_CLASS_NAME = "advanced-input-toolbar";
+const SHOW_MINIMAL_VIEW_AT_PX = 375;
 
 export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Bold: false,
@@ -93,6 +95,20 @@ const preCombinedItems: PrePopoverActionItem[] = [
     { action: "Table", iconInfo: { name: "Table", type: "Common" }, labelKey: "TableInsert" },
 ];
 
+function determineViewSize(
+    dimensions: Dimensions,
+    breakpoints: Breakpoints,
+) {
+    // Determine detault view based on dimensions
+    if (dimensions.width <= SHOW_MINIMAL_VIEW_AT_PX) {
+        return "minimal" as const;
+    }
+    else if (dimensions.width <= breakpoints.values.sm) {
+        return "partial" as const;
+    }
+    return "full" as const;
+}
+
 interface StyledIconButtonProps extends IconButtonProps {
     isActive?: boolean;
 }
@@ -126,7 +142,7 @@ const ToolButton = forwardRef(({
     }, [onClick]);
 
     return (
-        <Tooltip title={label}>
+        <Tooltip placement="top" title={label}>
             <StyledIconButton
                 ref={ref}
                 disabled={disabled}
@@ -393,9 +409,7 @@ const OuterBox = styled(Box, {
     borderRadius: "0.5rem 0.5rem 0 0",
 }));
 
-const contextItemStyle = { display: "flex", alignItems: "center" } as const;
-
-export function RichInputToolbar({
+export function AdvancedInputToolbar({
     activeStates,
     canRedo,
     canUndo,
@@ -412,36 +426,13 @@ export function RichInputToolbar({
     handleActiveStatesChange: (activeStates: Omit<RichInputActiveStates, "SetValue">) => unknown;
     isMarkdownOn: boolean;
 }) {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
+    const { dimensions, ref: dimRef } = useDimensions();
 
-    const { dimRef, handleUpdateViewSize, viewSize } = useRichInputToolbarViewSize();
-    const onUpdateViewSize = useCallback(function onUpdateViewSizeCallback(viewSize: RichInputToolbarViewSize) {
-        handleUpdateViewSize(viewSize);
-        setContextMenu(null);
-    }, [handleUpdateViewSize]);
-    function toMinimalView() {
-        onUpdateViewSize("minimal");
-    }
-    function toPartialView() {
-        onUpdateViewSize("partial");
-    }
-    function toFullView() {
-        onUpdateViewSize("full");
-    }
-
-    const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
-    const handleContextMenu = useCallback(function handleContextMenuCallback(event: React.MouseEvent) {
-        event.preventDefault();
-        setContextMenu(
-            contextMenu === null
-                ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4 }
-                : null,
-        );
-    }, [contextMenu]);
-    const handleContextMenuClose = useCallback(function handleContextMenuClose() {
-        setContextMenu(null);
-    }, []);
+    const viewSize = useMemo(function viewSizeMemo() {
+        return determineViewSize(dimensions, breakpoints);
+    }, [dimensions, breakpoints]);
 
     const isLeftHanded = useIsLeftHanded();
 
@@ -529,37 +520,12 @@ export function RichInputToolbar({
 
     return (
         <OuterBox
-            aria-label="Rich text editor toolbar"
+            aria-label="Text input toolbar"
             className={TOOLBAR_CLASS_NAME}
             component="section"
             isLeftHanded={isLeftHanded}
-            onContextMenu={handleContextMenu}
             ref={dimRef}
         >
-            {/* Right-click context menu */}
-            <Menu
-                open={contextMenu !== null}
-                onClose={handleContextMenuClose}
-                anchorReference="anchorPosition"
-                anchorPosition={
-                    contextMenu !== null
-                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-                        : undefined
-                }
-            >
-                <MenuItem onClick={toMinimalView}
-                    sx={contextItemStyle}>
-                    <ListItemText primary="Minimal View" secondary="Show fewer toolbar options for a cleaner interface." />
-                </MenuItem>
-                <MenuItem onClick={toPartialView}
-                    sx={contextItemStyle}>
-                    <ListItemText primary="Partial View" secondary="Display commonly used tools for convenient access." />
-                </MenuItem>
-                <MenuItem onClick={toFullView}
-                    sx={contextItemStyle}>
-                    <ListItemText primary="Full View" secondary="Show all available tools for maximum functionality." />
-                </MenuItem>
-            </Menu>
             {/* Group of main editor controls */}
             <LeftSection
                 disabled={disabled}
@@ -739,7 +705,7 @@ export function RichInputToolbar({
                         palette={palette}
                     />}
                 </div>
-                <Tooltip title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`} placement="top">
+                <Tooltip placement="top" title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`} placement="top">
                     <ModeSelectorLabel variant="caption" onClick={handleToggleMode}>
                         {!isMarkdownOn ? t("MarkdownTo") : t("PreviewTo")}
                     </ModeSelectorLabel>

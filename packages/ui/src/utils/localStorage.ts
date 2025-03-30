@@ -2,7 +2,6 @@ import { AITaskInfo, ActiveFocusMode, FocusMode, ModelType, NavigableObject, Pro
 import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
-import { RichInputToolbarViewSize } from "./pubsub.js";
 
 const KB_1 = 1024;
 // eslint-disable-next-line no-magic-numbers
@@ -48,7 +47,6 @@ type SimpleStoragePayloads = {
     LastTab: string | null,
     MenuState: boolean,
     Preferences: CookiePreferences,
-    RichInputToolbarViewSize: RichInputToolbarViewSize,
     RunLoaderCache: RunLoaderCache,
     ShowBotWarning: boolean,
     ShowMarkdown: boolean,
@@ -155,11 +153,6 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
                 targeting: value.targeting || false,
             };
         },
-    },
-    RichInputToolbarViewSize: {
-        __type: "functional",
-        check: (value) => value === "minimal" || value === "partial" || value === "full",
-        fallback: "full",
     },
     RunLoaderCache: {
         __type: "functional",

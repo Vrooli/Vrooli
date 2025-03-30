@@ -8,14 +8,6 @@ import { SxType } from "../../types.js";
 import { FindObjectType } from "../dialogs/types.js";
 import { ResourceListProps } from "../lists/types.js";
 
-export interface CharLimitIndicatorProps {
-    chars: number;
-    /** Hides indicator until this number of characters is reached */
-    minCharsToShow?: number;
-    maxChars: number;
-    size?: number;
-}
-
 export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
     label: string;
 };
@@ -183,15 +175,8 @@ export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
 export type GetTaggableItemsFunc = (query: string) => Promise<ListObject[]>;
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
-    actionButtons?: Array<{
-        disabled?: boolean;
-        iconInfo: IconInfo;
-        onClick: () => unknown;
-        tooltip?: string;
-    }>;
     autoFocus?: boolean;
     disabled?: boolean;
-    disableAssistant?: boolean;
     error?: boolean;
     /**
      * Callback to provide data for "@" tagging dropdown. 

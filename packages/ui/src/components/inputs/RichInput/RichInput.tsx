@@ -1,29 +1,25 @@
 import { TaskContextInfo, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
-import { Box, Chip, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Chip, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActiveChatContext } from "../../../contexts/activeChat.js";
 import { SessionContext } from "../../../contexts/session.js";
 import useDraggableScroll from "../../../hooks/gestures.js";
-import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { generateContextLabel } from "../../../hooks/tasks.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
-import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { DEFAULT_MIN_ROWS } from "../../../utils/consts.js";
-import { getDeviceInfo, keyComboToString } from "../../../utils/display/device.js";
 import { generateContext } from "../../../utils/display/stringTools.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { CharLimitIndicator } from "../../CharLimitIndicator/CharLimitIndicator.js";
+import { AdvancedInputToolbar, defaultActiveStates } from "../AdvancedInput/AdvancedInputToolbar.js";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical.js";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown.js";
-import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichInputToolbar.js";
 import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps, TranslatedRichInputProps } from "../types.js";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
-const SHOW_CHAR_LIMIT_AT_REMAINING = 500;
 
 const ContextsRowOuter = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -96,21 +92,10 @@ function ContextsRow({
     );
 }
 
-const ActionButton = styled(IconButton)(({ theme }) => ({
-    background: theme.palette.primary.dark,
-    color: theme.palette.primary.contrastText,
-    borderRadius: theme.spacing(2),
-}));
-
-const helperTextStyle = { color: "red" } as const;
-const newLineTextStyle = { fontSize: "0.5em" } as const;
-
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function RichInputBase({
-    actionButtons,
     autoFocus = false,
     disabled = false,
-    disableAssistant = false,
     error = false,
     getTaggableItems,
     helperText,
@@ -128,9 +113,7 @@ export function RichInputBase({
     value,
     sxs,
 }: RichInputBaseProps) {
-    const { palette } = useTheme();
     const session = useContext(SessionContext);
-    const isLeftHanded = useIsLeftHanded();
     const { chat } = useContext(ActiveChatContext);
 
     const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
@@ -202,14 +185,6 @@ export function RichInputBase({
     }
 
     const [enterWillSubmit, setEnterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
-    useEffect(() => {
-        if (enterWillSubmit === undefined && typeof onSubmit === "function") {
-            setEnterWillSubmit(true);
-        } else if (typeof enterWillSubmit === "boolean" && typeof onSubmit !== "function") {
-            setEnterWillSubmit(undefined);
-        }
-    }, [enterWillSubmit, onSubmit]);
-    const toggleEnterWillSubmit = useCallback(() => { setEnterWillSubmit(!enterWillSubmit); }, [enterWillSubmit]);
 
     const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
     const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
@@ -263,35 +238,13 @@ export function RichInputBase({
         } as const;
     }, [sxs?.root]);
 
-    const bottomBarStyle = useMemo(function bottomBarStyleMemo() {
-        return {
-            padding: "2px",
-            display: "flex",
-            flexDirection: isLeftHanded ? "row-reverse" : "row",
-            gap: 1,
-            justifyContent: "space-between",
-            alignItems: "center",
-            ...sxs?.bottomBar,
-        } as const;
-    }, [isLeftHanded, sxs?.bottomBar]);
-
-    const actionsBoxStyle = useMemo(function actionsBoxStyleMemo() {
-        return {
-            display: "flex",
-            gap: 2,
-            ...(isLeftHanded ?
-                { marginRight: "auto", flexDirection: "row-reverse" } :
-                { marginLeft: "auto", flexDirection: "row" }),
-        } as const;
-    }, [isLeftHanded]);
-
     return (
         <>
             <Box
                 id={`markdown-input-base-${name}`}
                 sx={rootStyle}
             >
-                <RichInputToolbar
+                <AdvancedInputToolbar
                     activeStates={activeStates}
                     canRedo={canRedo}
                     canUndo={canUndo}
@@ -305,58 +258,6 @@ export function RichInputBase({
                     chatId={chat?.id}
                 />}
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
-                {/* Help text, characters remaining indicator, and action buttons */}
-                {
-                    (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box sx={bottomBarStyle}>
-                        {helperText && <Typography variant="body1" mt="auto" mb="auto" sx={helperTextStyle}>
-                            {typeof helperText === "string" ? helperText : JSON.stringify(helperText)}
-                        </Typography>}
-                        <Box sx={actionsBoxStyle}>
-                            {/* On desktop, allow users to set the behavior of the "Enter" key. 
-                                On mobile, the virtual keyboard will (hopefully) display a "Return" 
-                                button - so this isn't needed */}
-                            {
-                                typeof enterWillSubmit === "boolean" && !getDeviceInfo().isMobile &&
-                                <ActionButton
-                                    size="medium"
-                                    onClick={toggleEnterWillSubmit}
-                                >
-                                    <Typography variant="body2" mt="auto" mb="auto" sx={newLineTextStyle}>
-                                        &apos;{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}&apos; for new line
-                                    </Typography>
-                                </ActionButton>
-                            }
-                            {/* Characters remaining indicator */}
-                            {
-                                !disabled && maxChars !== undefined &&
-                                <CharLimitIndicator
-                                    chars={internalValue?.length ?? 0}
-                                    minCharsToShow={Math.max(0, maxChars - SHOW_CHAR_LIMIT_AT_REMAINING)}
-                                    maxChars={maxChars}
-                                />
-                            }
-                            {/* Action buttons */}
-                            {
-                                actionButtons?.map(({ disabled: buttonDisabled, iconInfo, onClick, tooltip }) => (
-                                    <Tooltip key={tooltip} title={tooltip} placement="top">
-                                        <ActionButton
-                                            aria-label={tooltip}
-                                            disabled={disabled || buttonDisabled}
-                                            size="medium"
-                                            onClick={onClick}
-                                        >
-                                            <Icon
-                                                decorative
-                                                fill={palette.primary.contrastText}
-                                                info={iconInfo}
-                                            />
-                                        </ActionButton>
-                                    </Tooltip>
-                                ))
-                            }
-                        </Box>
-                    </Box>
-                }
             </Box>
         </>
     );

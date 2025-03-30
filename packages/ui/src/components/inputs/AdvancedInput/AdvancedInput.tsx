@@ -13,7 +13,7 @@ import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButto
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
-import { RichInputToolbar, TOOLBAR_CLASS_NAME } from "../RichInputToolbar/RichInputToolbar.js";
+import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME } from "./AdvancedInputToolbar.js";
 
 interface ExternalApp {
     id: string;
@@ -1142,7 +1142,7 @@ export function AdvancedInput({
                         name="Info"
                     />
                 </IconButton>
-                {showToolbar && <RichInputToolbar
+                {showToolbar && <AdvancedInputToolbar
                     activeStates={[]}
                     canRedo={false}
                     canUndo={false}
@@ -1161,7 +1161,7 @@ export function AdvancedInput({
                         />
                     ))}
                 </Box>}
-                <Tooltip title={isExpanded ? "Collapse" : "Expand"}>
+                <Tooltip placement="top" title={isExpanded ? "Collapse" : "Expand"}>
                     <IconButton
                         onClick={handleToggleExpand}
                         sx={toolbarIconButtonStyle}
@@ -1273,10 +1273,11 @@ export function AdvancedInput({
                         width={iconWidth}
                     />
                     <Box
-                        component="div"
                         display="inline-flex"
                         position="relative"
-                        verticalAlign="middle"
+                        sx={{
+                            verticalAlign: "middle",
+                        }}
                     >
                         <CircularProgress
                             variant="determinate"

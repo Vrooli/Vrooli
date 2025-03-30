@@ -159,9 +159,6 @@ export type PopupVideoPub = {
     src: string;
 }
 
-/** Determines how many options should be displayed directly in the rich input toolbar */
-export type RichInputToolbarViewSize = "minimal" | "partial" | "full";
-
 type MenuBase = {
     isOpen: boolean;
 }
@@ -253,7 +250,6 @@ export interface EventPayloads {
     popupVideo: PopupVideoPub;
     proDialog: void;
     requestTaskContext: RequestTaskContextPub;
-    richInputToolbarViewSize: RichInputToolbarViewSize;
     session: Session | undefined;
     showBotWarning: boolean;
     snack: SnackPub;
