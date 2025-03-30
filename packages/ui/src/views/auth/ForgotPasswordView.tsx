@@ -12,8 +12,9 @@ import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "../../styles.js";
+import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer } from "../../styles.js";
 import { ForgotPasswordViewProps } from "../types.js";
+import { FormSection } from "./authStyles.js";
 
 interface ForgotPasswordFormProps {
     onClose?: () => unknown;
@@ -74,37 +75,30 @@ function ForgotPasswordForm({
     ] as const;
 
     return (
-        <Box>
-            <TopBar
-                display="dialog"
-                onClose={onClose}
-                title={t("ForgotPassword")}
-            />
-            <Formik
-                initialValues={initialValues}
-                onSubmit={onSubmit}
-                validationSchema={emailRequestPasswordChangeSchema}
+        <Formik
+            initialValues={initialValues}
+            onSubmit={onSubmit}
+            validationSchema={emailRequestPasswordChangeSchema}
+        >
+            {(formik) => <InnerForm
+                display={"dialog"}
+                isLoading={loading}
+                style={baseFormStyle}
             >
-                {(formik) => <InnerForm
-                    display={"dialog"}
-                    isLoading={loading}
-                    style={baseFormStyle}
-                >
-                    <FormContainer width="unset" maxWidth="unset">
-                        <FormSection variant="transparent">
-                            <Field
-                                fullWidth
-                                autoComplete="email"
-                                name="email"
-                                label={t("Email", { count: 1 })}
-                                placeholder={t("EmailPlaceholder")}
-                                as={TextInput}
-                                InputProps={emailInputProps}
-                                helperText={formik.touched.email && formik.errors.email}
-                                error={formik.touched.email && Boolean(formik.errors.email)}
-                            />
-                        </FormSection>
-                        <Box width="100%" display="flex" flexDirection="column" p={2}>
+                <FormContainer width="unset" maxWidth="unset">
+                    <FormSection>
+                        <Field
+                            fullWidth
+                            autoComplete="email"
+                            name="email"
+                            label={t("Email", { count: 1 })}
+                            placeholder={t("EmailPlaceholder")}
+                            as={TextInput}
+                            InputProps={emailInputProps}
+                            helperText={formik.touched.email && formik.errors.email}
+                            error={formik.touched.email && Boolean(formik.errors.email)}
+                        />
+                        <Box display="flex" flexDirection="column">
                             <Button
                                 fullWidth
                                 disabled={loading}
@@ -113,7 +107,7 @@ function ForgotPasswordForm({
                                 variant="contained"
                                 sx={formSubmit}
                             >
-                                {t("Submit")}
+                                {t("ForgotPassword")}
                             </Button>
                             <BreadcrumbsBase
                                 paths={breadcrumbPaths}
@@ -121,10 +115,10 @@ function ForgotPasswordForm({
                                 sx={breadcrumbsStyle}
                             />
                         </Box>
-                    </FormContainer>
-                </InnerForm>}
-            </Formik>
-        </Box>
+                    </FormSection>
+                </FormContainer>
+            </InnerForm>}
+        </Formik>
     );
 }
 

@@ -7,6 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
+import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButton.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
@@ -54,7 +55,6 @@ export interface ContextItem {
 }
 
 export interface AdvancedInputProps {
-    enterWillSubmit: boolean;
     tools: Tool[];
     contextData: ContextItem[];
     maxChars?: number;
@@ -491,6 +491,9 @@ function ContextItemDisplay({
     );
 }
 
+// Add these styles near the top with other styles
+const toolbarIconButtonStyle = { padding: "4px", opacity: 0.5 } as const;
+
 /** 
  * PlusMenu Component - renders the popover for additional actions.
  */
@@ -521,6 +524,11 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
         function handleCloseExternalApps() {
             setExternalAppAnchor(null);
         }
+
+        const handleAppConnection = useCallback((appId: string) => {
+            // Toggle connection for this app, e.g., call a function like toggleAppConnection(app.id)
+            handleCloseExternalApps();
+        }, []);
 
         return (
             <>
@@ -580,10 +588,7 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                     {externalApps.map((app) => (
                         <MenuItem
                             key={app.id}
-                            onClick={() => {
-                                // Toggle connection for this app, e.g., call a function like toggleAppConnection(app.id)
-                                handleCloseExternalApps();
-                            }}
+                            onClick={() => handleAppConnection(app.id)}
                         >
                             <ListItemIcon>
                                 <Icon decorative info={app.iconInfo} />
@@ -624,6 +629,7 @@ const infoMenuPaperProps = {
         overflow: "auto",
     },
 } as const;
+
 const InfoMemo: React.FC<InfoMemoProps> = React.memo(
     ({
         anchorEl,
@@ -635,6 +641,25 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
         showToolbar,
         onToggleToolbar,
     }) => {
+        const handleEnterWillSubmitChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+            event.stopPropagation();
+            onToggleEnterWillSubmit();
+        }, [onToggleEnterWillSubmit]);
+
+        const handleWysiwygChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+            event.stopPropagation();
+            onToggleWysiwyg();
+        }, [onToggleWysiwyg]);
+
+        const handleToolbarChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+            event.stopPropagation();
+            onToggleToolbar();
+        }, [onToggleToolbar]);
+
+        const secondaryTypographyProps = useMemo(() => ({
+            style: { whiteSpace: "pre-wrap" } as const,
+        }), []);
+
         return (
             <Menu
                 anchorEl={anchorEl}
@@ -650,16 +675,13 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
                 <MenuItem onClick={onToggleEnterWillSubmit}>
                     <ListItemText
                         primary="Enter key sends message"
-                        secondary={"When enabled, use 'Shift + Enter' to create a new line."}
-                        secondaryTypographyProps={{ style: { whiteSpace: "pre-wrap" } }}
+                        secondary="When enabled, use 'Shift + Enter' to create a new line."
+                        secondaryTypographyProps={secondaryTypographyProps}
                     />
                     <Switch
                         edge="end"
                         checked={localEnterWillSubmit}
-                        onChange={(event) => {
-                            event.stopPropagation();
-                            onToggleEnterWillSubmit();
-                        }}
+                        onChange={handleEnterWillSubmitChange}
                     />
                 </MenuItem>
                 <Divider />
@@ -667,15 +689,12 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
                     <ListItemText
                         primary="WYSIWYG editor mode"
                         secondary="Toggle rich text editing mode."
-                        secondaryTypographyProps={{ style: { whiteSpace: "pre-wrap" } }}
+                        secondaryTypographyProps={secondaryTypographyProps}
                     />
                     <Switch
                         edge="end"
                         checked={isWysiwyg}
-                        onChange={(event) => {
-                            event.stopPropagation();
-                            onToggleWysiwyg();
-                        }}
+                        onChange={handleWysiwygChange}
                     />
                 </MenuItem>
                 <Divider />
@@ -683,15 +702,12 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
                     <ListItemText
                         primary="Show formatting toolbar"
                         secondary="Display text formatting options above the input area."
-                        secondaryTypographyProps={{ style: { whiteSpace: "pre-wrap" } }}
+                        secondaryTypographyProps={secondaryTypographyProps}
                     />
                     <Switch
                         edge="end"
                         checked={showToolbar}
-                        onChange={(event) => {
-                            event.stopPropagation();
-                            onToggleToolbar();
-                        }}
+                        onChange={handleToolbarChange}
                     />
                 </MenuItem>
                 <Divider />
@@ -711,7 +727,7 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(
                         }}
                     />
                 </MenuItem> */}
-                <Divider />
+                {/* <Divider /> */}
                 <Typography variant="h6" m={2} mb={1} color="text.secondary">
                     Info
                 </Typography>
@@ -780,7 +796,6 @@ const inputBaseInputProps = {
 } as const;
 
 export function AdvancedInput({
-    enterWillSubmit,
     tools,
     contextData,
     maxChars,
@@ -815,6 +830,38 @@ export function AdvancedInput({
             latestMessageRef.current = message;
         }
     }, [message]);
+
+    // Settings state from localStorage
+    const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
+    const { enterWillSubmit: localEnterWillSubmit, showToolbar, isWysiwyg } = settings;
+
+    // Settings toggles
+    const handleToggleEnterWillSubmit = useCallback(() => {
+        const newSettings = {
+            ...settings,
+            enterWillSubmit: !settings.enterWillSubmit,
+        };
+        setSettings(newSettings);
+        setCookie("AdvancedInputSettings", newSettings);
+    }, [settings]);
+
+    const handleToggleToolbar = useCallback(() => {
+        const newSettings = {
+            ...settings,
+            showToolbar: !settings.showToolbar,
+        };
+        setSettings(newSettings);
+        setCookie("AdvancedInputSettings", newSettings);
+    }, [settings]);
+
+    const handleToggleWysiwyg = useCallback(() => {
+        const newSettings = {
+            ...settings,
+            isWysiwyg: !settings.isWysiwyg,
+        };
+        setSettings(newSettings);
+        setCookie("AdvancedInputSettings", newSettings);
+    }, [settings]);
 
     // Add dropzone functionality
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -874,11 +921,6 @@ export function AdvancedInput({
 
     const [anchorPlus, setAnchorPlus] = useState<HTMLElement | null>(null);
     const [anchorSettings, setAnchorSettings] = useState<HTMLElement | null>(null);
-
-    // Settings toggles
-    const [localEnterWillSubmit, setLocalEnterWillSubmit] = useState(enterWillSubmit);
-    const [showToolbar, setShowToolbar] = useState(false);
-    const [isWysiwyg, setIsWysiwyg] = useState(false);
 
     // Tools overflow
     const [isToolsExpanded, setIsToolsExpanded] = useState(false);
@@ -966,18 +1008,6 @@ export function AdvancedInput({
 
     const handleCloseInfoMemo = useCallback(() => {
         setAnchorSettings(null);
-    }, []);
-
-    const handleToggleEnterWillSubmit = useCallback(() => {
-        setLocalEnterWillSubmit((prev) => !prev);
-    }, []);
-
-    const handleToggleToolbar = useCallback(() => {
-        setShowToolbar((prev) => !prev);
-    }, []);
-
-    const handleToggleWysiwyg = useCallback(() => {
-        setIsWysiwyg((prev) => !prev);
     }, []);
 
     const handleAttachFile = useCallback(() => {
@@ -1125,7 +1155,7 @@ export function AdvancedInput({
             {showToolbar ? (
                 <>
                     <Box sx={toolbarRowStyles}>
-                        <IconButton onClick={handleOpenInfoMemo} sx={{ padding: "4px", opacity: 0.5 }}>
+                        <IconButton onClick={handleOpenInfoMemo} sx={toolbarIconButtonStyle}>
                             <IconCommon
                                 decorative
                                 fill="background.textSecondary"
@@ -1255,7 +1285,7 @@ export function AdvancedInput({
                         height={iconHeight}
                         width={iconWidth}
                     />
-                    <Box position="relative" display="inline-flex" sx={{ verticalAlign: "middle" }}>
+                    <Box position="relative" display="inline-flex" verticalAlign="middle">
                         <CircularProgress
                             variant="determinate"
                             size={34}

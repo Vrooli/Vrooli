@@ -1,5 +1,5 @@
 import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, uuidValidate } from "@local/shared";
-import { Box, Button } from "@mui/material";
+import { Button } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,9 +10,10 @@ import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "../../styles.js";
+import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { ResetPasswordViewProps } from "../types.js";
+import { FormSection } from "./authStyles.js";
 
 interface ResetPasswordFormProps {
     onClose?: () => unknown;
@@ -66,54 +67,45 @@ function ResetPasswordForm({
     }, [emailResetPassword, setLocation, userId, code]);
 
     return (
-        <>
-            <TopBar
-                display="dialog"
-                onClose={onClose}
-                title={t("ResetPassword")}
-            />
-            <Formik
-                initialValues={initialValues}
-                onSubmit={onSubmit}
-                validationSchema={emailResetPasswordFormSchema}
+        <Formik
+            initialValues={initialValues}
+            onSubmit={onSubmit}
+            validationSchema={emailResetPasswordFormSchema}
+        >
+            {() => <InnerForm
+                display={"dialog"}
+                isLoading={loading}
+                style={baseFormStyle}
             >
-                {(formik) => <InnerForm
-                    display={"dialog"}
-                    isLoading={loading}
-                    style={baseFormStyle}
-                >
-                    <FormContainer width="unset" maxWidth="unset">
-                        <FormSection variant="transparent">
-                            <PasswordTextInput
-                                fullWidth
-                                autoFocus
-                                name="newPassword"
-                                autoComplete="new-password"
-                                label={t("PasswordNew")}
-                            />
-                            <PasswordTextInput
-                                fullWidth
-                                name="confirmNewPassword"
-                                autoComplete="new-password"
-                                label={t("PasswordNewConfirm")}
-                            />
-                        </FormSection>
-                        <Box width="100%" display="flex" flexDirection="column" p={2}>
-                            <Button
-                                fullWidth
-                                disabled={loading}
-                                type="submit"
-                                color="secondary"
-                                variant="contained"
-                                sx={{ ...formSubmit }}
-                            >
-                                {t("Submit")}
-                            </Button>
-                        </Box>
-                    </FormContainer>
-                </InnerForm>}
-            </Formik>
-        </>
+                <FormContainer width="unset" maxWidth="unset">
+                    <FormSection>
+                        <PasswordTextInput
+                            fullWidth
+                            autoFocus
+                            name="newPassword"
+                            autoComplete="new-password"
+                            label={t("PasswordNew")}
+                        />
+                        <PasswordTextInput
+                            fullWidth
+                            name="confirmNewPassword"
+                            autoComplete="new-password"
+                            label={t("PasswordNewConfirm")}
+                        />
+                        <Button
+                            fullWidth
+                            disabled={loading}
+                            type="submit"
+                            color="secondary"
+                            variant="contained"
+                            sx={{ ...formSubmit }}
+                        >
+                            {t("ResetPassword")}
+                        </Button>
+                    </FormSection>
+                </FormContainer>
+            </InnerForm>}
+        </Formik>
     );
 }
 

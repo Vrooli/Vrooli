@@ -262,7 +262,6 @@ export function Default() {
                 </Box>
             </Box>
             <AdvancedInput
-                enterWillSubmit={true}
                 tools={tools}
                 contextData={contextData}
                 message={message}
@@ -293,7 +292,6 @@ export function WithSomeTools() {
 
     return (
         <AdvancedInput
-            enterWillSubmit={true}
             tools={tools}
             contextData={contextData}
             message={message}
@@ -323,7 +321,6 @@ export function WithManyTools() {
 
     return (
         <AdvancedInput
-            enterWillSubmit={true}
             tools={tools}
             contextData={contextData}
             onToolsChange={onToolsChange}
@@ -354,79 +351,11 @@ export function WithContextItems() {
 
     return (
         <AdvancedInput
-            enterWillSubmit={true}
             tools={tools}
             contextData={contextData}
             onToolsChange={onToolsChange}
             onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
-        />
-    );
-}
-
-/**
- * WithEnterKeyMode: toggles whether enter key submits or adds new lines.
- */
-export function WithEnterKeyMode() {
-    const [contextData, setContextData] = useState<ContextItem[]>([]);
-    const [enterWillSubmit, setEnterWillSubmit] = useState(true);
-    const [message, setMessage] = useState("");
-    const [tools, setTools] = useState<Tool[]>([]);
-
-    function onContextDataChange(updated: ContextItem[]) {
-        setContextData(updated);
-    }
-    function onSubmit(msg: string) {
-        action("onSubmit")(msg);
-        setMessage("");
-    }
-    function onToolsChange(updated: Tool[]) {
-        setTools(updated);
-    }
-
-    return (
-        <AdvancedInput
-            enterWillSubmit={enterWillSubmit}
-            tools={tools}
-            contextData={contextData}
-            onToolsChange={onToolsChange}
-            onContextDataChange={onContextDataChange}
-            onSubmit={onSubmit}
-        />
-    );
-}
-
-/**
- * WithWysiwygAndToolbar: demonstrates toggling the WYSIWYG editor and toolbar
- * via the gear icon in the top left. (No direct props needed for demonstration;
- * toggling happens in the settings popover.)
- */
-export function WithWysiwygAndToolbar() {
-    const [contextData, setContextData] = useState<ContextItem[]>([]);
-    const [message, setMessage] = useState("");
-    const [tools, setTools] = useState<Tool[]>([]);
-
-    function onContextDataChange(updated: ContextItem[]) {
-        setContextData(updated);
-    }
-    function onSubmit(msg: string) {
-        action("onSubmit")(msg);
-        setMessage("");
-    }
-    function onToolsChange(updated: Tool[]) {
-        setTools(updated);
-    }
-
-    return (
-        <AdvancedInput
-            enterWillSubmit={true}
-            tools={tools}
-            contextData={contextData}
-            // isWysiwyg={true}
-            onToolsChange={onToolsChange}
-            onContextDataChange={onContextDataChange}
-            onSubmit={onSubmit}
-        // showToolbar={true}
         />
     );
 }
@@ -449,7 +378,6 @@ export function WithMaxChars() {
 
     return (
         <AdvancedInput
-            enterWillSubmit={true}
             tools={tools}
             contextData={contextData}
             maxChars={100}
