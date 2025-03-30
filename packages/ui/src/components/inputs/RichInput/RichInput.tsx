@@ -193,21 +193,6 @@ export function RichInputBase({
         });
     }, [chat?.id, disabled, name, session]);
 
-    /** Prevents input from losing focus when the toolbar is pressed */
-    const handleMouseDown = useCallback((event: React.MouseEvent) => {
-        // Check for the toolbar ID at each parent element
-        let parent = event.target as HTMLElement | null | undefined;
-        do {
-            // If the toolbar is clicked, prevent default
-            if (parent?.id === `${id}-toolbar`) {
-                event.preventDefault();
-                event.stopPropagation();
-                return;
-            }
-            parent = parent?.parentElement;
-        } while (parent);
-    }, [id]);
-
     // Actions which store and active state for the Toolbar. 
     // This is currently ignored when markdown mode is on, since it's 
     // a bitch to keep track of
@@ -304,21 +289,16 @@ export function RichInputBase({
         <>
             <Box
                 id={`markdown-input-base-${name}`}
-                onMouseDown={handleMouseDown}
                 sx={rootStyle}
             >
                 <RichInputToolbar
                     activeStates={activeStates}
                     canRedo={canRedo}
                     canUndo={canUndo}
-                    disableAssistant={disableAssistant}
                     disabled={disabled}
                     handleAction={handleAction}
                     handleActiveStatesChange={handleActiveStatesChange}
-                    id={`${id}-toolbar`}
                     isMarkdownOn={isMarkdownOn}
-                    name={name}
-                    sx={sxs?.topBar}
                 />
                 {taskInfo !== null && taskInfo !== undefined && Boolean(taskInfo.contexts[taskInfo.activeTask.taskId]) && taskInfo.contexts[taskInfo.activeTask.taskId].length > 0 && <ContextsRow
                     activeContexts={taskInfo.contexts[taskInfo.activeTask.taskId]}

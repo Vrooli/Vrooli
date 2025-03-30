@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, InputBase, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Typography, styled, useTheme } from "@mui/material";
+import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, InputBase, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
 import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +13,7 @@ import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButto
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { RichInputToolbar, TOOLBAR_CLASS_NAME } from "../RichInputToolbar/RichInputToolbar.js";
 
 interface ExternalApp {
     id: string;
@@ -65,14 +66,6 @@ export interface AdvancedInputProps {
     onSubmit?: (message: string) => unknown;
 }
 
-// Pre-defined style objects outside of the component scope.
-const topRowStyles: SxProps<Theme> = {
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    mb: 1,
-};
-
 const toolbarRowStyles: SxProps<Theme> = {
     display: "flex",
     alignItems: "center",
@@ -83,7 +76,7 @@ const contextRowStyles: SxProps<Theme> = {
     display: "flex",
     alignItems: "center",
     flexWrap: "wrap",
-    mb: 1,
+    marginRight: "auto",
     background: "none",
 };
 
@@ -91,27 +84,6 @@ const inputRowStyles: SxProps<Theme> = {
     mb: 1,
     px: 2, // additional left/right padding
     transition: "max-height 0.3s ease",
-};
-
-const expandedInputStyles: SxProps<Theme> = {
-    maxHeight: "calc(100vh - 500px)", // Leave space for other UI elements
-    overflow: "auto",
-};
-
-const compactInputStyles: SxProps<Theme> = {
-    maxHeight: "unset",
-    overflow: "visible",
-};
-
-const expandButtonStyles: SxProps<Theme> = {
-    position: "absolute",
-    top: (theme) => theme.spacing(1),
-    right: (theme) => theme.spacing(1),
-    padding: "4px",
-    opacity: 0.5,
-    "&:hover": {
-        opacity: 0.8,
-    },
 };
 
 const bottomRowStyles: SxProps<Theme> = {
@@ -332,6 +304,24 @@ export function useToolActions(tools: Tool[], onToolsChange?: (updatedTools: Too
     );
 
     return { handleToggleTool, handleToggleToolExclusive, handleRemoveTool };
+}
+
+/** Prevents input from losing focus when the toolbar is pressed */
+function preventInputLossOnToolbarClick(event: React.MouseEvent) {
+    // Check for the toolbar ID at each parent element
+    let parent = event.target as HTMLElement | null | undefined;
+    let numParentsTraversed = 0;
+    const maxParentsToTraverse = 10;
+    do {
+        // If the toolbar is clicked, prevent default
+        if (parent?.className === TOOLBAR_CLASS_NAME) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+        parent = parent?.parentElement;
+        numParentsTraversed++;
+    } while (parent && numParentsTraversed < maxParentsToTraverse);
 }
 
 const PreviewContainer = styled("div")(({ theme }) => ({
@@ -1123,17 +1113,6 @@ export function AdvancedInput({
                     </Typography>
                 </Box>
             )}
-            <IconButton
-                onClick={handleToggleExpand}
-                sx={expandButtonStyles}
-                title={isExpanded ? "Collapse" : "Expand"}
-            >
-                <IconCommon
-                    decorative
-                    fill="background.textSecondary"
-                    name={isExpanded ? "ExpandLess" : "ExpandMore"}
-                />
-            </IconButton>
             <Collapse in={tools.some((tool) => tool.state === ToolState.Exclusive)} unmountOnExit>
                 <Box height={400} >
                     {/* <Formik
@@ -1152,40 +1131,27 @@ export function AdvancedInput({
                 <Divider />
             </Collapse>
             {/* Top Section */}
-            {showToolbar ? (
-                <>
-                    <Box sx={toolbarRowStyles}>
-                        <IconButton onClick={handleOpenInfoMemo} sx={toolbarIconButtonStyle}>
-                            <IconCommon
-                                decorative
-                                fill="background.textSecondary"
-                                name="Info"
-                            />
-                        </IconButton>
-                        <Typography variant="body2" ml={1} color="text.secondary">
-                            [Toolbar placeholder: Bold, Italic, Link, etc.]
-                        </Typography>
-                    </Box>
-                    <Box sx={contextRowStyles}>
-                        {sortedContextData.map((item) => (
-                            <ContextItemDisplay
-                                key={item.id}
-                                item={item}
-                                imgStyle={imgStyle}
-                                onRemove={handleRemoveContextItem}
-                            />
-                        ))}
-                    </Box>
-                </>
-            ) : (
-                <Box sx={topRowStyles}>
-                    <IconButton onClick={handleOpenInfoMemo} sx={infoButtonStyle}>
-                        <IconCommon
-                            decorative
-                            fill="background.textSecondary"
-                            name="Info"
-                        />
-                    </IconButton>
+            <Box onMouseDown={preventInputLossOnToolbarClick} sx={toolbarRowStyles}>
+                <IconButton
+                    onClick={handleOpenInfoMemo}
+                    sx={toolbarIconButtonStyle}
+                >
+                    <IconCommon
+                        decorative
+                        fill="background.textSecondary"
+                        name="Info"
+                    />
+                </IconButton>
+                {showToolbar && <RichInputToolbar
+                    activeStates={[]}
+                    canRedo={false}
+                    canUndo={false}
+                    disabled={false}
+                    handleAction={() => { }}
+                    handleActiveStatesChange={() => { }}
+                    isMarkdownOn={!isWysiwyg}
+                />}
+                {!showToolbar && <Box sx={contextRowStyles}>
                     {sortedContextData.map((item) => (
                         <ContextItemDisplay
                             key={item.id}
@@ -1194,9 +1160,30 @@ export function AdvancedInput({
                             onRemove={handleRemoveContextItem}
                         />
                     ))}
-                </Box>
-            )}
-
+                </Box>}
+                <Tooltip title={isExpanded ? "Collapse" : "Expand"}>
+                    <IconButton
+                        onClick={handleToggleExpand}
+                        sx={toolbarIconButtonStyle}
+                    >
+                        <IconCommon
+                            decorative
+                            fill="background.textSecondary"
+                            name={isExpanded ? "ExpandLess" : "ExpandMore"}
+                        />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+            {showToolbar && <Box sx={contextRowStyles}>
+                {sortedContextData.map((item) => (
+                    <ContextItemDisplay
+                        key={item.id}
+                        item={item}
+                        imgStyle={imgStyle}
+                        onRemove={handleRemoveContextItem}
+                    />
+                ))}
+            </Box>}
             {/* Input Area */}
             <Box sx={inputRowStyles}>
                 {isWysiwyg ? (
@@ -1285,7 +1272,12 @@ export function AdvancedInput({
                         height={iconHeight}
                         width={iconWidth}
                     />
-                    <Box position="relative" display="inline-flex" verticalAlign="middle">
+                    <Box
+                        component="div"
+                        display="inline-flex"
+                        position="relative"
+                        verticalAlign="middle"
+                    >
                         <CircularProgress
                             variant="determinate"
                             size={34}

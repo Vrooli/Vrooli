@@ -1,16 +1,20 @@
-import { TranslationFuncCommon } from "@local/shared";
-import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { TranslationFuncCommon, TranslationKeyCommon } from "@local/shared";
+import { Box, BoxProps, Button, IconButton, IconButtonProps, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts/session.js";
 import { useIsLeftHanded, useRichInputToolbarViewSize } from "../../../hooks/subscriptions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { IconCommon, IconText } from "../../../icons/Icons.js";
-import { SxType } from "../../../types.js";
-import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { Icon, IconCommon, IconInfo, IconText } from "../../../icons/Icons.js";
 import { keyComboToString } from "../../../utils/display/device.js";
 import { RichInputToolbarViewSize } from "../../../utils/pubsub.js";
 import { RichInputAction, RichInputActiveStates } from "../types.js";
+
+type PrePopoverActionItem = {
+    action: RichInputAction | `${RichInputAction}`,
+    iconInfo: IconInfo,
+    labelKey: TranslationKeyCommon,
+    keyCombo?: string,
+};
 
 type PopoverActionItem = {
     action: RichInputAction | `${RichInputAction}`,
@@ -22,7 +26,6 @@ type ActionPopoverProps = {
     activeStates: Omit<RichInputActiveStates, "SetValue">;
     anchorEl: Element | null;
     handleAction: (action: string, data?: unknown) => unknown;
-    idPrefix: string;
     isOpen: boolean;
     items: PopoverActionItem[];
     onClose: () => unknown;
@@ -36,6 +39,8 @@ type TablePopoverProps = {
     palette: any;//Theme["palette"];
     t: TranslationFuncCommon;
 }
+
+export const TOOLBAR_CLASS_NAME = "advanced-input-toolbar";
 
 export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Bold: false,
@@ -58,18 +63,55 @@ export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Underline: false,
 };
 
+const preHeaderItems: PrePopoverActionItem[] = [
+    { action: "Header1", iconInfo: { name: "Header1", type: "Text" }, labelKey: "Header1", keyCombo: keyComboToString("Alt", "1") },
+    { action: "Header2", iconInfo: { name: "Header2", type: "Text" }, labelKey: "Header2", keyCombo: keyComboToString("Alt", "2") },
+    { action: "Header3", iconInfo: { name: "Header3", type: "Text" }, labelKey: "Header3", keyCombo: keyComboToString("Alt", "3") },
+    { action: "Header4", iconInfo: { name: "Header4", type: "Text" }, labelKey: "Header4", keyCombo: keyComboToString("Alt", "4") },
+    { action: "Header5", iconInfo: { name: "Header5", type: "Text" }, labelKey: "Header5", keyCombo: keyComboToString("Alt", "5") },
+    { action: "Header6", iconInfo: { name: "Header6", type: "Text" }, labelKey: "Header6", keyCombo: keyComboToString("Alt", "6") },
+];
+const preFormatItems: PrePopoverActionItem[] = [
+    { action: "Bold", iconInfo: { name: "Bold", type: "Text" }, labelKey: "Bold", keyCombo: keyComboToString("Ctrl", "B") },
+    { action: "Italic", iconInfo: { name: "Italic", type: "Text" }, labelKey: "Italic", keyCombo: keyComboToString("Ctrl", "I") },
+    { action: "Underline", iconInfo: { name: "Underline", type: "Text" }, labelKey: "Underline", keyCombo: keyComboToString("Ctrl", "U") },
+    { action: "Strikethrough", iconInfo: { name: "Strikethrough", type: "Text" }, labelKey: "Strikethrough", keyCombo: keyComboToString("Ctrl", "Shift", "S") },
+    { action: "Spoiler", iconInfo: { name: "Warning", type: "Common" }, labelKey: "Spoiler", keyCombo: keyComboToString("Ctrl", "L") },
+    { action: "Quote", iconInfo: { name: "Quote", type: "Text" }, labelKey: "Quote", keyCombo: keyComboToString("Ctrl", "Shift", "Q") },
+    { action: "Code", iconInfo: { name: "Terminal", type: "Common" }, labelKey: "Code", keyCombo: keyComboToString("Ctrl", "E") },
+];
+const preListItems: PrePopoverActionItem[] = [
+    { action: "ListBullet", iconInfo: { name: "ListBullet", type: "Text" }, labelKey: "ListBulleted", keyCombo: keyComboToString("Alt", "7") },
+    { action: "ListNumber", iconInfo: { name: "ListNumber", type: "Text" }, labelKey: "ListNumbered", keyCombo: keyComboToString("Alt", "8") },
+    { action: "ListCheckbox", iconInfo: { name: "ListCheck", type: "Text" }, labelKey: "ListCheckbox", keyCombo: keyComboToString("Alt", "9") },
+];
+// Combine format, link, list, and table actions for minimal view
+const preCombinedItems: PrePopoverActionItem[] = [
+    ...preFormatItems,
+    { action: "Link", iconInfo: { name: "Link", type: "Common" }, labelKey: "Link", keyCombo: keyComboToString("Ctrl", "K") },
+    ...preListItems,
+    { action: "Table", iconInfo: { name: "Table", type: "Common" }, labelKey: "TableInsert" },
+];
+
+interface StyledIconButtonProps extends IconButtonProps {
+    isActive?: boolean;
+}
+const StyledIconButton = styled(IconButton, {
+    shouldForwardProp: (prop) => prop !== "isActive",
+})<StyledIconButtonProps>(({ theme, isActive }) => ({
+    background: isActive ? theme.palette.secondary.main : "transparent",
+    borderRadius: theme.spacing(1),
+}));
+
 const ToolButton = forwardRef(({
     disabled,
     icon,
-    id,
     isActive,
     label,
     onClick,
-    palette,
 }: {
     disabled?: boolean,
     icon: React.ReactNode,
-    id?: string,
     isActive?: boolean,
     label: string,
     onClick: (event: React.MouseEvent<HTMLElement>) => unknown,
@@ -83,26 +125,17 @@ const ToolButton = forwardRef(({
         onClick(event);
     }, [onClick]);
 
-    const buttonStyle = useMemo(function buttonStyleMemo() {
-        return {
-            background: isActive ? palette.secondary.main : palette.primary.main,
-            color: palette.primary.contrastText,
-            borderRadius: 2,
-        };
-    }, [isActive, palette.primary.contrastText, palette.primary.main, palette.secondary.main]);
-
     return (
         <Tooltip title={label}>
-            <IconButton
-                id={id}
+            <StyledIconButton
                 ref={ref}
                 disabled={disabled}
+                isActive={isActive}
                 size="small"
                 onClick={handleClick}
-                sx={buttonStyle}
             >
                 {icon}
-            </IconButton>
+            </StyledIconButton>
         </Tooltip>
     );
 });
@@ -130,14 +163,12 @@ function ActionPopover({
     activeStates,
     anchorEl,
     handleAction,
-    idPrefix,
     isOpen,
     items,
     onClose,
 }: ActionPopoverProps) {
     return (
         <Popover
-            id={`markdown-input-${idPrefix}-popover`}
             open={isOpen}
             anchorEl={anchorEl}
             onClose={onClose}
@@ -244,6 +275,11 @@ function TablePopover({
         };
     }, [isOpen, handleKeyDown]);
 
+    function insertAtHovered() {
+        handleTableInsert(hoveredRow, hoveredCol);
+        onClose();
+    }
+
     return (
         <Popover
             open={isOpen}
@@ -281,15 +317,13 @@ function TablePopover({
                                         component="button"
                                         onMouseEnter={handleMouseEnter}
                                         onClick={handleClick}
-                                        sx={{
-                                            width: 25,
-                                            height: 25,
-                                            border: `1px solid ${palette.divider}`,
-                                            background: (rowIndex < hoveredRow && colIndex < hoveredCol) ?
-                                                palette.secondary.light :
-                                                "transparent",
-                                            cursor: "pointer",
-                                        }}
+                                        width={25}
+                                        height={25}
+                                        border={`1px solid ${palette.divider}`}
+                                        bgcolor={(rowIndex < hoveredRow && colIndex < hoveredCol)
+                                            ? palette.secondary.light
+                                            : "transparent"
+                                        }
                                     />
                                 );
                             })}
@@ -300,7 +334,7 @@ function TablePopover({
                     {hoveredRow} x {hoveredCol}
                 </Typography>
                 {!canHover && (
-                    <Button variant="contained" onClick={() => handleTableInsert(hoveredRow, hoveredCol)} sx={{ marginTop: 2 }}>
+                    <Button variant="contained" onClick={insertAtHovered} sx={{ marginTop: 2 }}>
                         {t("Submit")}
                     </Button>
                 )}
@@ -312,13 +346,12 @@ function TablePopover({
 interface LeftSectionProps extends BoxProps {
     disabled: boolean;
     isLeftHanded: boolean;
-    viewSize: RichInputToolbarViewSize
 }
 
 const LeftSection = styled(Box, {
     shouldForwardProp: (prop) => !["disabled", "isLeftHanded", "viewSize"].includes(prop as string),
-})<LeftSectionProps>(({ disabled, isLeftHanded, viewSize }) => ({
-    ...((isLeftHanded || viewSize === "full") ? { marginRight: "auto" } : { marginLeft: "auto" }),
+})<LeftSectionProps>(({ disabled, isLeftHanded }) => ({
+    ...(isLeftHanded ? { marginLeft: "auto" } : { marginRight: "auto" }),
     visibility: disabled ? "hidden" : "visible",
     display: "flex",
     flexDirection: "row",
@@ -339,12 +372,25 @@ const RightSection = styled(Box)(({ theme }) => ({
     },
 }));
 
-const ModeSelectorLabel = styled(Typography)(({ theme }) => ({
+const ModeSelectorLabel = styled(Typography)(() => ({
     cursor: "pointer",
     margin: "auto",
     padding: 1,
-    background: theme.palette.primary.main,
     borderRadius: 2,
+}));
+
+interface OuterBoxProps extends BoxProps {
+    isLeftHanded: boolean;
+}
+const OuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isLeftHanded",
+})<OuterBoxProps>(({ isLeftHanded, theme }) => ({
+    display: "flex",
+    flexDirection: isLeftHanded ? "row-reverse" : "row",
+    width: "100%",
+    padding: "2px",
+    color: theme.palette.background.textSecondary,
+    borderRadius: "0.5rem 0.5rem 0 0",
 }));
 
 const contextItemStyle = { display: "flex", alignItems: "center" } as const;
@@ -353,30 +399,21 @@ export function RichInputToolbar({
     activeStates,
     canRedo,
     canUndo,
-    disableAssistant = false,
     disabled = false,
     handleAction,
     handleActiveStatesChange,
-    id,
     isMarkdownOn,
-    sx,
 }: {
     activeStates: Omit<RichInputActiveStates, "SetValue">;
     canRedo: boolean;
     canUndo: boolean;
-    disableAssistant?: boolean;
     disabled?: boolean;
     handleAction: (action: RichInputAction, data?: unknown) => unknown;
     handleActiveStatesChange: (activeStates: Omit<RichInputActiveStates, "SetValue">) => unknown;
-    id: string;
     isMarkdownOn: boolean;
-    name: string,
-    sx?: SxType;
 }) {
     const { palette } = useTheme();
-    const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { credits } = useMemo(() => getCurrentUser(session), [session]);
 
     const { dimRef, handleUpdateViewSize, viewSize } = useRichInputToolbarViewSize();
     const onUpdateViewSize = useCallback(function onUpdateViewSizeCallback(viewSize: RichInputToolbarViewSize) {
@@ -425,9 +462,6 @@ export function RichInputToolbar({
         }
     }, [handleActiveStatesChange, isMarkdownOn]);
 
-    const handleToggleAssistant = useCallback(function handleToggleAssistantCallback() {
-        handleToggleAction("Assistant");
-    }, [handleToggleAction]);
     const handleToggleLink = useCallback(function handleToggleLinkCallback() {
         handleToggleAction("Link");
     }, [handleToggleAction]);
@@ -461,65 +495,46 @@ export function RichInputToolbar({
         }
     }
 
-    const headerItems = useMemo<PopoverActionItem[]>(function headerItemsMemo() {
-        return [
-            { action: "Header1", icon: <IconText decorative name="Header1" />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
-            { action: "Header2", icon: <IconText decorative name="Header2" />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
-            { action: "Header3", icon: <IconText decorative name="Header3" />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
-            { action: "Header4", icon: <IconText decorative name="Header4" />, label: `${t("Header4")} (${keyComboToString("Alt", "4")})` },
-            { action: "Header5", icon: <IconText decorative name="Header5" />, label: `${t("Header5")} (${keyComboToString("Alt", "5")})` },
-            { action: "Header6", icon: <IconText decorative name="Header6" />, label: `${t("Header6")} (${keyComboToString("Alt", "6")})` },
-        ];
+    const headerItems = useMemo(() => {
+        return preHeaderItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
+            action,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
+        }));
     }, [t]);
-    const formatItems = useMemo<PopoverActionItem[]>(function formatItemsMemo() {
-        return [
-            { action: "Bold", icon: <IconText decorative name="Bold" />, label: `${t("Bold")} (${keyComboToString("Ctrl", "B")})` },
-            { action: "Italic", icon: <IconText decorative name="Italic" />, label: `${t("Italic")} (${keyComboToString("Ctrl", "I")})` },
-            { action: "Underline", icon: <IconText decorative name="Underline" />, label: `${t("Underline")} (${keyComboToString("Ctrl", "U")})` },
-            { action: "Strikethrough", icon: <IconText decorative name="Strikethrough" />, label: `${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})` },
-            { action: "Spoiler", icon: <IconCommon decorative name="Warning" />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "L")})` },
-            { action: "Quote", icon: <IconText decorative name="Quote" />, label: `${t("Quote")} (${keyComboToString("Ctrl", "Shift", "Q")})` },
-            { action: "Code", icon: <IconCommon decorative name="Terminal" />, label: `${t("Code")} (${keyComboToString("Ctrl", "E")})` },
-        ];
-    }, [t]);
-    const listItems = useMemo<PopoverActionItem[]>(function listItemsMemo() {
-        return [
-            { action: "ListBullet", icon: <IconText decorative name="ListBullet" />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "7")})` },
-            { action: "ListNumber", icon: <IconText decorative name="ListNumber" />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
-            { action: "ListCheckbox", icon: <IconText decorative name="ListCheck" />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
-        ];
-    }, [t]);
-    // Combine format, link, list, and table actions for minimal view
-    const combinedItems = useMemo<PopoverActionItem[]>(function combinedItemsMemo() {
-        return [
-            ...formatItems,
-            { action: "Link", icon: <IconCommon decorative name="Link" />, label: `${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "K")})` },
-            ...listItems,
-            { action: "Table", icon: <IconCommon decorative name="Table" />, label: t("TableInsert") },
-        ];
-    }, [formatItems, listItems, t]);
 
-    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
-        return {
-            display: "flex",
-            flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
-            width: "100%",
-            padding: "2px",
-            background: palette.primary.main,
-            color: palette.primary.contrastText,
-            borderRadius: "0.5rem 0.5rem 0 0",
-            ...sx,
-        } as const;
-    }, [isLeftHanded, sx, palette.primary.contrastText, palette.primary.main, viewSize]);
+    const formatItems = useMemo(() => {
+        return preFormatItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
+            action,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
+        }));
+    }, [t]);
+
+    const listItems = useMemo(() => {
+        return preListItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
+            action,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
+        }));
+    }, [t]);
+
+    const combinedItems = useMemo(() => {
+        return preCombinedItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
+            action,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
+        }));
+    }, [t]);
 
     return (
-        <Box
+        <OuterBox
             aria-label="Rich text editor toolbar"
+            className={TOOLBAR_CLASS_NAME}
             component="section"
-            id={id}
+            isLeftHanded={isLeftHanded}
             onContextMenu={handleContextMenu}
             ref={dimRef}
-            sx={outerBoxStyle}
         >
             {/* Right-click context menu */}
             <Menu
@@ -545,30 +560,17 @@ export function RichInputToolbar({
                     <ListItemText primary="Full View" secondary="Show all available tools for maximum functionality." />
                 </MenuItem>
             </Menu>
-            {/* Group of main editor controls including AI assistant and formatting tools */}
+            {/* Group of main editor controls */}
             <LeftSection
                 disabled={disabled}
                 isLeftHanded={isLeftHanded}
-                viewSize={viewSize}
             >
-                {credits && BigInt(credits) > 0 && !disableAssistant && <ToolButton
-                    aria-label={t("AIAssistant")}
-                    id={`${id}-assistant`}
-                    icon={<IconCommon
-                        decorative
-                        fill={palette.primary.contrastText}
-                        name="Magic"
-                    />}
-                    label={t("AIAssistant")}
-                    onClick={handleToggleAssistant}
-                    palette={palette}
-                />}
                 <ToolButton
                     aria-label={t("HeaderInsert")}
                     disabled={disabled}
                     icon={<IconText
                         decorative
-                        fill={palette.primary.contrastText}
+                        fill="background.textSecondary"
                         name="Header"
                     />}
                     isActive={activeStates.Header1 || activeStates.Header2 || activeStates.Header3}
@@ -578,7 +580,6 @@ export function RichInputToolbar({
                 />
                 <ActionPopover
                     activeStates={activeStates}
-                    idPrefix="header"
                     isOpen={headerSelectOpen}
                     anchorEl={headerAnchorEl}
                     onClose={closeHeader}
@@ -593,7 +594,7 @@ export function RichInputToolbar({
                             disabled={disabled}
                             icon={<IconText
                                 decorative
-                                fill={palette.primary.contrastText}
+                                fill="background.textSecondary"
                                 name="CaseSensitive"
                             />}
                             label={t("TextFormat")}
@@ -602,7 +603,6 @@ export function RichInputToolbar({
                         />
                         <ActionPopover
                             activeStates={activeStates}
-                            idPrefix="combined"
                             isOpen={combinedSelectOpen}
                             anchorEl={combinedAnchorEl}
                             onClose={closeCombined}
@@ -620,7 +620,7 @@ export function RichInputToolbar({
                                     disabled={disabled}
                                     icon={<IconText
                                         decorative
-                                        fill={palette.primary.contrastText}
+                                        fill="background.textSecondary"
                                         name="CaseSensitive"
                                     />}
                                     isActive={activeStates.Bold || activeStates.Italic || activeStates.Underline || activeStates.Strikethrough || activeStates.Spoiler}
@@ -630,7 +630,6 @@ export function RichInputToolbar({
                                 />
                                 <ActionPopover
                                     activeStates={activeStates}
-                                    idPrefix="format"
                                     isOpen={formatSelectOpen}
                                     anchorEl={formatAnchorEl}
                                     onClose={closeFormat}
@@ -657,11 +656,11 @@ export function RichInputToolbar({
                             );
                         })}
                         <ToolButton
-                            aria-label={t("Link")}
+                            aria-label={t("Link", { count: 1 })}
                             disabled={disabled}
                             icon={<IconCommon
                                 decorative
-                                fill={palette.primary.contrastText}
+                                fill="background.textSecondary"
                                 name="Link"
                             />}
                             label={`${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "k")})`}
@@ -673,7 +672,7 @@ export function RichInputToolbar({
                             disabled={disabled}
                             icon={<IconText
                                 decorative
-                                fill={palette.primary.contrastText}
+                                fill="background.textSecondary"
                                 name="List"
                             />}
                             isActive={activeStates.ListBullet || activeStates.ListNumber || activeStates.ListCheckbox}
@@ -683,7 +682,6 @@ export function RichInputToolbar({
                         />
                         <ActionPopover
                             activeStates={activeStates}
-                            idPrefix="list"
                             isOpen={listSelectOpen}
                             anchorEl={listAnchorEl}
                             onClose={closeList}
@@ -695,7 +693,7 @@ export function RichInputToolbar({
                             disabled={disabled}
                             icon={<IconCommon
                                 decorative
-                                fill={palette.primary.contrastText}
+                                fill="background.textSecondary"
                                 name="Table"
                             />}
                             label={t("TableInsert")}
@@ -721,7 +719,7 @@ export function RichInputToolbar({
                         disabled={disabled || !canUndo}
                         icon={<IconCommon
                             decorative
-                            fill={palette.primary.contrastText}
+                            fill="background.textSecondary"
                             name="Undo"
                         />}
                         label={`${t("Undo")} (${keyComboToString("Ctrl", "z")})`}
@@ -733,7 +731,7 @@ export function RichInputToolbar({
                         disabled={disabled || !canRedo}
                         icon={<IconCommon
                             decorative
-                            fill={palette.primary.contrastText}
+                            fill="background.textSecondary"
                             name="Redo"
                         />}
                         label={`${t("Redo")} (${keyComboToString("Ctrl", "y")})`}
@@ -742,11 +740,11 @@ export function RichInputToolbar({
                     />}
                 </div>
                 <Tooltip title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`} placement="top">
-                    <ModeSelectorLabel variant="body2" onClick={handleToggleMode}>
+                    <ModeSelectorLabel variant="caption" onClick={handleToggleMode}>
                         {!isMarkdownOn ? t("MarkdownTo") : t("PreviewTo")}
                     </ModeSelectorLabel>
                 </Tooltip>
             </RightSection>
-        </Box>
+        </OuterBox>
     );
 }
