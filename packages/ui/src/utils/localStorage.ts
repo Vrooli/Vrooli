@@ -55,7 +55,6 @@ type SimpleStoragePayloads = {
     AdvancedInputSettings: {
         enterWillSubmit: boolean;
         showToolbar: boolean;
-        isWysiwyg: boolean;
     },
 }
 type SimpleStorageType = keyof SimpleStoragePayloads;
@@ -185,13 +184,11 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
             typeof value === "object" &&
             value !== null &&
             typeof (value as { enterWillSubmit?: boolean }).enterWillSubmit === "boolean" &&
-            typeof (value as { showToolbar?: boolean }).showToolbar === "boolean" &&
-            typeof (value as { isWysiwyg?: boolean }).isWysiwyg === "boolean"
+            typeof (value as { showToolbar?: boolean }).showToolbar === "boolean"
         ),
         fallback: {
             enterWillSubmit: true,
             showToolbar: false,
-            isWysiwyg: false,
         },
     },
 };

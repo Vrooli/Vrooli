@@ -10,13 +10,14 @@ const OCCURRENCE_LOOP_LIMIT = 5000;
 let moment;
 async function ensureMomentTimezone() {
     if (!moment) {
-        if (typeof window !== "undefined") {
-            // Client-side: Use dynamic import
-            moment = (await import("moment-timezone")).default;
-        } else {
-            // Server-side: Use regular require
-            moment = require("moment-timezone");
-        }
+        moment = (await import("moment-timezone")).default;
+        // if (typeof window !== "undefined") {
+        //     // Client-side: Use dynamic import
+        //     moment = (await import("moment-timezone")).default;
+        // } else {
+        //     // Server-side: Use regular require
+        //     moment = require("moment-timezone");
+        // }
     }
 }
 

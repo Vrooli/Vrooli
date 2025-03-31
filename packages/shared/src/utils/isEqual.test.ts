@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { isEqual } from "./isEqual.js";
 
 describe("isEqual", () => {

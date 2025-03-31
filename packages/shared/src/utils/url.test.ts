@@ -1,4 +1,6 @@
 import { expect } from "chai";
+import sinon from "sinon";
+import { setupDOM, teardownDOM } from "../__test/setup.js";
 import { base36ToUuid, decodeValue, encodeValue, parseSearchParams, stringifySearchParams, uuidToBase36 } from "./url.js";
 
 describe("encodeValue and decodeValue", () => {
@@ -42,7 +44,7 @@ describe("encodeValue and decodeValue", () => {
     ];
 
     testCases.forEach(({ description, input, encoded, decoded }) => {
-        test(description, () => {
+        it(description, () => {
             const encodedValue = encodeValue(input);
             expect(encodedValue).to.deep.equal(encoded);
 
@@ -53,8 +55,7 @@ describe("encodeValue and decodeValue", () => {
 });
 
 describe("parseSearchParams", () => {
-    // Save the original window.location
-    const originalLocation = window.location;
+    let originalLocation: string;
 
     // Helper function to set window.location.search
     function setWindowSearch(search) {
@@ -65,6 +66,15 @@ describe("parseSearchParams", () => {
             writable: true,
         });
     }
+
+    before(() => {
+        setupDOM();
+        originalLocation = window.location.search;
+    });
+
+    after(() => {
+        teardownDOM();
+    });
 
     afterEach(() => {
         // Restore the original window.location after each test
@@ -112,14 +122,13 @@ describe("parseSearchParams", () => {
 
     it("returns an empty object for invalid format", () => {
         // Mock console.error
-        const originalConsoleError = console.error;
-        console.error = jest.fn();
+        const consoleErrorStub = sinon.stub(console, "error");
 
         setWindowSearch("?invalid");
         expect(parseSearchParams()).to.deep.equal({});
 
-        // Restore console.error
-        console.error = originalConsoleError;
+        // Restore the stub
+        consoleErrorStub.restore();
     });
 
     it("parses a top-level array of numbers correctly", () => {
@@ -173,17 +182,25 @@ describe("stringifySearchParams", () => {
 });
 
 describe("stringifySearchParams and parseSearchParams", () => {
-    const originalLocation = window.location;
+    let originalLocation: string;
 
     function setWindowSearch(search: string) {
         Object.defineProperty(window, "location", {
             value: {
-                ...originalLocation,
                 search,
             },
             writable: true,
         });
     }
+
+    before(() => {
+        setupDOM();
+        originalLocation = window.location.search;
+    });
+
+    after(() => {
+        teardownDOM();
+    });
 
     afterEach(() => {
         Object.defineProperty(window, "location", {

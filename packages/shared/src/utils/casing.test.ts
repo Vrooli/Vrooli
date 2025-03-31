@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { lowercaseFirstLetter, pascalCase, snakeCase, uppercaseFirstLetter } from "./casing.js";
 
 describe("lowercaseFirstLetter", () => {

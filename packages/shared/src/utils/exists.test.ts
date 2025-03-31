@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { exists } from "./exists.js";
 
 describe("exists", () => {

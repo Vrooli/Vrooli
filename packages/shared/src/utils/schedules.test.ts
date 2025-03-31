@@ -53,7 +53,7 @@ describe("validateTimeFrame", () => {
 });
 
 type CalculateOccurrenceFn = (currentDate: Date, recurrence: ScheduleRecurrence, timeZone?: string) => Promise<Date>;
-const testRecurrence = async ({
+async function testRecurrence({
     currentDate,
     expected,
     func,
@@ -65,12 +65,12 @@ const testRecurrence = async ({
     func: CalculateOccurrenceFn,
     recurrence: ScheduleRecurrence,
     timeZone?: string,
-}): Promise<void> => {
+}): Promise<void> {
     const current = new Date(currentDate);
     const result = await func(current, recurrence, timeZone);
     const expectedResult = moment.tz(expected, timeZone ?? "UTC").toDate();
     expect(result.toISOString()).to.equal(expectedResult.toISOString());
-};
+}
 
 describe("calculateNextDailyOccurrence", () => {
     it("should return the next occurrence for a 1-day interval", async () => {
@@ -413,7 +413,7 @@ describe("calculateNextYearlyOccurrence", () => {
 });
 
 type JumpFn = (scheduleStart: Date, recurrence: ScheduleRecurrence, timeframeStart: Date, timeZone?: string) => Promise<Date>;
-const testJump = async ({
+async function testJump({
     scheduleStart,
     timeframeStart,
     expected,
@@ -427,13 +427,13 @@ const testJump = async ({
     func: JumpFn,
     recurrence: ScheduleRecurrence,
     timeZone?: string,
-}): Promise<void> => {
+}): Promise<void> {
     const start = new Date(scheduleStart);
     const timeframe = new Date(timeframeStart);
     const result = await func(start, recurrence, timeframe, timeZone);
     const expectedResult = new Date(expected);
     expect(result.toISOString()).to.equal(expectedResult.toISOString());
-};
+}
 
 describe("jumpToFirstRelevantDailyOccurrence", () => {
     let consoleErrorStub: sinon.SinonStub;

@@ -5,7 +5,7 @@ import { reqErr } from "../errors.js";
  * Appends .notRequired().default(undefined) to a yup field
  */
 export function opt<T extends yup.AnySchema>(field: T) {
-    return field.notRequired().nullable().default(undefined);
+    return field.notRequired().nullable().strip();
 }
 
 /**
@@ -13,7 +13,7 @@ export function opt<T extends yup.AnySchema>(field: T) {
  * but if provided, all of the data inside should be required.
  */
 export function optArr<T extends yup.AnySchema>(field: T) {
-    return opt(yup.array().of(field));
+    return yup.array().of(field).notRequired().nullable().strip();
 }
 
 /**

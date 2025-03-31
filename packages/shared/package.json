@@ -10,11 +10,15 @@
     "sideEffects": false,
     "type": "module",
     "scripts": {
-        "build-tests": "rimraf dist && NODE_ENV=test swc src -d dist && sh ../../scripts/fixImports.sh assert dist",
+        "build-tests": "rimraf dist && NODE_ENV=test swc src -d dist && yarn post-build",
         "test": "yarn build-tests && dotenv -e ../../.env-test -- mocha --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
         "test-watch": "yarn build-tests && dotenv -e ../../.env-test -- mocha --watch --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
         "lint": "eslint src",
-        "build": "rimraf dist && NODE_ENV=production swc src -d dist --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && sh ../../scripts/fixImports.sh assert dist && node src/ai/compileConfigs.cjs && node src/ai/compileServices.cjs",
+        "build": "rimraf dist && NODE_ENV=production swc src -d dist --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && yarn post-build",
+        "post-build": "yarn post-build-copy && yarn post-build-fix-imports && yarn post-build-compile",
+        "post-build-copy": "copyfiles -u 1 \"src/**/*.json\" dist",
+        "post-build-fix-imports": "sh ../../scripts/fixImports.sh assert dist",
+        "post-build-compile": "node src/ai/compileConfigs.cjs && node src/ai/compileServices.cjs",
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
@@ -38,7 +42,9 @@
         "@typescript-eslint/eslint-plugin": "^5.59.0",
         "@typescript-eslint/parser": "^5.59.0",
         "chai": "^5.1.2",
+        "copyfiles": "^2.4.1",
         "dotenv-cli": "^8.0.0",
+        "jsdom": "^26.0.0",
         "mocha": "^11.1.0",
         "rimraf": "^5.0.10",
         "sinon": "^19.0.2",

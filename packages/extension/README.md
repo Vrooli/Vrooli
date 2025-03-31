@@ -11,7 +11,7 @@ This package contains the browser extension for Vrooli, providing enhanced funct
 - **Framework**: React
 - **Language**: TypeScript
 - **Build Tool**: Vite
-- **Testing**: Jest
+- **Testing**: Chai/Mocha/Sinon
 - **Browser APIs**: WebExtensions API
 - **State Management**: React Context
 

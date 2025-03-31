@@ -10,8 +10,9 @@ type ViteEnv = Record<string, string> & {
 // https://vitejs.dev/config/
 export default defineConfig((props) => {
     // Load environment variables into `process.env`, since 
-    // the `meta` of `import.meta.env` doesn't exist when running 
-    // jest tests.
+    // the `meta` of `import.meta.env` doesn't exist when running
+    // tests.
+    //
     // NOTE: This still doesn't give us access to the environment 
     // variables during testing, but it at least allows us to avoid 
     // having to type `import?.meta?.env?.VITE_...` everywhere.

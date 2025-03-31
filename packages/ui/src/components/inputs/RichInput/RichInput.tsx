@@ -37,16 +37,7 @@ export function RichInputBase({
     const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
         initialValue: value,
         onChange,
-        forceAddToStack: (updated, resetAddToStack) => {
-            // Force add if a delimiter (e.g. space, newline) is typed
-            const lastChar = updated[updated.length - 1];
-            if (lastChar === " " || lastChar === "\n") {
-                return true;
-            }
-            // Otherwise, cancel the add to stack to the stack is only updated on inactivity
-            resetAddToStack();
-            return false;
-        },
+        delimiters: [" ", "\n"],
     });
     useEffect(function resetValueEffect() {
         resetInternalValue(value);
@@ -64,9 +55,9 @@ export function RichInputBase({
     // This is currently ignored when markdown mode is on, since it's 
     // a bitch to keep track of
     const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>(defaultActiveStates);
-    function handleActiveStatesChange(newActiveStates) {
+    const handleActiveStatesChange = useCallback((newActiveStates) => {
         setActiveStates(newActiveStates);
-    }
+    }, []);
 
     const [enterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
 
@@ -84,7 +75,9 @@ export function RichInputBase({
         }
         return noop;
     }, [toggleMarkdown]);
-    const viewProps = useMemo(() => ({
+
+    // Split viewProps into stable and dynamic parts
+    const stableViewProps = useMemo(() => ({
         autoFocus,
         disabled,
         enterWillSubmit,
@@ -97,37 +90,72 @@ export function RichInputBase({
         onActiveStatesChange: handleActiveStatesChange,
         onBlur,
         onFocus,
-        onChange: changeInternalValue,
         onSubmit,
         placeholder,
-        redo,
         setHandleAction: setChildHandleAction,
         tabIndex,
         toggleMarkdown,
-        undo,
+    }), [
+        autoFocus,
+        disabled,
+        enterWillSubmit,
+        error,
+        getTaggableItems,
+        id,
+        maxRows,
+        minRows,
+        name,
+        handleActiveStatesChange,
+        onBlur,
+        onFocus,
+        onSubmit,
+        placeholder,
+        setChildHandleAction,
+        tabIndex,
+        toggleMarkdown,
+    ]);
+
+    // Only the frequently changing props
+    const dynamicViewProps = useMemo(() => ({
         value: internalValue,
-    }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, placeholder, redo, setChildHandleAction, tabIndex, toggleMarkdown, undo]);
+        onChange: changeInternalValue,
+        undo,
+        redo,
+    }), [internalValue, changeInternalValue, undo, redo]);
+
+    // Memoize the child components
+    const MarkdownComponent = useMemo(() => (
+        <RichInputMarkdown
+            {...stableViewProps}
+            {...dynamicViewProps}
+        />
+    ), [stableViewProps, dynamicViewProps]);
+
+    const LexicalComponent = useMemo(() => (
+        <RichInputLexical
+            {...stableViewProps}
+            {...dynamicViewProps}
+        />
+    ), [stableViewProps, dynamicViewProps]);
 
     return (
-        <>
-            <Box
-                id={`markdown-input-base-${name}`}
-                display="flex"
-                flexDirection="column"
-                gap={0}
-            >
-                <AdvancedInputToolbar
-                    activeStates={activeStates}
-                    canRedo={canRedo}
-                    canUndo={canUndo}
-                    disabled={disabled}
-                    handleAction={handleAction}
-                    handleActiveStatesChange={handleActiveStatesChange}
-                    isMarkdownOn={isMarkdownOn}
-                />
-                {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
-            </Box>
-        </>
+        <Box
+            id={`markdown-input-base-${name}`}
+            display="flex"
+            flexDirection="column"
+            gap={0}
+        >
+            <AdvancedInputToolbar
+                activeStates={activeStates}
+                canRedo={canRedo}
+                canUndo={canUndo}
+                disabled={disabled}
+                handleAction={handleAction}
+                handleActiveStatesChange={handleActiveStatesChange}
+                isMarkdownOn={isMarkdownOn}
+            />
+            {isMarkdownOn ? MarkdownComponent : LexicalComponent}
+        </Box>
     );
 }
 

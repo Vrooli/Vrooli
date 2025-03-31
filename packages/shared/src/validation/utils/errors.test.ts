@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
 
 describe("Yup-related functions", () => {

@@ -655,8 +655,6 @@ export class CallDataActionConfig {
         str: string,
         config: TemplateConfig,
     ): unknown {
-        console.log("start", str);
-
         const placeholderRegex = /\{\{([^}]+)\}\}/g;
         const matches = str.match(placeholderRegex);
 

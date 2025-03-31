@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { arraysEqual } from "./arrays.js";
 
 function numberComparator(a: number, b: number) { return a === b; }

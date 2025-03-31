@@ -97,8 +97,7 @@ graph TD
 - Kubernetes
 - GitHub Actions
 - ESLint
-- Jest
-- Mocha/Chai
+- Mocha/Chai/Sinon
 
 ## Data Flow
 
@@ -170,7 +169,7 @@ vrooli/
 ## Testing
 
 ### Frontend Testing
-- Unit tests with Jest
+- Unit tests with Chai/Mocha/Sinon
 - Component testing with React Testing Library
 - E2E testing with Playwright
 - Storybook for visual testing

@@ -119,6 +119,7 @@
         "@types/sinon": "^17.0.3",
         "@vitejs/plugin-react-swc": "^3.7.1",
         "chai": "^5.1.2",
+        "chai-as-promised": "^5.1.2",
         "copyfiles": "^2.4.1",
         "dotenv-cli": "^8.0.0",
         "eslint": "^8.57.0",

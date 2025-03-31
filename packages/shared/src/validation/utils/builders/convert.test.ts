@@ -38,7 +38,7 @@ describe("Positive Double Conversion Tests", () => {
             it(`"${input}" should be converted to ${expected}`, () => {
                 const result = toPosDouble(input);
                 if (isNaN(expected)) {
-                    expect(result).toBeNaN();
+                    expect(isNaN(result)).to.be.true;
                 } else {
                     expect(result).to.deep.equal(expected);
                 }
@@ -84,7 +84,7 @@ describe("Positive Integer Conversion Tests", () => {
             it(`"${input}" should be converted to ${expected}`, () => {
                 const result = toPosInt(input);
                 if (isNaN(expected)) {
-                    expect(result).toBeNaN();
+                    expect(isNaN(result)).to.be.true;
                 } else {
                     expect(result).to.deep.equal(expected);
                 }

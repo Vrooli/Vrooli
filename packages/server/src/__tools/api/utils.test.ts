@@ -20,14 +20,18 @@ describe("findSelection", () => {
         nav: {},
     };
 
-    it.each([
+    const selectionTests = [
         ["common", "common"],
         ["list", "list"],
         ["full", "full"],
         ["nav", "nav"],
-    ] as const)("should return the specified selection %s when it exists", (selection, expected) => {
-        const result = findSelection(baseApiPartial, selection);
-        expect(result).to.deep.equal(expected);
+    ] as const;
+
+    selectionTests.forEach(([selection, expected]) => {
+        it(`should return the specified selection ${selection} when it exists`, () => {
+            const result = findSelection(baseApiPartial, selection);
+            expect(result).to.deep.equal(expected);
+        });
     });
 
     it("should fallback to the next best selection if the preferred one does not exist", () => {
@@ -53,22 +57,26 @@ describe("findSelection", () => {
             list: {},
         };
         findSelection(apiPartial, "common");
-        expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("Specified selection type 'common' for 'TestType' does not exist. Try using 'list' instead."));
+        expect(console.warn).to.have.been.calledWith(sinon.match(/Specified selection type 'common' for 'TestType' does not exist. Try using 'list' instead./));
     });
 
-    it.each([
+    const fallbackTests = [
         ["common", ["list", "full", "nav"]],
         ["list", ["common", "full", "nav"]],
         ["full", ["list", "common", "nav"]],
         ["nav", ["common", "list", "full"]],
-    ] as const)("should respect the fallback order for selection %s", (selection, expectedOrder) => {
-        const apiPartial = {
-        };
-        // Ensure only the last preference exists
-        apiPartial[expectedOrder[expectedOrder.length - 1]] = {};
+    ] as const;
 
-        const result = findSelection(apiPartial, selection);
-        expect(result).to.deep.equal(expectedOrder[expectedOrder.length - 1]);
+    fallbackTests.forEach(([selection, expectedOrder]) => {
+        it(`should respect the fallback order for selection ${selection}`, () => {
+            const apiPartial = {
+            };
+            // Ensure only the last preference exists
+            apiPartial[expectedOrder[expectedOrder.length - 1]] = {};
+
+            const result = findSelection(apiPartial, selection);
+            expect(result).to.deep.equal(expectedOrder[expectedOrder.length - 1]);
+        });
     });
 
     // Add more tests as necessary to cover edge cases or specific behaviors

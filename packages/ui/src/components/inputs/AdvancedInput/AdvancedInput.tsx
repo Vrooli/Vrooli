@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
 import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
-import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, InputBase, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
 import { useField } from "formik";
@@ -10,6 +10,7 @@ import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
+import { keyComboToString } from "../../../utils/display/device.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -17,6 +18,7 @@ import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButto
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { FormTip } from "../form/FormTip.js";
+import { RichInputAction } from "../types.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME } from "./AdvancedInputToolbar.js";
 
 interface ExternalApp {
@@ -685,11 +687,9 @@ PlusMenu.displayName = "PlusMenu";
 interface InfoMemoProps {
     anchorEl: HTMLElement | null;
     enterWillSubmit: boolean;
-    isWysiwyg: boolean;
     onClose: () => void;
     onToggleEnterWillSubmit: () => void;
     onToggleToolbar: () => void;
-    onToggleWysiwyg: () => void;
     showToolbar: boolean;
 }
 
@@ -708,11 +708,9 @@ const infoMemoTipData = {
 const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
     anchorEl,
     enterWillSubmit,
-    isWysiwyg,
     onClose,
     onToggleEnterWillSubmit,
     onToggleToolbar,
-    onToggleWysiwyg,
     showToolbar,
 }: InfoMemoProps) => {
     const theme = useTheme();
@@ -746,28 +744,14 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
 
             <MenuItem>
                 <ListItemText
-                    primary="Enter key sends message"
-                    secondary="When enabled, use 'Shift + Enter' to create a new line."
+                    primary="Enter key to submit"
+                    secondary={`When enabled, use ${keyComboToString("Enter")} to submit, and ${keyComboToString("Shift", "Enter")} to create a new line.`}
                     secondaryTypographyProps={secondaryTypographyProps}
                 />
                 <Switch
                     edge="end"
                     checked={enterWillSubmit}
                     onChange={onToggleEnterWillSubmit}
-                    color="secondary"
-                />
-            </MenuItem>
-
-            <MenuItem>
-                <ListItemText
-                    primary="WYSIWYG editor mode"
-                    secondary="Toggle rich text editing mode."
-                    secondaryTypographyProps={secondaryTypographyProps}
-                />
-                <Switch
-                    edge="end"
-                    checked={isWysiwyg}
-                    onChange={onToggleWysiwyg}
                     color="secondary"
                 />
             </MenuItem>
@@ -864,8 +848,8 @@ export function AdvancedInputBase({
     }, []);
 
     // Local state for the input value
-    const [localMessage, setLocalMessage] = useState(value ?? "");
-    const latestMessageRef = useRef(localMessage);
+    const [internalValue, setInternalValue] = useState(value ?? "");
+    const latestMessageRef = useRef(internalValue);
 
     // Debounced callback to notify parent of changes
     const [debouncedMessageChange] = useDebounce((newValue: string) => {
@@ -875,14 +859,14 @@ export function AdvancedInputBase({
     // Update local message when parent value changes
     useEffect(function updateLocalMessageEffect() {
         if (value !== undefined && value !== latestMessageRef.current) {
-            setLocalMessage(value);
+            setInternalValue(value);
             latestMessageRef.current = value;
         }
     }, [value]);
 
     // Settings state from localStorage
     const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
-    const { enterWillSubmit, showToolbar, isWysiwyg } = settings;
+    const { enterWillSubmit, showToolbar } = settings;
 
     // Settings toggles
     const handleToggleEnterWillSubmit = useCallback(() => {
@@ -898,15 +882,6 @@ export function AdvancedInputBase({
         const newSettings = {
             ...settings,
             showToolbar: !settings.showToolbar,
-        };
-        setSettings(newSettings);
-        setCookie("AdvancedInputSettings", newSettings);
-    }, [settings]);
-
-    const handleToggleWysiwyg = useCallback(() => {
-        const newSettings = {
-            ...settings,
-            isWysiwyg: !settings.isWysiwyg,
         };
         setSettings(newSettings);
         setCookie("AdvancedInputSettings", newSettings);
@@ -1098,15 +1073,15 @@ export function AdvancedInputBase({
 
     const handleMessageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
-        setLocalMessage(newValue);
+        setInternalValue(newValue);
         latestMessageRef.current = newValue;
         debouncedMessageChange(newValue);
     }, [debouncedMessageChange]);
 
     const handleSubmit = useCallback((event: React.FormEvent) => {
         event.preventDefault();
-        onSubmit?.(localMessage);
-    }, [localMessage, onSubmit]);
+        onSubmit?.(internalValue);
+    }, [internalValue, onSubmit]);
 
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
@@ -1121,21 +1096,12 @@ export function AdvancedInputBase({
     );
 
     const handleTranscriptChange = useCallback((recognizedText: string) => {
-        setLocalMessage((prev) => {
+        setInternalValue((prev) => {
             // Append recognized text to whatever is currently typed
             if (!prev.trim()) return recognizedText;
             return `${prev} ${recognizedText}`;
         });
     }, []);
-
-    // Additional memoized styles for the WYSIWYG box
-    const wysiwygBoxStyles = useMemo(
-        () => ({
-            minHeight: 60,
-            p: 1,
-        }),
-        [],
-    );
 
     const imgStyle = useMemo(() => previewImageStyle(theme), [theme]);
     const toolsContainerStyles = useMemo(() => ({
@@ -1148,8 +1114,8 @@ export function AdvancedInputBase({
         gap: theme.spacing(1),
     }), [isToolsExpanded, theme]);
 
-    const charsProgress = maxChars ? Math.min(100, Math.ceil((localMessage.length / maxChars) * 100)) : 0;
-    const charsOverLimit = maxChars ? Math.max(0, localMessage.length - maxChars) : 0;
+    const charsProgress = maxChars ? Math.min(100, Math.ceil((internalValue.length / maxChars) * 100)) : 0;
+    const charsOverLimit = maxChars ? Math.max(0, internalValue.length - maxChars) : 0;
 
     const progressStyle = useMemo(() => {
         let progressStyle = { color: theme.palette.success.main };
@@ -1160,6 +1126,70 @@ export function AdvancedInputBase({
         }
         return progressStyle;
     }, [charsOverLimit, charsProgress, theme.palette.error.main, theme.palette.success.main, theme.palette.warning.main]);
+
+    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookie("ShowMarkdown"));
+    const toggleMarkdown = useCallback(() => {
+        setIsMarkdownOn(!isMarkdownOn);
+        setCookie("ShowMarkdown", !isMarkdownOn);
+    }, [isMarkdownOn]);
+
+    const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
+    const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
+        currentHandleActionRef.current = handleAction;
+    }, []);
+    const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
+        if (action === "Mode") {
+            toggleMarkdown();
+        } else if (currentHandleActionRef.current) {
+            currentHandleActionRef.current(action, data);
+        } else {
+            console.error("RichInputBase: No child handleAction function found");
+        }
+        return noop;
+    }, [toggleMarkdown]);
+
+    // Split viewProps into stable and dynamic parts
+    const stableViewProps = useMemo(() => ({
+        autoFocus: false, //TODO
+        disabled,
+        enterWillSubmit,
+        error,
+        getTaggableItems: noop, //TODO
+        id: "", //TODO
+        maxRows: 10, //TODO
+        minRows: 1, //TODO
+        name,
+        onActiveStatesChange: noop, //TODO
+        onBlur,
+        onFocus: noop, //TODO
+        onSubmit,
+        placeholder: "", //TODO
+        setHandleAction: setChildHandleAction,
+        tabIndex: 0, //TODO
+        toggleMarkdown,
+    }), [disabled, enterWillSubmit, error, onBlur, onSubmit, setChildHandleAction, toggleMarkdown]);
+
+    // Only the frequently changing props
+    const dynamicViewProps = useMemo(() => ({
+        value: internalValue,
+        onChange: changeInternalValue,
+        undo,
+        redo,
+    }), [internalValue, changeInternalValue, undo, redo]);
+
+    const MarkdownComponent = useMemo(() => (
+        <RichInputMarkdown
+            {...stableViewProps}
+            {...dynamicViewProps}
+        />
+    ), [stableViewProps, dynamicViewProps]);
+
+    const LexicalComponent = useMemo(() => (
+        <RichInputLexical
+            {...stableViewProps}
+            {...dynamicViewProps}
+        />
+    ), [stableViewProps, dynamicViewProps]);
 
     return (
         <Outer {...getRootProps()}>
@@ -1207,7 +1237,7 @@ export function AdvancedInputBase({
                     disabled={false}
                     handleAction={() => { }}
                     handleActiveStatesChange={() => { }}
-                    isMarkdownOn={!isWysiwyg}
+                    isMarkdownOn={isMarkdownOn}
                 />}
                 {!showToolbar && <Box sx={contextRowStyles}>
                     {sortedContextData.map((item) => (
@@ -1244,30 +1274,23 @@ export function AdvancedInputBase({
             </Box>}
             {/* Input Area */}
             <Box sx={inputRowStyles}>
-                {isWysiwyg ? (
-                    <Box sx={wysiwygBoxStyles}>
-                        <Typography variant="body2" color="text.secondary">
-                            [WYSIWYG Editor Placeholder]
-                        </Typography>
-                    </Box>
-                ) : (
-                    <Box
-                        maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
-                        overflow="auto"
-                    >
-                        <InputBase
+                <Box
+                    maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
+                    overflow="auto"
+                >
+                    {/* <InputBase
                             inputProps={inputBaseInputProps}
                             multiline
                             fullWidth
                             minRows={isExpanded ? 5 : 1}
                             maxRows={isExpanded ? 50 : 6}
-                            value={localMessage}
+                            value={internalValue}
                             onChange={handleMessageChange}
                             onKeyDown={handleKeyDown}
                             placeholder="Type your message..."
-                        />
-                    </Box>
-                )}
+                        /> */}
+                    {isMarkdownOn ? MarkdownComponent : LexicalComponent}
+                </Box>
             </Box>
 
             {/* Bottom Section */}
@@ -1363,12 +1386,12 @@ export function AdvancedInputBase({
                                         ? theme.palette.background.textPrimary
                                         : theme.palette.primary.main
                                 }
-                                disabled={!localMessage.trim() || charsOverLimit > 0}
+                                disabled={!internalValue.trim() || charsOverLimit > 0}
                                 onClick={handleSubmit}
                             >
                                 <IconCommon
                                     decorative
-                                    fill={!localMessage.trim()
+                                    fill={!internalValue.trim()
                                         ? "background.textSecondary"
                                         : maxChars
                                             ? "background.textPrimary"
@@ -1398,8 +1421,6 @@ export function AdvancedInputBase({
                 onClose={handleCloseInfoMemo}
                 enterWillSubmit={enterWillSubmit}
                 onToggleEnterWillSubmit={handleToggleEnterWillSubmit}
-                isWysiwyg={isWysiwyg}
-                onToggleWysiwyg={handleToggleWysiwyg}
                 showToolbar={showToolbar}
                 onToggleToolbar={handleToggleToolbar}
             />

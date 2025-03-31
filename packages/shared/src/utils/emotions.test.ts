@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { getReactionScore, removeModifiers } from "./emotions.js";
 
 describe("Emoji Reactions Utility Functions", () => {

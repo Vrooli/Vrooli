@@ -1,48 +1,47 @@
 import { expect } from "chai";
 import * as yup from "yup";
-import { reqErr } from "../errors.js";
 import { opt, optArr, req, reqArr } from "./optionality.js";
 
 describe("opt function", () => {
     it("should make a string field optional, nullable, and with a default of undefined", async () => {
         const schema = yup.object({
             name: opt(yup.string()),
-        });
+        }).strict();
 
-        await expect(schema.validate({})).resolves.toEqual({ name: undefined });
-        await expect(schema.validate({ name: null })).resolves.toEqual({ name: null });
-        await expect(schema.validate({ name: "John" })).resolves.toEqual({ name: "John" });
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ name: null })).to.deep.equal({ name: null });
+        expect(await schema.validate({ name: "John" })).to.deep.equal({ name: "John" });
     });
 
     it("should make a number field optional, nullable, and with a default of undefined", async () => {
         const schema = yup.object({
             age: opt(yup.number()),
-        });
+        }).strict();
 
-        await expect(schema.validate({})).resolves.toEqual({ age: undefined });
-        await expect(schema.validate({ age: null })).resolves.toEqual({ age: null });
-        await expect(schema.validate({ age: 30 })).resolves.toEqual({ age: 30 });
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ age: null })).to.deep.equal({ age: null });
+        expect(await schema.validate({ age: 30 })).to.deep.equal({ age: 30 });
     });
 
     it("should make a boolean field optional, nullable, and with a default of undefined", async () => {
         const schema = yup.object({
             active: opt(yup.boolean()),
-        });
+        }).strict();
 
-        await expect(schema.validate({})).resolves.toEqual({ active: undefined });
-        await expect(schema.validate({ active: null })).resolves.toEqual({ active: null });
-        await expect(schema.validate({ active: true })).resolves.toEqual({ active: true });
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ active: null })).to.deep.equal({ active: null });
+        expect(await schema.validate({ active: true })).to.deep.equal({ active: true });
     });
 
     it("should work with date fields", async () => {
         const schema = yup.object({
             birthDate: opt(yup.date()),
-        });
+        }).strict();
 
         const date = new Date();
-        await expect(schema.validate({})).resolves.toEqual({ birthDate: undefined });
-        await expect(schema.validate({ birthDate: null })).resolves.toEqual({ birthDate: null });
-        await expect(schema.validate({ birthDate: date })).resolves.toEqual({ birthDate: date });
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ birthDate: null })).to.deep.equal({ birthDate: null });
+        expect(await schema.validate({ birthDate: date })).to.deep.equal({ birthDate: date });
     });
 
     // Add more tests for other types of fields if necessary
@@ -52,31 +51,31 @@ describe("optArr function", () => {
     it("should create an optional array of strings with required contents", async () => {
         const schema = yup.object({
             tags: optArr(yup.string().required()),
-        });
+        }).strict();
 
-        await expect(schema.validate({})).resolves.toEqual({ tags: undefined });
-        await expect(schema.validate({ tags: ["tag1", "tag2"] })).resolves.toEqual({ tags: ["tag1", "tag2"] });
-        await expect(schema.validate({ tags: ["tag1", "", "tag2"] })).rejects.to.throw();
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ tags: ["tag1", "tag2"] })).to.deep.equal({ tags: ["tag1", "tag2"] });
+        await expect(schema.validate({ tags: ["tag1", "", "tag2"] })).to.be.rejected;
     });
 
     it("should create an optional array of numbers with required contents", async () => {
         const schema = yup.object({
             numbers: optArr(yup.number().required()),
-        });
+        }).strict();
 
-        await expect(schema.validate({})).resolves.toEqual({ numbers: undefined });
-        await expect(schema.validate({ numbers: [1, 2, 3] })).resolves.toEqual({ numbers: [1, 2, 3] });
-        await expect(schema.validate({ numbers: [1, null, 3] })).rejects.to.throw();
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ numbers: [1, 2, 3] })).to.deep.equal({ numbers: [1, 2, 3] });
+        await expect(schema.validate({ numbers: [1, null, 3] })).to.be.rejected;
     });
 
     it("should create an optional array of booleans with required contents", async () => {
         const schema = yup.object({
             flags: optArr(yup.boolean().required()),
-        });
+        }).strict();
 
-        await expect(schema.validate({})).resolves.toEqual({ flags: undefined });
-        await expect(schema.validate({ flags: [true, false] })).resolves.toEqual({ flags: [true, false] });
-        await expect(schema.validate({ flags: [true, null, false] })).rejects.to.throw();
+        expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
+        expect(await schema.validate({ flags: [true, false] })).to.deep.equal({ flags: [true, false] });
+        await expect(schema.validate({ flags: [true, null, false] })).to.be.rejected;
     });
 
 });
@@ -87,8 +86,8 @@ describe("req function", () => {
             name: req(yup.string()),
         });
 
-        await expect(schema.validate({})).rejects.toThrow(reqErr());
-        await expect(schema.validate({ name: "John" })).resolves.toEqual({ name: "John" });
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ name: "John" })).to.deep.equal({ name: "John" });
     });
 
     it("should make a number field required with custom error", async () => {
@@ -96,8 +95,8 @@ describe("req function", () => {
             age: req(yup.number()),
         });
 
-        await expect(schema.validate({})).rejects.toThrow(reqErr());
-        await expect(schema.validate({ age: 30 })).resolves.toEqual({ age: 30 });
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ age: 30 })).to.deep.equal({ age: 30 });
     });
 
     it("should make a boolean field required with custom error", async () => {
@@ -105,8 +104,8 @@ describe("req function", () => {
             active: req(yup.boolean()),
         });
 
-        await expect(schema.validate({})).rejects.toThrow(reqErr());
-        await expect(schema.validate({ active: true })).resolves.toEqual({ active: true });
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ active: true })).to.deep.equal({ active: true });
     });
 
     it("should work with date fields", async () => {
@@ -115,8 +114,8 @@ describe("req function", () => {
         });
 
         const date = new Date();
-        await expect(schema.validate({})).rejects.toThrow(reqErr());
-        await expect(schema.validate({ birthDate: date })).resolves.toEqual({ birthDate: date });
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ birthDate: date })).to.deep.equal({ birthDate: date });
     });
 });
 
@@ -126,10 +125,10 @@ describe("reqArr function", () => {
             tags: reqArr(yup.string().required()),
         });
 
-        await expect(schema.validate({})).rejects.to.throw();
-        await expect(schema.validate({ tags: [] })).resolves.toEqual({ tags: [] });
-        await expect(schema.validate({ tags: ["tag1", "tag2"] })).resolves.toEqual({ tags: ["tag1", "tag2"] });
-        await expect(schema.validate({ tags: ["tag1", "", "tag2"] })).rejects.to.throw();
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ tags: [] })).to.deep.equal({ tags: [] });
+        expect(await schema.validate({ tags: ["tag1", "tag2"] })).to.deep.equal({ tags: ["tag1", "tag2"] });
+        await expect(schema.validate({ tags: ["tag1", "", "tag2"] })).to.be.rejected;
     });
 
     it("should require an array of numbers with required contents", async () => {
@@ -137,10 +136,10 @@ describe("reqArr function", () => {
             numbers: reqArr(yup.number().required()),
         });
 
-        await expect(schema.validate({})).rejects.to.throw();
-        await expect(schema.validate({ numbers: [] })).resolves.toEqual({ numbers: [] });
-        await expect(schema.validate({ numbers: [1, 2, 3] })).resolves.toEqual({ numbers: [1, 2, 3] });
-        await expect(schema.validate({ numbers: [1, null, 3] })).rejects.to.throw();
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ numbers: [] })).to.deep.equal({ numbers: [] });
+        expect(await schema.validate({ numbers: [1, 2, 3] })).to.deep.equal({ numbers: [1, 2, 3] });
+        await expect(schema.validate({ numbers: [1, null, 3] })).to.be.rejected;
     });
 
     it("should require an array of booleans with required contents", async () => {
@@ -148,9 +147,9 @@ describe("reqArr function", () => {
             flags: reqArr(yup.boolean().required()),
         });
 
-        await expect(schema.validate({})).rejects.to.throw();
-        await expect(schema.validate({ flags: [] })).resolves.toEqual({ flags: [] });
-        await expect(schema.validate({ flags: [true, false] })).resolves.toEqual({ flags: [true, false] });
-        await expect(schema.validate({ flags: [true, null, false] })).rejects.to.throw();
+        await expect(schema.validate({})).to.be.rejected;
+        expect(await schema.validate({ flags: [] })).to.deep.equal({ flags: [] });
+        expect(await schema.validate({ flags: [true, false] })).to.deep.equal({ flags: [true, false] });
+        await expect(schema.validate({ flags: [true, null, false] })).to.be.rejected;
     });
 });
