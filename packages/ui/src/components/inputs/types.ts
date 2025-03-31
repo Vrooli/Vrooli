@@ -197,13 +197,6 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
     tabIndex?: number;
     taskInfo?: Pick<UseChatTaskReturn, "activeTask" | "contexts">;
     value: string;
-    sxs?: {
-        topBar?: SxType;
-        bottomBar?: SxType;
-        root?: SxType;
-        inputRoot?: SxType;
-        textArea?: CSSProperties;
-    };
 }
 
 export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
@@ -211,7 +204,6 @@ export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "helperText" | "maxChars" | "sxs"> {
     enterWillSubmit?: boolean;
     id: string;
-    openAssistantDialog: (selected: string, fullText: string) => unknown;
     onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
     redo: () => unknown;
     setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
@@ -227,7 +219,6 @@ export type RichInputMarkdownProps = RichInputChildProps;
 export type RichInputLexicalProps = RichInputChildProps;
 
 export enum RichInputAction {
-    Assistant = "Assistant",
     Bold = "Bold",
     Code = "Code",
     Header1 = "Header1",
@@ -251,7 +242,7 @@ export enum RichInputAction {
     Underline = "Underline",
     Undo = "Undo",
 }
-export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
+export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
 export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;

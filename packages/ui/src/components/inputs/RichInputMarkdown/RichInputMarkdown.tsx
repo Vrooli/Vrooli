@@ -45,7 +45,6 @@ export function RichInputMarkdown({
     onFocus,
     onChange,
     onSubmit,
-    openAssistantDialog,
     placeholder = "",
     redo,
     setHandleAction,
@@ -113,10 +112,6 @@ export function RichInputMarkdown({
         setHandleAction((action, data) => {
             // Anything that isn't a style action goes in the actionMap
             const actionMap = {
-                "Assistant": () => {
-                    const { selected, inputElement } = getTextSelection(id);
-                    openAssistantDialog(selected, inputElement?.value ?? "");
-                },
                 "Redo": redo,
                 "SetValue": () => {
                     if (typeof data !== "string") {
@@ -140,7 +135,7 @@ export function RichInputMarkdown({
                 insertStyle(action as TextStyle);
             }
         });
-    }, [addTable, id, insertStyle, openAssistantDialog, redo, setHandleAction, undo]);
+    }, [addTable, id, insertStyle, redo, setHandleAction, undo]);
 
     // Listen for text input changes
     useEffect(() => {

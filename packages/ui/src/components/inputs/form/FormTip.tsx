@@ -148,10 +148,10 @@ export function FormTip({
             color: "inherit",
         } as const;
         if (element.isMarkdown) {
-            return <MarkdownDisplay content={element.label} variant="body2" sx={markdownStyle} />;
+            return <MarkdownDisplay content={element.label} variant="caption" sx={markdownStyle} />;
         }
         return (
-            <Typography variant="body2" component="span">
+            <Typography variant="caption" component="span">
                 {element.label}
             </Typography>
         );

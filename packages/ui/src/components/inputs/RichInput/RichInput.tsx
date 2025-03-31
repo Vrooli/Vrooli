@@ -1,96 +1,17 @@
-import { TaskContextInfo, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
-import { Box, Chip, styled, useTheme } from "@mui/material";
+import { getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
+import { Box } from "@mui/material";
 import { useField } from "formik";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ActiveChatContext } from "../../../contexts/activeChat.js";
-import { SessionContext } from "../../../contexts/session.js";
-import useDraggableScroll from "../../../hooks/gestures.js";
-import { generateContextLabel } from "../../../hooks/tasks.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
-import { IconCommon } from "../../../icons/Icons.js";
-import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { DEFAULT_MIN_ROWS } from "../../../utils/consts.js";
-import { generateContext } from "../../../utils/display/stringTools.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
-import { PubSub } from "../../../utils/pubsub.js";
 import { AdvancedInputToolbar, defaultActiveStates } from "../AdvancedInput/AdvancedInputToolbar.js";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical.js";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown.js";
 import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps, TranslatedRichInputProps } from "../types.js";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
-
-const ContextsRowOuter = styled(Box)(({ theme }) => ({
-    display: "flex",
-    flexDirection: "row",
-    padding: theme.spacing(0.5),
-    gap: theme.spacing(1),
-    background: theme.palette.background.paper,
-    overflowX: "auto",
-    "&::-webkit-scrollbar": {
-        display: "none",
-    },
-}));
-
-const ContextChip = styled(Chip)(({ theme }) => ({
-    fontSize: "0.75rem",
-    padding: theme.spacing(0.5),
-    borderRadius: theme.shape.borderRadius * 2,
-}));
-
-interface ContextsRowProps {
-    activeContexts: TaskContextInfo[];
-    chatId: string | null | undefined;
-}
-
-function ContextsRow({
-    activeContexts,
-    chatId,
-}: ContextsRowProps) {
-    const { palette } = useTheme();
-    const ref = useRef<HTMLDivElement>(null);
-    const { onMouseDown } = useDraggableScroll({ ref, options: { direction: "horizontal" } });
-
-    function handleRemove(contextId: string) {
-        if (!chatId) return;
-        PubSub.get().publish("chatTask", {
-            chatId,
-            contexts: {
-                remove: [{
-                    __type: "contextId",
-                    data: contextId,
-                }],
-            },
-        });
-    }
-
-    return (
-        <ContextsRowOuter
-            onMouseDown={onMouseDown}
-            ref={ref}
-        >
-            {activeContexts.map(context => {
-                function onDelete() {
-                    handleRemove(context.id);
-                }
-                return (
-                    <ContextChip
-                        key={context.id}
-                        label={context.label}
-                        onDelete={onDelete}
-                        deleteIcon={<IconCommon
-                            decorative
-                            fill={palette.primary.contrastText}
-                            name="Close"
-                            size={15}
-                        />}
-                    />
-                );
-            })}
-        </ContextsRowOuter>
-    );
-}
 
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function RichInputBase({
@@ -111,10 +32,7 @@ export function RichInputBase({
     tabIndex,
     taskInfo,
     value,
-    sxs,
 }: RichInputBaseProps) {
-    const session = useContext(SessionContext);
-    const { chat } = useContext(ActiveChatContext);
 
     const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
         initialValue: value,
@@ -142,40 +60,6 @@ export function RichInputBase({
 
     const id = useMemo(() => `input-container-${name}`, [name]);
 
-    const openAssistantDialog = useCallback((selected: string, fullText: string) => {
-        if (disabled) return;
-        const userId = getCurrentUser(session)?.id;
-        if (!userId) return;
-        const chatId = chat?.id;
-        if (!chatId) return;
-
-        const contextValue = generateContext(selected, fullText);
-
-        // Open the side chat and provide it context
-        //TODO
-        // PubSub.get().publish("menu", { id: SITE_NAVIGATOR_MENU_ID, isOpen: true, data: { tab: "Chat" } });
-        const context = {
-            id: `rich-${name}`,
-            label: generateContextLabel(contextValue),
-            data: contextValue,
-            template: "Text:\n\"\"\"\n<DATA>\n\"\"\"",
-            templateVariables: { data: "<DATA>" },
-        };
-        PubSub.get().publish("chatTask", {
-            chatId,
-            contexts: {
-                add: {
-                    behavior: "replace",
-                    connect: {
-                        __type: "contextId",
-                        data: context.id,
-                    },
-                    value: [context],
-                },
-            },
-        });
-    }, [chat?.id, disabled, name, session]);
-
     // Actions which store and active state for the Toolbar. 
     // This is currently ignored when markdown mode is on, since it's 
     // a bitch to keep track of
@@ -184,7 +68,7 @@ export function RichInputBase({
         setActiveStates(newActiveStates);
     }
 
-    const [enterWillSubmit, setEnterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
+    const [enterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
 
     const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
     const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
@@ -215,7 +99,6 @@ export function RichInputBase({
         onFocus,
         onChange: changeInternalValue,
         onSubmit,
-        openAssistantDialog,
         placeholder,
         redo,
         setHandleAction: setChildHandleAction,
@@ -223,26 +106,15 @@ export function RichInputBase({
         toggleMarkdown,
         undo,
         value: internalValue,
-        sxs: {
-            inputRoot: sxs?.inputRoot,
-            textArea: sxs?.textArea,
-        },
-    }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.inputRoot, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
-
-    const rootStyle = useMemo(function rootStyleMemo() {
-        return {
-            display: "flex",
-            flexDirection: "column",
-            gap: 0,
-            ...sxs?.root,
-        } as const;
-    }, [sxs?.root]);
+    }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, placeholder, redo, setChildHandleAction, tabIndex, toggleMarkdown, undo]);
 
     return (
         <>
             <Box
                 id={`markdown-input-base-${name}`}
-                sx={rootStyle}
+                display="flex"
+                flexDirection="column"
+                gap={0}
             >
                 <AdvancedInputToolbar
                     activeStates={activeStates}
@@ -253,10 +125,6 @@ export function RichInputBase({
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                 />
-                {taskInfo !== null && taskInfo !== undefined && Boolean(taskInfo.contexts[taskInfo.activeTask.taskId]) && taskInfo.contexts[taskInfo.activeTask.taskId].length > 0 && <ContextsRow
-                    activeContexts={taskInfo.contexts[taskInfo.activeTask.taskId]}
-                    chatId={chat?.id}
-                />}
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
             </Box>
         </>

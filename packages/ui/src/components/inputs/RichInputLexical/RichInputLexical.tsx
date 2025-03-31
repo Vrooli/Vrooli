@@ -27,7 +27,7 @@ import { ELEMENT_TRANSFORMERS } from "./transformers/elementTransformers.js";
 import { TEXT_TRANSFORMERS, applyTextTransformers } from "./transformers/textFormatTransformers.js";
 import { TEXT_MATCH_TRANSFORMERS } from "./transformers/textMatchTransformers.js";
 import { LexicalTransformer } from "./types.js";
-import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot, getParent, getTopLevelElementOrThrow } from "./utils.js";
+import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot, getParent, getTopLevelElementOrThrow } from "./utils.js";
 
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 const PADDING_HEIGHT_PX = 16.5;
@@ -252,7 +252,6 @@ export function RichInputLexicalComponents({
     onFocus,
     onChange,
     onSubmit,
-    openAssistantDialog,
     placeholder = "",
     redo,
     setHandleAction,
@@ -433,45 +432,6 @@ export function RichInputLexicalComponents({
         if (!setHandleAction || !editor) return;
         setHandleAction((action, data) => {
             const actionMap = {
-                "Assistant": () => {
-                    console.log("in assistant action");
-                    editor.update(() => {
-                        console.log("in assistant action editor update");
-                        const selection = $getSelection() as RangeSelection | null;
-                        let selectedText = "";
-                        if (selection) {
-                            const anchorNode = $getNodeByKey(selection.anchor.key);
-                            const focusNode = $getNodeByKey(selection.focus.key);
-
-                            if (anchorNode && focusNode) {
-                                // Assuming anchorNode comes before focusNode in the document
-                                const nodes = anchorNode.getNodesBetween(focusNode);
-
-                                let canApplyHeader = true; // Can only apply header style once per line
-                                // Concatenate the text from these nodes
-                                selectedText = nodes.map((node) => {
-                                    // If normal or stylized text
-                                    if (node.getType() === "Text") {
-                                        const parentNode = node.__parent ? $getNodeByKey(node.__parent) : null;
-                                        const formattedText = applyStyles(node.getTextContent(), (node as TextNode).__format, parentNode, canApplyHeader);
-                                        if (parentNode?.getType() === "Heading") {
-                                            canApplyHeader = false;
-                                        }
-                                        return formattedText;
-                                    }
-                                    // If a newline (this node type might be used in other cases, but we're not sure yet)
-                                    else if (node.getType() === "Paragraph") {
-                                        canApplyHeader = true;
-                                        return "\n";
-                                    }
-                                    return "";
-                                }).join("");
-                            }
-                        }
-                        const fullText = $getRoot().getMarkdownContent();
-                        openAssistantDialog(selectedText, fullText);
-                    });
-                },
                 "Bold": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "BOLD"),
                 "Code": () => editor.dispatchCommand(CODE_BLOCK_COMMAND, (void 0)),
                 "Header1": () => toggleHeading(Headers.h1),
@@ -514,7 +474,7 @@ export function RichInputLexicalComponents({
             console.log("handling action", actionFunction, action);
             if (actionFunction) actionFunction();
         });
-    }, [editor, openAssistantDialog, redo, setHandleAction, toggleHeading, triggerEditorChange, undo]);
+    }, [editor, redo, setHandleAction, toggleHeading, triggerEditorChange, undo]);
 
     const lineHeight = useMemo(() => Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER), [typography.fontSize]);
 

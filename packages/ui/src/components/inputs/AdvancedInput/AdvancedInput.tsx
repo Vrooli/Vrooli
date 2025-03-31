@@ -1,4 +1,5 @@
 /* eslint-disable no-magic-numbers */
+import { FormStructureType, noop } from "@local/shared";
 import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, InputBase, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
@@ -7,12 +8,13 @@ import { useDropzone } from "react-dropzone";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
+import { randomString } from "../../../utils/codes.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButton.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
-import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { FormTip } from "../form/FormTip.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME } from "./AdvancedInputToolbar.js";
 
 interface ExternalApp {
@@ -47,6 +49,51 @@ export interface Tool {
     arguments: Record<string, any>;
 }
 
+// Example of how to add context
+// const openAssistantDialog = useCallback(() => {
+//     if (disabled) return;
+//     const userId = getCurrentUser(session)?.id;
+//     if (!userId) return;
+//     const chatId = chat?.id;
+//     if (!chatId) return;
+
+//     if (!codeMirrorRef.current || !codeMirrorRef.current.view) {
+//         console.error("CodeMirror not found");
+//         return;
+//     }
+//     const codeDoc = codeMirrorRef.current.view.state.doc;
+//     const selectionRanges = codeMirrorRef.current.view.state.selection.ranges;
+//     // Only use the first selection range, if it exists
+//     const selection = selectionRanges.length > 0 ? codeDoc.sliceString(selectionRanges[0].from, selectionRanges[0].to) : "";
+//     const fullText = codeDoc.sliceString(0, Number.MAX_SAFE_INTEGER);
+//     const contextValue = generateContext(selection, fullText);
+
+//     // Open the side chat and provide it context
+//     //TODO
+//     // PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: true, data: { tab: "Chat" } });
+//     const context = {
+//         id: `code-${name}`,
+//         data: contextValue,
+//         label: generateContextLabel(contextValue),
+//         template: `Code:\n\`\`\`${codeLanguage}\n<DATA>\n\`\`\``,
+//         templateVariables: { data: "<DATA>" },
+//     };
+//     PubSub.get().publish("chatTask", {
+//         chatId,
+//         contexts: {
+//             add: {
+//                 behavior: "replace",
+//                 connect: {
+//                     __type: "contextId",
+//                     data: context.id,
+//                 },
+//                 value: [context],
+//             },
+//         },
+//     });
+// }, [chat?.id, codeLanguage, disabled, name, session]);
+
+//TODO should migrate to TaskContextInfo, and update TaskContextInfo to include things like type
 export interface ContextItem {
     id: string;
     type: "file" | "image" | "text";
@@ -575,21 +622,27 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                     anchorOrigin={popoverAnchorOrigin}
                     transformOrigin={popoverTransformOrigin}
                 >
-                    {externalApps.map((app) => (
-                        <MenuItem
-                            key={app.id}
-                            onClick={() => handleAppConnection(app.id)}
-                        >
-                            <ListItemIcon>
-                                <Icon decorative info={app.iconInfo} />
-                            </ListItemIcon>
-                            <ListItemText primary={app.name} secondary="Description about the app" />
-                            {app.connected && <IconCommon
-                                decorative
-                                name="Complete"
-                            />}
-                        </MenuItem>
-                    ))}
+                    {externalApps.map((app) => {
+                        function connectApp() {
+                            handleAppConnection(app.id);
+                        }
+
+                        return (
+                            <MenuItem
+                                key={app.id}
+                                onClick={connectApp}
+                            >
+                                <ListItemIcon>
+                                    <Icon decorative info={app.iconInfo} />
+                                </ListItemIcon>
+                                <ListItemText primary={app.name} secondary="Description about the app" />
+                                {app.connected && <IconCommon
+                                    decorative
+                                    name="Complete"
+                                />}
+                            </MenuItem>
+                        );
+                    })}
                 </Menu>
             </>
         );
@@ -601,147 +654,119 @@ PlusMenu.displayName = "PlusMenu";
  */
 interface InfoMemoProps {
     anchorEl: HTMLElement | null;
-    onClose: () => void;
-    localEnterWillSubmit: boolean;
-    onToggleEnterWillSubmit: () => void;
+    enterWillSubmit: boolean;
     isWysiwyg: boolean;
+    onClose: () => void;
+    onToggleEnterWillSubmit: () => void;
+    onToggleToolbar: () => void;
     onToggleWysiwyg: () => void;
     showToolbar: boolean;
-    onToggleToolbar: () => void;
 }
 
-const infoButtonStyle = { padding: "4px", opacity: 0.5 } as const;
 const infoMenuAnchorOrigin = { vertical: "bottom", horizontal: "left" } as const;
-const infoMenuPaperProps = {
-    style: {
-        maxWidth: "500px",
-        maxHeight: "500px",
-        overflow: "auto",
-    },
+const secondaryTypographyProps = {
+    style: { whiteSpace: "pre-wrap", fontSize: "0.875rem", color: "#666" },
+} as const;
+const infoMemoTipData = {
+    id: randomString(),
+    icon: "Warning",
+    isMarkdown: false,
+    label: "Some features may be unavailable depending on the AI models you're chatting with and the device this is running on.",
+    type: FormStructureType.Tip,
 } as const;
 
-const InfoMemo: React.FC<InfoMemoProps> = React.memo(
-    ({
-        anchorEl,
-        onClose,
-        localEnterWillSubmit,
-        onToggleEnterWillSubmit,
-        isWysiwyg,
-        onToggleWysiwyg,
-        showToolbar,
-        onToggleToolbar,
-    }) => {
-        const handleEnterWillSubmitChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-            event.stopPropagation();
-            onToggleEnterWillSubmit();
-        }, [onToggleEnterWillSubmit]);
+const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
+    anchorEl,
+    enterWillSubmit,
+    isWysiwyg,
+    onClose,
+    onToggleEnterWillSubmit,
+    onToggleToolbar,
+    onToggleWysiwyg,
+    showToolbar,
+}: InfoMemoProps) => {
+    const theme = useTheme();
 
-        const handleWysiwygChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-            event.stopPropagation();
-            onToggleWysiwyg();
-        }, [onToggleWysiwyg]);
+    const infoMenuSlotProps = useMemo(() => ({
+        paper: {
+            style: {
+                backgroundColor: theme.palette.background.default,
+                borderRadius: "12px",
+                maxWidth: "500px",
+                maxHeight: "500px",
+                overflow: "auto",
+                padding: "8px 0",
+            },
+        },
+    }), [theme]);
 
-        const handleToolbarChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-            event.stopPropagation();
-            onToggleToolbar();
-        }, [onToggleToolbar]);
-
-        const secondaryTypographyProps = useMemo(() => ({
-            style: { whiteSpace: "pre-wrap" } as const,
-        }), []);
-
-        return (
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={onClose}
-                anchorOrigin={infoMenuAnchorOrigin}
-                PaperProps={infoMenuPaperProps}
-            >
-                <Typography m={2} mb={1} variant="h6" color="text.secondary">
+    return (
+        <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={onClose}
+            anchorOrigin={infoMenuAnchorOrigin}
+            slotProps={infoMenuSlotProps}
+        >
+            <Box px={2} pb={1}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Settings
                 </Typography>
-                <Divider />
-                <MenuItem onClick={onToggleEnterWillSubmit}>
-                    <ListItemText
-                        primary="Enter key sends message"
-                        secondary="When enabled, use 'Shift + Enter' to create a new line."
-                        secondaryTypographyProps={secondaryTypographyProps}
-                    />
-                    <Switch
-                        edge="end"
-                        checked={localEnterWillSubmit}
-                        onChange={handleEnterWillSubmitChange}
-                    />
-                </MenuItem>
-                <Divider />
-                <MenuItem onClick={onToggleWysiwyg}>
-                    <ListItemText
-                        primary="WYSIWYG editor mode"
-                        secondary="Toggle rich text editing mode."
-                        secondaryTypographyProps={secondaryTypographyProps}
-                    />
-                    <Switch
-                        edge="end"
-                        checked={isWysiwyg}
-                        onChange={handleWysiwygChange}
-                    />
-                </MenuItem>
-                <Divider />
-                <MenuItem onClick={onToggleToolbar}>
-                    <ListItemText
-                        primary="Show formatting toolbar"
-                        secondary="Display text formatting options above the input area."
-                        secondaryTypographyProps={secondaryTypographyProps}
-                    />
-                    <Switch
-                        edge="end"
-                        checked={showToolbar}
-                        onChange={handleToolbarChange}
-                    />
-                </MenuItem>
-                <Divider />
-                {/* TODO: Add this back in */}
-                {/* <MenuItem onClick={onToggleToolbar}>
-                    <ListItemText
-                        primary="Disable default tools"
-                        secondary="Will not provide the AI with default tools, such as searching the site, creating a new routine, etc."
-                        secondaryTypographyProps={{ style: { whiteSpace: "pre-wrap" } }}
-                    />
-                    <Switch
-                        edge="end"
-                        checked={showToolbar}
-                        onChange={(event) => {
-                            event.stopPropagation();
-                            onToggleDisableDefaultTools();
-                        }}
-                    />
-                </MenuItem> */}
-                {/* <Divider /> */}
-                <Typography variant="h6" m={2} mb={1} color="text.secondary">
-                    Info
-                </Typography>
-                <Box p={2}>
-                    <MarkdownDisplay
-                        content={`This input component allows you to:
+            </Box>
 
-- Attach files,
-- Connect to external services,
-- Add tools,
-- and possibly more in the future.
+            <MenuItem>
+                <ListItemText
+                    primary="Enter key sends message"
+                    secondary="When enabled, use 'Shift + Enter' to create a new line."
+                    secondaryTypographyProps={secondaryTypographyProps}
+                />
+                <Switch
+                    edge="end"
+                    checked={enterWillSubmit}
+                    onChange={onToggleEnterWillSubmit}
+                    color="secondary"
+                />
+            </MenuItem>
 
-Some features may be unavailable depending on the AI models you're chatting with and the device this is running on. 
+            <MenuItem>
+                <ListItemText
+                    primary="WYSIWYG editor mode"
+                    secondary="Toggle rich text editing mode."
+                    secondaryTypographyProps={secondaryTypographyProps}
+                />
+                <Switch
+                    edge="end"
+                    checked={isWysiwyg}
+                    onChange={onToggleWysiwyg}
+                    color="secondary"
+                />
+            </MenuItem>
 
-Tools are displayed at the bottom and can be active or inactive. Active tools are provided to the AI, which can choose to use or not use them. 
-
-To run a tool directly, first enable it and then press the 'Run' button. This will display any input fields required by the tool, which can be filled in if desired. If you don't fill these in, the AI will choose what to enter.
-                    `}
-                    />
-                </Box>
-            </Menu >
-        );
-    },
-);
+            <MenuItem>
+                <ListItemText
+                    primary="Show formatting toolbar"
+                    secondary="Display text formatting options above the input area."
+                    secondaryTypographyProps={secondaryTypographyProps}
+                />
+                <Switch
+                    edge="end"
+                    checked={showToolbar}
+                    onChange={onToggleToolbar}
+                    color="secondary"
+                />
+            </MenuItem>
+            <Divider sx={{ my: 1, opacity: 0.2 }} />
+            <Box px={2}>
+                <FormTip
+                    element={infoMemoTipData}
+                    isEditing={false}
+                    onUpdate={noop}
+                    onDelete={noop}
+                />
+            </Box>
+        </Menu>
+    );
+});
 InfoMemo.displayName = "InfoMemo";
 
 const dragOverlayStyles = {
@@ -823,7 +848,7 @@ export function AdvancedInput({
 
     // Settings state from localStorage
     const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
-    const { enterWillSubmit: localEnterWillSubmit, showToolbar, isWysiwyg } = settings;
+    const { enterWillSubmit, showToolbar, isWysiwyg } = settings;
 
     // Settings toggles
     const handleToggleEnterWillSubmit = useCallback(() => {
@@ -1053,13 +1078,13 @@ export function AdvancedInput({
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
             if (e.key === "Enter" && !e.shiftKey) {
-                if (localEnterWillSubmit) {
+                if (enterWillSubmit) {
                     e.preventDefault();
                     handleSubmit();
                 }
             }
         },
-        [handleSubmit, localEnterWillSubmit],
+        [handleSubmit, enterWillSubmit],
     );
 
     const handleTranscriptChange = useCallback((recognizedText: string) => {
@@ -1139,7 +1164,7 @@ export function AdvancedInput({
                     <IconCommon
                         decorative
                         fill="background.textSecondary"
-                        name="Info"
+                        name="Settings"
                     />
                 </IconButton>
                 {showToolbar && <AdvancedInputToolbar
@@ -1338,7 +1363,7 @@ export function AdvancedInput({
             <InfoMemo
                 anchorEl={anchorSettings}
                 onClose={handleCloseInfoMemo}
-                localEnterWillSubmit={localEnterWillSubmit}
+                enterWillSubmit={enterWillSubmit}
                 onToggleEnterWillSubmit={handleToggleEnterWillSubmit}
                 isWysiwyg={isWysiwyg}
                 onToggleWysiwyg={handleToggleWysiwyg}
