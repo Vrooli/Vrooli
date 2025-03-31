@@ -30,7 +30,7 @@ describe("Yup-related functions", () => {
                     return maxStrErr({ max, value });
                 }
                 if (error) {
-                    expect(action).toThrow(error);
+                    expect(action).to.throw(error);
                 } else {
                     expect(action()).to.equal(expected);
                 }
@@ -66,7 +66,7 @@ describe("Yup-related functions", () => {
                     return minStrErr({ min, value });
                 }
                 if (error) {
-                    expect(action).toThrow(error);
+                    expect(action).to.throw(error);
                 } else {
                     expect(action()).to.equal(expected);
                 }

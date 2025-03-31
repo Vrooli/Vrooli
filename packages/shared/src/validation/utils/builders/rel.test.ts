@@ -27,7 +27,7 @@ describe("rel function", () => {
 
     it("should return an object with the correct keys for given relation types", () => {
         const result = rel(mockData, "testRelation", ["Connect", "Create", "Delete", "Disconnect", "Update"], "one", "opt", mockModel);
-        expect(Object.keys(result)).to.deep.equal(expect.arrayContaining(["testRelationConnect", "testRelationCreate", "testRelationDelete", "testRelationDisconnect", "testRelationUpdate"]));
+        expect(Object.keys(result)).to.have.members(["testRelationConnect", "testRelationCreate", "testRelationDelete", "testRelationDisconnect", "testRelationUpdate"]);
     });
 
     it("should handle \"one\" and \"many\" relationships correctly for Connect", async () => {
@@ -41,12 +41,12 @@ describe("rel function", () => {
         const invalidManyData = validOneData;
 
         // Validate 'one' relationship
-        await expect(oneResult.testRelationConnect!.validate(validOneData.testRelationConnect)).resolves.to.be.ok;
-        await expect(oneResult.testRelationConnect!.validate(invalidOneData.testRelationConnect)).rejects.to.throw();
+        await expect(oneResult.testRelationConnect!.validate(validOneData.testRelationConnect)).to.eventually.be.ok;
+        await expect(oneResult.testRelationConnect!.validate(invalidOneData.testRelationConnect)).to.be.rejectedWith(Error);
 
         // Validate 'many' relationship
-        await expect(manyResult.testRelationConnect!.validate(validManyData.testRelationConnect)).resolves.to.be.ok;
-        await expect(manyResult.testRelationConnect!.validate(invalidManyData.testRelationConnect)).rejects.to.throw();
+        await expect(manyResult.testRelationConnect!.validate(validManyData.testRelationConnect)).to.eventually.be.ok;
+        await expect(manyResult.testRelationConnect!.validate(invalidManyData.testRelationConnect)).to.be.rejectedWith(Error);
     });
     it("should handle \"one\" and \"many\" relationships correctly for Create", async () => {
         const oneResult = rel(mockData, "testRelation", ["Create"], "one", "req", mockModel);
@@ -59,12 +59,12 @@ describe("rel function", () => {
         const invalidManyData = validOneData;
 
         // Validate 'one' relationship
-        await expect(oneResult.testRelationCreate!.validate(validOneData.testRelationCreate)).resolves.to.be.ok;
-        await expect(oneResult.testRelationCreate!.validate(invalidOneData.testRelationCreate)).rejects.to.throw();
+        await expect(oneResult.testRelationCreate!.validate(validOneData.testRelationCreate)).to.eventually.be.ok;
+        await expect(oneResult.testRelationCreate!.validate(invalidOneData.testRelationCreate)).to.be.rejectedWith(Error);
 
         // Validate 'many' relationship
-        await expect(manyResult.testRelationCreate!.validate(validManyData.testRelationCreate)).resolves.to.be.ok;
-        await expect(manyResult.testRelationCreate!.validate(invalidManyData.testRelationCreate)).rejects.to.throw();
+        await expect(manyResult.testRelationCreate!.validate(validManyData.testRelationCreate)).to.eventually.be.ok;
+        await expect(manyResult.testRelationCreate!.validate(invalidManyData.testRelationCreate)).to.be.rejectedWith(Error);
     });
     it("should handle \"one\" and \"many\" relationships correctly for Update", async () => {
         const oneResult = rel(mockData, "testRelation", ["Update"], "one", "req", mockModel);
@@ -77,12 +77,12 @@ describe("rel function", () => {
         const invalidManyData = validOneData;
 
         // Validate 'one' relationship
-        await expect(oneResult.testRelationUpdate!.validate(validOneData.testRelationUpdate)).resolves.to.be.ok;
-        await expect(oneResult.testRelationUpdate!.validate(invalidOneData.testRelationUpdate)).rejects.to.throw();
+        await expect(oneResult.testRelationUpdate!.validate(validOneData.testRelationUpdate)).to.eventually.be.ok;
+        await expect(oneResult.testRelationUpdate!.validate(invalidOneData.testRelationUpdate)).to.be.rejectedWith(Error);
 
         // Validate 'many' relationship
-        await expect(manyResult.testRelationUpdate!.validate(validManyData.testRelationUpdate)).resolves.to.be.ok;
-        await expect(manyResult.testRelationUpdate!.validate(invalidManyData.testRelationUpdate)).rejects.to.throw();
+        await expect(manyResult.testRelationUpdate!.validate(validManyData.testRelationUpdate)).to.eventually.be.ok;
+        await expect(manyResult.testRelationUpdate!.validate(invalidManyData.testRelationUpdate)).to.be.rejectedWith(Error);
     });
     it("should handle \"one\" and \"many\" relationships correctly for Delete", async () => {
         const oneResult = rel(mockData, "testRelation", ["Delete"], "one", "req", mockModel);
@@ -98,15 +98,15 @@ describe("rel function", () => {
         const invalidManyData2 = { testRelationDelete: [true, true] };
 
         // Validate 'one' relationship
-        await expect(oneResult.testRelationDelete!.validate(validOneData.testRelationDelete)).resolves.to.be.ok;
-        await expect(oneResult.testRelationDelete!.validate(invalidOneData1.testRelationDelete)).rejects.to.throw();
-        await expect(oneResult.testRelationDelete!.validate(invalidOneData2.testRelationDelete)).rejects.to.throw();
-        await expect(oneResult.testRelationDelete!.validate(invalidOneData3.testRelationDelete)).rejects.to.throw();
+        await expect(oneResult.testRelationDelete!.validate(validOneData.testRelationDelete)).to.eventually.be.ok;
+        await expect(oneResult.testRelationDelete!.validate(invalidOneData1.testRelationDelete)).to.be.rejectedWith(Error);
+        await expect(oneResult.testRelationDelete!.validate(invalidOneData2.testRelationDelete)).to.be.rejectedWith(Error);
+        await expect(oneResult.testRelationDelete!.validate(invalidOneData3.testRelationDelete)).to.be.rejectedWith(Error);
 
         // Validate 'many' relationship
-        await expect(manyResult.testRelationDelete!.validate(validManyData.testRelationDelete)).resolves.to.be.ok;
-        await expect(manyResult.testRelationDelete!.validate(invalidManyData1.testRelationDelete)).rejects.to.throw();
-        await expect(manyResult.testRelationDelete!.validate(invalidManyData2.testRelationDelete)).rejects.to.throw();
+        await expect(manyResult.testRelationDelete!.validate(validManyData.testRelationDelete)).to.eventually.be.ok;
+        await expect(manyResult.testRelationDelete!.validate(invalidManyData1.testRelationDelete)).to.be.rejectedWith(Error);
+        await expect(manyResult.testRelationDelete!.validate(invalidManyData2.testRelationDelete)).to.be.rejectedWith(Error);
     });
     it("should handle \"one\" and \"many\" relationships correctly for Disconnect", async () => {
         // Should be the same as Delete
@@ -123,15 +123,15 @@ describe("rel function", () => {
         const invalidManyData2 = { testRelationDisconnect: [true, true] };
 
         // Validate 'one' relationship
-        await expect(oneResult.testRelationDisconnect!.validate(validOneData.testRelationDisconnect)).resolves.to.be.ok;
-        await expect(oneResult.testRelationDisconnect!.validate(invalidOneData1.testRelationDisconnect)).rejects.to.throw();
-        await expect(oneResult.testRelationDisconnect!.validate(invalidOneData2.testRelationDisconnect)).rejects.to.throw();
-        await expect(oneResult.testRelationDisconnect!.validate(invalidOneData3.testRelationDisconnect)).rejects.to.throw();
+        await expect(oneResult.testRelationDisconnect!.validate(validOneData.testRelationDisconnect)).to.eventually.be.ok;
+        await expect(oneResult.testRelationDisconnect!.validate(invalidOneData1.testRelationDisconnect)).to.be.rejectedWith(Error);
+        await expect(oneResult.testRelationDisconnect!.validate(invalidOneData2.testRelationDisconnect)).to.be.rejectedWith(Error);
+        await expect(oneResult.testRelationDisconnect!.validate(invalidOneData3.testRelationDisconnect)).to.be.rejectedWith(Error);
 
         // Validate 'many' relationship
-        await expect(manyResult.testRelationDisconnect!.validate(validManyData.testRelationDisconnect)).resolves.to.be.ok;
-        await expect(manyResult.testRelationDisconnect!.validate(invalidManyData1.testRelationDisconnect)).rejects.to.throw();
-        await expect(manyResult.testRelationDisconnect!.validate(invalidManyData2.testRelationDisconnect)).rejects.to.throw();
+        await expect(manyResult.testRelationDisconnect!.validate(validManyData.testRelationDisconnect)).to.eventually.be.ok;
+        await expect(manyResult.testRelationDisconnect!.validate(invalidManyData1.testRelationDisconnect)).to.be.rejectedWith(Error);
+        await expect(manyResult.testRelationDisconnect!.validate(invalidManyData2.testRelationDisconnect)).to.be.rejectedWith(Error);
     });
 
     it("should mark 'Connect' field as required when isRequired is 'req'", async () => {
@@ -142,11 +142,11 @@ describe("rel function", () => {
         });
 
         // Test with undefined value
-        await expect(testSchema.validate({})).rejects.to.throw();
+        await expect(testSchema.validate({})).to.be.rejectedWith(Error);
 
         // Test with valid value
-        const validUuid = uuid(); // Assuming uuid() returns a valid UUID
-        await expect(testSchema.validate({ testRelationConnect: validUuid })).resolves.toEqual({ testRelationConnect: validUuid });
+        const validUuid = uuid();
+        await expect(testSchema.validate({ testRelationConnect: validUuid })).to.eventually.deep.equal({ testRelationConnect: validUuid });
     });
 
     it("should mark 'Connect' field as optional when isRequired is 'opt'", async () => {
@@ -157,11 +157,11 @@ describe("rel function", () => {
         });
 
         // Test with undefined value
-        await expect(testSchema.validate({})).resolves.toEqual({});
+        await expect(testSchema.validate({})).to.eventually.deep.equal({});
 
         // Test with valid value
         const validUuid = uuid();
-        await expect(testSchema.validate({ testRelationConnect: validUuid })).resolves.toEqual({ testRelationConnect: validUuid });
+        await expect(testSchema.validate({ testRelationConnect: validUuid })).to.eventually.deep.equal({ testRelationConnect: validUuid });
     });
 
     const omitFieldsMockModel = {
@@ -181,8 +181,8 @@ describe("rel function", () => {
         const validData = { testRelationCreate: { field1: "value1", field2: "value2" } };
         const invalidData = { testRelationCreate: { field1: "value1" } }; // Missing field2
 
-        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).resolves.to.be.ok;
-        await expect(result.testRelationCreate!.validate(invalidData.testRelationCreate)).rejects.to.throw();
+        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).to.eventually.be.ok;
+        await expect(result.testRelationCreate!.validate(invalidData.testRelationCreate)).to.be.rejectedWith(Error);
     });
 
     it("should require only the field not in omitFields", async () => {
@@ -191,8 +191,8 @@ describe("rel function", () => {
         const validData = { testRelationCreate: { field2: "value2" } }; // Only field2 is required
         const invalidData = { testRelationCreate: {} }; // Missing field2
 
-        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).resolves.to.be.ok;
-        await expect(result.testRelationCreate!.validate(invalidData.testRelationCreate)).rejects.to.throw();
+        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).to.eventually.be.ok;
+        await expect(result.testRelationCreate!.validate(invalidData.testRelationCreate)).to.be.rejectedWith(Error);
     });
 
     it("should not require any fields when all are in omitFields", async () => {
@@ -200,7 +200,7 @@ describe("rel function", () => {
 
         const validData = { testRelationCreate: {} }; // No fields are required
 
-        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).resolves.to.be.ok;
+        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).to.eventually.be.ok;
     });
 
     it("should work when using data.omitFields", async () => {
@@ -208,7 +208,7 @@ describe("rel function", () => {
 
         const validData = { testRelationCreate: {} }; // No fields are required
 
-        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).resolves.to.be.ok;
+        await expect(result.testRelationCreate!.validate(validData.testRelationCreate)).to.eventually.be.ok;
     });
 
 });

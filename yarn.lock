@@ -5813,7 +5813,7 @@ chai-as-promised@^5.1.2:
 
 chai-as-promised@^8.0.1:
   version "8.0.1"
-  resolved "https://registry.npmjs.org/chai-as-promised/-/chai-as-promised-8.0.1.tgz"
+  resolved "https://registry.yarnpkg.com/chai-as-promised/-/chai-as-promised-8.0.1.tgz#8913b2fd685b3f5637d25f627518e3ac9614d8e1"
   integrity sha512-OIEJtOL8xxJSH8JJWbIoRjybbzR52iFuDHuF8eb+nTPD6tgXLjRqsgnUGqQfFODxYvq5QdirT0pN9dZ0+Gz6rA==
   dependencies:
     check-error "^2.0.0"

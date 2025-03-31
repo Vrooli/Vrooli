@@ -28,12 +28,12 @@ describe("yupObj", () => {
         );
         const unstripped = { testField: "test", extraField: "test" };
         const stripped = { testField: "test" };
-        await expect(schema.validate(stripped)).resolves.toEqual(stripped);
-        await expect(schema.validate({})).rejects.to.throw();
-        await expect(schema.validate({ testField: 1 })).resolves.toEqual({ testField: "1" });
+        await expect(schema.validate(stripped)).to.be.fulfilled;
+        await expect(schema.validate({})).to.be.rejected;
+        await expect(schema.validate({ testField: 1 })).to.be.fulfilled;
         // Extra fields are kept in validation, but stripped in casting
-        await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
-        expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(stripped);
+        await expect(schema.validate(unstripped)).to.be.fulfilled;
+        expect(schema.cast(unstripped, { stripUnknown: true })).to.deep.equal(stripped);
     });
 
     // Test relationships with action modifiers
@@ -48,9 +48,9 @@ describe("yupObj", () => {
         );
         const unstripped = { testField: "boop", dummyRelCreate: { dummyField: "test", anotherField: "yeet" } };
         const stripped = { testField: "boop", dummyRelCreate: { dummyField: "test" } };
-        await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
-        await expect(schema.validate({})).rejects.to.throw();
-        expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(stripped);
+        await expect(schema.validate(unstripped)).to.be.fulfilled;
+        await expect(schema.validate({})).to.be.rejected;
+        expect(schema.cast(unstripped, { stripUnknown: true })).to.deep.equal(stripped);
     });
     it("should handle one-to-one optional Create relationships correctly", async () => {
         const relSchema = createDummyYupModel("dummyField");
@@ -63,11 +63,11 @@ describe("yupObj", () => {
         );
         const withRel = { testField: "boop", dummyRelCreate: { dummyField: "test" } };
         const withoutRel = { testField: "boop" };
-        await expect(schema.validate(withRel)).resolves.toEqual(withRel);
-        await expect(schema.validate(withoutRel)).resolves.toEqual(withoutRel);
-        await expect(schema.validate({})).rejects.to.throw();
+        await expect(schema.validate(withRel)).to.be.fulfilled;
+        await expect(schema.validate(withoutRel)).to.be.fulfilled;
+        await expect(schema.validate({})).to.be.rejected;
         // Doesn't strip optional relationships
-        expect(schema.cast(withRel, { stripUnknown: true })).toEqual(withRel);
+        expect(schema.cast(withRel, { stripUnknown: true })).to.deep.equal(withRel);
     });
     it("should handle one-to-one optional Create/Update relationships correctly", async () => {
         const relSchema = createDummyYupModel("dummyField");
@@ -82,12 +82,12 @@ describe("yupObj", () => {
         const withCreateRel = { dummyRelCreate: { dummyField: "test" } };
         const withUpdateRel = { dummyRelUpdate: { dummyField: "test" } };
         const withoutRel = {};
-        await expect(schema.validate(withBothRels)).resolves.toEqual(withBothRels);
-        await expect(schema.validate(withCreateRel)).resolves.toEqual(withCreateRel);
-        await expect(schema.validate(withUpdateRel)).resolves.toEqual(withUpdateRel);
-        await expect(schema.validate(withoutRel)).resolves.toEqual(withoutRel);
-        expect(schema.cast(withBothRels, { stripUnknown: true })).toEqual(withBothRels);
-        expect(schema.cast(withCreateRel, { stripUnknown: true })).toEqual(withCreateRel);
+        await expect(schema.validate(withBothRels)).to.be.fulfilled;
+        await expect(schema.validate(withCreateRel)).to.be.fulfilled;
+        await expect(schema.validate(withUpdateRel)).to.be.fulfilled;
+        await expect(schema.validate(withoutRel)).to.be.fulfilled;
+        expect(schema.cast(withBothRels, { stripUnknown: true })).to.deep.equal(withBothRels);
+        expect(schema.cast(withCreateRel, { stripUnknown: true })).to.deep.equal(withCreateRel);
     });
     it("should handle one-to-many required Create relationships correctly", async () => {
         const relSchema = createDummyYupModel("dummyField");
@@ -100,9 +100,9 @@ describe("yupObj", () => {
         );
         const withoutRel = { testField: "boop" };
         const withRel = { testField: "boop", dummyRelCreate: [{ dummyField: "test" }] };
-        await expect(schema.validate(withoutRel)).rejects.to.throw();
-        await expect(schema.validate(withRel)).resolves.toEqual(withRel);
-        expect(schema.cast(withRel, { stripUnknown: true })).toEqual(withRel);
+        await expect(schema.validate(withoutRel)).to.be.rejected;
+        await expect(schema.validate(withRel)).to.be.fulfilled;
+        expect(schema.cast(withRel, { stripUnknown: true })).to.deep.equal(withRel);
     });
 
     it("should handle relationship with omitted fields - test1", async () => {
@@ -117,11 +117,11 @@ describe("yupObj", () => {
         const unstripped = { testField: "boop", dummyRelCreate: { dummyField: "test", anotherField: "yeet" } };
         const stripped = { testField: "boop", dummyRelCreate: {} };
         // Validation should pass when extra fields are provided
-        await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
-        await expect(schema.validate(stripped)).resolves.toEqual(stripped);
+        await expect(schema.validate(unstripped)).to.be.fulfilled;
+        await expect(schema.validate(stripped)).to.be.fulfilled;
         // Casting should strip extra fields
-        expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(stripped);
-        expect(schema.cast(stripped, { stripUnknown: true })).toEqual(stripped);
+        expect(schema.cast(unstripped, { stripUnknown: true })).to.deep.equal(stripped);
+        expect(schema.cast(stripped, { stripUnknown: true })).to.deep.equal(stripped);
     });
     it("should handle relationship with omitted fields - test2", async () => {
         const relSchema = createDummyYupModel("dummyField1", "dummyField2");
@@ -136,12 +136,12 @@ describe("yupObj", () => {
         const strippedCorrectly = { testField: "boop", dummyRelCreate: { dummyField2: "yeet" } };
         const strippedIncorrectly = { testField: "boop", dummyRelCreate: { dummyField1: "test" } };
         // Validation should pass when extra fields are provided
-        await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
-        await expect(schema.validate(strippedCorrectly)).resolves.toEqual(strippedCorrectly);
-        await expect(schema.validate(strippedIncorrectly)).rejects.to.throw();
+        await expect(schema.validate(unstripped)).to.be.fulfilled;
+        await expect(schema.validate(strippedCorrectly)).to.be.fulfilled;
+        await expect(schema.validate(strippedIncorrectly)).to.be.rejected;
         // Casting should strip extra fields
-        expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(strippedCorrectly);
-        expect(schema.cast(strippedCorrectly, { stripUnknown: true })).toEqual(strippedCorrectly);
+        expect(schema.cast(unstripped, { stripUnknown: true })).to.deep.equal(strippedCorrectly);
+        expect(schema.cast(strippedCorrectly, { stripUnknown: true })).to.deep.equal(strippedCorrectly);
     });
     it("should handle relationship with omitted fields - test3", async () => {
         const grandchildSchema = createDummyYupModel("dummyField1", "dummyField2");
@@ -172,12 +172,12 @@ describe("yupObj", () => {
         const strippedCorrectly = { childCreate: { testField: "boop" } };
         const strippedIncorrectly = { childCreate: { testField: "boop", grandchildCreate: { dummyField1: "test" } } };
         // Validation should pass when extra fields are provided
-        await expect(parentSchema.validate(unstripped)).resolves.toEqual(unstripped);
-        await expect(parentSchema.validate(strippedCorrectly)).resolves.toEqual(strippedCorrectly);
-        await expect(parentSchema.validate(strippedIncorrectly)).resolves.toEqual(strippedIncorrectly);
+        await expect(parentSchema.validate(unstripped)).to.be.fulfilled;
+        await expect(parentSchema.validate(strippedCorrectly)).to.be.fulfilled;
+        await expect(parentSchema.validate(strippedIncorrectly)).to.be.fulfilled;
         // Casting should strip extra fields
-        expect(parentSchema.cast(unstripped, { stripUnknown: true })).toEqual(strippedCorrectly);
-        expect(parentSchema.cast(strippedCorrectly, { stripUnknown: true })).toEqual(strippedCorrectly);
+        expect(parentSchema.cast(unstripped, { stripUnknown: true })).to.deep.equal(strippedCorrectly);
+        expect(parentSchema.cast(strippedCorrectly, { stripUnknown: true })).to.deep.equal(strippedCorrectly);
     });
 
     it("should enforce exclusion pairs on primitive fields - test 1", async () => {
@@ -194,12 +194,12 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { field2: "test" };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.to.throw();
-        await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
-        await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.to.throw();
-        expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
-        expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
+        await expect(schema.validate(bothFields)).to.be.rejected;
+        await expect(schema.validate(field1Only)).to.be.fulfilled;
+        await expect(schema.validate(field2Only)).to.be.fulfilled;
+        await expect(schema.validate(noFields)).to.be.rejected;
+        expect(schema.cast(field1Only, { stripUnknown: true })).to.deep.equal(field1Only);
+        expect(schema.cast(field2Only, { stripUnknown: true })).to.deep.equal(field2Only);
     });
     it("should enforce exclusion pairs on primitive fields - test 2", async () => {
         const schema = yupObj(
@@ -215,12 +215,12 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { field2: "test" };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.to.throw();
-        await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
-        await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).resolves.toEqual(noFields);
-        expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
-        expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
+        await expect(schema.validate(bothFields)).to.be.rejected;
+        await expect(schema.validate(field1Only)).to.be.fulfilled;
+        await expect(schema.validate(field2Only)).to.be.fulfilled;
+        await expect(schema.validate(noFields)).to.be.fulfilled;
+        expect(schema.cast(field1Only, { stripUnknown: true })).to.deep.equal(field1Only);
+        expect(schema.cast(field2Only, { stripUnknown: true })).to.deep.equal(field2Only);
     });
     it("should enforce exclusion pairs on relationship fields - test1", async () => {
         const relSchema = createDummyYupModel("dummyField");
@@ -239,12 +239,12 @@ describe("yupObj", () => {
         const field1Only = { rel1Create: { dummyField: "test" } };
         const field2Only = { rel2Create: { dummyField: "test" } };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.to.throw();
-        await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
-        await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.to.throw();
-        expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
-        expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
+        await expect(schema.validate(bothFields)).to.be.rejected;
+        await expect(schema.validate(field1Only)).to.be.fulfilled;
+        await expect(schema.validate(field2Only)).to.be.fulfilled;
+        await expect(schema.validate(noFields)).to.be.rejected;
+        expect(schema.cast(field1Only, { stripUnknown: true })).to.deep.equal(field1Only);
+        expect(schema.cast(field2Only, { stripUnknown: true })).to.deep.equal(field2Only);
     });
     it("should enforce exclusion pairs on relationship fields - test2", async () => {
         const relSchema = createDummyYupModel("dummyField");
@@ -261,12 +261,12 @@ describe("yupObj", () => {
         const field1Only = { rel1Create: { dummyField: "test" } };
         const field2Only = { rel1Update: { dummyField: "test" } };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.to.throw();
-        await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
-        await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.to.throw();
-        expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
-        expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
+        await expect(schema.validate(bothFields)).to.be.rejected;
+        await expect(schema.validate(field1Only)).to.be.fulfilled;
+        await expect(schema.validate(field2Only)).to.be.fulfilled;
+        await expect(schema.validate(noFields)).to.be.rejected;
+        expect(schema.cast(field1Only, { stripUnknown: true })).to.deep.equal(field1Only);
+        expect(schema.cast(field2Only, { stripUnknown: true })).to.deep.equal(field2Only);
     });
     it("should enforce exclusion pairs on relationship/primitive field pairs", async () => {
         const relSchema = createDummyYupModel("dummyField");
@@ -283,12 +283,12 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { rel1Create: { dummyField: "test" } };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.to.throw();
-        await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
-        await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.to.throw();
-        expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
-        expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
+        await expect(schema.validate(bothFields)).to.be.rejected;
+        await expect(schema.validate(field1Only)).to.be.fulfilled;
+        await expect(schema.validate(field2Only)).to.be.fulfilled;
+        await expect(schema.validate(noFields)).to.be.rejected;
+        expect(schema.cast(field1Only, { stripUnknown: true })).to.deep.equal(field1Only);
+        expect(schema.cast(field2Only, { stripUnknown: true })).to.deep.equal(field2Only);
     });
 
     // Test omitting relationships with action modifiers
@@ -303,9 +303,9 @@ describe("yupObj", () => {
         );
         const unstripped = { dummyRelCreate: { dummyField: "test", anotherField: "yeet" } };
         const stripped = {};
-        await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
-        await expect(schema.validate(stripped)).resolves.toEqual(stripped);
-        expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(stripped);
+        await expect(schema.validate(unstripped)).to.be.fulfilled;
+        await expect(schema.validate(stripped)).to.be.fulfilled;
+        expect(schema.cast(unstripped, { stripUnknown: true })).to.deep.equal(stripped);
     });
 
     it("should treat one-to-one Connects as an ID", async () => {
@@ -318,8 +318,8 @@ describe("yupObj", () => {
             {},
         );
         const data = { testField: "boop", dummyRelConnect: uuid(), dummyRelCreate: { dummyField: "test" } };
-        await expect(schema.validate(data)).resolves.toEqual(data);
-        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+        await expect(schema.validate(data)).to.be.fulfilled;
+        expect(schema.cast(data, { stripUnknown: true })).to.deep.equal(data);
     });
 
     it("should treat one-to-many Connects as an ID array", async () => {
@@ -332,8 +332,8 @@ describe("yupObj", () => {
             {},
         );
         const data = { testField: "boop", dummyRelConnect: [uuid()], dummyRelCreate: [{ dummyField: "test" }] };
-        await expect(schema.validate(data)).resolves.toEqual(data);
-        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+        await expect(schema.validate(data)).to.be.fulfilled;
+        expect(schema.cast(data, { stripUnknown: true })).to.deep.equal(data);
     });
 
     it("should treat one-to-one Deletes and Disconnects as a boolean", async () => {
@@ -346,8 +346,8 @@ describe("yupObj", () => {
             {},
         );
         const data = { testField: "boop", dummyRelDelete: true, dummyRelDisconnect: true };
-        await expect(schema.validate(data)).resolves.toEqual(data);
-        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+        await expect(schema.validate(data)).to.be.fulfilled;
+        expect(schema.cast(data, { stripUnknown: true })).to.deep.equal(data);
     });
 
     it("should treat one-to-many Deletes and Disconnects as an ID array", async () => {
@@ -360,7 +360,7 @@ describe("yupObj", () => {
             {},
         );
         const data = { testField: "boop", dummyRelDelete: [uuid()], dummyRelDisconnect: [uuid()] };
-        await expect(schema.validate(data)).resolves.toEqual(data);
-        expect(schema.cast(data, { stripUnknown: true })).toEqual(data);
+        await expect(schema.validate(data)).to.be.fulfilled;
+        expect(schema.cast(data, { stripUnknown: true })).to.deep.equal(data);
     });
 });

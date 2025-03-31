@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
+import sinon from "sinon";
 import { LlmTask } from "../api/types.js";
 import { pascalCase } from "../utils/casing.js";
 import { importCommandToTask } from "./config.js";
@@ -108,12 +109,19 @@ describe("handleTaskTransitionOutside", () => {
     const section = "outside";
     let onCommit, onComplete, onCancel, onStart;
     let rest;
+    let sandbox;
+
     beforeEach(() => {
-        onCommit = jest.fn();
-        onComplete = jest.fn();
-        onCancel = jest.fn();
-        onStart = jest.fn();
+        sandbox = sinon.createSandbox();
+        onCommit = sinon.spy();
+        onComplete = sinon.spy();
+        onCancel = sinon.spy();
+        onStart = sinon.spy();
         rest = { onCommit, onComplete, onCancel, onStart, hasOpenBracket: false };
+    });
+
+    afterEach(() => {
+        sandbox.restore();
     });
 
     describe("Reset buffer on outside when whitespace encountered", () => {
@@ -123,8 +131,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: " ",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("tab", () => {
             const buffer = "asdf".split("");
@@ -132,8 +140,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "\t",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("newline", () => {
             const buffer = "asdf".split("");
@@ -141,8 +149,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "\n",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -153,8 +161,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "'",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "'"] });
         });
         it("double quote", () => {
             const buffer = "asdf".split("");
@@ -162,8 +170,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "\"",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "\""] });
         });
         it("equals sign", () => {
             const buffer = "asdf".split("");
@@ -171,8 +179,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "=",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "="] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "="] });
         });
         it("letter", () => {
             const buffer = "asdf".split("");
@@ -180,8 +188,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "a",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
         });
         it("number", () => {
             const buffer = "asdf".split("");
@@ -189,8 +197,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "1",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
         });
         it("other alphabets", () => {
             const buffer = "asdf".split("");
@@ -198,8 +206,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "你",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "你"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "你"] });
         });
         it("emojis", () => {
             const buffer = "asdf".split("");
@@ -207,8 +215,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "👋",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
         });
         it("symbols", () => {
             const buffer = "asdf".split("");
@@ -216,8 +224,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "!",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "!"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "!"] });
         });
     });
 
@@ -229,8 +237,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
             });
             it("number", () => {
                 const buffer = "1234".split("");
@@ -238,8 +246,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
             });
             it("symbol", () => {
                 const buffer = "!@#$".split("");
@@ -247,8 +255,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
             });
             it("emoji", () => {
                 const buffer = "🙌💃".split("");
@@ -256,8 +264,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
             });
             it("another slash", () => {
                 const buffer = "/".split("");
@@ -265,8 +273,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
             });
         });
     });
@@ -278,8 +286,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "/",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "command", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "command", buffer: [] });
         });
         describe("after whitespace", () => {
             it("newline", () => {
@@ -288,8 +296,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
             it("space", () => {
                 const buffer = "asdf ".split("");
@@ -297,8 +305,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
             it("tab", () => {
                 const buffer = "asdf\t".split("");
@@ -306,8 +314,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "/",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
         });
         describe("after open bracket (used for suggested commands)", () => {
@@ -318,8 +326,8 @@ describe("handleTaskTransitionOutside", () => {
                     ...withBuffer(buffer, rest),
                     hasOpenBracket: true,
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
             it("space", () => {
                 const buffer = "asdf [".split("");
@@ -328,8 +336,8 @@ describe("handleTaskTransitionOutside", () => {
                     ...withBuffer(buffer, rest),
                     hasOpenBracket: true,
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
             it("tab", () => {
                 const buffer = "asdf\t[".split("");
@@ -338,8 +346,8 @@ describe("handleTaskTransitionOutside", () => {
                     ...withBuffer(buffer, rest),
                     hasOpenBracket: true,
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
             it("letter", () => {
                 const buffer = "asdf[".split("");
@@ -348,8 +356,8 @@ describe("handleTaskTransitionOutside", () => {
                     ...withBuffer(buffer, rest),
                     hasOpenBracket: true,
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "command", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "command", buffer: [] });
             });
         });
     });
@@ -362,8 +370,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
             });
             it("buffer is not empty", () => {
                 const buffer = "asdf".split("");
@@ -371,8 +379,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
             });
         });
         it("double backtick", () => {
@@ -381,8 +389,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "`",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
         });
         it("triple backtick", () => {
             const buffer = "asdf``".split("");
@@ -390,8 +398,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "`",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
         });
         it("quadruple backtick", () => {
             const buffer = "asdf```".split("");
@@ -399,8 +407,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "`",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
         });
         it("newline after single backtick", () => {
             const buffer = "`".split("");
@@ -408,8 +416,8 @@ describe("handleTaskTransitionOutside", () => {
                 curr: "\n",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [] });
         });
     });
 
@@ -421,8 +429,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "1",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "code", buffer: ["`", "1"] }); // Keep only the backtick and curr
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "code", buffer: ["`", "1"] }); // Keep only the backtick and curr
             });
             it("buffer is not empty besides backtick", () => {
                 const buffer = "asdf`".split("");
@@ -430,8 +438,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "f",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "code", buffer: ["`", "f"] }); // Keep only the backtick and curr
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "code", buffer: ["`", "f"] }); // Keep only the backtick and curr
             });
         });
         describe("triple backtick code blocks", () => {
@@ -441,8 +449,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "a",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "code", buffer: "```a".split("") }); // Keep only the backticks and curr
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "code", buffer: "```a".split("") }); // Keep only the backticks and curr
             });
             it("buffer is not empty besides backticks", () => {
                 const buffer = "asdf$#@$#```".split("");
@@ -450,8 +458,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "x",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "code", buffer: "```x".split("") }); // Keep only the backticks and curr
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "code", buffer: "```x".split("") }); // Keep only the backticks and curr
             });
         });
         describe("HTML-style code tags", () => {
@@ -461,8 +469,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: ">",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "code", buffer: "<code>".split("") }); // Keep only the tag
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "code", buffer: "<code>".split("") }); // Keep only the tag
             });
             it("preceded by non-whitespace", () => {
                 const buffer = "asdf<code".split("");
@@ -470,8 +478,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: ">",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "code", buffer: "<code>".split("") }); // Keep only the tag
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "code", buffer: "<code>".split("") }); // Keep only the tag
             });
             it("not fully closed", () => {
                 const buffer = "asdf <code".split("");
@@ -479,8 +487,8 @@ describe("handleTaskTransitionOutside", () => {
                     curr: "x",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [...buffer, "x"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [...buffer, "x"] });
             });
         });
     });
@@ -490,9 +498,16 @@ describe("handleTaskTransitionCode", () => {
     const section = "code";
     let onCancel;
     let rest;
+    let sandbox;
+
     beforeEach(() => {
-        onCancel = jest.fn();
+        sandbox = sinon.createSandbox();
+        onCancel = sinon.spy();
         rest = { onCancel, hasOpenBracket: false };
+    });
+
+    afterEach(() => {
+        sandbox.restore();
     });
 
     it("shouldn't be here if buffer is empty (backticks/tag is carried over from 'outside' buffer)", () => {
@@ -501,8 +516,8 @@ describe("handleTaskTransitionCode", () => {
             curr: "`",
             ...withBuffer(buffer, rest),
         });
-        expect(onCancel).toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
+        expect(onCancel.called).to.be.true;
+        expect(result).to.deep.include({ section: "outside", buffer: [] });
     });
 
     describe("can't determine code block type", () => {
@@ -514,8 +529,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
                 it("number", () => {
                     const buffer = "1234`".split("");
@@ -523,8 +538,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
                 it("special character", () => {
                     const buffer = "!@#$`".split("");
@@ -532,8 +547,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
             });
         });
@@ -545,8 +560,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
                 it("number", () => {
                     const buffer = "1234```".split("");
@@ -554,8 +569,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
                 it("special character", () => {
                     const buffer = "!@#$```".split("");
@@ -563,8 +578,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
             });
         });
@@ -576,8 +591,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
                 it("number", () => {
                     const buffer = "1234<code>".split("");
@@ -585,8 +600,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
                 it("special character", () => {
                     const buffer = "!@#$<code>".split("");
@@ -594,8 +609,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
             });
         });
@@ -610,8 +625,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("number", () => {
                     const buffer = "`".split("");
@@ -619,8 +634,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
                 });
                 it("special character", () => {
                     const buffer = "`".split("");
@@ -628,8 +643,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "@"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "@"] });
                 });
                 it("space", () => {
                     const buffer = "`".split("");
@@ -637,8 +652,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
                 it("tab", () => {
                     const buffer = "`".split("");
@@ -646,8 +661,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\t",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\t"] });
                 });
                 it("emoji", () => {
                     const buffer = "`".split("");
@@ -655,8 +670,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
             });
             describe("more than tick in buffer", () => {
@@ -666,8 +681,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("number", () => {
                     const buffer = "` fdsaf".split("");
@@ -675,8 +690,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
                 });
                 it("special character", () => {
                     const buffer = "`fdsaffdksa;f".split("");
@@ -684,8 +699,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "@"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "@"] });
                 });
                 it("space", () => {
                     const buffer = "`;2342".split("");
@@ -693,8 +708,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
                 it("tab", () => {
                     const buffer = "`!@#".split("");
@@ -702,8 +717,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\t",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\t"] });
                 });
                 it("emoji", () => {
                     const buffer = "`zzz".split("");
@@ -711,8 +726,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
             });
             it("adding another tick (could be typing triple tick, so we can't cancel out", () => {
@@ -721,8 +736,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+                expect(onCancel.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
             });
         });
         describe("stops buffering", () => {
@@ -733,8 +748,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\n",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
             });
             describe("more than tick in buffer", () => {
@@ -744,8 +759,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\n",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "outside", buffer: [] });
+                    expect(onCancel.called).to.be.true;
+                    expect(result).to.deep.include({ section: "outside", buffer: [] });
                 });
             });
         });
@@ -760,8 +775,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("number", () => {
                     const buffer = "```".split("");
@@ -769,8 +784,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
                 });
                 it("special character", () => {
                     const buffer = "```".split("");
@@ -778,8 +793,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "@"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "@"] });
                 });
                 it("space", () => {
                     const buffer = "```".split("");
@@ -787,8 +802,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
                 it("tab", () => {
                     const buffer = "```".split("");
@@ -796,8 +811,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\t",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\t"] });
                 });
                 it("emoji", () => {
                     const buffer = "```".split("");
@@ -805,8 +820,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
                 it("newline", () => {
                     const buffer = "```".split("");
@@ -814,8 +829,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\n",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\n"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\n"] });
                 });
             });
             describe("more than ticks in buffer", () => {
@@ -825,8 +840,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("number", () => {
                     const buffer = "``` fdsaf".split("");
@@ -834,8 +849,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
                 });
                 it("special character", () => {
                     const buffer = "```fdsaffdksa;f".split("");
@@ -843,8 +858,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "@"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "@"] });
                 });
                 it("space", () => {
                     const buffer = "```;2342".split("");
@@ -852,8 +867,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
                 it("tab", () => {
                     const buffer = "```!@#".split("");
@@ -861,8 +876,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\t",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\t"] });
                 });
                 it("emoji", () => {
                     const buffer = "```zzz".split("");
@@ -870,8 +885,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
                 it("newline", () => {
                     const buffer = "```fdsaf".split("");
@@ -879,8 +894,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\n",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\n"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\n"] });
                 });
             });
             describe("ticks (but not enough to close)", () => {
@@ -890,8 +905,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "`",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
                 });
                 it("2 ticks with text between", () => {
                     const buffer = "```a`".split("");
@@ -899,8 +914,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "`",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "`"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "`"] });
                 });
             });
         });
@@ -911,8 +926,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCancel.called).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("5 ticks in a row - don't support empty code blocks", () => {
                 const buffer = "````".split("");
@@ -920,8 +935,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCancel.called).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("6th tick - only ticks in buffer", () => {
                 const buffer = "`````".split("");
@@ -929,8 +944,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCancel.called).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("6th tick - letters between", () => {
                 const buffer = "```aasdf``".split("");
@@ -938,8 +953,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCancel.called).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("6th tick - lots of stuff between", () => {
                 const buffer = "```fdsafds\nhello`fdsafdsaf;3423243``".split("");
@@ -947,8 +962,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: "`",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCancel.called).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
     });
@@ -962,8 +977,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
                 it("tab", () => {
                     const buffer = "<code>".split("");
@@ -971,8 +986,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\t",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\t"] });
                 });
                 it("newline", () => {
                     const buffer = "<code>".split("");
@@ -980,8 +995,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "\n",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\n"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\n"] });
                 });
                 it("letter", () => {
                     const buffer = "<code>".split("");
@@ -989,8 +1004,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("number", () => {
                     const buffer = "<code>".split("");
@@ -998,8 +1013,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "1",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
                 });
                 it("special character", () => {
                     const buffer = "<code>".split("");
@@ -1007,8 +1022,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "@",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "@"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "@"] });
                 });
                 it("emoji", () => {
                     const buffer = "<code>".split("");
@@ -1016,8 +1031,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
                 it("other alphabets", () => {
                     const buffer = "<code>".split("");
@@ -1025,8 +1040,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "你",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "你"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "你"] });
                 });
             });
             describe("with stuff in code block", () => {
@@ -1036,8 +1051,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
                 it("test 2", () => {
                     const buffer = "<code>fkdsa;f4382483fdsfdsaf; fcofndsafdsaf\n\n\nfjdsaf;!!%$#@3".split("");
@@ -1045,8 +1060,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: " ",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                 });
             });
             describe("closing tag not finished or invalid", () => {
@@ -1056,8 +1071,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "<",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "<"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "<"] });
                 });
                 it("partial closing tag 2", () => {
                     const buffer = "<code>fdasfd<".split("");
@@ -1065,8 +1080,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "/",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
                 });
                 it("partial closing tag 3", () => {
                     const buffer = "<code>fdasfd</".split("");
@@ -1074,8 +1089,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "c",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "c"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "c"] });
                 });
                 it("partial closing tag 4", () => {
                     const buffer = "<code>fdasfd</c".split("");
@@ -1083,8 +1098,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "o",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "o"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "o"] });
                 });
                 it("partial closing tag 5", () => {
                     const buffer = "<code>fdasfd</co".split("");
@@ -1092,8 +1107,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "d",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "d"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "d"] });
                 });
                 it("partial closing tag 6", () => {
                     const buffer = "<code>fdasfd</cod".split("");
@@ -1101,8 +1116,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: "e",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "e"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "e"] });
                 });
                 it("invalid closing tag", () => {
                     const buffer = "<code>fdasdf</c0de".split("");
@@ -1110,8 +1125,8 @@ describe("handleTaskTransitionCode", () => {
                         curr: ">",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCancel).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, ">"] });
+                    expect(onCancel.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, ">"] });
                 });
             });
         });
@@ -1122,8 +1137,8 @@ describe("handleTaskTransitionCode", () => {
                     curr: ">",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCancel).toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCancel.called).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
     });
@@ -1133,11 +1148,18 @@ describe("handleTaskTransitionCommand", () => {
     const section = "command";
     let onCancel, onCommit, onComplete;
     let rest;
+    let sandbox;
+
     beforeEach(() => {
-        onCancel = jest.fn();
-        onCommit = jest.fn();
-        onComplete = jest.fn();
+        sandbox = sinon.createSandbox();
+        onCancel = sinon.spy();
+        onCommit = sinon.spy();
+        onComplete = sinon.spy();
         rest = { onCancel, onCommit, onComplete, hasOpenBracket: false };
+    });
+
+    afterEach(() => {
+        sandbox.restore();
     });
 
     describe("continues buffering", () => {
@@ -1147,8 +1169,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "a",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
         });
         it("number", () => {
             const buffer = "test".split("");
@@ -1156,8 +1178,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "1",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
         });
     });
 
@@ -1168,8 +1190,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "\n",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("command", buffer.join(""));
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.calledWith("command", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -1180,8 +1202,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "你",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("emojis", () => {
             const buffer = "test".split("");
@@ -1189,8 +1211,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "👋",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("symbols", () => {
             const buffer = "test".split("");
@@ -1198,8 +1220,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "!",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -1210,8 +1232,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: " ",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("command", buffer.join(""));
-            expect(result).toMatchObject({ section: "action", buffer: [] });
+            expect(onCommit.calledWith("command", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "action", buffer: [] });
         });
         it("tab", () => {
             const buffer = "test".split("");
@@ -1219,8 +1241,8 @@ describe("handleTaskTransitionCommand", () => {
                 curr: "\t",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("command", buffer.join(""));
-            expect(result).toMatchObject({ section: "action", buffer: [] });
+            expect(onCommit.calledWith("command", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "action", buffer: [] });
         });
     });
 });
@@ -1229,11 +1251,18 @@ describe("handleTaskTransitionAction", () => {
     const section = "action";
     let onCancel, onCommit, onComplete;
     let rest;
+    let sandbox;
+
     beforeEach(() => {
-        onCancel = jest.fn();
-        onCommit = jest.fn();
-        onComplete = jest.fn();
+        sandbox = sinon.createSandbox();
+        onCancel = sinon.spy();
+        onCommit = sinon.spy();
+        onComplete = sinon.spy();
         rest = { onCancel, onCommit, onComplete, hasOpenBracket: false };
+    });
+
+    afterEach(() => {
+        sandbox.restore();
     });
 
     describe("continues buffering", () => {
@@ -1243,8 +1272,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "a",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
         });
         it("number", () => {
             const buffer = "test".split("");
@@ -1252,8 +1281,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "1",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
         });
     });
 
@@ -1264,8 +1293,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "你",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("emojis", () => {
             const buffer = "test".split("");
@@ -1273,8 +1302,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "👋",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("symbols", () => {
             const buffer = "test".split("");
@@ -1282,8 +1311,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "!",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("too long", () => {
             const buffer = "test".repeat(10).split("");
@@ -1292,9 +1321,9 @@ describe("handleTaskTransitionAction", () => {
                 ...withBuffer(buffer, rest),
                 bufferLengthLimit: 4,
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(onComplete).toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(onComplete.called).to.be.true;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -1305,8 +1334,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: " ",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("action", buffer.join(""));
-            expect(result).toMatchObject({ section: "propName", buffer: [] });
+            expect(onCommit.calledWith("action", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "propName", buffer: [] });
         });
         it("tab", () => {
             const buffer = "add".split("");
@@ -1314,8 +1343,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "\t",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("action", buffer.join(""));
-            expect(result).toMatchObject({ section: "propName", buffer: [] });
+            expect(onCommit.calledWith("action", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "propName", buffer: [] });
         });
     });
 
@@ -1326,8 +1355,8 @@ describe("handleTaskTransitionAction", () => {
                 curr: "\n",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("action", buffer.join(""));
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.calledWith("action", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -1337,8 +1366,8 @@ describe("handleTaskTransitionAction", () => {
             curr: "=",
             ...withBuffer(buffer, rest),
         });
-        expect(onCommit).toHaveBeenCalledWith("propName", buffer.join(""));
-        expect(result).toMatchObject({ section: "propValue", buffer: [] });
+        expect(onCommit.calledWith("propName", buffer.join(""))).to.be.true;
+        expect(result).to.deep.include({ section: "propValue", buffer: [] });
     });
 });
 
@@ -1346,11 +1375,18 @@ describe("handleTaskTransitionPropName", () => {
     const section = "propName";
     let onCancel, onCommit, onComplete;
     let rest;
+    let sandbox;
+
     beforeEach(() => {
-        onCancel = jest.fn();
-        onCommit = jest.fn();
-        onComplete = jest.fn();
+        sandbox = sinon.createSandbox();
+        onCancel = sinon.spy();
+        onCommit = sinon.spy();
+        onComplete = sinon.spy();
         rest = { onCancel, onCommit, onComplete, hasOpenBracket: false };
+    });
+
+    afterEach(() => {
+        sandbox.restore();
     });
 
     describe("continues buffering", () => {
@@ -1360,8 +1396,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "a",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
         });
         it("number", () => {
             const buffer = "name".split("");
@@ -1369,8 +1405,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "1",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
         });
     });
 
@@ -1381,8 +1417,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: " ",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("tab", () => {
             const buffer = "name".split("");
@@ -1390,8 +1426,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "\t",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("newline", () => {
             const buffer = "name".split("");
@@ -1399,8 +1435,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "\n",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("other alphabets", () => {
             const buffer = "name".split("");
@@ -1408,8 +1444,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "你",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("emojis", () => {
             const buffer = "name".split("");
@@ -1417,8 +1453,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "👋",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("symbols", () => {
             const buffer = "name".split("");
@@ -1426,8 +1462,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "!",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("slash", () => {
             const buffer = "name".split("");
@@ -1435,8 +1471,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "/",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -1447,8 +1483,8 @@ describe("handleTaskTransitionPropName", () => {
                 curr: "=",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).toHaveBeenCalledWith("propName", buffer.join(""));
-            expect(result).toMatchObject({ section: "propValue", buffer: [] });
+            expect(onCommit.calledWith("propName", buffer.join(""))).to.be.true;
+            expect(result).to.deep.include({ section: "propValue", buffer: [] });
         });
     });
 });
@@ -1457,12 +1493,19 @@ describe("handleTaskTransitionPropValue", () => {
     const section = "propValue";
     let onCommit, onComplete, onCancel, onStart;
     let rest;
+    let sandbox;
+
     beforeEach(() => {
-        onCommit = jest.fn();
-        onComplete = jest.fn();
-        onCancel = jest.fn();
-        onStart = jest.fn();
+        sandbox = sinon.createSandbox();
+        onCommit = sinon.spy();
+        onComplete = sinon.spy();
+        onCancel = sinon.spy();
+        onStart = sinon.spy();
         rest = { onCommit, onComplete, onCancel, onStart, hasOpenBracket: false };
+    });
+
+    afterEach(() => {
+        sandbox.restore();
     });
 
     describe("continues buffering", () => {
@@ -1473,8 +1516,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "'",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "'"] });
             });
             it("double quote", () => {
                 const buffer = "".split("");
@@ -1482,8 +1525,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\"",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "\""] });
             });
         });
         describe("number, or might be a number with continued buffering", () => {
@@ -1493,8 +1536,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "1",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "1"] });
             });
             it("first negative sign", () => {
                 const buffer = "".split("");
@@ -1502,8 +1545,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "-",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "-"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "-"] });
             });
             it("first digit after negative sign", () => {
                 const buffer = "-".split("");
@@ -1511,8 +1554,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "9",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "9"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "9"] });
             });
             it("first period with empty buffer", () => {
                 const buffer = "".split("");
@@ -1520,8 +1563,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: ".",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "."] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "."] });
             });
             it("first period after positive number", () => {
                 const buffer = "3".split("");
@@ -1529,8 +1572,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: ".",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "."] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "."] });
             });
             it("first period after negative number", () => {
                 const buffer = "-3".split("");
@@ -1538,8 +1581,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: ".",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "."] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "."] });
             });
         });
         describe("null, or might be null with continued buffering", () => {
@@ -1549,8 +1592,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "n",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "n"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "n"] });
             });
             it("first u", () => {
                 const buffer = "n".split("");
@@ -1558,8 +1601,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "u",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "u"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "u"] });
             });
             it("first l", () => {
                 const buffer = "nu".split("");
@@ -1567,8 +1610,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "l",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "l"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "l"] });
             });
             // See "cancels" and "commits" sections for other null tests
         });
@@ -1580,8 +1623,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "t",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "t"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "t"] });
             });
             it("first r", () => {
                 const buffer = "t".split("");
@@ -1589,8 +1632,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "r",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "r"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "r"] });
             });
             it("first u", () => {
                 const buffer = "tr".split("");
@@ -1598,8 +1641,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "u",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "u"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "u"] });
             });
             // False
             it("first f", () => {
@@ -1608,8 +1651,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "f",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "f"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "f"] });
             });
             it("first a", () => {
                 const buffer = "f".split("");
@@ -1617,8 +1660,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "a",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
             });
             it("first l", () => {
                 const buffer = "fa".split("");
@@ -1626,8 +1669,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "l",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "l"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "l"] });
             });
             it("first s", () => {
                 const buffer = "fal".split("");
@@ -1635,8 +1678,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "s",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section, buffer: [...buffer, "s"] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section, buffer: [...buffer, "s"] });
             });
             // See "cancels" and "commits" sections for other boolean tests
         });
@@ -1648,8 +1691,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("letter with other text already in quote", () => {
                     const buffer = "'fdsaf".split("");
@@ -1657,8 +1700,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("other alphabets", () => {
                     const buffer = "'你".split("");
@@ -1666,8 +1709,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "你",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "你"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "你"] });
                 });
                 it("emoji", () => {
                     const buffer = "'👋".split("");
@@ -1675,8 +1718,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
                 it("symbol", () => {
                     const buffer = "'!@#".split("");
@@ -1684,8 +1727,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "!",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "!"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "!"] });
                 });
                 it("slash", () => {
                     const buffer = "'/".split("");
@@ -1693,8 +1736,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "/",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "/"] });
                 });
                 describe("whitespace", () => {
                     it("space", () => {
@@ -1703,8 +1746,8 @@ describe("handleTaskTransitionPropValue", () => {
                             curr: " ",
                             ...withBuffer(buffer, rest),
                         });
-                        expect(onCommit).not.toHaveBeenCalled();
-                        expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                        expect(onCommit.called).to.be.false;
+                        expect(result).to.deep.include({ section, buffer: [...buffer, " "] });
                     });
                     it("tab", () => {
                         const buffer = "'".split("");
@@ -1712,8 +1755,8 @@ describe("handleTaskTransitionPropValue", () => {
                             curr: "\t",
                             ...withBuffer(buffer, rest),
                         });
-                        expect(onCommit).not.toHaveBeenCalled();
-                        expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                        expect(onCommit.called).to.be.false;
+                        expect(result).to.deep.include({ section, buffer: [...buffer, "\t"] });
                     });
                     it("newline", () => {
                         const buffer = "'".split("");
@@ -1721,8 +1764,8 @@ describe("handleTaskTransitionPropValue", () => {
                             curr: "\n",
                             ...withBuffer(buffer, rest),
                         });
-                        expect(onCommit).not.toHaveBeenCalled();
-                        expect(result).toMatchObject({ section, buffer: [...buffer, "\n"] });
+                        expect(onCommit.called).to.be.false;
+                        expect(result).to.deep.include({ section, buffer: [...buffer, "\n"] });
                     });
                 });
                 it("double quote", () => {
@@ -1731,8 +1774,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "\"",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\""] });
                 });
                 it("escape character", () => {
                     const buffer = "'".split("");
@@ -1740,8 +1783,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "\\",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\\"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\\"] });
                 });
                 it("escaped single quote", () => {
                     const buffer = "'\\".split("");
@@ -1749,8 +1792,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "'",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "'"] });
                 });
                 it("escaped double quote", () => {
                     const buffer = "'\\".split("");
@@ -1758,8 +1801,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "\"",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\""] });
                 });
                 it("odd number of escape characters", () => {
                     const buffer = "'\\\\\\".split("");
@@ -1767,8 +1810,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "'",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "propValue", buffer: [...buffer, "'"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section: "propValue", buffer: [...buffer, "'"] });
                 });
             });
             describe("double quote start", () => {
@@ -1778,8 +1821,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("letter with other text already in quote", () => {
                     const buffer = "\"fdsaf".split("");
@@ -1787,8 +1830,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "a",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "a"] });
                 });
                 it("other alphabets", () => {
                     const buffer = "\"你".split("");
@@ -1796,8 +1839,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "你",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "你"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "你"] });
                 });
                 it("emoji", () => {
                     const buffer = "\"👋".split("");
@@ -1805,8 +1848,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "👋",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "👋"] });
                 });
                 it("single quote", () => {
                     const buffer = "\"".split("");
@@ -1814,8 +1857,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "'",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "'"] });
                 });
                 it("escape character", () => {
                     const buffer = "\"".split("");
@@ -1823,8 +1866,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "\\",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\\"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\\"] });
                 });
                 it("escaped single quote", () => {
                     const buffer = "\"\\".split("");
@@ -1832,8 +1875,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "'",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "'"] });
                 });
                 it("escaped double quote", () => {
                     const buffer = "\"\\".split("");
@@ -1841,8 +1884,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "\"",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section, buffer: [...buffer, "\""] });
                 });
                 it("odd number of escape characters", () => {
                     const buffer = "'\\\\\\".split("");
@@ -1850,8 +1893,8 @@ describe("handleTaskTransitionPropValue", () => {
                         curr: "\"",
                         ...withBuffer(buffer, rest),
                     });
-                    expect(onCommit).not.toHaveBeenCalled();
-                    expect(result).toMatchObject({ section: "propValue", buffer: [...buffer, "\""] });
+                    expect(onCommit.called).to.be.false;
+                    expect(result).to.deep.include({ section: "propValue", buffer: [...buffer, "\""] });
                 });
             });
         });
@@ -1865,8 +1908,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "-",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("negative after number", () => {
                 const buffer = "1".split("");
@@ -1874,8 +1917,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "-",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("double period, sequential", () => {
                 const buffer = "3.".split("");
@@ -1883,8 +1926,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: ".",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("double period, number inbetween", () => {
                 const buffer = "1.2".split("");
@@ -1892,8 +1935,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: ".",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("letter after number", () => {
                 const buffer = "1".split("");
@@ -1901,8 +1944,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "a",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("other alphabets after number", () => {
                 const buffer = "1".split("");
@@ -1910,8 +1953,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "你",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("emoji after number", () => {
                 const buffer = "1".split("");
@@ -1919,8 +1962,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "👋",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("symbol after number", () => {
                 const buffer = "1".split("");
@@ -1928,8 +1971,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "!",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
         describe("invalid null", () => {
@@ -1939,8 +1982,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "n",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("double u", () => {
                 const buffer = "nu".split("");
@@ -1948,8 +1991,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "u",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("capital N", () => {
                 const buffer = "N".split("");
@@ -1957,8 +2000,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "N",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
         describe("invalid boolean", () => {
@@ -1968,8 +2011,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "f",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("double t", () => {
                 const buffer = "t".split("");
@@ -1977,8 +2020,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "t",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("capital F", () => {
                 const buffer = "F".split("");
@@ -1986,8 +2029,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "F",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
         describe("whitespace before quote", () => {
@@ -1997,8 +2040,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: " ",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("tab", () => {
                 const buffer = "".split("");
@@ -2006,8 +2049,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\t",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
             it("newline", () => {
                 const buffer = "".split("");
@@ -2015,8 +2058,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\n",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).not.toHaveBeenCalled();
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.called).to.be.false;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
         it("letter before quote (that can't be a possible null/boolean value)", () => {
@@ -2025,8 +2068,8 @@ describe("handleTaskTransitionPropValue", () => {
                 curr: "a",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("other alphabets before quote", () => {
             const buffer = "".split("");
@@ -2034,8 +2077,8 @@ describe("handleTaskTransitionPropValue", () => {
                 curr: "你",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("emoji before quote", () => {
             const buffer = "".split("");
@@ -2043,8 +2086,8 @@ describe("handleTaskTransitionPropValue", () => {
                 curr: "👋",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("symbol before quote", () => {
             const buffer = "".split("");
@@ -2052,8 +2095,8 @@ describe("handleTaskTransitionPropValue", () => {
                 curr: "!",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
         it("slash before quote", () => {
             const buffer = "".split("");
@@ -2061,8 +2104,8 @@ describe("handleTaskTransitionPropValue", () => {
                 curr: "/",
                 ...withBuffer(buffer, rest),
             });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ section: "outside", buffer: [] });
+            expect(onCommit.called).to.be.false;
+            expect(result).to.deep.include({ section: "outside", buffer: [] });
         });
     });
 
@@ -2074,8 +2117,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "'",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("quote with text", () => {
                 const buffer = "'test".split("");
@@ -2083,8 +2126,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "'",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "test");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "test")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("quote that looks like a number", () => {
                 const buffer = "'123".split("");
@@ -2092,8 +2135,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "'",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "123");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "123")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("ending quote with even number of escape characters", () => {
                 const buffer = "'\\\\".split("");
@@ -2101,8 +2144,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "'",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "\\\\");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "\\\\")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
         });
         describe("double quote", () => {
@@ -2112,8 +2155,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\"",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("quote with text", () => {
                 const buffer = "\"test".split("");
@@ -2121,8 +2164,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\"",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "test");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "test")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("quote that looks like a number", () => {
                 const buffer = "\"123".split("");
@@ -2130,8 +2173,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\"",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "123");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "123")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("ending quote with even number of escape characters", () => {
                 const buffer = "\"\\\\".split("");
@@ -2139,8 +2182,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\"",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", "\\\\");
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", "\\\\")).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
         });
         describe("number property on whitespace", () => {
@@ -2150,8 +2193,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: " ",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", 123);
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", 123)).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("tab", () => {
                 const buffer = "1.23".split("");
@@ -2159,8 +2202,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\t",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", 1.23);
-                expect(result).toMatchObject({ section: "propName", buffer: [] });
+                expect(onCommit.calledWith("propValue", 1.23)).to.be.true;
+                expect(result).to.deep.include({ section: "propName", buffer: [] });
             });
             it("newline", () => {
                 const buffer = "-123.".split("");
@@ -2168,8 +2211,8 @@ describe("handleTaskTransitionPropValue", () => {
                     curr: "\n",
                     ...withBuffer(buffer, rest),
                 });
-                expect(onCommit).toHaveBeenCalledWith("propValue", -123);
-                expect(result).toMatchObject({ section: "outside", buffer: [] });
+                expect(onCommit.calledWith("propValue", -123)).to.be.true;
+                expect(result).to.deep.include({ section: "outside", buffer: [] });
             });
         });
     });
@@ -2539,7 +2582,7 @@ function extractTasksFromTextTester({
     const commands = extractTasksFromText(input, commandToTask);
     const expectedCommands = expected.map(({ properties, task, match }) => ({
         task,
-        properties: properties ? expect.objectContaining(properties) : undefined,
+        properties: properties ? sinon.match(properties) : undefined,
         ...getStartEnd(input, match),
     }));
     // @ts-ignore: expect-message
@@ -4476,7 +4519,7 @@ describe("getValidTasksFromMessage", () => {
                 properties: {}, //Search string is a property in taskMode "BotFind", not "Start"
                 start: 0,
                 end: message.length,
-                taskId: expect.any(String),
+                taskId: sinon.match.string,
             }],
             tasksToSuggest: [],
         });

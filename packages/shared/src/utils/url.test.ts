@@ -55,33 +55,31 @@ describe("encodeValue and decodeValue", () => {
 });
 
 describe("parseSearchParams", () => {
-    let originalLocation: string;
+    let sandbox;
 
-    // Helper function to set window.location.search
-    function setWindowSearch(search) {
-        Object.defineProperty(window, "location", {
-            value: {
-                search,
-            },
-            writable: true,
-        });
-    }
-
-    before(() => {
+    beforeEach(() => {
+        sandbox = sinon.createSandbox();
         setupDOM();
-        originalLocation = window.location.search;
-    });
-
-    after(() => {
-        teardownDOM();
+        // Set up a default window.location
+        Object.defineProperty(window, "location", {
+            value: { search: "" },
+            writable: true,
+            configurable: true,
+        });
     });
 
     afterEach(() => {
-        // Restore the original window.location after each test
-        Object.defineProperty(window, "location", {
-            value: originalLocation,
-        });
+        sandbox.restore();
+        teardownDOM();
     });
+
+    function setWindowSearch(search: string) {
+        Object.defineProperty(window, "location", {
+            value: { search },
+            writable: true,
+            configurable: true,
+        });
+    }
 
     it("returns an empty object for empty search params", () => {
         setWindowSearch("");
