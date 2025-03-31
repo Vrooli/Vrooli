@@ -1,14 +1,16 @@
 /* eslint-disable no-magic-numbers */
-import { FormStructureType, noop } from "@local/shared";
+import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
 import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, InputBase, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
+import { useField } from "formik";
 import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
+import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButton.js";
@@ -111,6 +113,30 @@ export interface AdvancedInputProps {
     onToolsChange?: (updatedTools: Tool[]) => unknown;
     onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
     onSubmit?: (message: string) => unknown;
+}
+
+export interface AdvancedInputBaseProps {
+    tools: Tool[];
+    contextData: ContextItem[];
+    maxChars?: number;
+    value: string;
+    disabled?: boolean;
+    error?: boolean;
+    helperText?: string;
+    onBlur?: (event: any) => void;
+    onChange: (value: string) => void;
+    onToolsChange?: (updatedTools: Tool[]) => unknown;
+    onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
+    onSubmit?: (value: string) => void;
+}
+
+export interface AdvancedInputProps extends Omit<AdvancedInputBaseProps, "value" | "onChange" | "onBlur" | "error" | "helperText"> {
+    name: string;
+}
+
+export interface TranslatedAdvancedInputProps extends Omit<AdvancedInputBaseProps, "value" | "onChange" | "onBlur" | "error" | "helperText"> {
+    language: string;
+    name: string;
 }
 
 const toolbarRowStyles: SxProps<Theme> = {
@@ -531,6 +557,10 @@ function ContextItemDisplay({
 // Add these styles near the top with other styles
 const toolbarIconButtonStyle = { padding: "4px", opacity: 0.5 } as const;
 
+// Move style objects to constants
+const verticalMiddleStyle = { verticalAlign: "middle" } as const;
+const dividerStyle = { my: 1, opacity: 0.2 } as const;
+
 /** 
  * PlusMenu Component - renders the popover for additional actions.
  */
@@ -755,7 +785,7 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
                     color="secondary"
                 />
             </MenuItem>
-            <Divider sx={{ my: 1, opacity: 0.2 }} />
+            <Divider sx={dividerStyle} />
             <Box px={2}>
                 <FormTip
                     element={infoMemoTipData}
@@ -810,16 +840,21 @@ const inputBaseInputProps = {
     className: "advanced-input-field",
 } as const;
 
-export function AdvancedInput({
+/** TextInput for entering rich text. Supports markdown and WYSIWYG */
+export function AdvancedInputBase({
     tools,
     contextData,
     maxChars,
-    message,
-    onMessageChange,
+    value,
+    disabled = false,
+    error = false,
+    helperText,
+    onBlur,
+    onChange,
     onToolsChange,
     onContextDataChange,
     onSubmit,
-}: AdvancedInputProps) {
+}: AdvancedInputBaseProps) {
     const theme = useTheme();
 
     // Add expanded view state
@@ -829,22 +864,21 @@ export function AdvancedInput({
     }, []);
 
     // Local state for the input value
-    const [localMessage, setLocalMessage] = useState(message ?? "");
+    const [localMessage, setLocalMessage] = useState(value ?? "");
     const latestMessageRef = useRef(localMessage);
-    const [debouncedMessageChange] = useDebounce((value: string) => {
-        // Only notify parent if the value has actually changed
-        if (value !== latestMessageRef.current) {
-            onMessageChange?.(value);
-        }
+
+    // Debounced callback to notify parent of changes
+    const [debouncedMessageChange] = useDebounce((newValue: string) => {
+        onChange?.(newValue);
     }, 300);
 
-    // Update local message when parent message changes, but only if it's different from what we have
+    // Update local message when parent value changes
     useEffect(function updateLocalMessageEffect() {
-        if (message !== undefined && message !== latestMessageRef.current) {
-            setLocalMessage(message);
-            latestMessageRef.current = message;
+        if (value !== undefined && value !== latestMessageRef.current) {
+            setLocalMessage(value);
+            latestMessageRef.current = value;
         }
-    }, [message]);
+    }, [value]);
 
     // Settings state from localStorage
     const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
@@ -1062,25 +1096,24 @@ export function AdvancedInput({
         [onContextDataChange, contextData],
     );
 
-    function handleMessageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const handleMessageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
         setLocalMessage(newValue);
         latestMessageRef.current = newValue;
         debouncedMessageChange(newValue);
-    }
+    }, [debouncedMessageChange]);
 
-    const handleSubmit = useCallback(() => {
-        if (onSubmit) {
-            onSubmit(localMessage);
-            setLocalMessage("");
-        }
+    const handleSubmit = useCallback((event: React.FormEvent) => {
+        event.preventDefault();
+        onSubmit?.(localMessage);
     }, [localMessage, onSubmit]);
+
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
             if (e.key === "Enter" && !e.shiftKey) {
                 if (enterWillSubmit) {
                     e.preventDefault();
-                    handleSubmit();
+                    handleSubmit(e);
                 }
             }
         },
@@ -1266,6 +1299,7 @@ export function AdvancedInput({
                                 {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
                                     <IconCommon
                                         decorative
+                                        fill="background.textSecondary"
                                         name="Ellipsis"
                                     />
                                 </ShowHideIconButton>}
@@ -1281,6 +1315,7 @@ export function AdvancedInput({
                                 {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
                                     <IconCommon
                                         decorative
+                                        fill="background.textSecondary"
                                         name="Invisible"
                                     />
                                 </ShowHideIconButton>}
@@ -1300,9 +1335,7 @@ export function AdvancedInput({
                     <Box
                         display="inline-flex"
                         position="relative"
-                        sx={{
-                            verticalAlign: "middle",
-                        }}
+                        sx={verticalMiddleStyle}
                     >
                         <CircularProgress
                             variant="determinate"
@@ -1378,6 +1411,70 @@ export function AdvancedInput({
                 limitTo={findRoutineLimitTo}
             />
         </Outer>
+    );
+}
+
+export function AdvancedInput({
+    name,
+    ...props
+}: AdvancedInputProps) {
+    const [field, meta, helpers] = useField(name);
+
+    function handleChange(value: string) {
+        helpers.setValue(value);
+    }
+
+    return (
+        <AdvancedInputBase
+            {...props}
+            name={name}
+            value={field.value}
+            error={meta.touched && !!meta.error}
+            helperText={meta.touched && meta.error}
+            onBlur={field.onBlur}
+            onChange={handleChange}
+        />
+    );
+}
+
+export function TranslatedAdvancedInput({
+    language,
+    name,
+    ...props
+}: TranslatedAdvancedInputProps) {
+    const [field, meta, helpers] = useField("translations");
+    const translationData = getTranslationData(field, meta, language);
+
+    const fieldValue = getDotNotationValue(translationData.value, name);
+    const fieldError = getDotNotationValue(translationData.error, name);
+    const fieldTouched = getDotNotationValue(translationData.touched, name);
+
+    function handleBlur(event) {
+        field.onBlur(event);
+    }
+
+    function handleChange(newText: string) {
+        // Only use dot notation if the name has a dot in it
+        if (name.includes(".")) {
+            const updatedValue = setDotNotationValue(translationData.value ?? {}, name, newText);
+            helpers.setValue(field.value.map((translation) => {
+                if (translation.language === language) return updatedValue;
+                return translation;
+            }));
+        }
+        else handleTranslationChange(field, meta, helpers, { target: { name, value: newText } }, language);
+    }
+
+    return (
+        <AdvancedInputBase
+            {...props}
+            name={name}
+            value={fieldValue || ""}
+            error={fieldTouched && Boolean(fieldError)}
+            helperText={fieldTouched && fieldError}
+            onBlur={handleBlur}
+            onChange={handleChange}
+        />
     );
 }
 
