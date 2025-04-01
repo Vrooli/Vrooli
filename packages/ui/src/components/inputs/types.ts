@@ -199,51 +199,6 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
     value: string;
 }
 
-export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
-
-export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "helperText" | "maxChars" | "sxs"> {
-    enterWillSubmit?: boolean;
-    id: string;
-    onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
-    redo: () => unknown;
-    setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
-    toggleMarkdown: () => unknown;
-    undo: () => unknown;
-    sxs?: {
-        inputRoot?: SxType;
-        textArea?: CSSProperties;
-    };
-}
-
-export type RichInputMarkdownProps = RichInputChildProps;
-export type RichInputLexicalProps = RichInputChildProps;
-
-export enum RichInputAction {
-    Bold = "Bold",
-    Code = "Code",
-    Header1 = "Header1",
-    Header2 = "Header2",
-    Header3 = "Header3",
-    Header4 = "Header4",
-    Header5 = "Header5",
-    Header6 = "Header6",
-    Italic = "Italic",
-    Link = "Link",
-    ListBullet = "ListBullet",
-    ListCheckbox = "ListCheckbox",
-    ListNumber = "ListNumber",
-    Mode = "Mode",
-    Quote = "Quote",
-    Redo = "Redo",
-    SetValue = "SetValue",
-    Spoiler = "Spoiler",
-    Strikethrough = "Strikethrough",
-    Table = "Table",
-    Underline = "Underline",
-    Undo = "Undo",
-}
-export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
-
 export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;
     autoFocus?: boolean;

@@ -6,10 +6,13 @@ import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
 import { DEFAULT_MIN_ROWS } from "../../../utils/consts.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
+import { AdvancedInputMarkdown } from "../AdvancedInput/AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, defaultActiveStates } from "../AdvancedInput/AdvancedInputToolbar.js";
-import { RichInputLexical } from "../RichInputLexical/RichInputLexical.js";
-import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown.js";
-import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps, TranslatedRichInputProps } from "../types.js";
+import { AdvancedInputLexical } from "../AdvancedInput/lexical/AdvancedInputLexical.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, TranslatedAdvancedInputProps } from "../AdvancedInput/utils.js";
+
+type RichInputBaseProps = Record<string, any>;
+type RichInputProps = Record<string, any>;
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 
@@ -25,8 +28,8 @@ export function RichInputBase({
     minRows = DEFAULT_MIN_ROWS,
     name,
     onBlur,
-    onFocus,
     onChange,
+    onFocus,
     onSubmit,
     placeholder = "",
     tabIndex,
@@ -54,18 +57,18 @@ export function RichInputBase({
     // Actions which store and active state for the Toolbar. 
     // This is currently ignored when markdown mode is on, since it's 
     // a bitch to keep track of
-    const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>(defaultActiveStates);
+    const [activeStates, setActiveStates] = useState<Omit<AdvancedInputActiveStates, "SetValue">>(defaultActiveStates);
     const handleActiveStatesChange = useCallback((newActiveStates) => {
         setActiveStates(newActiveStates);
     }, []);
 
     const [enterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
 
-    const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
-    const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
+    const currentHandleActionRef = useRef<((action: AdvancedInputAction, data?: unknown) => unknown) | null>(null);
+    const setChildHandleAction = useCallback((handleAction: (action: AdvancedInputAction, data?: unknown) => unknown) => {
         currentHandleActionRef.current = handleAction;
     }, []);
-    const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
+    const handleAction = useCallback((action: AdvancedInputAction, data?: unknown) => {
         if (action === "Mode") {
             toggleMarkdown();
         } else if (currentHandleActionRef.current) {
@@ -125,14 +128,14 @@ export function RichInputBase({
 
     // Memoize the child components
     const MarkdownComponent = useMemo(() => (
-        <RichInputMarkdown
+        <AdvancedInputMarkdown
             {...stableViewProps}
             {...dynamicViewProps}
         />
     ), [stableViewProps, dynamicViewProps]);
 
     const LexicalComponent = useMemo(() => (
-        <RichInputLexical
+        <AdvancedInputLexical
             {...stableViewProps}
             {...dynamicViewProps}
         />
@@ -186,7 +189,7 @@ export function TranslatedRichInput({
     language,
     name,
     ...props
-}: TranslatedRichInputProps) {
+}: TranslatedAdvancedInputProps) {
     const [field, meta, helpers] = useField("translations");
     const translationData = getTranslationData(field, meta, language);
 

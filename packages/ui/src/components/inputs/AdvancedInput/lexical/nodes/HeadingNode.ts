@@ -1,4 +1,4 @@
-import { Headers, headerMarkdowns } from "../../../../utils/display/stringTools.js";
+import { Headers, headerMarkdowns } from "../../../../../utils/display/stringTools.js";
 import { RangeSelection } from "../selection.js";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types.js";
 import { $createNode, isHTMLElement } from "../utils.js";

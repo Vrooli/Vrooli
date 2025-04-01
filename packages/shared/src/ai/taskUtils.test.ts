@@ -2585,14 +2585,22 @@ function extractTasksFromTextTester({
         properties: properties ? sinon.match(properties) : undefined,
         ...getStartEnd(input, match),
     }));
-    // @ts-ignore: expect-message
-    expect(commands, `Should match expected commands. input: ${input}`).to.deep.equal(expectedCommands);
-    for (let i = 0; i < expectedCommands.length; i++) {
-        const receivedPropertyLength = Object.keys(commands[i].properties ?? {}).length;
-        const expectedPropertyLength = Object.keys(expected[i].properties ?? {}).length;
-        // @ts-ignore: expect-message
-        expect(receivedPropertyLength, `Should have same number of properties. input: ${input}. index: ${i}`).to.equal(expectedPropertyLength);
-    }
+
+    expect(commands).to.have.lengthOf(expectedCommands.length, `Should have same number of commands. input: ${input}`);
+
+    commands.forEach((command, i) => {
+        const expectedCommand = expectedCommands[i];
+        expect(command.task).to.equal(expectedCommand.task, `Task should match at index ${i}. input: ${input}`);
+        expect(command.start).to.equal(expectedCommand.start, `Start position should match at index ${i}. input: ${input}`);
+        expect(command.end).to.equal(expectedCommand.end, `End position should match at index ${i}. input: ${input}`);
+
+        if (expectedCommand.properties) {
+            expect(command.properties).to.not.be.undefined;
+            expect(expectedCommand.properties.test(command.properties)).to.be.true;
+        } else {
+            expect(command.properties).to.be.undefined;
+        }
+    });
 }
 
 describe("extractTasksFromText", () => {

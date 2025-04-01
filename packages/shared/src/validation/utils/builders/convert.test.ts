@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { addHttps, toPosDouble, toPosInt } from "./convert.js";
+import { addHttps, toDouble, toPosDouble, toPosInt } from "./convert.js";
 
 describe("Positive Double Conversion Tests", () => {
     // Test suite for typical cases
@@ -41,6 +41,54 @@ describe("Positive Double Conversion Tests", () => {
                     expect(isNaN(result)).to.be.true;
                 } else {
                     expect(result).to.deep.equal(expected);
+                }
+            });
+        });
+    });
+});
+
+describe("Double Conversion Tests", () => {
+    // Test suite for typical cases
+    describe("Typical Cases", () => {
+        // Test cases with expected results
+        const typicalCases = [
+            { input: "123", expected: 123 }, // pure numeric string
+            { input: "a1b2c3", expected: 123 }, // alphanumeric string
+            { input: "  0045 ", expected: 45 }, // leading and trailing whitespaces
+            { input: "1,234", expected: 1234 }, // comma in number
+            { input: "123.456", expected: 123.456 }, // decimal number
+            { input: "0.8", expected: 0.8 }, // decimal less than 1
+            { input: "-0.8", expected: -0.8 }, // negative decimal
+            { input: 0.8, expected: 0.8 }, // number input
+            // { input: "1e2", expected: 100 }, // scientific notation
+        ];
+
+        // Test each typical case
+        typicalCases.forEach(({ input, expected }) => {
+            it(`"${input}" should be converted to ${expected}`, () => {
+                expect(toDouble(input)).to.equal(expected);
+            });
+        });
+    });
+
+    // Test suite for edge cases
+    describe("Edge Cases", () => {
+        // Cases with expected results for edge cases
+        const edgeCases = [
+            { input: "", expected: NaN }, // empty string
+            { input: "abcdef", expected: NaN }, // no digits
+            { input: "0000", expected: 0 }, // all zeros
+            { input: "Infinity", expected: NaN }, // Infinity
+        ];
+
+        // Test each edge case
+        edgeCases.forEach(({ input, expected }) => {
+            it(`"${input}" should be converted to ${expected}`, () => {
+                const result = toDouble(input);
+                if (isNaN(expected)) {
+                    expect(isNaN(result)).to.be.true;
+                } else {
+                    expect(result).to.equal(expected);
                 }
             });
         });
@@ -146,3 +194,4 @@ describe("HTTPS Addition Tests", () => {
         });
     });
 });
+

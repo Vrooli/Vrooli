@@ -6,8 +6,8 @@ import { CSSProperties } from "@mui/styles";
 import { useField } from "formik";
 import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { useDebounce } from "../../../hooks/useDebounce.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
+import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
 import { keyComboToString } from "../../../utils/display/device.js";
@@ -18,15 +18,10 @@ import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButto
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { FormTip } from "../form/FormTip.js";
-import { RichInputAction } from "../types.js";
-import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME } from "./AdvancedInputToolbar.js";
-
-interface ExternalApp {
-    id: string;
-    name: string;
-    iconInfo: IconInfo;
-    connected: boolean;
-}
+import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
+import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
+import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputProps, ContextItem, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [
@@ -35,23 +30,10 @@ const findRoutineLimitTo = ["RoutineMultiStep", "RoutineSingleStep"] as const;
 
 const iconHeight = 32;
 const iconWidth = 32;
-
-export enum ToolState {
-    /** Tool not provided to LLM */
-    Disabled = "disabled",
-    /** Tool provided to LLM with other enabled tools */
-    Enabled = "enabled",
-    /** LLM instructed to use this tool only */
-    Exclusive = "exclusive",
-}
-export interface Tool {
-    displayName: string;
-    iconInfo: IconInfo;
-    type: string;
-    name: string;
-    state: ToolState;
-    arguments: Record<string, any>;
-}
+const MAX_ROWS_EXPANDED = 50;
+const MIN_ROWS_EXPANDED = 5;
+const MAX_ROWS_COLLAPSED = 6;
+const MIN_ROWS_COLLAPSED = 1;
 
 // Example of how to add context
 // const openAssistantDialog = useCallback(() => {
@@ -96,50 +78,6 @@ export interface Tool {
 //         },
 //     });
 // }, [chat?.id, codeLanguage, disabled, name, session]);
-
-//TODO should migrate to TaskContextInfo, and update TaskContextInfo to include things like type
-export interface ContextItem {
-    id: string;
-    type: "file" | "image" | "text";
-    label: string;
-    src?: string;
-    file?: File;
-}
-
-export interface AdvancedInputProps {
-    tools: Tool[];
-    contextData: ContextItem[];
-    maxChars?: number;
-    message?: string;
-    onMessageChange?: (message: string) => unknown;
-    onToolsChange?: (updatedTools: Tool[]) => unknown;
-    onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
-    onSubmit?: (message: string) => unknown;
-}
-
-export interface AdvancedInputBaseProps {
-    tools: Tool[];
-    contextData: ContextItem[];
-    maxChars?: number;
-    value: string;
-    disabled?: boolean;
-    error?: boolean;
-    helperText?: string;
-    onBlur?: (event: any) => void;
-    onChange: (value: string) => void;
-    onToolsChange?: (updatedTools: Tool[]) => unknown;
-    onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
-    onSubmit?: (value: string) => void;
-}
-
-export interface AdvancedInputProps extends Omit<AdvancedInputBaseProps, "value" | "onChange" | "onBlur" | "error" | "helperText"> {
-    name: string;
-}
-
-export interface TranslatedAdvancedInputProps extends Omit<AdvancedInputBaseProps, "value" | "onChange" | "onBlur" | "error" | "helperText"> {
-    language: string;
-    name: string;
-}
 
 const toolbarRowStyles: SxProps<Theme> = {
     display: "flex",
@@ -820,10 +758,6 @@ async function getFilesFromEvent(event: any): Promise<(File | DataTransferItem)[
     return [...files, ...textFiles];
 }
 
-const inputBaseInputProps = {
-    className: "advanced-input-field",
-} as const;
-
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function AdvancedInputBase({
     tools,
@@ -833,11 +767,15 @@ export function AdvancedInputBase({
     disabled = false,
     error = false,
     helperText,
+    name,
     onBlur,
     onChange,
+    onFocus,
     onToolsChange,
     onContextDataChange,
     onSubmit,
+    placeholder,
+    tabIndex,
 }: AdvancedInputBaseProps) {
     const theme = useTheme();
 
@@ -847,22 +785,15 @@ export function AdvancedInputBase({
         setIsExpanded(prev => !prev);
     }, []);
 
-    // Local state for the input value
-    const [internalValue, setInternalValue] = useState(value ?? "");
-    const latestMessageRef = useRef(internalValue);
-
-    // Debounced callback to notify parent of changes
-    const [debouncedMessageChange] = useDebounce((newValue: string) => {
-        onChange?.(newValue);
-    }, 300);
-
-    // Update local message when parent value changes
-    useEffect(function updateLocalMessageEffect() {
-        if (value !== undefined && value !== latestMessageRef.current) {
-            setInternalValue(value);
-            latestMessageRef.current = value;
-        }
-    }, [value]);
+    // Use the useUndoRedo hook for managing input value
+    const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
+        initialValue: value,
+        onChange,
+        delimiters: [" ", "\n"],
+    });
+    useEffect(function resetValueEffect() {
+        resetInternalValue(value);
+    }, [value, resetInternalValue]);
 
     // Settings state from localStorage
     const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
@@ -1073,10 +1004,17 @@ export function AdvancedInputBase({
 
     const handleMessageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
-        setInternalValue(newValue);
-        latestMessageRef.current = newValue;
-        debouncedMessageChange(newValue);
-    }, [debouncedMessageChange]);
+        changeInternalValue(newValue);
+    }, [changeInternalValue]);
+
+    const handleTranscriptChange = useCallback((recognizedText: string) => {
+        // Append recognized text to whatever is currently typed
+        if (!internalValue.trim()) {
+            changeInternalValue(recognizedText);
+        } else {
+            changeInternalValue(`${internalValue} ${recognizedText}`);
+        }
+    }, [internalValue, changeInternalValue]);
 
     const handleSubmit = useCallback((event: React.FormEvent) => {
         event.preventDefault();
@@ -1094,14 +1032,6 @@ export function AdvancedInputBase({
         },
         [handleSubmit, enterWillSubmit],
     );
-
-    const handleTranscriptChange = useCallback((recognizedText: string) => {
-        setInternalValue((prev) => {
-            // Append recognized text to whatever is currently typed
-            if (!prev.trim()) return recognizedText;
-            return `${prev} ${recognizedText}`;
-        });
-    }, []);
 
     const imgStyle = useMemo(() => previewImageStyle(theme), [theme]);
     const toolsContainerStyles = useMemo(() => ({
@@ -1133,11 +1063,11 @@ export function AdvancedInputBase({
         setCookie("ShowMarkdown", !isMarkdownOn);
     }, [isMarkdownOn]);
 
-    const currentHandleActionRef = useRef<((action: RichInputAction, data?: unknown) => unknown) | null>(null);
-    const setChildHandleAction = useCallback((handleAction: (action: RichInputAction, data?: unknown) => unknown) => {
+    const currentHandleActionRef = useRef<((action: AdvancedInputAction, data?: unknown) => unknown) | null>(null);
+    const setChildHandleAction = useCallback((handleAction: (action: AdvancedInputAction, data?: unknown) => unknown) => {
         currentHandleActionRef.current = handleAction;
     }, []);
-    const handleAction = useCallback((action: RichInputAction, data?: unknown) => {
+    const handleAction = useCallback((action: AdvancedInputAction, data?: unknown) => {
         if (action === "Mode") {
             toggleMarkdown();
         } else if (currentHandleActionRef.current) {
@@ -1148,26 +1078,32 @@ export function AdvancedInputBase({
         return noop;
     }, [toggleMarkdown]);
 
+    // Handle toolbar active states
+    const [activeStates, setActiveStates] = useState<Omit<AdvancedInputActiveStates, "SetValue">>(defaultActiveStates);
+    const handleActiveStatesChange = useCallback((newActiveStates) => {
+        setActiveStates(newActiveStates);
+    }, []);
+
     // Split viewProps into stable and dynamic parts
     const stableViewProps = useMemo(() => ({
         autoFocus: false, //TODO
         disabled,
         enterWillSubmit,
         error,
-        getTaggableItems: noop, //TODO
+        getTaggableItems: () => Promise.resolve([]), //TODO
         id: "", //TODO
-        maxRows: 10, //TODO
-        minRows: 1, //TODO
+        maxRows: isExpanded ? MAX_ROWS_EXPANDED : MAX_ROWS_COLLAPSED,
+        minRows: isExpanded ? MIN_ROWS_EXPANDED : MIN_ROWS_COLLAPSED,
         name,
-        onActiveStatesChange: noop, //TODO
+        onActiveStatesChange: handleActiveStatesChange,
         onBlur,
-        onFocus: noop, //TODO
+        onFocus,
         onSubmit,
-        placeholder: "", //TODO
+        placeholder,
         setHandleAction: setChildHandleAction,
-        tabIndex: 0, //TODO
+        tabIndex,
         toggleMarkdown,
-    }), [disabled, enterWillSubmit, error, onBlur, onSubmit, setChildHandleAction, toggleMarkdown]);
+    }), [disabled, enterWillSubmit, error, isExpanded, name, handleActiveStatesChange, onBlur, onFocus, onSubmit, placeholder, setChildHandleAction, tabIndex, toggleMarkdown]);
 
     // Only the frequently changing props
     const dynamicViewProps = useMemo(() => ({
@@ -1178,14 +1114,14 @@ export function AdvancedInputBase({
     }), [internalValue, changeInternalValue, undo, redo]);
 
     const MarkdownComponent = useMemo(() => (
-        <RichInputMarkdown
+        <AdvancedInputMarkdown
             {...stableViewProps}
             {...dynamicViewProps}
         />
     ), [stableViewProps, dynamicViewProps]);
 
     const LexicalComponent = useMemo(() => (
-        <RichInputLexical
+        <AdvancedInputLexical
             {...stableViewProps}
             {...dynamicViewProps}
         />
@@ -1231,12 +1167,12 @@ export function AdvancedInputBase({
                     />
                 </IconButton>
                 {showToolbar && <AdvancedInputToolbar
-                    activeStates={[]}
-                    canRedo={false}
-                    canUndo={false}
-                    disabled={false}
-                    handleAction={() => { }}
-                    handleActiveStatesChange={() => { }}
+                    activeStates={activeStates}
+                    canRedo={canRedo}
+                    canUndo={canUndo}
+                    disabled={disabled}
+                    handleAction={handleAction}
+                    handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                 />}
                 {!showToolbar && <Box sx={contextRowStyles}>
@@ -1279,16 +1215,16 @@ export function AdvancedInputBase({
                     overflow="auto"
                 >
                     {/* <InputBase
-                            inputProps={inputBaseInputProps}
-                            multiline
-                            fullWidth
-                            minRows={isExpanded ? 5 : 1}
-                            maxRows={isExpanded ? 50 : 6}
-                            value={internalValue}
-                            onChange={handleMessageChange}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Type your message..."
-                        /> */}
+                        inputProps={inputBaseInputProps}
+                        multiline
+                        fullWidth
+                        minRows={isExpanded ? 5 : 1}
+                        maxRows={isExpanded ? 50 : 6}
+                        value={internalValue}
+                        onChange={handleMessageChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Type your message..."
+                    /> */}
                     {isMarkdownOn ? MarkdownComponent : LexicalComponent}
                 </Box>
             </Box>
@@ -1361,10 +1297,11 @@ export function AdvancedInputBase({
                         sx={verticalMiddleStyle}
                     >
                         <CircularProgress
-                            variant="determinate"
+                            aria-label={maxChars ? `Character count progress: ${internalValue.length} of ${maxChars} characters used` : "Character count progress"}
                             size={34}
-                            value={charsProgress}
                             sx={progressStyle}
+                            value={charsProgress}
+                            variant="determinate"
                         />
                         <Box
                             top={0}

@@ -8,23 +8,23 @@ import { usePopover } from "../../../hooks/usePopover.js";
 import { Icon, IconCommon, IconInfo, IconText } from "../../../icons/Icons.js";
 import { Dimensions } from "../../../types.js";
 import { keyComboToString } from "../../../utils/display/device.js";
-import { RichInputAction, RichInputActiveStates } from "../types.js";
+import { AdvancedInputAction, AdvancedInputActiveStates } from "./utils.js";
 
 type PrePopoverActionItem = {
-    action: RichInputAction | `${RichInputAction}`,
+    action: AdvancedInputAction | `${AdvancedInputAction}`,
     iconInfo: IconInfo,
     labelKey: TranslationKeyCommon,
     keyCombo?: string,
 };
 
 type PopoverActionItem = {
-    action: RichInputAction | `${RichInputAction}`,
+    action: AdvancedInputAction | `${AdvancedInputAction}`,
     icon: React.ReactNode,
     label: string
 };
 
 type ActionPopoverProps = {
-    activeStates: Omit<RichInputActiveStates, "SetValue">;
+    activeStates: Omit<AdvancedInputActiveStates, "SetValue">;
     anchorEl: Element | null;
     handleAction: (action: string, data?: unknown) => unknown;
     isOpen: boolean;
@@ -44,7 +44,7 @@ type TablePopoverProps = {
 export const TOOLBAR_CLASS_NAME = "advanced-input-toolbar";
 const SHOW_MINIMAL_VIEW_AT_PX = 375;
 
-export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
+export const defaultActiveStates: Omit<AdvancedInputActiveStates, "SetValue"> = {
     Bold: false,
     Code: false,
     Header1: false,
@@ -164,7 +164,7 @@ const ActionPopoverList = styled(List)(({ theme }) => ({
 
 interface ActionPopoverListItemProps extends ListItemProps {
     action: PopoverActionItem["action"];
-    activeStates: Omit<RichInputActiveStates, "SetValue">;
+    activeStates: Omit<AdvancedInputActiveStates, "SetValue">;
 }
 const ActionPopoverListItem = styled(ListItem, {
     shouldForwardProp: (prop) => prop !== "action" && prop !== "activeStates",
@@ -227,6 +227,8 @@ const TableStack = styled(Box)(({ theme }) => ({
     background: theme.palette.background.paper,
     color: theme.palette.background.textPrimary,
 }));
+
+const submitButtonStyle = { marginTop: 2 } as const;
 
 function TablePopover({
     anchorEl,
@@ -350,7 +352,7 @@ function TablePopover({
                     {hoveredRow} x {hoveredCol}
                 </Typography>
                 {!canHover && (
-                    <Button variant="contained" onClick={insertAtHovered} sx={{ marginTop: 2 }}>
+                    <Button variant="contained" onClick={insertAtHovered} sx={submitButtonStyle}>
                         {t("Submit")}
                     </Button>
                 )}
@@ -418,12 +420,12 @@ export function AdvancedInputToolbar({
     handleActiveStatesChange,
     isMarkdownOn,
 }: {
-    activeStates: Omit<RichInputActiveStates, "SetValue">;
+    activeStates: Omit<AdvancedInputActiveStates, "SetValue">;
     canRedo: boolean;
     canUndo: boolean;
     disabled?: boolean;
-    handleAction: (action: RichInputAction, data?: unknown) => unknown;
-    handleActiveStatesChange: (activeStates: Omit<RichInputActiveStates, "SetValue">) => unknown;
+    handleAction: (action: AdvancedInputAction, data?: unknown) => unknown;
+    handleActiveStatesChange: (activeStates: Omit<AdvancedInputActiveStates, "SetValue">) => unknown;
     isMarkdownOn: boolean;
 }) {
     const { breakpoints, palette } = useTheme();
@@ -445,7 +447,7 @@ export function AdvancedInputToolbar({
             });
         }
         // Trigger handleAction
-        handleAction(action as RichInputAction, data);
+        handleAction(action as AdvancedInputAction, data);
     }, [activeStates, handleAction, handleActiveStatesChange, isMarkdownOn]);
     useEffect(() => {
         if (isMarkdownOn) {
@@ -705,7 +707,7 @@ export function AdvancedInputToolbar({
                         palette={palette}
                     />}
                 </div>
-                <Tooltip placement="top" title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`} placement="top">
+                <Tooltip placement="top" title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`}>
                     <ModeSelectorLabel variant="caption" onClick={handleToggleMode}>
                         {!isMarkdownOn ? t("MarkdownTo") : t("PreviewTo")}
                     </ModeSelectorLabel>

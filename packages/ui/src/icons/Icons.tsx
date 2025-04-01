@@ -210,6 +210,7 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
     // If we have a valid domain, render an img element
     if (domain) {
         const finalSize = size ?? DEFAULT_SIZE_PX;
+        // Example: https://www.google.com/s2/favicons?domain=vrooli.com&sz=24
         const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=${finalSize}`;
         return (
             <img

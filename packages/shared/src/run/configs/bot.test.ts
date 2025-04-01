@@ -319,28 +319,43 @@ describe("findBotDataForForm", () => {
 
     // Typical use cases
     it("should return default values for empty settings", () => {
-        const result = findBotDataForForm("ge", availableModels, null); // Passing in null instead of data 
-        expect(result).to.deep.equal({
+        const result = findBotDataForForm("ge", availableModels, null);
+
+        // Check non-translation properties
+        expect(result).to.include({
             creativity: 0.5,
             verbosity: 0.5,
             model: OpenAIModel.Gpt4o_Mini,
-            translations: [expect.objectContaining({ language: "ge" })], // checks if it contains the language
         });
+
+        // Check translations array separately
+        expect(result.translations).to.be.an("array").with.lengthOf(1);
+        expect(result.translations[0].language).to.equal("ge");
     });
 
     it("should return parsed values from user settings", () => {
         const result = findBotDataForForm("fr", availableModels, existingUser);
-        expect(result).to.deep.equal({
+
+        // Check non-translation properties
+        expect(result).to.include({
             creativity: 0.8,
             verbosity: 0.4,
             model: OpenAIModel.Gpt4_Turbo,
-            translations: [expect.objectContaining({
-                language: "fr",
-                bias: "Neutral", // Original translations should override bot settings translations
-                otherField: "Other Field", // Should still contain bot settings translations
-            }), expect.objectContaining({
-                language: "ge",
-            })],
+        });
+
+        // Check translations array separately
+        expect(result.translations).to.be.an("array").with.lengthOf(2);
+
+        // Check first translation (fr)
+        expect(result.translations[0]).to.include({
+            language: "fr",
+            bias: "Neutral",      // Original translations should override bot settings translations
+            otherField: "Other Field",  // Should still contain bot settings translations
+        });
+
+        // Check second translation (ge)
+        expect(result.translations[1]).to.include({
+            language: "ge",
         });
     });
 });

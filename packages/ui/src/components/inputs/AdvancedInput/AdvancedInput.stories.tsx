@@ -6,7 +6,8 @@ import { Form, Formik } from "formik";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";
-import { AdvancedInput, AdvancedInputBase, ContextItem, Tool, ToolState, TranslatedAdvancedInput } from "./AdvancedInput.js";
+import { AdvancedInput, AdvancedInputBase, TranslatedAdvancedInput } from "./AdvancedInput.js";
+import { ContextItem, Tool, ToolState, advancedInputTextareaClassName } from "./utils.js";
 
 const outerBoxStyle = {
     display: "flex",
@@ -94,7 +95,7 @@ const mockContextData: ContextItem[] = [
     },
 ];
 
-const formikInitialValues = { message: "" } as const;
+const formikInitialValues = { message: "" };
 const translatedInitialValues = {
     translations: [
         {
@@ -108,7 +109,7 @@ const translatedInitialValues = {
             description: "Un mensaje de prueba",
         },
     ],
-} as const;
+};
 
 const MAX_DISPLAY_LENGTH = 250;
 const TRUNCATED_LENGTH = MAX_DISPLAY_LENGTH - "...".length;
@@ -144,7 +145,11 @@ interface SimulationButtonsProps {
     onSetManyTools: () => void;
     onSetContextItems: () => void;
     onSetMaxChars: () => void;
+    onTogglePlaceholder: () => void;
+    onToggleHelperText: () => void;
     onClearAll: () => void;
+    hasPlaceholder: boolean;
+    hasHelperText: boolean;
 }
 
 function SimulationButtons({
@@ -159,7 +164,11 @@ function SimulationButtons({
     onSetManyTools,
     onSetContextItems,
     onSetMaxChars,
+    onTogglePlaceholder,
+    onToggleHelperText,
     onClearAll,
+    hasPlaceholder,
+    hasHelperText,
 }: SimulationButtonsProps) {
     return (
         <Box sx={simulationButtonsStyle}>
@@ -180,6 +189,20 @@ function SimulationButtons({
                     </Button>
                     <Button onClick={onSetMaxChars} variant="outlined" size="small">
                         Max Chars
+                    </Button>
+                    <Button
+                        onClick={onTogglePlaceholder}
+                        variant={hasPlaceholder ? "contained" : "outlined"}
+                        size="small"
+                    >
+                        Placeholder
+                    </Button>
+                    <Button
+                        onClick={onToggleHelperText}
+                        variant={hasHelperText ? "contained" : "outlined"}
+                        size="small"
+                    >
+                        Helper Text
                     </Button>
                 </Box>
             </Box>
@@ -259,6 +282,8 @@ export function Default() {
     const [message, setMessage] = useState("");
     const [tools, setTools] = useState<Tool[]>([]);
     const [maxChars, setMaxChars] = useState<number | undefined>(undefined);
+    const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
+    const [helperText, setHelperText] = useState<string | undefined>(undefined);
 
     function onContextDataChange(updated: ContextItem[]) {
         setContextData(updated);
@@ -281,7 +306,7 @@ export function Default() {
 
     // Simulation handlers
     async function simulatePasteSingleLine() {
-        const input = document.querySelector(".advanced-input-field");
+        const input = document.querySelector(`.${advancedInputTextareaClassName}`);
         if (!(input instanceof HTMLTextAreaElement)) {
             console.error("Could not find textarea element", input);
             return;
@@ -292,7 +317,7 @@ export function Default() {
     }
 
     async function simulatePasteMultiLine() {
-        const input = document.querySelector(".advanced-input-field");
+        const input = document.querySelector(`.${advancedInputTextareaClassName}`);
         if (!(input instanceof HTMLTextAreaElement)) {
             console.error("Could not find textarea element", input);
             return;
@@ -310,7 +335,7 @@ export function Default() {
     }
 
     async function simulateImageDrop() {
-        const input = document.querySelector(".advanced-input-field");
+        const input = document.querySelector(`.${advancedInputTextareaClassName}`);
         if (!(input instanceof HTMLTextAreaElement)) {
             console.error("Could not find textarea element", input);
             return;
@@ -338,7 +363,7 @@ export function Default() {
     }
 
     async function simulateFileDrop() {
-        const input = document.querySelector(".advanced-input-field");
+        const input = document.querySelector(`.${advancedInputTextareaClassName}`);
         if (!(input instanceof HTMLTextAreaElement)) {
             console.error("Could not find textarea element", input);
             return;
@@ -401,11 +426,23 @@ export function Default() {
         action("setWithMaxChars")();
     }
 
+    function togglePlaceholder() {
+        setPlaceholder(placeholder ? undefined : "Enter your message here...");
+        action("togglePlaceholder")(!!placeholder);
+    }
+
+    function toggleHelperText() {
+        setHelperText(helperText ? undefined : "This is a helpful message below the input");
+        action("toggleHelperText")(!!helperText);
+    }
+
     function clearAll() {
         onMessageChange("");
         setContextData([]);
         setTools([]);
         setMaxChars(undefined);
+        setPlaceholder("Enter your message here...");
+        setHelperText(undefined);
         action("clearAll")();
     }
 
@@ -423,13 +460,20 @@ export function Default() {
                 onSetManyTools={setManyTools}
                 onSetContextItems={setWithContextItems}
                 onSetMaxChars={setWithMaxChars}
+                onTogglePlaceholder={togglePlaceholder}
+                onToggleHelperText={toggleHelperText}
                 onClearAll={clearAll}
+                hasPlaceholder={!!placeholder}
+                hasHelperText={!!helperText}
             />
             <ValueDisplay value={message} />
             <AdvancedInputBase
+                name="message"
                 tools={tools}
                 contextData={contextData}
                 maxChars={maxChars}
+                placeholder={placeholder}
+                helperText={helperText}
                 onChange={onMessageChange}
                 onToolsChange={onToolsChange}
                 onContextDataChange={onContextDataChange}
@@ -444,6 +488,9 @@ export function Default() {
  * FormikExample: demonstrates usage with Formik form handling
  */
 export function FormikExample() {
+    const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
+    const [helperText, setHelperText] = useState<string | undefined>(undefined);
+
     return (
         <Formik
             initialValues={formikInitialValues}
@@ -452,7 +499,7 @@ export function FormikExample() {
             {({ values, setFieldValue, setValues }) => {
                 // Simulation handlers
                 async function simulatePasteSingleLine() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -463,7 +510,7 @@ export function FormikExample() {
                 }
 
                 async function simulatePasteMultiLine() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -483,7 +530,7 @@ export function FormikExample() {
                 }
 
                 async function simulateImageDrop() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -511,7 +558,7 @@ export function FormikExample() {
                 }
 
                 async function simulateFileDrop() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -564,8 +611,20 @@ export function FormikExample() {
                     action("setWithMaxChars")();
                 }
 
+                function togglePlaceholder() {
+                    setPlaceholder(placeholder ? undefined : "Enter your message here...");
+                    action("togglePlaceholder")(!!placeholder);
+                }
+
+                function toggleHelperText() {
+                    setHelperText(helperText ? undefined : "This is a helpful message below the input");
+                    action("toggleHelperText")(!!helperText);
+                }
+
                 function clearAll() {
                     setValues({ message: "" });
+                    setPlaceholder("Enter your message here...");
+                    setHelperText(undefined);
                     action("clearAll")();
                 }
 
@@ -583,13 +642,19 @@ export function FormikExample() {
                             onSetManyTools={setManyTools}
                             onSetContextItems={setWithContextItems}
                             onSetMaxChars={setWithMaxChars}
+                            onTogglePlaceholder={togglePlaceholder}
+                            onToggleHelperText={toggleHelperText}
                             onClearAll={clearAll}
+                            hasPlaceholder={!!placeholder}
+                            hasHelperText={!!helperText}
                         />
                         <ValueDisplay value={values.message} />
                         <AdvancedInput
                             name="message"
                             tools={mockSomeTools}
                             contextData={mockContextData}
+                            placeholder={placeholder}
+                            helperText={helperText}
                         />
                     </Form>
                 );
@@ -602,6 +667,9 @@ export function FormikExample() {
  * TranslatedExample: demonstrates usage with translations
  */
 export function TranslatedExample() {
+    const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
+    const [helperText, setHelperText] = useState<string | undefined>(undefined);
+
     return (
         <Formik
             initialValues={translatedInitialValues}
@@ -610,7 +678,7 @@ export function TranslatedExample() {
             {({ values, setFieldValue, setValues }) => {
                 // Simulation handlers
                 async function simulatePasteSingleLine() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -621,7 +689,7 @@ export function TranslatedExample() {
                 }
 
                 async function simulatePasteMultiLine() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -643,7 +711,7 @@ export function TranslatedExample() {
                 }
 
                 async function simulateImageDrop() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -671,7 +739,7 @@ export function TranslatedExample() {
                 }
 
                 async function simulateFileDrop() {
-                    const input = document.querySelector(".advanced-input-field");
+                    const input = document.querySelector(`.${advancedInputTextareaClassName}`);
                     if (!(input instanceof HTMLTextAreaElement)) {
                         console.error("Could not find textarea element", input);
                         return;
@@ -724,6 +792,16 @@ export function TranslatedExample() {
                     action("setWithMaxChars")();
                 }
 
+                function togglePlaceholder() {
+                    setPlaceholder(placeholder ? undefined : "Enter your message here...");
+                    action("togglePlaceholder")(!!placeholder);
+                }
+
+                function toggleHelperText() {
+                    setHelperText(helperText ? undefined : "This is a helpful message below the input");
+                    action("toggleHelperText")(!!helperText);
+                }
+
                 function clearAll() {
                     setValues({
                         translations: [
@@ -731,6 +809,8 @@ export function TranslatedExample() {
                             { ...values.translations[1], message: "" },
                         ],
                     });
+                    setPlaceholder("Enter your message here...");
+                    setHelperText(undefined);
                     action("clearAll")();
                 }
 
@@ -748,7 +828,11 @@ export function TranslatedExample() {
                             onSetManyTools={setManyTools}
                             onSetContextItems={setWithContextItems}
                             onSetMaxChars={setWithMaxChars}
+                            onTogglePlaceholder={togglePlaceholder}
+                            onToggleHelperText={toggleHelperText}
                             onClearAll={clearAll}
+                            hasPlaceholder={!!placeholder}
+                            hasHelperText={!!helperText}
                         />
                         <Box display="flex" flexDirection="column" gap={2}>
                             <Typography variant="h6" color="textSecondary">English</Typography>
@@ -758,6 +842,8 @@ export function TranslatedExample() {
                                 language="en"
                                 tools={mockSomeTools}
                                 contextData={mockContextData}
+                                placeholder={placeholder}
+                                helperText={helperText}
                             />
                             <Typography variant="h6" color="textSecondary">Spanish</Typography>
                             <ValueDisplay value={values.translations[1].message} />
@@ -766,6 +852,8 @@ export function TranslatedExample() {
                                 language="es"
                                 tools={mockSomeTools}
                                 contextData={mockContextData}
+                                placeholder={placeholder}
+                                helperText={helperText}
                             />
                         </Box>
                     </Form>

@@ -1,12 +1,12 @@
 import { ListObject } from "@local/shared";
 import { Box, styled, useTheme } from "@mui/material";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_MIN_ROWS } from "../../../utils/consts.js";
-import { Headers } from "../../../utils/display/stringTools.js";
-import { defaultActiveStates } from "../AdvancedInput/AdvancedInputToolbar.js";
-import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput.js";
-import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown.js";
-import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types.js";
+import { DEFAULT_MIN_ROWS } from "../../../../utils/consts.js";
+import { Headers } from "../../../../utils/display/stringTools.js";
+import { LINE_HEIGHT_MULTIPLIER } from "../../RichInput/RichInput.js";
+import { AdvancedInputLexicalProps, RichInputAction, RichInputActiveStates } from "../../types.js";
+import { RichInputTagDropdown, useTagDropdown } from "../AdvancedInputTagDropdown.js";
+import { defaultActiveStates } from "../AdvancedInputToolbar.js";
 import { $convertFromMarkdownString, registerMarkdownShortcuts } from "./builder.js";
 import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, KEY_ENTER_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands.js";
 import { COMMAND_PRIORITY_CRITICAL } from "./consts.js";
@@ -259,7 +259,7 @@ export function RichInputLexicalComponents({
     undo,
     value,
     sxs,
-}: RichInputLexicalProps) {
+}: AdvancedInputLexicalProps) {
     const { palette, typography } = useTheme();
     const editor = useLexicalComposerContext();
 
@@ -757,11 +757,11 @@ export function RichInputLexicalComponents({
 }
 
 /** TextInput for entering WYSIWYG text */
-export function RichInputLexical({
+export function AdvancedInputLexical({
     disabled,
     value,
     ...props
-}: RichInputLexicalProps) {
+}: AdvancedInputLexicalProps) {
 
     // Set up Lexical editor
     const [editor, setEditor] = useState<LexicalEditor | null>(null);

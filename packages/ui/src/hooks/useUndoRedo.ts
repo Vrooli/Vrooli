@@ -8,10 +8,14 @@ interface UseUndoRedoParams<T> {
     initialValue: T;
     onChange: (updated: T) => unknown;
     /**
-     * Optional callback to determine when to force-add to the stack immediately, 
-     * instead of debouncing.
+     * Optional array of delimiters that will force-add to the stack immediately when typed.
+     * For example, [" ", "\n"] will add to the stack immediately when a space or newline is typed.
+     * This helps prevent losing a lot of text when undoing after typing consistently.
+     * 
+     * If you want to disable debouncing entirely (i.e. add to stack immediately for every change),
+     * pass an empty array [].
      */
-    forceAddToStack?: (updated: T, resetStackDebounce: () => unknown) => boolean;
+    delimiters?: string[];
 }
 
 /**
@@ -28,7 +32,7 @@ export function useUndoRedo<T>({
     disabled,
     initialValue,
     onChange,
-    forceAddToStack,
+    delimiters,
 }: UseUndoRedoParams<T>) {
     const [internalValue, setInternalValue] = useState(initialValue);
     const [onChangeDebounced, cancelDebounce] = useDebounce(onChange, DEBOUNCE_TIME_MS);
@@ -46,15 +50,20 @@ export function useUndoRedo<T>({
 
     const addToStack = useCallback((newValue: T) => {
         const newStack = [...stack.current];
+        // Remove any future states when adding new state
         newStack.splice(stackIndex.current + 1, newStack.length - stackIndex.current - 1);
         newStack.push(newValue);
-        stackSize.current += JSON.stringify(newValue).length;
 
         // If the stack is too big, remove the oldest items
-        while (stackSize.current > MAX_STACK_SIZE) {
+        while (stackSize.current > MAX_STACK_SIZE && newStack.length > 1) {
             stackSize.current -= JSON.stringify(newStack[0]).length;
             newStack.shift();
+            // Adjust stackIndex when removing items from the beginning
+            stackIndex.current = Math.max(0, stackIndex.current - 1);
         }
+
+        // Add the new value's size
+        stackSize.current += JSON.stringify(newValue).length;
 
         stack.current = newStack;
         stackIndex.current = newStack.length - 1;
@@ -69,25 +78,33 @@ export function useUndoRedo<T>({
                 : newValueOrUpdater;
 
             onChangeDebounced(newValue);
+
+            // If delimiters is an empty array, disable debouncing entirely
+            if (Array.isArray(delimiters) && delimiters.length === 0) {
+                cancelAddToStack();
+                addToStack(newValue);
+                return newValue;
+            }
+
             // By default, start debounced addition
             addToStackDebounced(newValue);
 
-            // If forceAddToStack is provided, check if we should add immediately
-            if (forceAddToStack) {
-                const shouldImmediatelyAdd = forceAddToStack(newValue, () => {
-                    cancelAddToStack();
-                    addToStackDebounced(newValue);
-                });
-                if (shouldImmediatelyAdd) {
-                    // Cancel the debounced action and add immediately
-                    cancelAddToStack();
-                    addToStack(newValue);
+            // If delimiters are provided and the value is a string, check if we should add immediately
+            if (delimiters?.length && typeof newValue === "string" && typeof prev === "string") {
+                // Only check the last character if the new value is longer than the previous value
+                if (newValue.length > prev.length) {
+                    const lastChar = newValue[newValue.length - 1];
+                    if (delimiters.includes(lastChar)) {
+                        // Cancel the debounced action and add immediately
+                        cancelAddToStack();
+                        addToStack(newValue);
+                    }
                 }
             }
 
             return newValue;
         });
-    }, [addToStack, addToStackDebounced, cancelAddToStack, forceAddToStack, onChangeDebounced]);
+    }, [addToStack, addToStackDebounced, cancelAddToStack, delimiters, onChangeDebounced]);
 
     /** 
      * Sets internal value without adding to the stack or 
