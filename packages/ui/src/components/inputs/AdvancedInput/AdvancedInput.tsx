@@ -21,6 +21,7 @@ import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { FormTip } from "../form/FormTip.js";
 import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
+import { ContextDropdown, ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
 import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputProps, ContextItem, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
 
@@ -35,6 +36,12 @@ const MAX_ROWS_EXPANDED = 50;
 const MIN_ROWS_EXPANDED = 5;
 const MAX_ROWS_COLLAPSED = 6;
 const MIN_ROWS_COLLAPSED = 1;
+
+// Add these near the top with other constants
+const TRIGGER_CHARS = {
+    AT: "@",
+    SLASH: "/",
+} as const;
 
 // Example of how to add context
 // const openAssistantDialog = useCallback(() => {
@@ -780,6 +787,12 @@ export function AdvancedInputBase({
 }: AdvancedInputBaseProps) {
     const theme = useTheme();
 
+    // Add dropdown state
+    const [dropdownAnchor, setDropdownAnchor] = useState<HTMLElement | null>(null);
+    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+    const [initialCategory, setInitialCategory] = useState<"Routine" | null>(null);
+    const inputWrapperRef = useRef<HTMLDivElement>(null);
+
     // Add expanded view state
     const [isExpanded, setIsExpanded] = useState(false);
     const handleToggleExpand = useCallback(() => {
@@ -1081,6 +1094,7 @@ export function AdvancedInputBase({
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     useHotkeys([
+        // Markdown/Lexical hotkeys
         { keys: ["1"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header1); } },
         { keys: ["2"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header2); } },
         { keys: ["3"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header3); } },
@@ -1096,12 +1110,28 @@ export function AdvancedInputBase({
         { keys: ["k"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Link); } },
         { keys: ["e"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Code); } },
         { keys: ["Q"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Quote); } },
-        { keys: ["z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Undo); } },
-        { keys: ["Z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
         { keys: ["S"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Strikethrough); } },
         { keys: ["l"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Spoiler); } },
         { keys: ["u"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Underline); } },
+        // Undo/Redo
+        { keys: ["z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Undo); } },
+        { keys: ["Z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
         { keys: ["y"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
+        // Context dropdown
+        {
+            keys: ["@"],
+            requirePrecedingWhitespace: true,
+            callback: () => {
+                handleContextTrigger(TRIGGER_CHARS.AT);
+            },
+        },
+        {
+            keys: ["/"],
+            requirePrecedingWhitespace: true,
+            callback: () => {
+                handleContextTrigger(TRIGGER_CHARS.SLASH);
+            },
+        },
     ], true, inputRef);
 
     // Handle toolbar active states
@@ -1150,6 +1180,51 @@ export function AdvancedInputBase({
             {...dynamicViewProps}
         />
     ), [stableViewProps, dynamicViewProps]);
+
+    // Add dropdown handlers
+    const handleContextTrigger = useCallback((triggerChar: string) => {
+        // Use the wrapper element instead of trying to get the exact cursor position
+        if (!inputWrapperRef.current) return;
+
+        const wrapperRect = inputWrapperRef.current.getBoundingClientRect();
+
+        // Set the anchor element and position
+        setDropdownAnchor(inputWrapperRef.current);
+        setDropdownPosition({
+            top: wrapperRect.bottom,
+            left: wrapperRect.left,
+        });
+
+        // Set initial category based on trigger char
+        const category = triggerChar === TRIGGER_CHARS.SLASH ? "Routine" : null;
+        setInitialCategory(category);
+    }, []);
+
+    const handleCloseDropdown = useCallback(() => {
+        setDropdownAnchor(null);
+        setDropdownPosition(null);
+        setInitialCategory(null);
+    }, []);
+
+    const handleSelectContext = useCallback((item: ListObject) => {
+        // Insert the selected item at the current cursor position
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        const prefix = range.startContainer.textContent?.slice(0, range.startOffset) || "";
+        const suffix = range.startContainer.textContent?.slice(range.startOffset) || "";
+
+        // Remove the trigger character
+        const newPrefix = prefix.slice(0, -1);
+        const newText = `${newPrefix}[[${item.name}]]${suffix}`;
+
+        // Update the input value
+        changeInternalValue(newText);
+
+        // Close the dropdown
+        handleCloseDropdown();
+    }, [changeInternalValue, handleCloseDropdown]);
 
     return (
         <Outer {...getRootProps()}>
@@ -1235,20 +1310,10 @@ export function AdvancedInputBase({
             {/* Input Area */}
             <Box sx={inputRowStyles}>
                 <Box
+                    ref={inputWrapperRef}
                     maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
                     overflow="auto"
                 >
-                    {/* <InputBase
-                        inputProps={inputBaseInputProps}
-                        multiline
-                        fullWidth
-                        minRows={isExpanded ? 5 : 1}
-                        maxRows={isExpanded ? 50 : 6}
-                        value={internalValue}
-                        onChange={handleMessageChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Type your message..."
-                    /> */}
                     {isMarkdownOn ? MarkdownComponent : LexicalComponent}
                 </Box>
             </Box>
@@ -1391,6 +1456,13 @@ export function AdvancedInputBase({
                 handleCancel={handleCloseFindRoutineDialog}
                 handleComplete={handleAddRoutine}
                 limitTo={findRoutineLimitTo}
+            />
+            {/* Add Context Dropdown */}
+            <ContextDropdown
+                anchorEl={dropdownAnchor}
+                onClose={handleCloseDropdown}
+                onSelect={handleSelectContext}
+                initialCategory={initialCategory}
             />
         </Outer>
     );

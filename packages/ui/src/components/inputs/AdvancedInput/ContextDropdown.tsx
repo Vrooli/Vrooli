@@ -25,12 +25,12 @@ interface Category {
     items: ListObject[];
 }
 
-export interface AdvancedInputTagDropdownProps {
+export interface ContextDropdownProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;
     onSelect: (item: ListObject) => void;
     /** Optional initial category to be selected when the dropdown opens */
-    initialCategory?: ListObject["type"];
+    initialCategory?: ListObject["type"] | null;
 }
 
 // Define actions separately from categories
@@ -153,18 +153,16 @@ const itemContentStyle = {
     gap: 1,
 } as const;
 
-const fallbackIconInfo: IconInfo = { name: "Note", type: "Common" };
-
 const backButtonStyle = {
     mr: 1,
 } as const;
 
-export function AdvancedInputTagDropdown({
+export function ContextDropdown({
     anchorEl,
     onClose,
     onSelect,
     initialCategory,
-}: AdvancedInputTagDropdownProps) {
+}: ContextDropdownProps) {
     const [selectedCategory, setSelectedCategory] = useState<ListObject["type"] | null>(initialCategory ?? null);
     const [searchQuery, setSearchQuery] = useState("");
     const [focusedIndex, setFocusedIndex] = useState(-1);

@@ -260,11 +260,6 @@ export function AdvancedInputLexicalComponents({
         valueRef.current = value;
     }, [value]);
 
-    // const tagData = useTagDropdown({ getTaggableItems });
-    // const selectDropdownItem = useCallback((item: ListObject) => {
-    //     //TODO
-    // }, []);
-
     /** Store current text properties. Logic inspired by https://github.com/facebook/lexical/blob/9e83533d52fe934bd91aaa5baaf156f682577dcf/packages/lexical-playground/src/plugins/ToolbarPlugin/index.tsx#L484 */
     const [activeEditor, setActiveEditor] = useState(editor);
     const [activeStates, setActiveStates] = useState<Omit<AdvancedInputActiveStates, "SetValue">>({ ...defaultActiveStates });
@@ -737,7 +732,6 @@ export function AdvancedInputLexicalComponents({
             <LinkPlugin />
             <ListPlugin />
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
-            {/* <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} /> */}
             <TablePlugin />
             <CodeBlockPlugin />
         </Box>

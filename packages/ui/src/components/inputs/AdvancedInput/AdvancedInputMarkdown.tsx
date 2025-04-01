@@ -114,67 +114,21 @@ export function AdvancedInputMarkdown({
 
     // Listen for text input changes
     useEffect(() => {
+        const textarea = textAreaRef.current;
+        if (!textarea) return;
+
         // Handle key press events for textarea
         function handleTextareaKeyDown(e: any) {
-            // // Handle tag dropdown. Triggered by "@" key press
-            // if (!tagData.anchorEl && typeof getTaggableItems === "function" && e.key === "@") {
-            //     console.log("opening dropdown for tags");
-            //     tagData.setTagString("");
-            //     tagData.setList([]);
-            //     tagData.setAnchorEl(textAreaRef.current);
-            // } else if (tagData.anchorEl) {
-            //     // Normal characters (e.g. letters, numbers, emojis) are added to the tag string
-            //     if (e.key.length === 1) {
-            //         tagData.setTagString(tagData.tagString + e.key);
-            //     }
-            //     // Backspace removes the last character from the tag string
-            //     else if (e.key === "Backspace") {
-            //         tagData.setTagString(tagData.tagString.slice(0, -1));
-            //     }
-            //     // Escape ends the query
-            //     else if (e.key === "Escape") {
-            //         tagData.setAnchorEl(null);
-            //     }
-            //     // Tab and arrow keys cycle through the dropdown items
-            //     else if (e.key === "Tab" || e.key === "ArrowDown" || e.key === "ArrowUp") {
-            //         e.preventDefault();
-            //         let newIndex = tagData.tabIndex;
-            //         // Increment the index if tab or arrow down is pressed without the shift key
-            //         if ((e.key === "Tab" && !e.shiftKey) || e.key === "ArrowDown") {
-            //             newIndex = (newIndex + 1) % tagData.list.length;
-            //         }
-            //         // Decrement the index if shift+tab or arrow up is pressed
-            //         else if ((e.key === "Tab" && e.shiftKey) || e.key === "ArrowUp") {
-            //             newIndex = (newIndex - 1 + tagData.list.length) % tagData.list.length;
-            //         }
-            //         tagData.setTabIndex(newIndex);
-            //     }
-            //     // Enter selects the first item in the dropdown
-            //     else if (e.key === "Enter") {
-            //         if (tagData.list.length > 0) {
-            //             e.preventDefault();
-            //             const selectedItem = tagData.tabIndex >= 0 && tagData.tabIndex < tagData.list.length ?
-            //                 tagData.list[tagData.tabIndex] :
-            //                 tagData.list[0];
-            //             selectDropdownItem(selectedItem);
-            //         }
-            //         tagData.setAnchorEl(null);
-            //         // Return so that the enter key press is not handled by the textarea
-            //         return;
-            //     }
-            // }
             // On enter key press
             if (e.key === "Enter") {
                 // Find the line the start of the selection is on
                 const { start, end, inputElement } = MarkdownUtils.getTextSelection(textAreaRef.current);
                 let [trimmedLine] = MarkdownUtils.getLineAtIndex(inputElement?.value, start);
                 trimmedLine = trimmedLine.trimStart();
-                console.log("enter key trimmed line", trimmedLine, value, start, end, Object.entries(e.target));
                 const isNumberList = /^\d+\.\s/.test(trimmedLine);
                 const isCheckboxList = trimmedLine.startsWith("- [ ] ") || trimmedLine.startsWith("- [x] ");
                 const isBulletDashList = trimmedLine.startsWith("- ");
                 const isBulletStarList = trimmedLine.startsWith("* ");
-                console.log("key was enter", isNumberList, isCheckboxList, isBulletDashList, isBulletStarList);
                 // If the current line is a list
                 if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
@@ -191,7 +145,6 @@ export function AdvancedInputMarkdown({
                     } else if (isBulletStarList) {
                         textToInsert += "* ";
                     }
-                    console.log("enter key inserting text", textToInsert, start, end);
                     inputElement.value = MarkdownUtils.replaceText(value, textToInsert, start, end);
                     onChange(inputElement.value);
                 }
@@ -200,21 +153,12 @@ export function AdvancedInputMarkdown({
             else if (e.key === "Escape") {
                 e.stopPropagation();
             }
-            console.log("made it to the end");
         }
-        // Handle key press events for preview
-        function handleFullComponentKeyDown(e: any) {
-            // Only check for the toggle preview shortcut
-            if (e.altKey && e.key === "6") {
-                console.log("fullcomponent action triggered");
-                e.preventDefault();
-                toggleMarkdown();
-            }
-        }
+
         // Add event listeners for dynamic content changes
-        textAreaRef.current?.addEventListener("keydown", handleTextareaKeyDown);
+        textarea.addEventListener("keydown", handleTextareaKeyDown);
         return () => {
-            textAreaRef.current?.removeEventListener("keydown", handleTextareaKeyDown);
+            textarea.removeEventListener("keydown", handleTextareaKeyDown);
         };
     }, [onChange, insertStyle, name, redo, toggleMarkdown, undo, value]);
 
@@ -271,25 +215,22 @@ export function AdvancedInputMarkdown({
     }, [enterWillSubmit, handleSubmit]);
 
     return (
-        <>
-            {/* <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} /> */}
-            <div style={containerStyle}>
-                <textarea
-                    className={advancedInputTextareaClassName}
-                    disabled={disabled}
-                    name={name}
-                    placeholder={placeholder}
-                    value={value}
-                    onBlur={onBlur}
-                    onFocus={onFocus}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    tabIndex={tabIndex}
-                    ref={textAreaRef}
-                    spellCheck
-                    style={textareaStyle}
-                />
-            </div>
-        </>
+        <div style={containerStyle}>
+            <textarea
+                className={advancedInputTextareaClassName}
+                disabled={disabled}
+                name={name}
+                placeholder={placeholder}
+                value={value}
+                onBlur={onBlur}
+                onFocus={onFocus}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                tabIndex={tabIndex}
+                ref={textAreaRef}
+                spellCheck
+                style={textareaStyle}
+            />
+        </div>
     );
 }

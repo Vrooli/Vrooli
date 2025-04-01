@@ -1,6 +1,6 @@
 import { Box, Button } from "@mui/material";
 import { useCallback, useRef, useState } from "react";
-import { AdvancedInputTagDropdown, ListObject } from "./AdvancedInputTagDropdown.js";
+import { ContextDropdown, ListObject } from "./ContextDropdown.js";
 
 const centerStyle = {
     display: "flex",
@@ -18,8 +18,8 @@ const resultStyle = {
 } as const;
 
 export default {
-    title: "Components/Inputs/AdvancedInput/TagDropdown",
-    component: AdvancedInputTagDropdown,
+    title: "Components/Inputs/AdvancedInput/ContextDropdown",
+    component: ContextDropdown,
 };
 
 // Wrapper component to handle the anchor element state
@@ -53,7 +53,7 @@ function DropdownWrapper({
             <Button ref={buttonRef} onClick={handleClick} variant="contained">
                 Open Dropdown
             </Button>
-            <AdvancedInputTagDropdown
+            <ContextDropdown
                 anchorEl={anchorEl}
                 onClose={handleClose}
                 onSelect={handleSelect}
