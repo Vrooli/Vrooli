@@ -95,34 +95,22 @@ describe("MarkdownUtils", () => {
         }
 
         let consoleErrorStub: sinon.SinonStub;
-        let getElementStub: sinon.SinonStub;
 
         beforeEach(() => {
             // Mock console.error to avoid cluttering test output
             consoleErrorStub = sinon.stub(console, "error");
-
-            // Reset mockTextArea properties if needed
-            const textArea = createMockTextArea();
-            getElementStub = sinon.stub(document, "getElementById").callsFake((id) => {
-                if (id === "testTextarea") {
-                    return textArea;
-                }
-                return null; // Simulate behavior for non-existent elements
-            });
         });
 
         afterEach(() => {
             consoleErrorStub.restore();
-            getElementStub.restore();
         });
 
         it("returns selection details for a valid textarea", () => {
             const textArea = createMockTextArea();
             textArea.selectionStart = 0;
             textArea.selectionEnd = 5;
-            getElementStub.returns(textArea);
 
-            const selection = MarkdownUtils.getTextSelection("testTextarea");
+            const selection = MarkdownUtils.getTextSelection(textArea);
             expect(selection).to.deep.equal({
                 start: 0,
                 end: 5,
@@ -131,25 +119,23 @@ describe("MarkdownUtils", () => {
             });
         });
 
-        it("returns zeros and null for a non-existent element", () => {
-            getElementStub.returns(null); // Element not found
-            const selection = MarkdownUtils.getTextSelection("nonExistentId");
+        it("returns zeros and null for null textarea", () => {
+            const selection = MarkdownUtils.getTextSelection(null);
             expect(selection).to.deep.equal({
                 start: 0,
                 end: 0,
                 selected: "",
                 inputElement: null,
             });
-            sinon.assert.calledWith(consoleErrorStub, "Element not found or is not a textarea: nonExistentId");
+            sinon.assert.calledWith(consoleErrorStub, "[MarkdownUtils.getTextSelection] Textarea not found");
         });
 
         it("returns full text selection when all text is selected", () => {
             const textArea = createMockTextArea();
             textArea.selectionStart = 0;
             textArea.selectionEnd = textArea.value.length;
-            getElementStub.returns(textArea);
 
-            const selection = MarkdownUtils.getTextSelection("testTextarea");
+            const selection = MarkdownUtils.getTextSelection(textArea);
             expect(selection).to.deep.equal({
                 start: 0,
                 end: textArea.value.length,
@@ -160,18 +146,11 @@ describe("MarkdownUtils", () => {
 
         it("returns empty string when there is no selection", () => {
             const textArea = createMockTextArea();
-            getElementStub.returns(textArea);
+            textArea.selectionStart = 0;
+            textArea.selectionEnd = 0;
 
-            const selection = MarkdownUtils.getTextSelection("testTextarea");
+            const selection = MarkdownUtils.getTextSelection(textArea);
             expect(selection.selected).to.equal("");
-        });
-
-        it("logs an error and returns defaults for non-textarea elements", () => {
-            // Mock a non-textarea element
-            getElementStub.returns({ tagName: "DIV" });
-            const selection = MarkdownUtils.getTextSelection("testDiv");
-            expect(selection).to.deep.equal({ start: 0, end: 0, selected: "", inputElement: null });
-            sinon.assert.calledWith(consoleErrorStub, "Element not found or is not a textarea: testDiv");
         });
     });
 

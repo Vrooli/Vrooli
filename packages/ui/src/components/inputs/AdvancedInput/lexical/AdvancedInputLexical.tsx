@@ -156,7 +156,6 @@ export function ContentEditable({
     ariaRequired,
     autoCapitalize,
     className,
-    id,
     role = "textbox",
     spellCheck = true,
     style,
@@ -218,7 +217,6 @@ export function ContentEditable({
             className={className}
             contentEditable={isEditable}
             data-testid={testid}
-            id={id ?? "lexical-editor"}
             ref={ref}
             role={role}
             spellCheck={spellCheck}
@@ -238,10 +236,8 @@ const LoadingPlaceholderBox = styled(Box)(({ theme }) => ({
 }));
 
 /** TextInput for entering WYSIWYG text */
-export function RichInputLexicalComponents({
+export function AdvancedInputLexicalComponents({
     enterWillSubmit,
-    getTaggableItems,
-    id,
     maxRows,
     minRows = DEFAULT_MIN_ROWS,
     onActiveStatesChange,
@@ -716,18 +712,16 @@ export function RichInputLexicalComponents({
                 },
             },
         } as const;
-    }, [lineHeight, maxRows, minRows, palette, sxs?.inputRoot, typography.fontFamily, typography.fontSize]);
+    }, [lineHeight, maxRows, minRows, palette, typography.fontFamily, typography.fontSize]);
 
     return (
         <Box
-            id={id}
             component="div"
             onBlur={onBlur}
             onFocus={onFocus}
             sx={outerBoxStyle}>
             <RichTextPlugin
                 contentEditable={<ContentEditable
-                    id={`${id}-contenteditable`}
                     tabIndex={tabIndex}
                     style={{
                         outline: "none",
@@ -782,7 +776,7 @@ export function AdvancedInputLexical({
 
     return (
         <LexicalComposerContext.Provider value={editor}>
-            <RichInputLexicalComponents value={value} {...props} />
+            <AdvancedInputLexicalComponents value={value} {...props} />
         </LexicalComposerContext.Provider>
     );
 }

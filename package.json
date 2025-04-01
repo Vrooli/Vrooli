@@ -18,5 +18,8 @@
     },
     "scripts": {
         "i18n:check": "i18n-unused display-unused"
+    },
+    "dependencies": {
+        "is-hotkey": "^0.2.0"
     }
 }

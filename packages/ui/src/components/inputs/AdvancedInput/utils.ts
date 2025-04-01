@@ -105,7 +105,6 @@ export interface TranslatedAdvancedInputProps extends Omit<AdvancedInputBaseProp
 
 interface AdvancedInputChildProps extends Pick<AdvancedInputBaseProps, "disabled" | "name" | "onBlur" | "onChange" | "onFocus" | "onSubmit" | "placeholder" | "tabIndex" | "value"> {
     enterWillSubmit: boolean;
-    id: string;
     maxRows: number;
     minRows: number;
     onActiveStatesChange: (activeStates: AdvancedInputActiveStates) => unknown;
@@ -160,21 +159,19 @@ export class MarkdownUtils {
 
     /**
      * Uses element ID to get start, end, and element.
-     * @param id The ID of the element to get the selection of
+     * @param textarea The textarea element to get the selection of
      * @returns Object containing start, end, and element
      */
-    static getTextSelection(id: string) {
-        const element = document.getElementById(id);
-        if (!element || element.tagName !== "TEXTAREA") {
-            console.error(`Element not found or is not a textarea: ${id}`);
+    static getTextSelection(textarea: HTMLTextAreaElement | null) {
+        if (!textarea) {
+            console.error("[MarkdownUtils.getTextSelection] Textarea not found");
             return { start: 0, end: 0, selected: "", inputElement: null };
         }
-        const textArea = element as HTMLTextAreaElement;
         return {
-            start: textArea.selectionStart,
-            end: textArea.selectionEnd,
-            selected: textArea.value.substring(textArea.selectionStart, textArea.selectionEnd),
-            inputElement: textArea,
+            start: textarea.selectionStart,
+            end: textarea.selectionEnd,
+            selected: textarea.value.substring(textarea.selectionStart, textarea.selectionEnd),
+            inputElement: textarea,
         };
     }
 

@@ -195,16 +195,6 @@ export function AdvancedInputTagDropdown({
 
     const handleSearchKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
         switch (e.key) {
-            case "ArrowDown": {
-                e.preventDefault();
-                // Always focus the first visible item
-                const firstElement = listRef.current?.querySelector("[data-index=\"0\"]") as HTMLElement;
-                if (firstElement) {
-                    firstElement.focus();
-                    setFocusedIndex(0);
-                }
-                break;
-            }
             case "Backspace":
                 if (selectedCategory && !searchQuery) {
                     e.preventDefault();

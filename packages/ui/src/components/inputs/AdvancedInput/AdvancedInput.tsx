@@ -7,6 +7,7 @@ import { useField } from "formik";
 import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useDimensions } from "../../../hooks/useDimensions.js";
+import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
@@ -1078,6 +1079,31 @@ export function AdvancedInputBase({
         return noop;
     }, [toggleMarkdown]);
 
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    useHotkeys([
+        { keys: ["1"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header1); } },
+        { keys: ["2"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header2); } },
+        { keys: ["3"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header3); } },
+        { keys: ["4"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header4); } },
+        { keys: ["5"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header5); } },
+        { keys: ["6"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header6); } },
+        { keys: ["7"], altKey: true, callback: () => { handleAction(AdvancedInputAction.ListBullet); } },
+        { keys: ["8"], altKey: true, callback: () => { handleAction(AdvancedInputAction.ListNumber); } },
+        { keys: ["9"], altKey: true, callback: () => { handleAction(AdvancedInputAction.ListCheckbox); } },
+        { keys: ["0"], altKey: true, callback: () => { toggleMarkdown(); } },
+        { keys: ["b"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Bold); } },
+        { keys: ["i"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Italic); } },
+        { keys: ["k"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Link); } },
+        { keys: ["e"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Code); } },
+        { keys: ["Q"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Quote); } },
+        { keys: ["z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Undo); } },
+        { keys: ["Z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
+        { keys: ["S"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Strikethrough); } },
+        { keys: ["l"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Spoiler); } },
+        { keys: ["u"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Underline); } },
+        { keys: ["y"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
+    ], true, inputRef);
+
     // Handle toolbar active states
     const [activeStates, setActiveStates] = useState<Omit<AdvancedInputActiveStates, "SetValue">>(defaultActiveStates);
     const handleActiveStatesChange = useCallback((newActiveStates) => {
@@ -1086,12 +1112,9 @@ export function AdvancedInputBase({
 
     // Split viewProps into stable and dynamic parts
     const stableViewProps = useMemo(() => ({
-        autoFocus: false, //TODO
         disabled,
         enterWillSubmit,
         error,
-        getTaggableItems: () => Promise.resolve([]), //TODO
-        id: "", //TODO
         maxRows: isExpanded ? MAX_ROWS_EXPANDED : MAX_ROWS_COLLAPSED,
         minRows: isExpanded ? MIN_ROWS_EXPANDED : MIN_ROWS_COLLAPSED,
         name,
@@ -1100,6 +1123,7 @@ export function AdvancedInputBase({
         onFocus,
         onSubmit,
         placeholder,
+        ref: inputRef,
         setHandleAction: setChildHandleAction,
         tabIndex,
         toggleMarkdown,

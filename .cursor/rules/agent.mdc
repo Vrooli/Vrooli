@@ -24,4 +24,5 @@ You should:
 - Use ESM TypeScript for all `.ts` and `.tsx` files.
 - Write docstrings for all functions, classes, and methods, and helpful comments for complex logic. The code should be easy to understand.
 - Prefer relative imports that include the `.js` file extension
+- NEVER install anything without getting permission first! We likely already have a package to do what you want
 ...

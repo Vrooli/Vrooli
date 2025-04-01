@@ -36,7 +36,6 @@ const textareaStyle = {
 export function AdvancedInputMarkdown({
     disabled = false,
     enterWillSubmit,
-    id,
     maxRows,
     minRows,
     name,
@@ -58,7 +57,7 @@ export function AdvancedInputMarkdown({
     const insertStyle = useCallback((style: AdvancedInputStylingAction | `${AdvancedInputStylingAction}`) => {
         if (disabled) return;
         // Find the current selection
-        const { start, end, inputElement } = MarkdownUtils.getTextSelection(id);
+        const { start, end, inputElement } = MarkdownUtils.getTextSelection(textAreaRef.current);
         if (!inputElement) return;
         // Apply the style
         const result = MarkdownUtils.insertStyle(style, inputElement.value, start, end);
@@ -68,11 +67,11 @@ export function AdvancedInputMarkdown({
         inputElement.selectionEnd = result.end;
         // Update parent component
         onChange(result.text);
-    }, [disabled, id, onChange]);
+    }, [disabled, onChange]);
 
     const addTable = useCallback(function addTableCallback({ rows, cols }: { rows: number, cols: number }) {
         if (disabled) return;
-        const { start, end, inputElement } = MarkdownUtils.getTextSelection(id);
+        const { start, end, inputElement } = MarkdownUtils.getTextSelection(textAreaRef.current);
         if (!inputElement) return;
         const result = MarkdownUtils.insertTable(rows, cols, inputElement.value, start, end);
         // Set the new value and selection
@@ -81,25 +80,7 @@ export function AdvancedInputMarkdown({
         inputElement.selectionEnd = result.end;
         // Update parent component
         onChange(result.text);
-    }, [disabled, id, onChange]);
-
-    // const tagData = useTagDropdown({ getTaggableItems });
-    // const selectDropdownItem = useCallback((item: ListObject) => {
-    //     // Tagged item is inserted as a link
-    //     const asLink = `[@${getDisplay(item).title}](${window.location.origin}${getObjectUrl(item)})`;
-    //     // Insert the link, replacing the tag string and the "@" symbol
-    //     const { inputElement } = getTextSelection(id);
-    //     if (!inputElement) return;
-    //     inputElement.value = replaceText(
-    //         inputElement.value,
-    //         asLink,
-    //         inputElement.selectionStart - tagData.tagString.length - 1,
-    //         inputElement.selectionEnd,
-    //     );
-    //     onChange(inputElement.value);
-    //     // Close the dropdown
-    //     tagData.setAnchorEl(null);
-    // }, [id, onChange, tagData]);
+    }, [disabled, onChange]);
 
     useEffect(() => {
         if (!setHandleAction) return;
@@ -113,7 +94,7 @@ export function AdvancedInputMarkdown({
                         return;
                     }
                     // Set value without triggering onChange
-                    const { inputElement } = MarkdownUtils.getTextSelection(id);
+                    const { inputElement } = MarkdownUtils.getTextSelection(textAreaRef.current);
                     if (!inputElement) return;
                     inputElement.value = data;
                 },
@@ -129,47 +110,12 @@ export function AdvancedInputMarkdown({
                 insertStyle(action as AdvancedInputStylingAction);
             }
         });
-    }, [addTable, id, insertStyle, redo, setHandleAction, undo]);
+    }, [addTable, insertStyle, redo, setHandleAction, undo]);
 
     // Listen for text input changes
     useEffect(() => {
-        // Map keyboard shortcuts to their respective functions
-        const keyMappings = {
-            "1": () => insertStyle("Header1"), // ALT + 1 - Insert header 1
-            "2": () => insertStyle("Header2"), // ALT + 2 - Insert header 2
-            "3": () => insertStyle("Header3"), // ALT + 3 - Insert header 3
-            "4": () => insertStyle("Header4"), // ALT + 4 - Insert header 4
-            "5": () => insertStyle("Header5"), // ALT + 5 - Insert header 5
-            "6": () => insertStyle("Header6"), // ALT + 6 - Insert header 6
-            "7": () => insertStyle("ListBullet"), // ALT + 4 - Bullet list
-            "8": () => insertStyle("ListNumber"), // ALT + 5 - Number list
-            "9": () => insertStyle("ListCheckbox"), // ALT + 6 - Checklist
-            "0": () => toggleMarkdown(), // ALT + 7 - Toggle preview
-            "b": () => insertStyle("Bold"), // CTRL + B - Bold
-            "i": () => insertStyle("Italic"), // CTRL + I - Italic
-            "k": () => insertStyle("Link"), // CTRL + K - Insert link
-            "e": () => insertStyle("Code"), // CTRL + E - Code
-            "Q": () => insertStyle("Quote"), // CTRL + SHIFT + Q - Quote
-            "z": () => undo(), // CTRL + Z - Undo
-            "Z": () => redo(), // CTRL + SHIFT + Z = Redo
-            "S": () => insertStyle("Strikethrough"), // CTRL + SHIFT + S - Strikethrough
-            "l": () => insertStyle("Spoiler"), // CTRL + L - Spoiler
-            "u": () => insertStyle("Underline"), // CTRL + U - Underline
-            "y": () => redo(), // CTRL + Y = Redo
-        };
         // Handle key press events for textarea
         function handleTextareaKeyDown(e: any) {
-            // Check if either alt or ctrl key is pressed
-            if (e.altKey || e.ctrlKey) {
-                const action = keyMappings[e.key]; // Find the function mapped to the key press
-                // If a function is found, prevent default action and call the function
-                if (action) {
-                    console.log("textarea action triggered");
-                    e.preventDefault();
-                    action();
-                    return;
-                }
-            }
             // // Handle tag dropdown. Triggered by "@" key press
             // if (!tagData.anchorEl && typeof getTaggableItems === "function" && e.key === "@") {
             //     console.log("opening dropdown for tags");
@@ -220,7 +166,7 @@ export function AdvancedInputMarkdown({
             // On enter key press
             if (e.key === "Enter") {
                 // Find the line the start of the selection is on
-                const { start, end, inputElement } = MarkdownUtils.getTextSelection(id);
+                const { start, end, inputElement } = MarkdownUtils.getTextSelection(textAreaRef.current);
                 let [trimmedLine] = MarkdownUtils.getLineAtIndex(inputElement?.value, start);
                 trimmedLine = trimmedLine.trimStart();
                 console.log("enter key trimmed line", trimmedLine, value, start, end, Object.entries(e.target));
@@ -232,7 +178,7 @@ export function AdvancedInputMarkdown({
                 // If the current line is a list
                 if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
-                    const { inputElement } = MarkdownUtils.getTextSelection(id);
+                    const { inputElement } = MarkdownUtils.getTextSelection(textAreaRef.current);
                     if (!inputElement) return;
                     let textToInsert = "\n";
                     if (isNumberList) {
@@ -265,18 +211,12 @@ export function AdvancedInputMarkdown({
                 toggleMarkdown();
             }
         }
-        // Find textarea or full component
-        const textarea = document.getElementById(id);
-        const fullComponent = document.getElementById(`markdown-input-base-${name}`);
-        // Add appropriate listeners
-        if (textarea) textarea.addEventListener("keydown", handleTextareaKeyDown);
-        else if (fullComponent) fullComponent.addEventListener("keydown", handleFullComponentKeyDown);
-        // Return a cleanup function to remove the listeners on unmount
+        // Add event listeners for dynamic content changes
+        textAreaRef.current?.addEventListener("keydown", handleTextareaKeyDown);
         return () => {
-            textarea?.removeEventListener("keydown", handleTextareaKeyDown);
-            fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
+            textAreaRef.current?.removeEventListener("keydown", handleTextareaKeyDown);
         };
-    }, [onChange, insertStyle, name, redo, toggleMarkdown, undo, id, value]);
+    }, [onChange, insertStyle, name, redo, toggleMarkdown, undo, value]);
 
     useEffect(function adjustHeightEffect() {
         const textarea = textAreaRef.current;
@@ -337,7 +277,6 @@ export function AdvancedInputMarkdown({
                 <textarea
                     className={advancedInputTextareaClassName}
                     disabled={disabled}
-                    id={id}
                     name={name}
                     placeholder={placeholder}
                     value={value}

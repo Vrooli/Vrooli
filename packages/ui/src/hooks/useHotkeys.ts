@@ -32,7 +32,6 @@ export function useHotkeys(
 
                     if (keysMatch && ctrlMatch && altMatch && shiftMatch) {
                         e.preventDefault();
-                        console.log("qqqq c alling hotkey callback", hotkey, e);
                         hotkey.callback();
                         break; // Stop checking further once a match is found
                     }
