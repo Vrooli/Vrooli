@@ -1,21 +1,10 @@
-import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { DashboardView } from "./DashboardView.js";
 
 export default {
     title: "Views/Main/DashboardView",
     component: DashboardView,
-};
-
-export function LoggedOut() {
-    return (
-        <PageContainer>
-            <DashboardView display="page" />
-        </PageContainer>
-    );
-}
-LoggedOut.parameters = {
-    session: loggedOutSession,
 };
 
 export function SignedInNoPremiumNoCredits() {

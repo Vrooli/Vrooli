@@ -553,7 +553,6 @@ export function ChatMessageInput({
     submitMessage,
     taskInfo,
 }: ChatMessageInputProps) {
-    const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isKeyboardOpen = useKeyboardOpen();
@@ -564,22 +563,6 @@ export function ChatMessageInput({
         onFocused?.();
     }, [onFocused]);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
-
-    // TODO update to connect more than just participants (though these results should be at the top).
-    // Should also be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
-    const getTaggableItems = useCallback(async function getTaggableItemsCallback(searchString: string) {
-        // Find all users in the chat, plus @Everyone
-        let users = [
-            //TODO handle @Everyone
-            ...participantsAll?.map(p => p.user) ?? [],
-        ];
-        // Filter out current user
-        users = users.filter(p => p.id !== getCurrentUser(session).id);
-        // Filter out users that don't match the search string
-        users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-        console.log("got taggable items", users, searchString);
-        return users;
-    }, [participantsAll, session]);
 
     const inputActionButtons = useMemo(function inputActionButtonsMemo() {
         return [{
@@ -655,7 +638,6 @@ export function ChatMessageInput({
                 disabled={disabled}
                 disableAssistant={true}
                 fullWidth
-                getTaggableItems={getTaggableItems}
                 maxChars={1500}
                 maxRows={inputFocused ? INPUT_ROWS_FOCUSED : INPUT_ROWS_UNFOCUSED}
                 minRows={1}

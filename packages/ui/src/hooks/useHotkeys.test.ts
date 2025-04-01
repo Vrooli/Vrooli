@@ -220,4 +220,74 @@ describe("useHotkeys", () => {
             expect(mockCallback.called).to.be.false;
         });
     });
+
+    describe("preventDefault functionality", () => {
+        let mockEvent: KeyboardEvent;
+
+        beforeEach(() => {
+            // Create a keyboard event
+            mockEvent = new KeyboardEvent("keydown", {
+                key: "a",
+                bubbles: true,
+                cancelable: true, // Make sure the event is cancelable for preventDefault
+            });
+            // Spy on preventDefault after event creation
+            sinon.spy(mockEvent, "preventDefault");
+        });
+
+        it("calls preventDefault by default", () => {
+            const hotkeys = [{ keys: ["a"], callback: mockCallback }];
+            renderHook(() => useHotkeys(hotkeys, true));
+
+            document.dispatchEvent(mockEvent);
+
+            expect(mockCallback.calledOnce).to.be.true;
+            expect((mockEvent.preventDefault as sinon.SinonSpy).calledOnce).to.be.true;
+        });
+
+        it("calls preventDefault when explicitly set to true", () => {
+            const hotkeys = [{ keys: ["a"], preventDefault: true, callback: mockCallback }];
+            renderHook(() => useHotkeys(hotkeys, true));
+
+            document.dispatchEvent(mockEvent);
+
+            expect(mockCallback.calledOnce).to.be.true;
+            expect((mockEvent.preventDefault as sinon.SinonSpy).calledOnce).to.be.true;
+        });
+
+        it("does not call preventDefault when set to false", () => {
+            const hotkeys = [{ keys: ["a"], preventDefault: false, callback: mockCallback }];
+            renderHook(() => useHotkeys(hotkeys, true));
+
+            document.dispatchEvent(mockEvent);
+
+            expect(mockCallback.calledOnce).to.be.true;
+            expect((mockEvent.preventDefault as sinon.SinonSpy).called).to.be.false;
+        });
+
+        it("respects preventDefault setting for multiple hotkeys", () => {
+            const mockCallbackTwo = sinon.spy();
+            const hotkeys = [
+                { keys: ["a"], preventDefault: false, callback: mockCallback },
+                { keys: ["b"], callback: mockCallbackTwo },
+            ];
+            renderHook(() => useHotkeys(hotkeys, true));
+
+            // Test first hotkey (preventDefault: false)
+            document.dispatchEvent(mockEvent);
+            expect(mockCallback.calledOnce).to.be.true;
+            expect((mockEvent.preventDefault as sinon.SinonSpy).called).to.be.false;
+
+            // Test second hotkey (default preventDefault behavior)
+            const eventTwo = new KeyboardEvent("keydown", {
+                key: "b",
+                bubbles: true,
+                cancelable: true,
+            });
+            sinon.spy(eventTwo, "preventDefault");
+            document.dispatchEvent(eventTwo);
+            expect(mockCallbackTwo.calledOnce).to.be.true;
+            expect((eventTwo.preventDefault as sinon.SinonSpy).calledOnce).to.be.true;
+        });
+    });
 });

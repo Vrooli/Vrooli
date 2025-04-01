@@ -203,17 +203,6 @@ export function AdvancedInputMarkdown({
         onChange(event.target.value);
     }, [onChange]);
 
-    const handleSubmit = useCallback(() => {
-        onSubmit?.(value);
-    }, [onSubmit, value]);
-
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (enterWillSubmit && e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit();
-        }
-    }, [enterWillSubmit, handleSubmit]);
-
     return (
         <div style={containerStyle}>
             <textarea
@@ -225,7 +214,6 @@ export function AdvancedInputMarkdown({
                 onBlur={onBlur}
                 onFocus={onFocus}
                 onChange={handleChange}
-                onKeyDown={handleKeyDown}
                 tabIndex={tabIndex}
                 ref={textAreaRef}
                 spellCheck

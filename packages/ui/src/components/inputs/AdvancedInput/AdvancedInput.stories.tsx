@@ -117,10 +117,20 @@ const valueDisplayStyle = { mb: 1 } as const;
 
 function handleFormikSubmit(values: typeof formikInitialValues) {
     action("onSubmit")(values);
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(formikInitialValues);
+        }, 0);
+    });
 }
 
 function handleTranslatedSubmit(values: typeof translatedInitialValues) {
     action("onSubmit")(values);
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(translatedInitialValues);
+        }, 0);
+    });
 }
 
 /** Displays the current value of the input, truncated if too long */
@@ -297,6 +307,7 @@ export function Default() {
 
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
+        setMessage("");
     }
 
     function onToolsChange(updated: Tool[]) {

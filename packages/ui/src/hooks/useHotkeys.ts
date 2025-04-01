@@ -6,7 +6,8 @@ type HotkeyConfig = {
     altKey?: boolean,
     shiftKey?: boolean,
     requirePrecedingWhitespace?: boolean,
-    callback: () => unknown
+    preventDefault?: boolean,
+    callback: (event: KeyboardEvent) => unknown
 };
 
 export function useHotkeys(
@@ -84,8 +85,10 @@ export function useHotkeys(
                     );
 
                     if (keysMatch && ctrlMatch && altMatch && shiftMatch && whitespaceMatch) {
-                        e.preventDefault();
-                        hotkey.callback();
+                        if (hotkey.preventDefault !== false) {
+                            e.preventDefault();
+                        }
+                        hotkey.callback(e);
                         break; // Stop checking further once a match is found
                     }
                 }

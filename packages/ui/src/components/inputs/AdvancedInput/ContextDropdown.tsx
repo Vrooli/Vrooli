@@ -31,6 +31,10 @@ export interface ContextDropdownProps {
     onSelect: (item: ListObject) => void;
     /** Optional initial category to be selected when the dropdown opens */
     initialCategory?: ListObject["type"] | null;
+    /** Current search text */
+    searchText: string;
+    /** Callback when search text changes */
+    onSearchChange: (text: string) => void;
 }
 
 // Define actions separately from categories
@@ -43,6 +47,7 @@ const actions: Action[] = [
     },
 ];
 
+// TODO when in chat, user category should show participants first
 const categories: Category[] = [
     {
         type: "Note",
@@ -162,30 +167,43 @@ export function ContextDropdown({
     onClose,
     onSelect,
     initialCategory,
+    searchText,
+    onSearchChange,
 }: ContextDropdownProps) {
     const [selectedCategory, setSelectedCategory] = useState<ListObject["type"] | null>(initialCategory ?? null);
-    const [searchQuery, setSearchQuery] = useState("");
     const [focusedIndex, setFocusedIndex] = useState(-1);
     const listRef = useRef<HTMLDivElement>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
-    // Reset selection when dropdown closes
-    useEffect(() => {
+    useEffect(function resetSelectionEffect() {
         if (!anchorEl) {
             setSelectedCategory(initialCategory ?? null);
-            setSearchQuery("");
             setFocusedIndex(-1);
         }
     }, [anchorEl, initialCategory]);
 
-    // Update selection when initialCategory changes
-    useEffect(() => {
+    useEffect(function autoFocusSearchFieldEffect() {
+        if (!anchorEl) return;
+
+        // Add a small delay to ensure the ref is available
+        const timeoutId = setTimeout(() => {
+            if (!searchRef.current) {
+                console.error("[ContextDropdown.autoFocusSearchFieldEffect] searchRef.current is null");
+                return;
+            }
+            searchRef.current.focus();
+        }, 0);
+
+        return () => clearTimeout(timeoutId);
+    }, [anchorEl]);
+
+    useEffect(function updateSelectionEffect() {
         setSelectedCategory(initialCategory ?? null);
     }, [initialCategory]);
 
     const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
-    }, []);
+        onSearchChange(e.target.value);
+    }, [onSearchChange]);
 
     const handleSearchFocus = useCallback(() => {
         setFocusedIndex(-1);
@@ -194,20 +212,24 @@ export function ContextDropdown({
     const handleSearchKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
         switch (e.key) {
             case "Backspace":
-                if (selectedCategory && !searchQuery) {
+                if (selectedCategory && !searchText) {
                     e.preventDefault();
                     setSelectedCategory(null);
                 }
                 break;
+            case "Escape":
+                e.preventDefault();
+                onClose();
+                break;
         }
-    }, [selectedCategory, searchQuery]);
+    }, [selectedCategory, searchText, onClose]);
 
     // Handle action selection
     const handleActionClick = useCallback((action: Action) => {
-        const result = action.handler(searchQuery);
+        const result = action.handler(searchText);
         onSelect(result);
         onClose();
-    }, [onClose, onSelect, searchQuery]);
+    }, [onClose, onSelect, searchText]);
 
     // Handle category selection
     const handleCategoryClick = useCallback((category: Category) => {
@@ -232,7 +254,7 @@ export function ContextDropdown({
 
     // Filter items based on search query and selected category
     const getFilteredCategories = useCallback(() => {
-        if (!searchQuery && !selectedCategory) {
+        if (!searchText && !selectedCategory) {
             return { categories, actions };
         }
 
@@ -241,16 +263,16 @@ export function ContextDropdown({
                 ...category,
                 items: category.items.filter(item =>
                     (!selectedCategory || item.type === selectedCategory) &&
-                    (!searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())),
+                    (!searchText || item.name.toLowerCase().includes(searchText.toLowerCase())),
                 ),
             }))
             .filter(category => category.items.length > 0 || category.type === selectedCategory);
 
         return {
             categories: filteredCategories,
-            actions: searchQuery ? actions : [],
+            actions: searchText ? actions : [],
         };
-    }, [searchQuery, selectedCategory]);
+    }, [searchText, selectedCategory]);
 
     const handleBackClick = useCallback(() => {
         setSelectedCategory(null);
@@ -359,7 +381,7 @@ export function ContextDropdown({
                 }
                 break;
         }
-    }, [focusedIndex, totalItems, onClose]);
+    }, [focusedIndex, filteredCategories, selectedCategory, onClose, totalItems]);
 
     // Focus management
     useEffect(() => {
@@ -411,12 +433,10 @@ export function ContextDropdown({
                         </IconButton>
                     )}
                     <TextField
-                        // eslint-disable-next-line jsx-a11y/no-autofocus
-                        autoFocus
                         fullWidth
                         size="small"
                         placeholder="Search..."
-                        value={searchQuery}
+                        value={searchText}
                         onChange={handleSearchChange}
                         onFocus={handleSearchFocus}
                         onKeyDown={handleSearchKeyDown}
@@ -462,7 +482,7 @@ export function ContextDropdown({
                                 )}
                             </Typography>
 
-                            {(isSelected || searchQuery) && (
+                            {(isSelected || searchText) && (
                                 <List dense disablePadding role="menu">
                                     {category.items.map((item, itemIndex) => {
                                         const link = getObjectUrl(item);

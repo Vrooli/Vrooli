@@ -4,7 +4,7 @@ import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, Ico
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
 import { useField } from "formik";
-import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
@@ -789,9 +789,10 @@ export function AdvancedInputBase({
 
     // Add dropdown state
     const [dropdownAnchor, setDropdownAnchor] = useState<HTMLElement | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
     const [initialCategory, setInitialCategory] = useState<"Routine" | null>(null);
+    const [searchText, setSearchText] = useState("");
     const inputWrapperRef = useRef<HTMLDivElement>(null);
+    const triggerCharRef = useRef<string | null>(null);
 
     // Add expanded view state
     const [isExpanded, setIsExpanded] = useState(false);
@@ -1016,11 +1017,6 @@ export function AdvancedInputBase({
         [onContextDataChange, contextData],
     );
 
-    const handleMessageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = event.target.value;
-        changeInternalValue(newValue);
-    }, [changeInternalValue]);
-
     const handleTranscriptChange = useCallback((recognizedText: string) => {
         // Append recognized text to whatever is currently typed
         if (!internalValue.trim()) {
@@ -1030,22 +1026,9 @@ export function AdvancedInputBase({
         }
     }, [internalValue, changeInternalValue]);
 
-    const handleSubmit = useCallback((event: React.FormEvent) => {
-        event.preventDefault();
+    const handleSubmit = useCallback(() => {
         onSubmit?.(internalValue);
     }, [internalValue, onSubmit]);
-
-    const handleKeyDown = useCallback(
-        (e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                if (enterWillSubmit) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                }
-            }
-        },
-        [handleSubmit, enterWillSubmit],
-    );
 
     const imgStyle = useMemo(() => previewImageStyle(theme), [theme]);
     const toolsContainerStyles = useMemo(() => ({
@@ -1121,6 +1104,7 @@ export function AdvancedInputBase({
         {
             keys: ["@"],
             requirePrecedingWhitespace: true,
+            preventDefault: false, // Allow the key to be typed if user keeps pressing
             callback: () => {
                 handleContextTrigger(TRIGGER_CHARS.AT);
             },
@@ -1128,8 +1112,21 @@ export function AdvancedInputBase({
         {
             keys: ["/"],
             requirePrecedingWhitespace: true,
+            preventDefault: false, // Allow the key to be typed if user keeps pressing
             callback: () => {
                 handleContextTrigger(TRIGGER_CHARS.SLASH);
+            },
+        },
+        // Enter will submit
+        {
+            keys: ["Enter"],
+            shiftKey: false,
+            preventDefault: false, // We decide if we want to prevent the default behavior
+            callback: (event) => {
+                if (enterWillSubmit) {
+                    event.preventDefault();
+                    handleSubmit();
+                }
             },
         },
     ], true, inputRef);
@@ -1186,45 +1183,54 @@ export function AdvancedInputBase({
         // Use the wrapper element instead of trying to get the exact cursor position
         if (!inputWrapperRef.current) return;
 
-        const wrapperRect = inputWrapperRef.current.getBoundingClientRect();
-
         // Set the anchor element and position
         setDropdownAnchor(inputWrapperRef.current);
-        setDropdownPosition({
-            top: wrapperRect.bottom,
-            left: wrapperRect.left,
-        });
+
+        // Store the trigger character for later use
+        triggerCharRef.current = triggerChar;
+        setSearchText("");
 
         // Set initial category based on trigger char
         const category = triggerChar === TRIGGER_CHARS.SLASH ? "Routine" : null;
         setInitialCategory(category);
-    }, []);
 
-    const handleCloseDropdown = useCallback(() => {
+        // Add the trigger character to the input
+        changeInternalValue(internalValue + triggerChar);
+    }, [internalValue, changeInternalValue]);
+
+    const handleCloseDropdown = useCallback((shouldAddSearchText = true) => {
+        // If we have search text and we're closing without selection, add it to the input
+        if (shouldAddSearchText && searchText && triggerCharRef.current) {
+            // Get the current value and find the last trigger character
+            const lastIndex = internalValue.lastIndexOf(triggerCharRef.current);
+            if (lastIndex >= 0) {
+                const beforeTrigger = internalValue.slice(0, lastIndex);
+                const afterTrigger = internalValue.slice(lastIndex + 1);
+                const newText = `${beforeTrigger}${triggerCharRef.current}${searchText}${afterTrigger}`;
+                changeInternalValue(newText);
+            }
+        }
+
+        // Clear dropdown state
         setDropdownAnchor(null);
-        setDropdownPosition(null);
         setInitialCategory(null);
-    }, []);
+        setSearchText("");
+        triggerCharRef.current = null;
+    }, [searchText, changeInternalValue, internalValue]);
 
     const handleSelectContext = useCallback((item: ListObject) => {
-        // Insert the selected item at the current cursor position
-        const selection = window.getSelection();
-        if (!selection || !selection.rangeCount) return;
+        // Get the current value and find the last trigger character
+        const lastIndex = internalValue.lastIndexOf(triggerCharRef.current ?? "");
+        if (lastIndex >= 0) {
+            const beforeTrigger = internalValue.slice(0, lastIndex);
+            const afterTrigger = internalValue.slice(lastIndex + 1);
+            const newText = `${beforeTrigger}[[${item.name}]]${afterTrigger}`;
+            changeInternalValue(newText);
+        }
 
-        const range = selection.getRangeAt(0);
-        const prefix = range.startContainer.textContent?.slice(0, range.startOffset) || "";
-        const suffix = range.startContainer.textContent?.slice(range.startOffset) || "";
-
-        // Remove the trigger character
-        const newPrefix = prefix.slice(0, -1);
-        const newText = `${newPrefix}[[${item.name}]]${suffix}`;
-
-        // Update the input value
-        changeInternalValue(newText);
-
-        // Close the dropdown
-        handleCloseDropdown();
-    }, [changeInternalValue, handleCloseDropdown]);
+        // Close the dropdown without adding search text since we're selecting an item
+        handleCloseDropdown(false);
+    }, [changeInternalValue, handleCloseDropdown, internalValue]);
 
     return (
         <Outer {...getRootProps()}>
@@ -1463,6 +1469,8 @@ export function AdvancedInputBase({
                 onClose={handleCloseDropdown}
                 onSelect={handleSelectContext}
                 initialCategory={initialCategory}
+                searchText={searchText}
+                onSearchChange={setSearchText}
             />
         </Outer>
     );

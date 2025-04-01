@@ -1,4 +1,4 @@
-import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
+import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { CSSProperties, RefObject } from "react";
@@ -173,16 +173,10 @@ export interface LinkInputBaseProps {
 
 export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
-export type GetTaggableItemsFunc = (query: string) => Promise<ListObject[]>;
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     autoFocus?: boolean;
     disabled?: boolean;
     error?: boolean;
-    /**
-     * Callback to provide data for "@" tagging dropdown. 
-     * If not provided, the dropdown will not appear.
-     */
-    getTaggableItems?: GetTaggableItemsFunc;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
