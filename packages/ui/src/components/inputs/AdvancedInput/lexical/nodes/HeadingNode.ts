@@ -1,4 +1,4 @@
-import { Headers, headerMarkdowns } from "../../../../../utils/display/stringTools.js";
+import { Headers, MarkdownUtils } from "../../utils.js";
 import { RangeSelection } from "../selection.js";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types.js";
 import { $createNode, isHTMLElement } from "../utils.js";
@@ -111,7 +111,7 @@ export class HeadingNode extends ElementNode {
 
     getMarkdownContent() {
         const markdown = this.getChildren().map(child => child.getMarkdownContent()).join("");
-        return `${headerMarkdowns[this.__tag]} ${markdown}`;
+        return `${MarkdownUtils.headerMarkdowns[this.__tag]} ${markdown}`;
     }
 
     // Mutation

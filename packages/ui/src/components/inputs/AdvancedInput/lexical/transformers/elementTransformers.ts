@@ -1,4 +1,4 @@
-import { Headers } from "../../../../../utils/display/stringTools.js";
+import { Headers } from "../../utils.js";
 import { $createCodeNode } from "../nodes/CodeNode.js";
 import { type ElementNode } from "../nodes/ElementNode.js";
 import { type LexicalNode } from "../nodes/LexicalNode.js";

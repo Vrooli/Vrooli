@@ -1,12 +1,9 @@
-import { ListObject } from "@local/shared";
 import { Box, styled, useTheme } from "@mui/material";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MIN_ROWS } from "../../../../utils/consts.js";
-import { Headers } from "../../../../utils/display/stringTools.js";
 import { LINE_HEIGHT_MULTIPLIER } from "../../RichInput/RichInput.js";
-import { AdvancedInputLexicalProps, RichInputAction, RichInputActiveStates } from "../../types.js";
-import { RichInputTagDropdown, useTagDropdown } from "../AdvancedInputTagDropdown.js";
 import { defaultActiveStates } from "../AdvancedInputToolbar.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputLexicalProps, Headers } from "../utils.js";
 import { $convertFromMarkdownString, registerMarkdownShortcuts } from "./builder.js";
 import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, KEY_ENTER_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands.js";
 import { COMMAND_PRIORITY_CRITICAL } from "./consts.js";
@@ -34,7 +31,7 @@ const PADDING_HEIGHT_PX = 16.5;
 const DEBOUNCE_DELAY_MS = 300;
 
 /** Every supported block type (e.g. lists, headers, quote) */
-const blockTypeToActionName: { [x: string]: RichInputAction | `${RichInputAction}` } = {
+const blockTypeToActionName: { [x: string]: AdvancedInputAction | `${AdvancedInputAction}` } = {
     bullet: "ListBullet",
     check: "ListCheckbox",
     code: "Code",
@@ -258,7 +255,6 @@ export function RichInputLexicalComponents({
     tabIndex,
     undo,
     value,
-    sxs,
 }: AdvancedInputLexicalProps) {
     const { palette, typography } = useTheme();
     const editor = useLexicalComposerContext();
@@ -268,14 +264,14 @@ export function RichInputLexicalComponents({
         valueRef.current = value;
     }, [value]);
 
-    const tagData = useTagDropdown({ getTaggableItems });
-    const selectDropdownItem = useCallback((item: ListObject) => {
-        //TODO
-    }, []);
+    // const tagData = useTagDropdown({ getTaggableItems });
+    // const selectDropdownItem = useCallback((item: ListObject) => {
+    //     //TODO
+    // }, []);
 
     /** Store current text properties. Logic inspired by https://github.com/facebook/lexical/blob/9e83533d52fe934bd91aaa5baaf156f682577dcf/packages/lexical-playground/src/plugins/ToolbarPlugin/index.tsx#L484 */
     const [activeEditor, setActiveEditor] = useState(editor);
-    const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>({ ...defaultActiveStates });
+    const [activeStates, setActiveStates] = useState<Omit<AdvancedInputActiveStates, "SetValue">>({ ...defaultActiveStates });
     const $updateToolbar = useCallback(() => {
         if (!activeEditor) return;
         const updatedStates = { ...defaultActiveStates };
@@ -502,7 +498,6 @@ export function RichInputLexicalComponents({
             "&:focus-within": {
                 border: `2px solid ${palette.primary.main}`,
             },
-            ...sxs?.inputRoot,
             "& .RichInput__textCode": {
                 backgroundColor: palette.grey[100],
                 padding: "1px 0.25rem",
@@ -738,7 +733,6 @@ export function RichInputLexicalComponents({
                         outline: "none",
                         resize: "none",
                         overflow: "auto",
-                        ...sxs?.textArea,
                     } as CSSProperties}
                 />}
             />
@@ -749,7 +743,7 @@ export function RichInputLexicalComponents({
             <LinkPlugin />
             <ListPlugin />
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
-            <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
+            {/* <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} /> */}
             <TablePlugin />
             <CodeBlockPlugin />
         </Box>

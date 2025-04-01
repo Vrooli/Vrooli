@@ -1,31 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "../../../utils/display/stringTools.js";
-import { AdvancedInputMarkdownProps, AdvancedInputStylingAction, advancedInputTextareaClassName } from "./utils.js";
+import { AdvancedInputMarkdownProps, AdvancedInputStylingAction, MarkdownUtils, advancedInputTextareaClassName } from "./utils.js";
 
 const LINE_HEIGHT = 1.5;
 const PIXELS_PER_EM = 16; // Standard conversion: 1em = 16px
-
-function styleMap(common: [string, number, number]): Record<AdvancedInputStylingAction, () => TextStyleResult> {
-    return {
-        "Bold": () => padSelection("**", "**", ...common),
-        "Code": () => insertCode(...common),
-        "Header1": () => insertHeader(Headers.h1, ...common),
-        "Header2": () => insertHeader(Headers.h2, ...common),
-        "Header3": () => insertHeader(Headers.h3, ...common),
-        "Header4": () => insertHeader(Headers.h4, ...common),
-        "Header5": () => insertHeader(Headers.h5, ...common),
-        "Header6": () => insertHeader(Headers.h6, ...common),
-        "Italic": () => padSelection("*", "*", ...common),
-        "Link": () => insertLink(...common),
-        "ListBullet": () => insertBulletList(...common),
-        "ListCheckbox": () => insertCheckboxList(...common),
-        "ListNumber": () => insertNumberList(...common),
-        "Quote": () => insertQuote(...common),
-        "Spoiler": () => padSelection("||", "||", ...common),
-        "Strikethrough": () => padSelection("~~", "~~", ...common),
-        "Underline": () => padSelection("<u>", "</u>", ...common),
-    };
-}
 
 const containerStyle = {
     width: "100%",
@@ -81,15 +58,10 @@ export function AdvancedInputMarkdown({
     const insertStyle = useCallback((style: AdvancedInputStylingAction | `${AdvancedInputStylingAction}`) => {
         if (disabled) return;
         // Find the current selection
-        const { start, end, inputElement } = getTextSelection(id);
+        const { start, end, inputElement } = MarkdownUtils.getTextSelection(id);
         if (!inputElement) return;
-        // Modify text based on the style
-        const styleFuncs = styleMap([inputElement.value, start, end]);
-        if (!(style in styleFuncs)) {
-            console.error("Invalid style", style);
-            return;
-        }
-        const result = styleFuncs[style]();
+        // Apply the style
+        const result = MarkdownUtils.insertStyle(style, inputElement.value, start, end);
         // Set the new value and selection
         inputElement.value = result.text;
         inputElement.selectionStart = result.start;
@@ -100,9 +72,9 @@ export function AdvancedInputMarkdown({
 
     const addTable = useCallback(function addTableCallback({ rows, cols }: { rows: number, cols: number }) {
         if (disabled) return;
-        const { start, end, inputElement } = getTextSelection(id);
+        const { start, end, inputElement } = MarkdownUtils.getTextSelection(id);
         if (!inputElement) return;
-        const result = insertTable(rows, cols, inputElement.value, start, end);
+        const result = MarkdownUtils.insertTable(rows, cols, inputElement.value, start, end);
         // Set the new value and selection
         inputElement.value = result.text;
         inputElement.selectionStart = result.start;
@@ -141,7 +113,7 @@ export function AdvancedInputMarkdown({
                         return;
                     }
                     // Set value without triggering onChange
-                    const { inputElement } = getTextSelection(id);
+                    const { inputElement } = MarkdownUtils.getTextSelection(id);
                     if (!inputElement) return;
                     inputElement.value = data;
                 },
@@ -248,8 +220,8 @@ export function AdvancedInputMarkdown({
             // On enter key press
             if (e.key === "Enter") {
                 // Find the line the start of the selection is on
-                const { start, end, inputElement } = getTextSelection(id);
-                let [trimmedLine] = getLineAtIndex(inputElement?.value, start);
+                const { start, end, inputElement } = MarkdownUtils.getTextSelection(id);
+                let [trimmedLine] = MarkdownUtils.getLineAtIndex(inputElement?.value, start);
                 trimmedLine = trimmedLine.trimStart();
                 console.log("enter key trimmed line", trimmedLine, value, start, end, Object.entries(e.target));
                 const isNumberList = /^\d+\.\s/.test(trimmedLine);
@@ -260,7 +232,7 @@ export function AdvancedInputMarkdown({
                 // If the current line is a list
                 if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
-                    const { inputElement } = getTextSelection(id);
+                    const { inputElement } = MarkdownUtils.getTextSelection(id);
                     if (!inputElement) return;
                     let textToInsert = "\n";
                     if (isNumberList) {
@@ -274,7 +246,7 @@ export function AdvancedInputMarkdown({
                         textToInsert += "* ";
                     }
                     console.log("enter key inserting text", textToInsert, start, end);
-                    inputElement.value = replaceText(value, textToInsert, start, end);
+                    inputElement.value = MarkdownUtils.replaceText(value, textToInsert, start, end);
                     onChange(inputElement.value);
                 }
             }

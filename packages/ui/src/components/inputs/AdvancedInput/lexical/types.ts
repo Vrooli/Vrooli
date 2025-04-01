@@ -1,4 +1,4 @@
-import { Headers } from "../../../../utils/display/stringTools.js";
+import { Headers } from "../utils.js";
 import { DECORATOR_NODES, ELEMENT_NODES, TEXT_NODES } from "./consts.js";
 import { type EditorState, type LexicalEditor } from "./editor.js";
 import { type DecoratorNode } from "./nodes/DecoratorNode.js";
