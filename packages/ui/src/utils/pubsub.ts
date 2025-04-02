@@ -251,7 +251,6 @@ export interface EventPayloads {
     proDialog: void;
     requestTaskContext: RequestTaskContextPub;
     session: Session | undefined;
-    showBotWarning: boolean;
     snack: SnackPub;
     theme: ThemeType;
 }

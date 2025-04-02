@@ -580,7 +580,7 @@ export function ChatBubble({
                         >
                             <IconCommon
                                 decorative
-                                name={message.user?.isBot ? "Bot" : "User"}
+                                name={message.user?.isBot ? "Bot" : "Profile"}
                             />
                         </ProfileAvatar>
                     )}

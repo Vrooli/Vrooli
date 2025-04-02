@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DOCS_URL, LINKS, PaymentType, SOCIALS } from "@local/shared";
+import { LINKS, PaymentType, SOCIALS } from "@local/shared";
 import { Box, BoxProps, Button, Grid, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
 import { ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import AiDrivenConvo from "../../assets/img/AiDrivenConvo.png";
@@ -1018,8 +1018,8 @@ export function LandingView({
             link: LINKS.Search,
         },
         {
-            text: "Docs",
-            link: DOCS_URL,
+            text: "Code",
+            link: SOCIALS.GitHub,
         },
     ] as const;
 
@@ -1028,9 +1028,6 @@ export function LandingView({
     }
     function toApp() {
         openLink(setLocation, LINKS.Signup); //TODO: Change to popup that shows app download options and instructions for installing the app from the website
-    }
-    function toDocs() {
-        openLink(setLocation, DOCS_URL);
     }
     function toGitHub() {
         openLink(setLocation, SOCIALS.GitHub);
@@ -1283,18 +1280,6 @@ export function LandingView({
                                     />}
                                 >I&apos;m ready!</Slide6StartButton>
                                 <ExternalLinksBox>
-                                    <Tooltip title="Read the docs" placement="bottom">
-                                        <SlideIconButton
-                                            aria-label="Read the docs"
-                                            onClick={toDocs}
-                                        >
-                                            <IconCommon
-                                                decorative
-                                                fill='#0fa'
-                                                name="Article"
-                                            />
-                                        </SlideIconButton>
-                                    </Tooltip>
                                     <Tooltip title="Check out our code" placement="bottom">
                                         <SlideIconButton
                                             aria-label="Check out our code"

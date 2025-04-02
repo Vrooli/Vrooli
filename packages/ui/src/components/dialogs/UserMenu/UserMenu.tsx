@@ -1,5 +1,5 @@
 import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, PreActionOption, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, profileValidation, shapeProfile } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, Link, List, ListItem, ListItemIcon, ListItemText, Palette, Stack, Typography, styled, useTheme } from "@mui/material";
+import { Box, Collapse, Divider, Link, List, ListItemButton, ListItemIcon, ListItemText, Palette, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,14 +11,14 @@ import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
-import { noSelect } from "../../../styles.js";
+import { ProfileAvatar, noSelect } from "../../../styles.js";
 import { SessionService, checkIfLoggedIn, getCurrentUser, guestSession } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
+import { placeholderColor } from "../../../utils/display/listTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { Actions, performAction } from "../../../utils/navigation/quickActions.js";
 import { MenuPayloads, PubSub } from "../../../utils/pubsub.js";
-import { FocusModeSelector } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
 import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector.js";
 import { LeftHandedCheckbox } from "../../inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
 import { TextSizeButtons } from "../../inputs/TextSizeButtons/TextSizeButtons.js";
@@ -35,6 +35,11 @@ const SPACING_MULTIPLIER = 1.5;
 const AVATAR_SIZE_PX = 50;
 const helpIconInfo = { name: "Help", type: "Common" } as const;
 
+const StyledListItemButton = styled(ListItemButton)(({ theme }) => ({
+    paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(0.5),
+}));
+
 function NavListItem({ iconInfo, label, onClick, palette }: {
     iconInfo: IconInfo;
     label: string;
@@ -42,9 +47,8 @@ function NavListItem({ iconInfo, label, onClick, palette }: {
     palette: Palette;
 }) {
     return (
-        <ListItem
+        <StyledListItemButton
             aria-label={label}
-            button
             onClick={onClick}
         >
             <ListItemIcon>
@@ -55,13 +59,9 @@ function NavListItem({ iconInfo, label, onClick, palette }: {
                 />
             </ListItemIcon>
             <ListItemText primary={label} />
-        </ListItem>
+        </StyledListItemButton>
     );
 }
-
-const StyledAvatar = styled(Avatar)(({ theme }) => ({
-    marginRight: theme.spacing(2),
-}));
 
 const UserMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -72,30 +72,24 @@ const UserMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     height: "fit-content",
     padding: theme.spacing(1),
 }));
-
 const SeeAllLink = styled(Link)({
     textAlign: "right",
 });
-
 const SeeAllLinkText = styled(Typography)(({ theme }) => ({
     marginRight: theme.spacing(SPACING_MULTIPLIER),
     marginBottom: theme.spacing(1),
 }));
-
 const CollapseBox = styled(Box)({
     display: "inline-block",
     width: "100%",
 });
-
 const AccountList = styled(List)({
     paddingTop: 0,
     paddingBottom: 0,
 });
-
 const DividerStyled = styled(Divider)(({ theme }) => ({
     background: theme.palette.background.textSecondary,
 }));
-
 const DisplayHeader = styled(Stack)(({ theme }) => ({
     display: "flex",
     alignItems: "center",
@@ -105,19 +99,16 @@ const DisplayHeader = styled(Stack)(({ theme }) => ({
     paddingTop: theme.spacing(1),
     paddingBottom: theme.spacing(1),
 }));
-
 const BoxIcon = styled(Box)({
     minWidth: "56px",
     display: "flex",
     alignItems: "center",
 });
-
 const HeaderTypography = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textPrimary,
     ...noSelect,
     margin: "0 !important",
 }));
-
 const ExpandIcon = styled(Box)({
     marginLeft: "auto",
 });
@@ -138,6 +129,9 @@ const transformOrigin = {
     vertical: "top" as const,
     horizontal: "right" as const,
 } as const;
+const profileAvatarStyle = {
+    marginRight: 2,
+};
 
 const MonospaceTypography = styled(Typography)({
     fontFamily: "monospace",
@@ -378,23 +372,26 @@ export function UserMenu() {
                 {accounts
                     .filter(account => account.id === userId)
                     .map((account) => {
+                        const profileColors = placeholderColor(account.id);
                         function handleClick(event: React.MouseEvent<HTMLElement>) {
                             handleUserClick(event, account);
                         }
                         return (
-                            <ListItem
-                                button
+                            <StyledListItemButton
                                 key={account.id}
                                 onClick={handleClick}
                             >
-                                <StyledAvatar
+                                <ProfileAvatar
                                     src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                                    isBot={false}
+                                    profileColors={profileColors}
+                                    sx={profileAvatarStyle}
                                 >
                                     <IconCommon
                                         decorative
                                         name="Profile"
                                     />
-                                </StyledAvatar>
+                                </ProfileAvatar>
                                 <ListItemText
                                     primary={
                                         <Stack direction="column" spacing={0}>
@@ -425,7 +422,7 @@ export function UserMenu() {
                                         </CreditStack>
                                     }
                                 />
-                            </ListItem>
+                            </StyledListItemButton>
                         );
                     })}
             </AccountList>
@@ -484,7 +481,7 @@ export function UserMenu() {
                                 <TextSizeButtons />
                                 <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
                                 <LanguageSelector />
-                                <FocusModeSelector />
+                                {/* <FocusModeSelector /> */}
                             </UserMenuDisplaySettingsBox>
                             <SeeAllLink href={LINKS.SettingsDisplay}>
                                 <SeeAllLinkText variant="body2">{t("SeeAll")}</SeeAllLinkText>
@@ -501,23 +498,26 @@ export function UserMenu() {
                 {accounts
                     .filter(account => account.id !== userId)
                     .map((account) => {
+                        const profileColors = placeholderColor(account.id);
                         function handleClick(event: React.MouseEvent<HTMLElement>) {
                             handleUserClick(event, account);
                         }
                         return (
-                            <ListItem
-                                button
+                            <StyledListItemButton
                                 key={account.id}
                                 onClick={handleClick}
                             >
-                                <StyledAvatar
+                                <ProfileAvatar
                                     src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                                    isBot={false}
+                                    profileColors={profileColors}
+                                    sx={profileAvatarStyle}
                                 >
                                     <IconCommon
                                         decorative
                                         name="Profile"
                                     />
-                                </StyledAvatar>
+                                </ProfileAvatar>
                                 <ListItemText
                                     primary={
                                         <Stack direction="column" spacing={0}>
@@ -548,15 +548,14 @@ export function UserMenu() {
                                         </CreditStack>
                                     }
                                 />
-                            </ListItem>
+                            </StyledListItemButton>
                         );
                     })}
 
                 {/* Show login/signup button when not logged in */}
                 {!isLoggedIn && (
-                    <ListItem
+                    <StyledListItemButton
                         aria-label={t("LogInSignUp")}
-                        button
                         onClick={handleLoginSignup}
                     >
                         <ListItemIcon>
@@ -567,14 +566,13 @@ export function UserMenu() {
                             />
                         </ListItemIcon>
                         <ListItemText primary={t("LogInSignUp")} />
-                    </ListItem>
+                    </StyledListItemButton>
                 )}
 
                 {/* Show add account button when logged in and under max accounts */}
                 {isLoggedIn && accounts.length < MAX_ACCOUNTS && (
-                    <ListItem
+                    <StyledListItemButton
                         aria-label={t("AddAccount")}
-                        button
                         onClick={handleLoginSignup}
                     >
                         <ListItemIcon>
@@ -585,14 +583,13 @@ export function UserMenu() {
                             />
                         </ListItemIcon>
                         <ListItemText primary={t("AddAccount")} />
-                    </ListItem>
+                    </StyledListItemButton>
                 )}
 
                 {/* Show logout button when logged in */}
                 {isLoggedIn && accounts.length > 0 && (
-                    <ListItem
+                    <StyledListItemButton
                         aria-label={t("LogOut")}
-                        button
                         onClick={handleLogOut}
                     >
                         <ListItemIcon>
@@ -603,12 +600,10 @@ export function UserMenu() {
                             />
                         </ListItemIcon>
                         <ListItemText primary={t("LogOut")} />
-                    </ListItem>
+                    </StyledListItemButton>
                 )}
             </List>
-
             <DividerStyled />
-
             {/* Help and support content */}
             <List>
                 <NavListItem
@@ -618,6 +613,7 @@ export function UserMenu() {
                     palette={palette}
                 />
             </List>
+            <DividerStyled />
             <ContactInfo />
         </LargeDialog>
     );

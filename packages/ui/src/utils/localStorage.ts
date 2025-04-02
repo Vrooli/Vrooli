@@ -48,7 +48,6 @@ type SimpleStoragePayloads = {
     MenuState: boolean,
     Preferences: CookiePreferences,
     RunLoaderCache: RunLoaderCache,
-    ShowBotWarning: boolean,
     ShowMarkdown: boolean,
     SingleStepRoutineOrder: string[],
     Theme: ThemeType,
@@ -157,11 +156,6 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
         __type: "functional",
         check: (value) => typeof value === "object" && value !== null && isObject((value as { projects?: unknown }).projects) && isObject((value as { routines?: unknown }).routines),
         fallback: { projects: {}, routines: {} },
-    },
-    ShowBotWarning: {
-        __type: "functional",
-        check: (value) => typeof value === "boolean",
-        fallback: true,
     },
     ShowMarkdown: {
         __type: "functional",

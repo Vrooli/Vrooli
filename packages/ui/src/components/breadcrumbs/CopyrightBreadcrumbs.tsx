@@ -4,7 +4,6 @@ import { BreadcrumbsBase } from "./BreadcrumbsBase.js";
 import { CopyrightBreadcrumbsProps } from "./types.js";
 
 export function CopyrightBreadcrumbs({
-    sx,
     ...props
 }: CopyrightBreadcrumbsProps) {
     const { t } = useTranslation();
@@ -17,7 +16,6 @@ export function CopyrightBreadcrumbs({
         ].map(row => ({ text: row[0], link: row[1] })),
         ariaLabel: "Copyright breadcrumb",
         sx: {
-            ...sx,
             display: "flex",
             justifyContent: "center",
             alignItems: "center",

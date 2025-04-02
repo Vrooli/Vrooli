@@ -560,9 +560,7 @@ function ChatForm({
                         message={message}
                         messageBeingEdited={messageInput.messageBeingEdited}
                         messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
-                        participantsAll={participants}
                         participantsTyping={usersTyping}
-                        messagesCount={messageTree.messagesCount}
                         placeholder={t("MessagePlaceholder")}
                         setMessage={setMessage}
                         stopEditingMessage={messageInput.stopEditingMessage}

@@ -13,7 +13,6 @@ export const SOCIALS = {
     X: "https://x.com/VrooliOfficial",
 };
 export const APP_URL = "https://vrooli.com";
-export const DOCS_URL = "https://docs.vrooli.com";
 
 /**
  * IDs for built-in (seeded) data

@@ -162,15 +162,20 @@ export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
 
 interface ProfileAvatarProps extends AvatarProps {
     isBot: boolean;
-    profileColors: [string, string];
+    profileColors?: [string, string];
 }
 
 export const ProfileAvatar = styled(Avatar, {
     shouldForwardProp: (prop) => prop !== "isBot" && prop !== "profileColors",
-})<ProfileAvatarProps>(({ isBot, profileColors }) => ({
-    backgroundColor: profileColors[0],
-    color: profileColors[1],
+})<ProfileAvatarProps>(({ isBot, profileColors, theme }) => ({
+    backgroundColor: profileColors?.[0] ?? theme.palette.background.paper,
+    color: profileColors?.[1] ?? theme.palette.background.textSecondary,
+    cursor: "pointer",
     borderRadius: isBot ? "8px" : "50%",
+    "& svg": {
+        width: "32px",
+        height: "32px",
+    },
 }));
 
 

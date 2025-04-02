@@ -15,7 +15,6 @@ import { SettingsContent, SettingsTopBar } from "../../components/navigation/Set
 import { Title } from "../../components/text/Title.js";
 import { SessionContext } from "../../contexts/session.js";
 import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
-import { useShowBotWarning } from "../../hooks/subscriptions.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { FormSection, ScrollBox } from "../../styles.js";
@@ -68,16 +67,11 @@ function SettingsDisplayForm({
 }: SettingsDisplayFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const botWarningPreferences = useShowBotWarning();
 
     const handleClearSearchHistory = useCallback(function handleClearSearchHistoryCallback() {
         if (!session) return;
         SearchHistory.clearSearchHistory(session);
     }, [session]);
-
-    const handleClearBotWarning = useCallback(function handleClearBotWarningCallback() {
-        botWarningPreferences.handleUpdateShowBotWarning(null);
-    }, [botWarningPreferences]);
 
     return (
         <OuterForm display={display}>
@@ -126,11 +120,6 @@ function SettingsDisplayForm({
                         onClick={handleClearSearchHistory}
                         title={t("ClearSearchHistory")}
                         description={"This will clear your search history suggestions when typing in search bars."}
-                    />
-                    <ClearSettingButton
-                        onClick={handleClearBotWarning}
-                        title={"Reset \"Hide Bot Warning\""}
-                        description={"When starting a new chat with a bot, the warning that the chat is with a bot will be displayed."}
                     />
                 </FormSection>
             </InnerForm>

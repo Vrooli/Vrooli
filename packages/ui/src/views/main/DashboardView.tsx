@@ -13,7 +13,6 @@ import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
 import { ObjectListActions } from "../../components/lists/types.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useMessageActions, useMessageInput, useMessageTree } from "../../hooks/messages.js";
 import { useChatTasks } from "../../hooks/tasks.js";
@@ -500,7 +499,7 @@ export function DashboardView({
                 display={display}
                 onClose={onClose}
                 below={<>
-                    {showTabs && currTab && <PageTabs<TabParamPayload<DashboardTabsInfo>[]>
+                    {/* {showTabs && currTab && <PageTabs<TabParamPayload<DashboardTabsInfo>[]>
                         ariaLabel="Focus modes"
                         id={ELEMENT_IDS.DashboardFocusModeTabs}
                         currTab={currTab as PageTab<TabParamPayload<DashboardTabsInfo>>}
@@ -508,7 +507,7 @@ export function DashboardView({
                         onChange={handleTabChange}
                         tabs={tabs}
                         sx={pageTabsStyle}
-                    />}
+                    />} */}
                     {view === "chat" && <ChatViewOptionsBox>
                         <Button
                             color="primary"
@@ -620,9 +619,7 @@ export function DashboardView({
                 messageBeingEdited={messageInput.messageBeingEdited}
                 messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
                 onFocused={showChat}
-                participantsAll={participants}
                 participantsTyping={usersTyping}
-                messagesCount={messageTree.messagesCount}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 setMessage={setMessage}
                 stopEditingMessage={messageInput.stopEditingMessage}

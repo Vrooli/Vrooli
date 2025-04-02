@@ -129,7 +129,7 @@ export function Footer() {
                     </List>
                 </Box>
             </Box>
-            <CopyrightBreadcrumbs sx={{ color: palette.primary.contrastText }} />
+            <CopyrightBreadcrumbs textColor="primary.contrastText" />
             {/* Hidden div under the footer for bottom overscroll color */}
             <Box
                 bgcolor={palette.primary.dark}

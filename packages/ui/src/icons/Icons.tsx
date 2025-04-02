@@ -1,5 +1,6 @@
-import { useTheme, type PaletteColor } from "@mui/material";
+import { useTheme } from "@mui/material";
 import React, { forwardRef } from "react";
+import { resolveThemeColor } from "../utils/themeColors.js";
 import type { IconName as IconCommonName } from "./types/commonIcons.js";
 import type { IconName as IconRoutineName } from "./types/routineIcons.js";
 import type { IconName as IconServiceName } from "./types/serviceIcons.js";
@@ -46,29 +47,8 @@ const IconBase = forwardRef<SVGSVGElement, IconBaseProps>(({
 }, ref) => {
     const theme = useTheme();
 
-    // Handle theme color names
-    let fillColor = fill ?? DEFAULT_FILL;
-    if (typeof fillColor === "string") {
-        // Handle dot notation (e.g., "text.secondary", "grey.500")
-        const colorPath = fillColor.split(".");
-        let paletteColor: any = theme.palette;
-
-        // Traverse the color path
-        for (const key of colorPath) {
-            if (paletteColor && typeof paletteColor === "object") {
-                paletteColor = paletteColor[key as keyof typeof paletteColor];
-            } else {
-                break;
-            }
-        }
-
-        // If we found a valid color value, use it
-        if (paletteColor && (typeof paletteColor === "string" || typeof paletteColor === "object")) {
-            fillColor = typeof paletteColor === "object" && "main" in paletteColor
-                ? (paletteColor as PaletteColor).main
-                : paletteColor;
-        }
-    }
+    // Use the new utility function to resolve the color
+    const fillColor = resolveThemeColor(theme, fill);
 
     // Only add aria-hidden if:
     // 1. Icon is decorative AND

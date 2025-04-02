@@ -1320,7 +1320,7 @@ export function AdvancedInputBase({
                     maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
                     overflow="auto"
                 >
-                    {isMarkdownOn ? MarkdownComponent : LexicalComponent}
+                    {isMarkdownOn || !showToolbar ? MarkdownComponent : LexicalComponent}
                 </Box>
             </Box>
 

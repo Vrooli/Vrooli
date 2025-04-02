@@ -452,8 +452,6 @@ export function ResourceListHorizontal({
     );
 }
 
-const editingIconButtonStyle = { width: "24px", height: "24px" } as const;
-
 export function ResourceListVertical({
     canUpdate = true,
     handleToggleSelect,
@@ -502,7 +500,6 @@ export function ResourceListVertical({
 export function ResourceList(props: ResourceListProps) {
     const { canUpdate, handleUpdate, horizontal, list, mutate, parent, title } = props;
     const { t } = useTranslation();
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const [isEditing, setIsEditing] = useState(false);

@@ -92,7 +92,7 @@ const preCombinedItems: PrePopoverActionItem[] = [
     ...preFormatItems,
     { action: "Link", iconInfo: { name: "Link", type: "Common" }, labelKey: "Link", keyCombo: keyComboToString("Ctrl", "K") },
     ...preListItems,
-    { action: "Table", iconInfo: { name: "Table", type: "Common" }, labelKey: "TableInsert" },
+    // { action: "Table", iconInfo: { name: "Table", type: "Common" }, labelKey: "TableInsert" },
 ];
 
 function determineViewSize(
@@ -656,7 +656,7 @@ export function AdvancedInputToolbar({
                             items={listItems}
                             handleAction={handleToggleAction}
                         />
-                        <ToolButton
+                        {/* <ToolButton
                             aria-label={t("TableInsert")}
                             disabled={disabled}
                             icon={<IconCommon
@@ -667,7 +667,7 @@ export function AdvancedInputToolbar({
                             label={t("TableInsert")}
                             onClick={openTableSelect}
                             palette={palette}
-                        />
+                        /> */}
                     </>
                 )}
                 <TablePopover

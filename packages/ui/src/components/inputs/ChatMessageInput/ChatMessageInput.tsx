@@ -1,10 +1,9 @@
 import { AITaskInfo, ChatMessageShape, ChatParticipantShape, ListObject, LlmTask, getTranslation } from "@local/shared";
-import { Box, Button, Chip, ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Chip, ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import useDraggableScroll from "../../../hooks/gestures.js";
-import { useShowBotWarning } from "../../../hooks/subscriptions.js";
 import { UseChatTaskReturn } from "../../../hooks/tasks.js";
 import { useKeyboardOpen } from "../../../hooks/useKeyboardOpen.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
@@ -16,18 +15,15 @@ import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { isTaskStale } from "../../../utils/display/chatTools.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { displayDate } from "../../../utils/display/stringTools.js";
-import { PubSub } from "../../../utils/pubsub.js";
-import { RichInputBase } from "../../inputs/RichInput/RichInput.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
 
 const DEFAULT_TYPING_INDICATOR_MAX_CHARS = 40;
 const NUM_TYPING_INDICATOR_ELLIPSIS_DOTS = 3;
 const TYPING_INDICATOR_DOTS_INTERVAL_MS = 500;
 
 type ChatIndicatorProps = {
-    participantsAll: Omit<ChatParticipantShape, "chat">[] | undefined,
     participantsTyping: Omit<ChatParticipantShape, "chat">[],
-    messagesCount: number,
 }
 
 /**
@@ -79,15 +75,6 @@ export function getTypingIndicatorText(participants: ListObject[], maxChars: num
     return `${text}${append}`;
 }
 
-function showBotWarningDetails() {
-    PubSub.get().publish("alertDialog", {
-        messageKey: "BotChatWarningDetails",
-        buttons: [
-            { labelKey: "Ok" },
-        ],
-    });
-}
-
 const ChatIndicatorBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
@@ -99,41 +86,14 @@ const ChatIndicatorBox = styled(Box)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
 }));
 
-const dismissButtonStyle = {
-    textTransform: "none",
-    color: "currentColor",
-} as const;
-
 /**
  * Displays text information about the chat. Can be a warning that you 
  * are chatting with a bot, a typing indicator, or blank.
  */
 export function ChatIndicator({
-    participantsAll,
     participantsTyping,
-    messagesCount,
 }: ChatIndicatorProps) {
-    const { t } = useTranslation();
-    const botWarningPreferences = useShowBotWarning();
     const [dots, setDots] = useState("");
-
-    const onHideBotWarning = useCallback(function onHideBotWarningCallback() {
-        botWarningPreferences.handleUpdateShowBotWarning(false);
-        PubSub.get().publish("snack", {
-            message: "Bot warning hidden. You can re-enable this in settings.",
-            severity: "Info",
-        });
-    }, [botWarningPreferences]);
-
-    // Bot warning should only be displayed at the beginning of a chat, 
-    // when there are no other participants typing, and there is a bot participant
-    const showBotWarning = useMemo(function showBotWarningMemo() {
-        if (botWarningPreferences.showBotWarning === false) return false;
-        const hasBotParticipant = participantsAll?.some(p => p.user?.isBot) ?? false;
-        return participantsTyping.length === 0
-            && messagesCount <= 2
-            && hasBotParticipant;
-    }, [botWarningPreferences.showBotWarning, messagesCount, participantsAll, participantsTyping.length]);
 
     const typingIndicatorText = useMemo(function typingIndicatorTextMemo() {
         return getTypingIndicatorText(participantsTyping, DEFAULT_TYPING_INDICATOR_MAX_CHARS);
@@ -155,27 +115,10 @@ export function ChatIndicator({
         return () => clearInterval(interval);
     }, [typingIndicatorText]);
 
-    if (!showBotWarning && typingIndicatorText === "") return null;
+    if (typingIndicatorText === "") return null;
     return (
         <ChatIndicatorBox>
-            {showBotWarning && <>
-                <Typography variant="body2" p={1}>{t("BotChatWarning")}</Typography>
-                <IconButton onClick={showBotWarningDetails}>
-                    <IconCommon
-                        decorative
-                        fill="currentColor"
-                        name="Help"
-                    />
-                </IconButton>
-                <Button
-                    variant="text"
-                    sx={dismissButtonStyle}
-                    onClick={onHideBotWarning}
-                >
-                    {t("Dismiss")}
-                </Button>
-            </>}
-            {!showBotWarning && <Typography variant="body2" p={1}>{typingIndicatorText}{dots}</Typography>}
+            <Typography variant="body2" p={1}>{typingIndicatorText}{dots}</Typography>
         </ChatIndicatorBox>
     );
 }
@@ -516,14 +459,13 @@ function EditingMessageDisplay({
     );
 }
 
-type ChatMessageInputProps = Pick<ChatIndicatorProps, "participantsAll" | "participantsTyping" | "messagesCount"> & {
+type ChatMessageInputProps = Pick<ChatIndicatorProps, "participantsTyping"> & {
     disabled: boolean;
     display: ViewDisplayType;
     isLoading: boolean;
     message: string;
     messageBeingEdited: ChatMessageShape | null;
     messageBeingRepliedTo: ChatMessageShape | null;
-    onFocused?: () => unknown;
     placeholder: string;
     stopEditingMessage: () => unknown;
     stopReplyingToMessage: () => unknown;
@@ -542,9 +484,6 @@ export function ChatMessageInput({
     message,
     messageBeingEdited,
     messageBeingRepliedTo,
-    messagesCount,
-    onFocused,
-    participantsAll,
     participantsTyping,
     placeholder,
     setMessage,
@@ -556,23 +495,6 @@ export function ChatMessageInput({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isKeyboardOpen = useKeyboardOpen();
-
-    const [inputFocused, setInputFocused] = useState(false);
-    const onFocus = useCallback(() => {
-        setInputFocused(true);
-        onFocused?.();
-    }, [onFocused]);
-    const onBlur = useCallback(() => { setInputFocused(false); }, []);
-
-    const inputActionButtons = useMemo(function inputActionButtonsMemo() {
-        return [{
-            iconInfo: { name: "Send", type: "Common" } as const,
-            disabled: disabled || isLoading,
-            onClick: () => {
-                submitMessage(message);
-            },
-        }];
-    }, [disabled, isLoading, message, submitMessage]);
 
     const inputStyle = useMemo(function inputStyleMemo() {
         // If this is the full width of the page, we have to add 
@@ -618,9 +540,7 @@ export function ChatMessageInput({
     return (
         <>
             <ChatIndicator
-                participantsAll={participantsAll}
                 participantsTyping={participantsTyping}
-                messagesCount={messagesCount}
             />
             {!messageBeingRepliedTo && <TasksRow
                 activeTask={taskInfo.activeTask}
@@ -633,22 +553,16 @@ export function ChatMessageInput({
                 onCancelReply={stopReplyingToMessage}
             />}
             {messageBeingEdited && <EditingMessageDisplay onCancelEdit={stopEditingMessage} />}
-            <RichInputBase
-                actionButtons={inputActionButtons}
+            <AdvancedInputBase
+                contextData={[]}
                 disabled={disabled}
-                disableAssistant={true}
-                fullWidth
                 maxChars={1500}
-                maxRows={inputFocused ? INPUT_ROWS_FOCUSED : INPUT_ROWS_UNFOCUSED}
-                minRows={1}
-                onBlur={onBlur}
                 onChange={setMessage}
-                onFocus={onFocus}
                 onSubmit={handleSubmit}
                 name="newMessage"
                 placeholder={placeholder}
-                sxs={inputStyle}
-                taskInfo={taskInfo}
+                // taskInfo={taskInfo}
+                tools={[]}
                 value={message}
             />
         </>

@@ -1,5 +1,5 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Avatar, Badge, Box, BoxProps, Button, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
+import { AppBar, Badge, Box, BoxProps, Button, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
@@ -10,7 +10,7 @@ import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon, IconText } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
-import { noSelect } from "../../styles.js";
+import { ProfileAvatar, noSelect } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { extractImageUrl } from "../../utils/display/imageTools.js";
@@ -68,15 +68,6 @@ const EnterButton = styled(Button)(({ theme }) => ({
             marginRight: "0px",
         },
     },
-}));
-
-const ProfileAvatar = styled(Avatar)(({ theme }) => ({
-    background: theme.palette.primary.contrastText,
-    width: "40px",
-    height: "40px",
-    margin: "auto",
-    marginRight: theme.spacing(1),
-    cursor: "pointer",
 }));
 
 const iconButtonStyle = {
@@ -164,6 +155,7 @@ export function NavList() {
                     </IconButton>
                     <ProfileAvatar
                         id={ELEMENT_IDS.UserMenuProfileIcon}
+                        isBot={false}
                         src={extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX)}
                         onClick={openUserMenu}
                     >

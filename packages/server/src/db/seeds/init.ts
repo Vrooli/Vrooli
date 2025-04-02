@@ -251,14 +251,6 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
                                         create: [{ language: DEFAULT_LANGUAGE, name: "X", description: "Follow us on X" }],
                                     },
                                 },
-                                {
-                                    usedFor: "Tutorial",
-                                    index: 1,
-                                    link: "https://docs.vrooli.com",
-                                    translations: {
-                                        create: [{ language: DEFAULT_LANGUAGE, name: "Vrooli Docs", description: "Interested in how Vrooli works? Want to become a developer? Check out our docs!" }],
-                                    },
-                                },
                             ],
                         },
                     },

@@ -51,6 +51,15 @@ export function LargeDialog({
                     boxShadow: `0px 11px 15px -7px rgba(${shadowColor},0.2),0px 24px 38px 3px rgba(${shadowColor},0.14),0px 9px 46px 8px rgba(${shadowColor},0.12)`,
                     "& > .MuiDialogContent-root": {
                         position: "relative",
+                        tabIndex: 0,
+                        outline: "none",
+                        "&:focus": {
+                            outline: "none",
+                        },
+                        "&:focus-visible": {
+                            outline: `2px solid ${palette.primary.main}`,
+                            outlineOffset: "-2px",
+                        },
                     },
                     "& > .MuiBox-root": {
                         "& > .MuiDialogTitle-root": {
@@ -62,7 +71,7 @@ export function LargeDialog({
                 },
             },
         } as const;
-    }, [palette.background.default, palette.background.textPrimary, shadowColor, spacing, sxs?.paper, sxs?.root]);
+    }, [palette.background.default, palette.background.textPrimary, palette.primary.main, shadowColor, spacing, sxs?.paper, sxs?.root]);
 
     // If anchorEl is provided, use Popover instead of Dialog
     if (anchorEl) {
@@ -104,6 +113,15 @@ const notDialogBoxprops = {
     height: "100vh",
     overflowY: "auto",
     overflowX: "hidden",
+    tabIndex: 0,
+    role: "region",
+    "&:focus": {
+        outline: "none",
+    },
+    "&:focus-visible": {
+        outline: "2px solid",
+        outlineOffset: "-2px",
+    },
 } as const;
 
 /** Wraps children in a dialog is display is dialog */

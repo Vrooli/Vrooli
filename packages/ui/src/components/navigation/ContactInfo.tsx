@@ -1,124 +1,112 @@
-import { LINKS, SOCIALS } from "@local/shared";
-import { BottomNavigation, BottomNavigationAction, Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { useMemo } from "react";
+import { LINKS, SOCIALS, TranslationKeyCommon } from "@local/shared";
+import { Box, Divider, Link, Tooltip, Typography, styled } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { Icon, IconInfo } from "../../icons/Icons.js";
-import { openLink } from "../../route/openLink.js";
-import { useLocation } from "../../route/router.js";
 import { noSelect } from "../../styles.js";
-import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs.js";
 
-type NavActionListData = [string, string, string, IconInfo]
+type ContactInfoItem = {
+    tooltip: TranslationKeyCommon | "";
+    label: string;
+    link: string;
+    iconInfo: IconInfo;
+}
+
+type AdditionalInfoItem = Omit<ContactInfoItem, "iconInfo">;
+
+const contactInfo: ContactInfoItem[] = [
+    { tooltip: "ContactHelpX", label: "X/Twitter", link: SOCIALS.X, iconInfo: { name: "X", type: "Service" } },
+    { tooltip: "ContactHelpCode", label: "Code", link: SOCIALS.GitHub, iconInfo: { name: "GitHub", type: "Service" } },
+];
+
+const additionalInfo: AdditionalInfoItem[] = [
+    { tooltip: "", label: "About", link: LINKS.About },
+    { tooltip: "", label: "Stats", link: LINKS.Stats },
+    { tooltip: "", label: "Privacy", link: LINKS.Privacy },
+    { tooltip: "", label: "Terms", link: LINKS.Terms },
+];
+
+const LinkStyled = styled(Link)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: theme.spacing(1),
+    color: theme.palette.background.textPrimary,
+    textDecoration: "none",
+}));
+const DividerStyled = styled(Divider)(({ theme }) => ({
+    background: theme.palette.background.textSecondary,
+    width: "100%",
+    marginTop: theme.spacing(1),
+}));
+const SectionTitle = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textPrimary,
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+    ...noSelect,
+}));
+const SectionBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(2),
+    justifyContent: "center",
+    alignItems: "center",
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    paddingBottom: theme.spacing(1),
+}));
 
 export function ContactInfo() {
-    const { palette } = useTheme();
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
-
-    const { additionalInfo, contactInfo } = useMemo(() => {
-        return {
-            additionalInfo: [
-                [t("AboutUs"), t("About"), LINKS.About, { name: "Info", type: "Common" }],
-                [t("DocumentationShort"), t("DocumentationShort"), "https://docs.vrooli.com", { name: "Article", type: "Common" }],
-                [t("StatisticsShort"), t("StatisticsShort"), LINKS.Stats, { name: "Stats", type: "Common" }],
-            ] as NavActionListData[],
-            contactInfo: [
-                [t("ContactHelpX"), t("X"), SOCIALS.X, { name: "X", type: "Service" }],
-                // [t("ContactHelpDiscord"), t("Discord"), SOCIALS.Discord, DiscordIcon],
-                [t("ContactHelpCode"), t("Code"), SOCIALS.GitHub, { name: "GitHub", type: "Service" }],
-            ] as NavActionListData[],
-        };
-    }, [t]);
-
-    function handleLink(e: React.MouseEvent<any>, link: string) {
-        e.preventDefault();
-        openLink(setLocation, link);
-    }
 
     return (
-        <Box minWidth="fit-content" height="fit-content" padding={1}>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("FindUsOn")}</Typography>
-            <BottomNavigation
-                showLabels
-                sx={{
-                    alignItems: "baseline",
-                    background: "transparent",
-                    height: "fit-content",
-                    padding: 1,
-                    marginBottom: 2,
-                }}>
-                {contactInfo.map(([tooltip, label, link, iconInfo], index: number) => {
-                    function handleClick(event: React.MouseEvent<HTMLElement>) {
-                        event.preventDefault();
-                        handleLink(event, link);
-                    }
-
-                    return (
-                        <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
-                            <BottomNavigationAction
-                                label={label}
-                                onClick={handleClick}
-                                href={link}
-                                icon={
-                                    <IconButton sx={{ background: palette.secondary.main }} >
-                                        <Icon
-                                            decorative
-                                            fill={palette.secondary.contrastText}
-                                            info={iconInfo}
-                                        />
-                                    </IconButton>
-                                }
-                                sx={{
-                                    alignItems: "center",
-                                    color: palette.background.textPrimary,
-                                    overflowWrap: "anywhere",
-                                }}
-                            />
+        <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="flex-start"
+        >
+            <Box>
+                <SectionTitle
+                    variant="body1"
+                    component="h6"
+                >
+                    {t("ConnectWithUs")}
+                </SectionTitle>
+                <SectionBox>
+                    {contactInfo.map(({ tooltip, label, link, iconInfo }) => (
+                        <Tooltip key={`contact-info-button-${label}`} title={tooltip.length > 0 ? t(tooltip) : ""} placement="top">
+                            <LinkStyled href={link}>
+                                <Icon fill="background.textPrimary" info={iconInfo} size={20} />
+                                <Typography variant="caption">
+                                    {label}
+                                </Typography>
+                            </LinkStyled>
                         </Tooltip>
-                    );
-                })}
-            </BottomNavigation>
-            <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("AdditionalResources")}</Typography>
-            <BottomNavigation
-                showLabels
-                sx={{
-                    alignItems: "baseline",
-                    background: "transparent",
-                    height: "fit-content",
-                    padding: 1,
-                }}>
-                {additionalInfo.map(([tooltip, label, link, iconInfo], index: number) => {
-                    function handleClick(event: React.MouseEvent<HTMLElement>) {
-                        event.preventDefault();
-                        handleLink(event, link);
-                    }
-
-                    return (
-                        <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
-                            <BottomNavigationAction
-                                label={label}
-                                onClick={handleClick}
-                                href={link}
-                                icon={
-                                    <IconButton sx={{ background: palette.secondary.main }}>
-                                        <Icon
-                                            decorative
-                                            fill={palette.secondary.contrastText}
-                                            info={iconInfo}
-                                        />
-                                    </IconButton>
-                                }
-                                sx={{
-                                    alignItems: "center",
-                                    color: palette.background.textPrimary,
-                                    overflowWrap: "anywhere",
-                                }}
-                            />
+                    ))}
+                </SectionBox>
+            </Box>
+            <DividerStyled />
+            <Box>
+                <SectionTitle
+                    variant="body1"
+                    component="h6"
+                >
+                    {t("AdditionalResources")}
+                </SectionTitle>
+                <SectionBox>
+                    {additionalInfo.map(({ tooltip, label, link }) => (
+                        <Tooltip key={`additional-info-button-${label}`} title={tooltip.length > 0 ? t(tooltip) : ""} placement="top">
+                            <LinkStyled href={link}>
+                                <Typography variant="caption">
+                                    {label}
+                                </Typography>
+                            </LinkStyled>
                         </Tooltip>
-                    );
-                })}
-            </BottomNavigation>
-            <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
+                    ))}
+                </SectionBox>
+            </Box>
         </Box>
     );
 }
