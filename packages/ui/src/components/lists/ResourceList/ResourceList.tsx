@@ -58,7 +58,11 @@ export function ResourceListItem({
     const [, setLocation] = useLocation();
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
 
-    const Icon = useMemo(() => getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link), [data]);
+    const Icon = useMemo(() => getResourceIcon({
+        fill: "background.textSecondary",
+        link: data.link,
+        usedFor: data.usedFor ?? ResourceUsedFor.Related,
+    }), [data]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
     const handleClick = useCallback(({ target }: UsePressEvent) => {
@@ -74,7 +78,7 @@ export function ResourceListItem({
         else openLink(setLocation, href);
     }, [data.link, href, setLocation]);
 
-    const onEdit = useCallback((e: any) => {
+    const onEdit = useCallback(() => {
         handleEdit(index);
     }, [handleEdit, index]);
 
@@ -99,17 +103,12 @@ export function ResourceListItem({
                 component="a"
                 href={href}
             >
-                <IconButton sx={{
-                    width: "48px",
-                    height: "48px",
-                }}>
-                    {Icon}
-                </IconButton>
+                {Icon}
                 <Stack direction="column" spacing={1} pl={2} width="-webkit-fill-available">
                     {/* Name/Title */}
                     {loading ? <TextLoading /> : <ListItemText
                         primary={firstString(title, data.link)}
-                        sx={{ ...multiLineEllipsis(1) }}
+                        sx={multiLineEllipsis(1)}
                     />}
                     {/* Bio/Description */}
                     {loading ? <TextLoading /> : <ListItemText
@@ -144,6 +143,53 @@ export function ResourceListItem({
     );
 }
 
+// Constants for styling
+const ICON_BUTTON_SPACING = 4;
+const CONTENT_SPACING = 1;
+const ICON_SIZE = 20;
+
+const editButtonStyle = {
+    background: "#c5ab17",
+    position: "absolute",
+    top: "50%",
+    left: ICON_BUTTON_SPACING,
+    transform: "translateY(-50%)",
+} as const;
+
+const deleteButtonStyle = {
+    position: "absolute",
+    top: "50%",
+    right: ICON_BUTTON_SPACING,
+    transform: "translateY(-50%)",
+} as const;
+
+const contentBoxStyle = (isEditing: boolean) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: CONTENT_SPACING,
+    width: "100%",
+    pl: isEditing ? 4 : 0,
+    pr: isEditing ? 4 : 0,
+}) as const;
+
+const titleStyle = {
+    ...multiLineEllipsis(1),
+    flexGrow: 1,
+} as const;
+
+const loadingCardStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: CONTENT_SPACING,
+    width: "100%",
+} as const;
+
+const loadingTextStyle = {
+    width: "60%",
+    flexGrow: 1,
+    opacity: 0.3,
+} as const;
+
 const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     data,
     dragProps,
@@ -167,7 +213,11 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     }, [data, session, t]);
 
     const Icon = useMemo(() => {
-        return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link);
+        return getResourceIcon({
+            fill: "background.textSecondary",
+            link: data.link,
+            usedFor: data.usedFor ?? ResourceUsedFor.Related,
+        });
     }, [data.link, data.usedFor]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
@@ -203,6 +253,10 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
         pressDelay: isEditing ? 1500 : 300,
     });
 
+    const handlePreventDefault = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+    }, []);
+
     return (
         <Tooltip placement="top" title={`${subtitle ? subtitle + " - " : ""}${data.link}`}>
             <CardBox
@@ -212,7 +266,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                 {...pressEvents}
                 component="a"
                 href={href}
-                onClick={(e) => e.preventDefault()}
+                onClick={handlePreventDefault}
             >
                 {/* Edit and delete icons, only visible on hover */}
                 {isEditing && (
@@ -220,46 +274,33 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                         <Tooltip title={t("Edit")}>
                             <IconButton
                                 id='edit-icon-button'
-                                sx={{ background: "#c5ab17", position: "absolute", top: 4, left: 4 }}
+                                size="small"
+                                sx={editButtonStyle}
                             >
-                                <IconCommon id='edit-icon' fill={palette.secondary.contrastText} name="Edit" />
+                                <IconCommon id='edit-icon' fill="secondary.contrastText" name="Edit" size={ICON_SIZE} />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title={t("Delete")}>
                             <IconButton
                                 id='delete-icon-button'
-                                sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
+                                size="small"
+                                sx={{ ...deleteButtonStyle, background: palette.error.main }}
                             >
-                                <IconCommon id='delete-icon' fill={palette.secondary.contrastText} name="Delete" />
+                                <IconCommon id='delete-icon' fill="secondary.contrastText" name="Delete" size={ICON_SIZE} />
                             </IconButton>
                         </Tooltip>
                     </>
                 )}
                 {/* Content */}
-                <Stack
-                    direction="column"
-                    justifyContent="center"
-                    alignItems="center"
-                    sx={{
-                        height: "100%",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                    }}
-                >
+                <Box sx={contentBoxStyle(isEditing)}>
                     {Icon}
                     <Typography
-                        gutterBottom
-                        variant="body2"
-                        component="h3"
-                        sx={{
-                            ...multiLineEllipsis(2),
-                            textAlign: "center",
-                            lineBreak: title ? "auto" : "anywhere", // Line break anywhere only if showing link
-                        }}
+                        variant="caption"
+                        sx={titleStyle}
                     >
                         {firstString(title, data.link)}
                     </Typography>
-                </Stack>
+                </Box>
             </CardBox>
         </Tooltip>
     );
@@ -267,19 +308,23 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
 ResourceCard.displayName = "ResourceCard";
 
 function LoadingCard() {
+    const { palette } = useTheme();
     return (
         <CardBox>
-            <Stack
-                direction="column"
-                justifyContent="center"
-                alignItems="center"
-                sx={{
-                    height: "100%",
-                    overflow: "hidden",
-                }}
-            >
-                <TextLoading size="subheader" lines={2} sx={{ width: "70%", opacity: "0.5" }} />
-            </Stack>
+            <Box sx={loadingCardStyle}>
+                {/* Placeholder for icon */}
+                <Box
+                    sx={{
+                        width: ICON_SIZE,
+                        height: ICON_SIZE,
+                        borderRadius: "16px",
+                        backgroundColor: palette.text.primary,
+                        opacity: 0.2,
+                    }}
+                />
+                {/* Placeholder for text */}
+                <TextLoading size="caption" lines={1} sx={loadingTextStyle} />
+            </Box>
         </CardBox>
     );
 }
@@ -298,7 +343,6 @@ export function ResourceListHorizontal({
     title,
     sxs,
 }: ResourceListHorizontalProps) {
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -343,31 +387,15 @@ export function ResourceListHorizontal({
         marginRight: "auto",
         paddingTop: title ? 0 : 1,
         paddingBottom: 1,
-        overflowX: "auto",
+        flexWrap: "wrap",
+        alignItems: "flex-start",
+        justifyContent: "flex-start",
         ...sxs?.list,
     } as const;
 
-    // Don't need a drag/drop list if there aren't any items
-    if (isEmpty && !loading) {
-        // If you can add an item, show a button instead of a card. 
-        // This is more visually appealing
-        if (canUpdate) {
-            return (
-                <>
-                    {menu}
-                    <Button
-                        variant="text"
-                        color="primary"
-                        onClick={openAddDialog}
-                        startIcon={<IconCommon name="Link" />}
-                        sx={{ paddingBottom: 1 }}
-                    >
-                        {t("AddResource")}
-                    </Button>
-                </>
-            );
-        }
-        return null;
+    // If empty, not loading, and can't add an item, show "No resources"
+    if (isEmpty && !loading && !canUpdate) {
+        return <Typography variant="body1" color="text.secondary">No resources</Typography>;
     }
     // If empty but loading, show loading cards
     if (isEmpty && loading) {
@@ -397,8 +425,8 @@ export function ResourceListHorizontal({
                             ref={providedDrop.innerRef}
                             id={id}
                             {...providedDrop.droppableProps}
-                            justifyContent="center"
-                            alignItems="center"
+                            justifyContent="flex-start"
+                            alignItems="flex-start"
                             sx={boxSx}>
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (
@@ -434,13 +462,17 @@ export function ResourceListHorizontal({
                                 <CardBox
                                     onClick={openAddDialog}
                                     aria-label={t("AddResource")}
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                    }}
                                 >
-                                    <IconCommon name="Link" fill="secondary.contrastText" size={56} />
+                                    <Box sx={contentBoxStyle(false)}>
+                                        <IconCommon name="Add" size={ICON_SIZE} />
+                                        <Typography
+                                            variant="caption"
+                                            component="span"
+                                            sx={titleStyle}
+                                        >
+                                            {t("AddResource")}
+                                        </Typography>
+                                    </Box>
                                 </CardBox>
                             </Tooltip> : null}
                             {providedDrop.placeholder}

@@ -178,13 +178,13 @@ type TitleDisplayProps = Pick<NavbarProps, "help" | "options" | "startComponent"
     onLogoClick: () => unknown;
 }
 
-const NameTypography = styled(Typography)(() => ({
+const NameTypography = styled(Typography)(({ theme }) => ({
     position: "relative",
     cursor: "pointer",
     lineHeight: "1.3",
     fontSize: "2.5em",
     fontFamily: "sakbunderan",
-    color: "text.primary",
+    color: theme.palette.background.textSecondary,
 }));
 
 interface StartAndTitleBoxProps extends BoxProps {

@@ -233,7 +233,7 @@ function ResourceForm({
                             <Selector
                                 name="usedFor"
                                 options={Object.keys(ResourceUsedFor)}
-                                getOptionIcon={(i) => getResourceIcon(i as ResourceUsedFor)}
+                                getOptionIcon={(i) => getResourceIcon({ usedFor: i as ResourceUsedFor })}
                                 getOptionLabel={(l) => t(l as TranslationKeyCommon, { count: 2 })}
                                 fullWidth
                                 label={t("Type")}

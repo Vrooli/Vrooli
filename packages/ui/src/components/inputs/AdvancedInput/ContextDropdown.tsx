@@ -486,7 +486,7 @@ export function ContextDropdown({
                                 <List dense disablePadding role="menu">
                                     {category.items.map((item, itemIndex) => {
                                         const link = getObjectUrl(item);
-                                        const Icon = getResourceIcon(ResourceUsedFor.Context, link);
+                                        const Icon = getResourceIcon({ link, usedFor: ResourceUsedFor.Context });
                                         // Calculate global index based on all previous categories' items
                                         const previousItemsCount = filteredCategories
                                             .slice(0, categoryIndex)

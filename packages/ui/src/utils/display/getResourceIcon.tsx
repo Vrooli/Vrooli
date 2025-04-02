@@ -75,13 +75,25 @@ function getRoute(pathname: string): LINKS | undefined {
     return undefined;
 }
 
+type GetResourceIconProps = {
+    /** Override the fill color of the icon */
+    fill?: string;
+    /** Set the link for the resource */
+    link?: string;
+    /** Used to get the proper fill color for the icon, if not being provided directly */
+    palette?: Palette;
+    /** The type of resource */
+    usedFor: ResourceUsedFor;
+}
+
 /**
  * Maps resource type to icon
- * @param usedFor Resource used for type
- * @param link Resource's link, to check if it is a social media link
+ * 
  * @returns Icon to display
  */
-export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette?: Palette): JSX.Element {
+export function getResourceIcon({ fill, link, palette, usedFor }: GetResourceIconProps): JSX.Element {
+    const fillColor = fill ?? palette?.background?.textPrimary ?? "white";
+
     // Determine default icon
     const defaultIcon: IconInfo = usedFor === ResourceUsedFor.Social
         ? { name: "DefaultSocial", type: "Service" }
@@ -91,7 +103,7 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
     if (!link) {
         return <Icon
             decorative
-            fill={palette?.background?.textPrimary ?? "white"}
+            fill={fillColor}
             info={defaultIcon}
             size={ICON_SIZE}
         />;
@@ -100,9 +112,11 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
     // ResourceUsedFor.Context is a special case, as we can replace it with a Vrooli route's icon
     try {
         const url = new URL(link);
-        const hostName = url.hostname.split(".").filter(p => !["www", "m"].includes(p))[0]?.toLowerCase();
+        const hostName = url.hostname.split(":")[0].toLowerCase(); // Split by colon to handle ports
 
-        if (usedFor === ResourceUsedFor.Context && hostName === (process.env.PROD ? "vrooli.com" : "localhost")) {
+        if (usedFor === ResourceUsedFor.Context && (
+            process.env.PROD ? hostName === "vrooli.com" : hostName === "localhost"
+        )) {
             // Get route info
             const route = getRoute(url.pathname);
             const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
@@ -130,7 +144,7 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
                 >
                     <Icon
                         decorative
-                        fill={palette?.background?.textPrimary ?? "white"}
+                        fill={fillColor}
                         info={profileIconInfo}
                         size={ICON_SIZE}
                     />
@@ -141,7 +155,7 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
             if (cachedItem.isBot) {
                 return <Icon
                     decorative
-                    fill={palette?.background?.textPrimary ?? "white"}
+                    fill={fillColor}
                     info={profileIconInfo}
                     size={ICON_SIZE}
                 />;
@@ -151,7 +165,7 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
             const routeIcon = LinkIconMap[route as LINKS];
             return <Icon
                 decorative
-                fill={palette?.background?.textPrimary ?? "white"}
+                fill={fillColor}
                 info={routeIcon ?? defaultIcon}
                 size={ICON_SIZE}
             />;
@@ -161,7 +175,7 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
         return <IconFavicon
             href={link}
             size={ICON_SIZE}
-            fill={palette?.background?.textPrimary ?? "white"}
+            fill={fillColor}
             decorative
             fallbackIcon={defaultIcon}
         />;
@@ -170,7 +184,7 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
         console.error(`Invalid URL passed to getResourceIcon: ${link}`, err);
         return <Icon
             decorative
-            fill={palette?.background?.textPrimary ?? "white"}
+            fill={fillColor}
             info={defaultIcon}
             size={ICON_SIZE}
         />;

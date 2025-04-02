@@ -1,4 +1,4 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointsChat, endpointsFeed, FindByIdInput, FocusMode, FocusModeStopCondition, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, SEEDED_IDS, updateArray, uuid } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointsChat, endpointsFeed, FindByIdInput, FocusMode, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, SEEDED_IDS, updateArray, uuid } from "@local/shared";
 import { Box, Button, List, styled, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { useUpsertFetch } from "../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
+import { pagePaddingBottom } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "../../utils/consts.js";
 import { getDisplay } from "../../utils/display/listTools.js";
@@ -42,12 +43,16 @@ type DashboardTabsInfo = {
     WhereParams: undefined;
 }
 
-const DashboardBox = styled(Box)(() => ({
+const DashboardBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "column",
     maxHeight: "100vh",
     height: "calc(100vh - env(safe-area-inset-bottom))",
     overflow: "hidden",
+    paddingBottom: `calc(${pagePaddingBottom} + ${theme.spacing(2)})`,
+    [theme.breakpoints.down("sm")]: {
+        paddingBottom: pagePaddingBottom,
+    },
 }));
 
 const DashboardInnerBox = styled(Box)(() => ({
@@ -81,7 +86,6 @@ const NewChatButton = styled(Button)(({ theme }) => ({
 
 const monthIconInfo = { name: "Month", type: "Common" } as const;
 const reminderIconInfo = { name: "Reminder", type: "Common" } as const;
-const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
 const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
@@ -256,23 +260,23 @@ export function DashboardView({
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, focusModeInfo.active]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<TabParamPayload<DashboardTabsInfo>>) => {
-        e.preventDefault();
-        // If "Add", go to the add focus mode page
-        if (tab.key === "Add" || !tab.data) {
-            setLocation(LINKS.SettingsFocusModes);
-            return;
-        }
-        // Otherwise, publish the focus mode
-        putActiveFocusMode({
-            __typename: "ActiveFocusMode" as const,
-            focusMode: {
-                ...tab.data,
-                __typename: "ActiveFocusModeFocusMode" as const,
-            },
-            stopCondition: FocusModeStopCondition.NextBegins,
-        }, session);
-    }, [putActiveFocusMode, session, setLocation]);
+    // const handleTabChange = useCallback((e: any, tab: PageTab<TabParamPayload<DashboardTabsInfo>>) => {
+    //     e.preventDefault();
+    //     // If "Add", go to the add focus mode page
+    //     if (tab.key === "Add" || !tab.data) {
+    //         setLocation(LINKS.SettingsFocusModes);
+    //         return;
+    //     }
+    //     // Otherwise, publish the focus mode
+    //     putActiveFocusMode({
+    //         __typename: "ActiveFocusMode" as const,
+    //         focusMode: {
+    //             ...tab.data,
+    //             __typename: "ActiveFocusModeFocusMode" as const,
+    //         },
+    //         stopCondition: FocusModeStopCondition.NextBegins,
+    //     }, session);
+    // }, [putActiveFocusMode, session, setLocation]);
     useEffect(() => {
         refetch({});
     }, [focusModeInfo.active, refetch]);
@@ -436,8 +440,6 @@ export function DashboardView({
         setView("home");
     }, []);
 
-    const showTabs = useMemo(() => view === "home" && Boolean(getCurrentUser(session).id) && focusModeInfo.all.length > 1 && currTab !== null, [session, focusModeInfo.all.length, currTab, view]);
-
     const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
     const messageTree = useMessageTree(chat.id);
     const taskInfo = useChatTasks({ chatId: chat.id });
@@ -508,7 +510,7 @@ export function DashboardView({
                         tabs={tabs}
                         sx={pageTabsStyle}
                     />} */}
-                    {view === "chat" && <ChatViewOptionsBox>
+                    <ChatViewOptionsBox>
                         <Button
                             color="primary"
                             onClick={showHome}
@@ -532,7 +534,7 @@ export function DashboardView({
                         >
                             {t("NewChat")}
                         </NewChatButton>
-                    </ChatViewOptionsBox>}
+                    </ChatViewOptionsBox>
                 </>}
             />
             <DashboardInnerBox>

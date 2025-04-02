@@ -223,22 +223,27 @@ export function highlightStyle(background: string, disabled: boolean | undefined
 
 export const CardBox = styled(Box)(({ theme }) => ({
     ...noSelect,
-    display: "block",
-    boxShadow: theme.shadows[4],
-    background: theme.palette.primary.light,
-    color: theme.palette.secondary.contrastText,
-    borderRadius: "8px",
-    padding: theme.spacing(0.5),
+    alignItems: "center",
+    background: theme.palette.background.paper,
+    borderRadius: theme.spacing(3),
+    boxShadow: theme.shadows[2],
+    color: theme.palette.background.textSecondary,
+    display: "flex",
+    flexDirection: "row",
+    gap: 1,
+    height: "40px",
     cursor: "pointer",
-    width: "200px",
-    minWidth: "200px",
-    height: `calc(${theme.typography.h3.fontSize} * 2 + ${theme.spacing(1)})`,
+    maxWidth: "200px",
+    minWidth: "120px",
+    padding: theme.spacing(1),
     position: "relative",
+    textDecoration: "none",
+    width: "fit-content",
     "&:hover": {
         filter: "brightness(120%)",
         transition: "filter 0.2s",
     },
-})) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
+}));
 
 export const ScrollBox = styled(Box)(() => ({
     height: "100%",
