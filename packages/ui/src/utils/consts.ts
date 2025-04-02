@@ -188,6 +188,7 @@ export const ELEMENT_IDS = {
     DashboardReminderList: "dashboard-reminder-list",
     DashboardResourceList: "dashboard-resource-list",
     DashboardFocusModeTabs: "dashboard-focus-mode-tabs",
+    EventCards: "event-cards",
     FindInPage: "find-in-page",
     FormRunView: "form-run-view",
     FullPageSpinner: "full-page-spinner",

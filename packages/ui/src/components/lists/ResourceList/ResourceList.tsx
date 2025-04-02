@@ -1,176 +1,52 @@
-// Displays a list of resources. If the user can modify the list, 
-// it will display options for adding, removing, and sorting
 import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
 import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointsActions, updateArray } from "@local/shared";
-import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Tooltip, Typography, styled } from "@mui/material";
 import { useField } from "formik";
-import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
-import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
-import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
-import { useDebounce } from "../../../hooks/useDebounce.js";
+import { useBulkObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
 import { CardBox, multiLineEllipsis } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
-import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
-import { getResourceType, getResourceUrl } from "../../../utils/navigation/openObject.js";
+import { getResourceUrl } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ResourceUpsert, resourceInitialValues } from "../../../views/objects/resource/ResourceUpsert.js";
-import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ResourceListInputProps } from "../../inputs/types.js";
 import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
 import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
 import { ObjectListActions } from "../../lists/types.js";
-import { ResourceCardProps, ResourceListHorizontalProps, ResourceListItemProps, ResourceListProps, ResourceListVerticalProps } from "../types.js";
+import { ResourceCardProps, ResourceListHorizontalProps, ResourceListProps, ResourceListVerticalProps } from "../types.js";
 
-const StyledListItem = styled(ListItem)(({ theme }) => ({
-    display: "flex",
-    background: theme.palette.background.paper,
-    color: theme.palette.background.textPrimary,
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    padding: theme.spacing(1),
-    cursor: "pointer",
-}));
-
-export function ResourceListItem({
-    canUpdate,
-    data,
-    handleContextMenu,
-    handleDelete,
-    handleEdit,
-    index,
-    loading,
-}: ResourceListItemProps) {
-    const session = useContext(SessionContext);
-    const { palette } = useTheme();
-    const [, setLocation] = useLocation();
-    const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
-
-    const Icon = useMemo(() => getResourceIcon({
-        fill: "background.textSecondary",
-        link: data.link,
-        usedFor: data.usedFor ?? ResourceUsedFor.Related,
-    }), [data]);
-
-    const href = useMemo(() => getResourceUrl(data.link), [data]);
-    const handleClick = useCallback(({ target }: UsePressEvent) => {
-        // Ignore if clicked edit or delete button
-        if (target.id && ["delete-icon-button", "edit-icon-button"].includes(target.id)) return;
-        // If no resource type or link, show error
-        const resourceType = getResourceType(data.link);
-        if (!resourceType || !href) {
-            PubSub.get().publish("snack", { messageKey: "CannotOpenLink", severity: "Error" });
-            return;
-        }
-        // Open link
-        else openLink(setLocation, href);
-    }, [data.link, href, setLocation]);
-
-    const onEdit = useCallback(() => {
-        handleEdit(index);
-    }, [handleEdit, index]);
-
-    const onDelete = useCallback(() => {
-        handleDelete(index);
-    }, [handleDelete, index]);
-
-    const pressEvents = usePress({
-        onLongPress: (target) => { handleContextMenu(target, index); },
-        onClick: handleClick,
-        onRightClick: (target) => { handleContextMenu(target, index); },
-    });
-
-    return (
-        <Tooltip placement="top" title="Open in new tab">
-            <StyledListItem
-                disablePadding
-                {...pressEvents}
-                onClick={(e) => { e.preventDefault(); }}
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                component="a"
-                href={href}
-            >
-                {Icon}
-                <Stack direction="column" spacing={1} pl={2} width="-webkit-fill-available">
-                    {/* Name/Title */}
-                    {loading ? <TextLoading /> : <ListItemText
-                        primary={firstString(title, data.link)}
-                        sx={multiLineEllipsis(1)}
-                    />}
-                    {/* Bio/Description */}
-                    {loading ? <TextLoading /> : <ListItemText
-                        primary={subtitle}
-                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
-                    />}
-                </Stack>
-                {
-                    canUpdate && <IconButton id='delete-icon-button' onClick={onDelete}>
-                        <IconCommon
-                            fill="background.textPrimary"
-                            name="Delete"
-                        />
-                    </IconButton>
-                }
-                {
-                    canUpdate && <IconButton id='edit-icon-button' onClick={onEdit}>
-                        <IconCommon
-                            fill="background.textPrimary"
-                            name="Edit"
-                        />
-                    </IconButton>
-                }
-                <IconButton>
-                    <IconCommon
-                        fill="background.textPrimary"
-                        name="OpenInNew"
-                    />
-                </IconButton>
-            </StyledListItem>
-        </Tooltip>
-    );
-}
-
-// Constants for styling
-const ICON_BUTTON_SPACING = 4;
 const CONTENT_SPACING = 1;
 const ICON_SIZE = 20;
 
-const editButtonStyle = {
-    background: "#c5ab17",
-    position: "absolute",
-    top: "50%",
-    left: ICON_BUTTON_SPACING,
-    transform: "translateY(-50%)",
-} as const;
-
-const deleteButtonStyle = {
-    position: "absolute",
-    top: "50%",
-    right: ICON_BUTTON_SPACING,
-    transform: "translateY(-50%)",
-} as const;
-
-const contentBoxStyle = (isEditing: boolean) => ({
+const CardsBox = styled(Box)(({ theme }) => ({
+    alignItems: "flex-start",
     display: "flex",
-    alignItems: "center",
-    gap: CONTENT_SPACING,
+    flexWrap: "wrap",
+    gap: theme.spacing(1),
+    paddingBottom: 1,
+    justifyContent: "flex-start",
     width: "100%",
-    pl: isEditing ? 4 : 0,
-    pr: isEditing ? 4 : 0,
-}) as const;
+}));
+const PlaceholderIcon = styled(Box)(({ theme }) => ({
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    borderRadius: "16px",
+    backgroundColor: theme.palette.text.primary,
+    opacity: 0.2,
+}));
 
 const titleStyle = {
     ...multiLineEllipsis(1),
@@ -195,13 +71,11 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     dragProps,
     dragHandleProps,
     isEditing,
-    onContextMenu,
     onEdit,
     onDelete,
 }, ref) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const { title, subtitle } = useMemo(() => {
@@ -221,41 +95,23 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     }, [data.link, data.usedFor]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
-    const handleClick = useCallback(({ target }: UsePressEvent) => {
-        // Check if edit or delete button was clicked
-        const targetId: string | undefined = target.id;
-        if (targetId && targetId.startsWith("edit-")) {
-            onEdit?.(data);
-        }
-        else if (targetId && targetId.startsWith("delete-")) {
+    const handleClick = useCallback((event: SyntheticEvent) => {
+        event.preventDefault();
+        const target = event.target as HTMLElement | SVGElement | null;
+        if (!target) return;
+        const classList = target.classList;
+        const hasDeleteClass = Array.from(classList).some(c => c.startsWith("delete-"));
+        if (hasDeleteClass) {
             onDelete?.(data);
         }
-        else {
-            // If no resource type or link, show error
-            const resourceType = getResourceType(data.link);
-            if (!resourceType || !href) {
-                PubSub.get().publish("snack", { messageKey: "CannotOpenLink", severity: "Error" });
-                return;
-            }
-            // Open link
-            else openLink(setLocation, href);
+        else if (isEditing) {
+            onEdit?.(data);
+        } else if (href) {
+            openLink(setLocation, href);
+        } else {
+            console.error("[ResourceCard] Unhandled click event", event.target);
         }
-    }, [data, href, onDelete, onEdit, setLocation]);
-    const [handleClickDebounce] = useDebounce(handleClick, 100);
-    const handleContextMenu = useCallback(({ target }: UsePressEvent) => {
-        onContextMenu(target, data);
-    }, [data, onContextMenu]);
-
-    const pressEvents = usePress({
-        onLongPress: handleContextMenu,
-        onClick: handleClickDebounce,
-        onRightClick: handleContextMenu,
-        pressDelay: isEditing ? 1500 : 300,
-    });
-
-    const handlePreventDefault = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-    }, []);
+    }, [data, href, isEditing, onDelete, onEdit, setLocation]);
 
     return (
         <Tooltip placement="top" title={`${subtitle ? subtitle + " - " : ""}${data.link}`}>
@@ -263,44 +119,24 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                 ref={ref}
                 {...dragProps}
                 {...dragHandleProps}
-                {...pressEvents}
                 component="a"
                 href={href}
-                onClick={handlePreventDefault}
+                onClick={handleClick}
             >
-                {/* Edit and delete icons, only visible on hover */}
-                {isEditing && (
-                    <>
-                        <Tooltip title={t("Edit")}>
-                            <IconButton
-                                id='edit-icon-button'
-                                size="small"
-                                sx={editButtonStyle}
-                            >
-                                <IconCommon id='edit-icon' fill="secondary.contrastText" name="Edit" size={ICON_SIZE} />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title={t("Delete")}>
-                            <IconButton
-                                id='delete-icon-button'
-                                size="small"
-                                sx={{ ...deleteButtonStyle, background: palette.error.main }}
-                            >
-                                <IconCommon id='delete-icon' fill="secondary.contrastText" name="Delete" size={ICON_SIZE} />
-                            </IconButton>
-                        </Tooltip>
-                    </>
-                )}
-                {/* Content */}
-                <Box sx={contentBoxStyle(isEditing)}>
-                    {Icon}
-                    <Typography
-                        variant="caption"
-                        sx={titleStyle}
-                    >
-                        {firstString(title, data.link)}
-                    </Typography>
-                </Box>
+                {Icon}
+                <Typography
+                    variant="caption"
+                    sx={titleStyle}
+                >
+                    {firstString(title, data.link)}
+                </Typography>
+                {isEditing && <IconButton className="delete-icon-button">
+                    <IconCommon
+                        className="delete-icon"
+                        fill="background.textSecondary"
+                        name="Delete"
+                    />
+                </IconButton>}
             </CardBox>
         </Tooltip>
     );
@@ -308,43 +144,28 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
 ResourceCard.displayName = "ResourceCard";
 
 function LoadingCard() {
-    const { palette } = useTheme();
     return (
         <CardBox>
             <Box sx={loadingCardStyle}>
-                {/* Placeholder for icon */}
-                <Box
-                    sx={{
-                        width: ICON_SIZE,
-                        height: ICON_SIZE,
-                        borderRadius: "16px",
-                        backgroundColor: palette.text.primary,
-                        opacity: 0.2,
-                    }}
-                />
-                {/* Placeholder for text */}
+                <PlaceholderIcon />
                 <TextLoading size="caption" lines={1} sx={loadingTextStyle} />
             </Box>
         </CardBox>
     );
 }
 
-export function ResourceListHorizontal({
+function ResourceListHorizontal({
     canUpdate = true,
     handleUpdate,
     id,
     isEditing,
     list,
     loading,
-    onAction,
     onDelete,
     openAddDialog,
     openUpdateDialog,
-    title,
-    sxs,
 }: ResourceListHorizontalProps) {
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
 
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
@@ -358,40 +179,7 @@ export function ResourceListHorizontal({
         }
     }, [isEditing, handleUpdate, list]);
 
-    const contextData = useObjectContextMenu();
-    const actionData = useObjectActions({
-        canNavigate: () => !isEditing,
-        isListReorderable: isEditing,
-        objectType: "Resource",
-        onAction,
-        setLocation,
-        ...contextData,
-    });
-
-    const menu = useMemo(() => (
-        <ObjectActionMenu
-            actionData={actionData}
-            anchorEl={contextData.anchorEl}
-            exclude={[ObjectAction.FindInPage]}
-            object={contextData.object}
-            onClose={contextData.closeContextMenu}
-        />
-    ), [actionData, contextData]);
-
     const isEmpty = !list?.resources?.length;
-    const boxSx = {
-        display: "flex",
-        gap: 2,
-        width: "100%",
-        marginLeft: "auto",
-        marginRight: "auto",
-        paddingTop: title ? 0 : 1,
-        paddingBottom: 1,
-        flexWrap: "wrap",
-        alignItems: "flex-start",
-        justifyContent: "flex-start",
-        ...sxs?.list,
-    } as const;
 
     // If empty, not loading, and can't add an item, show "No resources"
     if (isEmpty && !loading && !canUpdate) {
@@ -401,33 +189,27 @@ export function ResourceListHorizontal({
     if (isEmpty && loading) {
         return (
             <>
-                <Box
+                <CardsBox
                     id={id ?? ELEMENT_IDS.ResourceCards}
-                    justifyContent="center"
-                    alignItems="center"
-                    sx={boxSx}
                 >
                     {Array.from(Array(DUMMY_LIST_LENGTH_SHORT).keys()).map((i) => (
                         <LoadingCard key={`resource-card-${i}`} />
                     ))}
-                </Box>
+                </CardsBox>
             </>
         );
     }
     // Otherwise, show drag/drop list with item cards, loading cards (if relavant), and add card (if relevant)
     return (
         <>
-            {menu}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="resource-list" direction="horizontal">
                     {(providedDrop) => (
-                        <Box
+                        <CardsBox
                             ref={providedDrop.innerRef}
                             id={id}
                             {...providedDrop.droppableProps}
-                            justifyContent="flex-start"
-                            alignItems="flex-start"
-                            sx={boxSx}>
+                        >
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (
                                 <Draggable
@@ -444,7 +226,6 @@ export function ResourceListHorizontal({
                                             key={`resource-card-${index}`}
                                             isEditing={isEditing}
                                             data={{ ...c, list }}
-                                            onContextMenu={contextData.handleContextMenu}
                                             onEdit={openUpdateDialog}
                                             onDelete={onDelete}
                                         />
@@ -459,24 +240,19 @@ export function ResourceListHorizontal({
                             }
                             {/* Add button */}
                             {canUpdate ? <Tooltip placement="top" title={t("AddResource")}>
-                                <CardBox
-                                    onClick={openAddDialog}
-                                    aria-label={t("AddResource")}
-                                >
-                                    <Box sx={contentBoxStyle(false)}>
-                                        <IconCommon name="Add" size={ICON_SIZE} />
-                                        <Typography
-                                            variant="caption"
-                                            component="span"
-                                            sx={titleStyle}
-                                        >
-                                            {t("AddResource")}
-                                        </Typography>
-                                    </Box>
+                                <CardBox onClick={openAddDialog}>
+                                    <IconCommon name="Add" size={ICON_SIZE} />
+                                    <Typography
+                                        variant="caption"
+                                        component="span"
+                                        sx={titleStyle}
+                                    >
+                                        {t("AddResource")}
+                                    </Typography>
                                 </CardBox>
                             </Tooltip> : null}
                             {providedDrop.placeholder}
-                        </Box>
+                        </CardsBox>
                     )}
                 </Droppable>
             </DragDropContext>
@@ -484,7 +260,7 @@ export function ResourceListHorizontal({
     );
 }
 
-export function ResourceListVertical({
+function ResourceListVertical({
     canUpdate = true,
     handleToggleSelect,
     isEditing,
@@ -497,16 +273,18 @@ export function ResourceListVertical({
     selectedData,
 }: ResourceListVerticalProps) {
     const { t } = useTranslation();
+    const canNavigate = useCallback(() => !isEditing, [isEditing]);
+    const items = useMemo(() => list?.resources ?? [], [list]);
 
     return (
         <>
             <ObjectList
-                canNavigate={() => !isEditing}
+                canNavigate={canNavigate}
                 dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Resource")}
                 handleToggleSelect={handleToggleSelect as (item: ListObject) => unknown}
                 hideUpdateButton={isEditing}
                 isSelecting={isSelecting}
-                items={list?.resources ?? []}
+                items={items}
                 keyPrefix="resource-list-item"
                 loading={loading ?? false}
                 onAction={onAction}
@@ -514,11 +292,11 @@ export function ResourceListVertical({
                 selectedItems={selectedData}
             />
             {/* Add button */}
-            {canUpdate && <Box sx={{
-                maxWidth: "400px",
-                margin: "auto",
-                paddingTop: 5,
-            }}>
+            {canUpdate && <Box
+                maxWidth="400px"
+                margin="auto"
+                paddingTop={5}
+            >
                 <Button
                     fullWidth onClick={openAddDialog}
                     startIcon={<IconCommon name="Add" />}
@@ -538,6 +316,10 @@ export function ResourceList(props: ResourceListProps) {
     useEffect(() => {
         if (!canUpdate) setIsEditing(false);
     }, [canUpdate]);
+
+    function toggleEditing() {
+        setIsEditing(e => !e);
+    }
 
     // Upsert dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
@@ -689,11 +471,11 @@ export function ResourceList(props: ResourceListProps) {
             {BulkDeleteDialogComponent}
             {title && <Box display="flex" flexDirection="row" alignItems="center">
                 <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
-                {true && <Tooltip title={t("Edit")}>
-                    <IconButton onClick={() => { setIsEditing(e => !e); }}>
+                <Tooltip title={t("Edit")}>
+                    <IconButton onClick={toggleEditing}>
                         <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
                     </IconButton>
-                </Tooltip>}
+                </Tooltip>
             </Box>}
             {
                 horizontal ?

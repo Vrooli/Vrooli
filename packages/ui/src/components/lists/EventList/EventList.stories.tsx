@@ -1,0 +1,344 @@
+import { CalendarEvent, Meeting, RunRoutine, Schedule, ScheduleRecurrenceType, WEEKS_1_DAYS, uuid } from "@local/shared";
+import { Box, Button, Typography } from "@mui/material";
+import type { Meta } from "@storybook/react";
+import { useState } from "react";
+import { ScrollBox } from "../../../styles.js";
+import { PageContainer } from "../../Page/Page.js";
+import { EventList } from "./EventList.js";
+
+const meta = {
+    title: "Components/Lists/EventList",
+    component: EventList,
+    parameters: {
+        docs: {
+            description: {
+                component: "A list component for displaying and managing calendar events.",
+            },
+        },
+    },
+} satisfies Meta<typeof EventList>;
+
+export default meta;
+
+// Mock data for meetings and routines
+const mockMeetingId = uuid();
+const mockMeetingTranslationId = uuid();
+const mockMeeting: Meeting = {
+    __typename: "Meeting",
+    id: mockMeetingId,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    translations: [{
+        __typename: "MeetingTranslation",
+        id: mockMeetingTranslationId,
+        language: "en",
+        name: "Team Sync",
+        description: "Weekly team sync meeting",
+    }],
+    schedules: [],
+    participants: [],
+    invites: [],
+    you: {
+        __typename: "MeetingYou",
+        canDelete: true,
+        canUpdate: true,
+        isInvited: true,
+        isParticipant: true,
+    },
+};
+
+const mockRunRoutineId = uuid();
+const mockRunRoutineTranslationId = uuid();
+const mockRunRoutine: RunRoutine = {
+    __typename: "RunRoutine",
+    id: mockRunRoutineId,
+    translations: [{
+        __typename: "RunRoutineTranslation",
+        id: mockRunRoutineTranslationId,
+        language: "en",
+        name: "Weekly Review",
+        description: "Weekly project review session",
+    }],
+    schedules: [],
+    you: {
+        __typename: "RunRoutineYou",
+        canDelete: true,
+        canRead: true,
+        canUpdate: true,
+    },
+};
+
+// Mock data for the story
+const mockScheduleId = uuid();
+const mockRecurrenceId = uuid();
+const mockSchedule2Id = uuid();
+const mockRecurrence2Id = uuid();
+const mockSchedule3Id = uuid();
+const mockRecurrence3Id = uuid();
+const baseMockSchedules: Schedule[] = [
+    {
+        __typename: "Schedule",
+        id: mockScheduleId,
+        startTime: new Date("2024-03-20T10:00:00Z"),
+        endTime: new Date("2024-03-20T11:00:00Z"),
+        timezone: "UTC",
+        exceptions: [],
+        focusModes: [],
+        labels: [],
+        meetings: [mockMeeting],
+        recurrences: [{
+            __typename: "ScheduleRecurrence",
+            id: mockRecurrenceId,
+            recurrenceType: ScheduleRecurrenceType.Weekly,
+            interval: 1,
+            duration: 3600000, // 1 hour in milliseconds
+            dayOfWeek: 3, // Wednesday
+            schedule: { __typename: "Schedule", id: mockScheduleId } as Schedule,
+        }],
+        runProjects: [],
+        runRoutines: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    },
+    {
+        __typename: "Schedule",
+        id: mockSchedule2Id,
+        startTime: new Date("2024-03-21T00:00:00Z"),
+        endTime: new Date("2024-03-21T23:59:59Z"),
+        timezone: "UTC",
+        exceptions: [],
+        focusModes: [],
+        labels: [],
+        meetings: [mockMeeting],
+        recurrences: [{
+            __typename: "ScheduleRecurrence",
+            id: mockRecurrence2Id,
+            recurrenceType: ScheduleRecurrenceType.Monthly,
+            interval: 1,
+            duration: 86400000, // 24 hours in milliseconds
+            dayOfMonth: 21,
+            schedule: { __typename: "Schedule", id: mockSchedule2Id } as Schedule,
+        }],
+        runProjects: [],
+        runRoutines: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    },
+    {
+        __typename: "Schedule",
+        id: mockSchedule3Id,
+        startTime: new Date("2024-03-22T15:00:00Z"),
+        endTime: new Date("2024-03-22T16:00:00Z"),
+        timezone: "UTC",
+        exceptions: [],
+        focusModes: [],
+        labels: [],
+        meetings: [],
+        recurrences: [{
+            __typename: "ScheduleRecurrence",
+            id: mockRecurrence3Id,
+            recurrenceType: ScheduleRecurrenceType.Weekly,
+            interval: 1,
+            duration: 3600000, // 1 hour in milliseconds
+            dayOfWeek: 5, // Friday
+            schedule: { __typename: "Schedule", id: mockSchedule3Id } as Schedule,
+        }],
+        runProjects: [],
+        runRoutines: [mockRunRoutine],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    },
+];
+
+const mockEvent1Id = uuid();
+const mockEvent2Id = uuid();
+const mockEvent3Id = uuid();
+const baseMockEvents: CalendarEvent[] = [
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent1Id,
+        title: "Team Meeting",
+        start: new Date("2024-03-20T10:00:00Z"),
+        end: new Date("2024-03-20T11:00:00Z"),
+        allDay: false,
+        schedule: baseMockSchedules[0],
+    },
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent2Id,
+        title: "Project Deadline",
+        start: new Date("2024-03-21T00:00:00Z"),
+        end: new Date("2024-03-21T23:59:59Z"),
+        allDay: true,
+        schedule: baseMockSchedules[1],
+    },
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent3Id,
+        title: "Weekly Review",
+        start: new Date("2024-03-22T15:00:00Z"),
+        end: new Date("2024-03-22T16:00:00Z"),
+        allDay: false,
+        schedule: baseMockSchedules[2],
+    },
+];
+
+// Create extended list by repeating the base events 5 times with different IDs and dates
+const extendedMockEvents: CalendarEvent[] = Array.from({ length: 5 }).flatMap((_, i) =>
+    baseMockEvents.map((event, j) => {
+        const date = new Date(event.start);
+        date.setDate(date.getDate() + i * WEEKS_1_DAYS); // Add weeks for each repeat
+        const end = new Date(event.end);
+        end.setDate(end.getDate() + i * WEEKS_1_DAYS);
+
+        // Create new meeting or runRoutine for this event
+        const newMeeting: Meeting = event.schedule.meetings[0] ? {
+            ...event.schedule.meetings[0],
+            id: `meeting-${i * baseMockEvents.length + j + 1}`,
+            translations: [{
+                ...event.schedule.meetings[0].translations[0],
+                id: `meeting-${i * baseMockEvents.length + j + 1}-en`,
+            }],
+        } : undefined;
+
+        const newRunRoutine: RunRoutine = event.schedule.runRoutines[0] ? {
+            ...event.schedule.runRoutines[0],
+            id: `run-routine-${i * baseMockEvents.length + j + 1}`,
+            translations: [{
+                ...event.schedule.runRoutines[0].translations[0],
+                id: `run-routine-${i * baseMockEvents.length + j + 1}-en`,
+            }],
+        } : undefined;
+
+        // Create a new schedule for this event
+        const newSchedule: Schedule = {
+            ...event.schedule,
+            id: `schedule-${i * baseMockEvents.length + j + 1}`,
+            startTime: date,
+            endTime: end,
+            meetings: newMeeting ? [newMeeting] : [],
+            runRoutines: newRunRoutine ? [newRunRoutine] : [],
+            recurrences: event.schedule.recurrences.map(rec => ({
+                ...rec,
+                id: `recurrence-${i * baseMockEvents.length + j + 1}`,
+                schedule: { __typename: "Schedule", id: `schedule-${i * baseMockEvents.length + j + 1}` } as Schedule,
+            })),
+        };
+
+        return {
+            ...event,
+            id: `${i * baseMockEvents.length + j + 1}`,
+            title: `${event.title} ${i + 1}`,
+            start: date,
+            end,
+            schedule: newSchedule,
+        };
+    }),
+);
+
+const controlsContainerStyle = {
+    marginBottom: 4,
+    padding: 2,
+    border: 1,
+    borderColor: "divider",
+    borderRadius: 1,
+} as const;
+
+const controlsRowStyle = {
+    display: "flex",
+    gap: 2,
+    alignItems: "center",
+    marginBottom: 2,
+} as const;
+
+const controlLabelStyle = {
+    minWidth: 120,
+} as const;
+
+/**
+ * Interactive story showcasing EventList with configurable options
+ */
+export function Interactive() {
+    const [canUpdate, setCanUpdate] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [listState, setListState] = useState<"short" | "long" | "empty">("short");
+    const [list, setList] = useState<CalendarEvent[]>(baseMockEvents);
+
+    const handleUpdate = (newList: CalendarEvent[]) => {
+        setList(newList);
+    };
+
+    const handleCanUpdateClick = () => setCanUpdate(!canUpdate);
+    const handleLoadingClick = () => setLoading(!loading);
+    const handleListLengthClick = () => {
+        // Cycle through states: short -> long -> empty -> short
+        const nextState = listState === "short" ? "long" : listState === "long" ? "empty" : "short";
+        setListState(nextState);
+        setList(
+            nextState === "long" ? extendedMockEvents :
+                nextState === "short" ? baseMockEvents :
+                    [],
+        );
+    };
+
+    return (
+        <PageContainer>
+            <ScrollBox>
+                {/* Controls */}
+                <Box sx={controlsContainerStyle}>
+                    <Typography variant="h6" gutterBottom>Controls</Typography>
+
+                    <Box sx={controlsRowStyle}>
+                        <Typography sx={controlLabelStyle}>List Length:</Typography>
+                        <Button
+                            variant="contained"
+                            onClick={handleListLengthClick}
+                            color={listState === "empty" ? "error" : "primary"}
+                        >
+                            {listState === "long" ? "Long List" :
+                                listState === "short" ? "Short List" :
+                                    "Empty List"}
+                        </Button>
+                    </Box>
+
+                    <Box sx={controlsRowStyle}>
+                        <Typography sx={controlLabelStyle}>Can Update:</Typography>
+                        <Button
+                            variant={canUpdate ? "contained" : "outlined"}
+                            onClick={handleCanUpdateClick}
+                        >
+                            {canUpdate ? "Enabled" : "Disabled"}
+                        </Button>
+                    </Box>
+
+                    <Box sx={controlsRowStyle}>
+                        <Typography sx={controlLabelStyle}>Loading:</Typography>
+                        <Button
+                            variant={loading ? "contained" : "outlined"}
+                            onClick={handleLoadingClick}
+                        >
+                            {loading ? "Loading" : "Loaded"}
+                        </Button>
+                    </Box>
+                </Box>
+
+                {/* EventList */}
+                <EventList
+                    canUpdate={canUpdate}
+                    loading={loading}
+                    list={loading ? [] : list}
+                    handleUpdate={handleUpdate}
+                    title="Event List Demo"
+                />
+            </ScrollBox>
+        </PageContainer>
+    );
+}
+
+Interactive.parameters = {
+    docs: {
+        description: {
+            story: "An interactive demo of the EventList component with configurable list length, update permissions, and loading states.",
+        },
+    },
+}; 

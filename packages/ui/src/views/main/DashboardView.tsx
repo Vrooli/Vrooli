@@ -1,7 +1,8 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointsChat, endpointsFeed, FindByIdInput, FocusMode, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, SEEDED_IDS, updateArray, uuid } from "@local/shared";
-import { Box, Button, List, styled, Typography, useTheme } from "@mui/material";
+import { CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, FindByIdInput, FocusMode, HomeResult, LINKS, LlmModel, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, SEEDED_IDS, Schedule, calculateOccurrences, deleteArrayIndex, endpointsChat, endpointsFeed, getAvailableModels, updateArray, uuid } from "@local/shared";
+import { Box, Button, List, ListItemIcon, Menu, MenuItem, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getExistingAIConfig } from "../../api/ai.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
@@ -9,6 +10,7 @@ import { TitleContainer } from "../../components/containers/TitleContainer.js";
 import { TitleContainerProps } from "../../components/containers/types.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { FocusModeInfo, useFocusModesStore } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
+import { EventList } from "../../components/lists/EventList/EventList.js";
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
 import { ObjectListActions } from "../../components/lists/types.js";
@@ -120,6 +122,106 @@ function ListTitleContainer({
                     </List>
             }
         </TitleContainer>
+    );
+}
+
+const ModelTitleBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
+    color: theme.palette.background.textSecondary,
+}));
+const modelMenuAnchorOrigin = {
+    vertical: "bottom",
+    horizontal: "left",
+} as const;
+const modelMenuTransformOrigin = {
+    vertical: "top",
+    horizontal: "left",
+} as const;
+
+function ModelTitleComponent() {
+    const { t } = useTranslation();
+    const { palette } = useTheme();
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+
+    const availableModels = useMemo(() => {
+        const config = getExistingAIConfig()?.service?.config;
+        return config ? getAvailableModels(config) : [];
+    }, []);
+
+    const [selectedModel, setSelectedModel] = useState<LlmModel | null>(
+        availableModels.length > 0 ? availableModels[0] : null,
+    );
+
+    const handleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    }, []);
+
+    const handleClose = useCallback(() => {
+        setAnchorEl(null);
+    }, []);
+
+    const handleModelSelect = useCallback((model: LlmModel) => {
+        setSelectedModel(model);
+        handleClose();
+    }, [handleClose]);
+
+    return (
+        <ModelTitleBox
+            onClick={handleClick}
+        >
+            <Typography variant="h6" color="inherit" component="div">
+                {selectedModel ?
+                    t(selectedModel.name, { ns: "service" }) :
+                    t("SelectModel")
+                }
+            </Typography>
+            <IconCommon
+                fill="background.textSecondary"
+                name="ChevronRight"
+            />
+            <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                anchorOrigin={modelMenuAnchorOrigin}
+                transformOrigin={modelMenuTransformOrigin}
+            >
+                {availableModels.map((model) => {
+                    function handleClick() {
+                        handleModelSelect(model);
+                    }
+                    return (
+                        <MenuItem
+                            key={model.value}
+                            onClick={handleClick}
+                            selected={selectedModel?.value === model.value}
+                        >
+                            <ListItemIcon>
+                                {selectedModel?.value === model.value && (
+                                    <IconCommon
+                                        name="Selected"
+                                        type="Common"
+                                        fill="background.textPrimary"
+                                        size={20}
+                                    />
+                                )}
+                            </ListItemIcon>
+                            <Box>
+                                <Typography variant="body1">
+                                    {t(model.name, { ns: "service" })}
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                    {t(model.description, { ns: "service" })}
+                                </Typography>
+                            </Box>
+                        </MenuItem>
+                    );
+                })}
+            </Menu>
+        </ModelTitleBox>
     );
 }
 
@@ -432,14 +534,6 @@ export function DashboardView({
         }
     }, [upcomingEvents]);
 
-    const [view, setView] = useState<"chat" | "home">("home");
-    const showChat = useCallback(function showChatCallback() {
-        setView("chat");
-    }, []);
-    const showHome = useCallback(function showHomeCallback() {
-        setView("home");
-    }, []);
-
     const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
     const messageTree = useMessageTree(chat.id);
     const taskInfo = useChatTasks({ chatId: chat.id });
@@ -474,14 +568,6 @@ export function DashboardView({
         usersTyping,
     });
 
-    const scheduleContainerOptions = useMemo(function scheduleContainerOptionsMemo() {
-        return [{
-            iconInfo: { name: "OpenInNew", type: "Common" } as const,
-            label: t("Open"),
-            onClick: openSchedule,
-        }];
-    }, [openSchedule, t]);
-
     const reminderContainerOptions = useMemo(function reminderContainerOptionsMemo() {
         return [{
             iconInfo: { name: "OpenInNew", type: "Common" } as const,
@@ -494,91 +580,50 @@ export function DashboardView({
         }];
     }, [setLocation, t]);
 
+    const hasMessages = useMemo(function hasMessagesMemo() {
+        return messageTree.tree.getMessagesCount() > 0;
+    }, [messageTree]);
+
     return (
         <DashboardBox>
-            {/* Main content */}
             <TopBar
+                titleBehaviorDesktop="ShowIn"
+                titleBehaviorMobile="ShowIn"
                 display={display}
                 onClose={onClose}
-                below={<>
-                    {/* {showTabs && currTab && <PageTabs<TabParamPayload<DashboardTabsInfo>[]>
-                        ariaLabel="Focus modes"
-                        id={ELEMENT_IDS.DashboardFocusModeTabs}
-                        currTab={currTab as PageTab<TabParamPayload<DashboardTabsInfo>>}
-                        fullWidth
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                        sx={pageTabsStyle}
-                    />} */}
-                    <ChatViewOptionsBox>
-                        <Button
-                            color="primary"
-                            onClick={showHome}
-                            variant="contained"
-                            sx={exitChatButtonStyle}
-                            startIcon={<IconCommon
-                                decorative
-                                name="ChevronLeft"
-                            />}
-                        >
-                            {t("Dashboard")}
-                        </Button>
-                        <NewChatButton
-                            color="primary"
-                            onClick={resetChat}
-                            variant="contained"
-                            startIcon={<IconCommon
-                                decorative
-                                name="Add"
-                            />}
-                        >
-                            {t("NewChat")}
-                        </NewChatButton>
-                    </ChatViewOptionsBox>
-                </>}
+                titleComponent={<ModelTitleComponent />}
             />
             <DashboardInnerBox>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
-                {view === "home" && <>
-                    <Box p={1}>
-                        <ResourceList
-                            id={ELEMENT_IDS.DashboardResourceList}
-                            list={resourceList}
-                            canUpdate={true}
-                            handleUpdate={setResourceList}
-                            horizontal
-                            loading={isFeedLoading}
-                            mutate={true}
-                            parent={focusModeInfo.active?.focusMode ?
-                                {
-                                    ...focusModeInfo.active.focusMode,
-                                    __typename: "FocusMode" as const,
-                                    resourceList: undefined, // Avoid circular reference
-                                } as FocusMode
-                                : activeFocusModeFallback
-                            }
-                            title={t("Resource", { count: 2 })}
-                            sxs={resourceListStyle}
-                        />
-                    </Box>
-                    {/* Events */}
-                    <ListTitleContainer
-                        iconInfo={monthIconInfo}
-                        id={ELEMENT_IDS.DashboardEventList}
-                        isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
-                        emptyText="No upcoming events"
+                {!hasMessages && <>
+                    <ResourceList
+                        id={ELEMENT_IDS.DashboardResourceList}
+                        list={resourceList}
+                        canUpdate={true}
+                        handleUpdate={setResourceList}
+                        horizontal
                         loading={isFeedLoading}
+                        mutate={true}
+                        parent={focusModeInfo.active?.focusMode ?
+                            {
+                                ...focusModeInfo.active.focusMode,
+                                __typename: "FocusMode" as const,
+                                resourceList: undefined, // Avoid circular reference
+                            } as FocusMode
+                            : activeFocusModeFallback
+                        }
+                        title={t("Resource", { count: 2 })}
+                        sxs={resourceListStyle}
+                    />
+                    <EventList
+                        id={ELEMENT_IDS.DashboardEventList}
+                        list={upcomingEvents}
+                        canUpdate={true}
+                        handleUpdate={setUpcomingEvents}
+                        loading={isFeedLoading}
+                        mutate={true}
                         title={t("Schedule", { count: 1 })}
-                        options={scheduleContainerOptions}
-                    >
-                        <ObjectList
-                            dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Event")}
-                            items={upcomingEvents}
-                            keyPrefix="event-list-item"
-                            loading={isFeedLoading}
-                            onAction={onEventAction}
-                        />
-                    </ListTitleContainer>
+                    />
                     {/* Reminders */}
                     <ListTitleContainer
                         iconInfo={reminderIconInfo}
@@ -598,7 +643,7 @@ export function DashboardView({
                         />
                     </ListTitleContainer>
                 </>}
-                {view === "chat" && <ChatBubbleTree
+                {hasMessages && <ChatBubbleTree
                     branches={messageTree.branches}
                     handleEdit={messageInput.startEditingMessage}
                     handleRegenerateResponse={messageActions.regenerateResponse}
@@ -620,7 +665,6 @@ export function DashboardView({
                 message={message}
                 messageBeingEdited={messageInput.messageBeingEdited}
                 messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
-                onFocused={showChat}
                 participantsTyping={usersTyping}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 setMessage={setMessage}

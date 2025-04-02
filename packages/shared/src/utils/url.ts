@@ -373,7 +373,8 @@ export function getObjectSearchParams(object: NavigableObject): string | null {
  */
 export function getObjectUrl(object: NavigableObject): string {
     if (isOfType(object, "Action")) return "";
-    if (isOfType(object, "Shortcut", "CalendarEvent")) return (object as ShortcutOption | CalendarEventOption).id ?? "";
+    if (isOfType(object, "Shortcut")) return (object as ShortcutOption).id ?? "";
+    if (isOfType(object, "CalendarEvent")) return getObjectUrl((object as CalendarEvent).schedule);
     const base = getObjectUrlBase(object);
     let slug = getObjectSlug(object);
     if (slug.length > 0 && !slug.startsWith("/")) slug = `/${slug}`;

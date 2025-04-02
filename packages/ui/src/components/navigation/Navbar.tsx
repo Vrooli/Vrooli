@@ -228,7 +228,6 @@ function TitleDisplay({
     titleBehaviorDesktop,
     titleBehaviorMobile,
 }: TitleDisplayProps) {
-    const { palette } = useTheme();
     const { isOpen: isLeftDrawerOpen } = useMenu({ id: ELEMENT_IDS.LeftDrawer, isMobile });
 
     let TitleComponent: JSX.Element | null = null;
@@ -246,7 +245,7 @@ function TitleDisplay({
             ? false
             : location === "In" && behavior === "ShowIn" :
         location === "In";
-    const showTitle = (isMobile ? showOnMobile : showOnDesktop) && (title || titleComponent);
+    const showTitle = (isMobile ? showOnMobile : showOnDesktop) && ((title && title !== "") || Boolean(titleComponent));
     let isBusinessName = false;
 
     // Create title, as provided text/component or as business name

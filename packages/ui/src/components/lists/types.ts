@@ -1,5 +1,5 @@
 import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "@hello-pangea/dnd";
-import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
+import { ApiVersionShape, BookmarkList, CalendarEvent, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { ReactNode } from "react";
 import { UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
@@ -290,7 +290,6 @@ export interface ResourceCardProps {
      * making only drag'n'drop and the context menu available.
      **/
     isEditing: boolean;
-    onContextMenu: (target: EventTarget, data: Resource) => unknown;
     onEdit: (data: Resource) => unknown;
     onDelete: (data: Resource) => unknown;
 }
@@ -308,16 +307,6 @@ export type ResourceListProps = {
     sxs?: { list?: SxType };
 }
 
-export interface ResourceListItemProps {
-    canUpdate: boolean;
-    data: Resource;
-    handleContextMenu: (event: UsePressEvent, index: number) => unknown;
-    handleEdit: (index: number) => unknown;
-    handleDelete: (index: number) => unknown;
-    index: number;
-    loading: boolean;
-}
-
 export type ResourceListHorizontalProps = ResourceListProps & {
     handleToggleSelect: (data: Resource) => unknown;
     isEditing: boolean;
@@ -332,10 +321,31 @@ export type ResourceListHorizontalProps = ResourceListProps & {
 
 export type ResourceListVerticalProps = ResourceListHorizontalProps
 
-export interface ScheduleListProps {
-
+export interface EventCardProps {
+    data: CalendarEvent;
+    isEditing: boolean;
+    onEdit: (data: CalendarEvent) => unknown;
+    onDelete: (data: CalendarEvent) => unknown;
 }
 
-export interface ScheduleListItemProps {
+export type EventListProps = {
+    title?: string;
+    canUpdate?: boolean;
+    handleUpdate?: (updatedList: CalendarEvent[]) => unknown;
+    id?: string;
+    list: CalendarEvent[] | null | undefined;
+    loading?: boolean;
+    mutate?: boolean;
+}
 
+export type EventListHorizontalProps = EventListProps & {
+    handleToggleSelect: (data: CalendarEvent) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => unknown;
+    onClick: (data: CalendarEvent) => unknown;
+    onDelete: (data: CalendarEvent) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: CalendarEvent) => unknown;
+    selectedData: CalendarEvent[];
 }

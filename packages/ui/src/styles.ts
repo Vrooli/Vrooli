@@ -230,7 +230,7 @@ export const CardBox = styled(Box)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     display: "flex",
     flexDirection: "row",
-    gap: 1,
+    gap: theme.spacing(1),
     height: "40px",
     cursor: "pointer",
     maxWidth: "200px",
