@@ -1,4 +1,4 @@
-import { CalendarEvent, Meeting, RunRoutine, Schedule, ScheduleRecurrenceType, WEEKS_1_DAYS, uuid } from "@local/shared";
+import { CalendarEvent, Meeting, RunRoutine, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";
@@ -153,43 +153,92 @@ const baseMockSchedules: Schedule[] = [
 const mockEvent1Id = uuid();
 const mockEvent2Id = uuid();
 const mockEvent3Id = uuid();
+const mockEvent4Id = uuid();
+const mockEvent5Id = uuid();
+const mockEvent6Id = uuid();
+const mockEvent7Id = uuid();
+
+// Helper to create a date relative to now
+function getRelativeDate(minutes: number): Date {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() + minutes);
+    return date;
+}
+
 const baseMockEvents: CalendarEvent[] = [
     {
         __typename: "CalendarEvent",
         id: mockEvent1Id,
-        title: "Team Meeting",
-        start: new Date("2024-03-20T10:00:00Z"),
-        end: new Date("2024-03-20T11:00:00Z"),
+        title: "Past Meeting",
+        start: getRelativeDate(-30), // 30 minutes ago
+        end: getRelativeDate(-15), // 15 minutes ago
         allDay: false,
         schedule: baseMockSchedules[0],
     },
     {
         __typename: "CalendarEvent",
         id: mockEvent2Id,
-        title: "Project Deadline",
-        start: new Date("2024-03-21T00:00:00Z"),
-        end: new Date("2024-03-21T23:59:59Z"),
-        allDay: true,
-        schedule: baseMockSchedules[1],
+        title: "Current Meeting",
+        start: getRelativeDate(-5), // Started 5 minutes ago
+        end: getRelativeDate(25), // Ends in 25 minutes
+        allDay: false,
+        schedule: baseMockSchedules[0],
     },
     {
         __typename: "CalendarEvent",
         id: mockEvent3Id,
-        title: "Weekly Review",
-        start: new Date("2024-03-22T15:00:00Z"),
-        end: new Date("2024-03-22T16:00:00Z"),
+        title: "Upcoming Meeting",
+        start: getRelativeDate(60), // 1 hour from now
+        end: getRelativeDate(120), // 2 hours from now
+        allDay: false,
+        schedule: baseMockSchedules[0],
+    },
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent4Id,
+        title: "Tomorrow's Review",
+        start: getRelativeDate(30 * 24), // 30 hours from now
+        end: getRelativeDate(31 * 24), // 31 hours from now
+        allDay: false,
+        schedule: baseMockSchedules[1],
+    },
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent5Id,
+        title: "Weekly Planning",
+        start: getRelativeDate(4 * 24 * 60), // 4 days from now
+        end: getRelativeDate((4 * 24 * 60) + 60), // 4 days + 1 hour from now
+        allDay: false,
+        schedule: baseMockSchedules[2],
+    },
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent6Id,
+        title: "Monthly Review",
+        start: getRelativeDate(30 * 24 * 60), // ~1 month from now
+        end: getRelativeDate((30 * 24 * 60) + 120), // ~1 month + 2 hours from now
+        allDay: false,
+        schedule: baseMockSchedules[1],
+    },
+    {
+        __typename: "CalendarEvent",
+        id: mockEvent7Id,
+        title: "Annual Planning",
+        start: getRelativeDate(365 * 24 * 60), // ~1 year from now
+        end: getRelativeDate((365 * 24 * 60) + 240), // ~1 year + 4 hours from now
         allDay: false,
         schedule: baseMockSchedules[2],
     },
 ];
 
-// Create extended list by repeating the base events 5 times with different IDs and dates
-const extendedMockEvents: CalendarEvent[] = Array.from({ length: 5 }).flatMap((_, i) =>
+// Update the extended mock events to use the new base events
+const extendedMockEvents: CalendarEvent[] = Array.from({ length: 3 }).flatMap((_, i) =>
     baseMockEvents.map((event, j) => {
-        const date = new Date(event.start);
-        date.setDate(date.getDate() + i * WEEKS_1_DAYS); // Add weeks for each repeat
+        // Add weeks to the dates
+        const start = new Date(event.start);
+        start.setDate(start.getDate() + i * 7);
         const end = new Date(event.end);
-        end.setDate(end.getDate() + i * WEEKS_1_DAYS);
+        end.setDate(end.getDate() + i * 7);
 
         // Create new meeting or runRoutine for this event
         const newMeeting: Meeting = event.schedule.meetings[0] ? {
@@ -214,7 +263,7 @@ const extendedMockEvents: CalendarEvent[] = Array.from({ length: 5 }).flatMap((_
         const newSchedule: Schedule = {
             ...event.schedule,
             id: `schedule-${i * baseMockEvents.length + j + 1}`,
-            startTime: date,
+            startTime: start,
             endTime: end,
             meetings: newMeeting ? [newMeeting] : [],
             runRoutines: newRunRoutine ? [newRunRoutine] : [],
@@ -229,7 +278,7 @@ const extendedMockEvents: CalendarEvent[] = Array.from({ length: 5 }).flatMap((_
             ...event,
             id: `${i * baseMockEvents.length + j + 1}`,
             title: `${event.title} ${i + 1}`,
-            start: date,
+            start,
             end,
             schedule: newSchedule,
         };

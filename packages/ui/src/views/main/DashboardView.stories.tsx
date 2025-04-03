@@ -1,5 +1,4 @@
 import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
-import { PageContainer } from "../../components/Page/Page.js";
 import { DashboardView } from "./DashboardView.js";
 
 export default {
@@ -9,9 +8,7 @@ export default {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <PageContainer>
-            <DashboardView display="page" />
-        </PageContainer>
+        <DashboardView display="page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -20,9 +17,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <PageContainer>
-            <DashboardView display="page" />
-        </PageContainer>
+        <DashboardView display="page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -31,9 +26,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <PageContainer>
-            <DashboardView display="page" />
-        </PageContainer>
+        <DashboardView display="page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -42,9 +35,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <PageContainer>
-            <DashboardView display="page" />
-        </PageContainer>
+        <DashboardView display="page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

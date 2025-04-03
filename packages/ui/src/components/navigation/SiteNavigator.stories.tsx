@@ -1,44 +1,10 @@
-import { Session, SessionUser, uuid } from "@local/shared";
+import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../Page/Page.js";
 import { SiteNavigator } from "./SiteNavigator.js";
-
-const OPEN_DELAY_MS = 1000;
 
 export default {
     title: "Components/navigation/SiteNavigator",
     component: SiteNavigator,
-};
-
-const loggedOutSession: Partial<Session> = {
-    isLoggedIn: false,
-    users: [],
-};
-
-const signedInNoPremiumOrCreditsSession: Partial<Session> = {
-    isLoggedIn: true,
-    users: [{
-        credits: "0",
-        hasPremium: false,
-        id: uuid(),
-    }] as SessionUser[],
-};
-
-const signedInNoPremiumWithCreditsSession: Partial<Session> = {
-    isLoggedIn: true,
-    users: [{
-        credits: "1234567",
-        hasPremium: false,
-        id: uuid(),
-    }] as SessionUser[],
-};
-
-const signedInPremiumSession: Partial<Session> = {
-    isLoggedIn: true,
-    users: [{
-        credits: "12345678912",
-        hasPremium: true,
-        id: uuid(),
-    }] as SessionUser[],
 };
 
 export function LoggedOut() {
@@ -60,7 +26,7 @@ export function SignedInNoPremiumOrCredits() {
     );
 }
 SignedInNoPremiumOrCredits.parameters = {
-    session: signedInNoPremiumOrCreditsSession,
+    session: signedInNoPremiumNoCreditsSession,
 };
 
 export function SignedInNoPremiumWithCredits() {
@@ -82,5 +48,5 @@ export function SignedInPremium() {
     );
 }
 SignedInPremium.parameters = {
-    session: signedInPremiumSession,
+    session: signedInPremiumWithCreditsSession,
 };  

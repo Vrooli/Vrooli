@@ -1,5 +1,5 @@
-import { API_CREDITS_MULTIPLIER } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Toolbar, Typography, styled, useTheme } from "@mui/material";
+import { API_CREDITS_MULTIPLIER, LINKS } from "@local/shared";
+import { Box, Button, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Toolbar, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
@@ -7,10 +7,11 @@ import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, IconCommon, IconInfo, IconText } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { ScrollBox } from "../../styles.js";
+import { ProfileAvatar, ScrollBox } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { extractImageUrl } from "../../utils/display/imageTools.js";
+import { placeholderColor } from "../../utils/display/listTools.js";
 import { NAV_ACTION_TAGS, getUserActions } from "../../utils/navigation/userActions.js";
 import { MenuPayloads, PubSub } from "../../utils/pubsub.js";
 import { PageContainer } from "../Page/Page.js";
@@ -18,10 +19,8 @@ import { PageContainer } from "../Page/Page.js";
 /** Threshold for showing low credit balance */
 // eslint-disable-next-line no-magic-numbers
 const LOW_CREDIT_THRESHOLD = BigInt(5_00) * API_CREDITS_MULTIPLIER;
-const SHORT_TAKE = 10;
 const AVATAR_SIZE_PX = 50;
 
-// Extract styles to constants to avoid linter errors
 const projectItemStyles = {
     selected: { pl: 4, bgcolor: "#3B82F6" },
     default: { pl: 4, bgcolor: "transparent" },
@@ -35,14 +34,11 @@ const yesterdayItemStyles = {
     sx: { color: "#9CA3AF" },
 };
 const viewPlansStyles = { color: "#9CA3AF", cursor: "pointer" };
-const captionStyles = { color: "#6B7280" };
-const creditsStyles = { color: "#9CA3AF", cursor: "pointer" };
 
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
     backgroundColor: theme.palette.primary.dark,
     padding: "8px 16px",
 }));
-
 const FooterContainer = styled("div")(({ theme }) => ({
     marginTop: "auto",
     padding: "16px",
@@ -51,12 +47,34 @@ const FooterContainer = styled("div")(({ theme }) => ({
     justifyContent: "space-between",
     borderTop: `1px solid ${theme.palette.divider}`,
 }));
-
-const ProfileAvatar = styled(Avatar)(({ theme }) => ({
-    background: theme.palette.primary.contrastText,
-    width: "40px",
-    height: "40px",
-    cursor: "pointer",
+const CreditStack = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: theme.spacing(0.5),
+}));
+const PremiumBox = styled(Box)(({ theme }) => ({
+    backgroundColor: `${theme.palette.secondary.main}15`,
+    color: theme.palette.secondary.main,
+    borderRadius: 1,
+    paddingLeft: 1,
+    paddingRight: 1,
+    paddingTop: 0.25,
+    paddingBottom: 0.25,
+    display: "flex",
+    alignItems: "center",
+    gap: 0.5,
+    boxShadow: `0 0 0 1px ${theme.palette.secondary.main}40`,
+}));
+const PremiumTypography = styled(Typography)({
+    fontWeight: 500,
+    fontSize: "0.75rem",
+    lineHeight: 1,
+});
+const CreditTypography = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    fontSize: "0.75rem",
 }));
 
 const projects = [
@@ -178,6 +196,14 @@ export function SiteNavigator() {
 
     // Always show footer on mobile, or when user has premium or low credit balance
     const showFooter = isMobile || (isLoggedIn && (!hasPremium || showLowCreditBalance));
+    const profileColors = placeholderColor(user.id);
+
+    function toLogin() {
+        setLocation(LINKS.Login);
+    }
+    function toBuyCredits() {
+        setLocation(LINKS.Pro);
+    }
 
     // Update the projectItemStyle function
     function getProjectItemStyle(selected: boolean) {
@@ -315,43 +341,51 @@ export function SiteNavigator() {
                 {/* Footer */}
                 {showFooter && (
                     <FooterContainer>
-                        {/* Always show profile icon on mobile */}
-                        {isMobile && (
-                            <ProfileAvatar
-                                aria-label={t("Profile")}
-                                id={ELEMENT_IDS.UserMenuProfileIcon}
-                                src={isLoggedIn ? extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX) : undefined}
-                                onClick={openUserMenu}
-                            >
-                                <IconCommon
-                                    decorative
-                                    fill={palette.primary.dark}
-                                    name="User"
-                                />
-                            </ProfileAvatar>
-                        )}
-                        {/* Show credits info only when logged in */}
-                        {isLoggedIn && (
-                            hasPremium ? (
-                                <Typography variant="body2" sx={creditsStyles}>
-                                    {`Credits left: $${creditsAsDollars}`}
-                                </Typography>
-                            ) : (
-                                <>
-                                    <Typography variant="body2" sx={viewPlansStyles}>
-                                        View plans
-                                    </Typography>
-                                    <Typography variant="caption" sx={captionStyles}>
-                                        Unlimited access, team features...
-                                    </Typography>
-                                </>
-                            )
-                        )}
+                        <Box display="flex" gap={1}>
+                            {isMobile && (
+                                <ProfileAvatar
+                                    id={ELEMENT_IDS.UserMenuProfileIcon}
+                                    isBot={false}
+                                    src={isLoggedIn ? extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX) : undefined}
+                                    onClick={openUserMenu}
+                                    profileColors={profileColors}
+                                >
+                                    <IconCommon
+                                        decorative
+                                        name="Profile"
+                                    />
+                                </ProfileAvatar>
+                            )}
+                            <CreditStack>
+                                {user.hasPremium && (
+                                    <PremiumBox>
+                                        <IconCommon
+                                            decorative
+                                            fill={palette.secondary.main}
+                                            name="Premium"
+                                            size={14}
+                                        />
+                                        <PremiumTypography variant="body2">
+                                            {t("Pro")}
+                                        </PremiumTypography>
+                                    </PremiumBox>
+                                )}
+                                <CreditTypography variant="body2">
+                                    {t("Credit", { count: 2 })}: ${creditsAsDollars}
+                                </CreditTypography>
+                            </CreditStack>
+                        </Box>
                         {/* Show login prompt when not logged in */}
                         {isMobile && !isLoggedIn && (
-                            <Typography variant="body2" sx={viewPlansStyles}>
-                                Log in to access all features
+                            <Typography variant="body2" sx={viewPlansStyles} onClick={toLogin}>
+                                {t("LogInToAccessAllFeatures")}
                             </Typography>
+                        )}
+                        {/* Show "Buy Credits" button when logged in and low credit balance */}
+                        {isLoggedIn && showLowCreditBalance && (
+                            <Button variant="outlined" onClick={toBuyCredits}>
+                                {t("BuyCredits")}
+                            </Button>
                         )}
                     </FooterContainer>
                 )}

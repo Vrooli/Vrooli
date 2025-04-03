@@ -1,5 +1,5 @@
 import { CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, FindByIdInput, FocusMode, HomeResult, LINKS, LlmModel, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, SEEDED_IDS, Schedule, calculateOccurrences, deleteArrayIndex, endpointsChat, endpointsFeed, getAvailableModels, updateArray, uuid } from "@local/shared";
-import { Box, Button, List, ListItemIcon, Menu, MenuItem, Typography, styled, useTheme } from "@mui/material";
+import { Box, List, ListItemIcon, Menu, MenuItem, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../api/ai.js";
@@ -57,38 +57,19 @@ const DashboardBox = styled(Box)(({ theme }) => ({
     },
 }));
 
-const DashboardInnerBox = styled(Box)(() => ({
+const DashboardInnerBox = styled(Box)(({ theme }) => ({
     position: "relative",
     display: "flex",
     flexDirection: "column",
     flexGrow: 1,
-    gap: 2,
+    gap: theme.spacing(2),
     margin: "auto",
-    paddingBottom: 4,
     overflowY: "auto",
+    padding: theme.spacing(2),
     width: "min(700px, 100%)",
 }));
 
-const ChatViewOptionsBox = styled(Box)(() => ({
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    maxWidth: "min(100vw, 1000px)",
-    margin: "auto",
-    background: "none",
-}));
-
-const NewChatButton = styled(Button)(({ theme }) => ({
-    margin: theme.spacing(1),
-    // eslint-disable-next-line no-magic-numbers
-    borderRadius: theme.spacing(8),
-    padding: "4px 8px",
-}));
-
-const monthIconInfo = { name: "Month", type: "Common" } as const;
 const reminderIconInfo = { name: "Reminder", type: "Common" } as const;
-const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
 const activeFocusModeFallback = { __typename: "FocusMode", id: DUMMY_ID } as const;
@@ -142,7 +123,6 @@ const modelMenuTransformOrigin = {
 
 function ModelTitleComponent() {
     const { t } = useTranslation();
-    const { palette } = useTheme();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
 
@@ -223,6 +203,14 @@ function ModelTitleComponent() {
             </Menu>
         </ModelTitleBox>
     );
+}
+
+/** Helper function to get the appropriate time of day greeting key */
+function getTimeOfDayGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return "GoodMorning";
+    if (hour < 18) return "GoodAfternoon";
+    return "GoodEvening";
 }
 
 /** View displayed for Home page when logged in */
@@ -356,12 +344,12 @@ export function DashboardView({
             },
         ];
     }, [focusModeInfo.active?.focusMode?.id, focusModeInfo.all, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
-    const currTab = useMemo(function calculateCurrTabMemo() {
-        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === focusModeInfo.active?.focusMode?.id);
-        if (match) return match;
-        if (tabs.length) return tabs[0];
-        return null;
-    }, [tabs, focusModeInfo.active]);
+    // const currTab = useMemo(function calculateCurrTabMemo() {
+    //     const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === focusModeInfo.active?.focusMode?.id);
+    //     if (match) return match;
+    //     if (tabs.length) return tabs[0];
+    //     return null;
+    // }, [tabs, focusModeInfo.active]);
     // const handleTabChange = useCallback((e: any, tab: PageTab<TabParamPayload<DashboardTabsInfo>>) => {
     //     e.preventDefault();
     //     // If "Add", go to the add focus mode page
@@ -458,10 +446,6 @@ export function DashboardView({
         }
     }, [focusModeInfo, focusModeInfo.active, focusModeInfo.all]);
 
-    const openSchedule = useCallback(() => {
-        setLocation(LINKS.Calendar);
-    }, [setLocation]);
-
     const onReminderAction = useCallback((action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => {
         switch (action) {
             case "Deleted": {
@@ -515,24 +499,6 @@ export function DashboardView({
             isCancelled = true; // Cleanup function to avoid setting state on unmounted component
         };
     }, [languages, schedules]);
-    const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
-        switch (action) {
-            case "Deleted": {
-                const eventId = data[0] as string;
-                const event = upcomingEvents.find(event => event.id === eventId);
-                if (!event) return;
-                const schedule = event.schedule;
-                setSchedules(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === schedule.id)));
-                break;
-            }
-            case "Updated": {
-                const updatedEvent = data[0] as CalendarEvent;
-                const schedule = updatedEvent.schedule;
-                setSchedules(curr => updateArray(curr, curr.findIndex(item => item.id === schedule.id), schedule));
-                break;
-            }
-        }
-    }, [upcomingEvents]);
 
     const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
     const messageTree = useMessageTree(chat.id);
@@ -596,6 +562,14 @@ export function DashboardView({
             <DashboardInnerBox>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!hasMessages && <>
+                    <Typography
+                        variant="h4"
+                        textAlign="center"
+                        color="textPrimary"
+                        sx={{ mb: 2 }}
+                    >
+                        {t(getTimeOfDayGreeting())}{getCurrentUser(session)?.name || getCurrentUser(session)?.handle ? `, ${getCurrentUser(session)?.name || getCurrentUser(session)?.handle}` : ""}
+                    </Typography>
                     <ResourceList
                         id={ELEMENT_IDS.DashboardResourceList}
                         list={resourceList}

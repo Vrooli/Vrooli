@@ -396,9 +396,11 @@ export function UserMenu() {
                                     primary={
                                         <Stack direction="column" spacing={0}>
                                             <Typography variant="body1">{account.name}</Typography>
-                                            <MonospaceHandleTypography variant="body2">
-                                                @{account.handle}
-                                            </MonospaceHandleTypography>
+                                            {account.handle && (
+                                                <MonospaceHandleTypography variant="body2">
+                                                    @{account.handle}
+                                                </MonospaceHandleTypography>
+                                            )}
                                         </Stack>
                                     }
                                     secondary={

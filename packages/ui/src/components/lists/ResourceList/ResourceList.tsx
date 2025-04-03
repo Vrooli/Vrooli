@@ -12,7 +12,7 @@ import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
-import { CardBox, multiLineEllipsis } from "../../../styles.js";
+import { multiLineEllipsis, noSelect } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
 import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
@@ -39,6 +39,29 @@ const CardsBox = styled(Box)(({ theme }) => ({
     paddingBottom: 1,
     justifyContent: "flex-start",
     width: "100%",
+}));
+const CardBox = styled(Box)(({ theme }) => ({
+    ...noSelect,
+    alignItems: "center",
+    background: theme.palette.background.paper,
+    borderRadius: theme.spacing(3),
+    boxShadow: theme.shadows[2],
+    color: theme.palette.background.textSecondary,
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    height: "40px",
+    cursor: "pointer",
+    maxWidth: "250px",
+    minWidth: "120px",
+    padding: theme.spacing(1),
+    position: "relative",
+    textDecoration: "none",
+    width: "fit-content",
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
 }));
 const PlaceholderIcon = styled(Box)(({ theme }) => ({
     width: ICON_SIZE,
@@ -466,7 +489,7 @@ export function ResourceList(props: ResourceListProps) {
     };
 
     return (
-        <>
+        <Box>
             {upsertDialog}
             {BulkDeleteDialogComponent}
             {title && <Box display="flex" flexDirection="row" alignItems="center">
@@ -482,7 +505,7 @@ export function ResourceList(props: ResourceListProps) {
                     <ResourceListHorizontal {...childProps} /> :
                     <ResourceListVertical {...childProps} />
             }
-        </>
+        </Box>
     );
 }
 

@@ -221,30 +221,6 @@ export function highlightStyle(background: string, disabled: boolean | undefined
     } as const;
 }
 
-export const CardBox = styled(Box)(({ theme }) => ({
-    ...noSelect,
-    alignItems: "center",
-    background: theme.palette.background.paper,
-    borderRadius: theme.spacing(3),
-    boxShadow: theme.shadows[2],
-    color: theme.palette.background.textSecondary,
-    display: "flex",
-    flexDirection: "row",
-    gap: theme.spacing(1),
-    height: "40px",
-    cursor: "pointer",
-    maxWidth: "200px",
-    minWidth: "120px",
-    padding: theme.spacing(1),
-    position: "relative",
-    textDecoration: "none",
-    width: "fit-content",
-    "&:hover": {
-        filter: "brightness(120%)",
-        transition: "filter 0.2s",
-    },
-}));
-
 export const ScrollBox = styled(Box)(() => ({
     height: "100%",
     width: "100%",

@@ -1,5 +1,5 @@
 import { CalendarEvent, Count, DeleteManyInput, LINKS, ListObject, Resource, ResourceUsedFor, endpointsActions, getObjectUrl } from "@local/shared";
-import { Box, IconButton, Tooltip, Typography, styled } from "@mui/material";
+import { Box, IconButton, Stack, Tooltip, Typography, styled } from "@mui/material";
 import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
@@ -9,12 +9,12 @@ import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
-import { CardBox, multiLineEllipsis } from "../../../styles.js";
+import { multiLineEllipsis, noSelect } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
 import { DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
-import { firstString } from "../../../utils/display/stringTools.js";
+import { firstString, formatEventTime } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { TextLoading } from "../TextLoading/TextLoading.js";
@@ -31,6 +31,38 @@ const CardsBox = styled(Box)(({ theme }) => ({
     paddingBottom: 1,
     justifyContent: "flex-start",
     width: "100%",
+}));
+const CardBox = styled(Box)(({ theme }) => ({
+    ...noSelect,
+    alignItems: "center",
+    background: theme.palette.background.paper,
+    borderRadius: theme.spacing(2),
+    boxShadow: theme.shadows[2],
+    color: theme.palette.background.textSecondary,
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    height: "60px",
+    cursor: "pointer",
+    maxWidth: "250px",
+    minWidth: "120px",
+    padding: theme.spacing(1),
+    position: "relative",
+    textDecoration: "none",
+    width: "fit-content",
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
+    "&.past": {
+        opacity: 0.6,
+        filter: "grayscale(30%)",
+        "&:hover": {
+            opacity: 0.8,
+            filter: "grayscale(0%)",
+            transition: "all 0.2s",
+        },
+    },
 }));
 const PlaceholderIcon = styled(Box)(({ theme }) => ({
     width: ICON_SIZE,
@@ -120,6 +152,21 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
         }
     }, [data, href, isEditing, onDelete, onEdit, setLocation]);
 
+    const timeDisplay = useMemo(() => {
+        return formatEventTime(new Date(data.start), new Date(data.end));
+    }, [data.start, data.end]);
+
+    // Determine event status
+    const { isPast, isCurrent } = useMemo(() => {
+        const now = new Date();
+        const start = new Date(data.start);
+        const end = new Date(data.end);
+        return {
+            isPast: end < now,
+            isCurrent: start <= now && end > now,
+        };
+    }, [data.start, data.end]);
+
     return (
         <Tooltip placement="top" title={subtitle}>
             <CardBox
@@ -127,21 +174,45 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
                 component="a"
                 href={href}
                 onClick={handleClick}
+                className={isPast ? "past" : ""}
             >
-                {DisplayIcon}
-                <Typography
-                    variant="caption"
-                    sx={titleStyle}
-                >
-                    {firstString(title, subtitle)}
-                </Typography>
-                {isEditing && <IconButton className="delete-icon-button">
-                    <IconCommon
-                        className="delete-icon"
-                        fill="background.textSecondary"
-                        name="Delete"
-                    />
-                </IconButton>}
+                <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Box display="flex" alignItems="center" height={ICON_SIZE}>
+                            {DisplayIcon}
+                        </Box>
+                        <Typography
+                            variant="caption"
+                            sx={titleStyle}
+                        >
+                            {firstString(title, subtitle)}
+                        </Typography>
+                    </Box>
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ pl: DisplayIcon ? 3.5 : 0 }}
+                    >
+                        {timeDisplay}
+                    </Typography>
+                </Stack>
+                {isEditing ? (
+                    <IconButton className="delete-icon-button">
+                        <IconCommon
+                            className="delete-icon"
+                            fill="background.textSecondary"
+                            name="Delete"
+                        />
+                    </IconButton>
+                ) : isCurrent ? (
+                    <IconButton disabled>
+                        <IconCommon
+                            fill="warning.main"
+                            name="Warning"
+                            size={20}
+                        />
+                    </IconButton>
+                ) : null}
             </CardBox>
         </Tooltip>
     );
@@ -389,7 +460,7 @@ export function EventList(props: EventListProps) {
     };
 
     return (
-        <>
+        <Box>
             {upsertDialog}
             {BulkDeleteDialogComponent}
             {title && <Box display="flex" flexDirection="row" alignItems="center">
@@ -406,6 +477,6 @@ export function EventList(props: EventListProps) {
                 </Tooltip>
             </Box>}
             <EventListHorizontal {...childProps} />
-        </>
+        </Box>
     );
 }

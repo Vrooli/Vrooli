@@ -124,3 +124,47 @@ export function generateContext(selected: string, fullText: string): string {
     else context = ellipsis + fullValue.substring(fullValue.length - MAX_CONTENT_LENGTH - ellipsis.length, fullValue.length);
     return context.trim();
 }
+
+/**
+ * Formats an event's time range based on how far in the future it is
+ * @param start Start time of the event
+ * @param end End time of the event
+ * @returns Formatted time string
+ */
+export function formatEventTime(start: Date, end: Date): string {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    const nextWeek = new Date(now);
+    nextWeek.setDate(now.getDate() + 7);
+    nextWeek.setHours(0, 0, 0, 0);
+
+    // Format time portion (HH:MM)
+    function formatTime(date: Date) {
+        return date.toLocaleTimeString(navigator.language, {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        }).replace(/\s?[AP]M/i, "");
+    }
+
+    const timeRange = `${formatTime(start)}-${formatTime(end)}`;
+
+    if (start < tomorrow) {
+        // Within 24 hours - just show time
+        return timeRange;
+    } else if (start < nextWeek) {
+        // Within a week - show day and time
+        const day = start.toLocaleDateString(navigator.language, { weekday: "short" });
+        return `${day} ${timeRange}`;
+    } else {
+        // Beyond a week - show date and time
+        const date = start.toLocaleDateString(navigator.language, {
+            month: "numeric",
+            day: "numeric",
+        });
+        return `${date} ${timeRange}`;
+    }
+}
