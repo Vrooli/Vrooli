@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { ObjectType } from "../../../utils/navigation/openObject.js";
 
 interface RelationshipButtonsBaseProps {

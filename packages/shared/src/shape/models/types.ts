@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export type OwnerShape = {
     __typename: "User" | "Team",
     id: string,

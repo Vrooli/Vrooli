@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export interface LineGraphProps {
     /** Dimensions of the line graph */
     dims: { width: number, height: number };

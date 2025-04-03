@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { SxType } from "../../types.js";
 
 export interface BreadcrumbsBaseProps {

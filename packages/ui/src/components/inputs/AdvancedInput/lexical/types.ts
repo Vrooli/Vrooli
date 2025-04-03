@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { Headers } from "../utils.js";
 import { DECORATOR_NODES, ELEMENT_NODES, TEXT_NODES } from "./consts.js";
 import { type EditorState, type LexicalEditor } from "./editor.js";

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { Bookmark, BookmarkFor, ListObject, RoutineVersion, TranslationKeyCommon } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { ReactNode } from "react";

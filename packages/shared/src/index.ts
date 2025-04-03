@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export * from "./ai/index.js";
 export * from "./api/index.js";
 export * from "./consts/index.js";

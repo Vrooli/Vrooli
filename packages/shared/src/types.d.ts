@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { TFuncKey, TFunction } from "i18next";
 import award from "./translations/locales/en/award.json" with { type: "json" };
 import common from "./translations/locales/en/common.json" with { type: "json" };

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export * from "./arrays.js";
 export * from "./casing.js";
 export * from "./emotions.js";

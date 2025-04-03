@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { TimeFrame } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { SearchPageTabOption } from "../consts/search.js";

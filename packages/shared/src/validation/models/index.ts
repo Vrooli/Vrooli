@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export * from "./api.js";
 export * from "./apiKey.js";
 export * from "./apiKeyExternal.js";

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { type RunConfig } from "../run/types.js";
 
 export type Maybe<T> = T | null;

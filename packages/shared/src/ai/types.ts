@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { LlmTask, TaskStatus } from "../api/types.js";
 
 export type MessageStream = {

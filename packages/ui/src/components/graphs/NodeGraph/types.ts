@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { RoutineVersion } from "@local/shared";
 import { BuildAction } from "../../../utils/consts.js";
 

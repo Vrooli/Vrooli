@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { CommentFor, TranslationKeyCommon } from "@local/shared";
 import { TypographyProps } from "@mui/material";
 import { ReactNode } from "react";

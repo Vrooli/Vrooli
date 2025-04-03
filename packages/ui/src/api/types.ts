@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { ServerResponse } from "@local/shared";
 
 export type ServerResponseWithTimestamp<T = any> = ServerResponse<T> & { __fetchTimestamp: number };

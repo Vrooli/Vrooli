@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { ChatMessageShape, Comment, CommentThread, NavigableObject } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { ReactNode } from "react";

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { ModelType, ProjectVersion, RoutineVersion, RunStatus, RunStepStatus, SessionUser } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
 import { ScheduleShape } from "../shape/models/models.js";

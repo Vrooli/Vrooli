@@ -1,3 +1,4 @@
+/* c8 ignore start */
 /**
  * Validation is handled by Yup. This is used by both the server and the client.
  * The server uses validation because API calls cannot be trusted to be valid.

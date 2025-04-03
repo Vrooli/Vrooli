@@ -1,3 +1,4 @@
+/* c8 ignore start */
 // Defines common props
 import { AwardCategory, ListObject, OrArray, TranslationKeyCommon } from "@local/shared";
 import { Theme } from "@mui/material";
