@@ -14,6 +14,8 @@ import { logger } from "./events/logger.js";
 import { ModelMap } from "./models/base/index.js";
 import { initializeRedis } from "./redisConn.js";
 import { SERVER_URL, server } from "./server.js";
+import { HealthService, ServiceStatus } from "./services/health.js";
+import { setupMCP } from "./services/mcp.js";
 import { setupStripe } from "./services/stripe.js";
 import { io, sessionSockets, userSockets } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
@@ -77,8 +79,6 @@ async function main() {
     await setupRunQueue();
 
     // Setup databases
-    // Prisma
-    await setupDatabase();
     // Redis 
     try {
         await initializeRedis();
@@ -86,6 +86,8 @@ async function main() {
     } catch (error) {
         logger.error("🚨 Failed to connect to Redis", { trace: "0207", error });
     }
+    // Relational
+    await DbProvider.init();
 
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
@@ -97,13 +99,25 @@ async function main() {
     });
 
     // Set up health check endpoint before authentication
-    app.get("/healthcheck", (_req, res) => {
-        res.status(HttpStatus.Ok).send("OK");
+    app.get("/healthcheck", async (_req, res) => {
+        try {
+            const health = await HealthService.get().getHealth();
+            const statusCode = health.status === ServiceStatus.Down
+                ? HttpStatus.ServiceUnavailable
+                : HttpStatus.Ok;
+
+            res.status(statusCode).json(health);
+        } catch (error) {
+            res.status(HttpStatus.ServiceUnavailable).json({
+                status: ServiceStatus.Down,
+                version: process.env.npm_package_version || "unknown",
+                error: "Health check failed",
+            });
+        }
     });
 
     // For authentication
     app.use((req, res, next) => {
-        console.log("in here. Current time:", new Date());
         // Exclude webhooks, as they have their own authentication methods
         if (req.originalUrl.startsWith("/webhooks")) {
             next();
@@ -133,6 +147,7 @@ async function main() {
 
     // Set up external services (including webhooks)
     setupStripe(app);
+    setupMCP(app);
 
     // Set static folders
     app.use("/ai/configs", express.static(path.join(__dirname, "../../shared/dist/ai/configs")));
