@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
 import { CustomError } from "../../events/error.js";
+import { BaseQueue } from "../base/queue.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, SERVER_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type EmailProcessPayload = {
@@ -17,7 +18,7 @@ export type EmailProcessPayload = {
 let logger: winston.Logger;
 let UI_URL: string;
 let emailProcess: (job: Bull.Job<EmailProcessPayload>) => Promise<unknown>;
-let emailQueue: Bull.Queue<EmailProcessPayload>;
+export let emailQueue: BaseQueue<EmailProcessPayload>;
 let welcomeTemplate: string;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const FOLDER = "email";
@@ -31,7 +32,7 @@ export async function setupEmailQueue() {
         emailProcess = (await import(getProcessPath(FOLDER))).emailProcess;
 
         // Initialize the Bull queue
-        emailQueue = new Bull<EmailProcessPayload>(FOLDER, {
+        emailQueue = new BaseQueue<EmailProcessPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
@@ -67,7 +68,7 @@ export function sendMail(
     if (to.length === 0) {
         throw new CustomError("0354", "InternalError");
     }
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to,
         subject,
         text,
@@ -82,7 +83,7 @@ export function sendResetPasswordLink(
     code: string,
 ): Promise<Success> {
     const link = `${UI_URL}${LINKS.ResetPassword}?code="${userId}:${code}"`;
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [email],
         subject: `${BUSINESS_NAME} Password Reset`,
         text: `A password reset was requested for your account with ${BUSINESS_NAME}. If you sent this request, you may change your password through this link (${link}) to continue. If you did not send this request, please ignore this email.`,
@@ -99,7 +100,7 @@ export function sendVerificationLink(
     // Replace all "${VERIFY_LINK}" in welcomeTemplate with the the actual link
     const link = `${UI_URL}${LINKS.Login}?code="${userId}:${code}"`;
     const html = welcomeTemplate.replace(/\$\{VERIFY_LINK\}/g, link);
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
         text: `Welcome to ${BUSINESS_NAME}! Please log in through [this link](${link}) to verify your account. If you did not create an account with us, please ignore this link.`,
@@ -112,7 +113,7 @@ export function feedbackNotifyAdmin(
     text: string,
     from?: string,
 ): Promise<Success> {
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [process.env.SITE_EMAIL_USERNAME ?? ""],
         subject: "Received Vrooli Feedback!",
         text: `Feedback from ${from ?? "anonymous"}: ${text}`,
@@ -124,7 +125,7 @@ export function sendPaymentThankYou(
     emailAddress: string,
     isDonation: boolean,
 ): Promise<Success> {
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [emailAddress],
         subject: `Thank you for your ${isDonation ? "donation" : "purchase"}!`,
         text: isDonation ?
@@ -138,7 +139,7 @@ export function sendPaymentFailed(
     emailAddress: string,
     paymentType: PaymentType,
 ): Promise<Success> {
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [emailAddress],
         subject: `Your ${paymentType === PaymentType.Donation ? "donation" : "purchase"} failed`,
         text: paymentType === PaymentType.Donation ?
@@ -151,7 +152,7 @@ export function sendPaymentFailed(
 export function sendCreditCardExpiringSoon(
     emailAddress: string,
 ): Promise<Success> {
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [emailAddress],
         subject: "Your credit card is expiring soon!",
         text: "Your credit card is expiring soon. Please update your payment information to avoid any interruptions to your premium subscription.",
@@ -162,7 +163,7 @@ export function sendCreditCardExpiringSoon(
 export function sendSubscriptionCanceled(
     emailAddress: string,
 ): Promise<Success> {
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [emailAddress],
         subject: "Sorry to see you go!",
         text: "We're sorry to see you canceled your subscription. Come back any time!",
@@ -173,7 +174,7 @@ export function sendSubscriptionCanceled(
 export function sendSubscriptionEnded(
     emailAddress: string,
 ): Promise<Success> {
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [emailAddress],
         subject: "Your subscription has ended",
         text: `Your subscription has ended. If this wasn't intentional, please renew your subscription to continue enjoying premium benefits. Thank you for using ${BUSINESS_NAME}!`,
@@ -185,7 +186,7 @@ export function sendTrialEndingSoon(
     emailAddress: string,
 ): Promise<Success> {
     const link = `${UI_URL}${LINKS.Pro}`;
-    return addJobToQueue(emailQueue, {
+    return addJobToQueue(emailQueue.getQueue(), {
         to: [emailAddress],
         subject: "Your trial is ending soon!",
         text: `Your free trial is ending soon. Upgrade to a pro subscription to continue receiving benefits, such as free monthly credits and increased limits. ${link}`,

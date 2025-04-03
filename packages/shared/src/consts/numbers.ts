@@ -40,5 +40,6 @@ export const DOLLARS_1_CENTS = 100;
 export const MB_1_BYTES = 1024 * 1024;
 export const MB_2_BYTES = 2 * 1024 * 1024;
 export const MB_10_BYTES = 10 * 1024 * 1024;
+export const GB_1_BYTES = 1024 * 1024 * 1024;
 
 export const PERCENTS = 100;

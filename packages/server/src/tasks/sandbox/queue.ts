@@ -1,6 +1,7 @@
 import { Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
+import { BaseQueue } from "../base/queue.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
 import { SandboxProcessPayload } from "./types.js";
 
@@ -12,7 +13,7 @@ export type SandboxRequestPayload = SandboxProcessPayload | SandboxTestPayload;
 
 let logger: winston.Logger;
 let sandboxProcess: (job: Bull.Job<SandboxProcessPayload>) => Promise<unknown>;
-let sandboxQueue: Bull.Queue<SandboxProcessPayload>;
+export let sandboxQueue: BaseQueue<SandboxProcessPayload>;
 const FOLDER = "sandbox";
 
 // Call this on server startup
@@ -23,7 +24,7 @@ export async function setupSandboxQueue() {
         sandboxProcess = (await import(getProcessPath(FOLDER))).sandboxProcess;
 
         // Initialize the Bull queue
-        sandboxQueue = new Bull<SandboxProcessPayload>(FOLDER, {
+        sandboxQueue = new BaseQueue<SandboxProcessPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
@@ -39,7 +40,7 @@ export async function setupSandboxQueue() {
 }
 
 export function runSandboxedCode(data: SandboxProcessPayload): Promise<Success> {
-    return addJobToQueue(sandboxQueue, data, {});
+    return addJobToQueue(sandboxQueue.getQueue(), data, {});
 }
 
 /**
@@ -54,7 +55,7 @@ export async function changeSandboxTaskStatus(
     status: TaskStatus | `${TaskStatus}`,
     userId: string,
 ): Promise<Success> {
-    return changeTaskStatus(sandboxQueue, jobId, status, userId);
+    return changeTaskStatus(sandboxQueue.getQueue(), jobId, status, userId);
 }
 
 /**
@@ -63,5 +64,5 @@ export async function changeSandboxTaskStatus(
  * @returns Promise that resolves to an array of objects with task ID and status.
  */
 export async function getSandboxTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
-    return getTaskStatuses(sandboxQueue, taskIds);
+    return getTaskStatuses(sandboxQueue.getQueue(), taskIds);
 }

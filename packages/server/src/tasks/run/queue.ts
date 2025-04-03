@@ -2,6 +2,7 @@
 import { MINUTES_1_MS, MINUTES_5_MS, RunConfig, RunProgress, RunStatus, RunTriggeredFrom, SessionUser, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
+import { BaseQueue } from "../base/queue.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
 import { RUN_SHUTDOWN_GRACE_PERIOD_MS, RUN_TIMEOUT_MS, activeRunsRegistry } from "./process.js";
 
@@ -101,7 +102,7 @@ export type RunRequestPayload = RunProjectPayload | RunRoutinePayload | RunTestP
 
 let logger: winston.Logger;
 let runProcess: (job: Bull.Job<RunRequestPayload>) => Promise<unknown>;
-let runQueue: Bull.Queue<RunRequestPayload>;
+export let runQueue: BaseQueue<RunRequestPayload>;
 const FOLDER = "run";
 
 // Call this on server startup
@@ -112,13 +113,13 @@ export async function setupRunQueue() {
         runProcess = (await import(getProcessPath(FOLDER))).runProcess;
 
         // Initialize the Bull queue
-        runQueue = new Bull<RunRequestPayload>(FOLDER, {
+        runQueue = new BaseQueue<RunRequestPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
-        runQueue.process(MAX_ACTIVE_RUNS, runProcess);
+        runQueue.getQueue().process(MAX_ACTIVE_RUNS, runProcess);
         // Verify that the queue is working
-        addJobToQueue(runQueue, { __process: "Test" }, { timeout: JOB_TIMEOUT_MS });
+        addJobToQueue(runQueue.getQueue(), { __process: "Test" }, { timeout: JOB_TIMEOUT_MS });
         // Set up a periodic check to gracefully pause long-running runs under periods of high load.
         setInterval(checkLongRunningRuns, HIGH_LOAD_CHECK_INTERVAL_MS);
     } catch (error) {
@@ -242,7 +243,7 @@ export function processRunProject(
     data: Omit<RunProjectPayload, "__process" | "status">,
 ): Promise<Success> {
     return addJobToQueue(
-        runQueue,
+        runQueue.getQueue(),
         { ...data, __process: "Project", status: "Scheduled" },
         { jobId: data.taskId, timeout: JOB_TIMEOUT_MS, priority: determinePriority(data) },
     );
@@ -252,7 +253,7 @@ export function processRunRoutine(
     data: Omit<RunRoutinePayload, "__process" | "status">,
 ): Promise<Success> {
     return addJobToQueue(
-        runQueue,
+        runQueue.getQueue(),
         { ...data, __process: "Routine", status: "Scheduled" },
         { jobId: data.taskId, timeout: JOB_TIMEOUT_MS, priority: determinePriority(data) },
     );
@@ -271,7 +272,7 @@ export async function changeRunTaskStatus(
     status: TaskStatus | `${TaskStatus}`,
     userId: string,
 ): Promise<Success> {
-    return changeTaskStatus(runQueue, jobId, status, userId);
+    return changeTaskStatus(runQueue.getQueue(), jobId, status, userId);
 }
 
 /**
@@ -280,5 +281,5 @@ export async function changeRunTaskStatus(
  * @returns Promise that resolves to an array of objects with task ID and status.
  */
 export async function getRunTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
-    return getTaskStatuses(runQueue, taskIds);
+    return getTaskStatuses(runQueue.getQueue(), taskIds);
 }

@@ -2,6 +2,7 @@ import { MINUTES_5_MS, Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 import { ImportConfig, ImportData } from "../../builders/importExport.js";
+import { BaseQueue } from "../base/queue.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type ImportProcessPayload = {
@@ -11,7 +12,7 @@ export type ImportProcessPayload = {
 
 let logger: winston.Logger;
 let importProcess: (job: Bull.Job<ImportProcessPayload>) => Promise<unknown>;
-let importQueue: Bull.Queue<ImportProcessPayload>;
+export let importQueue: BaseQueue<ImportProcessPayload>;
 const FOLDER = "import";
 
 /**
@@ -27,7 +28,7 @@ export async function setupImportQueue() {
         importProcess = (await import(getProcessPath(FOLDER))).importProcess;
 
         // Initialize the Bull queue
-        importQueue = new Bull<ImportProcessPayload>(FOLDER, {
+        importQueue = new BaseQueue<ImportProcessPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
@@ -43,5 +44,5 @@ export async function setupImportQueue() {
 }
 
 export function startDataImport(data: ImportProcessPayload): Promise<Success> {
-    return addJobToQueue(importQueue, data, { timeout: JOB_TIMEOUT_MS });
+    return addJobToQueue(importQueue.getQueue(), data, { timeout: JOB_TIMEOUT_MS });
 }

@@ -2,6 +2,7 @@ import { Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 import { ExportConfig } from "../../builders/importExport.js";
+import { BaseQueue } from "../base/queue.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type ExportProcessPayload = {
@@ -10,7 +11,7 @@ export type ExportProcessPayload = {
 
 let logger: winston.Logger;
 let exportProcess: (job: Bull.Job<ExportProcessPayload>) => Promise<unknown>;
-let exportQueue: Bull.Queue<ExportProcessPayload>;
+export let exportQueue: BaseQueue<ExportProcessPayload>;
 const FOLDER = "export";
 
 // Call this on server startup
@@ -21,7 +22,7 @@ export async function setupExportQueue() {
         exportProcess = (await import(getProcessPath(FOLDER))).exportProcess;
 
         // Initialize the Bull queue
-        exportQueue = new Bull<ExportProcessPayload>(FOLDER, {
+        exportQueue = new BaseQueue<ExportProcessPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
@@ -37,5 +38,5 @@ export async function setupExportQueue() {
 }
 
 export function startDataExport(data: ExportProcessPayload): Promise<Success> {
-    return addJobToQueue(exportQueue, data, {});
+    return addJobToQueue(exportQueue.getQueue(), data, {});
 }

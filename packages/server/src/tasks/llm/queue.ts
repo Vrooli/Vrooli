@@ -2,6 +2,7 @@ import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, SessionUser, Success,
 import Bull from "bull";
 import winston from "winston";
 import { PreMapUserData } from "../../utils/chat.js";
+import { BaseQueue } from "../base/queue.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 /**
@@ -74,7 +75,7 @@ export type LlmRequestPayload = RequestBotMessagePayload | LlmTestPayload;
 
 let logger: winston.Logger;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
-let llmQueue: Bull.Queue<LlmRequestPayload>;
+export let llmQueue: BaseQueue<LlmRequestPayload>;
 const FOLDER = "llm";
 
 // Call this on server startup
@@ -85,13 +86,13 @@ export async function setupLlmQueue() {
         llmProcess = (await import(getProcessPath(FOLDER))).llmProcess;
 
         // Initialize the Bull queue
-        llmQueue = new Bull<LlmRequestPayload>(FOLDER, {
+        llmQueue = new BaseQueue<LlmRequestPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         llmQueue.process(llmProcess);
         // Verify that the queue is working
-        addJobToQueue(llmQueue, { __process: "Test" }, { timeout: MINUTES_1_MS });
+        addJobToQueue(llmQueue.getQueue(), { __process: "Test" }, { timeout: MINUTES_1_MS });
     } catch (error) {
         const errorMessage = "Failed to setup sms queue";
         if (logger) {
@@ -109,7 +110,7 @@ export async function setupLlmQueue() {
 export function requestBotResponse(
     props: Omit<RequestBotMessagePayload, "__process">,
 ): Promise<Success> {
-    return addJobToQueue(llmQueue,
+    return addJobToQueue(llmQueue.getQueue(),
         { ...props, __process: "BotMessage" as const },
         { timeout: MINUTES_1_MS });
 }
