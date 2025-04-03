@@ -174,6 +174,64 @@ Vrooli is your ultimate tool for staying organized and achieving both personal a
 ## ✨ Key Features
 Vrooli stands out as a dynamic and capable automation platform designed to maximize efficiency and innovation for both business and personal use. Here's what you can expect:
 
+### Currently Supported Features
+
+#### Chat & Communication
+- 💬 Real-time chat with multiple bots and humans in the same conversation
+- 🤖 Create and customize bots with unique personas
+- 🎯 Instruct bots to perform site actions and agentic operations
+- 💡 Smart action suggestions from bots
+- 🔄 Context-aware conversations with chat history retention
+
+#### Automation & Workflows
+- 📋 Create, comment on, and vote for routines
+- 🔄 Reusable routine templates and references
+- 📊 Visual routine flowcharts with descriptive steps
+- ⏰ Reminders and scheduling capabilities
+- 🤖 Run routines automatically or step-by-step
+
+#### Platform Features
+- 💳 Access AI features by buying credits
+- ⚡ LLM fallback system for service continuity
+- 🎨 Enhanced markdown support
+- 🎓 Interactive (skippable) tutorial for new users
+- 🔍 Embedding infrastructure for similarity search
+
+### Coming Soon
+
+#### Core Functionality
+- 👥 Routine roles and team management
+- 📱 Comprehensive mobile support
+  - Android and iOS apps
+  - Push notifications
+- 📅 Calendar integration
+  - Calendar sync
+- 🤝 Team collaboration features
+  - Member invitations
+  - Object transfer capabilities
+  - Data importing/exporting
+
+#### Advanced Features
+- 🌐 Web browsing capabilities for routines
+- 🔌 API integration
+- 📜 Smart contract integration
+- 🎨 Custom routine interfaces
+- 🔍 Explore/Recommendation system
+- 💻 Offline/Local support
+- 🧠 World model for contextual awareness
+- 💰 Microtransactions for API calls and services
+
+#### Platform Evolution
+- 🌐 Decentralization and Governance
+  - DID-based reputation system
+  - Decentralized data storage
+  - Decentralized cloud service integration
+- ⚖️ Pull request system for routine improvements
+- 📈 Enhanced scaling capabilities
+
+## 🔑 Core Capabilities
+Learn more about our key features and how they work together:
+
 ### Autonomous Agents
 Vrooli allows you to create bots, known as autonomous agents, that perform tasks without constant human supervision. These agents can interact with users through chat and execute various functions, such as scheduling tasks, summarizing meetings, and generating marketing reports. This enables a seamless automation experience, providing reliable support around the clock.
 
@@ -207,89 +265,6 @@ Recursive self-improvement is at the core of Vrooli's potential to revolutionize
 - **Step 2:** Bots and humans analyze these metrics to improve the efficiency of routines and other components like standards, teams, and projects. By identifying the least efficient or least automated areas, they can prioritize these for enhancement. Improvements can be crowdsourced using Vrooli profits or donations.
 - **Step 3:** The same improvement process can be applied to the routines and components used in Step 2. This means bots and humans are constantly refining the tools they use to improve other routines.
 - **Step k:** This process is repeated as many times as necessary, continually improving the routines that enhance other routines. This creates a meta-improvement loop, where the system becomes more efficient over time.
-
-
-## 🙌 Progress
-
-### Q1 2022 
-- ✅ **Alpha Launch:** Users could create, comment on, and vote for basic routines.
-- ✅ **Routine Structure:** Introduced routines as flowcharts with descriptive steps and useful resources.
-
-### Q2 2022
-- ✅ **Routine Visualizer:** Enhanced visualization for routines.
-- ✅ **Routine References:** Enabled routines to reference other routines.
-- ✅ **Template-Based Creation:** Users could create new routines using existing templates.
-
-### Q3 2022
-- ✅ **UX Improvements:** Enhanced user experience for running routines.
-- ✅ **Server and API Enhancements:** Improved backend performance and reliability.
-- ✅ **TypeScript Safety:** Increased TypeScript type safety for better code quality.
-
-### Q4 2022
-- ✅ **Navigation Enhancements:** Improved website navigation, including the addition of a command palette.
-- ✅ **Database Expansion:** More than doubled the database schema size to support upcoming features.
-
-### Q1 2023
-- ✅ **Server Rewrite:** Standardized model logic across all objects for better consistency.
-- ✅ **UX Redesign:** Focused on enhancing personal productivity.
-
-### Q2 2023
-- ✅ **Developer Documentation:** Created extensive documentation for developers.
-- ✅ **Comprehensive Improvements:** Further enhancements to the website, server, and API.
-- ✅ **New Features:** Added support for reminders, schedules, and notes.
-- ✅ **Embedding Infrastructure:** Implemented infrastructure for creating and updating embeddings for similarity search.
-
-### Q3 2023
-- ✅ **Multi-Language Standards:** Enabled the creation of standards in various programming languages.
-- ✅ **Enhanced Markdown:** Improved the appearance and functionality of user-created markdown.
-- ✅ **Interactive Tutorials:** Developed an interactive tutorial for new users.
-- ✅ **Bot Creation and Updates:** Users can create and update bots.
-
-### Q4 2023
-- ✅ **Chat Functionality:** Users can chat with bots directly or create group chats with multiple bots.
-- ✅ **Bot Personas:** Bots respond in their unique personas and retain chat history context.
-- ✅ **Assistant Integration:** Users can chat with Vrooli's default assistant, *Valyxa*, directly from the dashboard.
-
-### Q1/Q2 2024
-- ✅ **Customizable LLMs:** Users can choose which LLM a bot uses to generate responses.
-- ✅ **Bot Task Performance:** Bots can sometimes perform simple tasks correctly.
-- ✅ **Command Detection:** User-entered commands in chat messages are detected and responded to (e.g., */reminder add title="Get oat milk"*).
-- ✅ **Action Suggestions:** Bots can suggest actions with buttons appearing below their messages.
-- ✅ **Message Regeneration:** Users can regenerate bot messages.
-- ✅ **Real-Time Streaming:** Bot messages are streamed to the client, allowing real-time response viewing.
-- ✅ **LLM Fallback System:** Implemented a fallback system for LLM calls to ensure service continuity.
-- ✅ **Stripe Subscriptions:** Activated Stripe subscriptions for payment processing.
-
-## 🔜 What's Next?
-- Routine roles
-- Fix commenting
-- Mobile support
-    - Android app
-    - iOS app
-    - Push notifications
-- Calendar
-    - Calendar sync
-    - Schedule and routines and meetings
-- Transfer objects
-- Invite members to your team
-- Run routines automatically
-- Pull request functionality for improving routines
-- Improved routine capabilities
-    - Browse the web
-    - Call APIs
-    - Call smart contracts
-    - Custom routine interfaces
-- Explore/Recommendation system
-- Scaling
-- Offline/Local support
-- World model for bot/routine/team contexts
-- Microtransactions implemented to pay for API calls, smart contract calls, and running custom interfaces
-- Decentralization/Governance
-    - Integration with DIDs to build a reputation system
-    - Decentralized data storage
-    - Vrooli services running on Akash or other decentralized cloud providers
-- Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
-
 
 # 💻 Installation
 
