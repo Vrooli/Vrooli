@@ -1,49 +1,31 @@
-import { CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, FindByIdInput, FocusMode, HomeResult, LINKS, LlmModel, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, SEEDED_IDS, Schedule, calculateOccurrences, deleteArrayIndex, endpointsChat, endpointsFeed, getAvailableModels, updateArray, uuid } from "@local/shared";
-import { Box, List, ListItemIcon, Menu, MenuItem, Typography, styled, useTheme } from "@mui/material";
+import { CalendarEvent, DAYS_30_MS, DUMMY_ID, FocusMode, HomeResult, LlmModel, Reminder, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid } from "@local/shared";
+import { Box, IconButton, InputAdornment, ListItemIcon, Menu, MenuItem, TextField, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../api/ai.js";
-import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { ServerResponseParser } from "../../api/responseParser.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
-import { TitleContainer } from "../../components/containers/TitleContainer.js";
-import { TitleContainerProps } from "../../components/containers/types.js";
+import { MenuTitle } from "../../components/dialogs/MenuTitle/MenuTitle.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
-import { FocusModeInfo, useFocusModesStore } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { EventList } from "../../components/lists/EventList/EventList.js";
-import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
+import { ReminderList } from "../../components/lists/ReminderList/ReminderList.js";
 import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
-import { ObjectListActions } from "../../components/lists/types.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { NavListBox, NavListInboxButton, NavListProfileButton, NavbarInner, NavbarSpacer, SiteNavigatorButton } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
-import { useMessageActions, useMessageInput, useMessageTree } from "../../hooks/messages.js";
-import { useChatTasks } from "../../hooks/tasks.js";
+import { useMessageInput } from "../../hooks/messages.js";
+import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { useSocketChat } from "../../hooks/useSocketChat.js";
-import { PageTab } from "../../hooks/useTabs.js";
-import { useUpsertFetch } from "../../hooks/useUpsertFetch.js";
-import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { useLocation } from "../../route/router.js";
-import { pagePaddingBottom } from "../../styles.js";
+import { useActiveChat } from "../../stores/activeChatStore.js";
+import { useFocusModes } from "../../stores/focusModeStore.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
-import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "../../utils/consts.js";
+import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
-import { getCookieMatchingChat, setCookieMatchingChat } from "../../utils/localStorage.js";
-import { TabParamPayload } from "../../utils/search/objectToSearch.js";
-import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "../../views/objects/chat/ChatCrud.js";
 import { DashboardViewProps } from "./types.js";
 
 const MAX_EVENTS_SHOWN = 10;
 const MESSAGE_LIST_ID = "dashboardMessage";
-
-type DashboardTabsInfo = {
-    Key: string; // "All" of focus mode's ID
-    Payload: FocusMode | undefined;
-    WhereParams: undefined;
-}
 
 const DashboardBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -51,9 +33,9 @@ const DashboardBox = styled(Box)(({ theme }) => ({
     maxHeight: "100vh",
     height: "calc(100vh - env(safe-area-inset-bottom))",
     overflow: "hidden",
-    paddingBottom: `calc(${pagePaddingBottom} + ${theme.spacing(2)})`,
-    [theme.breakpoints.down("sm")]: {
-        paddingBottom: pagePaddingBottom,
+    paddingBottom: theme.spacing(2),
+    [`@media (max-width: ${MAX_CHAT_INPUT_WIDTH}px)`]: {
+        paddingBottom: 0,
     },
 }));
 
@@ -63,13 +45,13 @@ const DashboardInnerBox = styled(Box)(({ theme }) => ({
     flexDirection: "column",
     flexGrow: 1,
     gap: theme.spacing(2),
+    justifyContent: "end",
     margin: "auto",
     overflowY: "auto",
     padding: theme.spacing(2),
-    width: "min(700px, 100%)",
+    width: `min(${MAX_CHAT_INPUT_WIDTH}px, 100%)`,
 }));
 
-const reminderIconInfo = { name: "Reminder", type: "Common" } as const;
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
 const activeFocusModeFallback = { __typename: "FocusMode", id: DUMMY_ID } as const;
@@ -81,30 +63,6 @@ const resourceListFallback = {
     resources: [],
     translations: [],
 } as unknown as ResourceListType;
-
-function ListTitleContainer({
-    children,
-    emptyText,
-    isEmpty,
-    ...props
-}: TitleContainerProps & {
-    emptyText: string;
-    isEmpty: boolean;
-}) {
-    return (
-        <TitleContainer {...props}>
-            {
-                isEmpty ?
-                    <Typography variant="h6" pt={1} pb={1} textAlign="center">
-                        {emptyText}
-                    </Typography> :
-                    <List sx={{ overflow: "hidden", padding: 0 }}>
-                        {children}
-                    </List>
-            }
-        </TitleContainer>
-    );
-}
 
 const ModelTitleBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -120,10 +78,36 @@ const modelMenuTransformOrigin = {
     vertical: "top",
     horizontal: "left",
 } as const;
+const greetingStyle = { mb: 2 } as const;
+const modelMenuPaperProps = {
+    style: {
+        maxHeight: 400,
+        width: "350px",
+    },
+} as const;
+const searchBoxStyle = { p: 2 } as const;
+const noResultsStyle = { p: 2, textAlign: "center" } as const;
+const searchInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <IconCommon
+                name="Search"
+                size={20}
+            />
+        </InputAdornment>
+    ),
+} as const;
+const menuListStyle = {
+    "& .MuiMenu-list": {
+        padding: 0, // Remove default padding
+    },
+} as const;
 
 function ModelTitleComponent() {
     const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const open = Boolean(anchorEl);
 
     const availableModels = useMemo(() => {
@@ -137,6 +121,7 @@ function ModelTitleComponent() {
 
     const handleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
+        setSearchQuery("");
     }, []);
 
     const handleClose = useCallback(() => {
@@ -148,11 +133,35 @@ function ModelTitleComponent() {
         handleClose();
     }, [handleClose]);
 
+    const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(event.target.value);
+    }, []);
+
+    // Focus the search input when the menu opens
+    useEffect(() => {
+        if (open && searchInputRef.current) {
+            setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 100);
+        }
+    }, [open]);
+
+    const filteredModels = useMemo(() => {
+        if (!searchQuery) return availableModels;
+        const query = searchQuery.toLowerCase();
+        return availableModels.filter(model =>
+            t(model.name, { ns: "service" }).toLowerCase().includes(query) ||
+            (model.description && t(model.description, { ns: "service", defaultValue: "" }).toLowerCase().includes(query)),
+        );
+    }, [availableModels, searchQuery, t]);
+
+    const modelHelpText = "Select an AI model to use for your conversations. Different models have different capabilities, strengths, and pricing.";
+
     return (
         <ModelTitleBox
             onClick={handleClick}
         >
-            <Typography variant="h6" color="inherit" component="div">
+            <Typography variant="body1" color="inherit" component="div">
                 {selectedModel ?
                     t(selectedModel.name, { ns: "service" }) :
                     t("SelectModel")
@@ -163,210 +172,124 @@ function ModelTitleComponent() {
                 name="ChevronRight"
             />
             <Menu
+                id="model-selection-menu"
                 anchorEl={anchorEl}
                 open={open}
                 onClose={handleClose}
                 anchorOrigin={modelMenuAnchorOrigin}
                 transformOrigin={modelMenuTransformOrigin}
+                PaperProps={modelMenuPaperProps}
+                disableAutoFocusItem
+                sx={menuListStyle}
             >
-                {availableModels.map((model) => {
-                    function handleClick() {
-                        handleModelSelect(model);
-                    }
-                    return (
-                        <MenuItem
-                            key={model.value}
-                            onClick={handleClick}
-                            selected={selectedModel?.value === model.value}
-                        >
-                            <ListItemIcon>
-                                {selectedModel?.value === model.value && (
-                                    <IconCommon
-                                        name="Selected"
-                                        type="Common"
-                                        fill="background.textPrimary"
-                                        size={20}
-                                    />
-                                )}
-                            </ListItemIcon>
-                            <Box>
-                                <Typography variant="body1">
-                                    {t(model.name, { ns: "service" })}
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary">
-                                    {t(model.description, { ns: "service" })}
-                                </Typography>
-                            </Box>
-                        </MenuItem>
-                    );
-                })}
+                <MenuTitle
+                    title={t("SelectModel")}
+                    onClose={handleClose}
+                    help={modelHelpText}
+                />
+                <Box sx={searchBoxStyle}>
+                    <TextField
+                        fullWidth
+                        placeholder="Search models"
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        variant="outlined"
+                        size="small"
+                        InputProps={searchInputProps}
+                        inputRef={searchInputRef}
+                    />
+                </Box>
+                {filteredModels.length === 0 ? (
+                    <Box sx={noResultsStyle}>
+                        <Typography variant="body2" color="textSecondary">
+                            No models found
+                        </Typography>
+                    </Box>
+                ) : (
+                    filteredModels.map((model) => {
+                        function handleClick() {
+                            handleModelSelect(model);
+                        }
+                        return (
+                            <MenuItem
+                                key={model.value}
+                                onClick={handleClick}
+                                selected={selectedModel?.value === model.value}
+                            >
+                                <ListItemIcon>
+                                    {selectedModel?.value === model.value && (
+                                        <IconCommon
+                                            fill="background.textPrimary"
+                                            name="Complete"
+                                            size={20}
+                                        />
+                                    )}
+                                </ListItemIcon>
+                                <Box>
+                                    <Typography variant="body1">
+                                        {t(model.name, { ns: "service" })}
+                                    </Typography>
+                                    <Typography variant="caption" color="textSecondary">
+                                        {t(model.description || "", { ns: "service", defaultValue: "" })}
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                        );
+                    })
+                )}
             </Menu>
         </ModelTitleBox>
     );
 }
 
+const NOON_HOUR = 12;
+const EVENING_HOUR = 18;
 /** Helper function to get the appropriate time of day greeting key */
-function getTimeOfDayGreeting(): string {
+function getTimeOfDayGreeting() {
     const hour = new Date().getHours();
-    if (hour < 12) return "GoodMorning";
-    if (hour < 18) return "GoodAfternoon";
-    return "GoodEvening";
+    if (hour < NOON_HOUR) return "GoodMorning" as const;
+    if (hour < EVENING_HOUR) return "GoodAfternoon" as const;
+    return "GoodEvening" as const;
+}
+
+/**
+ * Button to create a new chat
+ */
+export function NavListNewChatButton({
+    handleNewChat,
+}: {
+    handleNewChat: () => unknown;
+}) {
+    const { t } = useTranslation();
+
+    return (
+        <IconButton
+            aria-label={t("NewChat")}
+            onClick={handleNewChat}
+            title={t("NewChat")}
+        >
+            <IconCommon
+                decorative
+                name="ChatNew"
+                size={32}
+            />
+        </IconButton>
+    );
 }
 
 /** View displayed for Home page when logged in */
 export function DashboardView({
     display,
-    isOpen,
-    onClose,
 }: DashboardViewProps) {
-    const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isLeftHanded = useIsLeftHanded();
 
-    const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
-    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [refetch, { data: feedData, loading: isFeedLoading }] = useLazyFetch<Record<string, never>, HomeResult>(endpointsFeed.home);
 
-    const {
-        fetchCreate,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<Chat, ChatCreateInput, ChatUpdateInput>({
-        isCreate: false, // We create chats automatically, so this should always be false
-        isMutate: true,
-        endpointCreate: endpointsChat.createOne,
-        endpointUpdate: endpointsChat.updateOne,
-    });
+    const focusModeInfo = useFocusModes(session);
 
-    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointsChat.findOne);
-    const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, t, languages[0], CHAT_DEFAULTS));
-    useEffect(() => {
-        if (loadedChat?.participants) {
-            setParticipants(loadedChat.participants);
-        }
-    }, [loadedChat?.participants]);
-    // When a chat is loaded, store chat ID by participant and task
-    useEffect(() => {
-        if (!loadedChat?.id) return;
-        const userId = getCurrentUser(session).id;
-        if (!userId) return;
-        setCookieMatchingChat(loadedChat.id, [userId, SEEDED_IDS.User.Valyxa]);
-    }, [loadedChat, loadedChat?.id, session]);
-
-    const createChat = useCallback((resetChat = false) => {
-        chatCreateStatus.current = "inProgress";
-        const chatToUse = resetChat ? chatInitialValues(session, t, languages[0], CHAT_DEFAULTS) : chat;
-        fetchLazyWrapper<ChatCreateInput, Chat>({
-            fetch: fetchCreate,
-            inputs: transformChatValues(withModifiableMessages(chatToUse, session), withYourMessages(chatToUse, session), true),
-            onSuccess: (data) => {
-                setChat({ ...data, messages: [] });
-                setUsersTyping([]);
-                const userId = getCurrentUser(session).id;
-                if (userId) setCookieMatchingChat(data.id, [userId, SEEDED_IDS.User.Valyxa]);
-            },
-            onCompleted: () => {
-                chatCreateStatus.current = "complete";
-            },
-        });
-    }, [chat, languages, fetchCreate, session, t]);
-    const resetChat = useCallback(() => { createChat(true); }, [createChat]);
-
-    const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
-    useEffect(function autoCreateMatchingChatEffect() {
-        const userId = getCurrentUser(session).id;
-        if (!userId) return;
-        // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
-        const existingChatId = getCookieMatchingChat([userId, SEEDED_IDS.User.Valyxa]);
-        const isChatValid = chat.id !== DUMMY_ID && chat.participants?.every(p => [userId, SEEDED_IDS.User.Valyxa].includes(p.user.id));
-        if (chat.id === DUMMY_ID && existingChatId) {
-            fetchLazyWrapper<FindByIdInput, Chat>({
-                fetch: getChat,
-                inputs: { id: existingChatId },
-                onSuccess: (data) => {
-                    setChat({ ...data, messages: [] });
-                },
-                onError: (response) => {
-                    if (ServerResponseParser.hasErrorCode(response, "NotFound")) {
-                        createChat();
-                    }
-                },
-            });
-        }
-        else if (!isChatValid && chatCreateStatus.current === "notStarted") {
-            createChat();
-        }
-    }, [chat, createChat, display, fetchCreate, getChat, isOpen, session, setLocation]);
-
-    // Handle focus modes
-    const getFocusModeInfo = useFocusModesStore(state => state.getFocusModeInfo);
-    const putActiveFocusMode = useFocusModesStore(state => state.putActiveFocusMode);
-    const [focusModeInfo, setFocusModeInfo] = useState<FocusModeInfo>({ active: null, all: [] });
-    useEffect(function fetchFocusModeInfoEffect() {
-        const abortController = new AbortController();
-
-        async function fetchFocusModeInfo() {
-            const info = await getFocusModeInfo(session, abortController.signal);
-            setFocusModeInfo(info);
-        }
-
-        fetchFocusModeInfo();
-
-        return () => {
-            abortController.abort();
-        };
-    }, [getFocusModeInfo, session]);
-
-    // Handle tabs
-    const tabs = useMemo<PageTab<TabParamPayload<DashboardTabsInfo>>[]>(() => {
-        const activeColor = isMobile ? palette.primary.contrastText : palette.background.textPrimary;
-        const inactiveColor = isMobile ? palette.primary.contrastText : palette.background.textSecondary;
-        return [
-            ...focusModeInfo.all.map((mode, index) => ({
-                color: mode.id === focusModeInfo.active?.focusMode?.id ? activeColor : inactiveColor,
-                data: mode,
-                index,
-                key: mode.id,
-                label: mode.name,
-                searchPlaceholder: "",
-            })),
-            {
-                color: inactiveColor,
-                data: undefined,
-                iconInfo: { name: "Add", type: "Common" } as const,
-                index: focusModeInfo.all.length,
-                key: "Add",
-                label: "Add",
-                searchPlaceholder: "",
-            },
-        ];
-    }, [focusModeInfo.active?.focusMode?.id, focusModeInfo.all, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
-    // const currTab = useMemo(function calculateCurrTabMemo() {
-    //     const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === focusModeInfo.active?.focusMode?.id);
-    //     if (match) return match;
-    //     if (tabs.length) return tabs[0];
-    //     return null;
-    // }, [tabs, focusModeInfo.active]);
-    // const handleTabChange = useCallback((e: any, tab: PageTab<TabParamPayload<DashboardTabsInfo>>) => {
-    //     e.preventDefault();
-    //     // If "Add", go to the add focus mode page
-    //     if (tab.key === "Add" || !tab.data) {
-    //         setLocation(LINKS.SettingsFocusModes);
-    //         return;
-    //     }
-    //     // Otherwise, publish the focus mode
-    //     putActiveFocusMode({
-    //         __typename: "ActiveFocusMode" as const,
-    //         focusMode: {
-    //             ...tab.data,
-    //             __typename: "ActiveFocusModeFocusMode" as const,
-    //         },
-    //         stopCondition: FocusModeStopCondition.NextBegins,
-    //     }, session);
-    // }, [putActiveFocusMode, session, setLocation]);
     useEffect(() => {
         refetch({});
     }, [focusModeInfo.active, refetch]);
@@ -446,21 +369,6 @@ export function DashboardView({
         }
     }, [focusModeInfo, focusModeInfo.active, focusModeInfo.all]);
 
-    const onReminderAction = useCallback((action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => {
-        switch (action) {
-            case "Deleted": {
-                const id = data[0] as string;
-                setReminders(curr => deleteArrayIndex(curr, curr.findIndex(item => item.id === id)));
-                break;
-            }
-            case "Updated": {
-                const updated = data[0] as Reminder;
-                setReminders(curr => updateArray(curr, curr.findIndex(item => item.id === updated.id), updated));
-                break;
-            }
-        }
-    }, []);
-
     const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
     useEffect(() => {
         let isCancelled = false;
@@ -501,19 +409,17 @@ export function DashboardView({
     }, [languages, schedules]);
 
     const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
-    const messageTree = useMessageTree(chat.id);
-    const taskInfo = useChatTasks({ chatId: chat.id });
-    const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
-    const messageActions = useMessageActions({
-        activeTask: taskInfo.activeTask,
-        addMessages: messageTree.addMessages,
+    const {
         chat,
-        contexts: taskInfo.contexts[taskInfo.activeTask.taskId] || [],
-        editMessage: messageTree.editMessage,
         isBotOnlyChat,
-        language: languages[0],
-        setMessage,
-    });
+        isLoading: isChatLoading,
+        messageActions,
+        messageStream,
+        messageTree,
+        usersTyping: participantsTyping,
+        resetActiveChat,
+        taskInfo,
+    } = useActiveChat({ setMessage });
     const messageInput = useMessageInput({
         id: MESSAGE_LIST_ID,
         languages,
@@ -523,42 +429,22 @@ export function DashboardView({
         replyToMessage: messageActions.replyToMessage,
         setMessage,
     });
-    const { messageStream } = useSocketChat({
-        addMessages: messageTree.addMessages,
-        chat,
-        editMessage: messageTree.editMessage,
-        participants,
-        removeMessages: messageTree.removeMessages,
-        setParticipants,
-        setUsersTyping,
-        usersTyping,
-    });
-
-    const reminderContainerOptions = useMemo(function reminderContainerOptionsMemo() {
-        return [{
-            iconInfo: { name: "OpenInNew", type: "Common" } as const,
-            label: t("SeeAll"),
-            onClick: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}"`); },
-        }, {
-            iconInfo: { name: "Add", type: "Common" } as const,
-            label: t("Create"),
-            onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
-        }];
-    }, [setLocation, t]);
-
     const hasMessages = useMemo(function hasMessagesMemo() {
         return messageTree.tree.getMessagesCount() > 0;
     }, [messageTree]);
 
     return (
         <DashboardBox>
-            <TopBar
-                titleBehaviorDesktop="ShowIn"
-                titleBehaviorMobile="ShowIn"
-                display={display}
-                onClose={onClose}
-                titleComponent={<ModelTitleComponent />}
-            />
+            <NavbarSpacer />
+            <NavbarInner>
+                <SiteNavigatorButton />
+                <ModelTitleComponent />
+                <NavListBox isLeftHanded={isLeftHanded}>
+                    <NavListNewChatButton handleNewChat={resetActiveChat} />
+                    <NavListInboxButton />
+                    <NavListProfileButton />
+                </NavListBox>
+            </NavbarInner>
             <DashboardInnerBox>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!hasMessages && <>
@@ -566,7 +452,7 @@ export function DashboardView({
                         variant="h4"
                         textAlign="center"
                         color="textPrimary"
-                        sx={{ mb: 2 }}
+                        sx={greetingStyle}
                     >
                         {t(getTimeOfDayGreeting())}{getCurrentUser(session)?.name || getCurrentUser(session)?.handle ? `, ${getCurrentUser(session)?.name || getCurrentUser(session)?.handle}` : ""}
                     </Typography>
@@ -598,24 +484,15 @@ export function DashboardView({
                         mutate={true}
                         title={t("Schedule", { count: 1 })}
                     />
-                    {/* Reminders */}
-                    <ListTitleContainer
-                        iconInfo={reminderIconInfo}
+                    <ReminderList
                         id={ELEMENT_IDS.DashboardReminderList}
-                        isEmpty={reminders.length === 0 && !isFeedLoading}
-                        emptyText="No reminders"
+                        list={reminders}
+                        canUpdate={true}
+                        handleUpdate={setReminders}
                         loading={isFeedLoading}
+                        mutate={true}
                         title={t("Reminder", { count: 2 })}
-                        options={reminderContainerOptions}
-                    >
-                        <ObjectList
-                            dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Reminder")}
-                            items={reminders}
-                            keyPrefix="reminder-list-item"
-                            loading={isFeedLoading}
-                            onAction={onReminderAction}
-                        />
-                    </ListTitleContainer>
+                    />
                 </>}
                 {hasMessages && <ChatBubbleTree
                     branches={messageTree.branches}
@@ -635,11 +512,11 @@ export function DashboardView({
             <ChatMessageInput
                 disabled={!chat}
                 display={display}
-                isLoading={isCreateLoading || isUpdateLoading || isChatLoading}
+                isLoading={isChatLoading}
                 message={message}
                 messageBeingEdited={messageInput.messageBeingEdited}
                 messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
-                participantsTyping={usersTyping}
+                participantsTyping={participantsTyping}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 setMessage={setMessage}
                 stopEditingMessage={messageInput.stopEditingMessage}

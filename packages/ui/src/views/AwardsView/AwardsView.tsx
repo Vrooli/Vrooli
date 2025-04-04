@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
 import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
-import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
+import { TIDCardBase, TIDContent, TIDIcon, TIDTextBox } from "../../components/lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFetch } from "../../hooks/useFetch.js";
@@ -101,41 +101,48 @@ function AwardCard({
     }, [percentage, award.progress, level]);
 
     return (
-        <TIDCard
-            description={description}
-            iconInfo={awardIconInfo} //TODO Add custom icons/images for each category
+        <TIDCardBase
             id={award.category}
-            key={award.category}
-            title={title}
-            below={percentage >= 0 && <Box mt={2}>
-                <CompletionBar
-                    color={isAlmostThere ? "warning" : "secondary"}
-                    showLabel={false}
-                    value={percentage}
-                    sxs={completionBarStyle}
+            isClickable={false}
+        >
+            <TIDIcon iconInfo={awardIconInfo} />
+            <TIDTextBox>
+                <TIDContent
+                    title={title}
+                    description={description}
                 />
-                <Typography
-                    variant="body2"
-                    component="p"
-                    textAlign="center"
-                    mt={1}
-                    color="text.secondary"
-                >
-                    {award.progress} / {level} ({percentage}%)
-                </Typography>
-                {isAlmostThere &&
-                    <Typography
-                        variant="body2"
-                        component="p"
-                        textAlign="start"
-                        mt={1}
-                        style={almostThereStyle}
-                    >
-                        Almost there!
-                    </Typography>
-                }
-            </Box>}
-        />
+                {percentage >= 0 && (
+                    <Box mt={2}>
+                        <CompletionBar
+                            color={isAlmostThere ? "warning" : "secondary"}
+                            showLabel={false}
+                            value={percentage}
+                            sxs={completionBarStyle}
+                        />
+                        <Typography
+                            variant="body2"
+                            component="p"
+                            textAlign="center"
+                            mt={1}
+                            color="text.secondary"
+                        >
+                            {award.progress} / {level} ({percentage}%)
+                        </Typography>
+                        {isAlmostThere && (
+                            <Typography
+                                variant="body2"
+                                component="p"
+                                textAlign="start"
+                                mt={1}
+                                style={almostThereStyle}
+                            >
+                                Almost there!
+                            </Typography>
+                        )}
+                    </Box>
+                )}
+            </TIDTextBox>
+        </TIDCardBase>
     );
 }
 

@@ -154,7 +154,6 @@ export function MyStuffView({
                 display={display}
                 onClose={onClose}
                 title={t("MyStuff")}
-                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs<typeof myStuffTabParams>
                     ariaLabel="Search tabs"
                     fullWidth

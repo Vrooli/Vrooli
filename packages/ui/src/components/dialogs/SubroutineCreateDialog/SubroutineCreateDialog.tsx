@@ -1,8 +1,8 @@
 import { TranslationKeyCommon } from "@local/shared";
-import { Box, IconButton, useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { IconInfo } from "../../../icons/Icons.js";
 import { CardGrid } from "../../lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../navigation/TopBar.js";
@@ -103,24 +103,24 @@ export function SubroutineCreateDialog({
             <TopBar
                 display={display}
                 onClose={onClose}
-                startComponent={selectedType ? <IconButton
-                    aria-label={t("Back")}
-                    onClick={restart}
-                    sx={{
-                        width: "48px",
-                        height: "48px",
-                        marginLeft: 1,
-                        marginRight: 1,
-                        cursor: "pointer",
-                    }}
-                >
-                    <IconCommon
-                        decorative
-                        fill={palette.primary.contrastText}
-                        name="ArrowLeft"
-                    />
-                </IconButton> : undefined}
-                title={t("CreateSubroutine")}
+            // startComponent={selectedType ? <IconButton
+            //     aria-label={t("Back")}
+            //     onClick={restart}
+            //     sx={{
+            //         width: "48px",
+            //         height: "48px",
+            //         marginLeft: 1,
+            //         marginRight: 1,
+            //         cursor: "pointer",
+            //     }}
+            // >
+            //     <IconCommon
+            //         decorative
+            //         fill={palette.primary.contrastText}
+            //         name="ArrowLeft"
+            //     />
+            // </IconButton> : undefined}
+            // title={t("CreateSubroutine")}
             />
             {selectedForm}
             {!selectedForm && <Box p={2} display="flex" flexDirection="column" gap={2}>

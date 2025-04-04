@@ -1,3 +1,4 @@
+import { LINKS } from "@local/shared";
 import { Badge, BottomNavigation, BottomNavigationAction, styled, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,6 +8,7 @@ import { Icon } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { bottomNavHeight } from "../../styles.js";
+import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 import { Z_INDEX } from "../../utils/consts.js";
 import { getUserActions } from "../../utils/navigation/userActions.js";
 
@@ -37,11 +39,18 @@ export function BottomNav() {
         display: { xs: "flex", md: "none" },
     }), [palette.primary.dark]);
 
-    // Hide the nav if the keyboard is open. This is because fixed bottom navs 
-    // will appear above the keyboard on Android for some reason.
-    const invisible = useKeyboardOpen();
+    const isKeyboardOpen = useKeyboardOpen();
 
-    if (invisible) return null;
+    // Hide the nav in the following cases:
+    // - Keyboard is open (fixed bottom navs appear above the keyboard on Android)
+    // - User is logged in at the home page ("/")
+    // - User is logged in and at the chat page ("/chat")
+    const isLoggedIn = checkIfLoggedIn(session);
+    const shouldHideNav = isKeyboardOpen
+        || (isLoggedIn && (window.location.pathname === LINKS.Home))
+        || window.location.pathname.startsWith(LINKS.Chat);
+
+    if (shouldHideNav) return null;
     return (
         <BottomNavigation
             id="bottom-nav"
@@ -59,6 +68,7 @@ export function BottomNav() {
                 }
                 return (
                     <StyledBottomNavigationAction
+                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-ignore
                         href={link}
                         icon={<Badge badgeContent={numNotifications} color="error">
@@ -73,7 +83,7 @@ export function BottomNav() {
                         label={t(label, { count: 2 })}
                         onClick={handleNavActionClick}
                         value={value}
-                        showLabel={session?.isLoggedIn !== true}
+                        showLabel={isLoggedIn !== true}
                     />
                 );
             })}

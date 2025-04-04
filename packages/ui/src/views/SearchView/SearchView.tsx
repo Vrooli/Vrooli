@@ -76,7 +76,6 @@ export function SearchView({
                     display={display}
                     onClose={onClose}
                     title={t("Search")}
-                    titleBehaviorDesktop="ShowIn"
                     below={<PageTabs<typeof searchViewTabParams>
                         ariaLabel="Search tabs"
                         fullWidth

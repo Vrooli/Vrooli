@@ -349,3 +349,41 @@ export type EventListHorizontalProps = EventListProps & {
     openUpdateDialog: (data: CalendarEvent) => unknown;
     selectedData: CalendarEvent[];
 }
+
+export interface ReminderCardProps {
+    data: Reminder;
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+    /** 
+     * Hides edit and delete icons when in edit mode, 
+     * making only drag'n'drop and the context menu available.
+     **/
+    isEditing: boolean;
+    onEdit: (data: Reminder) => unknown;
+    onDelete: (data: Reminder) => unknown;
+}
+
+export type ReminderListProps = {
+    title?: string;
+    canUpdate?: boolean;
+    handleUpdate?: (updatedList: ReminderList) => unknown;
+    horizontal?: boolean;
+    id?: string;
+    list: ReminderList | null | undefined;
+    loading?: boolean;
+    mutate?: boolean;
+    parent: { __typename: ReminderListFor | `${ReminderListFor}`, id: string };
+    sxs?: { list?: SxType };
+}
+
+export type ReminderListHorizontalProps = ReminderListProps & {
+    handleToggleSelect: (data: Reminder) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => unknown;
+    onClick: (data: Reminder) => unknown;
+    onDelete: (data: Reminder) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: Reminder) => unknown;
+    selectedData: Reminder[];
+}

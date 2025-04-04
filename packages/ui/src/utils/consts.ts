@@ -140,44 +140,27 @@ export const BUSINESS_DATA = {
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
-const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
-const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
+const serverUrlProvided = Boolean(process.env.VITE_API_URL && process.env.VITE_API_URL.length > 0);
+const portServer: string = process.env.VITE_PORT_API ?? "5329";
 export const apiUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}/api` :
     serverUrlProvided ?
-        `${process.env.VITE_SERVER_URL}` :
+        `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
 export const restBase = `/${SERVER_VERSION}/rest`;
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :
     serverUrlProvided ?
-        `${process.env.VITE_SERVER_URL}` :
+        `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}`;
-
-// // Determine origin of API server
-// const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
-// const isHttps = window.location.protocol === "https:";
-// const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
-// const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
-
-// export const apiUrlBase: string = isLocalhost ?
-//     `${isHttps ? "https" : "http"}://${window.location.hostname}:${portServer}/api` :
-//     serverUrlProvided ?
-//         `${process.env.VITE_SERVER_URL}` :
-//         `${isHttps ? "https" : "http"}://${process.env.VITE_SITE_IP}:${portServer}/api`;
-
-// export const restBase = "/${SERVER_VERSION}/rest";
-
-// export const webSocketUrlBase: string = isLocalhost ?
-//     `${isHttps ? "wss" : "ws"}://${window.location.hostname}:${portServer}` :
-//     serverUrlProvided ?
-//         `${process.env.VITE_SERVER_URL}` :
-//         `${isHttps ? "wss" : "ws"}://${process.env.VITE_SITE_IP}:${portServer}`;
 
 /**
  * Distance before a click is considered a drag
  */
 export const DRAG_THRESHOLD = 10;
+
+/** Maximum width of the chat input */
+export const MAX_CHAT_INPUT_WIDTH = 800;
 
 export const ELEMENT_IDS = {
     AdaptiveLayout: "adaptive-layout",
@@ -207,6 +190,7 @@ export const ELEMENT_IDS = {
     ProViewFAQBox: "faq",
     ProViewFeatures: "features",
     RelationshipList: "relationship-list",
+    ReminderCards: "reminder-cards",
     ResourceCards: "resource-cards",
     RightDrawer: "right-drawer",
     RoutineGenerateSettings: "routine-generate-settings",
@@ -229,6 +213,10 @@ export const ELEMENT_IDS = {
     UserMenuQuickLinks: "user-menu-quick-links",
     WalletInstallDialogTitle: "wallet-install-dialog-title",
     WalletSelectDialogTitle: "wallet-select-dialog-title",
+} as const;
+
+export const ELEMENT_CLASSES = {
+    ScrollBox: "scroll-box",
 } as const;
 
 export const Z_INDEX = {

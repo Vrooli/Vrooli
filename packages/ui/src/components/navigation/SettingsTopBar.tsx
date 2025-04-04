@@ -17,7 +17,6 @@ export function SettingsTopBar({
             display={display}
             onClose={onClose}
             title={t("Settings")}
-            titleBehaviorDesktop="ShowIn"
         />
     );
 }

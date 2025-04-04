@@ -11,7 +11,6 @@ import serviceSpriteHref from "/sprites/service-sprite.svg";
 import textSpriteHref from "/sprites/text-sprite.svg";
 
 const DEFAULT_SIZE_PX = 24;
-const DEFAULT_FILL = "currentColor";
 const DEFAULT_DECORATIVE = true;
 const typeToHrefMap: { [key in IconInfo["type"]]: string } = {
     Common: commonSpriteHref,

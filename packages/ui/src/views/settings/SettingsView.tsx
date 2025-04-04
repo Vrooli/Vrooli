@@ -116,7 +116,6 @@ export function SettingsView({
                 display={display}
                 onClose={onClose}
                 title={t("Settings")}
-                titleBehaviorDesktop="ShowIn"
             />
             <Box>
                 <Title

@@ -67,8 +67,7 @@ export function PrivacyPolicyView({
                     display={display}
                     onClose={onClose}
                     title={t("Privacy")}
-                    titleBehaviorDesktop="Hide"
-                    titleBehaviorMobile="Hide"
+                    titleBehavior="Hide"
                     below={<PageTabs<typeof policyTabParams>
                         ariaLabel="privacy policy and terms tabs"
                         currTab={currTab}
@@ -108,8 +107,7 @@ export function TermsView({
                     display={display}
                     onClose={onClose}
                     title={t("Terms")}
-                    titleBehaviorDesktop="Hide"
-                    titleBehaviorMobile="Hide"
+                    titleBehavior="Hide"
                     below={<PageTabs<typeof policyTabParams>
                         ariaLabel="privacy policy and terms tabs"
                         currTab={currTab}

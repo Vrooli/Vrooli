@@ -19,8 +19,7 @@ export function NotFoundView() {
         <>
             <TopBar
                 display="page"
-                titleBehaviorDesktop="Hide"
-                titleBehaviorMobile="Hide"
+                titleBehavior="Hide"
             />
             <Box
                 sx={{

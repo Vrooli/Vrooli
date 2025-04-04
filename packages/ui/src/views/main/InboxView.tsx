@@ -129,7 +129,6 @@ export function InboxView({
                 display={display}
                 onClose={onClose}
                 title={currTab.label}
-                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs<typeof inboxTabParams>
                     ariaLabel="inbox-tabs"
                     fullWidth

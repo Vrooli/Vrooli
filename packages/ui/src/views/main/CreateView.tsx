@@ -309,7 +309,6 @@ export function CreateView({
                 display={display}
                 onClose={onClose}
                 title={t("Create")}
-                titleBehaviorDesktop="ShowIn"
             />
             <RoutineWizardDialog isOpen={showRoutineWizard} onClose={closeRoutineWizard} />
             <CardGrid minWidth={300}>

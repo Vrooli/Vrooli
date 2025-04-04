@@ -219,7 +219,6 @@ export function StatsSiteView({
                 display={display}
                 onClose={onClose}
                 title={t("StatisticsShort")}
-                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="stats-period-tabs"
                     currTab={currTab}

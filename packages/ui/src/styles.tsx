@@ -1,5 +1,7 @@
 /* eslint-disable no-magic-numbers */
 import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackProps, styled, Theme } from "@mui/material";
+import { forwardRef } from "react";
+import { ELEMENT_CLASSES } from "./utils/consts.js";
 
 /**
  * Lighthouse recommended size for clickable elements, to improve SEO
@@ -221,11 +223,20 @@ export function highlightStyle(background: string, disabled: boolean | undefined
     } as const;
 }
 
-export const ScrollBox = styled(Box)(() => ({
+const scrollBoxStyle = {
     height: "100%",
     width: "100%",
     overflowY: "auto",
-}));
+} as const;
+export const ScrollBox = forwardRef<HTMLDivElement, BoxProps>((props, ref) => {
+    return <Box
+        className={ELEMENT_CLASSES.ScrollBox}
+        sx={scrollBoxStyle}
+        {...props}
+        ref={ref}
+    />;
+});
+ScrollBox.displayName = "ScrollBox";
 
 /**
  * Page container for centering content 

@@ -37,7 +37,9 @@ export function PageContainer({
     children,
     ...props
 }: PageContainerProps) {
-    return <StyledPageContainer id={ELEMENT_IDS.PageContainer} {...props}>{children}</StyledPageContainer>;
+    return <StyledPageContainer id={ELEMENT_IDS.PageContainer} {...props}>
+        {children}
+    </StyledPageContainer>;
 }
 
 /**

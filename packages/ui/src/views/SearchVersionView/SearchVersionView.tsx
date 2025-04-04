@@ -66,7 +66,6 @@ export function SearchVersionView({
                 display={display}
                 onClose={onClose}
                 title={t("SearchVersions")}
-                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs<typeof searchVersionViewTabParams>
                     ariaLabel="search-version-tabs"
                     fullWidth

@@ -1,5 +1,5 @@
 import { AITaskInfo, MessageStream } from "../ai/types.js";
-import { ChatMessage, ChatParticipant } from "../api/types.js";
+import { ChatMessage, ChatParticipant, Notification } from "../api/types.js";
 import { DeferredDecisionData, RunTaskInfo } from "../run/types.js";
 import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api.js";
 
@@ -16,12 +16,7 @@ export type UserSocketEventPayloads = {
     };
     joinUserRoom: { userId: string };
     leaveUserRoom: { userId: string };
-    notification: {
-        body: string;
-        icon: string;
-        link: string | undefined;
-        title: string;
-    };
+    notification: Notification;
 }
 export type RunSocketEventPayloads = {
     joinRunRoom: { runId: string, runType: "RunProject" | "RunRoutine" };

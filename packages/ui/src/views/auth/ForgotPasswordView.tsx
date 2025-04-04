@@ -107,7 +107,7 @@ function ForgotPasswordForm({
                                 variant="contained"
                                 sx={formSubmit}
                             >
-                                {t("ForgotPassword")}
+                                {t("ResetPassword")}
                             </Button>
                             <BreadcrumbsBase
                                 paths={breadcrumbPaths}
@@ -131,7 +131,6 @@ export function ForgotPasswordView({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleBehaviorDesktop="ShowBelow"
             />
             <CenteredContentPageWrap>
                 <CenteredContentPaper maxWidth={600}>

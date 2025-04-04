@@ -29,9 +29,6 @@ export function useSocketUser(
 
     // Handle incoming data
     useEffect(() => {
-        const cleanupNotification = SocketService.get().onEvent("notification", (data) => {
-            console.log("got notification", data); //TODO
-        });
         const cleanupApiCredits = SocketService.get().onEvent("apiCredits", ({ credits }) => {
             const { id } = getCurrentUser(session);
             if (!id) return;
@@ -43,7 +40,6 @@ export function useSocketUser(
             } as Session);
         });
         return () => {
-            cleanupNotification();
             cleanupApiCredits();
         };
     }, [session, setSession]);

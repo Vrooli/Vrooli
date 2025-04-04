@@ -1,4 +1,4 @@
-import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
+import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { type TFuncKey } from "i18next";
 import { InfoConverter } from "../builders/infoConverter.js";
@@ -11,6 +11,7 @@ import { ModelMap } from "../models/base/index.js";
 import { PushDeviceModel } from "../models/base/pushDevice.js";
 import { type TeamModelLogic } from "../models/base/types.js";
 import { withRedis } from "../redisConn.js";
+import { emitSocketEvent, roomHasOpenConnections } from "../sockets/events.js";
 import { sendMail } from "../tasks/email/queue.js";
 import { sendPush } from "../tasks/push/queue.js";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
@@ -156,19 +157,18 @@ async function push({
             for (let i = 0; i < users.length; i++) {
                 // For each delay
                 for (const delay of users[i].delays ?? [0]) {
-                    const { pushDevices, emails, phoneNumbers, dailyLimit } = devicesAndLimits[i];
+                    const { pushDevices, emails, dailyLimit } = devicesAndLimits[i];
                     let currSilent = users[i].silent ?? false;
                     const currTitle = userTitles[users[i].userId];
                     const currBody = userBodies[users[i].userId];
                     // Increment count in Redis for this user. If it is over the limit, make the notification silent. 
                     // If redis isn't available, we'll assume the limit is not reached.
                     const count = redisClient ? await redisClient.incr(`notification:${users[i].userId}:${category}`) : 0;
+
                     if (dailyLimit && count > dailyLimit) currSilent = true;
                     // Send the notification if not silent
                     if (!currSilent) {
                         const payload = { body: currBody, icon: APP_ICON, link, title: currTitle };
-                        // Send through socket to display on opened app TODO
-                        // emitSocketEvent("notification", fdasfsf, payload);
                         // Send to each push device
                         for (const device of pushDevices) {
                             try {
@@ -195,17 +195,37 @@ async function push({
                     }
                 }
             }
-            // Store the notifications in the database
+            // Store the notifications in the database and emit via WebSocket
+            const notificationsData = users.map(({ userId }) => ({
+                category,
+                description: userBodies[userId],
+                id: uuid(),
+                imgLink: APP_ICON,
+                link,
+                title: userTitles[userId],
+                userId,
+            }));
+
+            // Create all notifications
             await DbProvider.get().notification.createMany({
-                data: users.map(({ userId }) => ({
-                    category,
-                    title: userTitles[userId],
-                    description: userBodies[userId],
-                    link,
-                    imgLink: APP_ICON,
-                    userId,
-                })),
+                data: notificationsData,
             });
+
+            // Emit via WebSocket for connected users
+            for (const user of users) {
+                if (roomHasOpenConnections(user.userId)) {
+                    // Find the notification we just created for this user
+                    const notification = notificationsData.find(n => n.userId === user.userId);
+                    if (notification) {
+                        emitSocketEvent("notification", user.userId, {
+                            ...notification,
+                            __typename: "Notification",
+                            created_at: new Date().toISOString(),
+                            isRead: false,
+                        });
+                    }
+                }
+            }
         },
         trace: "0512",
     });
@@ -355,7 +375,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          * (usually the user who triggered the notification)
          */
         toTeam: async (teamId, excludedUsers) => {
-            const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
+            const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent } = notification;
             // Find every admin of the team, excluding the user who triggered the notification
             const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
             // Shape and translate the notification for each admin
@@ -424,7 +444,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          */
         toChatParticipants: async (chatId, excludedUsers) => {
             try {
-                const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
+                const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent } = notification;
                 const { batch } = await import("../utils/batch.js");
                 await batch<Prisma.chat_participantsFindManyArgs>({
                     objectType: "ChatParticipant",

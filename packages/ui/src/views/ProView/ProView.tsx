@@ -785,7 +785,6 @@ export function ProView({
                         display={display}
                         onClose={onClose}
                         title={t("ProGet")}
-                        titleBehaviorDesktop="ShowIn"
                     />
                     <Box display="flex" flexDirection="column" gap={8} margin="auto">
                         <WaysToSupportUs />

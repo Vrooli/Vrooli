@@ -19,7 +19,6 @@ import { BottomNav } from '../src/components/navigation/BottomNav.js';
 import { CommandPalette } from '../src/components/navigation/CommandPalette.js';
 import { FindInPage } from '../src/components/navigation/FindInPage.js';
 import { SnackStack } from '../src/components/snacks/SnackStack/SnackStack.js';
-import { ActiveChatProvider } from "../src/contexts/activeChat.js";
 import { SessionContext } from "../src/contexts/session.js";
 import { useHotkeys } from '../src/hooks/useHotkeys.js';
 import i18n from '../src/i18n';
@@ -270,27 +269,25 @@ const preview: Preview = {
                     <GlobalStyles styles={getGlobalStyles(theme)} />
                     <I18nextProvider i18n={i18n}>
                         <SessionContext.Provider value={finalSession}>
-                            <ActiveChatProvider>
-                                <MainBox id="App" component="main">
-                                    <PullToRefresh />
-                                    <CommandPalette />
-                                    <FindInPage />
-                                    <Celebration />
-                                    <AlertDialog />
-                                    <SnackStack />
-                                    <TutorialDialog />
-                                    <VideoPopup
-                                        open={!!openVideoData}
-                                        onClose={closePopupVideo}
-                                        src={openVideoData?.src ?? ""}
-                                        zIndex={Z_INDEX.Popup}
-                                    />
-                                    <UserMenu />
-                                    <FullPageSpinner />
-                                    <AdaptiveLayout Story={Story} />
-                                    <BottomNav />
-                                </MainBox>
-                            </ActiveChatProvider>
+                            <MainBox id="App" component="main">
+                                <PullToRefresh />
+                                <CommandPalette />
+                                <FindInPage />
+                                <Celebration />
+                                <AlertDialog />
+                                <SnackStack />
+                                <TutorialDialog />
+                                <VideoPopup
+                                    open={!!openVideoData}
+                                    onClose={closePopupVideo}
+                                    src={openVideoData?.src ?? ""}
+                                    zIndex={Z_INDEX.Popup}
+                                />
+                                <UserMenu />
+                                <FullPageSpinner />
+                                <AdaptiveLayout Story={Story} />
+                                <BottomNav />
+                            </MainBox>
                         </SessionContext.Provider>
                     </I18nextProvider>
                 </ThemeProvider>

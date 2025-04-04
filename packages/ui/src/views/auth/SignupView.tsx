@@ -323,13 +323,10 @@ function stopPropagation(event: React.MouseEvent) {
 export function SignupView({
     display,
 }: SignupViewProps) {
-    const { t } = useTranslation();
-
     return (
         <CenteredContentPage>
             <TopBar
                 display={display}
-                titleBehaviorDesktop="ShowBelow"
             />
             <CenteredContentPageWrap sx={contentWrapStyle}>
                 <SignupForm />

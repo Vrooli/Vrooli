@@ -48,7 +48,6 @@ export function HistoryView({
                 display={display}
                 onClose={onClose}
                 title={currTab.label}
-                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs<typeof historyTabParams>
                     ariaLabel="history-tabs"
                     currTab={currTab}

@@ -239,13 +239,10 @@ function LoginForm() {
 export function LoginView({
     display,
 }: LoginViewProps) {
-    const { t } = useTranslation();
-
     return (
         <CenteredContentPage>
             <TopBar
                 display={display}
-                titleBehaviorDesktop="ShowBelow"
             />
             <CenteredContentPageWrap sx={contentWrapStyle}>
                 <LoginForm />

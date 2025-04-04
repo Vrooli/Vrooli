@@ -9,9 +9,7 @@ import { TopBarProps } from "./types.js";
  */
 export const TopBar = forwardRef(({
     display,
-    sxsNavbar,
-    titleBehaviorDesktop,
-    titleBehaviorMobile,
+    titleBehavior,
     ...titleData
 }: TopBarProps, ref) => {
 
@@ -25,9 +23,7 @@ export const TopBar = forwardRef(({
     return (
         <Navbar
             ref={ref}
-            sxs={sxsNavbar as any}
-            titleBehaviorDesktop={titleBehaviorDesktop}
-            titleBehaviorMobile={titleBehaviorMobile}
+            titleBehavior={titleBehavior}
             {...titleData}
         />
     );

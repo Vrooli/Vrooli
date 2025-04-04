@@ -88,7 +88,6 @@ export function AboutView({
                     display={display}
                     onClose={onClose}
                     title={t("AboutUs")}
-                    titleBehaviorDesktop="ShowIn"
                 />
                 <Box
                     display="flex"

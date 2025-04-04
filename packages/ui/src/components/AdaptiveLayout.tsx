@@ -8,7 +8,7 @@ import { useIsLeftHanded } from "../hooks/subscriptions.js";
 import { useMenu } from "../hooks/useMenu.js";
 import { useWindowSize } from "../hooks/useWindowSize.js";
 import { useLocation } from "../route/router.js";
-import { LayoutComponentId, LayoutPositionId, useLayoutStore } from "../stores/LayoutStore.js";
+import { LayoutComponentId, LayoutPositionId, useLayoutStore } from "../stores/layoutStore.js";
 import { ELEMENT_IDS, Z_INDEX } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 import { SiteNavigator } from "./navigation/SiteNavigator.js";

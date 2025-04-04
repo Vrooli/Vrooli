@@ -4,10 +4,10 @@ import { TIDCardProps, TIDCardSize } from "../types.js";
 
 interface OuterCardProps extends BoxProps {
     isClickable: boolean;
-    size: TIDCardSize | undefined;
+    size?: TIDCardSize | undefined;
 }
 
-const OuterCard = styled(Box, {
+export const TIDCardBase = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isClickable" && prop !== "size",
 })<OuterCardProps>(({ isClickable, size, theme }) => {
     const isSmall = size === "small";
@@ -31,11 +31,11 @@ const OuterCard = styled(Box, {
     } as const;
 });
 
-interface IconBoxProps {
-    size: TIDCardSize | undefined;
+interface IconBoxProps extends BoxProps {
+    size?: TIDCardSize;
 }
 
-const IconBox = styled(Box, {
+export const TIDIconBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "size",
 })<IconBoxProps>(({ size, theme }) => {
     const isSmall = size === "small";
@@ -54,11 +54,31 @@ const IconBox = styled(Box, {
     } as const;
 });
 
-interface TextBoxProps {
-    size: TIDCardSize | undefined;
+export interface TIDIconProps {
+    iconInfo: NonNullable<TIDCardProps["iconInfo"]>;
+    size?: TIDCardSize;
 }
 
-const TextBox = styled(Box, {
+export function TIDIcon({ iconInfo, size }: TIDIconProps) {
+    const { palette } = useTheme();
+
+    return (
+        <TIDIconBox size={size}>
+            <Icon
+                decorative
+                fill={palette.background.textPrimary}
+                info={iconInfo}
+                size={50}
+            />
+        </TIDIconBox>
+    );
+}
+
+interface TextBoxProps extends BoxProps {
+    size?: TIDCardSize;
+}
+
+export const TIDTextBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "size",
 })<TextBoxProps>(({ size, theme }) => {
     const isSmall = size === "small";
@@ -76,14 +96,14 @@ const TextBox = styled(Box, {
     } as const;
 });
 
-const WarningBox = styled(Box)(({ theme }) => ({
+export const TIDWarningBox = styled(Box)(({ theme }) => ({
     display: "flex",
     alignItems: "center",
     color: theme.palette.warning.main,
     marginTop: 1,
 }));
 
-const SelectButton = styled(Button)(({ theme }) => ({
+export const TIDSelectButton = styled(Button)(({ theme }) => ({
     marginLeft: "auto",
     alignSelf: "flex-end",
     marginTop: theme.spacing(2),
@@ -95,6 +115,58 @@ const SelectButton = styled(Button)(({ theme }) => ({
 const titleTextStyle = { overflowWrap: "anywhere" } as const;
 const descriptionTextStyle = { overflowWrap: "anywhere" } as const;
 const warningIconStyle = { fontSize: 20, marginRight: "8px" } as const;
+
+export interface TIDContentProps {
+    title: string;
+    description?: string;
+    warning?: string;
+}
+
+export function TIDContent({ title, description, warning }: TIDContentProps) {
+    const { palette } = useTheme();
+
+    return (
+        <Box>
+            <Typography variant='h6' component='div' sx={titleTextStyle}>
+                {title}
+            </Typography>
+            {description && (
+                <Typography variant='body2' color={palette.background.textSecondary} sx={descriptionTextStyle}>
+                    {description}
+                </Typography>
+            )}
+            {warning && (
+                <TIDWarningBox>
+                    <IconCommon
+                        name="Warning"
+                        style={warningIconStyle}
+                    />
+                    <Typography variant="body2">{warning}</Typography>
+                </TIDWarningBox>
+            )}
+        </Box>
+    );
+}
+
+export interface TIDButtonProps {
+    buttonText: string;
+    size?: TIDCardSize;
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
+}
+
+export function TIDButton({ buttonText, size, onClick }: TIDButtonProps) {
+    const isSmall = size === "small";
+
+    return (
+        <TIDSelectButton
+            onClick={onClick}
+            size={isSmall ? "small" : "medium"}
+            variant="text"
+        >
+            {buttonText}
+        </TIDSelectButton>
+    );
+}
 
 /**
  * A card with a title, description, and icon
@@ -111,53 +183,29 @@ export function TIDCard({
     warning,
     ...props
 }: TIDCardProps) {
-    const { palette } = useTheme();
-    const isSmall = size === "small";
-
     return (
-        <OuterCard
+        <TIDCardBase
             {...props}
             id={id}
             isClickable={typeof onClick === "function"}
             onClick={onClick}
             size={size}
         >
-            {iconInfo && <IconBox size={size}>
-                <Icon
-                    decorative
-                    fill={palette.background.textPrimary}
-                    info={iconInfo}
-                    size={50}
+            {iconInfo && <TIDIcon iconInfo={iconInfo} size={size} />}
+            <TIDTextBox size={size}>
+                <TIDContent
+                    title={title}
+                    description={description}
+                    warning={warning}
                 />
-            </IconBox>}
-            <TextBox size={size}>
-                <Box>
-                    <Typography variant='h6' component='div' sx={titleTextStyle}>
-                        {title}
-                    </Typography>
-                    <Typography variant='body2' color={palette.background.textSecondary} sx={descriptionTextStyle}>
-                        {description}
-                    </Typography>
-                    {warning && (
-                        <WarningBox>
-                            <IconCommon
-                                name="Warning"
-                                style={warningIconStyle}
-                            />
-                            <Typography variant="body2">{warning}</Typography>
-                        </WarningBox>
-                    )}
-                </Box>
                 {below}
                 {buttonText && (
-                    <SelectButton
-                        size={isSmall ? "small" : "medium"}
-                        variant="text"
-                    >
-                        {buttonText}
-                    </SelectButton>
+                    <TIDButton
+                        buttonText={buttonText}
+                        size={size}
+                    />
                 )}
-            </TextBox>
-        </OuterCard>
+            </TIDTextBox>
+        </TIDCardBase>
     );
 }

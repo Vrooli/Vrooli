@@ -1,5 +1,5 @@
 import { API_CREDITS_MULTIPLIER, LINKS } from "@local/shared";
-import { Box, Button, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Toolbar, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
@@ -35,9 +35,14 @@ const yesterdayItemStyles = {
 };
 const viewPlansStyles = { color: "#9CA3AF", cursor: "pointer" };
 
-const StyledToolbar = styled(Toolbar)(({ theme }) => ({
-    backgroundColor: theme.palette.primary.dark,
-    padding: "8px 16px",
+const StyledToolbar = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: theme.spacing(1.5),
+    paddingLeft: theme.spacing(3),
+    paddingRight: theme.spacing(1),
 }));
 const StyledList = styled(List)(() => ({
     minHeight: "100%",
@@ -217,7 +222,7 @@ export function SiteNavigator() {
     }
 
     return (
-        <PageContainer size="fullSize">
+        <PageContainer contentType="text" size="fullSize">
             <ScrollBox>
                 {/* Header */}
                 <StyledToolbar>
@@ -229,7 +234,7 @@ export function SiteNavigator() {
                     >
                         <IconText
                             decorative
-                            fill={palette.primary.contrastText}
+                            fill="background.textSecondary"
                             name="List"
                         />
                     </IconButton>
@@ -241,19 +246,8 @@ export function SiteNavigator() {
                         >
                             <IconCommon
                                 decorative
-                                fill={palette.primary.contrastText}
+                                fill="background.textSecondary"
                                 name="Search"
-                            />
-                        </IconButton>
-                        <IconButton
-                            aria-label={t("NewChat")}
-                            color="inherit"
-                            onClick={handleOpenSearch}
-                        >
-                            <IconCommon
-                                decorative
-                                fill={palette.primary.contrastText}
-                                name="Plus"
                             />
                         </IconButton>
                     </Box>
@@ -273,7 +267,7 @@ export function SiteNavigator() {
                         <ListItemIcon>
                             <IconCommon
                                 decorative
-                                fill={palette.primary.contrastText}
+                                fill="background.textSecondary"
                                 name="Project"
                             />
                         </ListItemIcon>
@@ -282,12 +276,12 @@ export function SiteNavigator() {
                             projectsOpen
                                 ? <IconCommon
                                     decorative
-                                    fill={palette.primary.contrastText}
+                                    fill="background.textSecondary"
                                     name="ExpandLess"
                                 />
                                 : <IconCommon
                                     decorative
-                                    fill={palette.primary.contrastText}
+                                    fill="background.textSecondary"
                                     name="ExpandMore" />
                         }
                     </ListItem>
@@ -312,7 +306,7 @@ export function SiteNavigator() {
                                 <ListItemIcon>
                                     <IconCommon
                                         decorative
-                                        fill={palette.primary.contrastText}
+                                        fill="background.textSecondary"
                                         name="Plus"
                                     />
                                 </ListItemIcon>
@@ -365,7 +359,7 @@ export function SiteNavigator() {
                                     <PremiumBox>
                                         <IconCommon
                                             decorative
-                                            fill={palette.secondary.main}
+                                            fill="background.textSecondary"
                                             name="Premium"
                                             size={14}
                                         />

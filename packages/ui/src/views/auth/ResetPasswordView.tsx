@@ -118,7 +118,6 @@ export function ResetPasswordView({
             <TopBar
                 display={display}
                 onClose={onClose}
-                titleBehaviorDesktop="ShowBelow"
             />
             <CenteredContentPageWrap>
                 <CenteredContentPaper maxWidth={600}>

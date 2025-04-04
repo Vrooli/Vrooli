@@ -1,4 +1,4 @@
-import { Button, Popover, useTheme } from "@mui/material";
+import { Button, Popover, styled } from "@mui/material";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { PopupMenuProps } from "../types.js";
 
@@ -11,12 +11,18 @@ const transformOrigin = {
     horizontal: "center",
 } as const;
 
+const StyledPopover = styled(Popover)(({ theme }) => ({
+    "& .MuiPopover-paper": {
+        background: theme.palette.background.paper,
+        borderRadius: theme.spacing(2),
+    },
+}));
+
 export function PopupMenu({
     text = "Menu",
     children,
     ...props
 }: PopupMenuProps) {
-    const { palette } = useTheme();
     const [anchorEl, handleOpen, handleClose, isOpen] = usePopover();
     const id = isOpen ? "simple-popover" : undefined;
 
@@ -29,7 +35,7 @@ export function PopupMenu({
             >
                 {text}
             </Button>
-            <Popover
+            <StyledPopover
                 id={id}
                 open={isOpen}
                 anchorEl={anchorEl}
@@ -37,15 +43,9 @@ export function PopupMenu({
                 disableScrollLock={true}
                 anchorOrigin={anchorOrigin}
                 transformOrigin={transformOrigin}
-                sx={{
-                    "& .MuiPopover-paper": {
-                        background: palette.primary.light,
-                        borderRadius: "24px",
-                    },
-                }}
             >
                 {children}
-            </Popover>
+            </StyledPopover>
         </>
     );
 }

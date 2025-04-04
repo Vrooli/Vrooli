@@ -279,7 +279,6 @@ export function ReportsView() {
                 display={display}
                 tabTitle={title ? `${t("Report", { count: 2 })} - ${title}` : t("Report", { count: 2 })}
                 title={t("Report", { count: 2 })}
-                titleBehaviorDesktop={"ShowBelow"}
             />
             <ListContainer
                 borderRadius={2}
