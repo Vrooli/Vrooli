@@ -9,11 +9,11 @@ import { StatusButton } from "../../buttons/StatusButton/StatusButton.js";
 import { SelectorBase } from "../../inputs/Selector/Selector.js";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import React from "react";
-import { ActiveChatContext } from "../../../contexts/activeChat.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { generateContextLabel } from "../../../hooks/tasks.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { useActiveChat } from "../../../stores/activeChatStore.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { generateContext } from "../../../utils/display/stringTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -494,7 +494,7 @@ export function CodeInputBase({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { chat } = useContext(ActiveChatContext);
+    const { chat } = useActiveChat();
 
     const availableLanguages = Array.isArray(limitTo) && limitTo.length > 0 ? limitTo : Object.values(CodeLanguage);
 

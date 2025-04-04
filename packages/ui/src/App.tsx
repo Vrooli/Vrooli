@@ -19,7 +19,6 @@ import { FindInPage } from "./components/navigation/FindInPage.js";
 import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh.js";
 import { SnackStack } from "./components/snacks/SnackStack/SnackStack.js";
 import { FullPageSpinner } from "./components/Spinners.js";
-import { ActiveChatProvider } from "./contexts/activeChat.js";
 import { SessionContext } from "./contexts/session.js";
 import { useHashScroll } from "./hooks/hash.js";
 import { useHotkeys } from "./hooks/useHotkeys.js";
@@ -429,39 +428,37 @@ https://github.com/Vrooli/Vrooli
                 <ThemeProvider theme={theme}>
                     <GlobalStyles styles={getGlobalStyles} />
                     <SessionContext.Provider value={session}>
-                        <ActiveChatProvider>
-                            <MainBox id="App" component="main">
-                                {/* Popups and other components that don't effect layout */}
-                                <PullToRefresh />
-                                <CommandPalette />
-                                <FindInPage />
-                                <Celebration />
-                                <AlertDialog />
-                                <SnackStack />
-                                <ProDialog
-                                    isOpen={isProDialogOpen}
-                                    onClose={closeProDialog}
-                                />
-                                <TutorialDialog />
-                                <ImagePopup
-                                    alt="Tutorial content"
-                                    open={!!openImageData}
-                                    onClose={closePopupImage}
-                                    src={openImageData?.src ?? ""}
-                                    zIndex={Z_INDEX.Popup}
-                                />
-                                <VideoPopup
-                                    open={!!openVideoData}
-                                    onClose={closePopupVideo}
-                                    src={openVideoData?.src ?? ""}
-                                    zIndex={Z_INDEX.Popup}
-                                />
-                                <UserMenu />
-                                <FullPageSpinner />
-                                <AdaptiveLayout />
-                                <BottomNav />
-                            </MainBox>
-                        </ActiveChatProvider>
+                        <MainBox id="App" component="main">
+                            {/* Popups and other components that don't effect layout */}
+                            <PullToRefresh />
+                            <CommandPalette />
+                            <FindInPage />
+                            <Celebration />
+                            <AlertDialog />
+                            <SnackStack />
+                            <ProDialog
+                                isOpen={isProDialogOpen}
+                                onClose={closeProDialog}
+                            />
+                            <TutorialDialog />
+                            <ImagePopup
+                                alt="Tutorial content"
+                                open={!!openImageData}
+                                onClose={closePopupImage}
+                                src={openImageData?.src ?? ""}
+                                zIndex={Z_INDEX.Popup}
+                            />
+                            <VideoPopup
+                                open={!!openVideoData}
+                                onClose={closePopupVideo}
+                                src={openVideoData?.src ?? ""}
+                                zIndex={Z_INDEX.Popup}
+                            />
+                            <UserMenu />
+                            <FullPageSpinner />
+                            <AdaptiveLayout />
+                            <BottomNav />
+                        </MainBox>
                     </SessionContext.Provider>
                 </ThemeProvider>
             </StyledEngineProvider>

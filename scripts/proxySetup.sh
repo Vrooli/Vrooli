@@ -191,7 +191,7 @@ main() {
     parse_arguments "$@"
 
     load_env_file $ENVIRONMENT
-    SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+    SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $API_URL | tail -n 1)
 
     # Get proxy location
     get_proxy_location

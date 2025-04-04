@@ -67,8 +67,8 @@ check_var() {
         info "Variable ${1} is set to ${!1}"
     fi
 }
-check_var PORT_SERVER
-check_var SERVER_URL
+check_var PORT_API
+check_var API_URL
 check_var SITE_IP
 check_var VAPID_PUBLIC_KEY
 check_var STRIPE_PUBLISHABLE_KEY
@@ -158,8 +158,8 @@ fi
 touch .env
 # Set environment variables
 echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
-echo "VITE_PORT_SERVER=${PORT_SERVER}" >>.env
-echo "VITE_SERVER_URL=${SERVER_URL}" >>.env
+echo "VITE_PORT_API=${PORT_API}" >>.env
+echo "VITE_API_URL=${API_URL}" >>.env
 echo "VITE_SITE_IP=${SITE_IP}" >>.env
 echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
 echo "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >>.env

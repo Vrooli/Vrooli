@@ -13,8 +13,8 @@ services:
     environment:
       NODE_ENV: "production"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: ${PORT_SERVER:-5329}
-      VITE_SERVER_URL: "${SERVER_URL}"
+      VITE_PORT_API: ${PORT_API:-5329}
+      VITE_API_URL: "${API_URL}"
       VITE_SITE_IP: "${SITE_IP}"
       VITE_VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VITE_STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY}"
@@ -55,7 +55,7 @@ services:
       VALYXA_PASSWORD: "${VALYXA_PASSWORD}"
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: ${PORT_SERVER:-5329}
+      VITE_PORT_API: ${PORT_API:-5329}
       REDIS_URL: "${REDIS_URL}"
       DB_URL: "${DB_URL:-site}"
       DB_PULL: "${DB_PULL}"
@@ -75,18 +75,18 @@ services:
       SITE_IP: "${SITE_IP}"
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
       STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
-      SERVER_URL: "${SERVER_URL}"
+      API_URL: "${API_URL}"
       TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID}"
       TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
       TWILIO_PHONE_NUMBER: "${TWILIO_PHONE_NUMBER}"
       UI_URL: "${UI_URL}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: ${PORT_SERVER:-5329}
+      VIRTUAL_PORT: ${PORT_API:-5329}
       VIRTUAL_PATH: "/api"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
-      - ${PORT_SERVER:-5329}:${PORT_SERVER:-5329}
+      - ${PORT_API:-5329}:${PORT_API:-5329}
     networks:
       - proxy
       - app
@@ -100,7 +100,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_SERVER || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
+      test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_API || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
       start_period: 90s
       interval: 20s
       timeout: 5s
@@ -124,7 +124,7 @@ services:
       VALYXA_PASSWORD: "${VALYXA_PASSWORD}"
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
-      VITE_PORT_SERVER: ${PORT_SERVER:-5329}
+      VITE_PORT_API: ${PORT_API:-5329}
       REDIS_URL: "${REDIS_URL}"
       DB_URL: "${DB_URL:-site}"
       DB_PULL: "${DB_PULL}"
@@ -144,13 +144,13 @@ services:
       SITE_IP: "${SITE_IP}"
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
       STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
-      SERVER_URL: "${SERVER_URL}"
+      API_URL: "${API_URL}"
       TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID}"
       TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
       TWILIO_PHONE_NUMBER: "${TWILIO_PHONE_NUMBER}"
       UI_URL: "${UI_URL}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: ${PORT_SERVER:-5329}
+      VIRTUAL_PORT: ${PORT_API:-5329}
       VIRTUAL_PATH: "/api"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"

@@ -610,7 +610,7 @@ main() {
 
     load_env_file $ENVIRONMENT
     # Determine where this script is running (local or remote)
-    export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+    export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $API_URL | tail -n 1)
 
     fix_system_clock
 

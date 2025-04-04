@@ -1,10 +1,7 @@
 
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsBookmarkList, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { create } from "zustand";
-import { fetchData } from "../api/fetchData.js";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
-import { ServerResponseParser } from "../api/responseParser.js";
 import { BulkDeleteDialog } from "../components/dialogs/BulkDeleteDialog/BulkDeleteDialog.js";
 import { DeleteAccountDialog } from "../components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
 import { DeleteDialog } from "../components/dialogs/DeleteDialog/DeleteDialog.js";
@@ -12,6 +9,7 @@ import { ObjectListItemProps } from "../components/lists/types.js";
 import { SessionContext } from "../contexts/session.js";
 import { useLocation } from "../route/router.js";
 import { type SetLocation } from "../route/types.js";
+import { useBookmarkListsStore } from "../stores/bookmarkListsStore.js";
 import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "../utils/actions/bulkObjectActions.js";
 import { ActionCompletePayloads, ActionStartPayloads, ObjectAction, ObjectActionComplete, getAvailableActions } from "../utils/actions/objectActions.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
@@ -21,46 +19,6 @@ import { PubSub } from "../utils/pubsub.js";
 import { useLazyFetch } from "./useLazyFetch.js";
 
 const DEFAULT_BOOKMARK_LIST_LABEL = "Favorites";
-
-interface BookmarkListsState {
-    bookmarkLists: BookmarkList[];
-    isLoading: boolean;
-    fetchBookmarkLists: () => Promise<BookmarkList[]>;
-}
-
-export const useBookmarkListsStore = create<BookmarkListsState>()((set, get) => ({
-    bookmarkLists: [],
-    isLoading: false,
-    fetchBookmarkLists: async () => {
-        if (get().bookmarkLists.length > 0 || get().isLoading) {
-            // Already fetched or currently fetching
-            return get().bookmarkLists;
-        }
-
-        set({ isLoading: true });
-
-        try {
-            const response = await fetchData<BookmarkListSearchInput, BookmarkListSearchResult>({
-                ...endpointsBookmarkList.findMany,
-                inputs: {},
-            });
-
-            if (response.errors) {
-                ServerResponseParser.displayErrors(response.errors);
-                throw new Error("Failed to fetch bookmark lists");
-            }
-
-            const bookmarkLists = response.data?.edges.map(edge => edge.node) ?? [];
-
-            set({ bookmarkLists, isLoading: false });
-            return bookmarkLists;
-        } catch (error) {
-            console.error("Error fetching bookmark lists:", error);
-            set({ isLoading: false });
-            return [];
-        }
-    },
-}));
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;

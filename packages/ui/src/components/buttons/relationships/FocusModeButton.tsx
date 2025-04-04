@@ -1,13 +1,13 @@
 import { LINKS } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { useField } from "formik";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import { Icon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
+import { useFocusModes } from "../../../stores/focusModeStore.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
-import { FocusModeInfo, useFocusModesStore } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
 import { RelationshipItemFocusMode } from "../../lists/types.js";
 import { RelationshipButton, RelationshipChip } from "./styles.js";
 import { FocusModeButtonProps } from "./types.js";
@@ -21,22 +21,7 @@ export function FocusModeButton({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const getFocusModeInfo = useFocusModesStore(state => state.getFocusModeInfo);
-    const [focusModeInfo, setFocusModeInfo] = useState<FocusModeInfo>({ active: null, all: [] });
-    useEffect(function fetchFocusModeInfoEffect() {
-        const abortController = new AbortController();
-
-        async function fetchFocusModeInfo() {
-            const info = await getFocusModeInfo(session, abortController.signal);
-            setFocusModeInfo(info);
-        }
-
-        fetchFocusModeInfo();
-
-        return () => {
-            abortController.abort();
-        };
-    }, [getFocusModeInfo, session]);
+    const focusModeInfo = useFocusModes(session);
 
     // Schedules set the focus mode directly, while reminders use the focus mode to set the reminder list
     const [focusModeField, , focusModeHelpers] = useField("focusMode");

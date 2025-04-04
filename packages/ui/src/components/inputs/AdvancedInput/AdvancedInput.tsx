@@ -1041,8 +1041,8 @@ export function AdvancedInputBase({
         gap: theme.spacing(1),
     }), [isToolsExpanded, theme]);
 
-    const charsProgress = maxChars ? Math.min(100, Math.ceil((internalValue.length / maxChars) * 100)) : 0;
-    const charsOverLimit = maxChars ? Math.max(0, internalValue.length - maxChars) : 0;
+    const charsProgress = maxChars ? Math.min(100, Math.ceil(((internalValue?.length ?? 0) / maxChars) * 100)) : 0;
+    const charsOverLimit = maxChars ? Math.max(0, (internalValue?.length ?? 0) - maxChars) : 0;
 
     const progressStyle = useMemo(() => {
         let progressStyle = { color: theme.palette.success.main };
@@ -1233,7 +1233,7 @@ export function AdvancedInputBase({
     }, [changeInternalValue, handleCloseDropdown, internalValue]);
 
     return (
-        <Outer {...getRootProps()}>
+        <Outer className="advanced-input" {...getRootProps()}>
             <input {...getInputProps()} />
             {isDragActive && (
                 <Box sx={dragOverlayStyles}>
@@ -1492,7 +1492,7 @@ export function AdvancedInput({
             name={name}
             value={field.value}
             error={meta.touched && !!meta.error}
-            helperText={meta.touched && meta.error}
+            helperText={meta.touched && meta.error ? String(meta.error) : undefined}
             onBlur={field.onBlur}
             onChange={handleChange}
         />
@@ -1531,9 +1531,9 @@ export function TranslatedAdvancedInput({
         <AdvancedInputBase
             {...props}
             name={name}
-            value={fieldValue || ""}
-            error={fieldTouched && Boolean(fieldError)}
-            helperText={fieldTouched && fieldError}
+            value={typeof fieldValue === 'string' ? fieldValue : ""}
+            error={Boolean(fieldTouched && fieldError)}
+            helperText={fieldTouched && fieldError ? String(fieldError) : undefined}
             onBlur={handleBlur}
             onChange={handleChange}
         />

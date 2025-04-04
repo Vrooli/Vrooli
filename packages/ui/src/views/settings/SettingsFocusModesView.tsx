@@ -4,7 +4,6 @@ import { memo, useCallback, useContext, useEffect, useMemo, useState } from "rea
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ListContainer } from "../../components/containers/ListContainer.js";
-import { FocusModeInfo, useFocusModesStore } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { TagSelectorBase } from "../../components/inputs/TagSelector/TagSelector.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
@@ -13,6 +12,7 @@ import { SessionContext } from "../../contexts/session.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
+import { useFocusModes, useFocusModesStore } from "../../stores/focusModeStore.js";
 import { FormSection, multiLineEllipsis, ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
@@ -96,27 +96,11 @@ export function SettingsFocusModesView({
 }: SettingsFocusModesViewProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const getFocusModeInfo = useFocusModesStore(state => state.getFocusModeInfo);
-    const setFocusModes = useFocusModesStore(state => state.setFocusModes);
     const putActiveFocusMode = useFocusModesStore(state => state.putActiveFocusMode);
-    const [focusModeInfo, setFocusModeInfo] = useState<FocusModeInfo>({ active: null, all: [] });
-    useEffect(function fetchFocusModeInfoEffect() {
-        const abortController = new AbortController();
-
-        async function fetchFocusModeInfo() {
-            const info = await getFocusModeInfo(session, abortController.signal);
-            setFocusModeInfo(info);
-        }
-
-        fetchFocusModeInfo();
-
-        return () => {
-            abortController.abort();
-        };
-    }, [getFocusModeInfo, session]);
+    const setFocusModes = useFocusModesStore(state => state.setFocusModes);
+    const focusModeInfo = useFocusModes(session);
 
     const { canAdd, hasPremium } = useMemo(() => {
         const { hasPremium } = getCurrentUser(session);

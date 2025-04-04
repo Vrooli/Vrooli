@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { initSingletons, logger } from "@local/server";
+import { initSingletons, initializeRedis, logger } from "@local/server";
 import { MINUTES_30_MS } from "@local/shared";
 import cron from "node-cron";
 import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
@@ -195,13 +195,30 @@ class CronJobQueue {
 
         this.queue.push(async () => {
             this.runningJobs++;
+            const startTime = Date.now();
+            let success = false;
+            let errorMessage: string | null = null;
+
             try {
                 logger.info(`Starting job: ${description}`, { trace: "0397" });
                 await this.runWithTimeout(job, schedule, description);
                 logger.info(`Job completed: ${description}`);
+                success = true;
             } catch (error) {
+                errorMessage = error instanceof Error ? error.message : String(error);
                 logger.error(`Error in job: ${description}`, { error, trace: "0398" });
+                success = false;
             } finally {
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                // Record job execution in Redis
+                try {
+                    await this.recordJobExecution(description, success, errorMessage, duration);
+                } catch (redisError) {
+                    logger.error(`Failed to record job execution: ${description}`, { error: redisError, trace: "0400" });
+                }
+
                 this.runningJobs--;
                 this.processQueue(schedule);
             }
@@ -229,6 +246,62 @@ class CronJobQueue {
             setTimeout(() => reject(new Error(`Job timeout: ${description}`)), JOB_TIMEOUT_MS),
         );
         await Promise.race([job(schedule), timeoutPromise]);
+    }
+
+    /**
+     * Record job execution in Redis for health monitoring
+     * 
+     * Stores:
+     * - Last success time: cron:lastSuccess:{jobName}
+     * - Last failure time: cron:lastFailure:{jobName}
+     * - Recent failures (with expiry for auto-cleanup): cron:failures:{jobName}:{timestamp}
+     * - Last execution details: cron:lastExecution:{jobName}
+     */
+    private async recordJobExecution(
+        jobName: string,
+        success: boolean,
+        errorMessage: string | null,
+        durationMs: number,
+    ) {
+        const redis = await initializeRedis();
+        if (!redis) {
+            logger.error("Failed to connect to Redis for job execution recording", { trace: "0401" });
+            return;
+        }
+
+        const now = Date.now();
+        const executionData = JSON.stringify({
+            timestamp: now,
+            success,
+            error: errorMessage,
+            duration: durationMs,
+            hostname: process.env.HOSTNAME || "unknown",
+            containerID: process.env.CONTAINER_ID || "unknown",
+        });
+
+        // Use a Redis transaction to ensure all updates happen atomically
+        const multi = redis.multi();
+
+        // Update last execution time based on success/failure
+        if (success) {
+            multi.set(`cron:lastSuccess:${jobName}`, now.toString());
+        } else {
+            multi.set(`cron:lastFailure:${jobName}`, now.toString());
+
+            // Record this failure with a 24-hour expiry for automatic cleanup
+            const failureKey = `cron:failures:${jobName}:${now}`;
+            multi.set(failureKey, executionData);
+            // 86400 seconds = 24 hours
+            multi.expire(failureKey, 86400);
+        }
+
+        // Store complete execution data
+        multi.set(`cron:lastExecution:${jobName}`, executionData);
+
+        // Add to the list of known cron jobs if it's not already there
+        multi.sAdd("cron:jobs", jobName);
+
+        await multi.exec();
     }
 }
 

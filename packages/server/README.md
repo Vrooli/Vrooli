@@ -141,7 +141,7 @@ docker-compose -f docker-compose-prod.yml up server
 
 Key environment variables (see `.env-example` for full list):
 
-- `PORT_SERVER`: Server port
+- `PORT_API`: Server port
 - `DB_PASSWORD`: SQL Database password
 - `REDIS_PASSWORD`: Redis password
 

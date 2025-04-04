@@ -14,7 +14,6 @@ import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/Obj
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
-import { ActiveChatContext } from "../../../contexts/activeChat.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm, InnerForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
@@ -26,6 +25,7 @@ import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
+import { useActiveChat } from "../../../stores/activeChatStore.js";
 import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -108,7 +108,7 @@ function NoteForm({
 }: NoteFormProps) {
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { chat } = useContext(ActiveChatContext);
+    const { chat } = useActiveChat();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();

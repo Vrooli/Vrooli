@@ -7,9 +7,9 @@ import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, u
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
-import { useBookmarkListsStore } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
+import { useBookmarkListsStore } from "../../../stores/bookmarkListsStore.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { BottomActionsButtons } from "../../buttons/BottomActionsButtons.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";

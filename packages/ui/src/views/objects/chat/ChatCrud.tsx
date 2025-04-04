@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatInviteShape, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_IDS, ServerResponse, Session, shapeChat, uuid, uuidToBase36 } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_IDS, ServerResponse, Session, shapeChat, uuid, uuidToBase36 } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
 import { Field, Formik } from "formik";
 import { TFunction } from "i18next";
@@ -65,45 +65,6 @@ export function chatInitialValues(
     existing?: Partial<Chat> | null | undefined,
 ): ChatShape {
     const messages: ChatMessageShape[] = (existing?.messages ?? []).map(m => ({ ...m, status: "sent" }));
-    // If chatting with Valyxa, add start message so that the user 
-    // sees something while the chat is loading
-    if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatInviteShape) => invite.user.id === SEEDED_IDS.User.Valyxa)) {
-        const startText = t("start", { lng: language, ns: "tasks", defaultValue: "Hello👋 How can I assist you?" });
-        messages.push({
-            __typename: "ChatMessage" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            chat: {
-                __typename: "Chat" as const,
-                id: existing.id ?? DUMMY_ID,
-            },
-            status: "unsent",
-            versionIndex: 0,
-            reactionSummaries: [],
-            translations: [{
-                __typename: "ChatMessageTranslation" as const,
-                id: DUMMY_ID,
-                language,
-                text: startText,
-            }],
-            user: {
-                __typename: "User" as const,
-                id: SEEDED_IDS.User.Valyxa,
-                isBot: true,
-                name: "Valyxa",
-            },
-            you: {
-                __typename: "ChatMessageYou" as const,
-                canDelete: false,
-                canUpdate: false,
-                canReply: true,
-                canReport: false,
-                canReact: false,
-                reaction: null,
-            },
-        });
-    }
     const currentUser = getCurrentUser(session);
     return {
         __typename: "Chat" as const,

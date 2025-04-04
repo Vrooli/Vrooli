@@ -39,13 +39,19 @@ const StyledToolbar = styled(Toolbar)(({ theme }) => ({
     backgroundColor: theme.palette.primary.dark,
     padding: "8px 16px",
 }));
-const FooterContainer = styled("div")(({ theme }) => ({
+const StyledList = styled(List)(() => ({
+    minHeight: "100%",
+}));
+const FooterContainer = styled(Box)(({ theme }) => ({
+    alignItems: "center",
+    borderTop: `1px solid ${theme.palette.divider}`,
+    bottom: 0,
+    display: "flex",
+    justifyContent: "space-between",
     marginTop: "auto",
     padding: "16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTop: `1px solid ${theme.palette.divider}`,
+    position: "absolute",
+    width: "100%",
 }));
 const CreditStack = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -254,7 +260,7 @@ export function SiteNavigator() {
                 </StyledToolbar>
 
                 {/* Navigation List */}
-                <List>
+                <StyledList>
                     {/* Only show nav items on desktop */}
                     {!isMobile && navItems}
 
@@ -336,9 +342,7 @@ export function SiteNavigator() {
                             />
                         </ListItem>
                     ))}
-                </List>
-
-                {/* Footer */}
+                </StyledList>
                 {showFooter && (
                     <FooterContainer>
                         <Box display="flex" gap={1}>

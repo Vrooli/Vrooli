@@ -5,13 +5,11 @@ import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import useDraggableScroll from "../../../hooks/gestures.js";
 import { UseChatTaskReturn } from "../../../hooks/tasks.js";
-import { useKeyboardOpen } from "../../../hooks/useKeyboardOpen.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { pagePaddingBottom } from "../../../styles.js";
 import { ViewDisplayType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
-import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../../utils/consts.js";
 import { isTaskStale } from "../../../utils/display/chatTools.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { displayDate } from "../../../utils/display/stringTools.js";
@@ -33,7 +31,7 @@ type ChatIndicatorProps = {
  * @returns The text to display in the typing indicator
  */
 export function getTypingIndicatorText(participants: ListObject[], maxChars: number) {
-    if (participants.length === 0) return "";
+    if (!Array.isArray(participants) || participants.length === 0) return "";
 
     const ellipsis = "…";
     const remainingCountPrefix = ", +";
@@ -81,7 +79,7 @@ const ChatIndicatorBox = styled(Box)(({ theme }) => ({
     justifyContent: "flex-start",
     alignItems: "center",
     gap: 0,
-    width: "min(100%, 700px)",
+    width: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
     margin: "auto",
     color: theme.palette.background.textSecondary,
 }));
@@ -319,7 +317,7 @@ const TasksRowOuter = styled(Box)(({ theme }) => ({
     padding: theme.spacing(0.5),
     gap: theme.spacing(1),
     height: "50px",
-    width: "min(700px, 100%)",
+    width: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
     marginLeft: "auto",
     marginRight: "auto",
     overflowX: "auto",
@@ -459,6 +457,20 @@ function EditingMessageDisplay({
     );
 }
 
+type OuterProps = {
+    isMobile: boolean;
+}
+const Outer = styled(Box)<OuterProps>(({ isMobile }) => ({
+    width: "100%",
+    maxWidth: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
+    margin: "auto",
+    "& .advanced-input": {
+        // Remove rounded bottom corners on mobile
+        borderBottomLeftRadius: isMobile ? 0 : undefined,
+        borderBottomRightRadius: isMobile ? 0 : undefined,
+    },
+}));
+
 type ChatMessageInputProps = Pick<ChatIndicatorProps, "participantsTyping"> & {
     disabled: boolean;
     display: ViewDisplayType;
@@ -492,45 +504,7 @@ export function ChatMessageInput({
     submitMessage,
     taskInfo,
 }: ChatMessageInputProps) {
-    const { breakpoints, palette } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const isKeyboardOpen = useKeyboardOpen();
-
-    const inputStyle = useMemo(function inputStyleMemo() {
-        // If this is the full width of the page, we have to add 
-        // additional padding to account for the side menu touch areas
-        const usesFullViewportWidth = display === "page" && isMobile;
-        // If this is place on the bottom of the page and the virtual keyboard 
-        // is open, we need to remove the bottom margin that keeps this above the 
-        // BottomNav, since the nav is hiddenwhen the keyboard is open
-        const shouldRemoveBottomPadding = display !== "page" || (display === "page" && isKeyboardOpen);
-
-        return {
-            root: {
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                maxHeight: "min(75vh, 500px)",
-                width: "min(700px, 100%)",
-                marginTop: "auto",
-                marginLeft: "auto",
-                marginRight: "auto",
-                paddingBottom: shouldRemoveBottomPadding ? "0" : pagePaddingBottom,
-            },
-            topBar: {
-                borderRadius: 0,
-                paddingLeft: usesFullViewportWidth ? "20px" : 0,
-                paddingRight: usesFullViewportWidth ? "20px" : 0,
-            },
-            bottomBar: {
-                paddingLeft: usesFullViewportWidth ? "20px" : 0,
-                paddingRight: usesFullViewportWidth ? "20px" : 0,
-            },
-            inputRoot: {
-                border: "none",
-                background: palette.background.paper,
-            },
-        };
-    }, [display, isKeyboardOpen, isMobile, palette.background.paper, palette.primary.contrastText, palette.primary.dark]);
+    const isMobile = useWindowSize(({ width }) => width <= MAX_CHAT_INPUT_WIDTH);
 
     const handleSubmit = useCallback(function handleAddMessageCallback(message: string) {
         if (disabled || isLoading) return;
@@ -538,7 +512,7 @@ export function ChatMessageInput({
     }, [disabled, isLoading, submitMessage]);
 
     return (
-        <>
+        <Outer isMobile={isMobile}>
             <ChatIndicator
                 participantsTyping={participantsTyping}
             />
@@ -565,6 +539,6 @@ export function ChatMessageInput({
                 tools={[]}
                 value={message}
             />
-        </>
+        </Outer>
     );
 }

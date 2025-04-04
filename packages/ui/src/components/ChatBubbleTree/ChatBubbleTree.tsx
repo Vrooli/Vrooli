@@ -182,8 +182,6 @@ const ReactionsMainStack = styled(Box, {
     background: theme.palette.background.paper,
     color: theme.palette.background.textPrimary,
     borderRadius: "0 0 8px 8px",
-    boxShadow: `1px 2px 3px rgba(0,0,0,0.2),
-                1px 2px 2px rgba(0,0,0,0.14)`,
     overflow: "overlay",
 }));
 

@@ -160,7 +160,7 @@ export const endpointsChatInvite = {
 } as const;
 
 export const endpointsChatMessage = {
-    ...standardCRUD("chatInvite", "chatInvites"),
+    ...standardCRUD("chatMessage", "chatMessages"),
     findTree: {
         endpoint: "/chatMessageTree",
         method: "GET" as const,

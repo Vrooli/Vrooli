@@ -853,7 +853,7 @@ type UseMessageInputProps = {
     postMessage: UseMesssageActionsResult["postMessage"];
     putMessage: UseMesssageActionsResult["putMessage"];
     replyToMessage: UseMesssageActionsResult["replyToMessage"];
-    setMessage: (updatedMessage: string) => unknown;
+    setMessage?: (updatedMessage: string) => unknown;
 }
 
 /**
@@ -884,11 +884,11 @@ export function useMessageInput({
         // Store the original message text to revert to if the user cancels editing
         nonEditingText.current = message;
         // Change the message text to the message being edited
-        setMessage(getTranslation(messageToEdit, languages).text || "");
+        setMessage?.(getTranslation(messageToEdit, languages).text || "");
     }, [languages, message, setMessageBeingEdited, setMessage]);
     const stopEditingMessage = useCallback(function stopEditingMessageCallback() {
         setMessageBeingEdited(null);
-        setMessage(nonEditingText.current);
+        setMessage?.(nonEditingText.current);
         nonEditingText.current = "";
     }, [setMessage, setMessageBeingEdited]);
 
@@ -904,11 +904,11 @@ export function useMessageInput({
             stopEditingMessage();
         } else if (messageBeingRepliedTo) {
             replyToMessage(messageBeingRepliedTo, trimmed);
-            setMessage("");
+            setMessage?.("");
             stopReplyingToMessage();
         } else {
             postMessage(trimmed);
-            setMessage("");
+            setMessage?.("");
         }
     }, [messageBeingEdited, messageBeingRepliedTo, postMessage, putMessage, replyToMessage, setMessage, stopEditingMessage, stopReplyingToMessage]);
 
