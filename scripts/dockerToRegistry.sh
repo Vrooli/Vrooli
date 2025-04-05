@@ -75,7 +75,6 @@ fi
 info "Tagging Docker images"
 docker tag ui:prod $DOCKER_USERNAME/vrooli_ui:${ENVIRONMENT}-${VERSION}
 docker tag server:prod $DOCKER_USERNAME/vrooli_server:${ENVIRONMENT}-${VERSION}
-docker tag docs:prod $DOCKER_USERNAME/vrooli_docs:${ENVIRONMENT}-${VERSION}
 
 # Push the Docker images to Docker Hub
 info "Pushing Docker images to Docker Hub"

@@ -15,11 +15,6 @@
 **/*.test.*
 **/*.spec.*
 
-# Build outputs
-**/dist
-**/build
-**/.next
-
 # Logs and databases
 **/logs
 **/*.log

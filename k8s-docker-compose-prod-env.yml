@@ -347,7 +347,7 @@ spec:
                 secretKeyRef:
                   name: REDIS_PASSWORD
                   key: REDIS_PASSWORD
-          image: redis:7-alpine
+          image: redis:7.4.0-alpine
           livenessProbe:
             exec:
               command:
