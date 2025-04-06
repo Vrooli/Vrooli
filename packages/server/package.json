@@ -17,7 +17,7 @@
         "test": "yarn build-tests && dotenv -e ../../.env-test -- mocha --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
         "test-watch": "yarn build-tests && dotenv -e ../../.env-test -- mocha --watch --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
         "lint": "eslint src",
-        "build": "rimraf dist && NODE_ENV=production swc src -d dist --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && yarn post-build",
+        "build": "rimraf dist && NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && yarn post-build",
         "pre-prod": "prisma migrate deploy && yarn prisma-generate",
         "pre-develop": "yarn pre-prod && yarn type-check",
         "post-build": "yarn post-build-copy",
