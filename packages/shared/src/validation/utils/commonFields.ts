@@ -57,10 +57,10 @@ export const email = yup.string().trim().removeEmptyString().email("Please enter
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
 export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
 export const imageFile = yup.string().trim().removeEmptyString().max(256, maxStrErr);
-export const pushNotificationKeys = yup.object().shape({
+export const pushNotificationKeys = yup.object({
     p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
     auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
-});
+}).default(undefined).nullable();
 export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
     return yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
         "link",

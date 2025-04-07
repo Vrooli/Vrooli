@@ -87,25 +87,57 @@ describe("Yup validation tests", () => {
                 "",
                 " ",
             ],
-            transforms: [[" 123e4567-e89b-12d3-a456-426614174000  ", "123e4567-e89b-12d3-a456-426614174000"]],
+            transforms: [
+                [" 123e4567-e89b-12d3-a456-426614174000  ", "123e4567-e89b-12d3-a456-426614174000"],
+            ],
         },
         configCallData: {
             schema: configCallData,
-            valid: ["{\"key\": \"value\"}", "{\"another\": \"item\"}", "{\"array\": [1, 2, 3]}"],
-            invalid: ["a".repeat(8193), "", " ".repeat(100)],
-            transforms: [["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"]],
+            valid: [
+                "{\"key\": \"value\"}",
+                "{\"another\": \"item\"}",
+                "{\"array\": [1, 2, 3]}",
+            ],
+            invalid: [
+                "a".repeat(8193),
+            ],
+            transforms: [
+                ["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"],
+                ["", undefined],
+                [" ".repeat(100), undefined],
+            ],
         },
         configFormInput: {
             schema: configFormInput,
-            valid: ["{\"key\": \"value\"}", "{\"another\": \"item\"}", "{\"array\": [1, 2, 3]}"],
-            invalid: ["a".repeat(16385), "", " ".repeat(100)],
-            transforms: [["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"]],
+            valid: [
+                "{\"key\": \"value\"}",
+                "{\"another\": \"item\"}",
+                "{\"array\": [1, 2, 3]}",
+            ],
+            invalid: [
+                "a".repeat(16385),
+            ],
+            transforms: [
+                ["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"],
+                ["", undefined],
+                [" ".repeat(100), undefined],
+            ],
         },
         configFormOutput: {
             schema: configFormOutput,
-            valid: ["{\"key\": \"value\"}", "{\"another\": \"item\"}", "{\"array\": [1, 2, 3]}"],
-            invalid: ["a".repeat(16385), "", " ".repeat(100)],
-            transforms: [["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"]],
+            valid: [
+                "{\"key\": \"value\"}",
+                "{\"another\": \"item\"}",
+                "{\"array\": [1, 2, 3]}",
+            ],
+            invalid: [
+                "a".repeat(16385),
+            ],
+            transforms: [
+                ["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"],
+                ["", undefined],
+                [" ".repeat(100), undefined],
+            ],
         },
         email: {
             schema: email,

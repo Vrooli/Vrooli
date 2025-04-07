@@ -656,6 +656,7 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
         ...updatePrims(o, u, null,
             "bannerImage",
             "handle",
+            "id",
             "isPrivate",
             "isPrivateApis",
             "isPrivateApisCreated",

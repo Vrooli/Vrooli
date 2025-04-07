@@ -2812,6 +2812,7 @@ export type ProfileUpdateInput = BaseTranslatableUpdateInput<UserTranslationCrea
     focusModesDelete?: InputMaybe<Array<Scalars["ID"]>>;
     focusModesUpdate?: InputMaybe<Array<FocusModeUpdateInput>>;
     handle?: InputMaybe<Scalars["String"]>;
+    id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
     isPrivateApis?: InputMaybe<Scalars["Boolean"]>;
     isPrivateApisCreated?: InputMaybe<Scalars["Boolean"]>;

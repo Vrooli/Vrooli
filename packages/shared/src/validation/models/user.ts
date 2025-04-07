@@ -32,7 +32,7 @@ export const profileValidation: YupModel<["update"]> = {
     update: (d) => yupObj({
         bannerImage: opt(imageFile),
         handle: opt(handle),
-        name: opt(name),
+        id: req(id),
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
@@ -53,6 +53,7 @@ export const profileValidation: YupModel<["update"]> = {
         isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
+        name: opt(name),
         profileImage: opt(imageFile),
         theme: opt(theme),
     }, [
@@ -69,13 +70,12 @@ export const userValidation: YupModel<["create", "update"]> = {
     // For update, we must combine both botValidation.update and profileValidation.update
     update: (d) => yupObj({
         // Bot part
-        id: opt(id), // Have to make this optional
         isBotDepictingPerson: opt(bool),
         botSettings: opt(botSettings),
         // Profile part
         bannerImage: opt(imageFile),
         handle: opt(handle),
-        name: opt(name),
+        id: req(id),
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
@@ -96,6 +96,7 @@ export const userValidation: YupModel<["create", "update"]> = {
         isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
+        name: opt(name),
         profileImage: opt(imageFile),
         theme: opt(theme),
     }, [
