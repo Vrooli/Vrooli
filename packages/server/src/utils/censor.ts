@@ -5,8 +5,6 @@ import { logger } from "../events/logger.js";
 
 const { flatten } = pkg;
 
-const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
-
 let profanity: string[] = [];
 let profanityRegex: RegExp;
 
@@ -14,6 +12,7 @@ let profanityRegex: RegExp;
  * Initializes the profanity array and regex
  */
 export function initializeProfanity() {
+    const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
     try {
         const fileContent = fs.readFileSync(profanityFile, "utf8");
         profanity = fileContent.toString().split("\n");

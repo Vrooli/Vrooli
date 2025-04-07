@@ -6,6 +6,25 @@ export enum QueueStatus {
     Down = "down"
 }
 
+export interface QueueHealthDetails {
+    status: QueueStatus;
+    jobCounts: {
+        waiting: number;
+        active: number;
+        delayed: number;
+        failed: number;
+        completed: number;
+        total: number;
+    };
+    activeJobs?: {
+        id: string;
+        name?: string;
+        timestamp: number;
+        processedOn?: number;
+        duration: number;
+    }[];
+}
+
 export class BaseQueue<T> {
     private queue: Bull.Queue<T>;
 
@@ -36,30 +55,68 @@ export class BaseQueue<T> {
 
     /**
      * Check the health status of the queue
-     * @returns The current health status of the queue
+     * @returns The current health status and detailed information about the queue
      */
-    async checkHealth(): Promise<QueueStatus> {
+    async checkHealth(): Promise<QueueHealthDetails> {
         try {
             // Check if we can communicate with Redis
             await this.queue.client.ping();
 
             // Get queue statistics
             const jobCounts = await this.queue.getJobCounts();
-            const { waiting, active, failed } = jobCounts;
+            const { waiting, active, delayed, failed, completed } = jobCounts;
+            const total = waiting + active + delayed + failed + completed;
 
             // Define thresholds for queue health
             const highWaterMark = 1000; // Example threshold
             const failureThreshold = 100; // Example threshold
 
-            // Check for degraded state
+            // Get detailed information about active jobs
+            const activeJobs = await this.queue.getJobs(["active"]);
+            const activeJobsDetails = activeJobs.map(job => {
+                const now = Date.now();
+                const processedOn = job.processedOn || now;
+                return {
+                    id: job.id?.toString() || "",
+                    name: job.name,
+                    timestamp: job.timestamp,
+                    processedOn: job.processedOn,
+                    duration: now - processedOn, // Duration in milliseconds
+                };
+            });
+
+            // Determine the health status
+            let status = QueueStatus.Healthy;
             if (waiting + active > highWaterMark || failed > failureThreshold) {
-                return QueueStatus.Degraded;
+                status = QueueStatus.Degraded;
             }
 
-            // If we get here, the queue is healthy
-            return QueueStatus.Healthy;
+            // Return comprehensive health information
+            return {
+                status,
+                jobCounts: {
+                    waiting,
+                    active,
+                    delayed,
+                    failed,
+                    completed,
+                    total,
+                },
+                activeJobs: activeJobsDetails,
+            };
         } catch (error) {
-            return QueueStatus.Down;
+            // If there's an error, return a minimal response indicating the queue is down
+            return {
+                status: QueueStatus.Down,
+                jobCounts: {
+                    waiting: 0,
+                    active: 0,
+                    delayed: 0,
+                    failed: 0,
+                    completed: 0,
+                    total: 0,
+                },
+            };
         }
     }
 } 

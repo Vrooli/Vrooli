@@ -99,6 +99,14 @@ function maybeFileUploads(config?: UploadConfig) {
             return next();  // No file uploading needed, proceed to next middleware.
         }
 
+        // Get content type from request
+        const contentType = req.headers["content-type"] || "";
+
+        // Skip Busboy for application/json requests
+        if (contentType.includes("application/json")) {
+            return next();
+        }
+
         // Find the combined max file size and max number of files, since we don't know which 
         // fields the files are associated with yet.
         // Later on we'll do these checks again, but for each field.
@@ -109,46 +117,52 @@ function maybeFileUploads(config?: UploadConfig) {
             .map(field => field.maxFiles ?? DEFAULT_MAX_FILES)
             .reduce((acc, value) => acc + value, 0);
 
-        const busboy = Busboy({
-            headers: req.headers,
-            limits: {
-                fileSize: totalMaxFileSize,
-                files: totalMaxFiles,
-            },
-        });
+        try {
+            const busboy = Busboy({
+                headers: req.headers,
+                limits: {
+                    fileSize: totalMaxFileSize,
+                    files: totalMaxFiles,
+                },
+            });
 
-        req.files = [];
-        req.body = {};
+            req.files = [];
+            req.body = {};
 
-        busboy.on("file", (fieldname, file, info) => {
-            const { filename, encoding, mimeType } = info;
-            const buffers: Buffer[] = [];
+            busboy.on("file", (fieldname, file, info) => {
+                const { filename, encoding, mimeType } = info;
+                const buffers: Buffer[] = [];
 
-            file.on("data", (data) => buffers.push(data));
+                file.on("data", (data) => buffers.push(data));
 
-            file.on("end", () => {
-                if (!req.files) {
-                    req.files = [];
-                }
-                const buffer = Buffer.concat(buffers);
-                req.files.push({
-                    fieldname,
-                    originalname: filename,
-                    encoding,
-                    mimetype: mimeType,
-                    buffer,
-                    size: buffer.length,
+                file.on("end", () => {
+                    if (!req.files) {
+                        req.files = [];
+                    }
+                    const buffer = Buffer.concat(buffers);
+                    req.files.push({
+                        fieldname,
+                        originalname: filename,
+                        encoding,
+                        mimetype: mimeType,
+                        buffer,
+                        size: buffer.length,
+                    });
                 });
             });
-        });
 
-        busboy.on("field", (fieldname, value) => {
-            req.body[fieldname] = value;
-        });
+            busboy.on("field", (fieldname, value) => {
+                req.body[fieldname] = value;
+            });
 
-        busboy.on("finish", () => next());
+            busboy.on("finish", () => next());
 
-        req.pipe(busboy);
+            req.pipe(busboy);
+        } catch (error) {
+            // Don't block the request if Busboy initialization fails
+            // We'll handle the request with normal JSON body parsing
+            next();
+        }
     };
 }
 

@@ -1,6 +1,7 @@
-import { DAYS_1_S, GB_1_BYTES, HttpStatus, MCPEndpoint, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
+import { DAYS_1_S, GB_1_BYTES, HttpStatus, MCPEndpoint, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
 import { exec as execCb } from "child_process";
 import { Express } from "express";
+import i18next from "i18next";
 import os from "os";
 import Stripe from "stripe";
 import { promisify } from "util";
@@ -22,6 +23,8 @@ import { smsQueue } from "../tasks/sms/queue.js";
 
 const exec = promisify(execCb);
 
+const debug = process.env.NODE_ENV === "development";
+
 export enum ServiceStatus {
     Operational = "Operational",
     Degraded = "Degraded",
@@ -42,6 +45,7 @@ interface SystemHealth {
         api: ServiceHealth;
         cronJobs: ServiceHealth;
         database: ServiceHealth;
+        i18n: ServiceHealth;
         llm: {
             [key: string]: ServiceHealth;
         };
@@ -121,17 +125,83 @@ export class HealthService {
      */
     private async checkDatabase(): Promise<ServiceHealth> {
         try {
-            await DbProvider.get().$queryRaw`SELECT 1`;
+            // First check if we're connected at all
+            if (!DbProvider.isConnected()) {
+                return {
+                    healthy: false,
+                    status: ServiceStatus.Down,
+                    lastChecked: Date.now(),
+                    details: {
+                        connection: false,
+                        message: "Database not connected",
+                    },
+                };
+            }
+
+            // Then try a simple query to verify connection is still active
+            try {
+                await DbProvider.get().$queryRaw`SELECT 1`;
+            } catch (queryError) {
+                return {
+                    healthy: false,
+                    status: ServiceStatus.Down,
+                    lastChecked: Date.now(),
+                    details: {
+                        connection: false,
+                        message: "Database connection lost",
+                        error: (queryError as Error).message,
+                    },
+                };
+            }
+
+            // Check if seeding was successful
+            const seedingSuccessful = DbProvider.isSeedingSuccessful();
+            const isRetrying = DbProvider.isRetryingSeeding();
+            const retryCount = DbProvider.getSeedRetryCount();
+            const attemptCount = DbProvider.getSeedAttemptCount();
+            const maxRetries = DbProvider.getMaxRetries();
+
+            // If connection works but seeding failed
+            if (!seedingSuccessful) {
+                return {
+                    healthy: false,
+                    status: isRetrying ? ServiceStatus.Degraded : ServiceStatus.Down,
+                    lastChecked: Date.now(),
+                    details: {
+                        connection: true,
+                        seeding: false,
+                        isRetrying,
+                        retryCount,
+                        attemptCount,
+                        maxRetries,
+                        remainingRetries: isRetrying ? maxRetries - retryCount : 0,
+                        message: isRetrying
+                            ? `Database connected but seeding failed, retry ${retryCount} of ${maxRetries} in progress`
+                            : `Database connected but seeding failed after ${attemptCount} attempts (max retries: ${maxRetries})`,
+                    },
+                };
+            }
+
             return {
                 healthy: true,
                 status: ServiceStatus.Operational,
                 lastChecked: Date.now(),
+                details: {
+                    connection: true,
+                    seeding: true,
+                    attemptCount,
+                },
             };
         } catch (error) {
             return {
                 healthy: false,
                 status: ServiceStatus.Down,
                 lastChecked: Date.now(),
+                details: {
+                    connection: false,
+                    message: "Failed to check database health",
+                    error: (error as Error).message,
+                },
             };
         }
     }
@@ -177,12 +247,29 @@ export class HealthService {
         const queueHealth: { [key: string]: ServiceHealth } = {};
 
         for (const [name, queue] of Object.entries(queues)) {
-            const status = await queue.checkHealth();
+            const healthDetails = await queue.checkHealth();
             queueHealth[name] = {
-                healthy: status === QueueStatus.Healthy,
-                status: status === QueueStatus.Healthy ? ServiceStatus.Operational :
-                    status === QueueStatus.Degraded ? ServiceStatus.Degraded : ServiceStatus.Down,
+                healthy: healthDetails.status === QueueStatus.Healthy,
+                status: healthDetails.status === QueueStatus.Healthy ? ServiceStatus.Operational :
+                    healthDetails.status === QueueStatus.Degraded ? ServiceStatus.Degraded : ServiceStatus.Down,
                 lastChecked: Date.now(),
+                details: {
+                    counts: healthDetails.jobCounts,
+                    activeJobs: healthDetails.activeJobs?.map(job => ({
+                        id: job.id,
+                        name: job.name,
+                        duration: job.duration,
+                        durationSeconds: Math.round(job.duration / SECONDS_1_MS),
+                        startedAt: job.processedOn,
+                    })),
+                    metrics: {
+                        queueLength: healthDetails.jobCounts.waiting + healthDetails.jobCounts.delayed,
+                        activeCount: healthDetails.jobCounts.active,
+                        failedCount: healthDetails.jobCounts.failed,
+                        completedCount: healthDetails.jobCounts.completed,
+                        totalJobs: healthDetails.jobCounts.total,
+                    },
+                },
             };
         }
 
@@ -637,6 +724,73 @@ export class HealthService {
     }
 
     /**
+     * Check i18next initialization
+     */
+    private checkI18n(): ServiceHealth {
+        try {
+            // Check if i18next is initialized
+            if (!i18next.isInitialized) {
+                return {
+                    healthy: false,
+                    status: ServiceStatus.Down,
+                    lastChecked: Date.now(),
+                    details: {
+                        message: "i18next is not initialized",
+                    },
+                };
+            }
+
+            // Check if we can translate a basic key
+            try {
+                const translation = i18next.t("common:Yes");
+                const isTranslated = translation !== "common:Yes" && typeof translation === "string" && translation.length > 0;
+
+                if (!isTranslated) {
+                    return {
+                        healthy: false,
+                        status: ServiceStatus.Degraded,
+                        lastChecked: Date.now(),
+                        details: {
+                            message: "i18next is initialized but translations are not working properly",
+                        },
+                    };
+                }
+
+                return {
+                    healthy: true,
+                    status: ServiceStatus.Operational,
+                    lastChecked: Date.now(),
+                    details: {
+                        language: i18next.language,
+                        languages: i18next.languages,
+                        namespaces: i18next.options.ns,
+                    },
+                };
+            } catch (error) {
+                return {
+                    healthy: false,
+                    status: ServiceStatus.Degraded,
+                    lastChecked: Date.now(),
+                    details: {
+                        message: "i18next is initialized but failed to translate",
+                        error: (error as Error).message,
+                    },
+                };
+            }
+        } catch (error) {
+            return {
+                healthy: false,
+                status: ServiceStatus.Down,
+                lastChecked: Date.now(),
+                details: {
+                    message: "Failed to check i18next",
+                    error: (error as Error).message,
+                },
+            };
+        }
+    }
+
+    /**
      * Get overall system health status
      */
     public async getHealth(): Promise<SystemHealth> {
@@ -650,6 +804,7 @@ export class HealthService {
             apiHealth,
             cronJobsHealth,
             dbHealth,
+            i18nHealth,
             llmHealth,
             mcpHealth,
             memoryHealth,
@@ -663,6 +818,7 @@ export class HealthService {
             this.checkApi(),
             this.checkCronJobs(),
             this.checkDatabase(),
+            this.checkI18n(),
             this.checkLlmServices(),
             this.checkMcp(),
             this.checkMemory(),
@@ -679,6 +835,7 @@ export class HealthService {
             apiHealth,
             cronJobsHealth,
             dbHealth,
+            i18nHealth,
             mcpHealth,
             memoryHealth,
             redisHealth,
@@ -699,6 +856,7 @@ export class HealthService {
                 api: apiHealth,
                 cronJobs: cronJobsHealth,
                 database: dbHealth,
+                i18n: i18nHealth,
                 llm: llmHealth,
                 mcp: mcpHealth,
                 memory: memoryHealth,
@@ -733,4 +891,108 @@ export function setupHealthCheck(app: Express): void {
             });
         }
     });
+
+    if (debug) {
+        // Typicaly this would be a POST request, but it's easier to call this as a GET request 
+        // since you can do it from the browser.
+        app.get("/healthcheck/retry-seeding", async (req, res) => {
+            try {
+                // Call the force retry method
+                const success = DbProvider.forceRetrySeeding();
+
+                if (success) {
+                    res.status(HttpStatus.Ok).json({
+                        success: true,
+                        message: "Database seeding retry triggered successfully",
+                        timestamp: Date.now(),
+                    });
+                } else {
+                    res.status(HttpStatus.BadRequest).json({
+                        success: false,
+                        message: "Failed to trigger database seeding retry",
+                        timestamp: Date.now(),
+                    });
+                }
+            } catch (error) {
+                res.status(HttpStatus.InternalServerError).json({
+                    success: false,
+                    message: "Error triggering database seeding retry",
+                    error: (error as Error).message,
+                    timestamp: Date.now(),
+                });
+            }
+        });
+
+        // Development endpoint to clear Bull queue job data
+        app.get("/healthcheck/clear-queue-data", async (req, res) => {
+            try {
+                const queueName = req.query.queue as string;
+                const queues = {
+                    email: emailQueue,
+                    export: exportQueue,
+                    import: importQueue,
+                    llm: llmQueue,
+                    llmTask: llmTaskQueue,
+                    push: pushQueue,
+                    run: runQueue,
+                    sandbox: sandboxQueue,
+                    sms: smsQueue,
+                };
+
+                // Check if a specific queue was requested
+                if (queueName && queues[queueName as keyof typeof queues]) {
+                    const queue = queues[queueName as keyof typeof queues];
+                    await queue.getQueue().clean(0, "completed");
+                    await queue.getQueue().clean(0, "failed");
+                    await queue.getQueue().clean(0, "delayed");
+                    await queue.getQueue().clean(0, "wait");
+                    await queue.getQueue().clean(0, "active");
+
+                    res.status(HttpStatus.Ok).json({
+                        success: true,
+                        message: `Queue '${queueName}' job data cleared successfully`,
+                        timestamp: Date.now(),
+                    });
+                } else if (queueName) {
+                    // Invalid queue name provided
+                    res.status(HttpStatus.BadRequest).json({
+                        success: false,
+                        message: `Invalid queue name: ${queueName}`,
+                        validQueues: Object.keys(queues),
+                        timestamp: Date.now(),
+                    });
+                } else {
+                    // No queue specified, clean all queues
+                    const results: Record<string, boolean> = {};
+
+                    for (const [name, queue] of Object.entries(queues)) {
+                        try {
+                            await queue.getQueue().clean(0, "completed");
+                            await queue.getQueue().clean(0, "failed");
+                            await queue.getQueue().clean(0, "delayed");
+                            await queue.getQueue().clean(0, "wait");
+                            await queue.getQueue().clean(0, "active");
+                            results[name] = true;
+                        } catch (error) {
+                            results[name] = false;
+                        }
+                    }
+
+                    res.status(HttpStatus.Ok).json({
+                        success: true,
+                        message: "Queue job data cleared",
+                        results,
+                        timestamp: Date.now(),
+                    });
+                }
+            } catch (error) {
+                res.status(HttpStatus.InternalServerError).json({
+                    success: false,
+                    message: "Error clearing queue job data",
+                    error: (error as Error).message,
+                    timestamp: Date.now(),
+                });
+            }
+        });
+    }
 }

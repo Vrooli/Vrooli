@@ -169,7 +169,7 @@ function checkLongRunningRuns() {
                 const run = activeRunsRegistry.get(record.runId);
                 if (run) {
                     activeRunsRegistry.remove(record.runId);
-                    logger.warn(`Run ${record.runId} did not pause gracefully within the grace period and has been removed.`, { trace: "0570" });
+                    logger.warning(`Run ${record.runId} did not pause gracefully within the grace period and has been removed.`, { trace: "0570" });
                 }
             }, RUN_SHUTDOWN_GRACE_PERIOD_MS);
         }
