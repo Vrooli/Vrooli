@@ -64,7 +64,7 @@ export async function fetchAndMapPlaceholder(
         return;
     }
 
-    const { dbTable, format } = ModelMap.getLogic(["dbTable", "format"], pascalCase(objectType) as ModelType, true, "fetchAndMapPlaceholder 1");
+    const { dbTable, format: _format } = ModelMap.getLogic(["dbTable", "format"], pascalCase(objectType) as ModelType, true, "fetchAndMapPlaceholder 1");
 
     // Construct the select object to query nested relations
     const select: Record<string, any> = {};
@@ -181,6 +181,19 @@ export async function replacePlaceholdersInInputsByType(
             const inputs = inputsByType[objectType][action];
             for (const inputWrapper of inputs) {
                 const maybePlaceholder = inputWrapper.node.id;
+
+                // Add detailed logging to debug undefined id issue
+                if (maybePlaceholder === undefined) {
+                    console.error("[replacePlaceholdersInInputsByType] ERROR: inputWrapper.node.id is undefined!", {
+                        objectType,
+                        action,
+                        inputWrapper,
+                        nodeDetails: inputWrapper.node,
+                    });
+                    // Continue with the next iteration to prevent further errors
+                    continue;
+                }
+
                 if (!maybePlaceholder.includes("|")) continue;
 
                 let id = placeholderToIdMap[maybePlaceholder];

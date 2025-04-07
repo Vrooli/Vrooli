@@ -1,5 +1,6 @@
-import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
+import { AnyObjectSchema } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
 import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -18,6 +19,17 @@ import { CudAdditionalData } from "./types.js";
 type CudHelperParams = {
     /** Additional data that can be passed to ModelLogic functions */
     additionalData?: CudAdditionalData,
+    /**
+     * If the user is an admin, flags to disable different checks
+     */
+    adminFlags?: {
+        disableAllChecks?: boolean,
+        disableInputValidationAndCasting?: boolean,
+        disableMaxObjectsCheck?: boolean,
+        disablePermissionsCheck?: boolean,
+        disableProfanityCheck?: boolean,
+        disableTriggerAfterMutations?: boolean,
+    }
     info: PartialApiInfo,
     inputData: CudInputData[],
     userData: SessionUser,
@@ -55,26 +67,32 @@ function initializeResults(length: number): Array<boolean | Record<string, any>>
  * @throws CustomError if validation fails.
  */
 async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
-    for (let i = 0; i < inputData.length; i++) {
-        const { action, input, objectType } = inputData[i];
-        const { mutate } = ModelMap.getLogic(["mutate"], objectType as ModelType, true, `cudHelper cast ${action.toLowerCase()}`);
-        let transformedInput;
-        if (action === "Create") {
-            if (!mutate.yup.create) {
-                throw new CustomError("0559", "InternalError", { action, objectType });
+    try {
+        for (let i = 0; i < inputData.length; i++) {
+            const { action, input, objectType } = inputData[i];
+            const { mutate } = ModelMap.getLogic(["mutate"], objectType as ModelType, true, `cudHelper cast ${action.toLowerCase()}`);
+            let transformedInput: AnyObjectSchema;
+            if (action === "Create") {
+                // If the mutate object doesn't have a yup.create property, it's not meant to be created this way
+                if (!mutate.yup.create) {
+                    throw new CustomError("0559", "InternalError", { action, objectType });
+                }
+                transformedInput = mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
+            } else if (action === "Update") {
+                // If the mutate object doesn't have a yup.update property, it's not meant to be updated this way
+                if (!mutate.yup.update) {
+                    throw new CustomError("0560", "InternalError", { action, objectType });
+                }
+                transformedInput = mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
+            } else if (action === "Delete") {
+                continue;
+            } else {
+                throw new CustomError("0558", "InternalError", { action });
             }
-            transformedInput = mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
-        } else if (action === "Update") {
-            if (!mutate.yup.update) {
-                throw new CustomError("0560", "InternalError", { action, objectType });
-            }
-            transformedInput = mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
-        } else if (action === "Delete") {
-            continue;
-        } else {
-            throw new CustomError("0558", "InternalError", { action });
+            inputData[i].input = transformedInput as unknown as PrismaCreate | PrismaUpdate;
         }
-        inputData[i].input = transformedInput;
+    } catch (error) {
+        throw new CustomError("0561", "InternalError", { error, inputData });
     }
 }
 
@@ -168,9 +186,26 @@ async function buildOperations(
         // Update operations
         for (const { index } of Update) {
             const { input } = inputData[index];
+
+            // Check if the input has an ID and if the input is not empty
+            if (!input || typeof input !== "object" || !(input as object)[idField]) {
+                console.error(`[buildOperations] Missing required ID for update operation: ${JSON.stringify({ objectType, input, idField })}`);
+                continue; // Skip this update operation
+            }
+
             const data = mutate.shape.update
                 ? await mutate.shape.update({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
                 : input;
+
+            // Verify that the shape function returned a valid update object
+            if (!data || Object.keys(data).length === 0) {
+                console.warn(`[buildOperations] Empty data after shape.update for ${objectType}:`, {
+                    id: (input as PrismaUpdate)[idField],
+                    originalInput: input,
+                });
+                continue; // Skip this update operation if data is empty
+            }
+
             const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
             const updateOperation = (DbProvider.get()[dbTable] as PrismaDelegate).update({
@@ -330,21 +365,33 @@ async function triggerAfterMutations(
  */
 export async function cudHelper({
     additionalData,
+    adminFlags,
     info,
     inputData,
     userData,
 }: CudHelperParams): Promise<CudHelperResult> {
+    if (adminFlags && userData.id !== SEEDED_IDS.User.Admin) {
+        throw new CustomError("0562", "Unauthorized", { adminFlags });
+    }
 
     const result = initializeResults(inputData.length);
-    await validateAndCastInputs(inputData);
+    if (!adminFlags?.disableInputValidationAndCasting && !adminFlags?.disableAllChecks) {
+        await validateAndCastInputs(inputData);
+    }
 
     const maps = await cudInputsToMaps({ inputData });
     await calculatePreShapeData(maps.inputsByType, userData, maps.inputsById, maps.preMap);
 
     const authDataById = await getAuthenticatedData(maps.idsByType, userData);
-    await permissionsCheck(authDataById, maps.idsByAction, maps.inputsById, userData);
-    profanityCheck(inputData, maps.inputsById, authDataById);
-    await maxObjectsCheck(maps.inputsById, authDataById, maps.idsByAction, userData);
+    if (!adminFlags?.disablePermissionsCheck && !adminFlags?.disableAllChecks) {
+        await permissionsCheck(authDataById, maps.idsByAction, maps.inputsById, userData);
+    }
+    if (!adminFlags?.disableProfanityCheck && !adminFlags?.disableAllChecks) {
+        profanityCheck(inputData, maps.inputsById, authDataById);
+    }
+    if (!adminFlags?.disableMaxObjectsCheck && !adminFlags?.disableAllChecks) {
+        await maxObjectsCheck(maps.inputsById, authDataById, maps.idsByAction, userData);
+    }
 
     const topInputsByType = groupTopLevelDataByType(inputData);
 
@@ -352,6 +399,8 @@ export async function cudHelper({
 
     const transactionResult = await executeTransaction(transactionData.operations);
     processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, info, maps, result);
-    await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
+    if (!adminFlags?.disableTriggerAfterMutations && !adminFlags?.disableAllChecks) {
+        await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
+    }
     return result;
 }
