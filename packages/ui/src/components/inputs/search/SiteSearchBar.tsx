@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { MicrophoneButton } from "../../../components/buttons/MicrophoneButton/MicrophoneButton.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { IconCommon } from "../../../icons/Icons.js";
+import { ELEMENT_CLASSES } from "../../../utils/consts.js";
 
 const DEFAULT_DEBOUNCE_MS = 200;
 
@@ -101,7 +102,7 @@ export function BasicSearchBar({
     }, [enterKeyHint, handleTranscriptChange, t]);
 
     return (
-        <Box component={isNested ? "div" : "form"}>
+        <Box className={ELEMENT_CLASSES.SearchBar} component={isNested ? "div" : "form"}>
             <TextField
                 fullWidth
                 id={id}
@@ -119,6 +120,16 @@ export function BasicSearchBar({
 const inputStyle = {
     ml: 1,
     flex: 1,
+    // Remove underline
+    "&:before": {
+        display: "none"
+    },
+    "&:after": {
+        display: "none"
+    },
+    "&:hover:before": {
+        display: "none"
+    },
     // Drop down should be as large as the full width of the screen
     "& .MuiAutocomplete-popper": {
         width: "100vw!important",
@@ -197,13 +208,14 @@ export function PaperSearchBar({
     }, [enterKeyHint, handleTranscriptChange, t]);
 
     return (
-        <Paper component={isNested ? "div" : "form"} sx={paperSx}>
+        <Paper className={ELEMENT_CLASSES.SearchBar} component={isNested ? "div" : "form"} sx={paperSx}>
             <Input
                 onChange={handleInputChange}
                 placeholder={placeholder}
                 inputProps={InputProps}
                 sx={inputStyle}
                 value={internalValue}
+                disableUnderline={true}
             />
             <MicrophoneButton
                 fill={palette.background.textSecondary}
