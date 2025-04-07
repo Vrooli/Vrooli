@@ -135,6 +135,7 @@ model api_key {
     limitHard   BigInt    @default(25000000000)
     limitSoft   BigInt?   @default(25000000000)
     name        String    @db.VarChar(128)
+    permissions String    @db.VarChar(4096)
     stopAtLimit Boolean   @default(true)
     teamId      String?   @db.Uuid
     userId      String?   @db.Uuid
