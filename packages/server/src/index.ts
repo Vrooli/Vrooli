@@ -1,8 +1,6 @@
-import { HttpStatus, i18nConfig } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
-import i18next from "i18next";
 import path from "path";
 import { fileURLToPath } from "url";
 import { app } from "./app.js";
@@ -11,46 +9,20 @@ import { SessionService } from "./auth/session.js";
 import { DbProvider } from "./db/provider.js";
 import { initRestApi } from "./endpoints/rest.js";
 import { logger } from "./events/logger.js";
-import { ModelMap } from "./models/base/index.js";
 import { initializeRedis } from "./redisConn.js";
-import { SERVER_URL, server } from "./server.js";
-import { HealthService, ServiceStatus } from "./services/health.js";
+import { SERVER_PORT, SERVER_URL, server } from "./server.js";
+import { setupHealthCheck } from "./services/health.js";
 import { setupMCP } from "./services/mcp.js";
 import { setupStripe } from "./services/stripe.js";
 import { io, sessionSockets, userSockets } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
 import { runSocketRoomHandlers } from "./sockets/rooms/run.js";
 import { userSocketRoomHandlers } from "./sockets/rooms/user.js";
-import { setupEmailQueue } from "./tasks/email/queue.js";
-import { setupExportQueue } from "./tasks/export/queue.js";
-import { setupImportQueue } from "./tasks/import/queue.js";
-import { setupLlmQueue } from "./tasks/llm/queue.js";
-import { LlmServiceRegistry } from "./tasks/llm/registry.js";
-import { TokenEstimationRegistry } from "./tasks/llm/tokenEstimator.js";
-import { setupLlmTaskQueue } from "./tasks/llmTask/queue.js";
-import { setupPushQueue } from "./tasks/push/queue.js";
-import { setupRunQueue } from "./tasks/run/queue.js";
-import { setupSandboxQueue } from "./tasks/sandbox/queue.js";
-import { setupSmsQueue } from "./tasks/sms/queue.js";
-import { initializeProfanity } from "./utils/censor.js";
-
-const debug = process.env.NODE_ENV === "development";
+import { setupTaskQueues } from "./tasks/setup.js";
+import { initSingletons } from "./utils/singletons.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-export async function initSingletons() {
-    // Initialize translations
-    await i18next.init(i18nConfig(debug));
-
-    // Initialize singletons
-    await ModelMap.init();
-    await LlmServiceRegistry.init();
-    await TokenEstimationRegistry.init();
-
-    // Initialize censor dictionary
-    initializeProfanity();
-}
 
 async function main() {
     logger.info("Starting server...");
@@ -66,27 +38,10 @@ async function main() {
 
     // Initialize singletons
     await initSingletons();
-
     // Setup queues
-    await setupLlmTaskQueue();
-    await setupEmailQueue();
-    await setupExportQueue();
-    await setupImportQueue();
-    await setupLlmQueue();
-    await setupPushQueue();
-    await setupSandboxQueue();
-    await setupSmsQueue();
-    await setupRunQueue();
-
+    await setupTaskQueues();
     // Setup databases
-    // Redis 
-    try {
-        await initializeRedis();
-        logger.info("✅ Connected to Redis");
-    } catch (error) {
-        logger.error("🚨 Failed to connect to Redis", { trace: "0207", error });
-    }
-    // Relational
+    await initializeRedis();
     await DbProvider.init();
 
     // // For parsing application/xwww-
@@ -96,24 +51,6 @@ async function main() {
     app.use((req, _res, next) => {
         req.cookies = cookie.parse(req.headers.cookie || "");
         next();
-    });
-
-    // Set up health check endpoint before authentication
-    app.get("/healthcheck", async (_req, res) => {
-        try {
-            const health = await HealthService.get().getHealth();
-            const statusCode = health.status === ServiceStatus.Down
-                ? HttpStatus.ServiceUnavailable
-                : HttpStatus.Ok;
-
-            res.status(statusCode).json(health);
-        } catch (error) {
-            res.status(HttpStatus.ServiceUnavailable).json({
-                status: ServiceStatus.Down,
-                version: process.env.npm_package_version || "unknown",
-                error: "Health check failed",
-            });
-        }
     });
 
     // For authentication
@@ -126,6 +63,9 @@ async function main() {
             AuthService.authenticateRequest(req, res, next);
         }
     });
+
+    // Set up health check endpoint
+    setupHealthCheck(app);
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // Disable if API is open to the public
@@ -196,8 +136,7 @@ async function main() {
     });
 
     // Start Express server
-    server.listen(5329);
-
+    server.listen(SERVER_PORT);
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 }
 

@@ -51,12 +51,10 @@ export class JsonWebToken {
     static get(): JsonWebToken {
         if (!JsonWebToken.instance) {
             JsonWebToken.instance = new JsonWebToken();
-            if (process.env.NODE_ENV !== "test") {
-                // Load the keys for signing and verifying JWT tokens
-                JsonWebToken.instance.loadKeys();
-                // Calculate token sizes
-                JsonWebToken.instance.calculateTokenSizes();
-            }
+            // Load the keys for signing and verifying JWT tokens
+            JsonWebToken.instance.loadKeys();
+            // Calculate token sizes
+            JsonWebToken.instance.calculateTokenSizes();
         }
         return JsonWebToken.instance;
     }
@@ -90,6 +88,9 @@ export class JsonWebToken {
      * WARNING: For testing purposes only
      */
     setupTestEnvironment(keys: JwtKeys) {
+        if (!JsonWebToken.instance) {
+            JsonWebToken.instance = new JsonWebToken();
+        }
         // Store the keys
         this.keys = keys;
         // Calculate token sizes

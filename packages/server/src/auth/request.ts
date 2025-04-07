@@ -136,7 +136,7 @@ export class RequestService {
      * @returns An array of strings and regular expressions
      */
     safeOrigins(): Array<string | RegExp> {
-        if (this.cachedOrigins !== null) {
+        if (Array.isArray(this.cachedOrigins) && this.cachedOrigins.length > 0) {
             return this.cachedOrigins;
         }
 

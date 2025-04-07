@@ -1,14 +1,14 @@
-import { i18nConfig } from "@local/shared";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
-import i18next from "i18next";
 import { GenericContainer, StartedTestContainer } from "testcontainers";
-import { DbProvider } from "../db/provider.js";
-import { ModelMap } from "../models/base/index.js";
-import { LlmServiceRegistry } from "../tasks/llm/registry.js";
-import { TokenEstimationRegistry } from "../tasks/llm/tokenEstimator.js";
+import { DbProvider } from "../index.js";
+import { initializeRedis } from "../redisConn.js";
+import { setupTaskQueues } from "../tasks/setup.js";
+import { initSingletons } from "../utils/singletons.js";
+
+const SETUP_TIMEOUT_MS = 120_000;
 
 // Enable chai-as-promised for async tests
 chai.use(chaiAsPromised);
@@ -17,7 +17,7 @@ let redisContainer: StartedTestContainer;
 let postgresContainer: StartedTestContainer;
 
 before(async function beforeAllTests() {
-    this.timeout(60_000); // Allow extra time for container startup
+    this.timeout(SETUP_TIMEOUT_MS); // Allow extra time for container startup
 
     // Set up environment variables
     const { publicKey, privateKey } = generateKeyPairSync("rsa", {
@@ -36,6 +36,7 @@ before(async function beforeAllTests() {
     process.env.ANTHROPIC_API_KEY = "dummy";
     process.env.MISTRAL_API_KEY = "dummy";
     process.env.OPENAI_API_KEY = "dummy";
+    process.env.VITE_SERVER_LOCATION = "local";
 
     // Start the Redis container
     redisContainer = await new GenericContainer("redis")
@@ -76,17 +77,18 @@ before(async function beforeAllTests() {
     }
 
     // Initialize singletons
-    await i18next.init(i18nConfig(true));
-    await ModelMap.init();
-    await LlmServiceRegistry.init();
-    await TokenEstimationRegistry.init();
+    await initSingletons();
+    // Setup queues
+    await setupTaskQueues();
+    // Setup databases
+    await initializeRedis();
     await DbProvider.init();
 
     // TODO add sinon mocks for LLM services
 });
 
 after(async function afterAllTests() {
-    this.timeout(60_000); // Allow extra time for container shutdown
+    this.timeout(SETUP_TIMEOUT_MS); // Allow extra time for container shutdown
 
     // Stop the Redis container
     if (redisContainer) {

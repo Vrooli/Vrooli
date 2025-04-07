@@ -29,9 +29,11 @@ export const DEFAULT_USER_NAME_LENGTH = 8;
 type UpdateProfileType = Exclude<Mutater<UserModelInfo & { ApiUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
 async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["DbUpdate"]> {
     const preData = rest.preMap[__typename] as UserPre;
+
     return {
         bannerImage: data.bannerImage,
         handle: data.handle ?? null,
+        id: rest.userData.id,
         name: noNull(data.name),
         profileImage: data.profileImage,
         theme: noNull(data.theme),

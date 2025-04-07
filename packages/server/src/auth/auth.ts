@@ -182,7 +182,6 @@ export class AuthTokensService {
             ...JsonWebToken.createAccessExpiresAt(),
         };
         const newToken = JsonWebToken.get().sign(withAdditionalData);
-        console.log("yeet generated new token");
         return {
             maxAge: REFRESH_TOKEN_EXPIRATION_MS,
             payload: withAdditionalData,

@@ -48,7 +48,7 @@ export const user: EndpointsUser = {
     },
     profileUpdate: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
-        // Add user id to input, since IDs are required for validation checks
+        // Force usage of your own id
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         return updateOneHelper({ info, input: { ...input, id }, objectType, req });
     },
