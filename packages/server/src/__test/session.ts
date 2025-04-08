@@ -1,4 +1,4 @@
-import { AccountStatus, DAYS_1_MS, uuid } from "@local/shared";
+import { AccountStatus, ApiKeyPermission, DAYS_1_MS, uuid } from "@local/shared";
 import { Request, Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
 import { UserDataForPasswordAuth } from "../auth/email.js";
@@ -101,8 +101,8 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
  * Creates a mock request object for testing
  * @returns A minimal Express Request object with required properties
  */
-function createMockRequest(): Request {
-    const mockRequest = {
+export function mockRequest(): Request {
+    const result = {
         headers: {
             authorization: null,
             "accept-language": "en-US,en;q=0.9",
@@ -113,7 +113,7 @@ function createMockRequest(): Request {
         session: undefined
     };
 
-    return mockRequest as unknown as Request;
+    return result as unknown as Request;
 }
 
 /**
@@ -121,8 +121,8 @@ function createMockRequest(): Request {
  * that need to interact with the response (like setting cookies)
  * @returns A mock Express Response object with common methods
  */
-function createMockResponse(): Response {
-    const res = {
+export function mockResponse(): Response {
+    const result = {
         // Response status and data tracking
         statusCode: 200,
         jsonData: null as any,
@@ -154,7 +154,7 @@ function createMockResponse(): Response {
     };
 
     // Type assertion to treat our mock as an Express Response
-    return res as unknown as Response;
+    return result as unknown as Response;
 }
 
 /**
@@ -162,9 +162,9 @@ function createMockResponse(): Response {
  * @param userData User data to authenticate with
  * @returns Object containing req and res objects ready for use in tests
  */
-export async function mockRequestResponse(userData: UserDataForPasswordAuth) {
-    const req = createMockRequest();
-    const res = createMockResponse();
+export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth) {
+    const req = mockRequest();
+    const res = mockResponse();
 
     // Set up the session with the provided user data
     await createMockSession(userData, req, res);
@@ -179,6 +179,45 @@ export async function mockRequestResponse(userData: UserDataForPasswordAuth) {
             resolve();
         });
     });
+
+    return { req, res };
+}
+
+/**
+ * Creates a mock session object that simulates an API key
+ * @param apiToken The API key to use for the session
+ * @param permissions The permissions of the API key
+ * @param userData User data to authenticate with
+ * @returns A mock session object with appropriate session data
+ */
+export async function mockApiSession(apiToken: string, permissions: Record<ApiKeyPermission, boolean>, userData: UserDataForPasswordAuth) {
+    const req = mockRequest();
+    const res = mockResponse();
+
+    // Generate API token
+    await AuthTokensService.generateApiToken(res, apiToken, permissions, userData.id);
+
+    // Transfer cookies from response to request to simulate a real browser flow
+    req.cookies = (res as any).cookies;
+
+    // Run the authentication middleware to properly set up the request
+    await new Promise<void>((resolve) => {
+        AuthService.authenticateRequest(req, res, () => {
+            resolve();
+        });
+    });
+
+    return { req, res, apiToken };
+}
+
+export async function mockLoggedOutSession() {
+    const req = mockRequest();
+    const res = mockResponse();
+
+    req.session = {
+        fromSafeOrigin: true,
+        languages: ["en"],
+    }
 
     return { req, res };
 }

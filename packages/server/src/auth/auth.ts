@@ -1,4 +1,4 @@
-import { COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS, SessionUser } from "@local/shared";
+import { ApiKeyPermission, COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS, SessionUser } from "@local/shared";
 import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";
@@ -193,12 +193,16 @@ export class AuthTokensService {
      * Generates a JSON Web Token (JWT) for API authentication.
      * @param res 
      * @param apiToken
+     * @param permissions The permissions of the API key    
+     * @param userId The ID of the user that the API key belongs to
      */
-    static async generateApiToken(res: Response, apiToken: string): Promise<void> {
+    static async generateApiToken(res: Response, apiToken: string, permissions: Record<ApiKeyPermission, boolean>, userId: string): Promise<void> {
         const tokenContents: ApiToken = {
             ...JsonWebToken.get().basicToken(),
             ...JsonWebToken.createAccessExpiresAt(),
             apiToken,
+            permissions,
+            userId,
         };
         const token = JsonWebToken.get().sign(tokenContents);
         JsonWebToken.addToCookies(res, token, REFRESH_TOKEN_EXPIRATION_MS);
@@ -408,6 +412,11 @@ export function updateSessionWithTokenPayload(req: { session: SessionData }, pay
     req.session.apiToken = payload.apiToken ?? false;
     req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
     req.session.timeZone = payload.timeZone ?? req.session.timeZone;
+    // Set API token permissions if they exist
+    if (payload.apiToken && payload.permissions) {
+        req.session.permissions = payload.permissions;
+        req.session.userId = payload.userId;
+    }
     // Keep session token users, but make sure they all have unique ids
     req.session.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
     // Find preferred languages for first user. Combine with languages in request header

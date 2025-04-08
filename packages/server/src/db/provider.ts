@@ -262,4 +262,27 @@ export class DbProvider {
 
         return true;
     }
+
+    /**
+     * Gracefully shuts down the database connection
+     * This should be called during application or test shutdown
+     */
+    public static async shutdown(): Promise<void> {
+        try {
+            // Clear any scheduled seeding retry
+            if (DbProvider.seedRetryTimeout) {
+                clearTimeout(DbProvider.seedRetryTimeout);
+                DbProvider.seedRetryTimeout = null;
+            }
+
+            // Disconnect from the database if connected
+            if (DbProvider.connected && DbProvider.dbService) {
+                logger.info("Disconnecting from database");
+                await DbProvider.dbService.disconnect();
+                DbProvider.connected = false;
+            }
+        } catch (error) {
+            logger.error("Error during database shutdown", { trace: "0720", error });
+        }
+    }
 }

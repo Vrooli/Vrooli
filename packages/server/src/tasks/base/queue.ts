@@ -54,6 +54,70 @@ export class BaseQueue<T> {
     }
 
     /**
+     * Close the queue and its Redis connections
+     * This should be called when the queue is no longer needed,
+     * especially in test environments to prevent hanging
+     */
+    async close(): Promise<void> {
+        try {
+            // First remove any listeners to ensure no new jobs can be added
+            this.queue.removeAllListeners();
+
+            // Check if client is still connected before trying to interact with Redis
+            // This prevents "Connection is closed" errors
+            let isConnected = false;
+            try {
+                // Try a simple operation to check if connection is alive
+                if (this.queue.client) {
+                    await this.queue.client.ping().catch(() => { });
+                    isConnected = true;
+                }
+            } catch (e) {
+                // Connection is already closed
+                console.info(`Queue ${this.queue.name} connection is already closed`);
+                return;
+            }
+
+            // Only proceed with cleanup if connection is active
+            if (isConnected) {
+                try {
+                    // Pause the queue to stop processing
+                    await this.queue.pause(true);
+
+                    // Get all active jobs
+                    const activeJobs = await this.queue.getJobs(['active']);
+                    if (activeJobs.length > 0) {
+                        console.info(`Cleaning up ${activeJobs.length} active jobs in ${this.queue.name} queue`);
+                        // Force complete all active jobs to prevent hanging
+                        await Promise.all(activeJobs.map(job => job.moveToCompleted('Forced completion during test teardown', true)));
+                    }
+
+                    // Check for waiting jobs that might be keeping connections open
+                    const waitingJobs = await this.queue.getJobs(['waiting']);
+                    if (waitingJobs.length > 0) {
+                        console.info(`Cleaning up ${waitingJobs.length} waiting jobs in ${this.queue.name} queue`);
+                        // Remove waiting jobs to prevent hanging
+                        await Promise.all(waitingJobs.map(job => job.remove()));
+                    }
+
+                    // Close the queue
+                    await this.queue.close(true); // Use force=true to disconnect immediately
+
+                    // Explicitly clean up Redis client used by Bull
+                    if (this.queue.client && this.queue.client.status !== 'end') {
+                        await this.queue.client.quit().catch(() => { });
+                    }
+                } catch (innerError) {
+                    // If any part of the cleanup fails, just log it and continue
+                    console.error(`Error during queue cleanup for ${this.queue.name}:`, innerError);
+                }
+            }
+        } catch (error) {
+            console.error(`Error closing ${this.queue.name} queue:`, error);
+        }
+    }
+
+    /**
      * Check the health status of the queue
      * @returns The current health status and detailed information about the queue
      */

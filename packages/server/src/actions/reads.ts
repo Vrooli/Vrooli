@@ -47,7 +47,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     objectType,
     req,
 }: ReadOneHelperProps): Promise<RecursivePartial<ObjectModel>> {
-    const userData = SessionService.getUser(req.session);
+    const userData = SessionService.getUser(req);
     const model = ModelMap.get(objectType);
     // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
     // Between these, the possible fields are id, idRoot, handle, and handleRoot
@@ -113,7 +113,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     req,
     visibility,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
-    const userData = SessionService.getUser(req.session);
+    const userData = SessionService.getUser(req);
     const model = ModelMap.get(objectType);
     // Partially convert info type
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
@@ -249,7 +249,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     req,
     visibility,
 }: ReadManyWithEmbeddingsHelperProps<Input>): Promise<PaginatedSearchResult> {
-    const userData = SessionService.getUser(req.session);
+    const userData = SessionService.getUser(req);
     const model = ModelMap.get(objectType);
     const desiredTake = getDesiredTake(input.take, objectType);
     const searchStringTrimmed = (input.searchString ?? "").trim();

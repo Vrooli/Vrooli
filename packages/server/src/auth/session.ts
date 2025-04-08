@@ -1,4 +1,4 @@
-import { FocusModeStopCondition, Session, SessionUser, uuidValidate } from "@local/shared";
+import { DEFAULT_LANGUAGE, FocusModeStopCondition, Session, SessionUser, uuidValidate } from "@local/shared";
 import { Request } from "express";
 import { CustomError } from "../events/error.js";
 import { UserDataForPasswordAuth } from "./email.js";
@@ -20,10 +20,24 @@ export class SessionService {
     * @param session The Request's session property
     * @returns First userId in Session object, or null if not found/invalid
     */
-    static getUser<User extends { id: string }>(session: { users?: User[] | null | undefined }): User | null {
-        if (!session || !Array.isArray(session?.users) || session.users.length === 0) return null;
-        const user = session.users[0];
-        return user !== undefined && typeof user.id === "string" && uuidValidate(user.id) ? user : null;
+    static getUser<User extends { id: string }>(req: { session: { users?: User[] | null | undefined, userId?: string | null | undefined } }): User | null {
+        if (typeof req !== "object" || req === null) {
+            return null;
+        }
+        const { session } = req;
+        if (typeof session !== "object" || session === null) {
+            return null;
+        }
+        if (session.userId && typeof session.userId === "string" && uuidValidate(session.userId)) {
+            return { id: session.userId, languages: [DEFAULT_LANGUAGE] } as unknown as User;
+        }
+        if (Array.isArray(session.users) && session.users.length > 0) {
+            const user = session.users[0];
+            if (user !== undefined && typeof user.id === "string" && uuidValidate(user.id)) {
+                return user;
+            }
+        }
+        return null;
     }
 
     /**

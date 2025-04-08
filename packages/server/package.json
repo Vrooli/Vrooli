@@ -95,6 +95,7 @@
         "mocha": "^11.1.0",
         "rimraf": "^5.0.10",
         "sinon": "^19.0.2",
-        "testcontainers": "^10.18.0"
+        "testcontainers": "^10.18.0",
+        "why-is-node-running": "^2.3.0"
     }
 }

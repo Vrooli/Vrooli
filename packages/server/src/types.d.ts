@@ -1,4 +1,4 @@
-import { ModelType, SessionUser } from "@local/shared";
+import { ApiKeyPermission, ModelType, SessionUser } from "@local/shared";
 import { PartialApiInfo } from "./api/types.js";
 import { Context } from "./middleware/context.js";
 
@@ -19,7 +19,12 @@ export interface AccessToken extends BasicToken {
     accessExpiresAt: number;
 }
 export interface ApiToken extends AccessToken {
+    /** The API key */
     apiToken: string;
+    /** The permissions of the API key */
+    permissions: Record<ApiKeyPermission, boolean>;
+    /** The ID of the user that the API key belongs to */
+    userId: string;
 }
 
 /**
@@ -49,8 +54,12 @@ export type SessionData = {
      * Always has at least one language
      */
     languages?: string[];
+    /** API token permissions */
+    permissions?: Record<ApiKeyPermission, boolean>;
     /** User's current time zone */
     timeZone?: string | null;
+    /** ID of user if using API token */
+    userId?: string | null;
     /** Users logged in with this session (if isLoggedIn is true) */
     users?: SessionUser[] | null;
     validToken?: boolean;

@@ -309,52 +309,29 @@ describe("RequestService", () => {
             sandbox.restore();
         });
 
-        describe("isApiRoot conditions", () => {
-            it("should pass when isApiRoot is true and request is from API root", () => {
+        describe("isApiToken conditions", () => {
+            it("should pass when isApiToken is true and request is from API token", () => {
                 sessionData.isLoggedIn = false;
                 sessionData.apiToken = "testApiToken";
                 // @ts-ignore Testing runtime scenario
                 sandbox.stub(SessionService, "getUser").returns(undefined);
 
                 const req = { session: sessionData };
-                const conditions = { isApiRoot: true };
+                const conditions = { isApiToken: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
                 expect(result).to.be.undefined;
             });
 
-            it("should throw MustUseApiToken when isApiRoot is true but request is not from API root", () => {
+            it("should throw MustUseApiToken when isApiToken is true but request is not from API token", () => {
                 sessionData.isLoggedIn = false;
                 sessionData.apiToken = null;
                 sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
-                const conditions = { isApiRoot: true };
+                const conditions = { isApiToken: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
                 }).to.throw();
-            });
-
-            it("should throw MustNotUseApiToken when isApiRoot is false but request is from API root", () => {
-                sessionData.isLoggedIn = false;
-                sessionData.apiToken = "testApiToken";
-                sandbox.stub(SessionService, "getUser").returns(null);
-
-                const req = { session: sessionData };
-                const conditions = { isApiRoot: false };
-                expect(() => {
-                    RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
-            });
-
-            it("should pass when isApiRoot is false and request is not from API root", () => {
-                sessionData.isLoggedIn = true;
-                sessionData.apiToken = null;
-                sandbox.stub(SessionService, "getUser").returns(userData);
-
-                const req = { session: sessionData };
-                const conditions = { isApiRoot: false };
-                const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.be.undefined;
             });
         });
 
@@ -366,7 +343,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
-                const conditions = { isUser: true };
+                const conditions = { isUser: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
                 expect(result).to.deep.equal(userData);
             });
@@ -378,7 +355,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
-                const conditions = { isUser: true };
+                const conditions = { isUser: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
                 expect(result).to.deep.equal(userData);
             });
@@ -390,7 +367,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
-                const conditions = { isUser: true };
+                const conditions = { isUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
                 }).to.throw();
@@ -403,32 +380,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
-                const conditions = { isUser: true };
-                expect(() => {
-                    RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
-            });
-
-            it("should pass when isUser is false and user is not logged in", () => {
-                sessionData.isLoggedIn = false;
-                sessionData.apiToken = null;
-                sessionData.fromSafeOrigin = false;
-                sandbox.stub(SessionService, "getUser").returns(null);
-
-                const req = { session: sessionData };
-                const conditions = { isUser: false };
-                const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.be.undefined;
-            });
-
-            it("should throw NotLoggedIn when isUser is false but user is logged in", () => {
-                sessionData.isLoggedIn = true;
-                sessionData.apiToken = "testApiToken";
-                sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
-
-                const req = { session: sessionData };
-                const conditions = { isUser: false };
+                const conditions = { isUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
                 }).to.throw();
@@ -443,7 +395,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
-                const conditions = { isOfficialUser: true };
+                const conditions = { isOfficialUser: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
                 expect(result).to.deep.equal(userData);
             });
@@ -455,7 +407,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
-                const conditions = { isOfficialUser: true };
+                const conditions = { isOfficialUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
                 }).to.throw();
@@ -468,7 +420,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
-                const conditions = { isOfficialUser: true };
+                const conditions = { isOfficialUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
                 }).to.throw();
@@ -481,59 +433,7 @@ describe("RequestService", () => {
                 sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
-                const conditions = { isOfficialUser: true };
-                expect(() => {
-                    RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
-            });
-
-            it("should pass when isOfficialUser is false and user is not an official user", () => {
-                sessionData.isLoggedIn = true;
-                sessionData.apiToken = "testApiToken";
-                sessionData.fromSafeOrigin = false;
-                sandbox.stub(SessionService, "getUser").returns(userData);
-
-                const req = { session: sessionData };
-                const conditions = { isOfficialUser: false };
-                const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.be.undefined;
-            });
-
-            it("should throw NotLoggedInOfficial when isOfficialUser is false but user is an official user", () => {
-                sessionData.isLoggedIn = true;
-                sessionData.apiToken = null;
-                sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
-
-                const req = { session: sessionData };
-                const conditions = { isOfficialUser: false };
-                expect(() => {
-                    RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
-            });
-        });
-
-        describe("Combination of conditions", () => {
-            it("should pass when all conditions are met", () => {
-                sessionData.isLoggedIn = true;
-                sessionData.apiToken = null;
-                sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
-
-                const req = { session: sessionData };
-                const conditions = { isUser: true, isOfficialUser: true, isApiRoot: false };
-                const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.deep.equal(userData);
-            });
-
-            it("should throw appropriate error when one of the conditions fails", () => {
-                sessionData.isLoggedIn = true;
-                sessionData.apiToken = "testApiToken";
-                sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
-
-                const req = { session: sessionData };
-                const conditions = { isUser: true, isOfficialUser: true, isApiRoot: false };
+                const conditions = { isOfficialUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
                 }).to.throw();

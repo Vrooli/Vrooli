@@ -1,4 +1,4 @@
-import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslation, userValidation } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, SEEDED_IDS, UserSortBy, getTranslation, userValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -11,7 +11,6 @@ import { handlesCheck } from "../../validators/handlesCheck.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { UserFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
-import { Mutater } from "../types.js";
 import { ModelMap } from "./index.js";
 import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types.js";
 
@@ -25,59 +24,6 @@ const __typename = "User" as const;
  * if not provided by OAuth provider or other means.
  */
 export const DEFAULT_USER_NAME_LENGTH = 8;
-
-type UpdateProfileType = Exclude<Mutater<UserModelInfo & { ApiUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
-async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["DbUpdate"]> {
-    const preData = rest.preMap[__typename] as UserPre;
-
-    return {
-        bannerImage: data.bannerImage,
-        handle: data.handle ?? null,
-        id: rest.userData.id,
-        name: noNull(data.name),
-        profileImage: data.profileImage,
-        theme: noNull(data.theme),
-        isPrivate: noNull(data.isPrivate),
-        isPrivateApis: noNull(data.isPrivateApis),
-        isPrivateApisCreated: noNull(data.isPrivateApisCreated),
-        isPrivateCodes: noNull(data.isPrivateCodes),
-        isPrivateCodesCreated: noNull(data.isPrivateCodesCreated),
-        isPrivateMemberships: noNull(data.isPrivateMemberships),
-        isPrivateProjects: noNull(data.isPrivateProjects),
-        isPrivateProjectsCreated: noNull(data.isPrivateProjectsCreated),
-        isPrivatePullRequests: noNull(data.isPrivatePullRequests),
-        isPrivateQuestionsAnswered: noNull(data.isPrivateQuestionsAnswered),
-        isPrivateQuestionsAsked: noNull(data.isPrivateQuestionsAsked),
-        isPrivateQuizzesCreated: noNull(data.isPrivateQuizzesCreated),
-        isPrivateRoles: noNull(data.isPrivateRoles),
-        isPrivateRoutines: noNull(data.isPrivateRoutines),
-        isPrivateRoutinesCreated: noNull(data.isPrivateRoutinesCreated),
-        isPrivateStandards: noNull(data.isPrivateStandards),
-        isPrivateStandardsCreated: noNull(data.isPrivateStandardsCreated),
-        isPrivateTeamsCreated: noNull(data.isPrivateTeamsCreated),
-        isPrivateBookmarks: noNull(data.isPrivateBookmarks),
-        isPrivateVotes: noNull(data.isPrivateVotes),
-        notificationSettings: data.notificationSettings ?? null,
-        // languages: TODO!!!
-        focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
-        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
-    };
-}
-
-type UpdateBotType = Exclude<Mutater<UserModelInfo & { ApiUpdate: BotUpdateInput }>["shape"]["update"], undefined>;
-async function updateBot({ data, ...rest }: Parameters<UpdateBotType>[0]): Promise<UserModelInfo["DbUpdate"]> {
-    const preData = rest.preMap[__typename] as UserPre;
-    return {
-        bannerImage: data.bannerImage,
-        botSettings: noNull(data.botSettings),
-        handle: data.handle ?? null,
-        isBotDepictingPerson: noNull(data.isBotDepictingPerson),
-        isPrivate: noNull(data.isPrivate),
-        name: noNull(data.name),
-        profileImage: data.profileImage,
-        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
-    };
-}
 
 export const UserModel: UserModelLogic = ({
     __typename,
@@ -108,29 +54,107 @@ export const UserModel: UserModelLogic = ({
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create: [], Update, objectType: __typename });
                 return { ...maps };
             },
-            /** Create only applies for bots */
+            // Create only applies for bots normally, but seeding and tests might create non-bot users
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                return {
+                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && (data as { isBot: boolean }).isBot === false;
+                const commonData = {
                     id: data.id,
                     bannerImage: noNull(data.bannerImage),
-                    botSettings: data.botSettings,
                     handle: data.handle ?? null,
-                    isBot: true,
-                    isBotDepictingPerson: data.isBotDepictingPerson,
-                    isPrivate: data.isPrivate,
-                    name: data.name,
+                    isPrivate: noNull(data.isPrivate),
+                    name: data.name ?? "",
                     profileImage: noNull(data.profileImage),
-                    invitedByUser: { connect: { id: rest.userData.id } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
+                if (!isUser) {
+                    const botData = data as BotCreateInput;
+                    return {
+                        ...commonData,
+                        botSettings: botData.botSettings,
+                        isBot: true,
+                        isBotDepictingPerson: botData.isBotDepictingPerson,
+                        invitedByUser: { connect: { id: rest.userData.id } },
+                    };
+                }
+                const profileData = data as (ProfileUpdateInput & { id: string });
+                return {
+                    ...commonData,
+                    isBot: false,
+                    theme: noNull(profileData.theme),
+                    isPrivateApis: noNull(profileData.isPrivateApis),
+                    isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
+                    isPrivateCodes: noNull(profileData.isPrivateCodes),
+                    isPrivateCodesCreated: noNull(profileData.isPrivateCodesCreated),
+                    isPrivateMemberships: noNull(profileData.isPrivateMemberships),
+                    isPrivateProjects: noNull(profileData.isPrivateProjects),
+                    isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
+                    isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
+                    isPrivateQuestionsAnswered: noNull(profileData.isPrivateQuestionsAnswered),
+                    isPrivateQuestionsAsked: noNull(profileData.isPrivateQuestionsAsked),
+                    isPrivateQuizzesCreated: noNull(profileData.isPrivateQuizzesCreated),
+                    isPrivateRoles: noNull(profileData.isPrivateRoles),
+                    isPrivateRoutines: noNull(profileData.isPrivateRoutines),
+                    isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
+                    isPrivateStandards: noNull(profileData.isPrivateStandards),
+                    isPrivateStandardsCreated: noNull(profileData.isPrivateStandardsCreated),
+                    isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
+                    isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
+                    isPrivateVotes: noNull(profileData.isPrivateVotes),
+                    notificationSettings: profileData.notificationSettings ?? null,
+                    // languages: TODO!!!
+                    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
+                }
             },
             /** Update can be either a bot or your profile */
             update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as UserPre;
                 const isBot = Boolean((data as BotUpdateInput).id) && (data as BotUpdateInput).id !== rest.userData.id;
-                return isBot ?
-                    await updateBot({ data: data as BotUpdateInput, ...rest }) :
-                    await updateProfile({ data: data as ProfileUpdateInput, ...rest });
+                const commonData = {
+                    bannerImage: data.bannerImage,
+                    handle: data.handle ?? null,
+                    id: rest.userData.id,
+                    isPrivate: noNull(data.isPrivate),
+                    name: noNull(data.name),
+                    profileImage: data.profileImage,
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
+                }
+                if (isBot) {
+                    const botData = data as BotUpdateInput;
+                    return {
+                        ...commonData,
+                        botSettings: botData.botSettings,
+                        isBotDepictingPerson: noNull(botData.isBotDepictingPerson),
+                    }
+                }
+                const profileData = data as ProfileUpdateInput;
+                return {
+                    ...commonData,
+                    theme: noNull(profileData.theme),
+                    isPrivateApis: noNull(profileData.isPrivateApis),
+                    isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
+                    isPrivateCodes: noNull(profileData.isPrivateCodes),
+                    isPrivateCodesCreated: noNull(profileData.isPrivateCodesCreated),
+                    isPrivateMemberships: noNull(profileData.isPrivateMemberships),
+                    isPrivateProjects: noNull(profileData.isPrivateProjects),
+                    isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
+                    isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
+                    isPrivateQuestionsAnswered: noNull(profileData.isPrivateQuestionsAnswered),
+                    isPrivateQuestionsAsked: noNull(profileData.isPrivateQuestionsAsked),
+                    isPrivateQuizzesCreated: noNull(profileData.isPrivateQuizzesCreated),
+                    isPrivateRoles: noNull(profileData.isPrivateRoles),
+                    isPrivateRoutines: noNull(profileData.isPrivateRoutines),
+                    isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
+                    isPrivateStandards: noNull(profileData.isPrivateStandards),
+                    isPrivateStandardsCreated: noNull(profileData.isPrivateStandardsCreated),
+                    isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
+                    isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
+                    isPrivateVotes: noNull(profileData.isPrivateVotes),
+                    notificationSettings: profileData.notificationSettings ?? null,
+                    // languages: TODO!!!
+                    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
+                };
             },
         },
         trigger: {

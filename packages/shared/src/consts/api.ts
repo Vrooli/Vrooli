@@ -163,3 +163,11 @@ export const AUTH_PROVIDERS = {
     ...OAUTH_PROVIDERS,
     Password: "password",
 } as const;
+
+export enum ApiKeyPermission {
+    ReadPublic = "ReadPublic",
+    ReadPrivate = "ReadPrivate",
+    WritePrivate = "WritePrivate",
+    ReadAuth = "ReadAuth",
+    WriteAuth = "WriteAuth",
+}

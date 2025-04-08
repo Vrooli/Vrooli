@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { logger } from "../events/logger.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const importExtension = ".js";
 
 export const LOGGER_PATH = path.join(dirname, "../events/logger" + importExtension);
 export const REDIS_CONN_PATH = path.join(dirname, "../redisConn" + importExtension);

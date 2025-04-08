@@ -1,4 +1,4 @@
-import { DAYS_1_S, DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
+import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
 import { type Request } from "express";
 import fs from "fs";
 import pkg from "lodash";
@@ -20,22 +20,42 @@ const tokenBucketScriptFile = `${process.env.PROJECT_DIR}/packages/server/${proc
 
 export type RequestConditions = {
     /**
-     * Checks if the request is coming from an API token directly
-     */
-    isApiRoot?: boolean;
-    /**
      * Checks if the request is coming from a user logged in via an API token, or the official Vrooli app/website
      * This allows other services to use Vrooli as a backend, in a way that 
      * we can price it accordingly.
      */
-    isUser?: boolean;
+    isUser?: true;
     /**
      * Checks if the request is coming from a user logged in via the official Vrooli app/website
      */
-    isOfficialUser?: boolean;
+    isOfficialUser?: true;
+    /**
+     * Checks if the request is coming from a valid API token
+     */
+    isApiToken?: true;
+    /**
+     * Checks if the request has ReadPublic permission
+     */
+    hasReadPublicPermissions?: boolean;
+    /**
+     * Checks if the request has ReadPrivate permission
+     */
+    hasReadPrivatePermissions?: boolean;
+    /**
+     * Checks if the request has WritePrivate permission
+     */
+    hasWritePrivatePermissions?: boolean;
+    /**
+     * Checks if the request has ReadAuth permission
+     */
+    hasReadAuthPermissions?: boolean;
+    /**
+     * Checks if the request has WriteAuth permission
+     */
+    hasWriteAuthPermissions?: boolean;
 }
 
-type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUser : undefined;
+type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } | { hasReadPrivatePermissions: true } | { hasWritePrivatePermissions: true } | { hasReadAuthPermissions: true } | { hasWriteAuthPermissions: true } ? SessionUser : undefined;
 
 export interface RateLimitProps {
     /**
@@ -243,34 +263,60 @@ export class RequestService {
      * @throws CustomError if conditions are not met
      */
     static assertRequestFrom<Conditions extends RequestConditions>(
-        req: { session: Pick<SessionData, "apiToken" | "fromSafeOrigin" | "isLoggedIn" | "languages"> & { users?: Pick<SessionUser, "id" | "languages">[] | null | undefined } },
+        req: { session: Pick<SessionData, "apiToken" | "fromSafeOrigin" | "isLoggedIn" | "languages" | "permissions" | "userId"> & { users?: Pick<SessionUser, "id" | "languages">[] | null | undefined } },
         conditions: Conditions,
     ): AssertRequestFromResult<Conditions> {
         const { session } = req;
         // Determine if user data is found in the request
-        const userData = SessionService.getUser(session);
-        const hasUserData = session.isLoggedIn === true && Boolean(userData);
+        let userData = SessionService.getUser(req);
         // Determine if api token is supplied
-        const hasApiToken = typeof session.apiToken === "string" && session.apiToken.length > 0;
-        // Check isApiRoot condition
-        if (conditions.isApiRoot !== undefined) {
-            const isApiRoot = hasApiToken && !hasUserData;
-            if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError("0265", "MustUseApiToken");
-            if (conditions.isApiRoot === false && isApiRoot) throw new CustomError("0266", "MustNotUseApiToken");
+        const hasApiToken = typeof session?.apiToken === "string" && session?.apiToken?.length > 0;
+        // Determine permissions
+        const isVerifiedUser = session?.isLoggedIn === true && Boolean(userData) && session.fromSafeOrigin === true;
+        let permissions: { [key in ApiKeyPermission]?: boolean } = {};
+        // Verified users have all permissions
+        if (isVerifiedUser) {
+            permissions = {
+                [ApiKeyPermission.ReadPublic]: true,
+                [ApiKeyPermission.ReadPrivate]: true,
+                [ApiKeyPermission.WritePrivate]: true,
+                [ApiKeyPermission.WriteAuth]: true,
+                [ApiKeyPermission.ReadAuth]: true,
+            };
         }
+        // API token requests have the permissions of the API token
+        else if (hasApiToken) {
+            permissions = session?.permissions ?? {};
+        } else if (session.fromSafeOrigin === true) {
+            permissions = {
+                [ApiKeyPermission.ReadPublic]: true,
+            }
+        }
+
         // Check isUser condition
-        if (conditions.isUser !== undefined) {
-            const isUser = hasUserData && (hasApiToken || session.fromSafeOrigin === true);
-            if (conditions.isUser === true && !isUser) throw new CustomError("0267", "NotLoggedIn");
-            if (conditions.isUser === false && isUser) throw new CustomError("0268", "NotLoggedIn");
-        }
+        if (conditions.isUser === true && !isVerifiedUser) throw new CustomError("0267", "NotLoggedIn");
         // Check isOfficialUser condition
-        if (conditions.isOfficialUser !== undefined) {
-            const isOfficialUser = hasUserData && !hasApiToken && session.fromSafeOrigin === true;
-            if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError("0269", "NotLoggedInOfficial");
-            if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError("0270", "NotLoggedInOfficial");
+        if (conditions.isOfficialUser === true && hasApiToken) throw new CustomError("0269", "NotLoggedInOfficial");
+        // Check isApiToken condition
+        if (conditions.isApiToken === true && !hasApiToken) throw new CustomError("0272", "MustUseApiToken");
+        // Check permissions
+        if (conditions.hasReadPublicPermissions === true && !permissions[ApiKeyPermission.ReadPublic]) {
+            throw new CustomError("0274", "Unauthorized");
         }
-        return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
+        if (conditions.hasReadPrivatePermissions === true && !permissions[ApiKeyPermission.ReadPrivate]) {
+            throw new CustomError("0275", "Unauthorized");
+        }
+        if (conditions.hasWritePrivatePermissions === true && !permissions[ApiKeyPermission.WritePrivate]) {
+            throw new CustomError("0276", "Unauthorized");
+        }
+        if (conditions.hasReadAuthPermissions === true && !permissions[ApiKeyPermission.ReadAuth]) {
+            throw new CustomError("0277", "Unauthorized");
+        }
+        if (conditions.hasWriteAuthPermissions === true && !permissions[ApiKeyPermission.WriteAuth]) {
+            throw new CustomError("0278", "Unauthorized");
+        }
+
+        return (userData ?? {}) as AssertRequestFromResult<Conditions>;
     }
 
     /**
@@ -436,9 +482,9 @@ export class RequestService {
         maxIp = maxIp ?? maxUser;
 
         // Parse request
-        const hasApiToken = typeof req.session.apiToken === "string" && req.session.apiToken.length > 0;
-        const userData = SessionService.getUser(req.session);
-        const hasUserData = req.session.isLoggedIn === true && userData !== null;
+        const hasApiToken = typeof req.session?.apiToken === "string" && req.session?.apiToken?.length > 0;
+        const userData = SessionService.getUser(req);
+        const hasUserData = req.session?.isLoggedIn === true && userData !== null;
 
         // Try connecting to redis
         try {
@@ -462,7 +508,7 @@ export class RequestService {
                 refillRates.push(apiRefillRate);
             }
             // Make sure that all non-API requests are from a safe origin
-            else if (req.session.fromSafeOrigin === false) {
+            else if (req.session?.fromSafeOrigin !== true) {
                 throw new CustomError("0271", "MustUseApiToken", { keyBase: RequestService.buildKeyBase(req) });
             }
 
@@ -501,8 +547,8 @@ export class RequestService {
         socket,
     }: SocketRateLimitProps): Promise<string | undefined> {
         // Retrieve user data from the socket
-        const userData = SessionService.getUser(socket.session);
-        const hasUserData = socket.session.isLoggedIn === true && userData !== null;
+        const userData = SessionService.getUser(socket);
+        const hasUserData = socket.session?.isLoggedIn === true && userData !== null;
         // If maxIp not supplied, use maxUser
         maxIp = maxIp ?? maxUser;
         // Try connecting to redis

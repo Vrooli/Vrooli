@@ -27,7 +27,7 @@ export type EndpointsUser = {
 const objectType = "User";
 export const user: EndpointsUser = {
     profile: async (_d, { req }, info) => {
-        const { id } = RequestService.assertRequestFrom(req, { isUser: true });
+        const { id } = RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
         return readOneHelper({ info, input: { id }, objectType, req });
     },
     findOne: async ({ input }, { req }, info) => {
@@ -49,11 +49,11 @@ export const user: EndpointsUser = {
     profileUpdate: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         // Force usage of your own id
-        const { id } = RequestService.assertRequestFrom(req, { isUser: true });
+        const { id } = RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return updateOneHelper({ info, input: { ...input, id }, objectType, req });
     },
     profileEmailUpdate: async ({ input }, { req }, info) => {
-        const userData = RequestService.assertRequestFrom(req, { isUser: true });
+        const userData = RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         await RequestService.get().rateLimit({ maxUser: 100, req });
         // Validate input
         profileEmailUpdateValidation.update({ env: process.env.NODE_ENV as "development" | "production" }).validateSync(input, { abortEarly: false });

@@ -1,5 +1,5 @@
-import { Count, Success } from "@local/shared";
-import { RequestService } from "../auth/request.js";
+import { Count, SessionUser, Success } from "@local/shared";
+import { SessionService } from "../auth/session.js";
 import { cudHelper } from "./cuds.js";
 import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types.js";
 
@@ -11,7 +11,7 @@ export async function deleteOneHelper({
     input,
     req,
 }: DeleteOneHelperProps): Promise<Success> {
-    const userData = RequestService.assertRequestFrom(req, { isUser: true });
+    const userData = SessionService.getUser(req) as SessionUser;
     // Delete object. cudHelper will check permissions and handle triggers
     const deleted = (await cudHelper({
         info: {},
@@ -34,7 +34,7 @@ export async function deleteManyHelper({
     input,
     req,
 }: DeleteManyHelperProps): Promise<Count> {
-    const userData = RequestService.assertRequestFrom(req, { isUser: true });
+    const userData = SessionService.getUser(req) as SessionUser;
     // Delete objects. cudHelper will check permissions and handle triggers
     const deleted = await cudHelper({
         // deleteMany: input.ids,

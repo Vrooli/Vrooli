@@ -64,6 +64,71 @@ export async function initializeRedis(): Promise<RedisClientType | null> {
     return redisClient;
 }
 
+/**
+ * Safely closes the Redis client connection
+ * This should be called during test teardown to prevent hanging connections
+ */
+export async function closeRedis(): Promise<void> {
+    // If client doesn't exist, nothing to do
+    if (!redisClient) {
+        logger.info("No Redis client to close", { trace: "0585" });
+        return;
+    }
+
+    try {
+        logger.info("Closing Redis client connection", { trace: "0582" });
+
+        // Check if the client is actually connected before trying operations
+        let isConnected = false;
+        try {
+            // Try a simple operation to check connection status
+            if (redisClient.isReady) {
+                await redisClient.ping().catch(() => { });
+                isConnected = true;
+            }
+        } catch (e) {
+            // The connection is already closed
+            logger.info("Redis client is already disconnected", { trace: "0586" });
+            redisClient = null;
+            retryCount = 0;
+            return;
+        }
+
+        // Only perform cleanup if the connection is still active
+        if (isConnected) {
+            // Remove all listeners before disconnecting
+            redisClient.removeAllListeners();
+
+            // Try to unsubscribe from all channels if this is a subscriber
+            try {
+                if (typeof redisClient.unsubscribe === 'function') {
+                    await redisClient.unsubscribe();
+                }
+            } catch (e) {
+                // Ignore unsubscribe errors
+                logger.error("Error unsubscribing from Redis channels", { trace: "0584", error: e });
+            }
+
+            // Disconnect with force option
+            await redisClient.disconnect();
+        }
+
+        // Ensure the client is really closed by setting it to null
+        redisClient = null;
+
+        // Reset retry count
+        retryCount = 0;
+
+        logger.info("Redis client successfully closed", { trace: "0587" });
+    } catch (error) {
+        logger.error("Error closing Redis client", { trace: "0583", error });
+
+        // Even if there's an error, set the client to null to prevent further usage
+        redisClient = null;
+        retryCount = 0;
+    }
+}
+
 interface WithRedisProps {
     process: (redisClient: RedisClientType | null) => Promise<void>,
     trace: string,

@@ -1,4 +1,5 @@
-import { RequestService } from "../auth/request.js";
+import { SessionUser } from "@local/shared";
+import { SessionService } from "../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
@@ -18,7 +19,7 @@ export async function createManyHelper<ObjectModel>({
     objectType,
     req,
 }: CreateManyHelperProps): Promise<RecursivePartial<ObjectModel>[]> {
-    const userData = RequestService.assertRequestFrom(req, { isUser: true });
+    const userData = SessionService.getUser(req) as SessionUser;
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);

@@ -1467,8 +1467,8 @@ export type UserModelInfo = {
     __typename: "User",
     IsTransferable: false,
     IsVersioned: false,
-    ApiCreate: BotCreateInput, // Can only create bot users
-    ApiUpdate: BotUpdateInput | ProfileUpdateInput, // Can update either a bot or your own profile
+    ApiCreate: BotCreateInput | (ProfileUpdateInput & { id: string, isBot: boolean }), // Profile creation only used by admin for seeding or testing
+    ApiUpdate: BotUpdateInput | ProfileUpdateInput,
     ApiModel: User,
     ApiSearch: UserSearchInput,
     ApiSort: UserSortBy,

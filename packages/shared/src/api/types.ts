@@ -146,6 +146,7 @@ export type ApiKey = DbObject<"ApiKey"> & {
     limitHard: Scalars["BigInt"];
     limitSoft?: Maybe<Scalars["BigInt"]>;
     name: Scalars["String"];
+    permissions: Scalars["String"];
     stopAtLimit: Scalars["Boolean"];
 };
 
@@ -161,6 +162,7 @@ export type ApiKeyCreateInput = {
     name: Scalars["String"];
     stopAtLimit: Scalars["Boolean"];
     teamConnect?: InputMaybe<Scalars["ID"]>;
+    permissions: Scalars["String"];
 };
 
 export type ApiKeyUpdateInput = {
@@ -170,6 +172,7 @@ export type ApiKeyUpdateInput = {
     limitSoft?: InputMaybe<Scalars["BigInt"]>;
     name?: InputMaybe<Scalars["String"]>;
     stopAtLimit?: InputMaybe<Scalars["Boolean"]>;
+    permissions?: InputMaybe<Scalars["String"]>;
 };
 
 export type ApiKeyValidateInput = {
