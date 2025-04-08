@@ -208,7 +208,7 @@ function setupRoutes(endpointTuples: EndpointTuple[]): Router {
             if (canUploadFiles) {
                 try {
                     // Must be logged in to upload files
-                    const userData = SessionService.getUser(req.session);
+                    const userData = SessionService.getUser(req);
                     if (!userData) {
                         ResponseService.sendError(res, { trace: "0509", code: "NotLoggedIn" }, HttpStatus.Unauthorized);
                         return;

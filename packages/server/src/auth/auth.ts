@@ -66,7 +66,7 @@ export class AuthTokensService {
         if (typeof payload !== "object") {
             return false;
         }
-        const user = SessionService.getUser(payload);
+        const user = SessionService.getUser({ session: payload });
         if (!user) {
             return false;
         }

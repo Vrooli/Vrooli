@@ -483,10 +483,11 @@ export type Mutater<Model extends {
          * data that can change depending on what else is being mutated. This is useful for 
          * things like routine complexity, where the calculation depends on the complexity of subroutines.
          */
-        pre?: ({ Create, Update, Delete, userData }: {
+        pre?: ({ Create, Update, Delete, additionalData, userData }: {
             Create: { node: InputNode, input: Model["ApiCreate"] }[],
             Update: { node: InputNode, input: (Model["ApiUpdate"] & { id: string }) }[],
             Delete: { node: InputNode, input: string }[],
+            additionalData: Record<string, any>,
             userData: SessionUser,
             inputsById: InputsById,
         }) => PromiseOrValue<object>,

@@ -49,7 +49,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
              * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message 
              * with versionIndex set to the previous version's index + 1.
              */
-            pre: async ({ Create, Update, Delete, userData, inputsById }): Promise<ChatMessagePre> => {
+            pre: async ({ Create, Update, Delete, userData, inputsById, ...rest }): Promise<ChatMessagePre> => {
                 // Initialize objects to store bot, message, and chat information
                 const preMap: ChatMessagePre = { chatData: {}, messageData: {}, userData: {} };
 
@@ -144,8 +144,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 const { branchInfo } = await populatePreMapForChatUpdates({ updateInputs: chatUpdateInputs });
                 for (const data of chatUpdateInputs) {
                     // Update Creates and Updates (and add new Updates if needed) to include parent and children information
-                    const rest = { idsCreateToConnect: {}, preMap: {}, userData };
-                    const operations = await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
+                    const operations = await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, idsCreateToConnect: {}, preMap: {}, userData, ...rest });
                     const { summary } = prepareChatMessageOperations(operations, branchInfo[data.id]);
                     for (const { id: messageId, parentId } of summary.Create) {
                         // Update the corresponding message in preMapMessageData
@@ -428,7 +427,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         ): Promise<ChatMessageSearchTreeResult> {
             if (!input.chatId) throw new CustomError("0531", "InvalidArgs", { input });
             // Query for all authentication data
-            const userData = SessionService.getUser(req.session);
+            const userData = SessionService.getUser(req);
             const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, userData ?? null);
             if (Object.keys(authDataById).length === 0) {
                 throw new CustomError("0016", "NotFound", { input, userId: userData?.id });
@@ -457,7 +456,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     ...InfoConverter.get().fromPartialApiToPrismaSelect(partial.messages as PartialApiInfo),
                 });
                 messages = messages.map((c: any) => InfoConverter.get().fromDbToApi(c, partial.messages as PartialApiInfo));
-                messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as PartialApiInfo);
+                messages = await addSupplementalFields(SessionService.getUser(req), messages, partial.messages as PartialApiInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,

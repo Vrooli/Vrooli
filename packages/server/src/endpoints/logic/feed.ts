@@ -74,7 +74,7 @@ export const feed: EndpointsFeed = {
             reminders,
             resources,
             schedules,
-        }, partial as any, SessionService.getUser(req.session));
+        }, partial as any, SessionService.getUser(req));
         // Return results
         return {
             __typename: "HomeResult" as const,
@@ -257,7 +257,7 @@ export const feed: EndpointsFeed = {
             standards: { type: "Standard", ...(partial.Standard as PartialApiInfo) },
             teams: { type: "Team", ...(partial.Team as PartialApiInfo) },
             users: { type: "User", ...(partial.User as PartialApiInfo) },
-        }, SessionService.getUser(req.session));
+        }, SessionService.getUser(req));
         // Combine nodes, alternating between each type
         const properties = Object.values(withSupplemental);
         const maxLen = Math.max(...properties.map(arr => arr.length));

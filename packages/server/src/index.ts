@@ -102,7 +102,7 @@ async function main() {
     io.on("connection", (socket) => {
         // Keep track of sockets for each user and session, so that they can be 
         // disconnected when the user logs out or revokes open sessions
-        const user = SessionService.getUser(socket.session);
+        const user = SessionService.getUser(socket);
         const userId = user?.id;
         const sessionId = user?.session.id;
         if (userId && sessionId) {

@@ -121,11 +121,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const customQueries: { [x: string]: any }[] = [];
     //         for (const field of Object.keys(ModelMap.get<CommentModelLogic>("Comment").search.searchFields)) {
     //             if (input[field as string] !== undefined) {
-    //                 customQueries.push(SearchMap[field as string](input, getUser(req.session), __typename));
+    //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
     //             }
     //         }
     // Create query for visibility
-    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req.session), visibility: input.visibility ?? VisibilityType.Public });
+    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: input.visibility ?? VisibilityType.Public });
     //         // Combine queries
     //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
@@ -157,7 +157,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         // Calculate end cursor
     //         const endCursor = searchResults[searchResults.length - 1].id;
     //         // If not as nestLimit, recurse with all result IDs
-    //         const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req.session), {
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
     //             sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -174,7 +174,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
     //         comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
-    //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
+    //         comments = await addSupplementalFields(getUser(req), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
     //         const shapeThreads = (threads: CommentThread[]) => {

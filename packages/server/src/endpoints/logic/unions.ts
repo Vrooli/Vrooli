@@ -33,7 +33,7 @@ export const unions: EndpointsUnions = {
             return input.objectType ? input.objectType === objectType : true;
         }
         // Collect search data
-        const userData = SessionService.getUser(req.session);
+        const userData = SessionService.getUser(req);
         const visibility = input.visibility ?? VisibilityType.Public;
         const searchData = { userData, visibility };
         const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
@@ -146,7 +146,7 @@ export const unions: EndpointsUnions = {
             if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
             return input.objectType ? input.objectType === objectType : true;
         }
-        const userData = SessionService.getUser(req.session);
+        const userData = SessionService.getUser(req);
         const visibility = input.visibility ?? VisibilityType.Public;
         // Query run projects
         const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
@@ -235,7 +235,7 @@ export const unions: EndpointsUnions = {
             return input.objectType ? input.objectType === objectType : true;
         }
         // Collect search data
-        const userData = SessionService.getUser(req.session);
+        const userData = SessionService.getUser(req);
         const visibility = input.visibility ?? VisibilityType.Public;
         const searchData = { userData, visibility };
         const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;

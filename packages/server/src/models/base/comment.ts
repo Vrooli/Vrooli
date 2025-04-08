@@ -156,7 +156,7 @@ export const CommentModel: CommentModelLogic = ({
             info: PartialApiInfo,
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
-            const userData = SessionService.getUser(req.session);
+            const userData = SessionService.getUser(req);
             // Partially convert info type
             const partialInfo = InfoConverter.get().fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             // Determine text search query

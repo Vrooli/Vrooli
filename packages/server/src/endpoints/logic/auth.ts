@@ -431,7 +431,7 @@ export const auth: EndpointsAuth = {
         return establishGuestSession(res);
     },
     logOut: async (_d, { req, res }) => {
-        const userData = SessionService.getUser(req.session);
+        const userData = SessionService.getUser(req);
         const userId = userData?.id;
         // If user is already logged out, return a guest session
         if (!userId) {
@@ -483,7 +483,7 @@ export const auth: EndpointsAuth = {
     },
     logOutAll: async (_d, { req, res }) => {
         // Get user data
-        const userData = SessionService.getUser(req.session);
+        const userData = SessionService.getUser(req);
         const userId = userData?.id;
         // If user is already logged out, return a guest session
         if (!userId) {

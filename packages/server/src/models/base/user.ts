@@ -55,9 +55,9 @@ export const UserModel: UserModelLogic = ({
                 return { ...maps };
             },
             // Create only applies for bots normally, but seeding and tests might create non-bot users
-            create: async ({ additionalData, data, ...rest }) => {
+            create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && additionalData?.isBot !== true;
+                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && rest.additionalData?.isBot !== true;
                 const commonData = {
                     id: data.id,
                     bannerImage: noNull(data.bannerImage),
@@ -107,9 +107,9 @@ export const UserModel: UserModelLogic = ({
                 }
             },
             /** Update can be either a bot or your profile */
-            update: async ({ additionalData, data, ...rest }) => {
+            update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                const isBot = additionalData?.isBot ?? false;
+                const isBot = rest.additionalData?.isBot ?? false;
                 const commonData = {
                     bannerImage: data.bannerImage,
                     handle: data.handle ?? null,

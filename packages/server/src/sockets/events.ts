@@ -30,7 +30,7 @@ export function emitSocketEvent<T extends EmitSocketEvent>(event: T, roomId: str
             if (isExpired) {
                 socket.disconnect();
                 // Also remove the socket from session socket maps
-                const user = SessionService.getUser(session);
+                const user = SessionService.getUser({ session });
                 const sessionId = user?.session?.id;
                 if (sessionId) {
                     closeSessionSockets(sessionId);
