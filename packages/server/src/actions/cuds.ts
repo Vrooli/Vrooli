@@ -145,6 +145,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
  * @param partialInfo The API endpoint info for selecting fields.
  * @param userData The session user data.
  * @param maps The maps containing grouped data.
+ * @param additionalData Additional data to pass to the shape functions.
  * @returns An object containing the operations array and transaction data.
  */
 async function buildOperations(
@@ -153,6 +154,7 @@ async function buildOperations(
     partialInfo: PartialApiInfo,
     userData: SessionUser,
     maps: CudDataMaps,
+    additionalData: CudAdditionalData,
 ): Promise<CudTransactionData> {
     const operations: PrismaPromise<object>[] = [];
     const deletedIdsByType: { [key in ModelType]?: string[] } = {};
@@ -172,7 +174,13 @@ async function buildOperations(
                 throw new CustomError("0501", "InternalError", { input, objectType });
             }
             const data = mutate.shape.create
-                ? await mutate.shape.create({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
+                ? await mutate.shape.create({
+                    additionalData,
+                    data: input,
+                    idsCreateToConnect: maps.idsCreateToConnect,
+                    preMap: maps.preMap,
+                    userData
+                })
                 : input;
             const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
@@ -194,7 +202,13 @@ async function buildOperations(
             }
 
             const data = mutate.shape.update
-                ? await mutate.shape.update({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
+                ? await mutate.shape.update({
+                    additionalData,
+                    data: input,
+                    idsCreateToConnect: maps.idsCreateToConnect,
+                    preMap: maps.preMap,
+                    userData
+                })
                 : input;
 
             // Verify that the shape function returned a valid update object
@@ -395,7 +409,7 @@ export async function cudHelper({
 
     const topInputsByType = groupTopLevelDataByType(inputData);
 
-    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps);
+    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {});
 
     const transactionResult = await executeTransaction(transactionData.operations);
     processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, info, maps, result);

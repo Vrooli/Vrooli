@@ -32,19 +32,25 @@ export const user: EndpointsUser = {
     },
     findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return readOneHelper({ info, input, objectType, req });
     },
     findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return readManyHelper({ info, input, objectType, req });
     },
     botCreateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
-        return createOneHelper({ info, input, objectType, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+        const additionalData = { isBot: true };
+        return createOneHelper({ additionalData, info, input, objectType, req });
     },
     botUpdateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return updateOneHelper({ info, input, objectType, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+        const additionalData = { isBot: true };
+        return updateOneHelper({ additionalData, info, input, objectType, req });
     },
     profileUpdate: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });

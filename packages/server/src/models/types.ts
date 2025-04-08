@@ -506,7 +506,8 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
         create?: Model["ApiCreate"] extends ApiObject ?
-        Model["DbCreate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
+        Model["DbCreate"] extends DbObject ? ({ additionalData, data, idsCreateToConnect, preMap, userData }: {
+            additionalData: Record<string, any>,
             data: Model["ApiCreate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
@@ -514,7 +515,8 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<Model["DbCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["ApiUpdate"] extends ApiObject ?
-        Model["DbUpdate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
+        Model["DbUpdate"] extends DbObject ? ({ additionalData, data, idsCreateToConnect, preMap, userData }: {
+            additionalData: Record<string, any>,
             data: Model["ApiUpdate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,

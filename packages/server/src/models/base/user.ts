@@ -55,9 +55,9 @@ export const UserModel: UserModelLogic = ({
                 return { ...maps };
             },
             // Create only applies for bots normally, but seeding and tests might create non-bot users
-            create: async ({ data, ...rest }) => {
+            create: async ({ additionalData, data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && (data as { isBot: boolean }).isBot === false;
+                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && additionalData?.isBot !== true;
                 const commonData = {
                     id: data.id,
                     bannerImage: noNull(data.bannerImage),
@@ -107,17 +107,16 @@ export const UserModel: UserModelLogic = ({
                 }
             },
             /** Update can be either a bot or your profile */
-            update: async ({ data, ...rest }) => {
+            update: async ({ additionalData, data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                const isBot = Boolean((data as BotUpdateInput).id) && (data as BotUpdateInput).id !== rest.userData.id;
+                const isBot = additionalData?.isBot ?? false;
                 const commonData = {
                     bannerImage: data.bannerImage,
                     handle: data.handle ?? null,
-                    id: rest.userData.id,
+                    id: data.id,
                     isPrivate: noNull(data.isPrivate),
                     name: noNull(data.name),
                     profileImage: data.profileImage,
-                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
                 }
                 if (isBot) {
                     const botData = data as BotUpdateInput;
@@ -125,12 +124,14 @@ export const UserModel: UserModelLogic = ({
                         ...commonData,
                         botSettings: botData.botSettings,
                         isBotDepictingPerson: noNull(botData.isBotDepictingPerson),
+                        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                     }
                 }
                 const profileData = data as ProfileUpdateInput;
                 return {
                     ...commonData,
                     theme: noNull(profileData.theme),
+                    id: rest.userData.id,
                     isPrivateApis: noNull(profileData.isPrivateApis),
                     isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
                     isPrivateCodes: noNull(profileData.isPrivateCodes),
