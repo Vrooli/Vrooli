@@ -149,13 +149,13 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Project",
         where: () => ({}),
     },
-    {
-        iconInfo: { name: "Help", type: "Common" } as const,
-        key: SearchPageTabOption.Question,
-        titleKey: "Question",
-        searchType: "Question",
-        where: () => ({}),
-    },
+    // {
+    //     iconInfo: { name: "Help", type: "Common" } as const,
+    //     key: SearchPageTabOption.Question,
+    //     titleKey: "Question",
+    //     searchType: "Question",
+    //     where: () => ({}),
+    // },
     {
         iconInfo: { name: "Note", type: "Common" } as const,
         key: SearchPageTabOption.Note,
@@ -489,13 +489,13 @@ export const myStuffTabParams: TabParamSearchableList<MyStuffTabsInfo, ["Popular
         searchType: "Note",
         where: () => ({ visibility: VisibilityType.Own }),
     },
-    {
-        iconInfo: { name: "Help", type: "Common" } as const,
-        key: MyStuffPageTabOption.Question,
-        titleKey: "Question",
-        searchType: "Question",
-        where: () => ({ visibility: VisibilityType.Own }),
-    },
+    // {
+    //     iconInfo: { name: "Help", type: "Common" } as const,
+    //     key: MyStuffPageTabOption.Question,
+    //     titleKey: "Question",
+    //     searchType: "Question",
+    //     where: () => ({ visibility: VisibilityType.Own }),
+    // },
     {
         iconInfo: { name: "Team", type: "Common" } as const,
         key: MyStuffPageTabOption.Team,

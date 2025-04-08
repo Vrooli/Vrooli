@@ -21,6 +21,14 @@ type SearchBarProps = {
      */
     isNested?: boolean;
     onChange: (value: string) => unknown;
+    /**
+     * Callback when input loses focus
+     */
+    onBlur?: () => void;
+    /**
+     * Callback when input is focused
+     */
+    onFocus?: () => void;
     placeholder?: string;
     value: string;
 }
@@ -36,6 +44,8 @@ export function BasicSearchBar({
     placeholder,
     value,
     onChange,
+    onBlur,
+    onFocus,
     debounce,
 }: SearchBarProps) {
     const { t } = useTranslation();
@@ -63,6 +73,14 @@ export function BasicSearchBar({
         },
         [onChange],
     );
+
+    const handleFocus = useCallback(() => {
+        if (onFocus) onFocus();
+    }, [onFocus]);
+
+    const handleBlur = useCallback(() => {
+        if (onBlur) onBlur();
+    }, [onBlur]);
 
     const basicSearchBarSx = useMemo(function basicSearchBarSxMemo() {
         return {
@@ -108,6 +126,8 @@ export function BasicSearchBar({
                 id={id}
                 InputProps={InputProps}
                 onChange={handleInputChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 placeholder={placeholder}
                 value={internalValue}
                 variant="outlined"
@@ -150,6 +170,8 @@ export function PaperSearchBar({
     placeholder,
     value,
     onChange,
+    onBlur,
+    onFocus,
     debounce,
 }: SearchBarProps) {
     const { t } = useTranslation();
@@ -177,6 +199,14 @@ export function PaperSearchBar({
         },
         [onChange],
     );
+
+    const handleFocus = useCallback(() => {
+        if (onFocus) onFocus();
+    }, [onFocus]);
+
+    const handleBlur = useCallback(() => {
+        if (onBlur) onBlur();
+    }, [onBlur]);
 
     const paperSx = useMemo(() => ({
         p: "2px 4px",
@@ -211,6 +241,8 @@ export function PaperSearchBar({
         <Paper className={ELEMENT_CLASSES.SearchBar} component={isNested ? "div" : "form"} sx={paperSx}>
             <Input
                 onChange={handleInputChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 placeholder={placeholder}
                 inputProps={InputProps}
                 sx={inputStyle}

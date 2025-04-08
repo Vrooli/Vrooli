@@ -1,6 +1,6 @@
 import { BUSINESS_NAME, LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
-import { Box, IconButton, Typography, styled } from "@mui/material";
-import { useCallback, useContext, useMemo } from "react";
+import { Box, IconButton, Typography, styled, useTheme } from "@mui/material";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
@@ -10,6 +10,7 @@ import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
@@ -82,7 +83,12 @@ export function SearchView({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const { breakpoints } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
+    // Track if header has been hidden at least once during this session
+    const [headerHidden, setHeaderHidden] = useState(false);
 
     const {
         currTab,
@@ -91,6 +97,11 @@ export function SearchView({
         tabs,
         where,
     } = useTabs({ id: ELEMENT_IDS.SearchTabs, tabParams: searchViewTabParams, display });
+
+    // Reset headerHidden when tab changes
+    useEffect(() => {
+        setHeaderHidden(false);
+    }, [searchType]);
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "page",
@@ -121,6 +132,18 @@ export function SearchView({
     const handleLogoClick = useCallback(() => {
         setLocation(LINKS.Home);
     }, [setLocation]);
+
+    // Handler for search bar focus/blur
+    const handleSearchFocus = useCallback(() => {
+        if (isMobile) {
+            setHeaderHidden(true);
+        }
+    }, [isMobile]);
+
+    // No need to handle blur events for header visibility
+    const handleSearchBlur = useCallback(() => {
+        // Do nothing - we want to keep the header hidden
+    }, []);
 
     // Dynamic header text based on the current tab
     const headerText = useMemo(() => {
@@ -197,6 +220,11 @@ export function SearchView({
         }
     }, [searchType]);
 
+    // Determine if we should show the header - show only when NOT on mobile or header has never been hidden
+    const showHeader = useMemo(() => {
+        return !isMobile || !headerHidden;
+    }, [isMobile, headerHidden]);
+
     return (
         <PageContainer size="fullSize" sx={pageContainerStyle}>
             <Navbar title={t("Search")} titleBehavior="Hide" />
@@ -210,11 +238,13 @@ export function SearchView({
                 tabs={tabs}
             />
             <SearchListScrollContainer id={scrollContainerId}>
-                <SearchHeader>
-                    <LogoWithName onClick={handleLogoClick} />
-                    <Typography variant="h5" color="text.primary" mb={1}>{t(headerText.primary)}</Typography>
-                    <Typography variant="subtitle1" color="text.secondary" mb={3}>{t(headerText.secondary)}</Typography>
-                </SearchHeader>
+                {showHeader && (
+                    <SearchHeader>
+                        <LogoWithName onClick={handleLogoClick} />
+                        <Typography variant="h5" color="text.primary" mb={1}>{t(headerText.primary)}</Typography>
+                        <Typography variant="subtitle1" color="text.secondary" mb={3}>{t(headerText.secondary)}</Typography>
+                    </SearchHeader>
+                )}
                 <SearchBarContainer>
                     {searchType && <SearchList
                         {...findManyData}
@@ -222,6 +252,8 @@ export function SearchView({
                         scrollContainerId={scrollContainerId}
                         searchBarVariant="paper"
                         searchPlaceholder={t(searchPlaceholder)}
+                        onSearchFocus={handleSearchFocus}
+                        onSearchBlur={handleSearchBlur}
                     />}
                 </SearchBarContainer>
             </SearchListScrollContainer>
