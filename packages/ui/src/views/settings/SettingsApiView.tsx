@@ -1,21 +1,22 @@
-import { API_CREDITS_FREE, ApiKey, ApiKeyCreateInput, ApiKeyCreated, ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput, ApiKeyUpdateInput, DeleteOneInput, DeleteType, FormStructureType, Success, User, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop } from "@local/shared";
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Select, Stack, Typography, useTheme } from "@mui/material";
+import { ApiKey, ApiKeyCreateInput, ApiKeyCreated, ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput, ApiKeyPermission, ApiKeyUpdateInput, DeleteOneInput, DeleteType, FormStructureType, Success, User, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop } from "@local/shared";
+import { Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, FormControlLabel, FormGroup, FormHelperText, FormLabel, IconButton, MenuItem, Radio, RadioGroup, Select, Stack, Typography, useTheme } from "@mui/material";
 import { Formik } from "formik";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { LazyRequestWithResult } from "../../api/types.js";
+import { PageContainer } from "../../components/Page/Page.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { FormTip } from "../../components/inputs/form/FormTip.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
-import { IconCommon } from "../../icons/Icons.js";
+import { IconCommon, IconFavicon } from "../../icons/Icons.js";
 import { ScrollBox } from "../../styles.js";
-import { randomString } from "../../utils/codes.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { SettingsApiViewProps } from "./types.js";
@@ -28,11 +29,333 @@ const SUPPORTED_INTEGRATIONS = [
     // Add more as needed (ensure logos are imported)
 ];
 
+/**
+ * Display-friendly names for permissions
+ */
+export const PERMISSION_NAMES: Record<ApiKeyPermission, string> = {
+    [ApiKeyPermission.ReadPublic]: "Read Public Data",
+    [ApiKeyPermission.ReadPrivate]: "Read Private Data",
+    [ApiKeyPermission.WritePrivate]: "Write Private Data",
+    [ApiKeyPermission.ReadAuth]: "Read Auth Info",
+    [ApiKeyPermission.WriteAuth]: "Write Auth Info",
+};
+
+/**
+ * Permission descriptions explaining what each permission allows
+ */
+export const PERMISSION_DESCRIPTIONS: Record<ApiKeyPermission, string> = {
+    [ApiKeyPermission.ReadPublic]: "Access publicly available data (users, projects, etc.)",
+    [ApiKeyPermission.ReadPrivate]: "Read your private data (private projects, settings, etc.)",
+    [ApiKeyPermission.WritePrivate]: "Update your private data (update projects, preferences, etc.)",
+    [ApiKeyPermission.ReadAuth]: "View authentication-related data (session info, login history)",
+    [ApiKeyPermission.WriteAuth]: "Update authentication-related data (emails, password)",
+};
+
+/**
+ * Security level for each permission (for UI indication)
+ */
+export enum PermissionSecurityLevel {
+    Low = "Low",
+    Medium = "Medium",
+    High = "high",
+}
+
+/**
+ * Security levels for each permission
+ */
+export const PERMISSION_SECURITY_LEVELS: Record<ApiKeyPermission, PermissionSecurityLevel> = {
+    [ApiKeyPermission.ReadPublic]: PermissionSecurityLevel.Low,
+    [ApiKeyPermission.ReadPrivate]: PermissionSecurityLevel.Medium,
+    [ApiKeyPermission.WritePrivate]: PermissionSecurityLevel.Medium,
+    [ApiKeyPermission.ReadAuth]: PermissionSecurityLevel.High,
+    [ApiKeyPermission.WriteAuth]: PermissionSecurityLevel.High,
+};
+
+/**
+ * Predefined permission sets that users can choose from
+ */
+export const PERMISSION_PRESETS = {
+    READ_ONLY: {
+        name: "Read Only",
+        description: "Only access to read public data",
+        permissions: [
+            ApiKeyPermission.ReadPublic
+        ]
+    },
+    STANDARD: {
+        name: "Standard Access",
+        description: "Read public and your private data",
+        permissions: [
+            ApiKeyPermission.ReadPublic,
+            ApiKeyPermission.ReadPrivate
+        ]
+    },
+    DEVELOPER: {
+        name: "Developer Access",
+        description: "Read and update your data",
+        permissions: [
+            ApiKeyPermission.ReadPublic,
+            ApiKeyPermission.ReadPrivate,
+            ApiKeyPermission.WritePrivate
+        ]
+    },
+    FULL_ACCESS: {
+        name: "Full Access (High Security Risk)",
+        description: "Complete access to everything including authentication",
+        permissions: [
+            ApiKeyPermission.ReadPublic,
+            ApiKeyPermission.ReadPrivate,
+            ApiKeyPermission.WritePrivate,
+            ApiKeyPermission.ReadAuth,
+            ApiKeyPermission.WriteAuth
+        ]
+    }
+};
+
+/**
+ * Check if a set of permissions includes all permissions from a preset
+ */
+export function matchesPreset(permissions: ApiKeyPermission[], preset: typeof PERMISSION_PRESETS[keyof typeof PERMISSION_PRESETS]): boolean {
+    // Check that all permissions in the preset are included in the permissions array
+    return preset.permissions.every(p => permissions.includes(p)) &&
+        // Check that there are no additional permissions
+        permissions.length === preset.permissions.length;
+}
+
+/**
+ * Find which preset (if any) matches the given permissions
+ */
+export function findMatchingPreset(permissions: ApiKeyPermission[]): string | null {
+    for (const [key, preset] of Object.entries(PERMISSION_PRESETS)) {
+        if (matchesPreset(permissions, preset)) {
+            return key;
+        }
+    }
+    return null;
+}
+
+// Extract permissions from a stringified JSON field
+function extractPermissions(apiKey: ApiKey | null): ApiKeyPermission[] {
+    if (!apiKey) return [];
+
+    try {
+        // 'permissions' is a stringified JSON array of permission strings
+        const permissionsStr = (apiKey as any).permissions;
+        if (!permissionsStr) return [];
+
+        const parsedPermissions = JSON.parse(permissionsStr);
+        return Array.isArray(parsedPermissions)
+            ? parsedPermissions.filter(p => Object.values(ApiKeyPermission).includes(p as ApiKeyPermission))
+            : [];
+    } catch (e) {
+        console.error("Error parsing permissions", e);
+        return [];
+    }
+}
+
+// Get a user-friendly description of permissions
+function getPermissionsDescription(apiKey: ApiKey): string {
+    try {
+        const permissions = extractPermissions(apiKey);
+        const presetKey = findMatchingPreset(permissions);
+
+        if (presetKey) {
+            return PERMISSION_PRESETS[presetKey as keyof typeof PERMISSION_PRESETS].name;
+        }
+
+        if (permissions.length === 0) {
+            return "No permissions";
+        }
+
+        if (permissions.length === 1) {
+            return "Limited access";
+        }
+
+        return `${permissions.length} permissions`;
+    } catch (e) {
+        return "Unknown permissions";
+    }
+}
+
 const dialogPaperProps = {
     sx: {
         bgcolor: "background.default",
     },
 } as const;
+interface ApiKeyPermissionsSelectorProps {
+    selectedPermissions: ApiKeyPermission[];
+    onChange: (permissions: ApiKeyPermission[]) => void;
+    compact?: boolean;
+}
+
+export function ApiKeyPermissionsSelector({
+    selectedPermissions,
+    onChange,
+    compact = false
+}: ApiKeyPermissionsSelectorProps) {
+    const { palette } = useTheme();
+    const [selectedPreset, setSelectedPreset] = useState<string | 'custom'>("READ_ONLY");
+
+    // Update the preset when permissions change externally
+    useEffect(() => {
+        const matchingPreset = findMatchingPreset(selectedPermissions);
+        setSelectedPreset(matchingPreset || 'custom');
+    }, [selectedPermissions]);
+
+    // When a preset is selected
+    const handlePresetChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const presetKey = event.target.value;
+        setSelectedPreset(presetKey);
+
+        if (presetKey !== 'custom') {
+            const preset = PERMISSION_PRESETS[presetKey as keyof typeof PERMISSION_PRESETS];
+            onChange(preset.permissions);
+        }
+    }, [onChange]);
+
+    // When individual permissions are toggled
+    const handlePermissionToggle = useCallback((permission: ApiKeyPermission, checked: boolean) => {
+        let newPermissions: ApiKeyPermission[];
+
+        if (checked) {
+            newPermissions = [...selectedPermissions, permission];
+        } else {
+            newPermissions = selectedPermissions.filter(p => p !== permission);
+        }
+
+        onChange(newPermissions);
+
+        // Update the preset if it matches, otherwise set to custom
+        const matchingPreset = findMatchingPreset(newPermissions);
+        setSelectedPreset(matchingPreset || 'custom');
+    }, [selectedPermissions, onChange]);
+
+    // Get security level color
+    const getSecurityLevelColor = (level: PermissionSecurityLevel) => {
+        switch (level) {
+            case PermissionSecurityLevel.Low:
+                return palette.success.main;
+            case PermissionSecurityLevel.Medium:
+                return palette.warning.main;
+            case PermissionSecurityLevel.High:
+                return palette.error.main;
+            default:
+                return palette.text.primary;
+        }
+    };
+
+    if (compact) {
+        return (
+            <FormControl fullWidth sx={{ mt: 2 }}>
+                <FormLabel>API Key Permissions</FormLabel>
+                <Select
+                    value={selectedPreset}
+                    onChange={(e) => handlePresetChange({ target: { value: e.target.value } } as any)}
+                    fullWidth
+                    sx={{ mt: 1 }}
+                >
+                    {Object.entries(PERMISSION_PRESETS).map(([key, preset]) => (
+                        <MenuItem key={key} value={key}>
+                            {preset.name}
+                        </MenuItem>
+                    ))}
+                    <MenuItem value="custom">Custom Permissions</MenuItem>
+                </Select>
+                {selectedPreset === 'custom' && (
+                    <Box mt={2}>
+                        <FormGroup>
+                            {Object.values(ApiKeyPermission).map((permission) => (
+                                <FormControlLabel
+                                    key={permission}
+                                    control={
+                                        <Checkbox
+                                            checked={selectedPermissions.includes(permission)}
+                                            onChange={(e) => handlePermissionToggle(permission, e.target.checked)}
+                                        />
+                                    }
+                                    label={PERMISSION_NAMES[permission]}
+                                />
+                            ))}
+                        </FormGroup>
+                    </Box>
+                )}
+            </FormControl>
+        );
+    }
+
+    return (
+        <Box>
+            <FormControl component="fieldset" fullWidth>
+                <FormLabel component="legend">API Key Permission Level</FormLabel>
+                <RadioGroup
+                    value={selectedPreset}
+                    onChange={handlePresetChange}
+                >
+                    {Object.entries(PERMISSION_PRESETS).map(([key, preset]) => (
+                        <FormControlLabel
+                            key={key}
+                            value={key}
+                            control={<Radio />}
+                            label={
+                                <Box>
+                                    <Typography variant="body1">{preset.name}</Typography>
+                                    <Typography variant="body2" color="text.secondary">{preset.description}</Typography>
+                                </Box>
+                            }
+                        />
+                    ))}
+                    <FormControlLabel
+                        value="custom"
+                        control={<Radio />}
+                        label={
+                            <Box>
+                                <Typography variant="body1">Custom Permissions</Typography>
+                                <Typography variant="body2" color="text.secondary">Select individual permissions</Typography>
+                            </Box>
+                        }
+                    />
+                </RadioGroup>
+            </FormControl>
+
+            {selectedPreset === 'custom' && (
+                <Box mt={3} ml={4}>
+                    <FormControl component="fieldset" fullWidth>
+                        <FormLabel component="legend">Individual Permissions</FormLabel>
+                        <FormGroup>
+                            {Object.values(ApiKeyPermission).map((permission) => (
+                                <Box key={permission} mb={2}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={selectedPermissions.includes(permission)}
+                                                onChange={(e) => handlePermissionToggle(permission, e.target.checked)}
+                                            />
+                                        }
+                                        label={
+                                            <Box display="flex" alignItems="center">
+                                                <Typography variant="body1">{PERMISSION_NAMES[permission]}</Typography>
+                                                <Chip
+                                                    label={PERMISSION_SECURITY_LEVELS[permission].toUpperCase()}
+                                                    size="small"
+                                                    sx={{
+                                                        ml: 1,
+                                                        backgroundColor: getSecurityLevelColor(PERMISSION_SECURITY_LEVELS[permission]),
+                                                        color: '#fff'
+                                                    }}
+                                                />
+                                            </Box>
+                                        }
+                                    />
+                                    <FormHelperText sx={{ ml: 4 }}>{PERMISSION_DESCRIPTIONS[permission]}</FormHelperText>
+                                </Box>
+                            ))}
+                        </FormGroup>
+                    </FormControl>
+                </Box>
+            )}
+        </Box>
+    );
+};
 
 type ApiKeyViewDialogProps = {
     apiKey: string | null;
@@ -112,81 +435,162 @@ function ApiKeyViewDialog({
     );
 }
 
-type InternalKeyEditDialogFormValues = Omit<ApiKey, "__typename" | "creditsUsed" | "id" | "disabledAt" | "limitSoft"> & {
-    disabled: boolean;
-    limitSoft: string;
-}
-type InternalKeyEditDialogProps = {
-    keyData: ApiKey | null;
-    onClose: () => unknown;
+type ApiKeyDialogProps = {
     open: boolean;
+    onClose: () => void;
+    keyData?: ApiKey | null; // If provided, we're in edit mode, otherwise create mode
+    onCreateKey?: (input: ApiKeyCreateInput) => Promise<ApiKeyCreated | null>;
+    onUpdateKey?: (input: ApiKeyUpdateInput) => void;
+};
+
+interface ApiKeyFormValues {
+    name: string;
+    limitHard: string;
+    limitSoft: string;
+    stopAtLimit: boolean;
+    disabled: boolean;
+    permissions: ApiKeyPermission[];
 }
-function InternalKeyEditDialog({
-    keyData,
-    onClose,
+
+export function ApiKeyDialog({
     open,
-}: InternalKeyEditDialogProps) {
+    onClose,
+    keyData,
+    onCreateKey,
+    onUpdateKey,
+}: ApiKeyDialogProps) {
     const { t } = useTranslation();
-    const [updateInternalKey] = useLazyFetch<ApiKeyUpdateInput, ApiKey>(endpointsApiKey.updateOne);
+    const { palette } = useTheme();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { onProfileUpdate, profile } = useProfileQuery();
+    const [updateInternalKey] = useLazyFetch<ApiKeyUpdateInput, ApiKey>(endpointsApiKey.updateOne);
 
-    const initialValues = useMemo<InternalKeyEditDialogFormValues>(() => ({
-        name: keyData?.name ?? "",
-        limitHard: keyData?.limitHard ?? "",
-        limitSoft: keyData?.limitSoft ?? "",
-        stopAtLimit: keyData?.stopAtLimit ?? false,
-        disabled: !!keyData?.disabledAt,
-    }), [keyData]);
+    const isEditMode = !!keyData;
 
-    const handleSubmit = useCallback(function handleSubmitCallback(values: InternalKeyEditDialogFormValues) {
-        if (!keyData) {
-            console.error("This error shouldn't happen. Please report it.", { component: "InternalKeyEditDialog", function: "handleSubmit", keyData });
-            PubSub.get().publish("snack", { messageKey: "MissingRequiredField", severity: "Error" });
-            return;
+    const initialValues = useMemo<ApiKeyFormValues>(() => {
+        if (isEditMode) {
+            return {
+                name: keyData?.name ?? "",
+                limitHard: keyData?.limitHard ?? "",
+                limitSoft: keyData?.limitSoft ?? "",
+                stopAtLimit: keyData?.stopAtLimit ?? false,
+                disabled: !!keyData?.disabledAt,
+                permissions: extractPermissions(keyData),
+            };
+        } else {
+            return {
+                name: "",
+                limitHard: "25000000000", // Default value
+                limitSoft: "",
+                stopAtLimit: true,
+                disabled: false,
+                permissions: PERMISSION_PRESETS.READ_ONLY.permissions,
+            };
         }
-        const input: ApiKeyUpdateInput = {
-            id: keyData.id,
-            name: values.name,
-            limitHard: values.limitHard,
-            limitSoft: values.limitSoft.length > 0 ? values.limitSoft : null,
-            stopAtLimit: values.stopAtLimit,
-            disabled: values.disabled,
-        };
-        fetchLazyWrapper<ApiKeyUpdateInput, ApiKey>({
-            fetch: updateInternalKey,
-            inputs: input,
-            onSuccess: (updatedKey) => {
-                const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
-                onProfileUpdate({ ...profile, apiKeys: updatedKeys } as User);
-                onClose();
-            },
-        });
-    }, [keyData, onClose, onProfileUpdate, profile, updateInternalKey]);
+    }, [keyData, isEditMode]);
+
+    const handleSubmit = useCallback(async (values: ApiKeyFormValues) => {
+        setIsSubmitting(true);
+        try {
+            if (isEditMode) {
+                // Edit mode
+                if (!keyData) {
+                    console.error("This error shouldn't happen. Please report it.", { component: "ApiKeyDialog", function: "handleSubmit", keyData });
+                    PubSub.get().publish("snack", { messageKey: "MissingRequiredField", severity: "Error" });
+                    return;
+                }
+
+                const input: ApiKeyUpdateInput = {
+                    id: keyData.id,
+                    name: values.name,
+                    limitHard: values.limitHard,
+                    limitSoft: values.limitSoft.length > 0 ? values.limitSoft : null,
+                    stopAtLimit: values.stopAtLimit,
+                    disabled: values.disabled,
+                    permissions: JSON.stringify(values.permissions),
+                };
+
+                if (onUpdateKey) {
+                    onUpdateKey(input);
+                } else {
+                    fetchLazyWrapper<ApiKeyUpdateInput, ApiKey>({
+                        fetch: updateInternalKey,
+                        inputs: input,
+                        onSuccess: (updatedKey) => {
+                            const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
+                            onProfileUpdate({ ...profile, apiKeys: updatedKeys } as User);
+                            onClose();
+                        },
+                    });
+                }
+            } else {
+                // Create mode
+                const input: ApiKeyCreateInput = {
+                    name: values.name,
+                    disabled: values.disabled,
+                    limitHard: values.limitHard,
+                    limitSoft: values.limitSoft.length > 0 ? values.limitSoft : null,
+                    stopAtLimit: values.stopAtLimit,
+                    permissions: JSON.stringify(values.permissions),
+                };
+
+                if (onCreateKey) {
+                    await onCreateKey(input);
+                    onClose();
+                }
+            }
+        } catch (error) {
+            console.error("Error handling API key", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [isEditMode, keyData, onUpdateKey, updateInternalKey, profile, onClose, onCreateKey]);
+
+    const dialogPaperProps = {
+        sx: {
+            bgcolor: "background.default",
+        },
+    };
 
     return (
-        <Dialog open={open} onClose={onClose} PaperProps={dialogPaperProps}>
-            <DialogTitle>Edit API key</DialogTitle>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            PaperProps={dialogPaperProps}
+            maxWidth="md"
+            fullWidth
+        >
+            <DialogTitle>
+                {isEditMode ? t("ApiKeyUpdate") : t("ApiKeyAdd")}
+            </DialogTitle>
             <DialogContent>
-                <Formik enableReinitialize initialValues={initialValues} onSubmit={handleSubmit}>
-                    {({ handleSubmit, values, setFieldValue }) => (
+                <Formik
+                    enableReinitialize
+                    initialValues={initialValues}
+                    onSubmit={handleSubmit}
+                >
+                    {({ values, handleSubmit, setFieldValue }) => (
                         <form onSubmit={handleSubmit}>
                             <TextInput
                                 fullWidth
-                                isRequired={true}
+                                isRequired
                                 label={t("Name")}
+                                placeholder={isEditMode ? undefined : "My API Key"}
                                 value={values.name}
                                 onChange={(e) => setFieldValue("name", e.target.value)}
-                                sx={{ mb: 2 }}
+                                sx={{ mb: 2, mt: 1 }}
                             />
+
                             <TextInput
                                 fullWidth
-                                isRequired={true}
+                                isRequired
                                 label={t("HardLimit")}
                                 type="number"
                                 value={values.limitHard}
                                 onChange={(e) => setFieldValue("limitHard", e.target.value)}
                                 sx={{ mb: 2 }}
                             />
+
                             <TextInput
                                 fullWidth
                                 label={t("SoftLimit")}
@@ -195,8 +599,24 @@ function InternalKeyEditDialog({
                                 onChange={(e) => setFieldValue("limitSoft", e.target.value)}
                                 sx={{ mb: 2 }}
                             />
-                            {/* Add more fields as needed */}
-                            <Button type="submit">{t("Save")}</Button>
+
+                            <ApiKeyPermissionsSelector
+                                selectedPermissions={values.permissions}
+                                onChange={(permissions) => setFieldValue("permissions", permissions)}
+                            />
+
+                            <DialogActions sx={{ mt: 3, p: 0 }}>
+                                <Button onClick={onClose} disabled={isSubmitting}>
+                                    {t("Cancel")}
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    disabled={isSubmitting || !values.name}
+                                >
+                                    {isEditMode ? t("Save") : t("Add")}
+                                </Button>
+                            </DialogActions>
                         </form>
                     )}
                 </Formik>
@@ -346,41 +766,39 @@ export function SettingsApiView({
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
 
     const [newKeyDialogOpen, setNewKeyDialogOpen] = useState(false);
+    const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
     const [newKey, setNewKey] = useState<string | null>(null);
     const [editingInternalKey, setEditingInternalKey] = useState<ApiKey | null>(null);
-    const [isEditingInternalKey, setIsEditingInternalKey] = useState(false);
     const [editingExternalKey, setEditingExternalKey] = useState<ApiKeyExternal | null>(null);
     const [isEditingExternalKey, setIsEditingExternalKey] = useState(false);
     const [isCreatingExternalKey, setIsCreatingExternalKey] = useState(false);
+
     function onNewKeyDialogClose() {
         setNewKeyDialogOpen(false);
         setNewKey(null);
     }
 
-    const generateNewInternalKey = useCallback(function generateNewInternalKeyCallback() {
-        fetchLazyWrapper<ApiKeyCreateInput, ApiKeyCreated>({
-            fetch: createInternalKey,
-            inputs: {
-                disabled: false,
-                // Default to one month's worth of credits. Make the user 
-                // explicitly update this if they plan on using more than that.
-                limitHard: API_CREDITS_FREE.toString(),
-                limitSoft: null,
-                // Simple naming; adjust as needed
-                name: `API key ${randomString(4)}`,
-                stopAtLimit: true,
-            }, // Simple naming; adjust as needed
-            onSuccess: (data) => {
-                const { key, ...rest } = data;
-                setNewKey(key);
-                setNewKeyDialogOpen(true);
-                if (profile) {
-                    onProfileUpdate({
-                        ...profile,
-                        apiKeys: [...apiKeys, rest],
-                    });
+    const handleCreateKey = useCallback(async (input: ApiKeyCreateInput): Promise<ApiKeyCreated | null> => {
+        return new Promise((resolve, reject) => {
+            fetchLazyWrapper<ApiKeyCreateInput, ApiKeyCreated>({
+                fetch: createInternalKey,
+                inputs: input,
+                onSuccess: (data) => {
+                    const { key, ...rest } = data;
+                    setNewKey(key);
+                    setNewKeyDialogOpen(true);
+                    if (profile) {
+                        onProfileUpdate({
+                            ...profile,
+                            apiKeys: [...apiKeys, rest],
+                        });
+                    }
+                    resolve(data);
+                },
+                onError: (error) => {
+                    reject(error);
                 }
-            },
+            });
         });
     }, [apiKeys, createInternalKey, onProfileUpdate, profile]);
 
@@ -405,7 +823,30 @@ export function SettingsApiView({
 
     const handleEditInternalKey = useCallback((key: ApiKey) => {
         setEditingInternalKey(key);
-        setIsEditingInternalKey(true);
+        setApiKeyDialogOpen(true);
+    }, []);
+
+    const handleUpdateInternalKey = useCallback((input: ApiKeyUpdateInput) => {
+        fetchLazyWrapper<ApiKeyUpdateInput, ApiKey>({
+            fetch: updateInternalKey,
+            inputs: input,
+            onSuccess: (updatedKey) => {
+                const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
+                onProfileUpdate({ ...profile, apiKeys: updatedKeys } as User);
+                setApiKeyDialogOpen(false);
+                setEditingInternalKey(null);
+            },
+        });
+    }, [updateInternalKey, profile, onProfileUpdate]);
+
+    const handleOpenCreateDialog = useCallback(() => {
+        setEditingInternalKey(null);
+        setApiKeyDialogOpen(true);
+    }, []);
+
+    const handleApiKeyDialogClose = useCallback(() => {
+        setApiKeyDialogOpen(false);
+        setEditingInternalKey(null);
     }, []);
 
     const handleUpdateExternalKey = useCallback((key: ApiKeyExternal) => {
@@ -424,30 +865,21 @@ export function SettingsApiView({
         });
     }, [deleteOne, onProfileUpdate, profile]);
 
-    function handleInternalKeyEditClose() {
-        setIsEditingInternalKey(false);
-        setEditingInternalKey(null);
-    }
-
     function handleExternalKeyEditClose() {
         setIsEditingExternalKey(false);
         setEditingExternalKey(null);
     }
 
-    // // Handler for external integrations (e.g. OAuth flow)
-    // const handleAuthorizeIntegration = useCallback(function handleAuthorizeIntegration() {
-    //     const width = 600;
-    //     const height = 600;
-    //     const left = window.screenX + (window.outerWidth - width) / 2;
-    //     const top = window.screenY + (window.outerHeight - height) / 2;
-    //     // TODO: Replace the URL below with the actual authorization URL for the external service.
-    //     window.open("https://external.service.com/oauth/authorize", "ExternalIntegration", `width=${width},height=${height},left=${left},top=${top}`);
-    // }, []);
-
     return (
-        <>
+        <PageContainer size="fullSize">
             <ApiKeyViewDialog apiKey={newKey} onClose={onNewKeyDialogClose} open={newKeyDialogOpen} />
-            <InternalKeyEditDialog keyData={editingInternalKey} onClose={handleInternalKeyEditClose} open={isEditingInternalKey && !!editingInternalKey} />
+            <ApiKeyDialog
+                open={apiKeyDialogOpen}
+                onClose={handleApiKeyDialogClose}
+                keyData={editingInternalKey}
+                onCreateKey={handleCreateKey}
+                onUpdateKey={handleUpdateInternalKey}
+            />
             <ExternalKeyDialog
                 isCreate={isCreatingExternalKey}
                 keyData={editingExternalKey}
@@ -455,11 +887,7 @@ export function SettingsApiView({
                 open={isCreatingExternalKey || (isEditingExternalKey && !!editingExternalKey)}
             />
             <ScrollBox>
-                <SettingsTopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("Api", { count: 1 })}
-                />
+                <Navbar title={t("Api", { count: 1 })} />
                 <SettingsContent>
                     <SettingsList />
                     <Stack
@@ -473,6 +901,18 @@ export function SettingsApiView({
                     >
                         <Box>
                             <Title title={`${t("ApiKey", { count: 2 })} - ${BUSINESS_DATA.BUSINESS_NAME}`} variant="subheader" addSidePadding={false} />
+                            <FormTip
+                                element={{
+                                    id: "api-key-tip",
+                                    icon: "Info",
+                                    isMarkdown: false,
+                                    label: "API keys can access your account with different permission levels. Only share them with trusted services.",
+                                    type: FormStructureType.Tip,
+                                }}
+                                isEditing={false}
+                                onUpdate={noop}
+                                onDelete={noop}
+                            />
                             {apiKeys.length > 0 ? (
                                 apiKeys.map((key) => {
                                     function handleEdit() {
@@ -483,8 +923,13 @@ export function SettingsApiView({
                                     }
 
                                     return (
-                                        <Box key={key.id} display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                            <Typography>{key.name}</Typography>
+                                        <Box key={key.id} display="flex" justifyContent="space-between" alignItems="center" mb={2} p={1} border={1} borderColor="divider" borderRadius={1}>
+                                            <Box>
+                                                <Typography>{key.name}</Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {getPermissionsDescription(key)}
+                                                </Typography>
+                                            </Box>
                                             <Box>
                                                 <IconButton onClick={handleEdit}>
                                                     <IconCommon name="Edit" fill="secondary.main" />
@@ -497,21 +942,23 @@ export function SettingsApiView({
                                     );
                                 })
                             ) : (
-                                <Typography variant="body1" color="text.secondary">{t("NoApiKeys")}</Typography>
+                                <Typography variant="body1" color="text.secondary">No API keys found</Typography>
                             )}
                             <Button
-                                onClick={generateNewInternalKey}
+                                onClick={handleOpenCreateDialog}
                                 startIcon={<IconCommon name="Plus" />}
                                 sx={{ mt: 2 }}
+                                variant="contained"
                             >
-                                {t("CreateNew")}
+                                Create New API Key
                             </Button>
                         </Box>
                         <Divider />
                         <Box>
-                            <Title title={`${t("ApiKey", { count: 2 })} - ${t("External")}`} variant="subheader" addSidePadding={false} />
+                            <Title title={`${t("ApiKey", { count: 2 })} - External`} variant="subheader" addSidePadding={false} />
                             <FormTip
                                 element={{
+                                    id: "external-api-key-tip",
                                     icon: "Warning",
                                     isMarkdown: false,
                                     label: "WARNING: Giving API keys to other apps can be dangerous. Make sure you trust us.",
@@ -544,21 +991,26 @@ export function SettingsApiView({
                                     );
                                 })
                             ) : (
-                                <Typography variant="body1" color="text.secondary">{t("NoExternalApiKeys")}</Typography>
+                                <Typography variant="body1" color="text.secondary">No external API keys found</Typography>
                             )}
-                            <Button onClick={() => setIsCreatingExternalKey(true)} sx={{ mt: 2 }}>{t("AddExternalKey")}</Button>
+                            <Button onClick={() => setIsCreatingExternalKey(true)} sx={{ mt: 2 }}>Add External Key</Button>
                         </Box>
                         <Divider />
                         {SUPPORTED_INTEGRATIONS.length > 0 && (
                             <Box>
-                                <Title title={t("ExternalIntegrations")} help={t("ConnectExternalServices")} variant="subheader" addSidePadding={false} />
+                                <Title title={"External Services"} help={"Connect to external services"} variant="subheader" addSidePadding={false} />
                                 <Box display="flex" flexWrap="wrap" gap={2}>
                                     {SUPPORTED_INTEGRATIONS.map((integration) => {
                                         const isConnected = profile?.apiKeysExternal?.some(k => k.service === integration.name && !k.disabledAt) ?? false;
+
+                                        function handleClick() {
+                                            window.open(integration.url, "_blank");
+                                        }
+
                                         return (
                                             <Button
                                                 key={integration.name}
-                                                onClick={() => window.open(integration.url, "_blank")}
+                                                onClick={handleClick}
                                                 variant="contained"
                                                 startIcon={<IconFavicon href={integration.url} />}
                                                 endIcon={isConnected ? <IconCommon name="Success" /> : null}
@@ -573,6 +1025,6 @@ export function SettingsApiView({
                     </Stack>
                 </SettingsContent>
             </ScrollBox>
-        </>
+        </PageContainer>
     );
 }

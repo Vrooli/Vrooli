@@ -1,9 +1,8 @@
 /* eslint-disable no-magic-numbers */
-import { Session, SessionUser, User, uuid } from "@local/shared";
+import { ApiKey, ApiKeyPermission, Session, SessionUser, User, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
-import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
-import { PageContainer } from "../../components/Page/Page.js";
-import { SettingsApiView } from "./SettingsApiView.js";
+import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { PERMISSION_PRESETS, SettingsApiView } from "./SettingsApiView.js";
 
 export default {
     title: "Views/Settings/SettingsApiView",
@@ -24,7 +23,7 @@ const noKeysOrIntegrationData: Partial<User> = {
 };
 const withKeysAndIntegrationsData: Partial<User> = {
     apiKeys: [
-        // Fresh key
+        // Fresh key with READ_ONLY permissions
         {
             __typename: "ApiKey" as const,
             id: uuid(),
@@ -32,10 +31,11 @@ const withKeysAndIntegrationsData: Partial<User> = {
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
             limitSoft: null,
-            name: "Key 1",
+            name: "Read-Only Key",
             stopAtLimit: true,
-        },
-        // Used but still active key
+            permissions: JSON.stringify(PERMISSION_PRESETS.READ_ONLY.permissions),
+        } as ApiKey,
+        // Used but still active key with STANDARD permissions
         {
             __typename: "ApiKey" as const,
             id: uuid(),
@@ -43,10 +43,11 @@ const withKeysAndIntegrationsData: Partial<User> = {
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
             limitSoft: null,
-            name: "Key 2",
+            name: "Standard Key",
             stopAtLimit: true,
-        },
-        // Inactive key
+            permissions: JSON.stringify(PERMISSION_PRESETS.STANDARD.permissions),
+        } as ApiKey,
+        // Inactive key with DEVELOPER permissions
         {
             __typename: "ApiKey" as const,
             id: uuid(),
@@ -54,9 +55,38 @@ const withKeysAndIntegrationsData: Partial<User> = {
             disabledAt: new Date().toISOString(),
             limitHard: BigInt(25000000000).toString(),
             limitSoft: null,
-            name: "Key 3",
+            name: "Developer Key (Disabled)",
             stopAtLimit: true,
-        },
+            permissions: JSON.stringify(PERMISSION_PRESETS.DEVELOPER.permissions),
+        } as ApiKey,
+        // Key with FULL_ACCESS permissions
+        {
+            __typename: "ApiKey" as const,
+            id: uuid(),
+            creditsUsed: BigInt(2000000).toString(),
+            disabledAt: null,
+            limitHard: BigInt(25000000000).toString(),
+            limitSoft: BigInt(10000000000).toString(),
+            name: "Full Access Key",
+            stopAtLimit: true,
+            permissions: JSON.stringify(PERMISSION_PRESETS.FULL_ACCESS.permissions),
+        } as ApiKey,
+        // Key with custom permissions
+        {
+            __typename: "ApiKey" as const,
+            id: uuid(),
+            creditsUsed: BigInt(500000).toString(),
+            disabledAt: null,
+            limitHard: BigInt(25000000000).toString(),
+            limitSoft: null,
+            name: "Custom Permissions Key",
+            stopAtLimit: true,
+            permissions: JSON.stringify([
+                ApiKeyPermission.ReadPublic,
+                ApiKeyPermission.ReadPrivate,
+                ApiKeyPermission.ReadAuth,
+            ]),
+        } as ApiKey,
     ],
     apiKeysExternal: [
         {
@@ -85,9 +115,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
 
 export function NoKeysOrIntegrations() {
     return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
+        <SettingsApiView display="page" />
     );
 }
 NoKeysOrIntegrations.parameters = {
@@ -110,9 +138,7 @@ NoKeysOrIntegrations.parameters = {
 
 export function WithKeysAndIntegrations() {
     return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
+        <SettingsApiView display="page" />
     );
 }
 WithKeysAndIntegrations.parameters = {
@@ -133,31 +159,9 @@ WithKeysAndIntegrations.parameters = {
     session,
 };
 
-export function LoggedOut() {
-    return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
-    );
-}
-LoggedOut.parameters = {
-    session: loggedOutSession,
-    msw: {
-        handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
-                return HttpResponse.json({
-                    data: noKeysOrIntegrationData,
-                });
-            }),
-        ],
-    },
-};
-
 export function SignedInNoPremiumNoCredits() {
     return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
+        <SettingsApiView display="page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -175,9 +179,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
+        <SettingsApiView display="page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -195,9 +197,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
+        <SettingsApiView display="page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -215,9 +215,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <PageContainer>
-            <SettingsApiView display="page" />
-        </PageContainer>
+        <SettingsApiView display="page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {
