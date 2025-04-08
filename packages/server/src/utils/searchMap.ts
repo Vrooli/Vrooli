@@ -1,5 +1,6 @@
-import { ModelType, RoutineType, ScheduleFor, SessionUser, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, RoutineType, ScheduleFor, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
 import { PeriodType } from "@prisma/client";
+import { RequestService } from "../auth/request.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
 
@@ -46,10 +47,10 @@ function oneToManyIds<RelField extends string>(ids: string[], relField: RelField
 type RequestData = {
     /** The object type being queried */
     objectType: ModelType | `${ModelType}`;
+    /** The current request */
+    req: Parameters<typeof RequestService.assertRequestFrom>[0],
     /** Full search input query */
     searchInput: { [x: string]: any };
-    /** The current user's session token */
-    userData: Pick<SessionUser, "id" | "languages"> | null;
     /** The visibility of the query */
     visibility: VisibilityType;
 };
@@ -454,5 +455,5 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         },
     }) : {},
-    visibility: (visibility: VisibilityType | null | undefined, { objectType, searchInput, userData }) => visibilityBuilderPrisma({ objectType, searchInput, userData, visibility }).query,
+    visibility: (visibility: VisibilityType | null | undefined, { objectType, req, searchInput }) => visibilityBuilderPrisma({ objectType, req, searchInput, visibility }).query,
 } as SearchMapType<typeof SearchMap>;

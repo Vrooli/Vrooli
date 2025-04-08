@@ -122,6 +122,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const searcher: Searcher<any, any> | undefined = model.search;
     const searchData = {
         objectType: model.__typename,
+        req,
         searchInput: input,
         userData,
         visibility: input.visibility ?? visibility,
@@ -277,6 +278,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     // Get visibility query
     const searchData = {
         objectType,
+        req,
         searchInput: input,
         userData,
         visibility: input.visibility ?? visibility,

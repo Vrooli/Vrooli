@@ -1,4 +1,5 @@
-import { ModelType, OrArray, PageInfo, SessionUser, TimeFrame, VisibilityType } from "@local/shared";
+import { ModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
+import { type RequestService } from "../auth/request.js";
 
 /**
  * Shape 2 of 4 for API endpoint to Prisma converstion. Each level contains a __typename field. 
@@ -175,8 +176,8 @@ export type RelDelete<IDField extends string> = { [key in IDField]: string }
 
 export type VisibilityBuilderProps = {
     objectType: `${ModelType}`,
+    req: Parameters<typeof RequestService.assertRequestFrom>[0],
     searchInput: { [x: string]: any };
-    userData: Pick<SessionUser, "id"> | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }
 

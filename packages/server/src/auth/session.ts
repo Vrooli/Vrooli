@@ -36,6 +36,7 @@ export class SessionService {
             if (user !== undefined && typeof user.id === "string" && uuidValidate(user.id)) {
                 return user;
             }
+
         }
         return null;
     }
@@ -114,3 +115,4 @@ export class SessionService {
         };
     }
 }
+

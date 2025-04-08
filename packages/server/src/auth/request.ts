@@ -256,16 +256,19 @@ export class RequestService {
     }
 
     /**
-     * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
+     * Finds the permissions object based on the request conditions
+     * 
      * @param req Object with request data
-     * @param conditions The conditions to check
      * @returns user data, if isUser or isOfficialUser is true
-     * @throws CustomError if conditions are not met
      */
-    static assertRequestFrom<Conditions extends RequestConditions>(
+    static getRequestPermissions(
         req: { session: Pick<SessionData, "apiToken" | "fromSafeOrigin" | "isLoggedIn" | "languages" | "permissions" | "userId"> & { users?: Pick<SessionUser, "id" | "languages">[] | null | undefined } },
-        conditions: Conditions,
-    ): AssertRequestFromResult<Conditions> {
+    ): {
+        hasApiToken: boolean;
+        isVerifiedUser: boolean;
+        permissions: { [key in ApiKeyPermission]?: boolean };
+        userData: ReturnType<typeof SessionService.getUser>;
+    } {
         const { session } = req;
         // Determine if user data is found in the request
         let userData = SessionService.getUser(req);
@@ -292,6 +295,32 @@ export class RequestService {
                 [ApiKeyPermission.ReadPublic]: true,
             }
         }
+
+        return {
+            hasApiToken,
+            isVerifiedUser,
+            permissions,
+            userData
+        };
+    }
+
+    /**
+     * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
+     * @param req Object with request data
+     * @param conditions The conditions to check
+     * @returns user data, if isUser or isOfficialUser is true
+     * @throws CustomError if conditions are not met
+     */
+    static assertRequestFrom<Conditions extends RequestConditions>(
+        req: Parameters<typeof RequestService.getRequestPermissions>[0],
+        conditions: Conditions,
+    ): AssertRequestFromResult<Conditions> {
+        const {
+            hasApiToken,
+            isVerifiedUser,
+            permissions,
+            userData
+        } = RequestService.getRequestPermissions(req);
 
         // Check isUser condition
         if (conditions.isUser === true && !isVerifiedUser) throw new CustomError("0267", "NotLoggedIn");

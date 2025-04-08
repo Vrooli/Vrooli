@@ -35,7 +35,7 @@ export const unions: EndpointsUnions = {
         // Collect search data
         const userData = SessionService.getUser(req);
         const visibility = input.visibility ?? VisibilityType.Public;
-        const searchData = { userData, visibility };
+        const searchData = { req, visibility };
         const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
         // Query projects
         const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
@@ -237,7 +237,7 @@ export const unions: EndpointsUnions = {
         // Collect search data
         const userData = SessionService.getUser(req);
         const visibility = input.visibility ?? VisibilityType.Public;
-        const searchData = { userData, visibility };
+        const searchData = { req, visibility };
         const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
         // Query projects
         const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({

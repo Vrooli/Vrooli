@@ -1,4 +1,3 @@
-import { SessionService } from "../auth/session.js";
 import { combineQueries } from "../builders/combineQueries.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
 import { CountInputBase, PrismaDelegate } from "../builders/types.js";
@@ -18,13 +17,12 @@ export async function countHelper<CountInput extends CountInputBase>({
     where,
     visibility,
 }: CountHelperProps<CountInput>): Promise<number> {
-    const userData = SessionService.getUser(req);
     // Create query for created metric
     const createdQuery = timeFrameToPrisma("created_at", input.createdTimeFrame);
     // Create query for created metric
     const updatedQuery = timeFrameToPrisma("updated_at", input.updatedTimeFrame);
     // Create query for visibility, if supported
-    const { query: visibilityQuery } = visibilityBuilderPrisma({ objectType, searchInput: input, userData, visibility });
+    const { query: visibilityQuery } = visibilityBuilderPrisma({ objectType, searchInput: input, req, visibility });
     // Count objects that match queries
     const delegate = DbProvider.get()[ModelMap.get(objectType).dbTable] as PrismaDelegate;
     return await delegate.count({

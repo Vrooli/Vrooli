@@ -163,6 +163,7 @@ export const CommentModel: CommentModelLogic = ({
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             const searchData = {
                 objectType: __typename,
+                req,
                 searchInput: input,
                 userData,
                 visibility: VisibilityType.Public,

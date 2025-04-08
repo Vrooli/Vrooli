@@ -11,6 +11,7 @@ const objectType = "StatsQuiz";
 export const statsQuiz: EndpointsStatsQuiz = {
     findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return readManyHelper({ info, input, objectType, req });
     },
 };
