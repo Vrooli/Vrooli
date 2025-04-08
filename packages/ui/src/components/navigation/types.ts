@@ -18,11 +18,7 @@ export type NavbarProps = {
     tabTitle?: string;
     title?: string | undefined;
     titleBehavior?: "Hide" | "Show";
-    /** Replaces title if provided */
-    titleComponent?: JSX.Element;
 }
-
-export type SettingsTopBarProps = TopBarProps
 
 export interface TopBarProps extends TitleProps {
     below?: JSX.Element | boolean;

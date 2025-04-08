@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DeleteOneInput, DeleteType, endpointsActions, FocusMode, FocusModeFilterType, FocusModeStopCondition, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
 import { Box, Button, Chip, Divider, IconButton, ListItem, ListItemProps, ListItemText, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -6,7 +7,8 @@ import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ListContainer } from "../../components/containers/ListContainer.js";
 import { TagSelectorBase } from "../../components/inputs/TagSelector/TagSelector.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
@@ -233,11 +235,7 @@ export function SettingsFocusModesView({
                 onDeleted={noop}
                 overrideObject={editingFocusMode ?? fallbackOverrideObject}
             />
-            <SettingsTopBar
-                display={display}
-                onClose={onClose}
-                title={t("FocusMode", { count: 2 })}
-            />
+            <Navbar title={t("FocusMode", { count: 2 })} />
             <SettingsContent>
                 <SettingsList />
                 <Box m="auto" mt={2}>

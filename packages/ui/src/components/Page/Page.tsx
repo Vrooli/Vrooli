@@ -31,6 +31,7 @@ const StyledPageContainer = styled(Box, {
     paddingBottom: pagePaddingBottom,
     paddingLeft: size === "fullSize" ? 0 : "max(1em, calc(15% - 75px))",
     paddingRight: size === "fullSize" ? 0 : "max(1em, calc(15% - 75px))",
+    position: "relative",
     ...sx,
 } as any));
 export function PageContainer({

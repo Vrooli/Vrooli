@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
-import { Badge, Button, IconButton, SxProps, Theme } from "@mui/material";
-import i18next from "i18next";
-import { Icon, IconInfo } from "../../icons/Icons.js";
-import { openLink } from "../../route/openLink.js";
-import { SetLocation } from "../../route/types.js";
+import { IconInfo } from "../../icons/Icons.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 
 export enum NAV_ACTION_TAGS {
@@ -66,61 +62,4 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
 function createAction(action: NavActionArray): NavAction {
     const keys = ["label", "value", "link", "iconInfo", "numNotifications"];
     return action.reduce((obj, val, i) => { obj[keys[i]] = val; return obj; }, {}) as NavAction;
-}
-
-// Factory for creating a list of action objects
-export function createActions(actions: NavActionArray[]): NavAction[] {
-    return actions.map(a => createAction(a));
-}
-
-/** Display actions in a horizontal menu */
-interface ActionsToMenuProps {
-    actions: NavAction[];
-    setLocation: SetLocation;
-    sx?: SxProps<Theme>;
-}
-export function actionsToMenu({ actions, setLocation, sx = {} }: ActionsToMenuProps) {
-    return actions.map(({ label, value, link }) => {
-        function handleClick(event: React.MouseEvent) {
-            event.preventDefault();
-            openLink(setLocation, link);
-        }
-
-        return (
-            <Button
-                key={value}
-                variant="text"
-                size="large"
-                href={link}
-                onClick={handleClick}
-                sx={sx}
-            >
-                {i18next.t(label, { count: 2 })}
-            </Button>
-        );
-    });
-}
-
-// Display an action as an icon button
-interface ActionToIconButtonProps {
-    action: NavAction;
-    setLocation: SetLocation;
-    classes?: { [key: string]: string };
-}
-export function actionToIconButton({ action, setLocation, classes = { root: "" } }: ActionToIconButtonProps) {
-    const { value, iconInfo, link, numNotifications } = action;
-
-    function handleClick(event: React.MouseEvent) {
-        event.preventDefault();
-        openLink(setLocation, link);
-    }
-
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={handleClick}>
-        <Badge badgeContent={numNotifications} color="error">
-            <Icon
-                decorative
-                info={iconInfo}
-            />
-        </Badge>
-    </IconButton>;
 }

@@ -1,3 +1,4 @@
+/* eslint-disable import/extensions */
 import { Session, TranslationKeyCommon, TranslationKeyError, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";

@@ -166,6 +166,7 @@ export const ELEMENT_IDS = {
     AdaptiveLayout: "adaptive-layout",
     AdvancedSearchDialog: "advanced-search-dialog",
     AdvancedSearchDialogTitle: "advanced-search-dialog-title",
+    BottomNav: "bottom-nav",
     CommandPalette: "command-palette",
     DashboardEventList: "dashboard-event-list",
     DashboardReminderList: "dashboard-reminder-list",
@@ -217,6 +218,7 @@ export const ELEMENT_IDS = {
 
 export const ELEMENT_CLASSES = {
     ScrollBox: "scroll-box",
+    SearchBar: "search-bar",
 } as const;
 
 export const Z_INDEX = {

@@ -1,5 +1,4 @@
-import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
-import { PageContainer } from "../../components/Page/Page.js";
+import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { CreateView } from "./CreateView.js";
 
 export default {
@@ -7,22 +6,9 @@ export default {
     component: CreateView,
 };
 
-export function LoggedOut() {
-    return (
-        <PageContainer>
-            <CreateView display="page" />
-        </PageContainer>
-    );
-}
-LoggedOut.parameters = {
-    session: loggedOutSession,
-};
-
 export function SignedInNoPremiumNoCredits() {
     return (
-        <PageContainer>
-            <CreateView display="page" />
-        </PageContainer>
+        <CreateView />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -31,9 +17,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <PageContainer>
-            <CreateView display="page" />
-        </PageContainer>
+        <CreateView />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -42,9 +26,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <PageContainer>
-            <CreateView display="page" />
-        </PageContainer>
+        <CreateView />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -53,9 +35,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <PageContainer>
-            <CreateView display="page" />
-        </PageContainer>
+        <CreateView />
     );
 }
 SignedInPremiumWithCredits.parameters = {

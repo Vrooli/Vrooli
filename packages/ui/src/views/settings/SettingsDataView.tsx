@@ -3,7 +3,8 @@ import { Field, Formik, useField } from "formik";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
@@ -375,11 +376,7 @@ export function SettingsDataView({
 
     return (
         <>
-            <SettingsTopBar
-                display={display}
-                onClose={onClose}
-                title={t("Data")}
-            />
+            <Navbar title={t("Data")} />
             <SettingsContent>
                 <SettingsList />
                 <Box m="auto" p={1}>

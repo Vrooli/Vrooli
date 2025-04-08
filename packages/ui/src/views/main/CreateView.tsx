@@ -2,8 +2,10 @@ import { LINKS, RoutineType, TranslationKeyCommon } from "@local/shared";
 import { Box, Dialog, DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PageContainer } from "../../components/Page/Page.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { IconCommon, IconInfo } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
@@ -11,7 +13,6 @@ import { ScrollBox } from "../../styles.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
 import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/routine.js";
-import { CreateViewProps } from "./types.js";
 
 type CreateInfo = {
     objectType: CreateType;
@@ -104,6 +105,9 @@ export const createCards: CreateInfo[] = [
         incomplete: true,
     },
 ] as const;
+
+const singleStepRoutineIconInfo: IconInfo = { name: "Action", type: "Common" };
+const multiStepRoutineIconInfo: IconInfo = { name: "Routine", type: "Routine" };
 
 function sortByUsageHistory<T>(
     items: T[],
@@ -217,7 +221,7 @@ function RoutineWizardDialog({
                         <TIDCard
                             buttonText={t("Select")}
                             description={"Ideal for quick, one-off tasks or simple transformations."}
-                            iconInfo={{ name: "Action", type: "Common" }}
+                            iconInfo={singleStepRoutineIconInfo}
                             key="singleStep"
                             onClick={selectSingleStep}
                             size="small"
@@ -226,7 +230,7 @@ function RoutineWizardDialog({
                         <TIDCard
                             buttonText={t("Select")}
                             description={"Use a graph of steps for complex, automated workflows."}
-                            iconInfo={{ name: "Routine", type: "Routine" }}
+                            iconInfo={multiStepRoutineIconInfo}
                             key="multiStep"
                             onClick={selectMultiStep}
                             size="small"
@@ -273,10 +277,7 @@ function RoutineWizardDialog({
     );
 }
 
-export function CreateView({
-    display,
-    onClose,
-}: CreateViewProps) {
+export function CreateView() {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -304,33 +305,31 @@ export function CreateView({
     }, [setLocation]);
 
     return (
-        <ScrollBox>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("Create")}
-            />
-            <RoutineWizardDialog isOpen={showRoutineWizard} onClose={closeRoutineWizard} />
-            <CardGrid minWidth={300}>
-                {sortedCards.map(({ objectType, description, iconInfo, id, incomplete }, index) => {
-                    function handleClick() {
-                        onSelect(id);
-                    }
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Navbar title={t("Create")} />
+                <RoutineWizardDialog isOpen={showRoutineWizard} onClose={closeRoutineWizard} />
+                <CardGrid minWidth={300}>
+                    {sortedCards.map(({ objectType, description, iconInfo, id, incomplete }, index) => {
+                        function handleClick() {
+                            onSelect(id);
+                        }
 
-                    return (
-                        <TIDCard
-                            buttonText={t("Create")}
-                            description={t(description)}
-                            iconInfo={iconInfo}
-                            id={id}
-                            key={index}
-                            onClick={handleClick}
-                            title={t(objectType, { count: 1 })}
-                            warning={incomplete ? "Coming soon" : undefined}
-                        />
-                    );
-                })}
-            </CardGrid>
-        </ScrollBox>
+                        return (
+                            <TIDCard
+                                buttonText={t("Create")}
+                                description={t(description)}
+                                iconInfo={iconInfo}
+                                id={id}
+                                key={index}
+                                onClick={handleClick}
+                                title={t(objectType, { count: 1 })}
+                                warning={incomplete ? "Coming soon" : undefined}
+                            />
+                        );
+                    })}
+                </CardGrid>
+            </ScrollBox>
+        </PageContainer>
     );
 }

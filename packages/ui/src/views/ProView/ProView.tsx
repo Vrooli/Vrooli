@@ -1,10 +1,10 @@
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, SubscriptionPricesResponse, YEARS_1_MONTHS } from "@local/shared";
-import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Link, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Link, Typography, alpha, styled, useTheme } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
 import { Footer } from "../../components/navigation/Footer.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useStripe } from "../../hooks/useStripe.js";
@@ -17,7 +17,6 @@ import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { RandomBlobs } from "../main/LandingView.js";
-import { ProViewProps } from "../types.js";
 
 // Match keys in SubscriptionPricesResponse
 export enum BillingCycle {
@@ -326,10 +325,23 @@ export function PricingTier({
                     {aboveButtonText}
                 </Typography>
             )}
-            {buttonText && onClick && (
+            {buttonText && onClick && recommended && (
+                <FancyButton
+                    variant={!buttonColor ? "contained" : "outlined"}
+                    color={buttonColor ?? "secondary"}
+                    onClick={onClick}
+                    style={{
+                        marginTop: "16px",
+                        ...(buttonColor ? { borderColor: palette.error.main, color: palette.error.main } : {}),
+                    }}
+                >
+                    {buttonText}
+                </FancyButton>
+            )}
+            {buttonText && onClick && !recommended && (
                 <Button
-                    variant={recommended && !buttonColor ? "contained" : "outlined"}
-                    color={buttonColor ?? (recommended ? "secondary" : "primary")}
+                    variant="outlined"
+                    color={buttonColor ?? "primary"}
                     onClick={onClick}
                     style={{
                         marginTop: "16px",
@@ -465,6 +477,23 @@ const SupportOptionBox = styled(Box)(({ theme }) => ({
         boxShadow: `0 0 10px 5px ${theme.palette.secondary.light}44`,
     },
     transition: "box-shadow 0.3s ease-in-out",
+}));
+const FancyButton = styled(Button)(({ theme }) => ({
+    background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
+    fontSize: "1.1rem",
+    padding: "12px",
+    textTransform: "none",
+    fontWeight: 600,
+    transition: "all 0.3s ease",
+    "& .MuiTouchRipple-root": {
+        transition: "transform 0.3s ease",
+    },
+    "&:hover": {
+        background: `linear-gradient(45deg, ${theme.palette.secondary.dark}, ${theme.palette.primary.dark})`,
+        // eslint-disable-next-line no-magic-numbers
+        boxShadow: `0 8px 20px ${alpha(theme.palette.secondary.main, 0.4)}`,
+        transform: "scale(1.05)",
+    },
 }));
 
 function SupportOption({
@@ -709,10 +738,7 @@ const CheckStatusButton = styled(Button)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
 }));
 
-export function ProView({
-    display,
-    onClose,
-}: ProViewProps) {
+export function ProView() {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
@@ -781,11 +807,7 @@ export function ProView({
             <PageContainer size="fullSize">
                 {palette.mode === "dark" && <RandomBlobs numberOfBlobs={isMobile ? 5 : 8} />}
                 <ScrollBox>
-                    <TopBar
-                        display={display}
-                        onClose={onClose}
-                        title={t("ProGet")}
-                    />
+                    <Navbar title={t("ProGet")} />
                     <Box display="flex" flexDirection="column" gap={8} margin="auto">
                         <WaysToSupportUs />
                         <Box display="flex" flexDirection="column" pt={4} alignItems="center" minHeight="100vh" justifyContent="center">
@@ -822,7 +844,7 @@ export function ProView({
                                 Vrooli is a labor of love. I&apos;ve spent countless hours and life savings to develop this product. Consider donating to support our efforts to democratize AI. Every dollar helps!💙
                             </Typography>
                             <Box width="min(300px, 100%)" margin="auto">
-                                <Button
+                                <FancyButton
                                     fullWidth
                                     variant="contained"
                                     onClick={onDonateClick}
@@ -832,7 +854,7 @@ export function ProView({
                                     />}
                                 >
                                     Donate
-                                </Button>
+                                </FancyButton>
                             </Box>
                         </Box>
                         {/* TODO add video to showcase pro features */}

@@ -93,7 +93,6 @@ export const AuthContainer = styled(Box)(({ theme }) => ({
     boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
     animation: `${fadeIn} ${ANIMATION_DURATION}s ease-out`,
     overflow: "hidden",
-    margin: theme.spacing(SPACING_LARGE, SPACING_MEDIUM),
     display: "flex",
     flexDirection: "row",
     [theme.breakpoints.down("md")]: {
@@ -102,7 +101,6 @@ export const AuthContainer = styled(Box)(({ theme }) => ({
     },
     [theme.breakpoints.down("sm")]: {
         maxWidth: "100%",
-        margin: theme.spacing(2),
     },
 }));
 
@@ -207,6 +205,8 @@ export const oAuthSpanStyle = {
 export const contentWrapStyle = {
     minHeight: "100%",
     alignItems: "flex-start",
+    flexDirection: "column",
+    gap: "16px",
 } as const;
 
 export const emailStartAdornment = {

@@ -3,7 +3,8 @@ import { Box, Button, Stack, Typography, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useStripe } from "../../hooks/useStripe.js";
 import { IconCommon } from "../../icons/Icons.js";
@@ -31,11 +32,7 @@ export function SettingsPaymentView({
 
     return (
         <ScrollBox>
-            <SettingsTopBar
-                display={display}
-                onClose={onClose}
-                title={t("Payment", { count: 1 })}
-            />
+            <Navbar title={t("Payment", { count: 1 })} />
             <SettingsContent>
                 <SettingsList />
                 <Box m="auto">

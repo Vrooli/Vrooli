@@ -6,7 +6,7 @@ import privacyMarkdown from "../../assets/policy/privacy.md";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { Footer } from "../../components/navigation/Footer.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
 import { useMarkdown } from "../../hooks/useMarkdown.js";
 import { PageTab, useTabs } from "../../hooks/useTabs.js";
@@ -14,7 +14,6 @@ import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
 import { PolicyTabsInfo, TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
-import { PrivacyPolicyViewProps, TermsViewProps } from "../types.js";
 
 export enum PolicyTabOption {
     Privacy = "Privacy",
@@ -45,10 +44,7 @@ const ContentBox = styled(Box)(({ theme }) => ({
     },
 }));
 
-export function PrivacyPolicyView({
-    display,
-    onClose,
-}: PrivacyPolicyViewProps) {
+export function PrivacyPolicyView() {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -63,18 +59,13 @@ export function PrivacyPolicyView({
     return (
         <PageContainer contentType="text" size="fullSize">
             <ScrollBox>
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("Privacy")}
-                    titleBehavior="Hide"
-                    below={<PageTabs<typeof policyTabParams>
-                        ariaLabel="privacy policy and terms tabs"
-                        currTab={currTab}
-                        fullWidth
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
+                <Navbar title={t("Privacy")} />
+                <PageTabs<typeof policyTabParams>
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
                 />
                 <ContentBox>
                     <MarkdownDisplay content={content} />
@@ -85,10 +76,7 @@ export function PrivacyPolicyView({
     );
 }
 
-export function TermsView({
-    display,
-    onClose,
-}: TermsViewProps) {
+export function TermsView() {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -103,18 +91,13 @@ export function TermsView({
     return (
         <PageContainer contentType="text" size="fullSize">
             <ScrollBox minHeight="100vh">
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("Terms")}
-                    titleBehavior="Hide"
-                    below={<PageTabs<typeof policyTabParams>
-                        ariaLabel="privacy policy and terms tabs"
-                        currTab={currTab}
-                        fullWidth
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
+                <Navbar title={t("Terms")} />
+                <PageTabs<typeof policyTabParams>
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
                 />
                 <ContentBox>
                     <MarkdownDisplay content={content} />

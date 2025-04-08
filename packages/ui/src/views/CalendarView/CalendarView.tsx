@@ -6,13 +6,13 @@ import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarT
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { useIsBottomNavVisible } from "../../components/navigation/BottomNav.js";
+import { APP_BAR_HEIGHT_PX, Navbar } from "../../components/navigation/Navbar.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { FullPageSpinner } from "../../components/Spinners.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { bottomNavHeight } from "../../styles.js";
 import { PartialWithType } from "../../types.js";
@@ -246,8 +246,7 @@ const FlexContainer = styled(Box, {
 })<FlexContainerProps>(({ isBottomNavVisible }) => ({
     display: "flex",
     flexDirection: "column",
-    height: `calc(100vh - ${isBottomNavVisible ? bottomNavHeight : "0px"} - env(safe-area-inset-bottom))`,
-
+    height: `calc(100vh - ${isBottomNavVisible ? bottomNavHeight : "0px"} - ${APP_BAR_HEIGHT_PX}px - env(safe-area-inset-bottom))`,
 }));
 
 const outerBoxStyle = {
@@ -257,11 +256,10 @@ const outerBoxStyle = {
 
 export function CalendarView({
     display,
-    onClose,
 }: CalendarViewProps) {
     const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
-    const isBottomNavVisible = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { palette } = useTheme();
+    const isBottomNavVisible = useIsBottomNavVisible();
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
@@ -517,6 +515,7 @@ export function CalendarView({
     if (!localizer) return <FullPageSpinner />;
     return (
         <Box sx={outerBoxStyle}>
+            <Navbar keepVisible title={t("Schedule", { count: 1 })} />
             <FlexContainer isBottomNavVisible={isBottomNavVisible}>
                 <ScheduleUpsert
                     canSetScheduleFor={true}
@@ -531,18 +530,12 @@ export function CalendarView({
                     onDeleted={handleScheduleDeleted}
                     overrideObject={scheduleOverrideObject}
                 />
-                <TopBar
-                    // ref={ref}
-                    display={display}
-                    onClose={onClose}
-                    title={t("Schedule", { count: 1 })}
-                    below={<PageTabs<typeof calendarTabParams>
-                        ariaLabel="calendar-tabs"
-                        currTab={currTab}
-                        fullWidth
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
+                <PageTabs<typeof calendarTabParams>
+                    ariaLabel="calendar-tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
                 />
                 {/* TODO Remove when weird type error is fixed */}
                 {/* @ts-expect-error Incompatible JSX type definitions */}

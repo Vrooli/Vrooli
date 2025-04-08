@@ -1,4 +1,5 @@
 import { Box, Dialog, DialogContent, DialogTitle, IconButton, IconButtonProps, Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSpeech } from "../../../hooks/useSpeech.js";
@@ -174,7 +175,7 @@ export function MicrophoneButton({
             startListening();
             transcript && resetTranscript();
         } else {
-            PubSub.get().publish("snack", { messageKey: "SpeechNotAvailable", severity: "Error" });
+            PubSub.get().publish("snack", { message: i18next.t("SpeechNotAvailable"), severity: "Error" });
         }
         return true;
     }, [status, stopListening, transcript, startListening, resetTranscript, resetTranscriptTimeout]);

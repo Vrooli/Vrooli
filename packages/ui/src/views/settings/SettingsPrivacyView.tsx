@@ -1,15 +1,16 @@
 import { endpointsUser, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, styled, Typography } from "@mui/material";
-import { Formik, FormikHelpers, useField } from "formik";
-import { useCallback, useMemo } from "react";
+import { Formik, FormikHelpers, FormikProps, useField } from "formik";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsToggleListItem } from "../../components/lists/SettingsToggleListItem/SettingsToggleListItem.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
+import { useAutoSave } from "../../hooks/useAutoSave.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { ScrollBox } from "../../styles.js";
@@ -90,15 +91,6 @@ function SettingsPrivacyForm({
                     />
                 </ListContainer>
             </BaseForm>
-            <BottomActionsButtons
-                display={display}
-                errors={props.errors}
-                isCreate={false}
-                loading={props.isSubmitting}
-                onCancel={onCancel}
-                onSetSubmitting={props.setSubmitting}
-                onSubmit={props.handleSubmit}
-            />
         </Box>
     );
 }
@@ -106,46 +98,67 @@ function SettingsPrivacyForm({
 
 export function SettingsPrivacyView({
     display,
-    onClose,
 }: SettingsPrivacyViewProps) {
     const { t } = useTranslation();
+    const formikRef = useRef<FormikProps<ProfileUpdateInput>>(null);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
 
     const initialValues = useMemo<ProfileUpdateInput>(function initialValuesMemo() {
+        if (!profile) {
+            return {
+                id: "",
+                isPrivate: false,
+                isPrivateApis: false,
+                isPrivateBookmarks: false,
+                isPrivateCodes: false,
+                isPrivateProjects: false,
+                isPrivateRoutines: false,
+                isPrivateStandards: false,
+            };
+        }
+
         return {
-            isPrivate: profile?.isPrivate ?? false,
-            isPrivateApis: profile?.isPrivateApis ?? false,
-            isPrivateBookmarks: profile?.isPrivateBookmarks ?? false,
-            isPrivateCodes: profile?.isPrivateCodes ?? false,
-            isPrivateProjects: profile?.isPrivateProjects ?? false,
-            isPrivateRoutines: profile?.isPrivateRoutines ?? false,
-            isPrivateStandards: profile?.isPrivateStandards ?? false,
+            id: profile.id,
+            isPrivate: profile.isPrivate ?? false,
+            isPrivateApis: profile.isPrivateApis ?? false,
+            isPrivateBookmarks: profile.isPrivateBookmarks ?? false,
+            isPrivateCodes: profile.isPrivateCodes ?? false,
+            isPrivateProjects: profile.isPrivateProjects ?? false,
+            isPrivateRoutines: profile.isPrivateRoutines ?? false,
+            isPrivateStandards: profile.isPrivateStandards ?? false,
         };
-    }, [profile?.isPrivate, profile?.isPrivateApis, profile?.isPrivateBookmarks, profile?.isPrivateCodes, profile?.isPrivateProjects, profile?.isPrivateRoutines, profile?.isPrivateStandards]);
+    }, [profile]);
 
     const handleSubmit = useCallback(function handleSubmitCallback(values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) {
         if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
         }
+        const inputs = { ...values, id: profile.id };
         fetchLazyWrapper<ProfileUpdateInput, User>({
             fetch,
-            inputs: values,
-            successMessage: () => ({ messageKey: "SettingsUpdated" }),
+            inputs,
             onSuccess: (data) => { onProfileUpdate(data); },
             onCompleted: () => { helpers.setSubmitting(false); },
         });
-    }, [fetch, onProfileUpdate, profile]);
+    }, [fetch, onProfileUpdate, profile, t]);
+
+    const handleSave = useCallback(() => {
+        if (formikRef.current) {
+            formikRef.current.submitForm();
+        }
+    }, []);
+
+    useAutoSave<ProfileUpdateInput>({
+        formikRef,
+        handleSave,
+    });
 
     return (
         <ScrollBox>
-            <SettingsTopBar
-                display={display}
-                onClose={onClose}
-                title={t("Privacy")}
-            />
+            <Navbar title={t("Privacy")} />
             <SettingsContent>
                 <SettingsList />
                 <Formik
@@ -153,6 +166,7 @@ export function SettingsPrivacyView({
                     initialValues={initialValues}
                     onSubmit={handleSubmit}
                     validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
+                    innerRef={formikRef}
                 >
                     {(formik) => <SettingsPrivacyForm
                         display={display}

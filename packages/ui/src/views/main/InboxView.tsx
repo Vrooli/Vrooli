@@ -8,10 +8,12 @@ import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { ObjectListActions } from "../../components/lists/types.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { NavbarInner, NavListBox, NavListProfileButton, SiteNavigatorButton, TitleDisplay } from "../../components/navigation/Navbar.js";
+import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { useInfiniteScroll } from "../../hooks/gestures.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";
+import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
@@ -29,14 +31,18 @@ type InboxObject = Chat | Notification;
 
 const scrollContainerId = "inbox-scroll-container";
 const cancelIconInfo = { name: "Cancel", type: "Common" } as const;
+const addIconInfo = { name: "Add", type: "Common" } as const;
+const markAllAsReadIconInfo = { name: "Complete", type: "Common" } as const;
+const selectIconInfo = { name: "Action", type: "Common" } as const;
+const listContainerStyle = { marginBottom: pagePaddingBottom } as const;
 
 export function InboxView({
     display,
-    onClose,
 }: InboxViewProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const isLeftHanded = useIsLeftHanded();
 
     const {
         currTab,
@@ -96,9 +102,9 @@ export function InboxView({
 
     const [onActionButtonPress, actionButtonIconInfo, actionTooltip] = useMemo(() => {
         if (currTab.key === InboxPageTabOption.Notification) {
-            return [onMarkAllAsRead, { name: "Complete", type: "Common" }, "MarkAllAsRead"] as const;
+            return [onMarkAllAsRead, markAllAsReadIconInfo, "MarkAllAsRead"] as const;
         }
-        return [openCreateChat, { name: "Add", type: "Common" }, "CreateChat"] as const;
+        return [openCreateChat, addIconInfo, "CreateChat"] as const;
     }, [currTab.key, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
@@ -123,38 +129,42 @@ export function InboxView({
     });
 
     return (
-        <SearchListScrollContainer id={scrollContainerId}>
+        <PageContainer size="fullSize">
             {BulkDeleteDialogComponent}
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={currTab.label}
-                below={<PageTabs<typeof inboxTabParams>
-                    ariaLabel="inbox-tabs"
-                    fullWidth
-                    id="inbox-tabs"
-                    ignoreIcons
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
+            <NavbarInner>
+                <SiteNavigatorButton />
+                <TitleDisplay title={currTab.label} />
+                <NavListBox isLeftHanded={isLeftHanded}>
+                    <NavListProfileButton />
+                </NavListBox>
+            </NavbarInner>
+            <PageTabs<typeof inboxTabParams>
+                ariaLabel="inbox-tabs"
+                fullWidth
+                id="inbox-tabs"
+                ignoreIcons
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
             />
-            <ListContainer
-                emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={allData.length === 0 && !loading}
-                sx={{ marginBottom: pagePaddingBottom }}
-            >
-                <ObjectList
-                    dummyItems={new Array(DUMMY_LIST_LENGTH).fill(searchType)}
-                    handleToggleSelect={handleToggleSelect}
-                    isSelecting={isSelecting}
-                    items={allData as ListObject[]}
-                    keyPrefix={`${searchType}-list-item`}
-                    loading={loading}
-                    onAction={onAction}
-                    selectedItems={selectedData}
-                />
-            </ListContainer>
+            <SearchListScrollContainer id={scrollContainerId}>
+                <ListContainer
+                    emptyText={t("NoResults", { ns: "error" })}
+                    isEmpty={allData.length === 0 && !loading}
+                    sx={listContainerStyle}
+                >
+                    <ObjectList
+                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill(searchType)}
+                        handleToggleSelect={handleToggleSelect}
+                        isSelecting={isSelecting}
+                        items={allData as ListObject[]}
+                        keyPrefix={`${searchType}-list-item`}
+                        loading={loading}
+                        onAction={onAction}
+                        selectedItems={selectedData}
+                    />
+                </ListContainer>
+            </SearchListScrollContainer>
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
                     <IconButton
@@ -174,7 +184,7 @@ export function InboxView({
                         aria-label={t(isSelecting ? "Cancel" : "Select")}
                         onClick={handleToggleSelecting}
                     >
-                        <Icon info={isSelecting ? cancelIconInfo : actionButtonIconInfo} />
+                        <Icon info={isSelecting ? cancelIconInfo : selectIconInfo} />
                     </IconButton>
                 </Tooltip>
                 {!isSelecting ? <Tooltip title={t(actionTooltip)}>
@@ -186,6 +196,6 @@ export function InboxView({
                     </IconButton>
                 </Tooltip> : null}
             </SideActionsButtons>
-        </SearchListScrollContainer>
+        </PageContainer>
     );
 }

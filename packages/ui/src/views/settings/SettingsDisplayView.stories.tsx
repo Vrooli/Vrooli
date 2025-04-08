@@ -1,5 +1,4 @@
-import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
-import { PageContainer } from "../../components/Page/Page.js";
+import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { SettingsDisplayView } from "./SettingsDisplayView.js";
 
 export default {
@@ -7,22 +6,9 @@ export default {
     component: SettingsDisplayView,
 };
 
-export function LoggedOut() {
-    return (
-        <PageContainer>
-            <SettingsDisplayView display="page" />
-        </PageContainer>
-    );
-}
-LoggedOut.parameters = {
-    session: loggedOutSession,
-};
-
 export function SignedInNoPremiumNoCredits() {
     return (
-        <PageContainer>
-            <SettingsDisplayView display="page" />
-        </PageContainer>
+        <SettingsDisplayView display="page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -31,9 +17,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <PageContainer>
-            <SettingsDisplayView display="page" />
-        </PageContainer>
+        <SettingsDisplayView display="page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -42,9 +26,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <PageContainer>
-            <SettingsDisplayView display="page" />
-        </PageContainer>
+        <SettingsDisplayView display="page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -53,9 +35,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <PageContainer>
-            <SettingsDisplayView display="page" />
-        </PageContainer>
+        <SettingsDisplayView display="page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

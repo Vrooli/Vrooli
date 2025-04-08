@@ -4,16 +4,16 @@ import { TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
+import { PageContainer } from "../../components/Page/Page.js";
 import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCardBase, TIDContent, TIDIcon, TIDTextBox } from "../../components/lists/TIDCard/TIDCard.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFetch } from "../../hooks/useFetch.js";
 import { ScrollBox } from "../../styles.js";
 import { AwardDisplay } from "../../types.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
-import { AwardsViewProps } from "../../views/types.js";
 
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
@@ -146,10 +146,7 @@ function AwardCard({
     );
 }
 
-export function AwardsView({
-    display,
-    onClose,
-}: AwardsViewProps) {
+export function AwardsView() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
@@ -179,46 +176,44 @@ export function AwardsView({
     console.log(awards);
 
     return (
-        <ScrollBox>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("Award", { count: 2 })}
-            />
-            <Box display="flex" flexDirection="column" width="100%" gap={4}>
-                {/* Display earned awards as a list of tags. Press or hover to see description */}
-                <ContentCollapse
-                    isOpen={true}
-                    title={t("Earned") + "🏆"}
-                    sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
-                >
-                    <CardGrid minWidth={300}>
-                        {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
-                            <AwardCard
-                                key={award.category}
-                                award={award}
-                                isEarned={true}
-                            />
-                        ))}
-                    </CardGrid>
-                </ContentCollapse>
-                {/* Display progress of awards as cards */}
-                <ContentCollapse
-                    isOpen={true}
-                    title={t("InProgress") + "🏃‍♂️"}
-                    sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
-                >
-                    <CardGrid minWidth={300}>
-                        {awards.map((award) => (
-                            <AwardCard
-                                key={award.category}
-                                award={award}
-                                isEarned={false}
-                            />
-                        ))}
-                    </CardGrid>
-                </ContentCollapse>
-            </Box>
-        </ScrollBox>
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Navbar title={t("Award", { count: 2 })} />
+                <Box display="flex" flexDirection="column" width="100%" gap={4}>
+                    {/* Display earned awards as a list of tags. Press or hover to see description */}
+                    <ContentCollapse
+                        isOpen={true}
+                        title={`${t("Earned")}🏆`}
+                        sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
+                    >
+                        <CardGrid minWidth={300}>
+                            {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
+                                <AwardCard
+                                    key={award.category}
+                                    award={award}
+                                    isEarned={true}
+                                />
+                            ))}
+                        </CardGrid>
+                    </ContentCollapse>
+                    {/* Display progress of awards as cards */}
+                    <ContentCollapse
+                        isOpen={true}
+                        title={t("InProgress") + "🏃‍♂️"}
+                        sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
+                    >
+                        <CardGrid minWidth={300}>
+                            {awards.map((award) => (
+                                <AwardCard
+                                    key={award.category}
+                                    award={award}
+                                    isEarned={false}
+                                />
+                            ))}
+                        </CardGrid>
+                    </ContentCollapse>
+                </Box>
+            </ScrollBox>
+        </PageContainer>
     );
 }

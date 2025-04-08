@@ -17,12 +17,12 @@ import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
 import { IconFavicon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap } from "../../styles.js";
+import { CenteredContentPage, pagePaddingBottom } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { removeCookie } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { LoginViewProps } from "../../views/types.js";
-import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, contentWrapStyle, emailStartAdornment, FormSection, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
+import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, FormSection, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
 
 type FormValues = typeof initialValues;
 
@@ -244,9 +244,16 @@ export function LoginView({
             <TopBar
                 display={display}
             />
-            <CenteredContentPageWrap sx={contentWrapStyle}>
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap={1}
+                overflow="auto"
+                padding={2}
+                paddingBottom={pagePaddingBottom}
+            >
                 <LoginForm />
-            </CenteredContentPageWrap>
+            </Box>
         </CenteredContentPage>
     );
 }

@@ -6,7 +6,7 @@ import { ScrollToTop } from "./components/ScrollToTop.js";
 import { FullPageSpinner } from "./components/Spinners.js";
 import { NavbarProps } from "./components/navigation/types.js";
 import { Route, RouteProps, Switch } from "./route/router.js";
-import { useLayoutStore } from "./stores/LayoutStore.js";
+import { useLayoutStore } from "./stores/layoutStore.js";
 import { PageProps } from "./types.js";
 import { BotUpsert } from "./views/objects/bot/BotUpsert.js";
 
@@ -115,7 +115,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     excludePageContainer
                     {...props}
                 >
-                    <AboutView display="page" />
+                    <AboutView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
                     <ApiUpsert display="page" isCreate={true} />
@@ -126,8 +126,8 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Api}/:rootId/:versionId?`} {...props}>
                     <ApiView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.Awards} {...props}>
-                    <AwardsView display="page" />
+                <NavRoute path={LINKS.Awards} excludePageContainer {...props}>
+                    <AwardsView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.BookmarkList}/add`} mustBeLoggedIn={true} {...props}>
                     <BookmarkListUpsert display="page" isCreate={true} />
@@ -143,13 +143,14 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Create}
+                    excludePageContainer
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
                     mustBeLoggedIn={true}
                     {...props}
                 >
-                    <CreateView display="page" />
+                    <CreateView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Chat}/add`} excludePageContainer {...props}>
                     <ChatCrud display="page" isCreate={true} />
@@ -166,7 +167,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 >
                     <ForgotPasswordView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.History} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.History} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <HistoryView display="page" />
                 </NavRoute>
                 <NavRoute
@@ -188,7 +189,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 >
                     <LoginView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.MyStuff} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.MyStuff} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <MyStuffView display="page" />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Note}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
@@ -202,6 +203,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Inbox}
+                    excludePageContainer
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
@@ -218,7 +220,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     changeFreq="weekly"
                     {...props}
                 >
-                    <ProView display="page" />
+                    <ProView />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Privacy}
@@ -228,7 +230,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     excludePageContainer
                     {...props}
                 >
-                    <PrivacyPolicyView display="page" />
+                    <PrivacyPolicyView />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/add`} mustBeLoggedIn={true} {...props}>
                     <BotUpsert display="page" isCreate={true} />
@@ -293,7 +295,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderCrud display="page" isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Reports}/:objectType/:objectOrRootId/:versionId?`} {...props}>
+                <NavRoute path={`${LINKS.Reports}/:objectType/:objectOrRootId/:versionId?`} excludePageContainer {...props}>
                     <ReportsView />
                 </NavRoute>
                 <NavRoute
@@ -328,6 +330,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
+                    excludePageContainer
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
@@ -337,6 +340,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.SearchVersion}/:params*`}
+                    excludePageContainer
                     sitemapIndex
                     priority={0.4}
                     changeFreq="monthly"
@@ -344,34 +348,34 @@ export function Routes(props: { sessionChecked: boolean }) {
                 >
                     <SearchVersionView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
-                    <SettingsView display="page" />
+                <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} excludePageContainer {...props}>
+                    <SettingsView />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsApi} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsApi} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsApiView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsAuthentication} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsAuthenticationView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsData} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsData} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsDataView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsDisplay} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsDisplayView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsNotifications} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsNotificationsView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsPayments} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsPayments} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsPaymentView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsProfile} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsProfileView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsPrivacyView display="page" />
                 </NavRoute>
-                <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} excludePageContainer {...props}>
                     <SettingsFocusModesView display="page" />
                 </NavRoute>
                 <NavRoute
@@ -395,6 +399,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Stats}
+                    excludePageContainer
                     sitemapIndex
                     priority={0.5}
                     changeFreq="weekly"
@@ -419,7 +424,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     excludePageContainer
                     {...props}
                 >
-                    <TermsView display="page" />
+                    <TermsView />
                 </NavRoute>
                 <NavRoute {...props}>
                     <NotFoundView />

@@ -9,8 +9,28 @@ import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { bottomNavHeight } from "../../styles.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
-import { Z_INDEX } from "../../utils/consts.js";
+import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { getUserActions } from "../../utils/navigation/userActions.js";
+
+/**
+ * Hide the bottom nav in the following cases:
+ * - Keyboard is open (fixed bottom navs appear above the keyboard on Android)
+ * - User is logged in at the home page ("/")
+ * - User is logged in and at the chat page ("/chat")
+ */
+export function useIsBottomNavVisible() {
+    const session = useContext(SessionContext);
+    const isLoggedIn = checkIfLoggedIn(session);
+    const isKeyboardOpen = useKeyboardOpen();
+    const [location] = useLocation();
+    const pathname = location?.pathname || "/";
+
+    const shouldHideNav = isKeyboardOpen
+        || (isLoggedIn && (pathname === LINKS.Home))
+        || pathname.startsWith(LINKS.Chat);
+
+    return !shouldHideNav;
+}
 
 const StyledBottomNavigationAction = styled(BottomNavigationAction)(({ theme }) => ({
     color: theme.palette.primary.contrastText,
@@ -22,6 +42,8 @@ export function BottomNav() {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
+    const isLoggedIn = checkIfLoggedIn(session);
+    const isVisible = useIsBottomNavVisible();
 
     const actions = getUserActions({ session });
 
@@ -39,21 +61,11 @@ export function BottomNav() {
         display: { xs: "flex", md: "none" },
     }), [palette.primary.dark]);
 
-    const isKeyboardOpen = useKeyboardOpen();
 
-    // Hide the nav in the following cases:
-    // - Keyboard is open (fixed bottom navs appear above the keyboard on Android)
-    // - User is logged in at the home page ("/")
-    // - User is logged in and at the chat page ("/chat")
-    const isLoggedIn = checkIfLoggedIn(session);
-    const shouldHideNav = isKeyboardOpen
-        || (isLoggedIn && (window.location.pathname === LINKS.Home))
-        || window.location.pathname.startsWith(LINKS.Chat);
-
-    if (shouldHideNav) return null;
+    if (!isVisible) return null;
     return (
         <BottomNavigation
-            id="bottom-nav"
+            id={ELEMENT_IDS.BottomNav}
             sx={bottomNavSx}
         >
             {actions.map(({ label, value, iconInfo, link, numNotifications }) => {

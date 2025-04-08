@@ -14,7 +14,8 @@ import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PhoneList } from "../../components/lists/devices/PhoneList.js";
 import { WalletList } from "../../components/lists/devices/WalletList.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
@@ -134,7 +135,7 @@ export function SettingsAuthenticationView({
 
     const updateProfileField = useCallback((field: "phones" | "emails" | "wallets", updatedList: unknown[]) => {
         if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, [field]: updatedList });
@@ -157,11 +158,11 @@ export function SettingsAuthenticationView({
 
     const onSubmit = useCallback(function onSubmitCallback(values: SettingsAuthenticationFormValues, helpers: FormikHelpers<SettingsAuthenticationFormValues>) {
         if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
         }
         if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== values.newPasswordConfirmation) {
-            PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("PasswordsDontMatch", { ns: "error" }), severity: "Error" });
             helpers.setSubmitting(false);
             return;
         }
@@ -173,9 +174,9 @@ export function SettingsAuthenticationView({
             },
             onSuccess: (data) => { onProfileUpdate(data); },
             onCompleted: () => { helpers.setSubmitting(false); },
-            successMessage: () => ({ messageKey: "Success" }),
+            successMessage: () => ({ message: t("Success") }),
         });
-    }, [onProfileUpdate, profile, update]);
+    }, [onProfileUpdate, profile, update, t]);
 
     return (
         <ScrollBox>
@@ -184,11 +185,7 @@ export function SettingsAuthenticationView({
                 isOpen={deleteOpen}
                 handleClose={closeDelete}
             />
-            <SettingsTopBar
-                display={display}
-                onClose={onClose}
-                title={t("Authentication")}
-            />
+            <Navbar title={t("Authentication")} />
             <SettingsContent>
                 <SettingsList />
                 <Stack

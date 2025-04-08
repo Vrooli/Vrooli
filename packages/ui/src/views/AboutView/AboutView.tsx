@@ -4,12 +4,11 @@ import { useTranslation } from "react-i18next";
 import MattProfilePic from "../../assets/img/profile-matt.webp";
 import { PageContainer } from "../../components/Page/Page.js";
 import { Footer } from "../../components/navigation/Footer.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { IconCommon, IconService } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { AboutViewProps } from "../types.js";
 
 type MemberData = {
     fullName: string;
@@ -68,10 +67,7 @@ const teamMembers: MemberData[] = [
 
 const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
-export function AboutView({
-    display,
-    onClose,
-}: AboutViewProps) {
+export function AboutView() {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -84,11 +80,7 @@ export function AboutView({
     return (
         <PageContainer size="fullSize">
             <ScrollBox>
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("AboutUs")}
-                />
+                <Navbar title={t("AboutUs")} />
                 <Box
                     display="flex"
                     flexDirection="column"
@@ -101,7 +93,7 @@ export function AboutView({
                 >
                     <Box>
                         <Typography variant="h4" gutterBottom>
-                            Hello there! <RotatedBox sx={{ display: "inline-block" }}>👋</RotatedBox>
+                            Hello there! <RotatedBox>👋</RotatedBox>
                         </Typography>
                         <Typography variant="body1">
                             Welcome to Vrooli, a platform designed to tackle the challenges of transparency and reliability in autonomous systems. We&apos;re passionate about creating a cooperative organizational layer that fosters collaboration between humans and digital actors in a decentralized manner. Our top priority is developing systems that are both ethical and beneficial to society, instead of just chasing profit or power.

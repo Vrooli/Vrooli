@@ -1,26 +1,31 @@
 import { ListObject, ModelType, getObjectUrlBase } from "@local/shared";
-import { IconButton, useTheme } from "@mui/material";
+import { IconButton } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
+import { ELEMENT_CLASSES } from "../../utils/consts.js";
 import { historyTabParams } from "../../utils/search/objectToSearch.js";
 import { HistoryViewProps } from "./types.js";
 
 const scrollContainerId = "history-search-scroll";
+const pageContainerStyle = {
+    [`& .${ELEMENT_CLASSES.SearchBar}`]: {
+        margin: 2,
+    },
+} as const;
 
 export function HistoryView({
     display,
-    onClose,
 }: HistoryViewProps) {
     const { t } = useTranslation();
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const {
@@ -43,36 +48,34 @@ export function HistoryView({
     }, [setLocation]);
 
     return (
-        <SearchListScrollContainer id={scrollContainerId}>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={currTab.label}
-                below={<PageTabs<typeof historyTabParams>
-                    ariaLabel="history-tabs"
-                    currTab={currTab}
-                    fullWidth
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
+        <PageContainer size="fullSize" sx={pageContainerStyle}>
+            <Navbar title={currTab.label} />
+            <PageTabs<typeof historyTabParams>
+                ariaLabel="history-tabs"
+                currTab={currTab}
+                fullWidth
+                onChange={handleTabChange}
+                tabs={tabs}
             />
-            {
-                searchType && <SearchList
-                    {...findManyData}
-                    display={display}
-                    scrollContainerId={scrollContainerId}
-                />
-            }
-            {
-                searchType === "BookmarkList" && <SideActionsButtons display={display}>
-                    <IconButton
-                        aria-label={t("Add")}
-                        onClick={handleAddBookmarkListClick}
-                    >
-                        <IconCommon name="Add" />
-                    </IconButton>
-                </SideActionsButtons>
-            }
-        </SearchListScrollContainer>
+            <SearchListScrollContainer id={scrollContainerId}>
+                {
+                    searchType && <SearchList
+                        {...findManyData}
+                        display={display}
+                        scrollContainerId={scrollContainerId}
+                    />
+                }
+                {
+                    searchType === "BookmarkList" && <SideActionsButtons display={display}>
+                        <IconButton
+                            aria-label={t("Add")}
+                            onClick={handleAddBookmarkListClick}
+                        >
+                            <IconCommon name="Add" />
+                        </IconButton>
+                    </SideActionsButtons>
+                }
+            </SearchListScrollContainer>
+        </PageContainer>
     );
 }

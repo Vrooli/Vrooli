@@ -11,7 +11,8 @@ import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PushList } from "../../components/lists/devices/PushList.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsToggleListItem } from "../../components/lists/SettingsToggleListItem/SettingsToggleListItem.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useFetch } from "../../hooks/useFetch.js";
@@ -42,19 +43,19 @@ function SettingsNotificationForm({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, emails: updatedList });
-    }, [onProfileUpdate, profile]);
+    }, [onProfileUpdate, profile, t]);
 
     const updatePushDevices = useCallback((updatedList: PushDevice[]) => {
         if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
         }
         onProfileUpdate({ ...profile, pushDevices: updatedList });
-    }, [onProfileUpdate, profile]);
+    }, [onProfileUpdate, profile, t]);
 
     //TODO toggle for individual categories
     return (
@@ -196,11 +197,7 @@ export function SettingsNotificationsView({
 
     return (
         <ScrollBox>
-            <SettingsTopBar
-                display={display}
-                onClose={onClose}
-                title={t("Notification", { count: 2 })}
-            />
+            <Navbar title={t("Notification", { count: 2 })} />
             <SettingsContent>
                 <SettingsList />
                 <Formik

@@ -3,13 +3,14 @@ import { Box, Button, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ServerResponseParser } from "../../api/responseParser.js";
+import { PageContainer } from "../../components/Page/Page.js";
 import { SortButton } from "../../components/buttons/SearchButtons/SearchButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectActionMenu } from "../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectListItem } from "../../components/lists/ObjectList/ObjectList.js";
 import { ReportListItem } from "../../components/lists/ReportListItem/ReportListItem.js";
 import { ObjectListActions } from "../../components/lists/types.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { goBack } from "../../hooks/forms.js";
 import { useInfiniteScroll } from "../../hooks/gestures.js";
@@ -110,7 +111,7 @@ export function ReportsView() {
     const session = useContext(SessionContext);
     const { id: userId, languages } = useMemo(() => getCurrentUser(session), [session]);
 
-    const { dimensions, ref: dimRef } = useDimensions();
+    const { dimensions, ref: dimRef } = useDimensions<HTMLDivElement>();
     const isMobile = useMemo(() => dimensions.width <= breakpoints.values.md, [breakpoints, dimensions]);
 
     // Find object info from URL
@@ -268,79 +269,77 @@ export function ReportsView() {
     const completedReportUpsert = useCallback(function completedReportUpsertCallback(data: Report) {
         setShowReportUpsert(false);
         yourReportsData.addItem(data);
-    }, []);
+    }, [yourReportsData]);
     function handleAddReport() {
         setShowReportUpsert(true);
     }
 
     return (
-        <ScrollBox id={scrollContainerId} ref={dimRef}>
-            <TopBar
-                display={display}
-                tabTitle={title ? `${t("Report", { count: 2 })} - ${title}` : t("Report", { count: 2 })}
-                title={t("Report", { count: 2 })}
-            />
-            <ListContainer
-                borderRadius={2}
-                isEmpty={false}
-                sx={reportedObjectBoxStyle}
-            >
-                <ObjectActionMenu
-                    actionData={actionData}
-                    anchorEl={contextData.anchorEl}
-                    object={contextData.object}
-                    onClose={contextData.closeContextMenu}
-                />
-                {!isLoadingObject && object && <ObjectListItem
-                    canNavigate={canNavigate}
-                    data={object}
-                    handleContextMenu={contextData.handleContextMenu}
-                    handleToggleSelect={noop} // Disable selection
-                    hideUpdateButton={false}
-                    isMobile={isMobile}
-                    isSelecting={false} // Disable selection
-                    isSelected={false} // Disable selection
-                    loading={false}
-                    objectType={object.__typename}
-                    onAction={onAction}
-                />}
-                {isLoadingObject && <ObjectListItem
-                    data={null}
-                    handleContextMenu={noop}
-                    handleToggleSelect={noop}
-                    hideUpdateButton={false}
-                    isMobile={isMobile}
-                    isSelecting={false}
-                    isSelected={false}
-                    loading={true}
-                    objectType={"RoutineVersion"} // Can be any object type
-                    onAction={noop}
-                />}
-            </ListContainer>
-            <Box p={1}>
-                {yourOpenReports.length > 0 && <AlreadyReportedLabel>You already have an open report on this object. You will not be able to submit another.</AlreadyReportedLabel>}
-                {yourOpenReports.length === 0 && canReport && <Button
-                    color="primary"
-                    fullWidth
-                    onClick={handleAddReport}
-                    startIcon={<IconCommon
-                        decorative
-                        name="Report"
-                    />}
-                    variant="contained"
+        <PageContainer size="fullSize">
+            <ScrollBox id={scrollContainerId} ref={dimRef}>
+                <Navbar title={t("Report", { count: 2 })} />
+                {/* Object being reported */}
+                {(isLoadingObject || object) && <ListContainer
+                    borderRadius={2}
+                    isEmpty={false}
+                    sx={reportedObjectBoxStyle}
                 >
-                    {t("AddReport")}
-                </Button>}
-            </Box>
+                    <ObjectActionMenu
+                        actionData={actionData}
+                        anchorEl={contextData.anchorEl}
+                        object={contextData.object}
+                        onClose={contextData.closeContextMenu}
+                    />
+                    {!isLoadingObject && object && <ObjectListItem
+                        canNavigate={canNavigate}
+                        data={object}
+                        handleContextMenu={contextData.handleContextMenu}
+                        handleToggleSelect={noop} // Disable selection
+                        hideUpdateButton={false}
+                        isMobile={isMobile}
+                        isSelecting={false} // Disable selection
+                        isSelected={false} // Disable selection
+                        loading={false}
+                        objectType={object.__typename}
+                        onAction={onAction}
+                    />}
+                    {isLoadingObject && <ObjectListItem
+                        data={null}
+                        handleContextMenu={noop}
+                        handleToggleSelect={noop}
+                        hideUpdateButton={false}
+                        isMobile={isMobile}
+                        isSelecting={false}
+                        isSelected={false}
+                        loading={true}
+                        objectType={"RoutineVersion"} // Can be any object type
+                        onAction={noop}
+                    />}
+                </ListContainer>}
+                <Box p={1}>
+                    {yourOpenReports.length > 0 && <AlreadyReportedLabel>You already have an open report on this object. You will not be able to submit another.</AlreadyReportedLabel>}
+                    {yourOpenReports.length === 0 && canReport && <Button
+                        color="primary"
+                        fullWidth
+                        onClick={handleAddReport}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Report"
+                        />}
+                        variant="contained"
+                    >
+                        {t("AddReport")}
+                    </Button>}
+                </Box>
 
-            {/* Sorting and Filtering */}
-            <Box display="flex" justifyContent="center" alignItems="center" marginBottom={1}>
-                <SortButton
-                    options={findManyData.sortByOptions}
-                    setSortBy={findManyData.setSortBy}
-                    sortBy={findManyData.sortBy}
-                />
-                {/* <FormControl>
+                {/* Sorting and Filtering */}
+                <Box display="flex" justifyContent="center" alignItems="center" marginBottom={1}>
+                    <SortButton
+                        options={findManyData.sortByOptions}
+                        setSortBy={findManyData.setSortBy}
+                        sortBy={findManyData.sortBy}
+                    />
+                    {/* <FormControl>
                     <InputLabel>{t("FilterByStatus")}</InputLabel>
                     <Select
                         value={statusFilter}
@@ -355,46 +354,47 @@ export function ReportsView() {
                         <MenuItem value={ReportStatus.ClosedSuspended}>{t("ClosedSuspended")}</MenuItem>
                     </Select>
                 </FormControl> */}
-            </Box>
+                </Box>
 
-            {/* Reports List */}
-            <ListContainer
-                id={`${scrollContainerId}-list`}
-                borderRadius={2}
-                emptyText={t("NoResults", { ns: "error" })}
-                isEmpty={combinedReports.length === 0 && !findManyData.loading}
-            >
-                {combinedReports.map(report => (
-                    <ReportListItem
-                        key={report.id}
-                        canNavigate={canNavigate}
-                        data={report}
-                        handleContextMenu={noop} // Disable context menu
-                        handleToggleSelect={noop} // Disable selection
-                        hideUpdateButton={true}
-                        isMobile={isMobile}
-                        isSelecting={false} // Disable selection
-                        isSelected={false} // Disable selection
-                        loading={false}
-                        objectType={"Report"}
-                        onAction={noop} // Disable actions
+                {/* Reports List */}
+                <ListContainer
+                    id={`${scrollContainerId}-list`}
+                    borderRadius={2}
+                    emptyText={t("NoResults", { ns: "error" })}
+                    isEmpty={combinedReports.length === 0 && !findManyData.loading}
+                >
+                    {combinedReports.map(report => (
+                        <ReportListItem
+                            key={report.id}
+                            canNavigate={canNavigate}
+                            data={report}
+                            handleContextMenu={noop} // Disable context menu
+                            handleToggleSelect={noop} // Disable selection
+                            hideUpdateButton={true}
+                            isMobile={isMobile}
+                            isSelecting={false} // Disable selection
+                            isSelected={false} // Disable selection
+                            loading={false}
+                            objectType={"Report"}
+                            onAction={noop} // Disable actions
+                        />
+                    ))}
+                </ListContainer>
+
+                {/* Report Upsert Dialog */}
+                {showReportUpsert && objectType && createdFor && (
+                    <ReportUpsert
+                        createdFor={createdFor}
+                        display={"dialog"}
+                        isCreate={true}
+                        isOpen={showReportUpsert}
+                        onCancel={closeReportUpsert}
+                        onClose={closeReportUpsert}
+                        onCompleted={completedReportUpsert}
+                        onDeleted={closeReportUpsert}
                     />
-                ))}
-            </ListContainer>
-
-            {/* Report Upsert Dialog */}
-            {showReportUpsert && objectType && createdFor && (
-                <ReportUpsert
-                    createdFor={createdFor}
-                    display={"dialog"}
-                    isCreate={true}
-                    isOpen={showReportUpsert}
-                    onCancel={closeReportUpsert}
-                    onClose={closeReportUpsert}
-                    onCompleted={completedReportUpsert}
-                    onDeleted={closeReportUpsert}
-                />
-            )}
-        </ScrollBox>
+                )}
+            </ScrollBox>
+        </PageContainer>
     );
 }

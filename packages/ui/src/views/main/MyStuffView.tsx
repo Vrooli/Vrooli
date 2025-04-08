@@ -2,10 +2,11 @@ import { ListObject, ModelType, SearchType, getObjectUrlBase, uuidValidate } fro
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
@@ -16,16 +17,20 @@ import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
-import { ELEMENT_IDS } from "../../utils/consts.js";
+import { ELEMENT_CLASSES, ELEMENT_IDS } from "../../utils/consts.js";
 import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
 import { myStuffTabParams } from "../../utils/search/objectToSearch.js";
 import { MyStuffViewProps } from "./types.js";
 
 const scrollContainerId = "my-stuff-search-scroll";
+const pageContainerStyle = {
+    [`& .${ELEMENT_CLASSES.SearchBar}`]: {
+        margin: 2,
+    },
+} as const;
 
 export function MyStuffView({
     display,
-    onClose,
 }: MyStuffViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -116,88 +121,86 @@ export function MyStuffView({
     function focusSearch() { scrollIntoFocusedView("search-bar-my-stuff-list"); }
 
     return (
-        <SearchListScrollContainer id={scrollContainerId}>
-            {BulkDeleteDialogComponent}
-            <Menu
-                id="select-create-type-menu"
-                anchorEl={selectCreateTypeAnchorEl}
-                disableScrollLock={true}
-                open={Boolean(selectCreateTypeAnchorEl)}
-                onClose={closeSelectCreateType}
-            >
-                {/* Never show 'All' */}
-                {myStuffTabParams
-                    .filter((t) => !["Popular"]
-                        .includes(t.searchType as SearchType)).map(({ iconInfo, key, searchType }) => {
-                            function handleClick() {
-                                onSelectCreateTypeClose(searchType);
-                            }
-
-                            return (
-                                <MenuItem
-                                    key={key}
-                                    onClick={handleClick}
-                                >
-                                    {iconInfo && <ListItemIcon>
-                                        <Icon
-                                            decorative
-                                            fill={palette.background.textPrimary}
-                                            info={iconInfo}
-                                        />
-                                    </ListItemIcon>}
-                                    <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
-                                </MenuItem>
-                            );
-                        })}
-            </Menu>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("MyStuff")}
-                below={<PageTabs<typeof myStuffTabParams>
-                    ariaLabel="Search tabs"
-                    fullWidth
-                    id={ELEMENT_IDS.MyStuffTabs}
-                    ignoreIcons
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
+        <PageContainer size="fullSize" sx={pageContainerStyle}>
+            <Navbar title={t("MyStuff")} />
+            <PageTabs<typeof myStuffTabParams>
+                ariaLabel="Search tabs"
+                fullWidth
+                id={ELEMENT_IDS.MyStuffTabs}
+                ignoreIcons
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
             />
-            {searchType && <SearchList
-                {...findManyData}
-                display={display}
-                handleToggleSelect={handleToggleSelect}
-                isSelecting={isSelecting}
-                scrollContainerId={scrollContainerId}
-                selectedItems={selectedData}
-            />}
-            <SideActionsButtons display={display}>
-                {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <IconButton
-                        aria-label={t("Delete")}
-                        onClick={startBulkDelete}
-                    >
-                        <IconCommon name="Delete" />
-                    </IconButton>
-                </Tooltip> : null}
-                <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <IconButton
-                        aria-label={t(isSelecting ? "Cancel" : "Select")}
-                        onClick={handleToggleSelecting}
-                    >
-                        <IconCommon name={isSelecting ? "Cancel" : "Action"} />
-                    </IconButton>
-                </Tooltip>
-                {!isSelecting ? <IconButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <IconCommon name="Search" />
-                </IconButton> : null}
-                {userId ? (
-                    <IconButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <IconCommon name="Add" />
-                    </IconButton>
-                ) : null}
-            </SideActionsButtons>
-        </SearchListScrollContainer>
+            <SearchListScrollContainer id={scrollContainerId}>
+                {BulkDeleteDialogComponent}
+                <Menu
+                    id="select-create-type-menu"
+                    anchorEl={selectCreateTypeAnchorEl}
+                    disableScrollLock={true}
+                    open={Boolean(selectCreateTypeAnchorEl)}
+                    onClose={closeSelectCreateType}
+                >
+                    {/* Never show 'All' */}
+                    {myStuffTabParams
+                        .filter((t) => !["Popular"]
+                            .includes(t.searchType as SearchType)).map(({ iconInfo, key, searchType }) => {
+                                function handleClick() {
+                                    onSelectCreateTypeClose(searchType);
+                                }
+
+                                return (
+                                    <MenuItem
+                                        key={key}
+                                        onClick={handleClick}
+                                    >
+                                        {iconInfo && <ListItemIcon>
+                                            <Icon
+                                                decorative
+                                                fill={palette.background.textPrimary}
+                                                info={iconInfo}
+                                            />
+                                        </ListItemIcon>}
+                                        <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
+                                    </MenuItem>
+                                );
+                            })}
+                </Menu>
+                {searchType && <SearchList
+                    {...findManyData}
+                    display={display}
+                    handleToggleSelect={handleToggleSelect}
+                    isSelecting={isSelecting}
+                    scrollContainerId={scrollContainerId}
+                    selectedItems={selectedData}
+                />}
+                <SideActionsButtons display={display}>
+                    {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
+                        <IconButton
+                            aria-label={t("Delete")}
+                            onClick={startBulkDelete}
+                        >
+                            <IconCommon name="Delete" />
+                        </IconButton>
+                    </Tooltip> : null}
+                    <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
+                        <IconButton
+                            aria-label={t(isSelecting ? "Cancel" : "Select")}
+                            onClick={handleToggleSelecting}
+                        >
+                            <IconCommon name={isSelecting ? "Cancel" : "Action"} />
+                        </IconButton>
+                    </Tooltip>
+                    {!isSelecting ? <IconButton aria-label={t("FilterList")} onClick={focusSearch}>
+                        <IconCommon name="Search" />
+                    </IconButton> : null}
+                    {userId ? (
+                        <IconButton aria-label={t("Add")} onClick={onCreateStart}>
+                            <IconCommon name="Add" />
+                        </IconButton>
+                    ) : null}
+                </SideActionsButtons>
+            </SearchListScrollContainer>
+        </PageContainer>
     );
 }

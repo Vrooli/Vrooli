@@ -1,5 +1,5 @@
 import { CalendarEvent, DAYS_30_MS, DUMMY_ID, FocusMode, HomeResult, LlmModel, Reminder, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid } from "@local/shared";
-import { Box, IconButton, InputAdornment, ListItemIcon, Menu, MenuItem, TextField, Typography, styled } from "@mui/material";
+import { Box, InputAdornment, ListItemIcon, Menu, MenuItem, TextField, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../api/ai.js";
@@ -9,7 +9,7 @@ import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatM
 import { EventList } from "../../components/lists/EventList/EventList.js";
 import { ReminderList } from "../../components/lists/ReminderList/ReminderList.js";
 import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
-import { NavListBox, NavListInboxButton, NavListProfileButton, NavbarInner, NavbarSpacer, SiteNavigatorButton } from "../../components/navigation/Navbar.js";
+import { NavListBox, NavListInboxButton, NavListNewChatButton, NavListProfileButton, NavbarInner, SiteNavigatorButton } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useMessageInput } from "../../hooks/messages.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
@@ -18,6 +18,7 @@ import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useActiveChat } from "../../stores/activeChatStore.js";
 import { useFocusModes } from "../../stores/focusModeStore.js";
+import { ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
 import { getDisplay } from "../../utils/display/listTools.js";
@@ -37,19 +38,6 @@ const DashboardBox = styled(Box)(({ theme }) => ({
     [`@media (max-width: ${MAX_CHAT_INPUT_WIDTH}px)`]: {
         paddingBottom: 0,
     },
-}));
-
-const DashboardInnerBox = styled(Box)(({ theme }) => ({
-    position: "relative",
-    display: "flex",
-    flexDirection: "column",
-    flexGrow: 1,
-    gap: theme.spacing(2),
-    justifyContent: "end",
-    margin: "auto",
-    overflowY: "auto",
-    padding: theme.spacing(2),
-    width: `min(${MAX_CHAT_INPUT_WIDTH}px, 100%)`,
 }));
 
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
@@ -252,31 +240,6 @@ function getTimeOfDayGreeting() {
     return "GoodEvening" as const;
 }
 
-/**
- * Button to create a new chat
- */
-export function NavListNewChatButton({
-    handleNewChat,
-}: {
-    handleNewChat: () => unknown;
-}) {
-    const { t } = useTranslation();
-
-    return (
-        <IconButton
-            aria-label={t("NewChat")}
-            onClick={handleNewChat}
-            title={t("NewChat")}
-        >
-            <IconCommon
-                decorative
-                name="ChatNew"
-                size={32}
-            />
-        </IconButton>
-    );
-}
-
 /** View displayed for Home page when logged in */
 export function DashboardView({
     display,
@@ -435,19 +398,25 @@ export function DashboardView({
 
     return (
         <DashboardBox>
-            <NavbarSpacer />
-            <NavbarInner>
-                <SiteNavigatorButton />
-                <ModelTitleComponent />
-                <NavListBox isLeftHanded={isLeftHanded}>
-                    <NavListNewChatButton handleNewChat={resetActiveChat} />
-                    <NavListInboxButton />
-                    <NavListProfileButton />
-                </NavListBox>
-            </NavbarInner>
-            <DashboardInnerBox>
+            <ScrollBox>
+                <NavbarInner>
+                    <SiteNavigatorButton />
+                    <ModelTitleComponent />
+                    <NavListBox isLeftHanded={isLeftHanded}>
+                        <NavListNewChatButton handleNewChat={resetActiveChat} />
+                        <NavListInboxButton />
+                        <NavListProfileButton />
+                    </NavListBox>
+                </NavbarInner>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
-                {!hasMessages && <>
+                {!hasMessages && <Box
+                    display="flex"
+                    flexDirection="column"
+                    gap={4}
+                    width="100%"
+                    maxWidth={MAX_CHAT_INPUT_WIDTH}
+                    margin="auto"
+                >
                     <Typography
                         variant="h4"
                         textAlign="center"
@@ -472,7 +441,6 @@ export function DashboardView({
                             } as FocusMode
                             : activeFocusModeFallback
                         }
-                        title={t("Resource", { count: 2 })}
                         sxs={resourceListStyle}
                     />
                     <EventList
@@ -493,7 +461,7 @@ export function DashboardView({
                         mutate={true}
                         title={t("Reminder", { count: 2 })}
                     />
-                </>}
+                </Box>}
                 {hasMessages && <ChatBubbleTree
                     branches={messageTree.branches}
                     handleEdit={messageInput.startEditingMessage}
@@ -508,7 +476,7 @@ export function DashboardView({
                     setBranches={messageTree.setBranches}
                     tree={messageTree.tree}
                 />}
-            </DashboardInnerBox>
+            </ScrollBox>
             <ChatMessageInput
                 disabled={!chat}
                 display={display}

@@ -1,3 +1,4 @@
+import { LINKS } from "@local/shared";
 import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { DashboardView } from "./DashboardView.js";
 
@@ -13,6 +14,9 @@ export function SignedInNoPremiumNoCredits() {
 }
 SignedInNoPremiumNoCredits.parameters = {
     session: signedInNoPremiumNoCreditsSession,
+    route: {
+        path: LINKS.Home,
+    },
 };
 
 export function SignedInNoPremiumWithCredits() {
@@ -22,6 +26,9 @@ export function SignedInNoPremiumWithCredits() {
 }
 SignedInNoPremiumWithCredits.parameters = {
     session: signedInNoPremiumWithCreditsSession,
+    route: {
+        path: LINKS.Home,
+    },
 };
 
 export function SignedInPremiumNoCredits() {
@@ -31,6 +38,9 @@ export function SignedInPremiumNoCredits() {
 }
 SignedInPremiumNoCredits.parameters = {
     session: signedInPremiumNoCreditsSession,
+    route: {
+        path: LINKS.Home,
+    },
 };
 
 export function SignedInPremiumWithCredits() {
@@ -40,4 +50,7 @@ export function SignedInPremiumWithCredits() {
 }
 SignedInPremiumWithCredits.parameters = {
     session: signedInPremiumWithCreditsSession,
+    route: {
+        path: LINKS.Home,
+    },
 };

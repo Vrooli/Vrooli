@@ -2,14 +2,16 @@ import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PageContainer } from "../../components/Page/Page.js";
 import { SettingsSearchBar } from "../../components/inputs/search/SettingsSearchBar.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
-import { TopBar } from "../../components/navigation/TopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
 import { Title } from "../../components/text/Title.js";
+import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { SettingsData, SettingsViewProps } from "./types.js";
+import { SettingsData } from "./types.js";
 
 export const accountSettingsData: SettingsData[] = [
     {
@@ -74,12 +76,10 @@ export const displaySettingsData: SettingsData[] = [
     // },
 ];
 
-export function SettingsView({
-    display,
-    onClose,
-}: SettingsViewProps) {
+export function SettingsView() {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const isLeftHanded = useIsLeftHanded();
 
     const onSelect = useCallback((link: LINKS) => {
         if (!link) return;
@@ -97,13 +97,14 @@ export function SettingsView({
     }, [setLocation]);
 
     return (
-        <ScrollBox>
-            <TopBar
-                below={<Box
-                    width="min(100%, 700px)"
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Navbar title={t("Settings")} />
+                <Box
                     margin="auto"
                     marginTop={2}
                     marginBottom={2}
+                    maxWidth={800}
                     paddingLeft={2}
                     paddingRight={2}
                 >
@@ -112,58 +113,55 @@ export function SettingsView({
                         onChange={updateSearch}
                         onInputChange={onInputSelect}
                     />
-                </Box>}
-                display={display}
-                onClose={onClose}
-                title={t("Settings")}
-            />
-            <Box>
-                <Title
-                    title={t("Account")}
-                    variant="header"
-                />
-                <CardGrid minWidth={300}>
-                    {accountSettingsData.map(({ title, titleVariables, description, iconInfo, link }, index) => {
-                        function handleClick() {
-                            onSelect(link);
-                        }
+                </Box>
+                <Box maxWidth={800} margin="auto">
+                    <Title
+                        title={t("Account")}
+                        variant="header"
+                    />
+                    <CardGrid minWidth={300}>
+                        {accountSettingsData.map(({ title, titleVariables, description, iconInfo, link }, index) => {
+                            function handleClick() {
+                                onSelect(link);
+                            }
 
-                        return (
-                            <TIDCard
-                                buttonText={t("Open")}
-                                description={t(description)}
-                                iconInfo={iconInfo}
-                                key={index}
-                                onClick={handleClick}
-                                title={t(title, { ...titleVariables, defaultValue: title })}
-                            />
-                        );
-                    })}
-                </CardGrid>
-                <Title
-                    title={t("Display")}
-                    sxs={{ text: { paddingTop: 2 } }}
-                    variant="header"
-                />
-                <CardGrid minWidth={300}>
-                    {displaySettingsData.map(({ title, titleVariables, description, iconInfo, link }, index) => {
-                        function handleClick() {
-                            onSelect(link);
-                        }
+                            return (
+                                <TIDCard
+                                    buttonText={t("Open")}
+                                    description={t(description)}
+                                    iconInfo={iconInfo}
+                                    key={index}
+                                    onClick={handleClick}
+                                    title={t(title, { ...titleVariables, defaultValue: title })}
+                                />
+                            );
+                        })}
+                    </CardGrid>
+                    <Title
+                        title={t("Display")}
+                        sxs={{ text: { paddingTop: 2 } }}
+                        variant="header"
+                    />
+                    <CardGrid minWidth={300}>
+                        {displaySettingsData.map(({ title, titleVariables, description, iconInfo, link }, index) => {
+                            function handleClick() {
+                                onSelect(link);
+                            }
 
-                        return (
-                            <TIDCard
-                                buttonText={t("Open")}
-                                description={t(description)}
-                                iconInfo={iconInfo}
-                                key={index}
-                                onClick={handleClick}
-                                title={t(title, { ...titleVariables, defaultValue: title })}
-                            />
-                        );
-                    })}
-                </CardGrid>
-            </Box>
-        </ScrollBox>
+                            return (
+                                <TIDCard
+                                    buttonText={t("Open")}
+                                    description={t(description)}
+                                    iconInfo={iconInfo}
+                                    key={index}
+                                    onClick={handleClick}
+                                    title={t(title, { ...titleVariables, defaultValue: title })}
+                                />
+                            );
+                        })}
+                    </CardGrid>
+                </Box>
+            </ScrollBox>
+        </PageContainer>
     );
 }

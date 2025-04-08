@@ -1,5 +1,4 @@
-import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "@hello-pangea/dnd";
-import { ApiVersionShape, BookmarkList, CalendarEvent, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
+import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { ReactNode } from "react";
 import { UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
@@ -178,12 +177,19 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         searchPlaceholder?: string;
         searchType: SearchType | `${SearchType}`;
         sxs?: {
-            search?: SxType;
             searchBarAndButtonsBox?: SxType;
             buttons?: SxType;
             listContainer?: SxType;
         }
         onItemClick?: (item: any) => unknown;
+        /**
+         * Callback when search input is focused
+         */
+        onSearchFocus?: () => void;
+        /**
+         * Callback when search input loses focus
+         */
+        onSearchBlur?: () => void;
         /**
          * Changes the display of the search list.
          * - "normal" displays the list with a search bar and buttons
@@ -280,110 +286,3 @@ export type DirectoryListHorizontalProps = DirectoryListProps & {
 }
 
 export type DirectoryListVerticalProps = DirectoryListHorizontalProps
-
-export interface ResourceCardProps {
-    data: Resource;
-    dragProps: DraggableProvidedDraggableProps;
-    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
-    /** 
-     * Hides edit and delete icons when in edit mode, 
-     * making only drag'n'drop and the context menu available.
-     **/
-    isEditing: boolean;
-    onEdit: (data: Resource) => unknown;
-    onDelete: (data: Resource) => unknown;
-}
-
-export type ResourceListProps = {
-    title?: string;
-    canUpdate?: boolean;
-    handleUpdate?: (updatedList: ResourceList) => unknown;
-    horizontal?: boolean;
-    id?: string;
-    list: ResourceList | null | undefined;
-    loading?: boolean;
-    mutate?: boolean;
-    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
-    sxs?: { list?: SxType };
-}
-
-export type ResourceListHorizontalProps = ResourceListProps & {
-    handleToggleSelect: (data: Resource) => unknown;
-    isEditing: boolean;
-    isSelecting: boolean;
-    onAction: (action: keyof ObjectListActions<Resource>, ...data: unknown[]) => unknown;
-    onClick: (data: Resource) => unknown;
-    onDelete: (data: Resource) => unknown;
-    openAddDialog: () => unknown;
-    openUpdateDialog: (data: Resource) => unknown;
-    selectedData: Resource[];
-}
-
-export type ResourceListVerticalProps = ResourceListHorizontalProps
-
-export interface EventCardProps {
-    data: CalendarEvent;
-    isEditing: boolean;
-    onEdit: (data: CalendarEvent) => unknown;
-    onDelete: (data: CalendarEvent) => unknown;
-}
-
-export type EventListProps = {
-    title?: string;
-    canUpdate?: boolean;
-    handleUpdate?: (updatedList: CalendarEvent[]) => unknown;
-    id?: string;
-    list: CalendarEvent[] | null | undefined;
-    loading?: boolean;
-    mutate?: boolean;
-}
-
-export type EventListHorizontalProps = EventListProps & {
-    handleToggleSelect: (data: CalendarEvent) => unknown;
-    isEditing: boolean;
-    isSelecting: boolean;
-    onAction: (action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => unknown;
-    onClick: (data: CalendarEvent) => unknown;
-    onDelete: (data: CalendarEvent) => unknown;
-    openAddDialog: () => unknown;
-    openUpdateDialog: (data: CalendarEvent) => unknown;
-    selectedData: CalendarEvent[];
-}
-
-export interface ReminderCardProps {
-    data: Reminder;
-    dragProps: DraggableProvidedDraggableProps;
-    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
-    /** 
-     * Hides edit and delete icons when in edit mode, 
-     * making only drag'n'drop and the context menu available.
-     **/
-    isEditing: boolean;
-    onEdit: (data: Reminder) => unknown;
-    onDelete: (data: Reminder) => unknown;
-}
-
-export type ReminderListProps = {
-    title?: string;
-    canUpdate?: boolean;
-    handleUpdate?: (updatedList: ReminderList) => unknown;
-    horizontal?: boolean;
-    id?: string;
-    list: ReminderList | null | undefined;
-    loading?: boolean;
-    mutate?: boolean;
-    parent: { __typename: ReminderListFor | `${ReminderListFor}`, id: string };
-    sxs?: { list?: SxType };
-}
-
-export type ReminderListHorizontalProps = ReminderListProps & {
-    handleToggleSelect: (data: Reminder) => unknown;
-    isEditing: boolean;
-    isSelecting: boolean;
-    onAction: (action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => unknown;
-    onClick: (data: Reminder) => unknown;
-    onDelete: (data: Reminder) => unknown;
-    openAddDialog: () => unknown;
-    openUpdateDialog: (data: Reminder) => unknown;
-    selectedData: Reminder[];
-}

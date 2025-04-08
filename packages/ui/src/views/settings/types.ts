@@ -12,8 +12,6 @@ export type SettingsData = {
     titleVariables?: Record<string, string | number>,
 };
 
-export type SettingsViewProps = ViewProps
-
 export type SettingsApiViewProps = ViewProps
 export type SettingsAuthenticationViewProps = ViewProps
 export type SettingsDataViewProps = ViewProps

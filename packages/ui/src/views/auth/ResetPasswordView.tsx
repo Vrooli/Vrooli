@@ -1,5 +1,5 @@
 import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, uuidValidate } from "@local/shared";
-import { Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,7 @@ import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer } from "../../styles.js";
+import { CenteredContentPage, FormContainer, pagePaddingBottom } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { ResetPasswordViewProps } from "../types.js";
 import { FormSection } from "./authStyles.js";
@@ -98,7 +98,7 @@ function ResetPasswordForm({
                             type="submit"
                             color="secondary"
                             variant="contained"
-                            sx={{ ...formSubmit }}
+                            sx={formSubmit}
                         >
                             {t("ResetPassword")}
                         </Button>
@@ -119,11 +119,24 @@ export function ResetPasswordView({
                 display={display}
                 onClose={onClose}
             />
-            <CenteredContentPageWrap>
-                <CenteredContentPaper maxWidth={600}>
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap={1}
+                margin="auto"
+                overflow="auto"
+                padding={2}
+                paddingBottom={pagePaddingBottom}
+            >
+                <Box
+                    bgcolor="background.paper"
+                    borderRadius={2}
+                    maxWidth={600}
+                    width="100%"
+                >
                     <ResetPasswordForm onClose={onClose} />
-                </CenteredContentPaper>
-            </CenteredContentPageWrap>
+                </Box>
+            </Box>
         </CenteredContentPage>
     );
 }

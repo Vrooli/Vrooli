@@ -30,6 +30,8 @@ export function SearchList<DataType extends ListObject>({
     loading,
     loadMore,
     onItemClick,
+    onSearchBlur,
+    onSearchFocus,
     removeItem,
     searchBarVariant,
     scrollContainerId,
@@ -101,21 +103,6 @@ export function SearchList<DataType extends ListObject>({
         openObject(selectedItem as NavigableObject, setLocation);
     }, [allData, canNavigate, handleToggleSelect, isSelecting, onItemClick, setLocation]);
 
-    // const searchBarStyle = useMemo(function searchBarStyleMemo() {
-    //     return {
-    //         root: {
-    //             margin: "auto",
-    //             marginTop: 1,
-    //             marginBottom: 1,
-    //             width: "min(100%, 600px)",
-    //             paddingLeft: 2,
-    //             paddingRight: 2,
-    //             ...sxs?.search,
-    //             ...(variant === "minimal" ? { display: "none" } : {}),
-    //         },
-    //     } as const;
-    // }, [sxs?.search, variant]);
-
     const searchButtonsStyle = useMemo(function searchButtonsStyleMemo() {
         return {
             paddingTop: 2,
@@ -141,6 +128,8 @@ export function SearchList<DataType extends ListObject>({
                         placeholder={searchPlaceholder}
                         value={searchString}
                         onChange={setSearchString}
+                        onFocus={onSearchFocus}
+                        onBlur={onSearchBlur}
                     />
                 )}
                 {searchBarVariant !== "basic" && (
@@ -149,6 +138,8 @@ export function SearchList<DataType extends ListObject>({
                         placeholder={searchPlaceholder}
                         value={searchString}
                         onChange={setSearchString}
+                        onFocus={onSearchFocus}
+                        onBlur={onSearchBlur}
                     />
                 )}
                 <SearchButtons

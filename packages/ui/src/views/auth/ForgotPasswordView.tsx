@@ -12,7 +12,7 @@ import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer } from "../../styles.js";
+import { CenteredContentPage, FormContainer, pagePaddingBottom } from "../../styles.js";
 import { ForgotPasswordViewProps } from "../types.js";
 import { FormSection } from "./authStyles.js";
 
@@ -132,11 +132,24 @@ export function ForgotPasswordView({
                 display={display}
                 onClose={onClose}
             />
-            <CenteredContentPageWrap>
-                <CenteredContentPaper maxWidth={600}>
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap={1}
+                margin="auto"
+                overflow="auto"
+                padding={2}
+                paddingBottom={pagePaddingBottom}
+            >
+                <Box
+                    bgcolor="background.paper"
+                    borderRadius={2}
+                    maxWidth={600}
+                    width="100%"
+                >
                     <ForgotPasswordForm onClose={onClose} />
-                </CenteredContentPaper>
-            </CenteredContentPageWrap>
+                </Box>
+            </Box>
         </CenteredContentPage>
     );
 }

@@ -14,12 +14,13 @@ import { LanguageInput } from "../../../components/inputs/LanguageInput/Language
 import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "../../../components/navigation/TopBar.js";
+import { NavbarInner, NavListBox, NavListInboxButton, NavListNewChatButton, NavListProfileButton, SiteNavigatorButton } from "../../../components/navigation/Navbar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useMessageActions, useMessageInput, useMessageTree } from "../../../hooks/messages.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { useChatTasks } from "../../../hooks/tasks.js";
 import { useHistoryState } from "../../../hooks/useHistoryState.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
@@ -164,6 +165,7 @@ function ChatForm({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
+    const isLeftHanded = useIsLeftHanded();
 
     const {
         fetch,
@@ -460,10 +462,9 @@ function ChatForm({
                 sxs={dialogStyle}
             >
                 <Box sx={outerBoxStyle}>
-                    <TopBar
-                        display={display}
-                        onClose={onClose}
-                        titleComponent={<EditableTitle
+                    <NavbarInner>
+                        <SiteNavigatorButton />
+                        <EditableTitle
                             handleDelete={handleDelete}
                             isDeletable={!(values.id === DUMMY_ID || disabled)}
                             isEditable={!disabled}
@@ -475,8 +476,13 @@ function ChatForm({
                             variant="header"
                             sxs={editableTitleStyle}
                             DialogContentForm={titleDialogContentForm}
-                        />}
-                        below={existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
+                        />
+                        <NavListBox isLeftHanded={isLeftHanded}>
+                            <NavListNewChatButton handleNewChat={resetActiveChat} />
+                            <NavListInboxButton />
+                            <NavListProfileButton />
+                        </NavListBox>
+                        {existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
                             display="flex"
                             flexDirection="row"
                             justifyContent="space-around"
@@ -497,7 +503,7 @@ function ChatForm({
                                 {t("NewChat")}
                             </Button>
                         </Box>}
-                    />
+                    </NavbarInner>
                     <ChatTreeContainer>
                         <ChatBubbleTree
                             branches={messageTree.branches}

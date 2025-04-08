@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
+import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon, IconText } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
@@ -14,25 +15,17 @@ import { ProfileAvatar, noSelect } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_CLASSES, ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { extractImageUrl } from "../../utils/display/imageTools.js";
-import { NAV_ACTION_TAGS, actionsToMenu, getUserActions } from "../../utils/navigation/userActions.js";
+import { placeholderColor } from "../../utils/display/listTools.js";
+import { NAV_ACTION_TAGS, getUserActions } from "../../utils/navigation/userActions.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { PopupMenu } from "../buttons/PopupMenu/PopupMenu.js";
 import { Title } from "../text/Title.js";
 import { ContactInfo } from "./ContactInfo.js";
 import { NavbarProps } from "./types.js";
 
-const APP_BAR_HEIGHT_PX = 64;
+export const APP_BAR_HEIGHT_PX = 64;
 const AVATAR_SIZE_PX = 50;
 const HIDE_THRESHOLD_PX = 100;
-
-const navItemStyle = {
-    background: "transparent",
-    textTransform: "none",
-    fontSize: "1.4em",
-    "&:hover": {
-        filter: "brightness(1.05)",
-    },
-} as const;
 
 export interface HideOnScrollProps {
     children: JSX.Element;
@@ -78,6 +71,13 @@ const EnterButton = styled(Button)(({ theme }) => ({
         },
     },
 }));
+const navItemStyle = {
+    background: "transparent",
+    textTransform: "none",
+    "&:hover": {
+        filter: "brightness(1.05)",
+    },
+};
 
 export function NavListLoggedOutButtons() {
     const session = useContext(SessionContext);
@@ -85,9 +85,13 @@ export function NavListLoggedOutButtons() {
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const { isOpen: isSiteNavigatorOpen } = useMenu({ id: ELEMENT_IDS.LeftDrawer });
 
-    // Only display if not logged in and not on mobile (mobile uses BottomNav)
-    if (checkIfLoggedIn(session) || isMobile) {
+    // Don't display if:
+    // 1. User is logged in
+    // 2. On mobile (mobile uses BottomNav)
+    // 3. SiteNavigator drawer is open
+    if (checkIfLoggedIn(session) || isMobile || isSiteNavigatorOpen) {
         return null;
     }
     const navActions = getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] });
@@ -96,17 +100,56 @@ export function NavListLoggedOutButtons() {
             <PopupMenu
                 text={t("Contact")}
                 variant="text"
-                size="large"
+                size="medium"
                 sx={navItemStyle}
             >
                 <ContactInfo />
             </PopupMenu>
-            {actionsToMenu({
-                actions: navActions,
-                setLocation,
-                sx: navItemStyle,
+            {navActions.map(({ label, value, link }) => {
+                function handleClick(event: React.MouseEvent) {
+                    event.preventDefault();
+                    openLink(setLocation, link);
+                }
+
+                return (
+                    <Button
+                        key={value}
+                        variant="text"
+                        size="medium"
+                        href={link}
+                        onClick={handleClick}
+                        sx={navItemStyle}
+                    >
+                        {t(label, { count: 2 })}
+                    </Button>
+                );
             })}
         </>
+    );
+}
+
+/**
+ * Button to create a new chat
+ */
+export function NavListNewChatButton({
+    handleNewChat,
+}: {
+    handleNewChat: () => unknown;
+}) {
+    const { t } = useTranslation();
+
+    return (
+        <IconButton
+            aria-label={t("NewChat")}
+            onClick={handleNewChat}
+            title={t("NewChat")}
+        >
+            <IconCommon
+                decorative
+                name="ChatNew"
+                size={32}
+            />
+        </IconButton>
     );
 }
 
@@ -165,6 +208,7 @@ export function NavListProfileButton() {
                 isBot={false}
                 src={extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX)}
                 onClick={openUserMenu}
+                profileColors={placeholderColor(user.id)}
             >
                 <IconCommon
                     decorative
@@ -240,33 +284,26 @@ const pageTitleStyle = {
     stack: { padding: 0, paddingLeft: 1 },
 } as const;
 
-type TitleDisplayProps = Pick<NavbarProps, "help" | "options" | "title" | "titleComponent" | "titleBehavior">;
+type TitleDisplayProps = Pick<NavbarProps, "help" | "options" | "title" | "titleBehavior">;
 
 export function TitleDisplay({
     help,
     options,
     title,
-    titleComponent,
     titleBehavior,
 }: TitleDisplayProps) {
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const [, setLocation] = useLocation();
     const isLeftHanded = useIsLeftHanded();
+    const { isOpen: isSiteNavigatorOpen } = useMenu({ id: ELEMENT_IDS.LeftDrawer });
 
     function handleLogoClick() {
         setLocation(LINKS.Home);
     }
 
     let TitleComponent: JSX.Element | null = null;
-    let StartComponent: JSX.Element | null = null;
-
-    let isBusinessName = false;
-
-    // Create title, as provided text/component or as business name
-    if (titleComponent) {
-        TitleComponent = titleComponent;
-    } else if (titleBehavior !== "Hide") {
+    if (titleBehavior !== "Hide") {
         if (title) {
             TitleComponent = <Title
                 help={help}
@@ -276,7 +313,6 @@ export function TitleDisplay({
                 variant="header"
             />;
         } else {
-            isBusinessName = true;
             TitleComponent = <NameTypography
                 variant="h6"
                 noWrap
@@ -285,9 +321,9 @@ export function TitleDisplay({
         }
     }
 
-    // Create start component
-    if (isBusinessName || !isMobile) {
-        StartComponent = <IconButton
+    let LogoComponent: JSX.Element | null = null;
+    if (!isMobile && !isSiteNavigatorOpen) {
+        LogoComponent = <IconButton
             aria-label="Go to home page"
             onClick={handleLogoClick}
             sx={logoIconStyle}>
@@ -299,17 +335,15 @@ export function TitleDisplay({
         </IconButton>;
     }
 
-    if (TitleComponent && StartComponent) {
+    if (LogoComponent) {
         return (
             <StartAndTitleBox isLeftHanded={isLeftHanded}>
-                {StartComponent}
+                {LogoComponent}
                 {TitleComponent}
             </StartAndTitleBox>
         );
     }
-    if (TitleComponent) return TitleComponent;
-    if (StartComponent) return StartComponent;
-    return null;
+    return TitleComponent;
 }
 
 interface NavListBoxProps extends BoxProps {
@@ -339,6 +373,8 @@ const StyledAppBar = styled(AppBar, {
     boxShadow: "none",
     height: `${APP_BAR_HEIGHT_PX}px`,
     justifyContent: "center",
+    position: "sticky",
+    top: 0,
     zIndex: Z_INDEX.TopBar,
     "@media print": {
         display: "none",
@@ -351,15 +387,6 @@ const StyledAppBar = styled(AppBar, {
     "& .MuiButton-text": {
         color: textColor || theme.palette.background.textSecondary,
     },
-}));
-
-/**
- * Empty component that takes up the same amount of space as the navbar
- * to prevent content from being hidden behind it
- */
-export const NavbarSpacer = styled(Box)(() => ({
-    height: `${APP_BAR_HEIGHT_PX}px`,
-    width: "100%",
 }));
 
 export interface NavbarInnerProps {
@@ -401,10 +428,15 @@ export function NavbarInner({
 }
 
 export function SiteNavigatorButton() {
+    const { isOpen: isSiteNavigatorOpen } = useMenu({ id: ELEMENT_IDS.LeftDrawer });
+
     const openSiteNavigatorMenu = useCallback(() => {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: true });
     }, []);
 
+    if (isSiteNavigatorOpen) {
+        return null;
+    }
     return (
         <IconButton
             aria-label="Open site navigator menu"
@@ -448,13 +480,11 @@ export function Navbar({
     tabTitle,
     title,
     titleBehavior,
-    titleComponent,
 }: NavbarProps) {
     useTabTitle(tabTitle, title);
 
     return (
         <>
-            <NavbarSpacer />
             <NavbarInner
                 color={color}
                 keepVisible={keepVisible}
@@ -463,7 +493,6 @@ export function Navbar({
                 <TitleDisplay
                     help={help}
                     title={title}
-                    titleComponent={titleComponent}
                     options={options}
                     titleBehavior={titleBehavior}
                 />

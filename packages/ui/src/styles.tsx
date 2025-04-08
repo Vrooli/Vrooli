@@ -191,9 +191,13 @@ export const OverviewProfileAvatar = styled(ProfileAvatar)(() => ({
 
 export const ProfilePictureInputAvatar = styled(ProfileAvatar)(({ theme }) => ({
     boxShadow: theme.shadows[4],
-    width: "100px",
-    height: "100px",
+    width: "125px",
+    height: "125px",
     cursor: "pointer",
+    "& svg": {
+        width: "100px",
+        height: "100px",
+    },
 }));
 
 interface ObjectListProfileAvatarProps extends ProfileAvatarProps {
@@ -227,6 +231,7 @@ const scrollBoxStyle = {
     height: "100%",
     width: "100%",
     overflowY: "auto",
+    position: "relative",
 } as const;
 export const ScrollBox = forwardRef<HTMLDivElement, BoxProps>((props, ref) => {
     return <Box
@@ -250,35 +255,3 @@ export const CenteredContentPage = styled(Box)(() => ({
     overflow: "hidden",
 }));
 
-/**
- * Used within CenteredContentPage to center content 
- * horizontally and vertically
- */
-export const CenteredContentPageWrap = styled(Box)(({ theme }) => ({
-    flex: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "auto",
-    padding: theme.spacing(2),
-}));
-
-interface CenteredContentPaperProps extends BoxProps {
-    maxWidth: number;
-}
-
-/**
- * Used within CenteredContentPageWrap to display centered content
- */
-export const CenteredContentPaper = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "maxWidth",
-})<CenteredContentPaperProps>(({ maxWidth, theme }) => ({
-    width: `min(${maxWidth}px, 100%)`,
-    maxHeight: "100%",
-    background: theme.palette.background.paper,
-    overflow: "auto",
-    borderRadius: theme.spacing(2),
-    [theme.breakpoints.down("sm")]: {
-        borderRadius: theme.spacing(1),
-    },
-}));

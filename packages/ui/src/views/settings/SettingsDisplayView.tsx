@@ -11,7 +11,8 @@ import { LeftHandedCheckbox } from "../../components/inputs/LeftHandedCheckbox/L
 import { TextSizeButtons } from "../../components/inputs/TextSizeButtons/TextSizeButtons.js";
 import { ThemeSwitch } from "../../components/inputs/ThemeSwitch/ThemeSwitch.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { SessionContext } from "../../contexts/session.js";
 import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
@@ -138,7 +139,6 @@ function SettingsDisplayForm({
 
 export function SettingsDisplayView({
     display,
-    onClose,
 }: SettingsDisplayViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -149,7 +149,7 @@ export function SettingsDisplayView({
 
     const onSubmit = useCallback(function onSubmitCallback(values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) {
         if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
         }
         fetchLazyWrapper<ProfileUpdateInput, User>({
@@ -161,14 +161,12 @@ export function SettingsDisplayView({
             onSuccess: (data) => { onProfileUpdate(data); },
             onCompleted: () => { helpers.setSubmitting(false); },
         });
-    }, [fetch, onProfileUpdate, profile, session]);
+    }, [fetch, onProfileUpdate, profile, session, t]);
 
     return (
         <ScrollBox>
-            <SettingsTopBar
-                display={display}
+            <Navbar
                 help={t("DisplaySettingsDescription")}
-                onClose={onClose}
                 title={t("Display")}
             />
             <SettingsContent>

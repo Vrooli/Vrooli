@@ -3,6 +3,7 @@ import { Box, BoxProps, Divider, List, ListItem, ListItemIcon, ListItemProps, Li
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useElementDimensions } from "../../../hooks/useDimensions.js";
+import { Icon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { accountSettingsData, displaySettingsData } from "../../../views/settings/index.js";
@@ -72,7 +73,7 @@ const SettingsListBox = styled(Box, {
 const listItemTextStyle = { marginLeft: 2 } as const;
 
 function SettingsListItem({
-    Icon,
+    iconInfo,
     index,
     link,
     onSelect,
@@ -98,7 +99,10 @@ function SettingsListItem({
             viewSize={viewSize}
         >
             <ListItemIcon>
-                <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
+                <Icon
+                    info={iconInfo}
+                    fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary}
+                />
             </ListItemIcon>
             {viewSize === "full" && <ListItemText primary={t(title, { ...titleVariables, defaultValue: title })} sx={listItemTextStyle} />}
         </StyledListItem>
