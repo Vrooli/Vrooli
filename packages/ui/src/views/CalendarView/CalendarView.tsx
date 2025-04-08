@@ -1,5 +1,5 @@
-import { calculateOccurrences, CalendarEvent, Schedule } from "@local/shared";
-import { Box, BoxProps, IconButton, styled, Tooltip, useTheme } from "@mui/material";
+import { calculateOccurrences, CalendarEvent, Schedule, ScheduleFor } from "@local/shared";
+import { Box, BoxProps, Checkbox, Dialog, DialogContent, DialogTitle, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
@@ -8,21 +8,32 @@ import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { useIsBottomNavVisible } from "../../components/navigation/BottomNav.js";
 import { APP_BAR_HEIGHT_PX, Navbar } from "../../components/navigation/Navbar.js";
-import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { FullPageSpinner } from "../../components/Spinners.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
-import { useTabs } from "../../hooks/useTabs.js";
+import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { bottomNavHeight } from "../../styles.js";
 import { PartialWithType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "../../utils/display/translationTools.js";
-import { calendarTabParams } from "../../utils/search/objectToSearch.js";
 import { ScheduleUpsert } from "../objects/schedule/ScheduleUpsert.js";
-import { ScheduleForType } from "../objects/schedule/types.js";
 import { CalendarViewProps } from "../types.js";
+
+// Define the tab values
+enum CalendarTabs {
+    CALENDAR = "calendar",
+    TRIGGER = "trigger",
+}
+
+// Define schedule types for filtering using the ScheduleFor enum
+const SCHEDULE_TYPES: ScheduleFor[] = [
+    ScheduleFor.FocusMode,
+    ScheduleFor.Meeting,
+    ScheduleFor.RunProject,
+    ScheduleFor.RunRoutine
+];
 
 const views = {
     month: true,
@@ -254,6 +265,183 @@ const outerBoxStyle = {
     overflow: "hidden",
 } as const;
 
+/**
+ * Filter dialog component for filtering events
+ */
+interface FilterDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    selectedTypes: ScheduleFor[];
+    setSelectedTypes: (types: ScheduleFor[]) => void;
+    filteredEvents: CalendarEvent[];
+    activeTab: CalendarTabs;
+}
+
+function FilterDialog({
+    isOpen,
+    onClose,
+    searchQuery,
+    setSearchQuery,
+    selectedTypes,
+    setSelectedTypes,
+    filteredEvents,
+    activeTab,
+}: FilterDialogProps) {
+    const { t } = useTranslation();
+    const { palette } = useTheme();
+
+    const handleSelectAll = useCallback(() => {
+        if (selectedTypes.length === SCHEDULE_TYPES.length) {
+            setSelectedTypes([]);
+        } else {
+            setSelectedTypes([...SCHEDULE_TYPES]);
+        }
+    }, [selectedTypes, setSelectedTypes]);
+
+    const handleTypeChange = useCallback((type: ScheduleFor) => {
+        setSelectedTypes(prev => {
+            if (prev.includes(type)) {
+                return prev.filter(t => t !== type);
+            } else {
+                return [...prev, type];
+            }
+        });
+    }, [setSelectedTypes]);
+
+    return (
+        <Dialog
+            open={isOpen}
+            onClose={onClose}
+            fullWidth
+            maxWidth="sm"
+        >
+            <DialogTitle>{t("Filter")}</DialogTitle>
+            <DialogContent>
+                <TextField
+                    fullWidth
+                    placeholder={t("Search")}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <IconCommon name="Search" />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
+
+                <Box display="flex" mt={2}>
+                    <Box width="50%" pr={1}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            {t("Option", { count: 2 })}
+                        </Typography>
+
+                        {activeTab === CalendarTabs.CALENDAR && (
+                            <Paper elevation={1} sx={{ p: 2 }}>
+                                <FormGroup>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={selectedTypes.length === SCHEDULE_TYPES.length}
+                                                indeterminate={selectedTypes.length > 0 && selectedTypes.length < SCHEDULE_TYPES.length}
+                                                onChange={handleSelectAll}
+                                            />
+                                        }
+                                        label={t("All")}
+                                    />
+                                    <Divider sx={{ my: 1 }} />
+                                    {SCHEDULE_TYPES.map((type) => (
+                                        <FormControlLabel
+                                            key={type}
+                                            control={
+                                                <Checkbox
+                                                    checked={selectedTypes.includes(type)}
+                                                    onChange={() => handleTypeChange(type)}
+                                                />
+                                            }
+                                            label={t(type)}
+                                        />
+                                    ))}
+                                </FormGroup>
+                            </Paper>
+                        )}
+
+                        {activeTab === CalendarTabs.TRIGGER && (
+                            <Paper elevation={1} sx={{ p: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {t("ComingSoon")}
+                                </Typography>
+                            </Paper>
+                        )}
+                    </Box>
+
+                    <Box sx={{ width: '50%', pl: 1 }}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            {t("Result", { count: filteredEvents.length })} ({filteredEvents.length})
+                        </Typography>
+                        <Paper elevation={1} sx={{ maxHeight: 300, overflow: 'auto' }}>
+                            <List dense>
+                                {filteredEvents.length > 0 ? (
+                                    filteredEvents.map((event) => (
+                                        <ListItem key={event.id}>
+                                            <ListItemText
+                                                primary={event.title}
+                                                secondary={`${format(event.start, 'PPp')} - ${format(event.end, 'PPp')}`}
+                                            />
+                                        </ListItem>
+                                    ))
+                                ) : (
+                                    <ListItem>
+                                        <ListItemText
+                                            primary={t("NoResults")}
+                                            primaryTypographyProps={{ color: 'text.secondary' }}
+                                        />
+                                    </ListItem>
+                                )}
+                            </List>
+                        </Paper>
+                    </Box>
+                </Box>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/**
+ * Simple trigger tab component
+ */
+function TriggerView() {
+    const { t } = useTranslation();
+
+    return (
+        <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            p: 3
+        }}>
+            <IconCommon
+                name="History"
+                size={64}
+                fill="text.secondary"
+            />
+            <Typography variant="h5" sx={{ mt: 2 }}>
+                {t("ComingSoon")}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mt: 1, textAlign: 'center', maxWidth: 600 }}>
+                {t("TriggerDescription")}
+            </Typography>
+        </Box>
+    );
+}
+
 export function CalendarView({
     display,
 }: CalendarViewProps) {
@@ -263,6 +451,17 @@ export function CalendarView({
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
+
+    // Active tab state
+    const [activeTab, setActiveTab] = useHistoryState<CalendarTabs>(CalendarTabs.CALENDAR);
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: CalendarTabs) => {
+        setActiveTab(newValue);
+    };
+
+    // Filter dialog state
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedTypes, setSelectedTypes] = useState<ScheduleFor[]>([...SCHEDULE_TYPES]);
 
     // Defaults to current month
     const [dateRange, setDateRange] = useState<{ start: Date, end: Date }>({
@@ -314,23 +513,15 @@ export function CalendarView({
         }
     }, []);
 
-    const {
-        currTab,
-        handleTabChange,
-        searchType,
-        tabs,
-        where,
-    } = useTabs({ id: "calendar-tabs", tabParams: calendarTabParams, display });
-
     // Find schedules
     const {
         allData: schedules,
         loading,
         loadMore,
     } = useFindMany<Schedule>({
-        searchType,
+        searchType: "Schedule",
         where: {
-            // Only find schedules that hav not ended, 
+            // Only find schedules that have not ended, 
             // and will start before the date range ends
             endTimeFrame: (dateRange.start && dateRange.end) ? {
                 after: dateRange.start.toISOString(),
@@ -341,9 +532,9 @@ export function CalendarView({
                 before: dateRange.end.toISOString(),
             } : undefined,
             scheduleForUserId: getCurrentUser(session)?.id,
-            ...where(undefined),
         },
     });
+
     // Load more schedules when date range changes
     useEffect(() => {
         if (!loading && dateRange.start && dateRange.end) {
@@ -390,6 +581,21 @@ export function CalendarView({
             isCancelled = true; // Cleanup function to avoid setting state on unmounted component
         };
     }, [dateRange.end, dateRange.start, schedules, session]);
+
+    // Filter events based on search query and selected types
+    const filteredEvents = useMemo(() => {
+        return events.filter(event => {
+            // Filter by search query
+            const matchesSearch = searchQuery.trim() === "" ||
+                event.title.toLowerCase().includes(searchQuery.toLowerCase());
+
+            // Filter by selected types
+            const scheduleType = event.schedule?.scheduleFor as ScheduleFor;
+            const matchesType = selectedTypes.includes(scheduleType);
+
+            return matchesSearch && matchesType;
+        });
+    }, [events, searchQuery, selectedTypes]);
 
     const openEvent = useCallback((event: any) => {
         console.log("CalendarEvent clicked:", event);
@@ -519,7 +725,7 @@ export function CalendarView({
             <FlexContainer isBottomNavVisible={isBottomNavVisible}>
                 <ScheduleUpsert
                     canSetScheduleFor={true}
-                    defaultScheduleFor={currTab.key === "All" ? "Meeting" : currTab.key as ScheduleForType}
+                    defaultScheduleFor={activeTab === CalendarTabs.CALENDAR ? ScheduleFor.Meeting : undefined}
                     display="dialog"
                     isCreate={editingSchedule === null}
                     isMutate={true}
@@ -530,33 +736,62 @@ export function CalendarView({
                     onDeleted={handleScheduleDeleted}
                     overrideObject={scheduleOverrideObject}
                 />
-                <PageTabs<typeof calendarTabParams>
-                    ariaLabel="calendar-tabs"
-                    currTab={currTab}
-                    fullWidth
+
+                <FilterDialog
+                    isOpen={isFilterDialogOpen}
+                    onClose={() => setIsFilterDialogOpen(false)}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    selectedTypes={selectedTypes}
+                    setSelectedTypes={setSelectedTypes}
+                    filteredEvents={filteredEvents}
+                    activeTab={activeTab}
+                />
+
+                {/* View tabs */}
+                <Tabs
+                    value={activeTab}
                     onChange={handleTabChange}
-                    tabs={tabs}
-                />
-                {/* TODO Remove when weird type error is fixed */}
-                {/* @ts-expect-error Incompatible JSX type definitions */}
-                <Calendar
-                    localizer={localizer}
-                    longPressThreshold={20}
-                    events={events}
-                    onRangeChange={handleDateRangeChange}
-                    onSelectEvent={openEvent}
-                    onSelectSlot={handleSelectSlot}
-                    onView={handleViewChange}
-                    startAccessor="start"
-                    endAccessor="end"
-                    components={calendarComponents}
-                    dayPropGetter={dayPropGetter}
-                    selectable={true}
-                    slotPropGetter={slotPropGetter}
-                    style={calendarStyle}
-                    view={view}
-                    views={views}
-                />
+                    variant="fullWidth"
+                >
+                    <Tab
+                        label={t("Calendar")}
+                        value={CalendarTabs.CALENDAR}
+                        icon={<IconCommon name="Schedule" />}
+                        iconPosition="start"
+                    />
+                    <Tab
+                        label={t("Trigger")}
+                        value={CalendarTabs.TRIGGER}
+                        icon={<IconCommon name="History" />}
+                        iconPosition="start"
+                    />
+                </Tabs>
+
+                {activeTab === CalendarTabs.CALENDAR ? (
+                    // Calendar view
+                    <Calendar
+                        localizer={localizer}
+                        longPressThreshold={20}
+                        events={filteredEvents}
+                        onRangeChange={handleDateRangeChange}
+                        onSelectEvent={openEvent}
+                        onSelectSlot={handleSelectSlot}
+                        onView={handleViewChange}
+                        startAccessor="start"
+                        endAccessor="end"
+                        components={calendarComponents}
+                        dayPropGetter={dayPropGetter}
+                        selectable={true}
+                        slotPropGetter={slotPropGetter}
+                        style={calendarStyle}
+                        view={view}
+                        views={views}
+                    />
+                ) : (
+                    // Trigger view
+                    <TriggerView />
+                )}
             </FlexContainer>
             <SideActionsButtons display={display}>
                 <IconButton
@@ -564,6 +799,12 @@ export function CalendarView({
                     onClick={handleAddSchedule}
                 >
                     <IconCommon name="Add" />
+                </IconButton>
+                <IconButton
+                    aria-label={t("Filter")}
+                    onClick={() => setIsFilterDialogOpen(true)}
+                >
+                    <IconCommon name="Filter" />
                 </IconButton>
             </SideActionsButtons>
         </Box>
