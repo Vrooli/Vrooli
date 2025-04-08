@@ -271,7 +271,7 @@ function ScheduleForm({
             id: uuid(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
-            duration: HOURS_1_MS,
+            duration: 60,
             schedule: {
                 __typename: "Schedule" as const,
                 id: values.id,

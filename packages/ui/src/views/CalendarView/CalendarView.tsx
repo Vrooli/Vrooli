@@ -22,7 +22,7 @@ import { ScheduleUpsert } from "../objects/schedule/ScheduleUpsert.js";
 import { CalendarViewProps } from "../types.js";
 
 // Define the tab values
-enum CalendarTabs {
+export enum CalendarTabs {
     CALENDAR = "calendar",
     TRIGGER = "trigger",
 }
@@ -32,7 +32,7 @@ const SCHEDULE_TYPES: ScheduleFor[] = [
     ScheduleFor.FocusMode,
     ScheduleFor.Meeting,
     ScheduleFor.RunProject,
-    ScheduleFor.RunRoutine
+    ScheduleFor.RunRoutine,
 ];
 
 const views = {
@@ -265,6 +265,30 @@ const outerBoxStyle = {
     overflow: "hidden",
 } as const;
 
+// Define styles and props outside the component for performance
+const searchInputAdornment = (
+    <InputAdornment position="start">
+        <IconCommon name="Search" />
+    </InputAdornment>
+);
+const searchInputProps = { startAdornment: searchInputAdornment };
+const filterDialogPaperSx = { p: 2 };
+const filterDialogDividerSx = { my: 1 };
+const filterTriggerPaperSx = { p: 2 };
+const resultsPaperSx = { maxHeight: 300, overflow: "auto" };
+const noResultsTextProps = { color: "text.secondary" };
+const triggerViewBoxSx = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+    p: 3,
+};
+const triggerViewIconProps = { name: "History", size: 64, fill: "text.secondary" };
+const triggerViewTitleSx = { mt: 2 };
+const triggerViewDescSx = { mt: 1, textAlign: "center", maxWidth: 600 };
+
 /**
  * Filter dialog component for filtering events
  */
@@ -274,7 +298,7 @@ interface FilterDialogProps {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     selectedTypes: ScheduleFor[];
-    setSelectedTypes: (types: ScheduleFor[]) => void;
+    setSelectedTypes: (updater: (prev: ScheduleFor[]) => ScheduleFor[]) => void; // Correct type
     filteredEvents: CalendarEvent[];
     activeTab: CalendarTabs;
 }
@@ -290,17 +314,21 @@ function FilterDialog({
     activeTab,
 }: FilterDialogProps) {
     const { t } = useTranslation();
-    const { palette } = useTheme();
+
+    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+    }, [setSearchQuery]);
 
     const handleSelectAll = useCallback(() => {
         if (selectedTypes.length === SCHEDULE_TYPES.length) {
-            setSelectedTypes([]);
+            setSelectedTypes(() => []);
         } else {
-            setSelectedTypes([...SCHEDULE_TYPES]);
+            setSelectedTypes(() => [...SCHEDULE_TYPES]);
         }
-    }, [selectedTypes, setSelectedTypes]);
+    }, [selectedTypes.length, setSelectedTypes]);
 
-    const handleTypeChange = useCallback((type: ScheduleFor) => {
+    // Memoize the handler creation for each type checkbox
+    const handleTypeChange = useCallback((type: ScheduleFor) => () => {
         setSelectedTypes(prev => {
             if (prev.includes(type)) {
                 return prev.filter(t => t !== type);
@@ -317,32 +345,28 @@ function FilterDialog({
             fullWidth
             maxWidth="sm"
         >
-            <DialogTitle>{t("Filter")}</DialogTitle>
+            {/* Cast key to string as temporary workaround for i18n type issue */}
+            <DialogTitle>{t("Filter" as string)}</DialogTitle>
             <DialogContent>
                 <TextField
                     fullWidth
-                    placeholder={t("Search")}
+                    placeholder={t("Search" as string)}
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
                     margin="normal"
                     variant="outlined"
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <IconCommon name="Search" />
-                            </InputAdornment>
-                        ),
-                    }}
+                    InputProps={searchInputProps}
                 />
 
                 <Box display="flex" mt={2}>
                     <Box width="50%" pr={1}>
+                        {/* Cast key to string as temporary workaround for i18n type issue */}
                         <Typography variant="subtitle1" gutterBottom>
-                            {t("Option", { count: 2 })}
+                            {t("Option" as string, { count: 2 })}
                         </Typography>
 
                         {activeTab === CalendarTabs.CALENDAR && (
-                            <Paper elevation={1} sx={{ p: 2 }}>
+                            <Paper elevation={1} sx={filterDialogPaperSx}>
                                 <FormGroup>
                                     <FormControlLabel
                                         control={
@@ -352,19 +376,19 @@ function FilterDialog({
                                                 onChange={handleSelectAll}
                                             />
                                         }
-                                        label={t("All")}
+                                        label={t("All" as string)}
                                     />
-                                    <Divider sx={{ my: 1 }} />
+                                    <Divider sx={filterDialogDividerSx} />
                                     {SCHEDULE_TYPES.map((type) => (
                                         <FormControlLabel
                                             key={type}
                                             control={
                                                 <Checkbox
                                                     checked={selectedTypes.includes(type)}
-                                                    onChange={() => handleTypeChange(type)}
+                                                    onChange={handleTypeChange(type)} // Use memoized handler
                                                 />
                                             }
-                                            label={t(type)}
+                                            label={t(type as string)} // Cast key
                                         />
                                     ))}
                                 </FormGroup>
@@ -372,34 +396,35 @@ function FilterDialog({
                         )}
 
                         {activeTab === CalendarTabs.TRIGGER && (
-                            <Paper elevation={1} sx={{ p: 2 }}>
+                            <Paper elevation={1} sx={filterTriggerPaperSx}>
                                 <Typography variant="body2" color="text.secondary">
-                                    {t("ComingSoon")}
+                                    {t("ComingSoon" as string)} {/* Cast key */}
                                 </Typography>
                             </Paper>
                         )}
                     </Box>
 
-                    <Box sx={{ width: '50%', pl: 1 }}>
+                    <Box width="50%" pl={1}>
+                        {/* Cast key to string; Note: count interpolation might need specific type handling */}
                         <Typography variant="subtitle1" gutterBottom>
-                            {t("Result", { count: filteredEvents.length })} ({filteredEvents.length})
+                            {t("Result" as string, { count: filteredEvents.length })} ({filteredEvents.length})
                         </Typography>
-                        <Paper elevation={1} sx={{ maxHeight: 300, overflow: 'auto' }}>
+                        <Paper elevation={1} sx={resultsPaperSx}>
                             <List dense>
                                 {filteredEvents.length > 0 ? (
                                     filteredEvents.map((event) => (
                                         <ListItem key={event.id}>
                                             <ListItemText
                                                 primary={event.title}
-                                                secondary={`${format(event.start, 'PPp')} - ${format(event.end, 'PPp')}`}
+                                                secondary={`${format(event.start, "PPp")} - ${format(event.end, "PPp")}`}
                                             />
                                         </ListItem>
                                     ))
                                 ) : (
                                     <ListItem>
                                         <ListItemText
-                                            primary={t("NoResults")}
-                                            primaryTypographyProps={{ color: 'text.secondary' }}
+                                            primary={t("NoResults" as string)} // Cast key
+                                            primaryTypographyProps={noResultsTextProps}
                                         />
                                     </ListItem>
                                 )}
@@ -419,32 +444,31 @@ function TriggerView() {
     const { t } = useTranslation();
 
     return (
-        <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            p: 3
-        }}>
-            <IconCommon
-                name="History"
-                size={64}
-                fill="text.secondary"
-            />
-            <Typography variant="h5" sx={{ mt: 2 }}>
-                {t("ComingSoon")}
+        <Box sx={triggerViewBoxSx}>
+            <IconCommon {...triggerViewIconProps} />
+            {/* Cast key to string as temporary workaround for i18n type issue */}
+            <Typography variant="h5" sx={triggerViewTitleSx}>
+                {t("ComingSoon" as string)}
             </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mt: 1, textAlign: 'center', maxWidth: 600 }}>
-                {t("TriggerDescription")}
+            <Typography variant="body1" color="text.secondary" sx={triggerViewDescSx}>
+                {t("TriggerDescription" as string)}
             </Typography>
         </Box>
     );
 }
 
+// Update the CalendarViewProps interface
+export interface CalendarViewOwnProps {
+    /**
+     * The initial tab to display (for testing purposes)
+     */
+    initialTab?: CalendarTabs;
+}
+
 export function CalendarView({
     display,
-}: CalendarViewProps) {
+    initialTab = CalendarTabs.CALENDAR,
+}: CalendarViewProps & CalendarViewOwnProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const isBottomNavVisible = useIsBottomNavVisible();
@@ -453,13 +477,15 @@ export function CalendarView({
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
 
     // Active tab state
-    const [activeTab, setActiveTab] = useHistoryState<CalendarTabs>(CalendarTabs.CALENDAR);
-    const handleTabChange = (_event: React.SyntheticEvent, newValue: CalendarTabs) => {
+    const [activeTab, setActiveTab] = useHistoryState("calendar-tab", initialTab);
+    const handleTabChange = useCallback((_event: React.SyntheticEvent, newValue: CalendarTabs) => {
         setActiveTab(newValue);
-    };
+    }, [setActiveTab]);
 
     // Filter dialog state
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+    const openFilterDialog = useCallback(() => setIsFilterDialogOpen(true), []);
+    const closeFilterDialog = useCallback(() => setIsFilterDialogOpen(false), []);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTypes, setSelectedTypes] = useState<ScheduleFor[]>([...SCHEDULE_TYPES]);
 
@@ -554,22 +580,54 @@ export function CalendarView({
                 return;
             }
 
+            console.log("Fetching events with schedules:", schedules);
+            console.log("Date range:", dateRange);
+
             const result: CalendarEvent[] = [];
             for (const schedule of schedules) {
-                const occurrences = await calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
-                const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                    __typename: "CalendarEvent",
-                    id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
-                    title: getDisplay(schedule, getUserLanguages(session)).title,
-                    start: occurrence.start,
-                    end: occurrence.end,
-                    allDay: false,
-                    schedule,
-                }));
-                if (!isCancelled) {
-                    result.push(...events);
+                console.log("Processing schedule:", schedule);
+                try {
+                    const occurrences = await calculateOccurrences(schedule, dateRange.start!, dateRange.end!);
+                    console.log("Generated occurrences:", occurrences);
+
+                    // Try to get a display title
+                    let title = "Untitled";
+                    try {
+                        title = getDisplay(schedule, getUserLanguages(session)).title || "Untitled";
+                    } catch (displayError) {
+                        console.error("Error getting display title:", displayError);
+                        // Try to extract title from available data
+                        if (schedule.meetings?.[0]?.translations?.[0]?.title) {
+                            title = schedule.meetings[0].translations[0].title;
+                        } else if (schedule.focusModes?.[0]?.name) {
+                            title = schedule.focusModes[0].name;
+                        } else if (schedule.runProjects?.[0]?.translations?.[0]?.title) {
+                            title = schedule.runProjects[0].translations[0].title;
+                        } else if (schedule.runRoutines?.[0]?.translations?.[0]?.title) {
+                            title = schedule.runRoutines[0].translations[0].title;
+                        }
+                    }
+
+                    const events: CalendarEvent[] = occurrences.map(occurrence => ({
+                        __typename: "CalendarEvent",
+                        id: `${schedule.id}|${occurrence.start.getTime()}|${occurrence.end.getTime()}`,
+                        title,
+                        start: occurrence.start,
+                        end: occurrence.end,
+                        allDay: false,
+                        schedule,
+                    }));
+
+                    if (!isCancelled) {
+                        result.push(...events);
+                    }
+                } catch (error) {
+                    console.error("Error calculating occurrences:", error);
                 }
             }
+
+            console.log("Final events for calendar:", result);
+
             if (!isCancelled) {
                 setEvents(result);
             }
@@ -580,7 +638,7 @@ export function CalendarView({
         return () => {
             isCancelled = true; // Cleanup function to avoid setting state on unmounted component
         };
-    }, [dateRange.end, dateRange.start, schedules, session]);
+    }, [dateRange, dateRange.end, dateRange.start, schedules, session]);
 
     // Filter events based on search query and selected types
     const filteredEvents = useMemo(() => {
@@ -604,24 +662,25 @@ export function CalendarView({
     // Handle scheduling
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = useCallback(function handleAddScheduleCallback() {
+    const handleAddSchedule = useCallback(() => {
         setIsScheduleDialogOpen(true);
     }, []);
-    const handleUpdateSchedule = useCallback(function handleUpdateScheduleCallback(schedule: Schedule) {
+    const handleUpdateSchedule = useCallback((schedule: Schedule) => {
         setEditingSchedule(schedule);
         setIsScheduleDialogOpen(true);
     }, []);
-    const handleCloseScheduleDialog = useCallback(function handleCloseScheduleDialogCallback() {
+    const handleCloseScheduleDialog = useCallback(() => {
         setIsScheduleDialogOpen(false);
+        setEditingSchedule(null); // Clear editing state on close
     }, []);
-    const handleScheduleCompleted = useCallback(function handleScheduleCompletedCallback(created: Schedule) {
-        //TODO update schedule
-        setIsScheduleDialogOpen(false);
-    }, []);
-    const handleScheduleDeleted = useCallback(function handleScheduleDeletedCallback(deleted: Schedule) {
-        //TODO delete schedule
-        setIsScheduleDialogOpen(false);
-    }, []);
+    const handleScheduleCompleted = useCallback((_created: Schedule) => {
+        //TODO update schedule list/refetch
+        handleCloseScheduleDialog();
+    }, [handleCloseScheduleDialog]);
+    const handleScheduleDeleted = useCallback((_deleted: Schedule) => {
+        //TODO update schedule list/refetch
+        handleCloseScheduleDialog();
+    }, [handleCloseScheduleDialog]);
 
     const activeDayStyle = useMemo(function activeDayStyleMemo() {
         return {
@@ -721,7 +780,8 @@ export function CalendarView({
     if (!localizer) return <FullPageSpinner />;
     return (
         <Box sx={outerBoxStyle}>
-            <Navbar keepVisible title={t("Schedule", { count: 1 })} />
+            {/* Cast key to string as temporary workaround for i18n type issue */}
+            <Navbar keepVisible title={t("Schedule" as string, { count: 1 })} />
             <FlexContainer isBottomNavVisible={isBottomNavVisible}>
                 <ScheduleUpsert
                     canSetScheduleFor={true}
@@ -739,7 +799,7 @@ export function CalendarView({
 
                 <FilterDialog
                     isOpen={isFilterDialogOpen}
-                    onClose={() => setIsFilterDialogOpen(false)}
+                    onClose={closeFilterDialog} // Use memoized callback
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     selectedTypes={selectedTypes}
@@ -751,17 +811,17 @@ export function CalendarView({
                 {/* View tabs */}
                 <Tabs
                     value={activeTab}
-                    onChange={handleTabChange}
+                    onChange={handleTabChange} // Use memoized callback
                     variant="fullWidth"
                 >
                     <Tab
-                        label={t("Calendar")}
+                        label={t("Calendar" as string)} // Cast key
                         value={CalendarTabs.CALENDAR}
                         icon={<IconCommon name="Schedule" />}
                         iconPosition="start"
                     />
                     <Tab
-                        label={t("Trigger")}
+                        label={t("Trigger" as string)} // Cast key
                         value={CalendarTabs.TRIGGER}
                         icon={<IconCommon name="History" />}
                         iconPosition="start"
@@ -795,14 +855,14 @@ export function CalendarView({
             </FlexContainer>
             <SideActionsButtons display={display}>
                 <IconButton
-                    aria-label={t("CreateEvent")}
-                    onClick={handleAddSchedule}
+                    aria-label={t("CreateEvent" as string)} // Cast key
+                    onClick={handleAddSchedule} // Use memoized callback
                 >
                     <IconCommon name="Add" />
                 </IconButton>
                 <IconButton
-                    aria-label={t("Filter")}
-                    onClick={() => setIsFilterDialogOpen(true)}
+                    aria-label={t("Filter" as string)} // Cast key
+                    onClick={openFilterDialog} // Use memoized callback
                 >
                     <IconCommon name="Filter" />
                 </IconButton>

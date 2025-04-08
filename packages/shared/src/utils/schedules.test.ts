@@ -1222,7 +1222,7 @@ describe("calculateOccurrences", () => {
             recurrences: [{
                 recurrenceType: "Daily",
                 interval: 15,
-                duration: 2 * 60 * 60 * 1000, // 2 hours
+                duration: 120, // 2 hours in minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-04-30T23:59:37Z",
@@ -1268,7 +1268,7 @@ describe("calculateOccurrences", () => {
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 3, // Wednesday
-                duration: 2 * 60 * 60 * 1000, // 2 hours
+                duration: 120, // 2 hours in minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-02-28T00:00:00Z",
             timeframeEnd: "2023-04-01T00:00:00Z",
@@ -1292,7 +1292,7 @@ describe("calculateOccurrences", () => {
                 recurrenceType: "Monthly",
                 interval: 1,
                 dayOfMonth: 1,
-                duration: 2 * 60 * 60 * 1000, // 2 hours
+                duration: 120, // 2 hours in minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-04-01T00:00:00Z",
@@ -1315,7 +1315,7 @@ describe("calculateOccurrences", () => {
                 interval: 1,
                 month: 0,
                 dayOfMonth: 2,
-                duration: (3 * 60 * 60 * 1000) + (60 * 1000), // 3 hours and 1 minute
+                duration: 181, // 3 hours and 1 minute in minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-04-01T00:00:00Z",
@@ -1360,7 +1360,7 @@ describe("calculateOccurrences", () => {
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 5, // Friday
-                duration: 5 * 60 * 1000, // 5 minutes
+                duration: 5, // 5 minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-05-27T00:00:00Z",
             timeframeEnd: "2023-06-02T13:00:00Z", // End of the timeframe is on June 2nd
@@ -1382,7 +1382,7 @@ describe("calculateOccurrences", () => {
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 5, // Friday
-                duration: 5 * 60 * 1000, // 5 minutes
+                duration: 5, // 5 minutes
                 endDate: new Date("2023-06-02T12:55:00Z").toISOString(), // Just before the occurrence would start
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-05-27T00:00:00Z",
@@ -1434,7 +1434,7 @@ describe("calculateOccurrences", () => {
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 1, // Monday
-                duration: 5 * 60 * 1000, // 5 minutes
+                duration: 5, // 5 minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-01-08T00:00:00Z",
@@ -1458,7 +1458,7 @@ describe("calculateOccurrences", () => {
                 recurrenceType: "Weekly",
                 interval: 1,
                 dayOfWeek: 1, // Monday
-                duration: 17 * 60 * 1000, // 17 minutes
+                duration: 17, // 17 minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2023-01-01T00:00:00Z",
             timeframeEnd: "2023-01-08T00:00:00Z",
@@ -1515,7 +1515,7 @@ describe("calculateOccurrences", () => {
                 interval: 1,
                 month: 1, // February
                 dayOfMonth: 31,
-                duration: 24 * 60 * 60 * 1000, // 24 hours
+                duration: 1440, // 24 hours in minutes
             }] as ScheduleRecurrence[],
             timeframeStart: "2024-02-15T00:00:00Z",
             timeframeEnd: "2024-03-01T00:00:00Z",
