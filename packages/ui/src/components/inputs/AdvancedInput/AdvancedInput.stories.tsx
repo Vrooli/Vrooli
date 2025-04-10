@@ -1,4 +1,4 @@
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Divider, FormControlLabel, Switch, Typography } from "@mui/material";
 import { action } from "@storybook/addon-actions";
 import { Meta } from "@storybook/react";
 import userEvent from "@testing-library/user-event";
@@ -7,7 +7,7 @@ import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";
 import { AdvancedInput, AdvancedInputBase, TranslatedAdvancedInput } from "./AdvancedInput.js";
-import { ContextItem, Tool, ToolState, advancedInputTextareaClassName } from "./utils.js";
+import { AdvancedInputFeatures, ContextItem, DEFAULT_FEATURES, Tool, ToolState, advancedInputTextareaClassName } from "./utils.js";
 
 const outerBoxStyle = {
     display: "flex",
@@ -41,6 +41,68 @@ const buttonsContainerStyle = {
     gap: 1,
     flexWrap: "wrap",
 } as const;
+
+// Helper text style used in various places
+const helperTextStyle = { mt: 1 } as const;
+
+// Feature toggle UI styles
+const featureBoxStyle = {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 1,
+    mb: 4,
+};
+
+const featureControlsStyle = {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 1,
+    mb: 2,
+};
+
+const featureToggleStyle = {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 1,
+    mb: 3,
+};
+
+const featureButtonStyle = {
+    minWidth: "120px",
+};
+
+const featureGroupStyle = {
+    p: 2,
+    mb: 2,
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 1,
+};
+
+const featureGroupTitleStyle = {
+    mb: 1,
+    fontWeight: "bold",
+};
+
+const columnFlexStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 1,
+};
+
+const dividerStyle = { my: 2 };
+
+const preCodeStyle = {
+    mt: 1,
+    p: 2,
+    backgroundColor: "background.paper",
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 1,
+    overflow: "auto",
+    maxHeight: "300px",
+    fontSize: "0.75rem",
+};
 
 const mockSingleLineText = "This is a single line of text that simulates pasting content.";
 const mockMultiLineText = `First line of text
@@ -501,6 +563,10 @@ export function Default() {
 export function FormikExample() {
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
+    const [features] = useState<AdvancedInputFeatures>({
+        ...DEFAULT_FEATURES,
+        allowTools: false,
+    });
 
     return (
         <Formik
@@ -665,8 +731,13 @@ export function FormikExample() {
                             tools={mockSomeTools}
                             contextData={mockContextData}
                             placeholder={placeholder}
-                            helperText={helperText}
+                            features={features}
                         />
+                        {helperText && (
+                            <Typography variant="caption" color="text.secondary" sx={helperTextStyle}>
+                                {helperText}
+                            </Typography>
+                        )}
                     </Form>
                 );
             }}
@@ -680,6 +751,10 @@ export function FormikExample() {
 export function TranslatedExample() {
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
+    const [features] = useState<AdvancedInputFeatures>({
+        ...DEFAULT_FEATURES,
+        allowTools: false,
+    });
 
     return (
         <Formik
@@ -854,8 +929,13 @@ export function TranslatedExample() {
                                 tools={mockSomeTools}
                                 contextData={mockContextData}
                                 placeholder={placeholder}
-                                helperText={helperText}
+                                features={features}
                             />
+                            {helperText && (
+                                <Typography variant="caption" color="text.secondary">
+                                    {helperText}
+                                </Typography>
+                            )}
                             <Typography variant="h6" color="textSecondary">Spanish</Typography>
                             <ValueDisplay value={values.translations[1].message} />
                             <TranslatedAdvancedInput
@@ -864,12 +944,341 @@ export function TranslatedExample() {
                                 tools={mockSomeTools}
                                 contextData={mockContextData}
                                 placeholder={placeholder}
-                                helperText={helperText}
+                                features={features}
                             />
+                            {helperText && (
+                                <Typography variant="caption" color="text.secondary">
+                                    {helperText}
+                                </Typography>
+                            )}
                         </Box>
                     </Form>
                 );
             }}
         </Formik>
+    );
+}
+
+/**
+ * Features story: demonstrates toggling individual feature flags
+ */
+export function Features() {
+    // State for message and component props
+    const [message, setMessage] = useState("");
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
+    const [tools, setTools] = useState<Tool[]>(mockSomeTools);
+    // Feature toggles state - start with all features enabled
+    const [features, setFeatures] = useState<AdvancedInputFeatures>({ ...DEFAULT_FEATURES });
+
+    // Handle feature toggle
+    function handleFeatureToggle(featureKey: keyof AdvancedInputFeatures) {
+        setFeatures(prev => ({
+            ...prev,
+            [featureKey]: !prev[featureKey],
+        }));
+    }
+
+    function onMessageChange(newMessage: string) {
+        setMessage(newMessage);
+        action("onMessageChange")(newMessage);
+    }
+
+    function onSubmit(msg: string) {
+        action("onSubmit")(msg);
+        setMessage("");
+    }
+
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
+        action("onToolsChange")(updated);
+    }
+
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+        action("onContextDataChange")(updated);
+    }
+
+    // Reset features to default
+    function resetFeatures() {
+        setFeatures({ ...DEFAULT_FEATURES });
+    }
+
+    // Set minimal features (just text entry and submit)
+    function setMinimalFeatures() {
+        setFeatures({
+            allowFormatting: false,
+            allowExpand: false,
+            allowFileAttachments: false,
+            allowImageAttachments: false,
+            allowTextAttachments: false,
+            allowTools: false,
+            allowCharacterLimit: true,
+            allowVoiceInput: false,
+            allowSubmit: true,
+            allowSettingsCustomization: false,
+        });
+    }
+
+    // Set form-optimized features
+    function setFormFeatures() {
+        setFeatures({
+            allowFormatting: true,
+            allowExpand: true,
+            allowFileAttachments: false,
+            allowImageAttachments: false,
+            allowTextAttachments: false,
+            allowTools: false,
+            allowCharacterLimit: true,
+            allowVoiceInput: false,
+            allowSubmit: false,
+            allowSettingsCustomization: false,
+        });
+    }
+
+    // Set chat-optimized features
+    function setChatFeatures() {
+        setFeatures({
+            ...DEFAULT_FEATURES,
+            allowTools: true,
+        });
+    }
+
+    // Helper function to create a callback for toggling features
+    function handleFeatureToggleCb(key: keyof AdvancedInputFeatures) {
+        return function toggleFeature() {
+            handleFeatureToggle(key);
+        };
+    }
+
+    return (
+        <>
+            <Box sx={featureBoxStyle}>
+                <Typography variant="h6" mb={2}>Feature Configuration</Typography>
+
+                <Box sx={featureControlsStyle}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={resetFeatures}
+                        sx={featureButtonStyle}
+                    >
+                        All Features
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={setMinimalFeatures}
+                        sx={featureButtonStyle}
+                    >
+                        Minimal
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={setFormFeatures}
+                        sx={featureButtonStyle}
+                    >
+                        Form Optimized
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={setChatFeatures}
+                        sx={featureButtonStyle}
+                    >
+                        Chat Optimized
+                    </Button>
+                </Box>
+
+                <Box sx={featureToggleStyle}>
+                    {/* Input formatting features */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Formatting</Typography>
+                        <Box sx={columnFlexStyle}>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowFormatting}
+                                        onChange={handleFeatureToggleCb("allowFormatting")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Formatting"
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Size and expansion features */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Size & Expansion</Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={features.allowExpand}
+                                    onChange={handleFeatureToggleCb("allowExpand")}
+                                    color="primary"
+                                    size="small"
+                                />
+                            }
+                            label="Allow Expand"
+                        />
+                    </Box>
+
+                    {/* Attachments and context */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Attachments</Typography>
+                        <Box sx={columnFlexStyle}>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowFileAttachments}
+                                        onChange={handleFeatureToggleCb("allowFileAttachments")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow File Attachments"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowImageAttachments}
+                                        onChange={handleFeatureToggleCb("allowImageAttachments")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Image Attachments"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowTextAttachments}
+                                        onChange={handleFeatureToggleCb("allowTextAttachments")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Text Attachments"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowContextDropdown}
+                                        onChange={handleFeatureToggleCb("allowContextDropdown")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Context Dropdown (@/Slash Commands)"
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Tool integration */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Tools</Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={features.allowTools}
+                                    onChange={handleFeatureToggleCb("allowTools")}
+                                    color="primary"
+                                    size="small"
+                                />
+                            }
+                            label="Allow Tools"
+                        />
+                    </Box>
+
+                    {/* Submission features */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Submission</Typography>
+                        <Box sx={columnFlexStyle}>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowCharacterLimit}
+                                        onChange={handleFeatureToggleCb("allowCharacterLimit")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Character Limit"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowVoiceInput}
+                                        onChange={handleFeatureToggleCb("allowVoiceInput")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Voice Input"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={features.allowSubmit}
+                                        onChange={handleFeatureToggleCb("allowSubmit")}
+                                        color="primary"
+                                        size="small"
+                                    />
+                                }
+                                label="Allow Submit"
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Settings */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Settings</Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={features.allowSettingsCustomization}
+                                    onChange={handleFeatureToggleCb("allowSettingsCustomization")}
+                                    color="primary"
+                                    size="small"
+                                />
+                            }
+                            label="Allow Settings Customization"
+                        />
+                    </Box>
+                </Box>
+            </Box>
+
+            <Divider sx={dividerStyle} />
+
+            <ValueDisplay value={message} />
+
+            <AdvancedInputBase
+                name="message"
+                tools={tools}
+                contextData={contextData}
+                features={features}
+                maxChars={100}
+                placeholder="Enter your message here..."
+                onChange={onMessageChange}
+                onToolsChange={onToolsChange}
+                onContextDataChange={onContextDataChange}
+                onSubmit={onSubmit}
+                value={message}
+            />
+
+            <Box mt={4}>
+                <Typography variant="caption" color="text.secondary">
+                    Current Features Configuration:
+                </Typography>
+                <Box
+                    component="pre"
+                    sx={preCodeStyle}
+                >
+                    {JSON.stringify(features, null, 2)}
+                </Box>
+            </Box>
+        </>
     );
 }

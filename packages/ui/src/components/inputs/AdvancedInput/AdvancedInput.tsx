@@ -23,7 +23,7 @@ import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
 import { ContextDropdown, ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputProps, ContextItem, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [
@@ -515,10 +515,10 @@ const dividerStyle = { my: 1, opacity: 0.2 } as const;
 interface PlusMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => unknown;
-    onAttachFile: () => unknown;
-    onConnectExternalApp: () => unknown;
-    onTakePhoto: () => unknown;
-    onAddRoutine: () => unknown;
+    onAttachFile?: () => unknown;
+    onConnectExternalApp?: () => unknown;
+    onTakePhoto?: () => unknown;
+    onAddRoutine?: () => unknown;
 }
 
 const PlusMenu: React.FC<PlusMenuProps> = React.memo(
@@ -555,7 +555,7 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                     transformOrigin={popoverTransformOrigin}
                 >
                     <Box>
-                        <MenuItem onClick={onAttachFile}>
+                        {onAttachFile && <MenuItem onClick={onAttachFile}>
                             <ListItemIcon>
                                 <IconCommon
                                     decorative
@@ -563,8 +563,8 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                                 />
                             </ListItemIcon>
                             <ListItemText primary="Attach File" secondary="Attach a file from your device" />
-                        </MenuItem>
-                        {externalApps.length > 0 && <MenuItem onClick={handleOpenExternalApps}>
+                        </MenuItem>}
+                        {externalApps.length > 0 && onConnectExternalApp && <MenuItem onClick={handleOpenExternalApps}>
                             <ListItemIcon>
                                 <IconCommon
                                     decorative
@@ -573,7 +573,7 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                             </ListItemIcon>
                             <ListItemText primary="Connect External App" secondary="Connect an external app to your account" />
                         </MenuItem>}
-                        <MenuItem onClick={onTakePhoto}>
+                        {onTakePhoto && <MenuItem onClick={onTakePhoto}>
                             <ListItemIcon>
                                 <IconCommon
                                     decorative
@@ -581,8 +581,8 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                                 />
                             </ListItemIcon>
                             <ListItemText primary="Take Photo" secondary="Take a photo from your device" />
-                        </MenuItem>
-                        <MenuItem onClick={onAddRoutine}>
+                        </MenuItem>}
+                        {onAddRoutine && <MenuItem onClick={onAddRoutine}>
                             <ListItemIcon>
                                 <IconRoutine
                                     decorative
@@ -590,7 +590,7 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
                                 />
                             </ListItemIcon>
                             <ListItemText primary="Add Routine" secondary="Allow the AI to perform actions" />
-                        </MenuItem>
+                        </MenuItem>}
                     </Box>
                 </Popover>
                 <Menu
@@ -774,6 +774,7 @@ export function AdvancedInputBase({
     value,
     disabled = false,
     error = false,
+    features = DEFAULT_FEATURES,
     helperText,
     name,
     onBlur,
@@ -786,6 +787,9 @@ export function AdvancedInputBase({
     tabIndex,
 }: AdvancedInputBaseProps) {
     const theme = useTheme();
+
+    // Merge with default features to ensure all properties exist
+    const mergedFeatures = useMemo(() => ({ ...DEFAULT_FEATURES, ...features }), [features]);
 
     // Add dropdown state
     const [dropdownAnchor, setDropdownAnchor] = useState<HTMLElement | null>(null);
@@ -810,9 +814,18 @@ export function AdvancedInputBase({
         resetInternalValue(value);
     }, [value, resetInternalValue]);
 
-    // Settings state from localStorage
+    // Settings state from localStorage with toolbar visibility handling
     const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
-    const { enterWillSubmit, showToolbar } = settings;
+
+    // Derived value - showToolbar is forced true when formatting is allowed but settings customization is not
+    const showToolbar = useMemo(() => {
+        if (!mergedFeatures.allowSettingsCustomization && mergedFeatures.allowFormatting) {
+            return true; // Force toolbar to be visible
+        }
+        return settings.showToolbar;
+    }, [mergedFeatures.allowSettingsCustomization, mergedFeatures.allowFormatting, settings.showToolbar]);
+
+    const { enterWillSubmit } = settings;
 
     // Settings toggles
     const handleToggleEnterWillSubmit = useCallback(() => {
@@ -825,13 +838,18 @@ export function AdvancedInputBase({
     }, [settings]);
 
     const handleToggleToolbar = useCallback(() => {
+        // Only allow toggling if we're not in the forced-visible state
+        if (!mergedFeatures.allowSettingsCustomization && mergedFeatures.allowFormatting) {
+            return; // Cannot toggle toolbar in this case
+        }
+
         const newSettings = {
             ...settings,
             showToolbar: !settings.showToolbar,
         };
         setSettings(newSettings);
         setCookie("AdvancedInputSettings", newSettings);
-    }, [settings]);
+    }, [settings, mergedFeatures.allowSettingsCustomization, mergedFeatures.allowFormatting]);
 
     // Add dropzone functionality
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -1056,9 +1074,11 @@ export function AdvancedInputBase({
 
     const [isMarkdownOn, setIsMarkdownOn] = useState(getCookie("ShowMarkdown"));
     const toggleMarkdown = useCallback(() => {
-        setIsMarkdownOn(!isMarkdownOn);
-        setCookie("ShowMarkdown", !isMarkdownOn);
-    }, [isMarkdownOn]);
+        if (mergedFeatures.allowFormatting) {
+            setIsMarkdownOn(!isMarkdownOn);
+            setCookie("ShowMarkdown", !isMarkdownOn);
+        }
+    }, [isMarkdownOn, mergedFeatures.allowFormatting]);
 
     const currentHandleActionRef = useRef<((action: AdvancedInputAction, data?: unknown) => unknown) | null>(null);
     const setChildHandleAction = useCallback((handleAction: (action: AdvancedInputAction, data?: unknown) => unknown) => {
@@ -1066,14 +1086,16 @@ export function AdvancedInputBase({
     }, []);
     const handleAction = useCallback((action: AdvancedInputAction, data?: unknown) => {
         if (action === "Mode") {
-            toggleMarkdown();
+            if (mergedFeatures.allowFormatting) {
+                toggleMarkdown();
+            }
         } else if (currentHandleActionRef.current) {
             currentHandleActionRef.current(action, data);
         } else {
             console.error("RichInputBase: No child handleAction function found");
         }
         return noop;
-    }, [toggleMarkdown]);
+    }, [toggleMarkdown, mergedFeatures.allowFormatting]);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     useHotkeys([
@@ -1101,22 +1123,24 @@ export function AdvancedInputBase({
         { keys: ["Z"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
         { keys: ["y"], ctrlKey: true, callback: () => { handleAction(AdvancedInputAction.Redo); } },
         // Context dropdown
-        {
-            keys: ["@"],
-            requirePrecedingWhitespace: true,
-            preventDefault: false, // Allow the key to be typed if user keeps pressing
-            callback: () => {
-                handleContextTrigger(TRIGGER_CHARS.AT);
+        ...(mergedFeatures.allowContextDropdown ? [
+            {
+                keys: ["@"],
+                requirePrecedingWhitespace: true,
+                preventDefault: false, // Allow the key to be typed if user keeps pressing
+                callback: () => {
+                    handleContextTrigger(TRIGGER_CHARS.AT);
+                },
             },
-        },
-        {
-            keys: ["/"],
-            requirePrecedingWhitespace: true,
-            preventDefault: false, // Allow the key to be typed if user keeps pressing
-            callback: () => {
-                handleContextTrigger(TRIGGER_CHARS.SLASH);
+            {
+                keys: ["/"],
+                requirePrecedingWhitespace: true,
+                preventDefault: false, // Allow the key to be typed if user keeps pressing
+                callback: () => {
+                    handleContextTrigger(TRIGGER_CHARS.SLASH);
+                },
             },
-        },
+        ] : []),
         // Enter will submit
         {
             keys: ["Enter"],
@@ -1180,6 +1204,9 @@ export function AdvancedInputBase({
 
     // Add dropdown handlers
     const handleContextTrigger = useCallback((triggerChar: string) => {
+        // Check if context dropdown is allowed
+        if (!mergedFeatures.allowContextDropdown) return;
+
         // Use the wrapper element instead of trying to get the exact cursor position
         if (!inputWrapperRef.current) return;
 
@@ -1196,7 +1223,7 @@ export function AdvancedInputBase({
 
         // Add the trigger character to the input
         changeInternalValue(internalValue + triggerChar);
-    }, [internalValue, changeInternalValue]);
+    }, [internalValue, changeInternalValue, mergedFeatures.allowContextDropdown]);
 
     const handleCloseDropdown = useCallback((shouldAddSearchText = true) => {
         // If we have search text and we're closing without selection, add it to the input
@@ -1233,16 +1260,16 @@ export function AdvancedInputBase({
     }, [changeInternalValue, handleCloseDropdown, internalValue]);
 
     return (
-        <Outer className="advanced-input" {...getRootProps()}>
-            <input {...getInputProps()} />
-            {isDragActive && (
+        <Outer className="advanced-input" {...(mergedFeatures.allowFileAttachments ? getRootProps() : {})}>
+            {mergedFeatures.allowFileAttachments && <input {...getInputProps()} />}
+            {mergedFeatures.allowFileAttachments && isDragActive && (
                 <Box sx={dragOverlayStyles}>
                     <Typography variant="body1" color="text.secondary">
                         Drop files here...
                     </Typography>
                 </Box>
             )}
-            <Collapse in={tools.some((tool) => tool.state === ToolState.Exclusive)} unmountOnExit>
+            <Collapse in={mergedFeatures.allowTools && tools.some((tool) => tool.state === ToolState.Exclusive)} unmountOnExit>
                 <Box height={400} >
                     {/* <Formik
                         initialValues={formikRef.current?.initialValues ?? EMPTY_OBJECT}
@@ -1261,17 +1288,19 @@ export function AdvancedInputBase({
             </Collapse>
             {/* Top Section */}
             <Box onMouseDown={preventInputLossOnToolbarClick} sx={toolbarRowStyles}>
-                <IconButton
-                    onClick={handleOpenInfoMemo}
-                    sx={toolbarIconButtonStyle}
-                >
-                    <IconCommon
-                        decorative
-                        fill="background.textSecondary"
-                        name="Settings"
-                    />
-                </IconButton>
-                {showToolbar && <AdvancedInputToolbar
+                {mergedFeatures.allowSettingsCustomization && (
+                    <IconButton
+                        onClick={handleOpenInfoMemo}
+                        sx={toolbarIconButtonStyle}
+                    >
+                        <IconCommon
+                            decorative
+                            fill="background.textSecondary"
+                            name="Settings"
+                        />
+                    </IconButton>
+                )}
+                {mergedFeatures.allowFormatting && showToolbar && <AdvancedInputToolbar
                     activeStates={activeStates}
                     canRedo={canRedo}
                     canUndo={canUndo}
@@ -1280,7 +1309,7 @@ export function AdvancedInputBase({
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={isMarkdownOn}
                 />}
-                {!showToolbar && <Box sx={contextRowStyles}>
+                {(!mergedFeatures.allowFormatting || !showToolbar) && <Box sx={contextRowStyles}>
                     {sortedContextData.map((item) => (
                         <ContextItemDisplay
                             key={item.id}
@@ -1290,20 +1319,22 @@ export function AdvancedInputBase({
                         />
                     ))}
                 </Box>}
-                <Tooltip placement="top" title={isExpanded ? "Collapse" : "Expand"}>
-                    <IconButton
-                        onClick={handleToggleExpand}
-                        sx={toolbarIconButtonStyle}
-                    >
-                        <IconCommon
-                            decorative
-                            fill="background.textSecondary"
-                            name={isExpanded ? "ExpandLess" : "ExpandMore"}
-                        />
-                    </IconButton>
-                </Tooltip>
+                {mergedFeatures.allowExpand && (
+                    <Tooltip placement="top" title={isExpanded ? "Collapse" : "Expand"}>
+                        <IconButton
+                            onClick={handleToggleExpand}
+                            sx={toolbarIconButtonStyle}
+                        >
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name={isExpanded ? "ExpandLess" : "ExpandMore"}
+                            />
+                        </IconButton>
+                    </Tooltip>
+                )}
             </Box>
-            {showToolbar && <Box sx={contextRowStyles}>
+            {mergedFeatures.allowFormatting && showToolbar && <Box sx={contextRowStyles}>
                 {sortedContextData.map((item) => (
                     <ContextItemDisplay
                         key={item.id}
@@ -1326,158 +1357,199 @@ export function AdvancedInputBase({
 
             {/* Bottom Section */}
             <Box sx={bottomRowStyles}>
-                <Box ref={toolsContainerRef} sx={toolsContainerStyles}>
-                    <StyledIconButton disabled={false} onClick={handleOpenPlusMenu}>
-                        <IconCommon
-                            decorative
-                            fill="background.textSecondary"
-                            name="Add"
-                        />
-                    </StyledIconButton>
-                    {tools.map((tool, index) => {
-                        function onToggleTool() {
-                            handleToggleTool(index);
-                        }
-                        function onRemoveTool() {
-                            handleRemoveTool(index);
-                        }
-                        function onToggleToolExclusive() {
-                            handleToggleToolExclusive(index);
-                        }
-
-                        const canAddShowButton = toolsInFirstRow < tools.length && !isToolsExpanded && ((index === toolsInFirstRow && !showEllipsisBeforeLastTool) || (index === toolsInFirstRow - 1 && showEllipsisBeforeLastTool));
-                        const canAddHideButton = toolsInFirstRow < tools.length && isToolsExpanded && index === tools.length - 1;
-
-                        return (
-                            <>
-                                {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
+                {mergedFeatures.allowTools && (
+                    <Box ref={toolsContainerRef} sx={toolsContainerStyles}>
+                        {(mergedFeatures.allowFileAttachments ||
+                            mergedFeatures.allowImageAttachments ||
+                            mergedFeatures.allowTextAttachments) && (
+                                <StyledIconButton disabled={false} onClick={handleOpenPlusMenu}>
                                     <IconCommon
                                         decorative
                                         fill="background.textSecondary"
-                                        name="Ellipsis"
+                                        name="Add"
                                     />
-                                </ShowHideIconButton>}
-                                <ToolChip
-                                    {...tool}
-                                    data-type="tool"
-                                    index={index}
-                                    key={`${tool.name}-${index}`}
-                                    onRemoveTool={onRemoveTool}
-                                    onToggleToolExclusive={onToggleToolExclusive}
-                                    onToggleTool={onToggleTool}
-                                />
-                                {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
-                                    <IconCommon
-                                        decorative
-                                        fill="background.textSecondary"
-                                        name="Invisible"
+                                </StyledIconButton>
+                            )}
+                        {tools.map((tool, index) => {
+                            function onToggleTool() {
+                                handleToggleTool(index);
+                            }
+                            function onRemoveTool() {
+                                handleRemoveTool(index);
+                            }
+                            function onToggleToolExclusive() {
+                                handleToggleToolExclusive(index);
+                            }
+
+                            const canAddShowButton = toolsInFirstRow < tools.length && !isToolsExpanded && ((index === toolsInFirstRow && !showEllipsisBeforeLastTool) || (index === toolsInFirstRow - 1 && showEllipsisBeforeLastTool));
+                            const canAddHideButton = toolsInFirstRow < tools.length && isToolsExpanded && index === tools.length - 1;
+
+                            return (
+                                <>
+                                    {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
+                                        <IconCommon
+                                            decorative
+                                            fill="background.textSecondary"
+                                            name="Ellipsis"
+                                        />
+                                    </ShowHideIconButton>}
+                                    <ToolChip
+                                        {...tool}
+                                        data-type="tool"
+                                        index={index}
+                                        key={`${tool.name}-${index}`}
+                                        onRemoveTool={onRemoveTool}
+                                        onToggleToolExclusive={onToggleToolExclusive}
+                                        onToggleTool={onToggleTool}
                                     />
-                                </ShowHideIconButton>}
-                            </>
-                        );
-                    })}
-                </Box>
+                                    {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
+                                        <IconCommon
+                                            decorative
+                                            fill="background.textSecondary"
+                                            name="Invisible"
+                                        />
+                                    </ShowHideIconButton>}
+                                </>
+                            );
+                        })}
+                    </Box>
+                )}
                 <Box flex={1} />
                 <Box display="flex" alignItems="center" gap={1} ml={1}>
-                    <MicrophoneButton
-                        fill={theme.palette.background.textSecondary}
-                        onTranscriptChange={handleTranscriptChange}
-                        disabled={false}
-                        height={iconHeight}
-                        width={iconWidth}
-                    />
-                    <Box
-                        display="inline-flex"
-                        position="relative"
-                        sx={verticalMiddleStyle}
-                    >
-                        <CircularProgress
-                            aria-label={maxChars ? `Character count progress: ${internalValue.length} of ${maxChars} characters used` : "Character count progress"}
-                            size={34}
-                            sx={progressStyle}
-                            value={charsProgress}
-                            variant="determinate"
+                    {mergedFeatures.allowVoiceInput && (
+                        <MicrophoneButton
+                            fill={theme.palette.background.textSecondary}
+                            onTranscriptChange={handleTranscriptChange}
+                            disabled={false}
+                            height={iconHeight}
+                            width={iconWidth}
                         />
-                        <Box
-                            top={0}
-                            left={0}
-                            bottom={0}
-                            right={0}
-                            position="absolute"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                        >
-                            {charsOverLimit > 0 && <Typography variant="caption" component="div">
-                                {charsOverLimit >= 1000 ? "99+" : charsOverLimit}
-                            </Typography>}
-                            {charsOverLimit <= 0 && <StyledIconButton
-                                bgColor={maxChars ?
-                                    "transparent" :
-                                    theme.palette.mode === "dark"
+                    )}
+                    {(mergedFeatures.allowCharacterLimit || mergedFeatures.allowSubmit) && (
+                        <>
+                            {/* Character limit and submit button combined UI */}
+                            {mergedFeatures.allowCharacterLimit && (
+                                <Box
+                                    display="inline-flex"
+                                    position="relative"
+                                    sx={verticalMiddleStyle}
+                                >
+                                    <CircularProgress
+                                        aria-label={maxChars ? `Character count progress: ${internalValue.length} of ${maxChars} characters used` : "Character count progress"}
+                                        size={34}
+                                        sx={progressStyle}
+                                        value={charsProgress}
+                                        variant="determinate"
+                                    />
+                                    <Box
+                                        top={0}
+                                        left={0}
+                                        bottom={0}
+                                        right={0}
+                                        position="absolute"
+                                        display="flex"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                    >
+                                        {charsOverLimit > 0 && <Typography variant="caption" component="div">
+                                            {charsOverLimit >= 1000 ? "99+" : charsOverLimit}
+                                        </Typography>}
+                                        {mergedFeatures.allowSubmit && charsOverLimit <= 0 && <StyledIconButton
+                                            bgColor="transparent"
+                                            disabled={!internalValue.trim() || charsOverLimit > 0}
+                                            onClick={handleSubmit}
+                                        >
+                                            <IconCommon
+                                                decorative
+                                                fill={!internalValue.trim()
+                                                    ? "background.textSecondary"
+                                                    : "background.textPrimary"
+                                                }
+                                                name="Send"
+                                            />
+                                        </StyledIconButton>}
+                                    </Box>
+                                </Box>
+                            )}
+
+                            {/* Submit button only (when character limit is disabled) */}
+                            {!mergedFeatures.allowCharacterLimit && mergedFeatures.allowSubmit && (
+                                <StyledIconButton
+                                    bgColor={theme.palette.mode === "dark"
                                         ? theme.palette.background.textPrimary
                                         : theme.palette.primary.main
-                                }
-                                disabled={!internalValue.trim() || charsOverLimit > 0}
-                                onClick={handleSubmit}
-                            >
-                                <IconCommon
-                                    decorative
-                                    fill={!internalValue.trim()
-                                        ? "background.textSecondary"
-                                        : maxChars
-                                            ? "background.textPrimary"
+                                    }
+                                    disabled={!internalValue.trim()}
+                                    onClick={handleSubmit}
+                                    sx={verticalMiddleStyle}
+                                >
+                                    <IconCommon
+                                        decorative
+                                        fill={!internalValue.trim()
+                                            ? "background.textSecondary"
                                             : theme.palette.mode === "dark"
                                                 ? "background.default"
                                                 : "primary.contrastText"
-                                    }
-                                    name="Send"
-                                />
-                            </StyledIconButton>}
-                        </Box>
-                    </Box>
+                                        }
+                                        name="Send"
+                                    />
+                                </StyledIconButton>
+                            )}
+                        </>
+                    )}
                 </Box>
             </Box>
 
             {/* Popup Menus */}
-            <PlusMenu
-                anchorEl={anchorPlus}
-                onClose={handleClosePlusMenu}
-                onAttachFile={handleAttachFile}
-                onConnectExternalApp={handleConnectExternalApp}
-                onTakePhoto={handleTakePhoto}
-                onAddRoutine={handleOpenFindRoutineDialog}
-            />
-            <InfoMemo
-                anchorEl={anchorSettings}
-                onClose={handleCloseInfoMemo}
-                enterWillSubmit={enterWillSubmit}
-                onToggleEnterWillSubmit={handleToggleEnterWillSubmit}
-                showToolbar={showToolbar}
-                onToggleToolbar={handleToggleToolbar}
-            />
-            <FindObjectDialog
-                find="List"
-                isOpen={isFindRoutineDialogOpen}
-                handleCancel={handleCloseFindRoutineDialog}
-                handleComplete={handleAddRoutine}
-                limitTo={findRoutineLimitTo}
-            />
+            {(mergedFeatures.allowFileAttachments ||
+                mergedFeatures.allowImageAttachments ||
+                mergedFeatures.allowTextAttachments) && (
+                    <PlusMenu
+                        anchorEl={anchorPlus}
+                        onClose={handleClosePlusMenu}
+                        onAttachFile={mergedFeatures.allowFileAttachments ? handleAttachFile : undefined}
+                        onConnectExternalApp={mergedFeatures.allowTools ? handleConnectExternalApp : undefined}
+                        onTakePhoto={mergedFeatures.allowImageAttachments ? handleTakePhoto : undefined}
+                        onAddRoutine={mergedFeatures.allowTools ? handleOpenFindRoutineDialog : undefined}
+                    />
+                )}
+            {mergedFeatures.allowSettingsCustomization && (
+                <InfoMemo
+                    anchorEl={anchorSettings}
+                    onClose={handleCloseInfoMemo}
+                    enterWillSubmit={enterWillSubmit}
+                    onToggleEnterWillSubmit={handleToggleEnterWillSubmit}
+                    showToolbar={showToolbar}
+                    onToggleToolbar={handleToggleToolbar}
+                />
+            )}
+            {mergedFeatures.allowTools && (
+                <FindObjectDialog
+                    find="List"
+                    isOpen={isFindRoutineDialogOpen}
+                    handleCancel={handleCloseFindRoutineDialog}
+                    handleComplete={handleAddRoutine}
+                    limitTo={findRoutineLimitTo}
+                />
+            )}
             {/* Add Context Dropdown */}
-            <ContextDropdown
-                anchorEl={dropdownAnchor}
-                onClose={handleCloseDropdown}
-                onSelect={handleSelectContext}
-                initialCategory={initialCategory}
-                searchText={searchText}
-                onSearchChange={setSearchText}
-            />
+            {mergedFeatures.allowContextDropdown && (
+                <ContextDropdown
+                    anchorEl={dropdownAnchor}
+                    onClose={handleCloseDropdown}
+                    onSelect={handleSelectContext}
+                    initialCategory={initialCategory}
+                    searchText={searchText}
+                    onSearchChange={setSearchText}
+                />
+            )}
         </Outer>
     );
 }
 
 export function AdvancedInput({
     name,
+    features,
     ...props
 }: AdvancedInputProps) {
     const [field, meta, helpers] = useField(name);
@@ -1490,6 +1562,7 @@ export function AdvancedInput({
         <AdvancedInputBase
             {...props}
             name={name}
+            features={features}
             value={field.value}
             error={meta.touched && !!meta.error}
             helperText={meta.touched && meta.error ? String(meta.error) : undefined}
@@ -1502,6 +1575,7 @@ export function AdvancedInput({
 export function TranslatedAdvancedInput({
     language,
     name,
+    features,
     ...props
 }: TranslatedAdvancedInputProps) {
     const [field, meta, helpers] = useField("translations");
@@ -1531,7 +1605,8 @@ export function TranslatedAdvancedInput({
         <AdvancedInputBase
             {...props}
             name={name}
-            value={typeof fieldValue === 'string' ? fieldValue : ""}
+            features={features}
+            value={typeof fieldValue === "string" ? fieldValue : ""}
             error={Boolean(fieldTouched && fieldError)}
             helperText={fieldTouched && fieldError ? String(fieldError) : undefined}
             onBlur={handleBlur}

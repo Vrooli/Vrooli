@@ -75,10 +75,56 @@ export type ContextItem = {
     file?: File;
 }
 
+/**
+ * Configuration interface for enabling/disabling AdvancedInput features
+ */
+export interface AdvancedInputFeatures {
+    // Input formatting features
+    allowFormatting?: boolean; // Controls the formatting toolbar visibility
+
+    // Size and expansion features
+    allowExpand?: boolean; // Allow expanding/collapsing the input
+
+    // Attachments and context
+    allowFileAttachments?: boolean; // Allow file attachments
+    allowImageAttachments?: boolean; // Allow image attachments
+    allowTextAttachments?: boolean; // Allow text snippet attachments
+    allowContextDropdown?: boolean; // Allow @ and / context triggers
+
+    // Tool integration
+    allowTools?: boolean; // Allow using tools 
+
+    // Submission features
+    allowCharacterLimit?: boolean; // Show character limit and progress
+    allowVoiceInput?: boolean; // Allow voice input
+    allowSubmit?: boolean; // Show submit button
+
+    // Settings
+    allowSettingsCustomization?: boolean; // Allow access to settings
+}
+
+/**
+ * Default features configuration with all features enabled
+ */
+export const DEFAULT_FEATURES: AdvancedInputFeatures = {
+    allowFormatting: true,
+    allowExpand: true,
+    allowFileAttachments: true,
+    allowImageAttachments: true,
+    allowTextAttachments: true,
+    allowContextDropdown: true,
+    allowTools: true,
+    allowCharacterLimit: true,
+    allowVoiceInput: true,
+    allowSubmit: true,
+    allowSettingsCustomization: true,
+};
+
 export type AdvancedInputBaseProps = {
     contextData: ContextItem[];
     disabled?: boolean;
     error?: boolean;
+    features?: AdvancedInputFeatures; // New prop for configuring component features
     helperText?: string;
     maxChars?: number;
     name: string;
@@ -239,7 +285,6 @@ export class MarkdownUtils {
 
     /**
      * Inserts or removes a markdown header from the specified position in the text.
-     * 
      * @param header - The header to insert or remove.
      * @param text - The full text from the input field.
      * @param start - The start index of the cursor/selection.
