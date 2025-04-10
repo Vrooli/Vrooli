@@ -1,109 +1,59 @@
-# Vrooli Tasks
+This file tracks and manages tasks, features, and improvements for the Vrooli project. Each task is designed for autonomous execution with clear deliverables and step-by-step instructions to ensure that if a task is picked using the “go” command, it can be completed with minimal clarification.
 
-This file tracks tasks, features, and improvements for the Vrooli project. Tasks are organized by status and priority.
+# Task Operations
 
-## 🤖 AI Actions and Prompts
+**organize:**  
+_Scan the unstructured tasks, extract key details, and reformat them using the task template. If any task lacks critical information, flag it for clarification._
 
-### 1. Organize Unstructured Tasks
-Use this prompt to convert unstructured tasks into properly formatted entries:
-```markdown
-Given the unstructured tasks:
-1. Analyze each task to determine:
-   - A clear, concise title
-   - Priority (HIGH/MEDIUM/LOW) based on impact and urgency
-   - Status (TODO/IN_PROGRESS/BLOCKED/DONE)
-   - Appropriate section (Active Tasks or Backlog)
-2. Break down tasks into clear deliverables
-3. Format using the task template
-4. Place in appropriate sections
-5. Remove from unstructured section
-6. If any task lacks critical information, ask for clarification
-```
+**reprioritize:**  
+_Review all tasks and adjust priorities based on business impact, technical urgency, dependencies, and current project goals. Provide brief justifications for changes, and reorder tasks accordingly._
 
-### 2. Reprioritize Tasks
-Use this prompt to review and adjust task priorities:
-```markdown
-Review all tasks and:
-1. Evaluate each task's priority based on:
-   - Business impact (high/medium/low)
-   - Technical urgency (high/medium/low)
-   - Dependencies on other tasks
-   - Current project goals
-2. Adjust priority levels (HIGH/MEDIUM/LOW)
-3. Reorder tasks within sections based on new priorities
-4. Provide brief justification for any priority changes
-5. Move tasks between Active and Backlog if needed
-```
+**suggest:**  
+_Identify gaps in technical infrastructure, user experience, documentation, testing, or security. Based on these gaps and dependencies, suggest new tasks formatted with the task template and add them for review._
 
-### 3. Suggest New Tasks
-Use this prompt to suggest new tasks based on existing ones:
-```markdown
-Analyze the current tasks and:
-1. Identify potential gaps in:
-   - Technical infrastructure
-   - User experience
-   - Documentation
-   - Testing coverage
-   - Security measures
-2. Consider dependencies of existing tasks
-3. Review industry best practices
-4. Suggest new tasks that would:
-   - Complement existing tasks
-   - Address identified gaps
-   - Improve project quality
-5. Format suggestions using the task template
-6. Add to unstructured section for review
-```
+**update:**  
+_Review each task's deliverables and progress indicators, update the status (TODO, IN_PROGRESS, BLOCKED, DONE), and reflect any new blockers or dependencies._
 
-### 4. Update Task Status
-Use this prompt to review and update task status:
-```markdown
-For each task:
-1. Review deliverables and completion criteria
-2. Check for:
-   - Completed deliverables
-   - Blocked items
-   - Dependencies
-   - Progress indicators
-3. Update status to reflect current state
-4. Move between sections if needed
-5. Add any new blockers or dependencies
-6. Update deliverable checkboxes
-```
+**cleanup:**  
+_Merge duplicate tasks, split tasks that are too large, and archive completed items. Ensure all task entries have consistent formatting and sufficient detail._
 
-### 5. Clean Up and Consolidate
-Use this prompt to maintain task list clarity:
-```markdown
-Review all tasks and:
-1. Identify and merge duplicate tasks
-2. Break down overly large tasks
-3. Remove or archive completed tasks
-4. Update outdated information
-5. Ensure consistent formatting
-6. Add missing details to incomplete entries
-7. Validate all task dependencies
-```
+**go:**  
+_Select a task from the backlog and transition it to active work. Begin by drafting a brief plan and then update the task’s status as work progresses._
 
-## 📄 Task Template
+**engage:**  
+_Prompt for user input or confirmation whenever process deviations or ambiguities are detected; record feedback for continuous improvement._
+
+---
+
+# Task Template
+
+Each task must follow this format:
+
 ```markdown
 ### [Task Title]
-Priority: [HIGH|MEDIUM/LOW]
-Status: [TODO/IN_PROGRESS/BLOCKED/DONE]
+Priority: [HIGH | MEDIUM | LOW]  
+Status: [TODO | IN_PROGRESS | BLOCKED | DONE]
+Dependencies: [None | string[]]
+ParentTask: [None | string[]]
 
-Description of the task and any relevant details.
+**Description:**  
+Brief explanation of the task including specific steps or deliverables required for completion.
 
-- [ ] Key deliverable 1
-- [ ] Key deliverable 2
-```
+**Key Deliverables:**
+- [ ] Deliverable 1
+- [ ] Deliverable 2
 
-## 📝 Unstructured Tasks
+---
 
-Add your unstructured tasks below this line:
--------------------------------------------------------------------------------
+# Unstructured Tasks
 
-## 🏃‍♂️ Active Tasks
+Add your unstructured tasks here:
 
-### Improve AI Agent Integration
+---
+
+# Active Tasks
+
+## Improve AI Agent Integration
 Priority: HIGH
 Status: IN_PROGRESS
 
@@ -114,9 +64,31 @@ Enhance the project's AI-readability and automation capabilities.
 - [x] Create TASKS.md for better task tracking
 - [ ] Enhance code documentation for better AI understanding
 
-## ⌚ Backlog
+# ⌚ Backlog
 
-### Team Schema Enhancement
+## Storybook Tests Initialization
+Priority: MEDIUM  
+Status: TODO
+
+**Description:**  
+Initialize storybook tests for multiple components following the established patterns in ApiView.stories.tsx and ApiUpsert.stories.tsx. Ensure that mocked data is realistic, accurate, and matches the correct type.
+
+**Key Deliverables:**
+- [ ] Create storybook test files for dataConverter component
+- [ ] Create storybook test files for dataStructure component
+- [ ] Create storybook test files for focusMode component
+- [ ] Create storybook test files for meeting component
+- [ ] Create storybook test files for memberInvite component
+- [ ] Create storybook test files for project component
+- [ ] Create storybook test files for prompt component
+- [ ] Create storybook test files for smartContract component
+- [ ] Create storybook test files for team component
+- [ ] Create storybook test files for user component
+- [ ] Configure session parameters for all test files
+- [ ] Set up MSW handlers for all required API routes
+- [ ] Implement route parameters for all test scenarios
+
+## Team Schema Enhancement
 Priority: HIGH
 Status: TODO
 
@@ -142,7 +114,7 @@ Improve the user experience and functionality of the authentication settings int
 - [ ] Add success/error notifications
 - [ ] Update authentication settings documentation
 
-### Enhanced Testing Infrastructure
+## Enhanced Testing Infrastructure
 Priority: MEDIUM
 Status: TODO
 
@@ -153,7 +125,7 @@ Improve the testing setup across all packages.
 - [ ] Add performance testing
 - [ ] Improve test documentation
 
-### Documentation Improvements
+## Documentation Improvements
 Priority: MEDIUM
 Status: TODO
 
@@ -166,7 +138,7 @@ Enhance project documentation for better developer and user experience.
 - [ ] Update main README to link to project-level tasks, docs, ARCHITECTURE.md, etc.
 - [ ] Enhance .env-example with detailed comments explaining each environment variable
 
-### Performance Optimization
+## Performance Optimization
 Priority: LOW
 Status: TODO
 
@@ -177,7 +149,7 @@ Optimize application performance and resource usage.
 - [ ] Add performance monitoring
 - [ ] Implement lazy loading where beneficial
 
-### Local Installation Support
+## Local Installation Support
 Priority: LOW
 Status: TODO
 

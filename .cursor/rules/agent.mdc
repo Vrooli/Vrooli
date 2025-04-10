@@ -3,26 +3,55 @@ description:
 globs: 
 alwaysApply: true
 ---
-You are Valyxa, a senior software engineer with superpowers! You are working on a revolutionary project called Vrooli, which is a web application designed to orchestrate teams of AI agents to perform complex tasks.
+You are working on *Vrooli*, an innovative web application that orchestrates AI agents for complex tasks. Follow these guidelines to ensure cohesive execution and continuous process improvement.
 
-# Agent Behavior
+1. Project Orientation
+- **Documentation Check:**  
+  - [README.md](mdc:README.md) Understand the project vision, roadmap, and overall requirements.  
+  - [ARCHITECTURE.md](mdc:ARCHITECTURE.md) and [TASKS.md](mdc:TASKS.md): Review project structure and task planning guidelines.
+- **Planning:**  
+  - Draft a brief plan before coding and await confirmation.
+- **Development Standards:**  
+  - Use ESM TypeScript for all code.
+  - Include comprehensive docstrings and clear comments on complex logic.
+  - Write unit tests using Mocha, Chai, and Sinon.
+  - Use relative imports with the `.js` extension, but remember when searching for files to use the typed counterpart (`.ts` or `.tsx`).
+- **Dependencies:**  
+  - **Never** install new packages without explicit permission!
+   
+2. Dynamic Task Management with Documentation Update
+- **A. Task Identification and Clarification**
+  - Analyze each new task description to classify it (debugging, UI component creation, refactoring, etc.) and ask clarifying questions if needed.
+- **B. Documentation Consultation & Integration**
+  - Search the `/docs` directory for an appropriate process guide based on the task type.
+  - If no guide exists, confirm whether to use default practices and consider creating one.
+- **C. Execution & Updates**
+  - Use file operations (read/write, search, grep) to retrieve and update process guides.
+  - If deviations from current guidelines occur, ask:  
+    “I’ve noted differences from our documented process. Update `/docs/<relevant-guide>.md`?”
 
-You should:
-- Check the [README.md](mdc:README.md) to best understand the project requirements, vision, and roadmap
-- Check the docs [README.md](mdc:docs/README.md) to see if there are any relavant docs for the current task you're working on, and read those for more information
-- Check [ARCHITECTURE.md](mdc:ARCHITECTURE.md) to learn more about the project structure
-- Check [TASKS.md](mdc:TASKS.md) when asked to work on current tasks, and refer to [TASKS.md](mdc:TASKS.md) when asked to do something later
-- Before coding, write a short plan.
-- Once approved, implement the plan in TypeScript.
-- If any docs you read should be updated, do so
-- Write unit tests for your code using Mocha, Chai, and Sinon.
-- Refer to the relevant package.json if you want to run a command
-...
+3. Feedback and Continuous Improvement
+- **Monitor Communication:**  
+  - Detect signs of frustration or terse commands. When detected, prompt:  
+    “It seems we might need to refine our process—shall we adjust the guidelines?”
+- **Session Retrospective:**  
+  - After completing a task, ask:  
+    “Do you have any suggestions or improvements for our process?”  
+  - Record actionable feedback to update [agent.mdc](mdc:.cursor/rules/agent.mdc) (this prompt) and/or documentation promptly.
 
-# General Code Standards
+4. Autonomous Task Commands
+- **organize:**  
+  - Scan [task.ts](mdc:packages/server/src/__tools/api/partial/task.ts) for unstructured tasks, extract key details (titles, priorities, statuses, deliverables), and reformat accordingly.
+- **reprioritize:**  
+  - Review all tasks, adjust priorities (HIGH/MEDIUM/LOW) based on impact, and justify changes briefly.
+- **suggest:**  
+  - Identify gaps (technical, UX, documentation, testing, security) and propose new tasks following the established template.
+- **update:**  
+  - Verify progress, update task statuses (TODO/IN_PROGRESS/BLOCKED/DONE), and log any new findings.
+- **cleanup:**  
+  - Merge duplicates, split overly large tasks, archive completed items, and confirm consistency in the task list.
+- **go:**
+  - Pick a task from the backlog and start working on it
+- **engage:**  
+  - Prompt: “Would you like me to review and update our task list or start working on a backlog item?” and wait for input.
 
-- Use ESM TypeScript for all `.ts` and `.tsx` files.
-- Write docstrings for all functions, classes, and methods, and helpful comments for complex logic. The code should be easy to understand.
-- Prefer writing relative imports with the `.js` file extension. But when searching for files, remember that you are probably looking for the uncompiled `.ts` or `.tsx` counterpart
-- NEVER install anything without getting permission first! We likely already have a package already that does what you want
-...
