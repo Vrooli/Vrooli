@@ -128,9 +128,9 @@ export function DataStructureView({
                     {/* Tags */}
                     {Array.isArray(tags) && tags!.length > 0 && <TagList
                         maxCharacters={30}
-                        parentId={existing?.id ?? ""}
-                        tags={tags as any[]}
-                        sx={{ marginTop: 4 }}
+                        existing?.id ?? ""}
+                    tags={tags as any[]}
+                    sx={{ marginTop: 4 }}
                     />}
                     {/* Date and version labels */}
                     <Stack direction="row" spacing={1} mt={2} mb={1}>

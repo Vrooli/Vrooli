@@ -15,6 +15,7 @@ import { BookmarkButtonProps } from "./types.js";
 const BookmarksLabel = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     marginLeft: theme.spacing(0.5),
+    verticalAlign: "text-bottom",
 }));
 
 export function BookmarkButton({
@@ -117,6 +118,8 @@ export function BookmarkButton({
             background: "transparent",
             cursor: disabled ? "not-allowed" : "pointer",
             pointerEvents: disabled ? "none" : "auto",
+            alignItems: "center",
+            padding: 0,
             ...sxs?.root,
         } as const;
     }, [disabled, sxs?.root]);
@@ -137,19 +140,31 @@ export function BookmarkButton({
                     aria-pressed={internalIsBookmarked === true}
                     component="button"
                     onClick={handleClick}
-                    sx={bookmarkButtonStyle}
+                    sx={{
+                        ...bookmarkButtonStyle,
+                        display: "inline-flex",
+                        alignItems: "center",
+                    }}
                 >
-                    <IconCommon
-                        decorative
-                        fill={fill}
-                        name={iconType}
-                        size={24}
-                    />
-                    {showBookmarks && typeof bookmarks === "number" && (
-                        <BookmarksLabel>
-                            {bookmarks}
-                        </BookmarksLabel>
-                    )}
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <IconCommon
+                            decorative
+                            fill={fill}
+                            name={iconType}
+                            size={24}
+                        />
+                        {showBookmarks && typeof bookmarks === "number" && (
+                            <BookmarksLabel
+                                variant="body2"
+                                sx={{
+                                    lineHeight: 1,
+                                    paddingTop: "2px"
+                                }}
+                            >
+                                {bookmarks}
+                            </BookmarksLabel>
+                        )}
+                    </Box>
                 </Box>
             </Tooltip>
         </>

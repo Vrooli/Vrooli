@@ -123,7 +123,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Api}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
                     <ApiUpsert display="page" isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Api}/:rootId/:versionId?`} {...props}>
+                <NavRoute path={`${LINKS.Api}/:rootId/:versionId?`} excludePageContainer {...props}>
                     <ApiView display="page" />
                 </NavRoute>
                 <NavRoute path={LINKS.Awards} excludePageContainer {...props}>

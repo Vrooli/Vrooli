@@ -182,7 +182,6 @@ export function SubroutineView({
                             {/* Tags */}
                             {exists(tags) && tags.length > 0 && <TagList
                                 maxCharacters={30}
-                                parentId={internalRoutineVersion?.id ?? ""}
                                 tags={tags as Tag[]}
                                 sx={tagListStyle}
                             />}

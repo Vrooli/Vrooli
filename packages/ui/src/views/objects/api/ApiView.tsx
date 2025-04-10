@@ -1,8 +1,10 @@
+import $RefParser from "@apidevtools/json-schema-ref-parser";
 import { ApiVersion, BookmarkFor, CodeLanguage, ResourceList as ResourceListType, Tag, endpointsApiVersion, getTranslation } from "@local/shared";
 import {
     Avatar,
     Box,
     Button,
+    Chip,
     Collapse,
     Container,
     Grid,
@@ -15,6 +17,7 @@ import {
     Typography,
     useTheme
 } from "@mui/material";
+import yaml from "js-yaml";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
@@ -27,11 +30,12 @@ import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js
 import { ResourceList } from "../../../components/lists/ResourceList/ResourceList.js";
 import { TagList } from "../../../components/lists/TagList/TagList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
+import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { IconCommon, IconFavicon } from "../../../icons/Icons.js";
+import { IconCommon, IconFavicon, IconRoutine } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ScrollBox } from "../../../styles.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
@@ -39,134 +43,80 @@ import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { ApiViewProps } from "./types.js";
 
-// Function to parse OpenAPI/Swagger schema
-const parseOpenAPISchema = (schemaText: string): any => {
+/**
+ * Function to parse and process API schemas in JSON or YAML format
+ * Supports OpenAPI/Swagger, AsyncAPI, and other schema formats
+ * Handles schema references ($ref) through json-schema-ref-parser
+ */
+const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
     try {
-        // For now, just try to parse as JSON
-        // When js-yaml is installed, this can be replaced with proper YAML parsing
-        if (typeof schemaText === 'string') {
-            try {
-                if (schemaText.trim().startsWith('{')) {
-                    // It's JSON
-                    return JSON.parse(schemaText);
-                } else {
-                    // It's YAML - for demo purposes, parse using mock OpenAPI data
-                    // This is a placeholder until js-yaml is installed
-                    const mockParsed = {
-                        openapi: "3.0.0",
-                        paths: {
-                            "/comments": {
-                                get: {
-                                    summary: "List all comments",
-                                    description: "Returns a list of comments",
-                                    parameters: [
-                                        {
-                                            name: "limit",
-                                            in: "query",
-                                            description: "Maximum number of items to return",
-                                            required: false
-                                        },
-                                        {
-                                            name: "offset",
-                                            in: "query",
-                                            description: "Number of items to skip",
-                                            required: false
-                                        }
-                                    ],
-                                    responses: {
-                                        "200": {
-                                            description: "A list of comments"
-                                        }
-                                    }
-                                },
-                                post: {
-                                    summary: "Create a new comment",
-                                    description: "Creates a new comment in the database",
-                                    responses: {
-                                        "201": {
-                                            description: "Comment created successfully"
-                                        },
-                                        "400": {
-                                            description: "Invalid input data"
-                                        }
-                                    }
-                                }
-                            },
-                            "/comments/{id}": {
-                                get: {
-                                    summary: "Get comment by ID",
-                                    description: "Returns a single comment",
-                                    parameters: [
-                                        {
-                                            name: "id",
-                                            in: "path",
-                                            description: "Comment ID",
-                                            required: true
-                                        }
-                                    ],
-                                    responses: {
-                                        "200": {
-                                            description: "A comment object"
-                                        },
-                                        "404": {
-                                            description: "Comment not found"
-                                        }
-                                    }
-                                },
-                                put: {
-                                    summary: "Update a comment",
-                                    description: "Updates an existing comment",
-                                    parameters: [
-                                        {
-                                            name: "id",
-                                            in: "path",
-                                            description: "Comment ID",
-                                            required: true
-                                        }
-                                    ],
-                                    responses: {
-                                        "200": {
-                                            description: "Comment updated successfully"
-                                        },
-                                        "404": {
-                                            description: "Comment not found"
-                                        }
-                                    }
-                                },
-                                delete: {
-                                    summary: "Delete a comment",
-                                    description: "Deletes an existing comment",
-                                    parameters: [
-                                        {
-                                            name: "id",
-                                            in: "path",
-                                            description: "Comment ID",
-                                            required: true
-                                        }
-                                    ],
-                                    responses: {
-                                        "204": {
-                                            description: "Comment deleted successfully"
-                                        },
-                                        "404": {
-                                            description: "Comment not found"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    };
-                    return mockParsed;
-                }
-            } catch (e) {
-                console.error('Error parsing schema:', e);
-                return null;
-            }
+        if (!schemaText || typeof schemaText !== 'string') {
+            console.error('Invalid schema text provided');
+            return null;
         }
-        return schemaText;
+
+        // Parse the schema based on format (JSON or YAML)
+        let parsedSchema;
+        try {
+            // Try parsing as JSON first
+            if (schemaText.trim().startsWith('{')) {
+                parsedSchema = JSON.parse(schemaText);
+            } else {
+                // If not JSON, try parsing as YAML
+                parsedSchema = yaml.load(schemaText);
+            }
+        } catch (e) {
+            console.error('Error parsing schema as JSON or YAML:', e);
+            return null;
+        }
+
+        if (!parsedSchema) {
+            console.error('Failed to parse schema');
+            return null;
+        }
+
+        // Identify schema type (OpenAPI, AsyncAPI, etc.)
+        const schemaType = identifySchemaType(parsedSchema);
+
+        // Dereference JSON schema references
+        try {
+            // This will resolve all $ref pointers in the schema
+            const dereferencedSchema = await $RefParser.dereference(parsedSchema, {
+                continueOnError: true, // Continue even if some references can't be resolved
+                dereference: {
+                    circular: true // Handle circular references
+                }
+            });
+
+            console.log(`Successfully dereferenced ${schemaType} schema`);
+            return dereferencedSchema;
+        } catch (e) {
+            console.error('Error dereferencing schema references:', e);
+            // If dereferencing fails, return the original parsed schema
+            return parsedSchema;
+        }
     } catch (error) {
-        console.error('Failed to parse schema:', error);
+        console.error('Failed to process schema:', error);
         return null;
+    }
+};
+
+/**
+ * Identifies the type of API schema (OpenAPI/Swagger, AsyncAPI, etc.)
+ */
+const identifySchemaType = (schema: any): string => {
+    if (!schema) return 'Unknown';
+
+    if (schema.openapi) {
+        return `OpenAPI ${schema.openapi}`;
+    } else if (schema.swagger) {
+        return `Swagger ${schema.swagger}`;
+    } else if (schema.asyncapi) {
+        return `AsyncAPI ${schema.asyncapi}`;
+    } else if (schema.jsonSchema) {
+        return `JSON Schema ${schema.jsonSchema}`;
+    } else {
+        return 'Generic API Schema';
     }
 };
 
@@ -179,7 +129,8 @@ const extractEndpoints = (schema: any): Array<{
     parameters?: any[];
     responses?: any;
 }> => {
-    if (!schema || !schema.paths) return [];
+    // Return empty array if schema is not valid
+    if (!schema) return [];
 
     const endpoints: Array<{
         method: string;
@@ -190,24 +141,89 @@ const extractEndpoints = (schema: any): Array<{
         responses?: any;
     }> = [];
 
-    // Loop through all paths and methods
-    Object.entries(schema.paths).forEach(([path, pathObj]: [string, any]) => {
-        Object.entries(pathObj).forEach(([method, methodObj]: [string, any]) => {
-            // Only include HTTP methods, not parameters like parameters, servers, etc.
-            if (['get', 'post', 'put', 'delete', 'patch', 'options', 'head'].includes(method.toLowerCase())) {
+    // Handle OpenAPI/Swagger format
+    if (schema.paths) {
+        // Loop through all paths and methods
+        Object.entries(schema.paths).forEach(([path, pathObj]: [string, any]) => {
+            Object.entries(pathObj).forEach(([method, methodObj]: [string, any]) => {
+                // Only include HTTP methods, not parameters like parameters, servers, etc.
+                if (['get', 'post', 'put', 'delete', 'patch', 'options', 'head'].includes(method.toLowerCase())) {
+                    endpoints.push({
+                        path,
+                        method: method.toUpperCase(),
+                        summary: methodObj.summary || '',
+                        description: methodObj.description,
+                        parameters: methodObj.parameters,
+                        responses: methodObj.responses
+                    });
+                }
+            });
+        });
+    }
+
+    // Handle AsyncAPI format
+    else if (schema.channels) {
+        // Loop through all channels
+        Object.entries(schema.channels).forEach(([path, channelObj]: [string, any]) => {
+            // Check for publish operations (subscriber perspective)
+            if (channelObj.publish) {
                 endpoints.push({
                     path,
-                    method: method.toUpperCase(),
-                    summary: methodObj.summary || '',
-                    description: methodObj.description,
-                    parameters: methodObj.parameters,
-                    responses: methodObj.responses
+                    method: 'SUBSCRIBE',
+                    summary: channelObj.publish.summary || '',
+                    description: channelObj.publish.description,
+                    parameters: extractAsyncApiParameters(channelObj),
+                    responses: {
+                        "message": {
+                            description: "Received message",
+                            payload: channelObj.publish.message?.payload
+                        }
+                    }
+                });
+            }
+
+            // Check for subscribe operations (publisher perspective)
+            if (channelObj.subscribe) {
+                endpoints.push({
+                    path,
+                    method: 'PUBLISH',
+                    summary: channelObj.subscribe.summary || '',
+                    description: channelObj.subscribe.description,
+                    parameters: extractAsyncApiParameters(channelObj),
+                    responses: {
+                        "message": {
+                            description: "Published message",
+                            payload: channelObj.subscribe.message?.payload
+                        }
+                    }
                 });
             }
         });
-    });
+    }
 
     return endpoints;
+};
+
+/**
+ * Helper function to extract parameters from AsyncAPI channels
+ */
+const extractAsyncApiParameters = (channelObj: any): any[] => {
+    const parameters: any[] = [];
+
+    // Extract parameters from channel parameters
+    if (channelObj.parameters) {
+        Object.entries(channelObj.parameters).forEach(([name, paramObj]: [string, any]) => {
+            parameters.push({
+                name,
+                in: 'path',
+                description: paramObj.description,
+                required: true,
+                schema: paramObj.schema
+            });
+        });
+    }
+
+    return parameters;
 };
 
 export function ApiView({
@@ -222,7 +238,8 @@ export function ApiView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
 
-    // State for endpoints and UI interaction
+    // State for schema type and endpoints
+    const [schemaType, setSchemaType] = useState<string>("Unknown");
     const [parsedEndpoints, setParsedEndpoints] = useState<Array<{
         method: string;
         path: string;
@@ -267,20 +284,31 @@ export function ApiView({
     useEffect(() => {
         if (!schemaText) return;
 
-        try {
-            const parsedSchema = parseOpenAPISchema(schemaText);
-            if (parsedSchema) {
-                const extractedEndpoints = extractEndpoints(parsedSchema);
-                setParsedEndpoints(extractedEndpoints);
+        // Create async function to use inside useEffect
+        const parseSchema = async () => {
+            try {
+                // Call the async parse function
+                const parsedSchema = await parseOpenAPISchema(schemaText);
+                if (parsedSchema) {
+                    const extractedEndpoints = extractEndpoints(parsedSchema);
+                    setParsedEndpoints(extractedEndpoints);
+
+                    // Determine and set the schema type
+                    const detectedType = identifySchemaType(parsedSchema);
+                    setSchemaType(detectedType);
+                }
+            } catch (error) {
+                console.error('Error parsing schema:', error);
             }
-        } catch (error) {
-            console.error('Error parsing schema:', error);
-        }
+        };
+
+        // Call the async function
+        parseSchema();
     }, [schemaText]);
 
     const resources = useMemo(() => (resourceList || permissions.canUpdate) ? (
         <ResourceList
-            horizontal={false}
+            horizontal
             list={resourceList as any}
             canUpdate={permissions.canUpdate}
             handleUpdate={(updatedList) => {
@@ -381,13 +409,6 @@ export function ApiView({
         }
     }, [callLink]);
 
-    // Mock data for the view - in a real implementation, this would come from the API
-    const mockMetrics = {
-        totalViews: apiVersion?.root?.views || 2314,
-        routinesCount: apiVersion?.root?.versionsCount || 392,
-        lastUpdated: apiVersion?.versionLabel || "1.0"
-    };
-
     // Get the tags from the API version's root
     const tags = useMemo(() => {
         return apiVersion?.root?.tags || [];
@@ -400,6 +421,7 @@ export function ApiView({
                     display={display}
                     onClose={onClose}
                     title={firstString(name, t("Api", { count: 1 }))}
+                    titleBehavior="Hide"
                 />
                 {/* Popup menu displayed when "More" ellipsis pressed */}
                 <ObjectActionMenu
@@ -430,36 +452,43 @@ export function ApiView({
 
                     <Container maxWidth="lg">
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems="center">
-                            {/* API Icon - use IconFavicon if callLink is a valid URL, otherwise use IconCommon */}
-                            <Avatar
-                                sx={{
-                                    backgroundColor: profileColors[0],
-                                    color: profileColors[1],
-                                    boxShadow: 2,
-                                    width: { xs: 80, sm: 100 },
-                                    height: { xs: 80, sm: 100 },
-                                    fontSize: { xs: 40, sm: 50 },
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                }}
-                            >
-                                {isValidUrl && callLink ? (
-                                    <IconFavicon
-                                        href={callLink}
-                                        size={40}
-                                        fallbackIcon={{ name: "Api", type: "Common" }}
-                                        decorative
-                                    />
-                                ) : (
+                            {/* API Icon - use IconFavicon directly if callLink is valid, otherwise use IconCommon in an Avatar */}
+                            {isValidUrl && callLink ? (
+                                <IconFavicon
+                                    href={callLink}
+                                    size={80}
+                                    fallbackIcon={{ name: "Api", type: "Common" }}
+                                    decorative
+                                    style={{
+                                        margin: 2, // Add a small margin to maintain consistent spacing with avatar
+                                    }}
+                                />
+                            ) : (
+                                <Avatar
+                                    sx={{
+                                        backgroundColor: profileColors[0],
+                                        color: profileColors[1],
+                                        boxShadow: 2,
+                                        width: { xs: 80, sm: 100 },
+                                        height: { xs: 80, sm: 100 },
+                                        fontSize: { xs: 40, sm: 50 },
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        "& svg": {
+                                            width: "85%",
+                                            height: "85%",
+                                        },
+                                    }}
+                                >
                                     <IconCommon
                                         decorative
                                         fill="white"
                                         name="Api"
-                                        size={40}
+                                        size={80}
                                     />
-                                )}
-                            </Avatar>
+                                </Avatar>
+                            )}
 
                             {/* API Title and Metadata */}
                             <Stack flex={1} spacing={1}>
@@ -492,19 +521,44 @@ export function ApiView({
 
                                         {/* Metrics */}
                                         <Stack
-                                            direction={{ xs: "column", sm: "row" }}
+                                            direction="row"
                                             spacing={{ xs: 1, sm: 4 }}
                                             mt={1}
                                         >
-                                            <Typography variant="body2" fontWeight="medium">
-                                                TOTAL VIEWS <Typography component="span" variant="h6" fontWeight="bold">{mockMetrics.totalViews}</Typography>
-                                            </Typography>
-                                            <Typography variant="body2" fontWeight="medium">
-                                                ROUTINES <Typography component="span" variant="h6" fontWeight="bold">{mockMetrics.routinesCount}</Typography>
-                                            </Typography>
-                                            <Typography variant="body2" fontWeight="medium">
-                                                LAST UPDATED <Typography component="span" variant="h6" fontWeight="bold">{mockMetrics.lastUpdated}</Typography>
-                                            </Typography>
+                                            <Tooltip title={t("View", { count: apiVersion?.root?.views || 0 })}>
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <IconCommon
+                                                        decorative
+                                                        name="Visible"
+                                                        size={20}
+                                                        fill={palette.background.textSecondary}
+                                                    />
+                                                    <Typography variant="body1" fontWeight="bold">
+                                                        {apiVersion?.root?.views || 0}
+                                                    </Typography>
+                                                </Stack>
+                                            </Tooltip>
+                                            <Tooltip title={t("Routine", { count: 0 })}>
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <IconRoutine
+                                                        decorative
+                                                        name="Routine"
+                                                        size={20}
+                                                        fill={palette.background.textSecondary}
+                                                    />
+                                                    <Typography variant="body1" fontWeight="bold">
+                                                        {apiVersion?.calledByRoutineVersionsCount || 0}
+                                                    </Typography>
+                                                </Stack>
+                                            </Tooltip>
+                                            <Tooltip title={t("Version")}>
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <Typography variant="body2" fontWeight="medium">v</Typography>
+                                                    <Typography variant="body1" fontWeight="bold">
+                                                        {apiVersion?.versionLabel || "1.0"}
+                                                    </Typography>
+                                                </Stack>
+                                            </Tooltip>
                                         </Stack>
 
                                         {/* Category Tags - Using TagList component */}
@@ -513,7 +567,6 @@ export function ApiView({
                                                 <TagList
                                                     tags={tags as Tag[]}
                                                     maxCharacters={200}
-                                                    parentId={apiVersion?.id || ""}
                                                     sx={{
                                                         maxWidth: "100%",
                                                         flexWrap: "wrap"
@@ -542,14 +595,45 @@ export function ApiView({
                     </Container>
                 </Box>
 
-                <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Container maxWidth="lg">
+                    {/* Details Section */}
+                    {details && (
+                        <Box mt={4}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e",
+                                    p: 3,
+                                    borderRadius: 2,
+                                }}
+                            >
+                                <MarkdownDisplay content={details} />
+                            </Paper>
+                        </Box>
+                    )}
+
+                    {resources && (
+                        <Box mt={4} m={2}>
+                            <Typography variant="h5" component="h2" fontWeight="bold" mb={2}>
+                                Resources
+                            </Typography>
+                            {resources}
+                        </Box>
+                    )}
                     {/* On desktop: Schema and Endpoints side by side. On mobile: Stacked */}
-                    <Grid container spacing={4}>
+                    <Grid container spacing={4} mt={4} mb={4}>
                         {/* Schema Section using CodeInputBase */}
                         <Grid item xs={12} md={isMobile ? 12 : 6}>
-                            <Typography variant="h5" component="h2" fontWeight="bold" mb={2}>
-                                Schema
-                            </Typography>
+                            <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                                <Typography variant="h5" component="h2" fontWeight="bold">
+                                    Schema
+                                </Typography>
+                                <Chip
+                                    label={schemaType}
+                                    color={schemaType.includes("Unknown") ? "default" : "primary"}
+                                    size="small"
+                                />
+                            </Stack>
                             {isLoading ? (
                                 <LinearProgress color="inherit" />
                             ) : (
@@ -613,7 +697,7 @@ export function ApiView({
                                                     </Typography>
                                                     <IconButton size="small">
                                                         <IconCommon
-                                                            name={expandedEndpoint === index ? "ArrowUp" : "ArrowDown"}
+                                                            name={expandedEndpoint === index ? "ArrowDropUp" : "ArrowDropDown"}
                                                             decorative
                                                             size={16}
                                                         />
@@ -678,9 +762,22 @@ export function ApiView({
                                         ))}
                                     </Stack>
                                 ) : (
-                                    <Typography variant="body2" color="text.secondary">
-                                        No endpoints found in schema or schema could not be parsed.
-                                    </Typography>
+                                    <Stack spacing={2} alignItems="center" p={2}>
+                                        <Typography variant="body1" color="text.secondary" align="center">
+                                            No endpoints found in the schema.
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary" align="center">
+                                            This could be because:
+                                        </Typography>
+                                        <Box component="ul" sx={{ color: 'text.secondary', mt: 0 }}>
+                                            <li>The schema format is not recognized (supported: OpenAPI, Swagger, AsyncAPI)</li>
+                                            <li>The schema doesn't contain any path or channel definitions</li>
+                                            <li>The schema contains syntax errors or invalid references</li>
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary" align="center">
+                                            Check the schema content and format to ensure it's valid.
+                                        </Typography>
+                                    </Stack>
                                 )}
                             </Paper>
 
@@ -765,16 +862,6 @@ export function ApiView({
                             )}
                         </Grid>
                     </Grid>
-
-                    {/* Resource List - if needed */}
-                    {resources && (
-                        <Box mt={4}>
-                            <Typography variant="h5" component="h2" fontWeight="bold" mb={2}>
-                                Resources
-                            </Typography>
-                            {resources}
-                        </Box>
-                    )}
                 </Container>
             </ScrollBox>
         </PageContainer>
@@ -794,6 +881,10 @@ function getMethodColor(method: string, mode: string): string {
             return mode === "light" ? "#f44336" : "#e57373"; // Red
         case "PATCH":
             return mode === "light" ? "#9c27b0" : "#ba68c8"; // Purple
+        case "PUBLISH":
+            return mode === "light" ? "#3f51b5" : "#7986cb"; // Indigo
+        case "SUBSCRIBE":
+            return mode === "light" ? "#009688" : "#4db6ac"; // Teal
         default:
             return mode === "light" ? "#9e9e9e" : "#e0e0e0"; // Gray
     }

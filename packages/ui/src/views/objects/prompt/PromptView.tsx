@@ -128,7 +128,6 @@ export function PromptView({
                     {/* Tags */}
                     {Array.isArray(tags) && tags!.length > 0 && <TagList
                         maxCharacters={30}
-                        parentId={existing?.id ?? ""}
                         tags={tags as any[]}
                         sx={{ marginTop: 4 }}
                     />}

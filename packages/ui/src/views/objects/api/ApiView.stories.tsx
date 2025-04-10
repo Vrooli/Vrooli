@@ -7,7 +7,8 @@ import { ApiView } from "./ApiView.js";
 const mockApiVersionData: ApiVersion = {
     __typename: "ApiVersion" as const,
     id: uuid(),
-    callLink: "https://api.example.com/v1",
+    calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
+    callLink: "https://reddit.com/v1",
     documentationLink: "https://docs.example.com/v1",
     directoryListings: [],
     isComplete: true,
@@ -16,7 +17,6 @@ const mockApiVersionData: ApiVersion = {
         __typename: "ResourceList" as const,
         id: uuid(),
         created_at: new Date().toISOString(),
-        listFor: ResourceListFor.ApiVersion,
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
             id: uuid(),

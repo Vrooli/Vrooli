@@ -97,6 +97,7 @@ export const iconNames = [
   "Grid",
   "Food",
   "FocusMode",
+  "Filter",
   "File",
   "Export",
   "ExpandMore",

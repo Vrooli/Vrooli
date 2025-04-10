@@ -5,10 +5,11 @@ import type { IconName as IconCommonName } from "./types/commonIcons.js";
 import type { IconName as IconRoutineName } from "./types/routineIcons.js";
 import type { IconName as IconServiceName } from "./types/serviceIcons.js";
 import type { IconName as IconTextName } from "./types/textIcons.js";
-import commonSpriteHref from "/sprites/common-sprite.svg";
-import routineSpriteHref from "/sprites/routine-sprite.svg";
-import serviceSpriteHref from "/sprites/service-sprite.svg";
-import textSpriteHref from "/sprites/text-sprite.svg";
+
+const commonSpriteHref = global.commonSpriteHref || "/sprites/common-sprite.svg";
+const routineSpriteHref = global.routineSpriteHref || "/sprites/routine-sprite.svg";
+const serviceSpriteHref = global.serviceSpriteHref || "/sprites/service-sprite.svg";
+const textSpriteHref = global.textSpriteHref || "/sprites/text-sprite.svg";
 
 const DEFAULT_SIZE_PX = 24;
 const DEFAULT_DECORATIVE = true;
@@ -186,21 +187,54 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
         domain = null; // Handle non-website URLs like "mailto:"
     }
 
+    // Create a favicon state outside conditional to avoid React Hook rules issues
+    const [currentSource, setCurrentSource] = React.useState(0);
+
     // If we have a valid domain, render an img element
     if (domain) {
         const finalSize = size ?? DEFAULT_SIZE_PX;
-        // Example: https://www.google.com/s2/favicons?domain=vrooli.com&sz=24
-        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=${finalSize}`;
+        const protocol = href.startsWith("https") ? "https://" : "http://";
+
+        // Create an array of favicon sources to try in order, from highest to lowest quality
+        const faviconSources = [
+            // Apple touch icon (often 180x180 or 192x192)
+            `${protocol}${domain}/apple-touch-icon.png`,
+            // Microsoft tile image (often 144x144)
+            `${protocol}${domain}/mstile-144x144.png`,
+            // Other common high-res favicon sizes
+            `${protocol}${domain}/favicon-196x196.png`,
+            `${protocol}${domain}/favicon-128x128.png`,
+            `${protocol}${domain}/favicon-96x96.png`,
+            // Standard favicon at root path
+            `${protocol}${domain}/favicon.ico`,
+            // DuckDuckGo icon service
+            `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+            // Google favicon service (as final fallback)
+            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+        ];
+
+        // Use a memoized function for handling errors to avoid recreation on each render
+        const handleIconError = React.useCallback(() => {
+            if (currentSource < faviconSources.length - 1) {
+                setCurrentSource(currentSource + 1);
+            }
+        }, [currentSource, faviconSources.length]);
+
         return (
             <img
                 ref={ref as React.Ref<HTMLImageElement>}
-                src={faviconUrl}
+                src={faviconSources[currentSource]}
                 width={finalSize}
                 height={finalSize}
-                style={style}
+                style={{
+                    objectFit: "contain",
+                    ...style,
+                }}
                 className={className}
                 aria-hidden={decorative && ariaHidden !== false ? "true" : undefined}
                 alt={!decorative ? ariaLabel : ""}
+                onError={handleIconError}
+                {...props}
             />
         );
     }

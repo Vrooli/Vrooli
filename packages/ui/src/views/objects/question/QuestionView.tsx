@@ -114,7 +114,6 @@ export function QuestionView({
                         />
                         {exists(tags) && tags.length > 0 && <TagList
                             maxCharacters={30}
-                            parentId={existing?.id ?? ""}
                             tags={tags as Tag[]}
                             sx={{ marginTop: 4 }}
                         />}
