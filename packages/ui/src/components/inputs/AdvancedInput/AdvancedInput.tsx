@@ -23,7 +23,7 @@ import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
 import { ContextDropdown, ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputFeatures, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [
@@ -105,6 +105,11 @@ const inputRowStyles: SxProps<Theme> = {
     mb: 1,
     px: 2, // additional left/right padding
     transition: "max-height 0.3s ease",
+};
+
+const titleStyles: SxProps<Theme> = {
+    px: 2,
+    mb: 1,
 };
 
 const bottomRowStyles: SxProps<Theme> = {
@@ -633,10 +638,13 @@ PlusMenu.displayName = "PlusMenu";
 interface InfoMemoProps {
     anchorEl: HTMLElement | null;
     enterWillSubmit: boolean;
+    mergedFeatures: AdvancedInputFeatures;
     onClose: () => void;
     onToggleEnterWillSubmit: () => void;
     onToggleToolbar: () => void;
+    onToggleSpellcheck: () => void;
     showToolbar: boolean;
+    spellcheck: boolean;
 }
 
 const infoMenuAnchorOrigin = { vertical: "bottom", horizontal: "left" } as const;
@@ -654,10 +662,13 @@ const infoMemoTipData = {
 const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
     anchorEl,
     enterWillSubmit,
+    mergedFeatures,
     onClose,
     onToggleEnterWillSubmit,
     onToggleToolbar,
+    onToggleSpellcheck,
     showToolbar,
+    spellcheck,
 }: InfoMemoProps) => {
     const theme = useTheme();
 
@@ -702,19 +713,36 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
                 />
             </MenuItem>
 
-            <MenuItem>
-                <ListItemText
-                    primary="Show formatting toolbar"
-                    secondary="Display text formatting options above the input area."
-                    secondaryTypographyProps={secondaryTypographyProps}
-                />
-                <Switch
-                    edge="end"
-                    checked={showToolbar}
-                    onChange={onToggleToolbar}
-                    color="secondary"
-                />
-            </MenuItem>
+            {mergedFeatures.allowFormatting && (
+                <MenuItem>
+                    <ListItemText
+                        primary="Show formatting toolbar"
+                        secondary="Display text formatting options above the input area."
+                        secondaryTypographyProps={secondaryTypographyProps}
+                    />
+                    <Switch
+                        edge="end"
+                        checked={showToolbar}
+                        onChange={onToggleToolbar}
+                        color="secondary"
+                    />
+                </MenuItem>
+            )}
+            {mergedFeatures.allowSpellcheck && (
+                <MenuItem>
+                    <ListItemText
+                        primary="Enable spellcheck"
+                        secondary="When enabled, the browser will check for spelling errors in the input."
+                        secondaryTypographyProps={secondaryTypographyProps}
+                    />
+                    <Switch
+                        edge="end"
+                        checked={spellcheck}
+                        onChange={onToggleSpellcheck}
+                        color="secondary"
+                    />
+                </MenuItem>
+            )}
             <Divider sx={dividerStyle} />
             <Box px={2}>
                 <FormTip
@@ -768,8 +796,8 @@ async function getFilesFromEvent(event: any): Promise<(File | DataTransferItem)[
 
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function AdvancedInputBase({
-    tools,
-    contextData,
+    tools = [],
+    contextData = [],
     maxChars,
     value,
     disabled = false,
@@ -785,11 +813,15 @@ export function AdvancedInputBase({
     onSubmit,
     placeholder,
     tabIndex,
+    title,
 }: AdvancedInputBaseProps) {
     const theme = useTheme();
 
     // Merge with default features to ensure all properties exist
-    const mergedFeatures = useMemo(() => ({ ...DEFAULT_FEATURES, ...features }), [features]);
+    const mergedFeatures = useMemo(() => ({
+        ...DEFAULT_FEATURES,
+        ...features,
+    }), [features]);
 
     // Add dropdown state
     const [dropdownAnchor, setDropdownAnchor] = useState<HTMLElement | null>(null);
@@ -816,6 +848,7 @@ export function AdvancedInputBase({
 
     // Settings state from localStorage with toolbar visibility handling
     const [settings, setSettings] = useState(() => getCookie("AdvancedInputSettings"));
+    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookie("ShowMarkdown"));
 
     // Derived value - showToolbar is forced true when formatting is allowed but settings customization is not
     const showToolbar = useMemo(() => {
@@ -825,7 +858,17 @@ export function AdvancedInputBase({
         return settings.showToolbar;
     }, [mergedFeatures.allowSettingsCustomization, mergedFeatures.allowFormatting, settings.showToolbar]);
 
-    const { enterWillSubmit } = settings;
+    // Determine if we should use markdown editor
+    const useMarkdownEditor = useMemo(() => {
+        // When both settings customization and formatting are disabled, always use markdown
+        if (!mergedFeatures.allowFormatting) {
+            return true;
+        }
+        // Otherwise, use markdown if it's enabled or toolbar is hidden
+        return isMarkdownOn || !showToolbar;
+    }, [mergedFeatures.allowFormatting, isMarkdownOn, showToolbar]);
+
+    const { enterWillSubmit, spellcheck } = settings;
 
     // Settings toggles
     const handleToggleEnterWillSubmit = useCallback(() => {
@@ -850,6 +893,15 @@ export function AdvancedInputBase({
         setSettings(newSettings);
         setCookie("AdvancedInputSettings", newSettings);
     }, [settings, mergedFeatures.allowSettingsCustomization, mergedFeatures.allowFormatting]);
+
+    const handleToggleSpellcheck = useCallback(() => {
+        const newSettings = {
+            ...settings,
+            spellcheck: !settings.spellcheck,
+        };
+        setSettings(newSettings);
+        setCookie("AdvancedInputSettings", newSettings);
+    }, [settings]);
 
     // Add dropzone functionality
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -1072,7 +1124,6 @@ export function AdvancedInputBase({
         return progressStyle;
     }, [charsOverLimit, charsProgress, theme.palette.error.main, theme.palette.success.main, theme.palette.warning.main]);
 
-    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookie("ShowMarkdown"));
     const toggleMarkdown = useCallback(() => {
         if (mergedFeatures.allowFormatting) {
             setIsMarkdownOn(!isMarkdownOn);
@@ -1188,19 +1239,30 @@ export function AdvancedInputBase({
         redo,
     }), [internalValue, changeInternalValue, undo, redo]);
 
+    // Create spellcheck-aware feature objects to pass to children
+    const mergedFeaturesWithSpellcheck = useMemo(() => ({
+        ...mergedFeatures,
+        allowSpellcheck: mergedFeatures.allowSpellcheck && spellcheck,
+    }), [mergedFeatures, spellcheck]);
+
+    const MarkdownFeatures = useMemo(() => mergedFeaturesWithSpellcheck, [mergedFeaturesWithSpellcheck]);
+    const LexicalFeatures = useMemo(() => mergedFeaturesWithSpellcheck, [mergedFeaturesWithSpellcheck]);
+
     const MarkdownComponent = useMemo(() => (
         <AdvancedInputMarkdown
             {...stableViewProps}
             {...dynamicViewProps}
+            mergedFeatures={MarkdownFeatures}
         />
-    ), [stableViewProps, dynamicViewProps]);
+    ), [stableViewProps, dynamicViewProps, MarkdownFeatures]);
 
     const LexicalComponent = useMemo(() => (
         <AdvancedInputLexical
             {...stableViewProps}
             {...dynamicViewProps}
+            mergedFeatures={LexicalFeatures}
         />
-    ), [stableViewProps, dynamicViewProps]);
+    ), [stableViewProps, dynamicViewProps, LexicalFeatures]);
 
     // Add dropdown handlers
     const handleContextTrigger = useCallback((triggerChar: string) => {
@@ -1297,6 +1359,7 @@ export function AdvancedInputBase({
                             decorative
                             fill="background.textSecondary"
                             name="Settings"
+                            size={20}
                         />
                     </IconButton>
                 )}
@@ -1344,6 +1407,14 @@ export function AdvancedInputBase({
                     />
                 ))}
             </Box>}
+            {/* Title Section */}
+            {title && (
+                <Box sx={titleStyles}>
+                    <Typography variant="subtitle1" fontWeight="medium" color="text.secondary">
+                        {title}
+                    </Typography>
+                </Box>
+            )}
             {/* Input Area */}
             <Box sx={inputRowStyles}>
                 <Box
@@ -1351,7 +1422,7 @@ export function AdvancedInputBase({
                     maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
                     overflow="auto"
                 >
-                    {isMarkdownOn || !showToolbar ? MarkdownComponent : LexicalComponent}
+                    {useMarkdownEditor ? MarkdownComponent : LexicalComponent}
                 </Box>
             </Box>
 
@@ -1518,9 +1589,12 @@ export function AdvancedInputBase({
                     anchorEl={anchorSettings}
                     onClose={handleCloseInfoMemo}
                     enterWillSubmit={enterWillSubmit}
+                    mergedFeatures={mergedFeatures}
                     onToggleEnterWillSubmit={handleToggleEnterWillSubmit}
                     showToolbar={showToolbar}
                     onToggleToolbar={handleToggleToolbar}
+                    onToggleSpellcheck={handleToggleSpellcheck}
+                    spellcheck={spellcheck}
                 />
             )}
             {mergedFeatures.allowTools && (

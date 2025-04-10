@@ -43,6 +43,7 @@ type TablePopoverProps = {
 
 export const TOOLBAR_CLASS_NAME = "advanced-input-toolbar";
 const SHOW_MINIMAL_VIEW_AT_PX = 375;
+const ICON_SIZE = 20;
 
 export const defaultActiveStates: Omit<AdvancedInputActiveStates, "SetValue"> = {
     Bold: false,
@@ -491,7 +492,7 @@ export function AdvancedInputToolbar({
     const headerItems = useMemo(() => {
         return preHeaderItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
             action,
-            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} size={ICON_SIZE} />,
             label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
         }));
     }, [t]);
@@ -499,7 +500,7 @@ export function AdvancedInputToolbar({
     const formatItems = useMemo(() => {
         return preFormatItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
             action,
-            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} size={ICON_SIZE} />,
             label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
         }));
     }, [t]);
@@ -507,7 +508,7 @@ export function AdvancedInputToolbar({
     const listItems = useMemo(() => {
         return preListItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
             action,
-            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} size={ICON_SIZE} />,
             label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
         }));
     }, [t]);
@@ -515,7 +516,7 @@ export function AdvancedInputToolbar({
     const combinedItems = useMemo(() => {
         return preCombinedItems.map(({ action, iconInfo, labelKey, keyCombo }) => ({
             action,
-            icon: <Icon fill="background.textSecondary" info={iconInfo} />,
+            icon: <Icon fill="background.textSecondary" info={iconInfo} size={ICON_SIZE} />,
             label: keyCombo ? `${t(labelKey)} (${keyCombo})` : t(labelKey),
         }));
     }, [t]);
@@ -540,6 +541,7 @@ export function AdvancedInputToolbar({
                         decorative
                         fill="background.textSecondary"
                         name="Header"
+                        size={ICON_SIZE}
                     />}
                     isActive={activeStates.Header1 || activeStates.Header2 || activeStates.Header3}
                     label={t("HeaderInsert")}
@@ -564,6 +566,7 @@ export function AdvancedInputToolbar({
                                 decorative
                                 fill="background.textSecondary"
                                 name="CaseSensitive"
+                                size={ICON_SIZE}
                             />}
                             label={t("TextFormat")}
                             onClick={openCombinedSelect}
@@ -590,6 +593,7 @@ export function AdvancedInputToolbar({
                                         decorative
                                         fill="background.textSecondary"
                                         name="CaseSensitive"
+                                        size={ICON_SIZE}
                                     />}
                                     isActive={activeStates.Bold || activeStates.Italic || activeStates.Underline || activeStates.Strikethrough || activeStates.Spoiler}
                                     label={t("TextFormat")}
@@ -630,6 +634,7 @@ export function AdvancedInputToolbar({
                                 decorative
                                 fill="background.textSecondary"
                                 name="Link"
+                                size={ICON_SIZE}
                             />}
                             label={`${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "k")})`}
                             onClick={handleToggleLink}
@@ -642,6 +647,7 @@ export function AdvancedInputToolbar({
                                 decorative
                                 fill="background.textSecondary"
                                 name="List"
+                                size={ICON_SIZE}
                             />}
                             isActive={activeStates.ListBullet || activeStates.ListNumber || activeStates.ListCheckbox}
                             label={t("ListInsert")}
@@ -663,6 +669,7 @@ export function AdvancedInputToolbar({
                                 decorative
                                 fill="background.textSecondary"
                                 name="Table"
+                                size={ICON_SIZE}
                             />}
                             label={t("TableInsert")}
                             onClick={openTableSelect}
@@ -689,6 +696,7 @@ export function AdvancedInputToolbar({
                             decorative
                             fill="background.textSecondary"
                             name="Undo"
+                            size={ICON_SIZE}
                         />}
                         label={`${t("Undo")} (${keyComboToString("Ctrl", "z")})`}
                         onClick={handleToggleUndo}
@@ -701,6 +709,7 @@ export function AdvancedInputToolbar({
                             decorative
                             fill="background.textSecondary"
                             name="Redo"
+                            size={ICON_SIZE}
                         />}
                         label={`${t("Redo")} (${keyComboToString("Ctrl", "y")})`}
                         onClick={handleToggleRedo}

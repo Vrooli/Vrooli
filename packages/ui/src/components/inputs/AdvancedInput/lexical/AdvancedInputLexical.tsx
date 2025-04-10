@@ -229,7 +229,7 @@ export function ContentEditable({
 const LoadingPlaceholderBox = styled(Box)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     position: "absolute",
-    padding: `${PADDING_HEIGHT_PX}px 14px`,
+    padding: 0,
     pointerEvents: "none",
     top: 0,
     left: 0,
@@ -251,6 +251,7 @@ export function AdvancedInputLexicalComponents({
     tabIndex,
     undo,
     value,
+    mergedFeatures,
 }: AdvancedInputLexicalProps) {
     const { palette, typography } = useTheme();
     const editor = useLexicalComposerContext();
@@ -469,7 +470,7 @@ export function AdvancedInputLexicalComponents({
         return {
             position: "relative",
             display: "grid",
-            padding: `${PADDING_HEIGHT_PX}px 14px`,
+            padding: 0,
             minWidth: "-webkit-fill-available",
             maxWidth: "-webkit-fill-available",
             borderRadius: "0 0 4px 4px",
@@ -482,12 +483,13 @@ export function AdvancedInputLexicalComponents({
             overflow: "auto",
             backgroundColor: "transparent",
             color: palette.text.primary,
-            border: `1px solid ${palette.divider}`,
+            border: "none",
             "&:hover": {
-                border: `1px solid ${palette.background.textPrimary}`,
+                border: "none",
             },
             "&:focus-within": {
-                border: `2px solid ${palette.primary.main}`,
+                border: "none",
+                outline: "none",
             },
             "& .RichInput__textCode": {
                 backgroundColor: palette.grey[100],
@@ -722,7 +724,9 @@ export function AdvancedInputLexicalComponents({
                         outline: "none",
                         resize: "none",
                         overflow: "auto",
+                        border: "none",
                     } as CSSProperties}
+                    spellCheck={mergedFeatures?.allowSpellcheck !== false}
                 />}
             />
             {(!editor || (typeof value === "string" && value.length === 0)) && <LoadingPlaceholderBox>
@@ -742,6 +746,7 @@ export function AdvancedInputLexicalComponents({
 export function AdvancedInputLexical({
     disabled,
     value,
+    mergedFeatures,
     ...props
 }: AdvancedInputLexicalProps) {
 
@@ -770,7 +775,7 @@ export function AdvancedInputLexical({
 
     return (
         <LexicalComposerContext.Provider value={editor}>
-            <AdvancedInputLexicalComponents value={value} {...props} />
+            <AdvancedInputLexicalComponents value={value} mergedFeatures={mergedFeatures} {...props} />
         </LexicalComposerContext.Provider>
     );
 }

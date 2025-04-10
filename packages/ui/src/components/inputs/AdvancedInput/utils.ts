@@ -99,6 +99,9 @@ export interface AdvancedInputFeatures {
     allowVoiceInput?: boolean; // Allow voice input
     allowSubmit?: boolean; // Show submit button
 
+    // Editor behaviors
+    allowSpellcheck?: boolean; // Enable spellchecking in the editor
+
     // Settings
     allowSettingsCustomization?: boolean; // Allow access to settings
 }
@@ -117,11 +120,12 @@ export const DEFAULT_FEATURES: AdvancedInputFeatures = {
     allowCharacterLimit: true,
     allowVoiceInput: true,
     allowSubmit: true,
+    allowSpellcheck: true,
     allowSettingsCustomization: true,
 };
 
 export type AdvancedInputBaseProps = {
-    contextData: ContextItem[];
+    contextData?: ContextItem[];
     disabled?: boolean;
     error?: boolean;
     features?: AdvancedInputFeatures; // New prop for configuring component features
@@ -129,7 +133,8 @@ export type AdvancedInputBaseProps = {
     maxChars?: number;
     name: string;
     placeholder?: string;
-    tools: Tool[];
+    title?: string; // Optional title to display above the input area
+    tools?: Tool[];
     value: string;
     onBlur?: (event: any) => unknown;
     onChange: (value: string) => unknown;
@@ -153,6 +158,7 @@ interface AdvancedInputChildProps extends Pick<AdvancedInputBaseProps, "disabled
     enterWillSubmit: boolean;
     maxRows: number;
     minRows: number;
+    mergedFeatures?: AdvancedInputFeatures;
     onActiveStatesChange: (activeStates: AdvancedInputActiveStates) => unknown;
     redo: () => unknown;
     setHandleAction: (handleAction: (action: AdvancedInputAction, data?: unknown) => unknown) => unknown;

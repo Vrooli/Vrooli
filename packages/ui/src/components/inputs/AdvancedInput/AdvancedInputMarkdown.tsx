@@ -17,7 +17,7 @@ const textareaStyle = {
     border: "none",
     color: "inherit",
     width: "100%",
-    padding: "8px 12px",
+    padding: 0,
     margin: 0,
     fontFamily: "inherit",
     fontSize: `${PIXELS_PER_EM}px`,
@@ -50,6 +50,7 @@ export function AdvancedInputMarkdown({
     toggleMarkdown,
     undo,
     value,
+    mergedFeatures,
 }: AdvancedInputMarkdownProps) {
     console.log("rendering RichInputMarkdown", maxRows, minRows, value.length);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -216,7 +217,7 @@ export function AdvancedInputMarkdown({
                 onChange={handleChange}
                 tabIndex={tabIndex}
                 ref={textAreaRef}
-                spellCheck
+                spellCheck={mergedFeatures?.allowSpellcheck}
                 style={textareaStyle}
             />
         </div>

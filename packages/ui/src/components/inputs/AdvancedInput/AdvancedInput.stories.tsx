@@ -45,6 +45,10 @@ const buttonsContainerStyle = {
 // Helper text style used in various places
 const helperTextStyle = { mt: 1 } as const;
 
+// Minimal props story styles
+const minimalTitleStyle = { mb: 2 } as const;
+const minimalDescriptionStyle = { mb: 2 } as const;
+
 // Feature toggle UI styles
 const featureBoxStyle = {
     display: "flex",
@@ -563,6 +567,7 @@ export function Default() {
 export function FormikExample() {
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
+    const [title, setTitle] = useState<string | undefined>("Feedback Form");
     const [features] = useState<AdvancedInputFeatures>({
         ...DEFAULT_FEATURES,
         allowTools: false,
@@ -698,6 +703,11 @@ export function FormikExample() {
                     action("toggleHelperText")(!!helperText);
                 }
 
+                function toggleTitle() {
+                    setTitle(title ? undefined : "Feedback Form");
+                    action("toggleTitle")(!!title);
+                }
+
                 function clearAll() {
                     setValues({ message: "" });
                     setPlaceholder("Enter your message here...");
@@ -725,12 +735,18 @@ export function FormikExample() {
                             hasPlaceholder={!!placeholder}
                             hasHelperText={!!helperText}
                         />
+                        <Box mb={2}>
+                            <Button variant="outlined" onClick={toggleTitle} sx={{ mr: 1 }}>
+                                {title ? "Remove Title" : "Add Title"}
+                            </Button>
+                        </Box>
                         <ValueDisplay value={values.message} />
                         <AdvancedInput
                             name="message"
                             tools={mockSomeTools}
                             contextData={mockContextData}
                             placeholder={placeholder}
+                            title={title}
                             features={features}
                         />
                         {helperText && (
@@ -751,6 +767,7 @@ export function FormikExample() {
 export function TranslatedExample() {
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
+    const [title, setTitle] = useState<string | undefined>("Translated Feedback");
     const [features] = useState<AdvancedInputFeatures>({
         ...DEFAULT_FEATURES,
         allowTools: false,
@@ -888,6 +905,11 @@ export function TranslatedExample() {
                     action("toggleHelperText")(!!helperText);
                 }
 
+                function toggleTitle() {
+                    setTitle(title ? undefined : "Translated Feedback");
+                    action("toggleTitle")(!!title);
+                }
+
                 function clearAll() {
                     setValues({
                         translations: [
@@ -920,6 +942,13 @@ export function TranslatedExample() {
                             hasPlaceholder={!!placeholder}
                             hasHelperText={!!helperText}
                         />
+
+                        <Box sx={{ mb: 2 }}>
+                            <Button variant="outlined" onClick={toggleTitle} sx={{ mr: 1 }}>
+                                {title ? "Remove Title" : "Add Title"}
+                            </Button>
+                        </Box>
+
                         <Box display="flex" flexDirection="column" gap={2}>
                             <Typography variant="h6" color="textSecondary">English</Typography>
                             <ValueDisplay value={values.translations[0].message} />
@@ -929,6 +958,7 @@ export function TranslatedExample() {
                                 tools={mockSomeTools}
                                 contextData={mockContextData}
                                 placeholder={placeholder}
+                                title={title}
                                 features={features}
                             />
                             {helperText && (
@@ -944,6 +974,7 @@ export function TranslatedExample() {
                                 tools={mockSomeTools}
                                 contextData={mockContextData}
                                 placeholder={placeholder}
+                                title={title ? `${title} (Español)` : undefined}
                                 features={features}
                             />
                             {helperText && (
@@ -1015,6 +1046,7 @@ export function Features() {
             allowCharacterLimit: true,
             allowVoiceInput: false,
             allowSubmit: true,
+            allowSpellcheck: true,
             allowSettingsCustomization: false,
         });
     }
@@ -1031,6 +1063,7 @@ export function Features() {
             allowCharacterLimit: true,
             allowVoiceInput: false,
             allowSubmit: false,
+            allowSpellcheck: true,
             allowSettingsCustomization: false,
         });
     }
@@ -1247,6 +1280,22 @@ export function Features() {
                             label="Allow Settings Customization"
                         />
                     </Box>
+
+                    {/* Editor Behavior */}
+                    <Box sx={featureGroupStyle}>
+                        <Typography sx={featureGroupTitleStyle}>Editor Behavior</Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={features.allowSpellcheck}
+                                    onChange={handleFeatureToggleCb("allowSpellcheck")}
+                                    color="primary"
+                                    size="small"
+                                />
+                            }
+                            label="Enable Spellchecking"
+                        />
+                    </Box>
                 </Box>
             </Box>
 
@@ -1279,6 +1328,101 @@ export function Features() {
                     {JSON.stringify(features, null, 2)}
                 </Box>
             </Box>
+        </>
+    );
+}
+
+/**
+ * MinimalProps: demonstrates using AdvancedInput with minimal required props
+ */
+export function MinimalProps() {
+    const [message, setMessage] = useState("");
+
+    function handleMessageChange(newMessage: string) {
+        setMessage(newMessage);
+        action("onChange")(newMessage);
+    }
+
+    function handleSubmit(msg: string) {
+        action("onSubmit")(msg);
+        setMessage("");
+    }
+
+    return (
+        <>
+            <Typography variant="h6" color="textSecondary" sx={minimalTitleStyle}>
+                Minimal Props
+            </Typography>
+
+            <Typography variant="body2" color="textSecondary" sx={minimalDescriptionStyle}>
+                This example demonstrates using AdvancedInput with only the required props,
+                omitting optional props like tools and contextData.
+            </Typography>
+
+            <ValueDisplay value={message} />
+
+            <AdvancedInputBase
+                name="message"
+                onChange={handleMessageChange}
+                onSubmit={handleSubmit}
+                value={message}
+                placeholder="Type here..."
+            />
+        </>
+    );
+}
+
+/**
+ * Title Example: demonstrates using AdvancedInput with a title
+ */
+export function WithTitle() {
+    const [message, setMessage] = useState("");
+    const [title, setTitle] = useState("Enter your feedback below");
+
+    function handleMessageChange(newMessage: string) {
+        setMessage(newMessage);
+        action("onChange")(newMessage);
+    }
+
+    function handleSubmit(msg: string) {
+        action("onSubmit")(msg);
+        setMessage("");
+    }
+
+    function toggleTitle() {
+        setTitle(title ? "" : "Enter your feedback below");
+    }
+
+    return (
+        <>
+            <Typography variant="h6" color="textSecondary" sx={minimalTitleStyle}>
+                AdvancedInput with Title
+            </Typography>
+
+            <Typography variant="body2" color="textSecondary" sx={minimalDescriptionStyle}>
+                This example demonstrates using AdvancedInput with a title above the input field.
+            </Typography>
+
+            <Box sx={{ mb: 2 }}>
+                <Button variant="outlined" onClick={toggleTitle}>
+                    {title ? "Remove Title" : "Add Title"}
+                </Button>
+            </Box>
+
+            <ValueDisplay value={message} />
+
+            <AdvancedInputBase
+                name="message"
+                title={title}
+                onChange={handleMessageChange}
+                onSubmit={handleSubmit}
+                value={message}
+                placeholder="Type here..."
+                features={{
+                    ...DEFAULT_FEATURES,
+                    allowTools: false,
+                }}
+            />
         </>
     );
 }

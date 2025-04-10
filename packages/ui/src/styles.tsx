@@ -87,15 +87,12 @@ export const SlideImage = styled("img")(({ theme }) => ({
 }));
 
 export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">, variant: "card" | "transparent" = "card") {
-    let background: string | undefined;
-    if (variant === "card") {
-        background = theme.palette.background.paper;
-    }
     return {
         overflowX: "auto",
         gap: theme.spacing(2),
         padding: theme.spacing(2),
-        background,
+        background: variant === "card" ? theme.palette.background.paper : "transparent",
+        border: variant === "card" ? "none" : `1px solid ${theme.palette.divider}`,
         borderRadius: theme.spacing(1),
         flexDirection: "column",
         "@media print": {
