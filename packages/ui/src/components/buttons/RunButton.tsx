@@ -2,23 +2,23 @@ import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, Rou
 import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionContext } from "../../../contexts/session.js";
-import { useUpsertRunProject, useUpsertRunRoutine } from "../../../hooks/runs.js";
-import { useFindMany } from "../../../hooks/useFindMany.js";
-import { usePopover } from "../../../hooks/usePopover.js";
-import { IconCommon } from "../../../icons/Icons.js";
-import { useLocation } from "../../../route/router.js";
-import { ArgsType } from "../../../types.js";
-import { getDummyListLength } from "../../../utils/consts.js";
-import { getUserLanguages } from "../../../utils/display/translationTools.js";
-import { PubSub } from "../../../utils/pubsub.js";
-import { createRunPath } from "../../../views/runs/RunView.js";
-import { ListContainer } from "../../containers/ListContainer.js";
-import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
-import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
-import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
-import { ObjectListActions } from "../../lists/types.js";
-import { RunButtonProps } from "../types.js";
+import { SessionContext } from "../../contexts/session.js";
+import { useUpsertRunProject, useUpsertRunRoutine } from "../../hooks/runs.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { usePopover } from "../../hooks/usePopover.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
+import { ArgsType } from "../../types.js";
+import { getDummyListLength } from "../../utils/consts.js";
+import { getUserLanguages } from "../../utils/display/translationTools.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { createRunPath } from "../../views/runs/RunView.js";
+import { ListContainer } from "../containers/ListContainer.js";
+import { MenuTitle } from "../dialogs/MenuTitle/MenuTitle.js";
+import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
+import { ObjectList } from "../lists/ObjectList/ObjectList.js";
+import { ObjectListActions } from "../lists/types.js";
+import { RunButtonProps } from "./types.js";
 
 const emptyArray = [];
 
@@ -106,7 +106,7 @@ export function RunPickerMenu({
 
     const createNewRun = useCallback(() => {
         if (!objectId) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { message: t("CouldNotReadObject", { ns: "error" }), severity: "Error" });
             return;
         }
 
@@ -123,7 +123,7 @@ export function RunPickerMenu({
         else {
             createRunRoutine({ objectId, objectName, onSuccess });
         }
-    }, [handleClose, onSelect, setAllData, createRunProject, createRunRoutine, objectId, objectName, objectType]);
+    }, [handleClose, onSelect, setAllData, createRunProject, createRunRoutine, objectId, objectName, objectType, t]);
 
     useEffect(function checkLoggedIn() {
         if (!open) return;

@@ -1,9 +1,9 @@
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { useRef } from "react";
-import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { SxType, ViewDisplayType } from "../../../types.js";
-import { Z_INDEX } from "../../../utils/consts.js";
-import { SideActionsButtonsProps } from "../types.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { SxType, ViewDisplayType } from "../../types.js";
+import { Z_INDEX } from "../../utils/consts.js";
+import { SideActionsButtonsProps } from "./types.js";
 
 interface OuterBoxProps extends BoxProps {
     display: ViewDisplayType;
@@ -15,8 +15,9 @@ interface OuterBoxProps extends BoxProps {
 const OuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "display" && prop !== "isMobile" && prop !== "sx" && prop !== "zIndex",
 })<OuterBoxProps>(({ display, isMobile, sx, theme, zIndex }) => ({
-    position: "sticky",
+    position: "fixed",
     bottom: 0,
+    right: 0,
     justifyContent: "flex-end",
     display: "flex",
     flexDirection: "row",

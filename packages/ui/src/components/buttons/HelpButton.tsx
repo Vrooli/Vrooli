@@ -1,13 +1,13 @@
 import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/material";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { usePopover } from "../../../hooks/usePopover.js";
-import { IconCommon } from "../../../icons/Icons.js";
-import { linkColors, noSelect } from "../../../styles.js";
-import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
-import { RichInputBase } from "../../inputs/RichInput/RichInput.js";
-import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
-import { HelpButtonProps } from "../types.js";
+import { usePopover } from "../../hooks/usePopover.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { linkColors, noSelect } from "../../styles.js";
+import { MenuTitle } from "../dialogs/MenuTitle/MenuTitle.js";
+import { RichInputBase } from "../inputs/RichInput/RichInput.js";
+import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
+import { HelpButtonProps } from "./types.js";
 
 const HelpMenu = styled(Menu)(() => ({
     zIndex: "40000 !important",

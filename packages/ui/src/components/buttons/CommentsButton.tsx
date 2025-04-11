@@ -2,10 +2,10 @@ import { getObjectUrl } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { IconCommon } from "../../../icons/Icons.js";
-import { useLocation } from "../../../route/router.js";
-import { multiLineEllipsis } from "../../../styles.js";
-import { CommentsButtonProps } from "../types.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
+import { multiLineEllipsis } from "../../styles.js";
+import { CommentsButtonProps } from "./types.js";
 
 export function CommentsButton({
     commentsCount = 0,

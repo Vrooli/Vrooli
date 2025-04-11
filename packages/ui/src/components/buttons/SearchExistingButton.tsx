@@ -1,5 +1,5 @@
 import { Button, styled } from "@mui/material";
-import { IconCommon } from "../../../icons/Icons.js";
+import { IconCommon } from "../../icons/Icons.js";
 
 const StyledButton = styled(Button)(({ theme }) => ({
     color: theme.palette.background.textSecondary,

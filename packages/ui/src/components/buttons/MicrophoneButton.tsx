@@ -2,11 +2,11 @@ import { Box, Dialog, DialogContent, DialogTitle, IconButton, IconButtonProps, P
 import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSpeech } from "../../../hooks/useSpeech.js";
-import { Icon } from "../../../icons/Icons.js";
-import { Z_INDEX } from "../../../utils/consts.js";
-import { PubSub } from "../../../utils/pubsub.js";
-import { MicrophoneButtonProps } from "../types.js";
+import { useSpeech } from "../../hooks/useSpeech.js";
+import { Icon } from "../../icons/Icons.js";
+import { Z_INDEX } from "../../utils/consts.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { MicrophoneButtonProps } from "./types.js";
 
 type MicrophoneStatus = "On" | "Off" | "Disabled";
 

@@ -1,6 +1,6 @@
 import { useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { CameraButtonProps } from "../types.js";
+import { CameraButtonProps } from "./types.js";
 
 /**
  * A microphone icon that can be used to trigger speech recognition

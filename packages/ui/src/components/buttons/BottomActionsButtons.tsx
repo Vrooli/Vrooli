@@ -8,7 +8,7 @@ import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { SxType } from "../../types.js";
 import { BottomActionsGrid } from "./BottomActionsGrid.js";
-import { LoadableButton } from "./LoadableButton/LoadableButton.js";
+import { LoadableButton } from "./LoadableButton.js";
 import { BottomActionsButtonsProps } from "./types.js";
 
 interface SideActionsBoxProps extends BoxProps {

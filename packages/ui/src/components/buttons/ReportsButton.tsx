@@ -1,10 +1,10 @@
 import { Box, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { IconCommon } from "../../../icons/Icons.js";
-import { Link, useLocation } from "../../../route/router.js";
-import { multiLineEllipsis } from "../../../styles.js";
-import { getObjectReportUrl } from "../../../utils/navigation/openObject.js";
-import { ReportsButtonProps } from "../types.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { Link, useLocation } from "../../route/router.js";
+import { multiLineEllipsis } from "../../styles.js";
+import { getObjectReportUrl } from "../../utils/navigation/openObject.js";
+import { ReportsButtonProps } from "./types.js";
 
 const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",
