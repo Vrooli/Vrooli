@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { AdvancedInputMarkdownProps, AdvancedInputStylingAction, MarkdownUtils, advancedInputTextareaClassName } from "./utils.js";
 
 const LINE_HEIGHT = 1.5;
@@ -33,7 +33,7 @@ const textareaStyle = {
 } as const;
 
 /** TextInput for entering markdown text */
-export function AdvancedInputMarkdown({
+export const AdvancedInputMarkdown = forwardRef<HTMLTextAreaElement, AdvancedInputMarkdownProps>(({
     disabled = false,
     enterWillSubmit,
     maxRows,
@@ -51,9 +51,17 @@ export function AdvancedInputMarkdown({
     undo,
     value,
     mergedFeatures,
-}: AdvancedInputMarkdownProps) {
+}, ref) => {
     console.log("rendering RichInputMarkdown", maxRows, minRows, value.length);
+    // Internal ref for the textarea
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Connect the external ref to our internal ref
+    useImperativeHandle(ref, () => ({
+        focus: (options?: FocusOptions) => {
+            textAreaRef.current?.focus(options);
+        },
+    } as HTMLTextAreaElement));
 
     const insertStyle = useCallback((style: AdvancedInputStylingAction | `${AdvancedInputStylingAction}`) => {
         if (disabled) return;
@@ -222,4 +230,7 @@ export function AdvancedInputMarkdown({
             />
         </div>
     );
-}
+});
+
+// Add a display name to the component for debugging and dev tools
+AdvancedInputMarkdown.displayName = "AdvancedInputMarkdown";

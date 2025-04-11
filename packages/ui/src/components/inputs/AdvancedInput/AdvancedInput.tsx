@@ -23,7 +23,7 @@ import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
 import { ContextDropdown, ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputFeatures, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps } from "./utils.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputFeatures, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps, advancedInputTextareaClassName } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [
@@ -42,6 +42,11 @@ const TRIGGER_CHARS = {
     AT: "@",
     SLASH: "/",
 } as const;
+
+// Simple interface for elements that can be focused
+interface FocusableElement {
+    focus: (options?: FocusOptions) => void;
+}
 
 // Example of how to add context
 // const openAssistantDialog = useCallback(() => {
@@ -125,7 +130,39 @@ const Outer = styled("div")(({ theme }) => ({
     borderRadius: theme.spacing(3),
     padding: theme.spacing(1),
     position: "relative",
+    // Ensure it can receive clicks even if children cover parts of it
+    // (though padding usually handles this)
+    // cursor: "text", // Optional: hint that the area is for text input
 }));
+
+// List of selectors for interactive elements that shouldn't trigger input focus
+const NON_FOCUSABLE_SELECTORS = [
+    "button",
+    "a",
+    "input",
+    "textarea",
+    "[contenteditable=\"true\"]",
+    ".MuiIconButton-root",
+    ".MuiChip-root",
+    ".MuiButtonBase-root",
+    ".MuiSwitch-root",
+    ".MuiSlider-root",
+    ".MuiMenuItem-root",
+    ".MuiTab-root",
+    ".AdvancedInputToolbar",  // The toolbar itself
+    `.${TOOLBAR_CLASS_NAME}`, // Using the toolbar class name constant
+    "[aria-haspopup=\"true\"]", // Elements with popups/dropdowns
+    // Context elements
+    ".context-item",
+    ".tool-item",
+    // File dropzone elements
+    ".dropzone",
+    // Specific elements we know about
+    "[data-toolbar-button=\"true\"]",
+].join(",");
+
+// Class name added to the AdvancedInput textarea/contentEditable for identification
+const ADVANCED_INPUT_CONTENT_CLASS = advancedInputTextareaClassName;
 
 type StyledIconButtonProps = IconButtonProps & {
     bgColor?: string;
@@ -176,6 +213,12 @@ function ToolChip({
         event.stopPropagation();
         onToggleToolExclusive();
     }, [onToggleToolExclusive]);
+
+    const handleToolToggle = useCallback(function handleToolToggleCallback(event: React.MouseEvent) {
+        // Stop propagation to prevent focusing the input
+        event.stopPropagation();
+        onToggleTool();
+    }, [onToggleTool]);
 
     const chipVariant = state === ToolState.Disabled ? "outlined" : "filled";
     const chipStyle = useMemo(() => {
@@ -252,12 +295,12 @@ function ToolChip({
 
     return (
         <Chip
-            data-type="tool"
+            data-type="tool" // Keep this for the selector
             key={`${name}-${index}`}
             icon={chipIcon}
             label={displayName}
-            onDelete={onRemoveTool}
-            onClick={onToggleTool}
+            onDelete={onRemoveTool} // MuiChip handles stopPropagation internally for deleteIcon
+            onClick={handleToolToggle}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             sx={chipStyle}
@@ -339,10 +382,11 @@ function preventInputLossOnToolbarClick(event: React.MouseEvent) {
     let numParentsTraversed = 0;
     const maxParentsToTraverse = 10;
     do {
-        // If the toolbar is clicked, prevent default
-        if (parent?.className === TOOLBAR_CLASS_NAME) {
+        // If the toolbar is clicked, prevent default (stops focus loss) and stop propagation (prevents outer click handler)
+        if (parent?.classList.contains(TOOLBAR_CLASS_NAME)) {
             event.preventDefault();
-            event.stopPropagation();
+            // We don't stop propagation here anymore, let the Outer click handler decide based on selector
+            // event.stopPropagation();
             return;
         }
         parent = parent?.parentElement;
@@ -424,7 +468,9 @@ function ContextItemDisplay({
     item,
     onRemove,
 }: ContextItemDisplayProps) {
-    function handleRemove() {
+    function handleRemove(event: React.MouseEvent) {
+        // Stop propagation to prevent Outer click handler
+        event.stopPropagation();
         onRemove(item.id);
     }
 
@@ -475,7 +521,7 @@ function ContextItemDisplay({
 
     if (shouldShowPreview) {
         return (
-            <PreviewContainer>
+            <PreviewContainer data-type="context-item"> {/* Add data-type */}
                 {item.src ? (
                     <img src={item.src} alt={item.label} style={imgStyle} />
                 ) : (
@@ -486,6 +532,7 @@ function ContextItemDisplay({
                         />
                     </PreviewImageAvatar>
                 )}
+                {/* Ensure the remove button stops propagation */}
                 <RemoveIconButton onClick={handleRemove}>
                     <IconCommon
                         decorative
@@ -499,10 +546,12 @@ function ContextItemDisplay({
 
     return (
         <ContextItemChip
+            data-type="context-item" // Add data-type
             icon={<Icon decorative info={fallbackIconInfo} />}
             label={truncatedLabel}
-            onDelete={handleRemove}
+            onDelete={handleRemove} // MuiChip handles stopPropagation for deleteIcon
             title={item.label} // Show full name on hover
+        // No onClick needed here, delete is handled
         />
     );
 }
@@ -514,7 +563,7 @@ const toolbarIconButtonStyle = { padding: "4px", opacity: 0.5 } as const;
 const verticalMiddleStyle = { verticalAlign: "middle" } as const;
 const dividerStyle = { my: 1, opacity: 0.2 } as const;
 
-/** 
+/**
  * PlusMenu Component - renders the popover for additional actions.
  */
 interface PlusMenuProps {
@@ -632,7 +681,7 @@ const PlusMenu: React.FC<PlusMenuProps> = React.memo(
     });
 PlusMenu.displayName = "PlusMenu";
 
-/** 
+/**
  * InfoMemo Component - renders a menu showing information about the input and customization settings.
  */
 interface InfoMemoProps {
@@ -823,6 +872,12 @@ export function AdvancedInputBase({
         ...features,
     }), [features]);
 
+    // Reference to the editor input element
+    const inputRef = useRef<FocusableElement | null>(null);
+
+    // Separate ref for the container element to handle hotkeys
+    const containerRef = useRef<HTMLDivElement>(null);
+
     // Add dropdown state
     const [dropdownAnchor, setDropdownAnchor] = useState<HTMLElement | null>(null);
     const [initialCategory, setInitialCategory] = useState<"Routine" | null>(null);
@@ -905,8 +960,8 @@ export function AdvancedInputBase({
 
     // Add dropzone functionality
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        noClick: true,
-        noKeyboard: true,
+        noClick: true, // Don't trigger file dialog on click
+        noKeyboard: true, // Don't use keyboard to trigger file dialog
         getFilesFromEvent,
         onDrop: (acceptedFiles) => {
             if (!onContextDataChange || acceptedFiles.length === 0) return;
@@ -1001,7 +1056,7 @@ export function AdvancedInputBase({
 
             // Determine if the ellipsis should be added before or after the last item in the first row
             const shouldAddEllipsisBefore = Math.abs(remWidth) < 40;
-            console.log({ maxRight, remWidth, shouldAddEllipsisBefore });
+            // console.log({ maxRight, remWidth, shouldAddEllipsisBefore }); // Keep for debugging if needed
 
             if (firstRowToolItems.length !== toolsInFirstRowRef.current) {
                 setToolsInFirstRow(firstRowToolItems.length);
@@ -1035,6 +1090,8 @@ export function AdvancedInputBase({
 
     // Handlers memoized with useCallback
     const handleOpenPlusMenu = useCallback((event: MouseEvent<HTMLElement>) => {
+        // Stop propagation to prevent focusing the input
+        event.stopPropagation();
         setAnchorPlus(event.currentTarget);
     }, []);
 
@@ -1148,7 +1205,6 @@ export function AdvancedInputBase({
         return noop;
     }, [toggleMarkdown, mergedFeatures.allowFormatting]);
 
-    const inputRef = useRef<HTMLTextAreaElement>(null);
     useHotkeys([
         // Markdown/Lexical hotkeys
         { keys: ["1"], altKey: true, callback: () => { handleAction(AdvancedInputAction.Header1); } },
@@ -1204,7 +1260,7 @@ export function AdvancedInputBase({
                 }
             },
         },
-    ], true, inputRef);
+    ], true, containerRef); // Use containerRef for hotkeys instead of inputRef
 
     // Handle toolbar active states
     const [activeStates, setActiveStates] = useState<Omit<AdvancedInputActiveStates, "SetValue">>(defaultActiveStates);
@@ -1225,7 +1281,6 @@ export function AdvancedInputBase({
         onFocus,
         onSubmit,
         placeholder,
-        ref: inputRef,
         setHandleAction: setChildHandleAction,
         tabIndex,
         toggleMarkdown,
@@ -1253,16 +1308,18 @@ export function AdvancedInputBase({
             {...stableViewProps}
             {...dynamicViewProps}
             mergedFeatures={MarkdownFeatures}
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
         />
-    ), [stableViewProps, dynamicViewProps, MarkdownFeatures]);
+    ), [stableViewProps, dynamicViewProps, MarkdownFeatures, inputRef]);
 
     const LexicalComponent = useMemo(() => (
         <AdvancedInputLexical
             {...stableViewProps}
             {...dynamicViewProps}
             mergedFeatures={LexicalFeatures}
+            ref={inputRef as React.Ref<{ focus: (options?: FocusOptions) => void }>}
         />
-    ), [stableViewProps, dynamicViewProps, LexicalFeatures]);
+    ), [stableViewProps, dynamicViewProps, LexicalFeatures, inputRef]);
 
     // Add dropdown handlers
     const handleContextTrigger = useCallback((triggerChar: string) => {
@@ -1321,8 +1378,103 @@ export function AdvancedInputBase({
         handleCloseDropdown(false);
     }, [changeInternalValue, handleCloseDropdown, internalValue]);
 
+    /**
+     * Handler to focus the input when clicking on non-interactive areas
+     * 
+     * The approach here is to focus the input for any click on the Outer component
+     * unless it's coming from a known interactive element or has already been handled.
+     * This is more reliable than trying to determine what's "interactive" since the 
+     * Outer component itself can have role="button" from Dropzone.
+     */
+    const handleOuterClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        // Skip if disabled
+        if (disabled) return;
+
+        // Get the target element
+        const target = event.target as HTMLElement;
+
+        // Log what was clicked for debugging
+        console.log("AdvancedInput: Click detected on", target.tagName, target.className);
+
+        // Already clicked directly on the input area
+        if (target.classList?.contains(ADVANCED_INPUT_CONTENT_CLASS)) {
+            console.log("AdvancedInput: Click on input area - no focus action needed");
+            return;
+        }
+
+        // Check if the click target is an interactive element that we should ignore
+        // We're using a more specific approach now rather than the broad role="button" 
+        const isInteractive = target.closest(NON_FOCUSABLE_SELECTORS) !== null;
+
+        // For debugging only
+        if (isInteractive) {
+            console.log("AdvancedInput: Click on interactive element, but focusing anyway unless stopped by propagation");
+        }
+
+        // Focus the input if available
+        if (inputRef.current) {
+            console.log("AdvancedInput: Focusing input");
+            inputRef.current.focus();
+        } else {
+            console.log("AdvancedInput: Input reference not available", inputRef);
+        }
+    }, [disabled]);
+
+    // Add this handler for the settings button
+    const handleOpenInfoMemoWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
+        // Stop propagation to prevent focusing the input
+        event.stopPropagation();
+        handleOpenInfoMemo(event);
+    }, [handleOpenInfoMemo]);
+
+    // Add this handler for the expand toggle
+    const handleToggleExpandWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
+        // Stop propagation to prevent focusing the input
+        event.stopPropagation();
+        handleToggleExpand();
+    }, [handleToggleExpand]);
+
+    // Add this handler for the tools expand toggle
+    const toggleToolsExpandedWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
+        // Stop propagation to prevent focusing the input
+        event.stopPropagation();
+        toggleToolsExpanded();
+    }, [toggleToolsExpanded]);
+
+    // Add this handler for the submit button
+    const handleSubmitWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
+        // Stop propagation to prevent focusing the input
+        event.stopPropagation();
+        handleSubmit();
+    }, [handleSubmit]);
+
+    // Create a wrapper for the MicrophoneButton
+    function MicrophoneButtonWithStopPropagation({ onTranscriptChange, ...props }: MicrophoneButtonProps) {
+        // Create a wrapper for the onTranscriptChange function
+        const handleTranscriptChangeWithStopPropagation = useCallback((transcript) => {
+            // Don't need to stop propagation here as this is a callback function
+            onTranscriptChange(transcript);
+        }, [onTranscriptChange]);
+
+        // Create a component that stops propagation for any clicks
+        return (
+            <Box onClick={(e) => e.stopPropagation()}>
+                <MicrophoneButton
+                    onTranscriptChange={handleTranscriptChangeWithStopPropagation}
+                    {...props}
+                />
+            </Box>
+        );
+    }
+
     return (
-        <Outer className="advanced-input" {...(mergedFeatures.allowFileAttachments ? getRootProps() : {})}>
+        // Add the click handler to the Outer component
+        <Outer
+            className="advanced-input"
+            {...(mergedFeatures.allowFileAttachments ? getRootProps() : {})}
+            onClick={handleOuterClick}
+            ref={containerRef} // Add ref to the Outer component for hotkeys
+        >
             {mergedFeatures.allowFileAttachments && <input {...getInputProps()} />}
             {mergedFeatures.allowFileAttachments && isDragActive && (
                 <Box sx={dragOverlayStyles}>
@@ -1349,10 +1501,11 @@ export function AdvancedInputBase({
                 <Divider />
             </Collapse>
             {/* Top Section */}
+            {/* Make toolbar prevent default on mouse down to avoid focus loss but allow outer click */}
             <Box onMouseDown={preventInputLossOnToolbarClick} sx={toolbarRowStyles}>
                 {mergedFeatures.allowSettingsCustomization && (
                     <IconButton
-                        onClick={handleOpenInfoMemo}
+                        onClick={handleOpenInfoMemoWithStopPropagation}
                         sx={toolbarIconButtonStyle}
                     >
                         <IconCommon
@@ -1385,7 +1538,7 @@ export function AdvancedInputBase({
                 {mergedFeatures.allowExpand && (
                     <Tooltip placement="top" title={isExpanded ? "Collapse" : "Expand"}>
                         <IconButton
-                            onClick={handleToggleExpand}
+                            onClick={handleToggleExpandWithStopPropagation}
                             sx={toolbarIconButtonStyle}
                         >
                             <IconCommon
@@ -1422,6 +1575,7 @@ export function AdvancedInputBase({
                     maxHeight={isExpanded ? "calc(100vh - 150px)" : "unset"}
                     overflow="auto"
                 >
+                    {/* Conditionally render Markdown or Lexical, passing the inputRef */}
                     {useMarkdownEditor ? MarkdownComponent : LexicalComponent}
                 </Box>
             </Box>
@@ -1456,8 +1610,8 @@ export function AdvancedInputBase({
                             const canAddHideButton = toolsInFirstRow < tools.length && isToolsExpanded && index === tools.length - 1;
 
                             return (
-                                <>
-                                    {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
+                                <React.Fragment key={`${tool.name}-${index}`}>
+                                    {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
                                         <IconCommon
                                             decorative
                                             fill="background.textSecondary"
@@ -1466,21 +1620,19 @@ export function AdvancedInputBase({
                                     </ShowHideIconButton>}
                                     <ToolChip
                                         {...tool}
-                                        data-type="tool"
                                         index={index}
-                                        key={`${tool.name}-${index}`}
                                         onRemoveTool={onRemoveTool}
                                         onToggleToolExclusive={onToggleToolExclusive}
                                         onToggleTool={onToggleTool}
                                     />
-                                    {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpanded}>
+                                    {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
                                         <IconCommon
                                             decorative
                                             fill="background.textSecondary"
                                             name="Invisible"
                                         />
                                     </ShowHideIconButton>}
-                                </>
+                                </React.Fragment>
                             );
                         })}
                     </Box>
@@ -1488,7 +1640,7 @@ export function AdvancedInputBase({
                 <Box flex={1} />
                 <Box display="flex" alignItems="center" gap={1} ml={1}>
                     {mergedFeatures.allowVoiceInput && (
-                        <MicrophoneButton
+                        <MicrophoneButtonWithStopPropagation
                             fill={theme.palette.background.textSecondary}
                             onTranscriptChange={handleTranscriptChange}
                             disabled={false}
@@ -1528,7 +1680,7 @@ export function AdvancedInputBase({
                                         {mergedFeatures.allowSubmit && charsOverLimit <= 0 && <StyledIconButton
                                             bgColor="transparent"
                                             disabled={!internalValue.trim() || charsOverLimit > 0}
-                                            onClick={handleSubmit}
+                                            onClick={handleSubmitWithStopPropagation}
                                         >
                                             <IconCommon
                                                 decorative
@@ -1551,7 +1703,7 @@ export function AdvancedInputBase({
                                         : theme.palette.primary.main
                                     }
                                     disabled={!internalValue.trim()}
-                                    onClick={handleSubmit}
+                                    onClick={handleSubmitWithStopPropagation}
                                     sx={verticalMiddleStyle}
                                 >
                                     <IconCommon

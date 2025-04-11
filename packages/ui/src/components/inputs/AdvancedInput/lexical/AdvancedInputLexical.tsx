@@ -1,5 +1,5 @@
 import { Box, styled, useTheme } from "@mui/material";
-import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MIN_ROWS } from "../../../../utils/consts.js";
 import { LINE_HEIGHT_MULTIPLIER } from "../../RichInput/RichInput.js";
 import { defaultActiveStates } from "../AdvancedInputToolbar.js";
@@ -743,15 +743,18 @@ export function AdvancedInputLexicalComponents({
 }
 
 /** TextInput for entering WYSIWYG text */
-export function AdvancedInputLexical({
+export const AdvancedInputLexical = forwardRef<
+    { focus: (options?: FocusOptions) => void },
+    Omit<AdvancedInputLexicalProps, "ref">
+>(function AdvancedInputLexical({
     disabled,
     value,
     mergedFeatures,
     ...props
-}: AdvancedInputLexicalProps) {
-
+}, ref) {
     // Set up Lexical editor
     const [editor, setEditor] = useState<LexicalEditor | null>(null);
+
     useEffect(function initLexicalEditorEffect() {
         async function initializeAsync() {
             // Asynchronously create the editor instance
@@ -767,15 +770,28 @@ export function AdvancedInputLexical({
         // Purposely only run once
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
     useLayoutEffect(() => {
         if (!editor) return;
         const isEditable = typeof disabled === "boolean" ? !disabled : true;
         editor.setEditable(isEditable !== undefined ? isEditable : true);
     }, [disabled, editor]);
 
+    // Connect the ref to focus the editor
+    useImperativeHandle(ref, () => ({
+        focus: (options?: FocusOptions) => {
+            if (editor) {
+                editor.focus();
+            }
+        },
+    }), [editor]);
+
     return (
         <LexicalComposerContext.Provider value={editor}>
             <AdvancedInputLexicalComponents value={value} mergedFeatures={mergedFeatures} {...props} />
         </LexicalComposerContext.Provider>
     );
-}
+});
+
+// Add display name for debugging and dev tools
+AdvancedInputLexical.displayName = "AdvancedInputLexical";
