@@ -46,5 +46,6 @@ You are working on *Vrooli*, an innovative web application that orchestrates AI 
   - All task commands and their detailed descriptions are defined in [TASKS.md](mdc:TASKS.md).
   - Follow the command patterns defined in that file when executing any task operation
   - Any updates to command behavior should be made directly in [TASKS.md](mdc:TASKS.md) as the single source of truth
+  - Commands in this context are not scripts to be executed - they are processes to follow
 
 

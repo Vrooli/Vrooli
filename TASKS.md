@@ -2,7 +2,24 @@ This file tracks and manages tasks, features, and improvements for the Vrooli pr
 
 # Task Operations
 **organize:**  
-- Scan this file for unstructured tasks, extract key details (titles, priorities, statuses, deliverables), and reformat using the task template. If any task lacks critical information, flag it for clarification.
+- For the first unstructured task in the list (not all tasks at once):
+  - Thoroughly explore the codebase to understand task context:
+    - Search for related files and code patterns to gain deeper context
+    - Analyze existing implementations of similar features
+    - Review code architecture to understand integration points
+    - Identify potential dependencies not explicitly mentioned
+  - Ask clarifying questions if the task description is incomplete or ambiguous
+  - Conduct research on any technical terms or concepts that need clarification
+  - Extract key details and enhance them with additional insights from codebase exploration
+  - Reformat the task directly in TASKS.md (not in a scratch file) following these guidelines:
+    - Use proper task template format with title, priority, status, dependencies
+    - Expand descriptions to include implementation approaches and technical considerations
+    - Add detailed context about where in the codebase the task applies
+    - Identify specific files that will need to be modified
+    - Suggest potential implementation strategies based on existing code patterns
+    - Break down deliverables into more granular steps where appropriate
+  - Remove the original unstructured task from the list after organizing it
+  - Flag any task that still lacks critical information after research, with specific questions
 
 **reprioritize:**  
 - Review all tasks and adjust priorities (HIGH/MEDIUM/LOW) based on business impact, technical urgency, dependencies, and current project goals. Provide brief justifications for changes, and reorder tasks accordingly.
@@ -45,10 +62,58 @@ Brief explanation of the task including specific steps or deliverables required 
 ---
 
 # Unstructured Tasks
-
+- Update ChatBubbleTree to render not only the message tree, but also show the messages triggered by routines. More on that in another task
+- Create a component for running routines, that's displayed in a chat. It should be a rounded box with a top box and 2 main sections. The top should have a loading spinner, the routine title, and the seconds elapsed. Under the top box is a section to the left and a secton to the right. The left section should display the steps taken. Each step should have a loading spinner if active, or an icon to represent the state if completed/failed/etc. The right section should be any information about the active tasks, which we'll update later.
 ---
 
 # Active Tasks
+
+### Enhance Chat and Message Storage with Metadata
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Implement functionality to store additional contextual information in chats and chat messages using the existing metadata field. Chats need to store information about connected projects and other related data, while chat messages need to store information about triggered routines, tools called, and other execution context. This information will be stored as stringified JSON with appropriate serialization/deserialization functions similar to the approach used in packages/shared/src/run/configs.
+
+**Key Deliverables:**
+- [ ] Design and implement a metadata structure for chats that can store:
+  - Connected project information
+  - Reference information to other Vrooli objects
+  - Configuration and context data
+- [ ] Design and implement a metadata structure for chat messages that can store:
+  - Routines triggered by the message
+  - Tools called during message processing
+  - Execution results and state information
+- [ ] Create utility functions in packages/shared/src/run/configs or a new appropriate location for:
+  - Serializing chat metadata to JSON strings
+  - Parsing metadata JSON strings back to their typed objects
+  - Validating metadata structure
+- [ ] Update the ChatMessage model (packages/server/src/models/base/chatMessage.ts) to handle the metadata field:
+  - Add metadata to the create and update operations
+  - Add validation for metadata content
+- [ ] Update the Chat model (packages/server/src/models/base/chat.ts) with similar metadata handling
+- [ ] Add TypeScript types and interfaces for the metadata structures
+- [ ] Implement test cases for serialization/deserialization
+
+### Refactor Active Chat Store with Chat ID Identifier
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Refactor the active chat Zustand store and its accompanying hook to use an identifier-based approach instead of tracking a single active chat object. This change will make the architecture more maintainable and will support multiple chat scenarios. Additionally, modify the AdvancedInput component to store tools and contexts in the chat Zustand store rather than receiving them as parameters.
+
+**Key Deliverables:**
+- [ ] Update `activeChatStore.ts` to track active chats by identifier (either an actual chat ID or DUMMY_ID)
+- [ ] Modify the `useActiveChat` hook to support the identifier-based approach
+- [ ] Refactor the store to maintain a map/dictionary of chats indexed by their identifiers
+- [ ] Update all code that accesses the current active chat to use the new identifier-based mechanism
+- [ ] Modify the AdvancedInput component to retrieve tools and contexts from the chat Zustand store
+- [ ] Create comprehensive unit tests for the updated store and hook functionality
+- [ ] Update any related components that depend on the active chat store
 
 ---
 
