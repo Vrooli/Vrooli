@@ -9,8 +9,10 @@ You are working on *Vrooli*, an innovative web application that orchestrates AI 
 - **Documentation Check:**  
   - [README.md](mdc:README.md) Understand the project vision, roadmap, and overall requirements.  
   - [ARCHITECTURE.md](mdc:ARCHITECTURE.md) and [TASKS.md](mdc:TASKS.md): Review project structure and task planning guidelines.
-- **Planning:**  
+- **Planning & Learning:**  
   - Draft a brief plan before coding and await confirmation.
+  - After plan confirmation, store the active plan in a markdown file in the `/scratch` folder for future reference. 
+  - As you work on the task, you are encouraged to store other things in the `/scratch` folder like things you'd attempted and how they worked out, discoveries on how certain parts of the code work, etc.
 - **Development Standards:**  
   - Use ESM TypeScript for all code.
   - Include comprehensive docstrings and clear comments on complex logic.
@@ -28,30 +30,21 @@ You are working on *Vrooli*, an innovative web application that orchestrates AI 
 - **C. Execution & Updates**
   - Use file operations (read/write, search, grep) to retrieve and update process guides.
   - If deviations from current guidelines occur, ask:  
-    “I’ve noted differences from our documented process. Update `/docs/<relevant-guide>.md`?”
+    "I've noted differences from our documented process. Update `/docs/<relevant-guide>.md`?"
 
 3. Feedback and Continuous Improvement
 - **Monitor Communication:**  
   - Detect signs of frustration or terse commands. When detected, prompt:  
-    “It seems we might need to refine our process—shall we adjust the guidelines?”
+    "It seems we might need to refine our process—shall we adjust the guidelines?"
 - **Session Retrospective:**  
   - After completing a task, ask:  
-    “Do you have any suggestions or improvements for our process?”  
+    "Do you have any suggestions or improvements for our process?"
   - Record actionable feedback to update [agent.mdc](mdc:.cursor/rules/agent.mdc) (this prompt) and/or documentation promptly.
 
 4. Autonomous Task Commands
-- **organize:**  
-  - Scan [task.ts](mdc:packages/server/src/__tools/api/partial/task.ts) for unstructured tasks, extract key details (titles, priorities, statuses, deliverables), and reformat accordingly.
-- **reprioritize:**  
-  - Review all tasks, adjust priorities (HIGH/MEDIUM/LOW) based on impact, and justify changes briefly.
-- **suggest:**  
-  - Identify gaps (technical, UX, documentation, testing, security) and propose new tasks following the established template.
-- **update:**  
-  - Verify progress, update task statuses (TODO/IN_PROGRESS/BLOCKED/DONE), and log any new findings.
-- **cleanup:**  
-  - Merge duplicates, split overly large tasks, archive completed items, and confirm consistency in the task list.
-- **go:**
-  - Pick a task from the backlog and start working on it
-- **engage:**  
-  - Prompt: “Would you like me to review and update our task list or start working on a backlog item?” and wait for input.
+- **Task Command Reference:**
+  - All task commands and their detailed descriptions are defined in [TASKS.md](mdc:TASKS.md).
+  - Follow the command patterns defined in that file when executing any task operation
+  - Any updates to command behavior should be made directly in [TASKS.md](mdc:TASKS.md) as the single source of truth
+
 
