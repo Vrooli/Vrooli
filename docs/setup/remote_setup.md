@@ -3,20 +3,12 @@
 
 Not able to develop locally? Want to test deployment on a remote server? Follow these steps:
 1. Follow the [deployment steps](/docs/deployment/README.md) to learn how to host a VPS and set it up correctly  
-2. Set up a pair of SSH keys. Make note of the file location that the keys are stored in
-3. In VSCode, download the [Remote Development extension](https://code.visualstudio.com/docs/remote/remote-overview)  
+2. Use `./scripts/keylessSsh.sh <server_ip>` to generate a pair of SSH keys for the server, if you don't already have them. This will prevent you from having to enter a password when connecting to the server.
+3. In VSCode, download the [Remote Development extension](https://code.visualstudio.com/docs/remote/remote-overview) if you don't already have it.
 4. Enter `CTRL+SHIFT+P` to open the Command Palette  
 5. Search and select `Remote-SSH: Open Configuration File...`  
-6. Edit configuration file to contain an entry with this format:  
-    ```
-    Host <any_name_for_remote_server>
-        HostName <your_server_ip_or_hostname>
-        User <your_username>
-        IdentityFile <ssh_keys_location>
-    ```
-    **Note 1**: You can now reference your host by the name you chose, instead of its IP address  
-    **Note 2**: `User` is likely `root`  
-7. Open Command Palette again and select `Remote-SSH: Connect to Host...`   
+6. Add new connection by entering `ssh root@<server_ip>`  
+7. Open Command Palette again and select `Remote-SSH: Connect to Host...` 
 8. A new VSCode terminal should open. Answer the questions (e.g. server type, server password), and you should be connected!  
 9. Open the `Extensions` page in VSCode, and download the extensions you want to use  
 10. After following the [environment variables setup](repo_setup.md#3-set-environment-variables), open the Command Palette and select `Ports: Focus on Ports View`  

@@ -10,25 +10,16 @@ CI/CD automates testing and deployment of your code when you push changes to you
 
 ## Prerequisites
 
-1. A VPS (Virtual Private Server) set up according to the [Single Server Deployment](/docs/setup/single_server.md) guide
-2. SSH access to your VPS (see [Remote Setup](/docs/setup/remote_setup.md) for details)
-3. Access to your Vrooli GitHub repository
+1. A VPS (Virtual Private Server) set up according to the [Single Server Deployment](/docs/deployment/single_server.md) guide
+2. Access to your Vrooli GitHub repository
 
 ## Quick Setup
 
 ### Server Setup (On Your VPS)
 
-```bash
-# 1. Set up the Nginx reverse proxy (if not already done)
-git clone https://github.com/Vrooli/NginxSSLReverseProxy.git
-cd NginxSSLReverseProxy
-sudo ./setup.sh
+Follow the [Single Server Deployment](/docs/deployment/single_server.md) guide to set up reverse proxy, firewalls, CI/CD deployment tools, and other infrastructure.
 
-# 2. Set up CI/CD deployment tools
-git clone https://github.com/Vrooli/Vrooli.git
-cd Vrooli
-sudo ./scripts/setup.sh --ci-cd y
-```
+When calling `./scripts/setup.sh`, add the `--ci-cd y` flag to set up the CI/CD pipeline.
 
 ### GitHub Configuration
 

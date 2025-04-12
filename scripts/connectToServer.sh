@@ -1,21 +1,58 @@
 #!/bin/bash
 # This script connects to the remote server using the SSH key set up by keylessSsh.sh
+# Example usage:
+#  ./scripts/connectToServer.sh              # Connect using IP from .env-prod
+#  ./scripts/connectToServer.sh 123.456.789.012  # Connect to specific IP
+#  ./scripts/connectToServer.sh -e /path/to/.env # Use custom .env file
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/utils.sh"
 
-# Load variables from .env file
+# Read arguments
 ENV_FILE="${HERE}/../.env-prod"
-if [ -f "${ENV_FILE}" ]; then
-    . "${ENV_FILE}"
-else
-    error "Could not find .env file at ${ENV_FILE}. Exiting..."
-    exit 1
-fi
+while getopts "he:" opt; do
+    case $opt in
+    h)
+        echo "Usage: $0 [-h] [-e ENV_FILE] [SITE_IP]"
+        echo "  -h --help: Show this help message"
+        echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
+        echo "  SITE_IP: Optional IP address to connect to (overrides .env)"
+        exit 0
+        ;;
+    e)
+        ENV_FILE=$OPTARG
+        ;;
+    \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
+    :)
+        echo "Option -$OPTARG requires an argument." >&2
+        exit 1
+        ;;
+    esac
+done
+shift $((OPTIND-1))
 
-if [ -z "${SITE_IP}" ]; then
-    error "Could not find SITE_IP in .env. Exiting..."
-    exit 1
+# Check for IP address as positional argument
+if [ $# -ge 1 ]; then
+    SITE_IP=$1
+    info "Using provided IP address: ${SITE_IP}"
+else
+    # Load variables from .env file
+    if [ -f "${ENV_FILE}" ]; then
+        info "Loading variables from ${ENV_FILE}..."
+        . "${ENV_FILE}"
+    else
+        error "Could not find .env file at ${ENV_FILE}. Exiting..."
+        exit 1
+    fi
+
+    # Check if SITE_IP was loaded from .env
+    if [ -z "${SITE_IP}" ]; then
+        error "Could not find SITE_IP in .env file. Please provide IP as argument or in .env file."
+        exit 1
+    fi
 fi
 
 remote_server="root@${SITE_IP}"

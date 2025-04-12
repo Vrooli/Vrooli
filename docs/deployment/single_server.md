@@ -16,7 +16,7 @@ For a comfortable Vrooli deployment, your server should meet these minimum requi
 - **CPU**: 2+ CPU cores
 - **RAM**: 4GB+ RAM
 - **Storage**: 20GB+ SSD storage
-- **OS**: Ubuntu 20.04 LTS or newer
+- **OS**: Ubuntu 22.04 LTS
 
 For development or testing environments, these specs can be reduced.
 
@@ -36,37 +36,23 @@ Here's a basic setup process using DigitalOcean as an example:
 
 1. Create an account on DigitalOcean
 2. Create a new Droplet (DigitalOcean's term for a VPS)
-3. Select Ubuntu 20.04 or newer as the operating system
+3. Select Ubuntu 22.04 as the operating system
 4. Choose a plan that meets the requirements above
 5. Choose a datacenter region (ideally close to your target audience)
-6. Add your SSH key or set a password
-7. Create the Droplet
+6. For SSH authentication, you have two options:
+   - **Server Setup Mode**: Run `./scripts/keylessSsh.sh -s` to generate an SSH key pair. Copy the displayed public key into DigitalOcean's "Add SSH Key" field during Droplet creation. After creating the droplet, enter its IP when prompted to finalize the setup.
+   - **Password Auth**: Set a root password during Droplet creation, then run `./scripts/keylessSsh.sh <server_ip>` after the server is ready to set up key-based authentication.
+7. Complete the Droplet creation process
 
 [Here](https://www.digitalocean.com/community/tutorials/how-to-set-up-an-ubuntu-20-04-server-on-a-digitalocean-droplet) is a detailed guide on setting up a server with DigitalOcean.
 
-### Initial Server Security
+### Connecting to the Server
 
-Once your server is running, you should secure it:
+Once the server is created and SSH is set up, you can connect to it in several ways:
 
-```bash
-# Update packages
-sudo apt update && sudo apt upgrade -y
-
-# Install firewall
-sudo apt install ufw
-
-# Allow SSH, HTTP, and HTTPS
-sudo ufw allow ssh
-sudo ufw allow http
-sudo ufw allow https
-
-# Enable firewall
-sudo ufw enable
-
-# Create a non-root user with sudo privileges (if not done during setup)
-sudo adduser deployer
-sudo usermod -aG sudo deployer
-```
+- Using IP directly: `./scripts/connectToServer.sh <server_ip>`
+- Using IP from .env file: `./scripts/connectToServer.sh` 
+- Using a custom .env file: `./scripts/connectToServer.sh -e /path/to/.env`
 
 ## Connecting the Server to a Domain Name
 
@@ -101,72 +87,80 @@ You can use your domain registrar's DNS service, but [Cloudflare](https://www.cl
 
 **Note**: DNS changes may take several hours to propagate globally.
 
-### Setting Up SSL with Let's Encrypt
-
-Once your domain is pointing to your server, you should set up SSL:
-
-```bash
-# Install Certbot
-sudo apt install certbot python3-certbot-nginx
-
-# Obtain certificate
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com -d api.yourdomain.com
-```
-
 ## Deploying the App to the Server
 
 Deploying the app to the server is quite simple, as the repo comes with scripts that do most of the work.
 
-### Production Deployment
+### Deployment Process
 
-Follow these steps for a production deployment:
+The deployment process is the same for both production and development environments, with only the final script differing:
 
-1. Connect to your server:
+1. Connect to your server using one of these methods:
    ```bash
-   ssh username@your_server_ip
+   # Using our helper script (recommended)
+   ./scripts/connectToServer.sh <server_ip>
+   
+   # Or using standard SSH
+   ssh root@<server_ip>
    ```
 
-2. Clone the repository:
+2. Set up the Vrooli repository:
    ```bash
-   cd ~
-   git clone --depth 1 --branch main https://github.com/Vrooli/Vrooli.git
-   cd Vrooli
-   ```
-
-3. Make scripts executable:
-   ```bash
+   # Main branch
+   cd ~ && \
+   git clone https://github.com/Vrooli/Vrooli.git --depth 1 --branch main && \
+   cd Vrooli && \
    chmod +x ./scripts/*
    ```
 
-4. Run the deployment script:
    ```bash
-   ./scripts/deploy.sh
+   # Development branch
+   cd ~ && \
+   git clone https://github.com/Vrooli/Vrooli.git --depth 1 --branch dev && \
+   cd Vrooli && \
+   chmod +x ./scripts/*
    ```
 
-5. Follow the prompts to complete the deployment.
-
-### Development Deployment
-
-For a development environment, follow these additional steps:
-
-1. Set up the reverse proxy:
+3. Configure environment variables:
    ```bash
-   git clone https://github.com/MattHalloran/NginxSSLReverseProxy
-   cd NginxSSLReverseProxy
-   ./setup.sh
+   cp .env-example .env-prod  # For production
+   # OR
+   cp .env-example .env-dev   # For development
+   
+   # Edit variables as needed
+   vim .env-prod  # Or .env-dev for development
    ```
 
-2. Configure environment variables:
+4. Run setup script:
    ```bash
-   cd ~/Vrooli
-   cp .env-example .env-dev
-   nano .env-dev  # Edit variables as needed
+   # Production
+   # -r y: Run on remote server
+   # -p y: Use production environment
+   # -k n: Do not use Kubernetes (use Docker Compose instead)
+   ./scripts/setup.sh -r y -p y -k n
    ```
 
-3. Start the development environment:
+   ```bash
+   # Development
+   # -r y: Run on remote server
+   # -p n: Use development environment
+   # -k n: Do not use Kubernetes (use Docker Compose instead)
+   ./scripts/setup.sh -r y -p n -k n
+   ```
+
+5. Run the appropriate deployment script:
+   For production:
+   ```bash
+   # -c: Clean up old builds (prevents build directory accumulation)
+   ./scripts/deploy.sh -c
+   ```
+   
+   For development:
    ```bash
    ./scripts/develop.sh
    ```
+
+6. Follow the prompts to complete the deployment.
 
 ## Post-Deployment Steps
 
@@ -190,49 +184,6 @@ After successful deployment, perform these checks:
    # Install simple monitoring with Glances
    sudo apt install glances
    ```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Docker containers not starting**:
-   ```bash
-   # Check container status
-   docker ps -a
-   
-   # View detailed logs
-   docker logs container_name
-   ```
-
-2. **Web server not accessible**:
-   ```bash
-   # Check if NGINX is running
-   sudo systemctl status nginx
-   
-   # Check firewall rules
-   sudo ufw status
-   ```
-
-3. **Database connection issues**:
-   ```bash
-   # Check if PostgreSQL container is running
-   docker ps | grep db
-   
-   # Check database logs
-   docker logs db
-   ```
-
-### Using VSCode Peacock Extension
-
-When working with multiple environments, it's easy to confuse production and development servers. The VSCode Peacock extension can help by color-coding your VSCode windows.
-
-1. Install the Peacock extension from the VSCode marketplace
-2. Set different colors for different environments:
-   - Production: Red (#ff0000)
-   - Staging: Orange (#ff9900)
-   - Development: Green (#00ff00)
-
-This visual cue helps prevent accidentally making changes to the wrong environment.
 
 ## Maintenance
 

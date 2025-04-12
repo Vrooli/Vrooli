@@ -6,6 +6,7 @@
         "redhat.vscode-yaml",
         "christian-kohler.npm-intellisense",
         "johnpapa.vscode-peacock",
-        "jetmartin.bats"
+        "jetmartin.bats",
+        "ms-vscode-remote.remote-ssh"
     ]
 }
