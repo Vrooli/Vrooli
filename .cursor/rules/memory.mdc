@@ -31,6 +31,9 @@ All documentation files are Markdown files, structured clearly to maintain conte
   - Future vision and long-term goals  
   - Realistic timelines for delivery
 
+- **[tools.md](mdc:docs/tools.md)**
+  - Commands and tools available to you, typically within the terminal
+
 ### Task Management (`/docs/tasks/` folder):
 
 Tasks are clearly organized and managed through multiple Markdown files categorized by their status:

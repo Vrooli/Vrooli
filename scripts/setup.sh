@@ -16,20 +16,22 @@ ON_REMOTE=""
 ENVIRONMENT=${NODE_ENV:-development}
 ENV_FILES_SET_UP=""
 USE_KUBERNETES=false
+SETUP_CI_CD=false
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE]
+Usage: $(basename "$0") [-h HELP] [-c CI/CD] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE]
 
 Sets up NPM, Yarn, global dependencies, and anything else required to get the project up and running.
 
 Options:
-  -h, --help:       Show this help message
-  -e, --env-setup:  (Y/n) True if you want to create secret files for the environment variables. If not provided, will prompt.
-  -k, --kubernetes: If set, will use Kubernetes instead of Docker Compose
-  -m, --modules-reinstall: (y/N) If set to "y", will delete all node_modules directories and reinstall
-  -p, --prod:       If set, will skip steps that are only required for development
-  -r, --remote:     (Y/n) True if this script is being run on a remote server
+  -h, --help:              Show this help message
+  -c, --ci-cd:             (y/N) True if you want to configure the system for CI/CD (GitHub Actions)
+  -e, --env-setup:         (y/N) True if you want to create secret files for the environment variables. If not provided, will prompt.
+  -k, --kubernetes:        (y/N) True if you want to use Kubernetes instead of Docker Compose
+  -m, --modules-reinstall: (y/N) If true, will delete all node_modules directories and reinstall
+  -p, --prod:              (y/N) If true, will skip steps that are only required for development
+  -r, --remote:            (y/N) True if this script is being run on a remote server
 
 Exit Codes:
   0                     Success
@@ -47,6 +49,15 @@ parse_arguments() {
             usage
             exit 0
             ;;
+        -c | --ci-cd)
+            if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                echo "Error: Option $key requires an argument."
+                exit $ERROR_USAGE
+            fi
+            SETUP_CI_CD="${2}"
+            shift # past argument
+            shift # past value
+            ;;
         -e | --env-setup)
             if [ -z "$2" ] || [[ "$2" == -* ]]; then
                 echo "Error: Option $key requires an argument."
@@ -57,8 +68,14 @@ parse_arguments() {
             shift # past value
             ;;
         -k | --kubernetes)
-            USE_KUBERNETES=true
+            if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                echo "Error: Option $key requires an argument."
+                usage
+                exit $ERROR_USAGE
+            fi
+            USE_KUBERNETES="${2}"
             shift # past argument
+            shift # past value
             ;;
         -m | --modules-reinstall)
             if [ -z "$2" ] || [[ "$2" == -* ]]; then
@@ -71,8 +88,14 @@ parse_arguments() {
             shift # past value
             ;;
         -p | --prod)
-            ENVIRONMENT="production"
+            if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                echo "Error: Option $key requires an argument."
+                usage
+                exit $ERROR_USAGE
+            fi
+            ENVIRONMENT=    "production"
             shift # past argument
+            shift # past value
             ;;
         -r | --remote)
             if [ -z "$2" ] || [[ "$2" == -* ]]; then
@@ -603,10 +626,154 @@ populate_vault() {
     fi
 }
 
+setup_ci_cd() {
+    header "Setting up CI/CD deployment"
+    
+    # Check if running as root
+    if [ "$(id -u)" -ne 0 ]; then
+        error "CI/CD setup must be run as root. Please run with sudo."
+        exit 1
+    fi
+    
+    info "Installing basic tools for CI/CD deployment..."
+    apt install -y curl git rsync
+
+    # Create deployment directory
+    header "Creating deployment directory"
+    DEPLOY_DIR="/root/Vrooli"
+    mkdir -p $DEPLOY_DIR
+    chown -R $SUDO_USER:$SUDO_USER $DEPLOY_DIR
+
+    # Create deploy script
+    header "Creating deployment script"
+    cat > $DEPLOY_DIR/deploy.sh << 'EOF'
+#!/bin/bash
+
+cd /root/Vrooli
+
+# Pull latest changes if this is a git repository
+if [ -d .git ]; then
+  git pull
+fi
+
+# Check if environment was specified
+ENVIRONMENT=${1:-production}
+
+# Ensure environment file exists
+if [ "$ENVIRONMENT" == "production" ]; then
+  ENV_FILE=".env-prod"
+else
+  ENV_FILE=".env-dev"
+fi
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "Error: $ENV_FILE file not found!"
+  exit 1
+fi
+
+# Copy env file
+cp "$ENV_FILE" .env
+
+# Select the appropriate docker-compose file
+if [ "$ENVIRONMENT" == "production" ]; then
+  COMPOSE_FILE="docker-compose-prod.yml"
+else
+  COMPOSE_FILE="docker-compose-dev.yml"
+fi
+
+# Deploy with Docker Compose
+docker-compose -f $COMPOSE_FILE down
+docker-compose -f $COMPOSE_FILE up -d --build
+
+# Check status
+docker-compose -f $COMPOSE_FILE ps
+EOF
+
+    chmod +x $DEPLOY_DIR/deploy.sh
+    chown $SUDO_USER:$SUDO_USER $DEPLOY_DIR/deploy.sh
+
+    # Add example .env-prod file if it doesn't exist
+    if [ ! -f "$DEPLOY_DIR/.env-prod" ]; then
+        header "Creating example .env-prod file"
+        cat > $DEPLOY_DIR/.env-prod << 'EOF'
+# Copy from .env-example and fill in your production values
+# This is just a placeholder file - replace with actual values
+NODE_ENV=production
+VIRTUAL_HOST=your-domain.com
+LETSENCRYPT_HOST=your-domain.com
+LETSENCRYPT_EMAIL=your-email@example.com
+EOF
+
+        chown $SUDO_USER:$SUDO_USER $DEPLOY_DIR/.env-prod
+    else
+        info ".env-prod file already exists, skipping creation"
+    fi
+
+    # Add example .env-dev file if it doesn't exist
+    if [ ! -f "$DEPLOY_DIR/.env-dev" ]; then
+        header "Creating example .env-dev file"
+        cat > $DEPLOY_DIR/.env-dev << 'EOF'
+# Copy from .env-example and fill in your development values
+# This is just a placeholder file - replace with actual values
+NODE_ENV=development
+VIRTUAL_HOST=dev.your-domain.com
+LETSENCRYPT_HOST=dev.your-domain.com
+LETSENCRYPT_EMAIL=your-email@example.com
+EOF
+
+        chown $SUDO_USER:$SUDO_USER $DEPLOY_DIR/.env-dev
+    else
+        info ".env-dev file already exists, skipping creation"
+    fi
+
+    # Set up log rotation
+    header "Setting up log rotation"
+    cat > /etc/logrotate.d/docker << 'EOF'
+/var/lib/docker/containers/*/*.log {
+    daily
+    rotate 7
+    compress
+    size=10M
+    missingok
+    delaycompress
+    copytruncate
+}
+EOF
+
+    # Output summary
+    success "CI/CD setup complete!"
+    echo ""
+    echo "Next steps:"
+    echo "1. Make sure your VPS has Docker and Docker Compose installed"
+    echo "   - If not already installed, run: 'curl -sSL https://github.com/Vrooli/NginxSSLReverseProxy/raw/main/setup.sh | sudo bash'"
+    echo "2. Update the .env-prod and .env-dev files in $DEPLOY_DIR with your actual values"
+    echo "3. Set up your GitHub repository with the required secrets:"
+    echo "   - VPS_HOST: $(hostname -I | awk '{print $1}')"
+    echo "   - VPS_USERNAME: $SUDO_USER"
+    echo "   - SSH_PRIVATE_KEY: Your SSH private key"
+    echo "   - DEPLOY_PATH: $DEPLOY_DIR"
+    echo "   For development deployment, also set:"
+    echo "   - DEV_VPS_HOST: Your development server hostname"
+    echo "   - DEV_VPS_USER: Your development server username"
+    echo "   - DEV_SSH_PRIVATE_KEY: SSH key for development server"
+    echo ""
+    echo "4. Your repository should already have workflow files (.github/workflows/deploy-prod.yml and deploy-dev.yml)"
+    echo "5. To manually deploy:"
+    echo "   - Production: $DEPLOY_DIR/deploy.sh production"
+    echo "   - Development: $DEPLOY_DIR/deploy.sh development"
+    echo ""
+}
+
 main() {
     parse_arguments "$@"
 
     set_script_permissions
+
+    # If CI/CD setup is requested, do that and exit
+    if $SETUP_CI_CD; then
+        setup_ci_cd
+        exit 0
+    }
 
     load_env_file $ENVIRONMENT
     # Determine where this script is running (local or remote)

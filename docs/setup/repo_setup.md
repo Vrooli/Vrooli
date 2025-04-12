@@ -1,5 +1,5 @@
 # Repo Setup
-If you've followed the [prerequisites](/setup/getting_started/prerequisites.html), you should be ready to download and set up the repo. Here's how to do it:
+If you've followed the [prerequisites](prerequisites.md), you should be ready to download and set up the repo. Here's how to do it:
 
 ## 1. Download this repository
 In the directory of your choice, enter `git clone <REPO_URL>` (or `git clone --depth 1 --branch main <REPO_URL-url>` on the production server, since you only need the latest commit). On Windows, make sure this is done from an Ubuntu terminal in Windows Terminal. If the code is stored on the Windows file system, then docker will be **extremely** slow - and likely unusable.  

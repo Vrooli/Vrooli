@@ -322,6 +322,11 @@ Vrooli is built using a modern and robust technology stack to ensure performance
 ## [👩🏼‍💻 Developer Setup][setup-guide]
 [Follow this guide][setup-guide] to set up your development environment, including step-by-step instructions and useful tips for efficient development.
 
+### CI/CD Pipeline
+
+We have set up a CI/CD pipeline to automatically deploy changes to a development VPS whenever changes are pushed to the `development` branch. This allows for quick testing and validation of changes before they are merged into the main branch and deployed to production.
+
+For detailed instructions on how to set up and use the CI/CD pipeline, see the [CI/CD Setup documentation](docs/deployment/ci_cd_setup.md).
 
 # 🤟 Contribute
 

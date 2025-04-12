@@ -15,6 +15,13 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Read arguments
 SETUP_ARGS=()
+# Clean up old builds
+CLEAN_BUILDS=false
+# Number of recent builds to keep
+KEEP_BUILDS=3
+# Skip confirmation when cleaning old builds
+SKIP_CLEAN_CONFIRM=false
+
 # Read arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -28,9 +35,29 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
+    -c | --clean)
+        CLEAN_BUILDS=true
+        shift # past argument
+        ;;
+    -k | --keep)
+        if [ -z "$2" ] || [[ "$2" == -* ]]; then
+            echo "Error: Option $key requires an argument."
+            exit 1
+        fi
+        KEEP_BUILDS="${2}"
+        shift # past argument
+        shift # past value
+        ;;
+    -y | --yes)
+        SKIP_CLEAN_CONFIRM=true
+        shift # past argument
+        ;;
     -h | --help)
-        echo "Usage: $0 [-v VERSION] [-h]"
+        echo "Usage: $0 [-v VERSION] [-c] [-k KEEP_BUILDS] [-y] [-h]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
+        echo "  -c --clean: Clean up old build directories"
+        echo "  -k --keep: Number of recent builds to keep when cleaning (default: 3)"
+        echo "  -y --yes: Skip confirmation when cleaning build directories"
         echo "  -h --help: Show this help message"
         exit 0
         ;;
@@ -174,6 +201,59 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Function to clean up old build directories
+cleanup_old_builds() {
+    # Create a list of all build directories sorted by modification time, newest first
+    local ALL_BUILDS=($(ls -td /var/tmp/[0-9]* 2>/dev/null))
+    
+    # If there are fewer builds than we want to keep, do nothing
+    local TOTAL_BUILDS=${#ALL_BUILDS[@]}
+    if [ $TOTAL_BUILDS -le $KEEP_BUILDS ]; then
+        info "Found $TOTAL_BUILDS build directories, which is fewer than or equal to the limit ($KEEP_BUILDS). Nothing to clean up."
+        return 0
+    fi
+    
+    # Calculate how many builds to remove
+    local REMOVE_COUNT=$((TOTAL_BUILDS - KEEP_BUILDS))
+    info "Found $TOTAL_BUILDS build directories. Will keep $KEEP_BUILDS recent ones and remove $REMOVE_COUNT old ones."
+    
+    # Get the builds to remove (skip the first $KEEP_BUILDS)
+    local BUILDS_TO_REMOVE=("${ALL_BUILDS[@]:$KEEP_BUILDS}")
+    
+    # Display builds that will be removed
+    echo "The following build directories will be removed:"
+    for dir in "${BUILDS_TO_REMOVE[@]}"; do
+        echo "  - $dir ($(du -sh "$dir" 2>/dev/null | cut -f1) - last modified $(date -r "$dir" '+%Y-%m-%d %H:%M:%S'))"
+    done
+    
+    # Ask for confirmation unless skipped
+    if [ "$SKIP_CLEAN_CONFIRM" != true ]; then
+        prompt "Do you want to proceed with removing these directories? (y/N)"
+        read -n 1 -r REPLY
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Cleanup aborted."
+            return 0
+        fi
+    fi
+    
+    # Remove the old build directories
+    local SPACE_BEFORE=$(df -h /var/tmp | awk 'NR==2 {print $4}')
+    for dir in "${BUILDS_TO_REMOVE[@]}"; do
+        info "Removing $dir..."
+        rm -rf "$dir"
+    done
+    
+    local SPACE_AFTER=$(df -h /var/tmp | awk 'NR==2 {print $4}')
+    success "Cleanup complete. Free space in /var/tmp changed from $SPACE_BEFORE to $SPACE_AFTER."
+}
+
+# Clean up old builds if requested
+if [ "$CLEAN_BUILDS" = true ]; then
+    header "Cleaning up old build directories"
+    cleanup_old_builds
+fi
+
 # Restart docker containers.
 info "Restarting docker containers..."
 docker-compose --env-file .env-prod -f docker-compose-prod.yml up -d
@@ -184,3 +264,4 @@ info "- Manually check that the site is working correctly"
 info "- Make sure that all environment variables are correct (e.g. Stripe keys), if you haven't already"
 info "- Upload the sitemap index file from packages/ui/public/sitemap.xml to Google Search Console, Bing Webmaster Tools, and Yandex Webmaster Tools"
 info "- Let everyone on social media know that you've deployed a new version of Vrooli!"
+info "- Consider cleaning up old build directories with: $0 -c -k 3"
