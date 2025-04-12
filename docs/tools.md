@@ -75,22 +75,22 @@ cd packages/ui && yarn storybook
 ## Container logs
 ```bash
 # View development logs from all containers
-docker-compose --env-file .env logs
+docker-compose --env-file .env-dev logs
 
 # View production logs from a specific container
 docker-compose --env-file .env-prod logs server
 
 # Follow logs in real-time
-docker-compose logs -f
+docker-compose --env-file .env-dev logs -f
 ```
 
 ## Restarting services
 ```bash
 # Restart a specific service
-docker-compose --env-file .env restart server
+docker-compose --env-file .env-dev restart server
 
 # Restart all services
-docker-compose --env-file .env restart
+docker-compose --env-file .env-dev restart
 ```
 
 ## Accessing Container Shell

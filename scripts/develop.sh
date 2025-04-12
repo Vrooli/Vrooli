@@ -6,8 +6,9 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Default values
 BUILD=""
 FORCE_RECREATE=""
-DOCKER_COMPOSE_FILE="-f docker-compose.yml"
+DOCKER_COMPOSE_FILE="docker-compose.yml"
 USE_KUBERNETES=false
+ENV_FILE=".env-dev"
 
 # Read arguments
 SETUP_ARGS=()
@@ -51,6 +52,8 @@ done
 NODE_ENV="development"
 if $PROD_FLAG_FOUND; then
     NODE_ENV="production"
+    ENV_FILE=".env-prod"
+    DOCKER_COMPOSE_FILE="docker-compose-prod.yml"
 fi
 
 # Running setup.sh
@@ -119,9 +122,6 @@ if $USE_KUBERNETES; then
         success "Minikube is already running"
     fi
 else
-    if $PROD_FLAG_FOUND; then
-        DOCKER_COMPOSE_FILE="-f docker-compose-prod.yml"
-    fi
     info "Docker compose file: ${DOCKER_COMPOSE_FILE}"
 
     docker-compose down
@@ -135,5 +135,5 @@ else
 
     # Start the development environment
     info "Starting development environment using Docker Compose..."
-    docker-compose $DOCKER_COMPOSE_FILE up $BUILD $FORCE_RECREATE -d
+    docker-compose --env-file "${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" up $BUILD $FORCE_RECREATE -d
 fi

@@ -30,7 +30,7 @@ jobs/
 
 2. Set up environment variables:
    ```bash
-   cp ../../.env-example .env
+   cp ../../.env-example .env-dev
    ```
 
 3. Start development server:

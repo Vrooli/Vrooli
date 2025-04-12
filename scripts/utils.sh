@@ -120,7 +120,7 @@ load_env_file() {
     HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
     local environment=$1
-    local env_file="$HERE/../.env"
+    local env_file="$HERE/../.env-dev"
 
     if [ "$environment" != "development" ] && [ "$environment" != "production" ]; then
         error "Error: Environment must be either development or production."

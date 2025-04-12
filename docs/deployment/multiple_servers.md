@@ -201,7 +201,7 @@ For each application server:
 4. Set up environment variables:
    ```bash
    cp .env-example .env-prod
-   nano .env-prod
+   vim .env-prod
    ```
    
    Update the following variables:

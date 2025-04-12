@@ -43,28 +43,6 @@ server/
 └── scripts/         # Utility scripts
 ```
 
-## Getting Started
-
-1. Install dependencies:
-   ```bash
-   yarn install
-   ```
-
-2. Set up environment variables:
-   ```bash
-   cp ../../.env-example .env
-   ```
-
-3. Start development server:
-   ```bash
-   yarn dev
-   ```
-
-4. Run tests:
-   ```bash
-   yarn test
-   ```
-
 ## Development
 
 ### Key Features

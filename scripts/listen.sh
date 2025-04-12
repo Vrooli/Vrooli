@@ -57,10 +57,10 @@ LAST_RESET=$(date +%s)
 LATEST_TIMESTAMP=0 #TODO
 
 # Load variables from .env file
-if [ -f "${HERE}/../.env" ]; then
-    . "${HERE}/../.env"
+if [ -f "${HERE}/../.env-dev" ]; then
+    . "${HERE}/../.env-dev"
 else
-    error "Could not find .env file. Exiting..."
+    error "Could not find .env-dev file. Exiting..."
     exit 1
 fi
 

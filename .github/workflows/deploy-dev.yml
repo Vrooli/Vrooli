@@ -71,8 +71,8 @@ jobs:
         run: |
           # Set version with timestamp
           VERSION=$(cat package.json | jq -r .version)-dev-$(date +%Y%m%d%H%M%S)
-          # Run build script
-          ./scripts/build.sh -v "$VERSION" -t y
+          # Run build script with development env file
+          ./scripts/build.sh -v "$VERSION" -e ".env-dev" -t y
           # Set output for other jobs to use
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           # Also set env var for this job's remaining steps
@@ -106,7 +106,7 @@ jobs:
             git fetch && \
             git pull origin development && \
             cp '$BUILD_DIR/.env-dev' .env-dev && \
-            ./scripts/develop.sh -v '${{ env.BUILD_VERSION }}' -c -y"
+            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -e '.env-dev'"
 
           # Verify API health check after deployment
           echo "Waiting 30 seconds for services to start..."

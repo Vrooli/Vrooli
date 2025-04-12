@@ -152,7 +152,7 @@ sed -i -E 's/\$\{([^:}]*).*\}/<\1>/g' ${COMPOSE_FILE}.edit
 
 # Generate name for output file based on selected docker-compose file and environment
 COMPOSE_BASENAME=$(basename "$COMPOSE_FILE" .yml)
-ENV_BASENAME=$(basename "${HERE}/../.env" .env)
+ENV_BASENAME=$(basename "${ENV_FILE}" .env)
 ENV_BASENAME=${ENV_BASENAME#.} # Remove the leading dot
 OUTPUT_FILE="k8s-${COMPOSE_BASENAME}-${ENV_BASENAME}.yml"
 

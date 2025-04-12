@@ -2,7 +2,7 @@
 # Adds production docker images to the Docker Hub registry
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/utils.sh"
-. "${HERE}/../.env"
+. "${HERE}/../.env-prod"
 
 # Exit if any command fails
 set -e

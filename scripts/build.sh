@@ -5,7 +5,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/utils.sh"
 
 # Read arguments
-ENV_FILE="${HERE}/../.env-prod"
+ENV_FILE=".env-prod"
 TEST="y"
 while getopts "v:d:u:ha:e:t:" opt; do
     case $opt in
@@ -16,7 +16,7 @@ while getopts "v:d:u:ha:e:t:" opt; do
         echo "  -u --use-kubernetes: Deploy to Kubernetes? This overrides '--deploy-vps'. (y/N)"
         echo "  -h --help: Show this help message"
         echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
-        echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
+        echo "  -e --env-file: .env file name (e.g. \".env\") (must be in root directory)"
         echo "  -t --test: Runs all tests to ensure code is working before building. Defaults to true. (y/N)"
         exit 0
         ;;
@@ -49,12 +49,12 @@ while getopts "v:d:u:ha:e:t:" opt; do
     esac
 done
 
-# Load variables from .env file
+# Load variables from ${ENV_FILE} file
 if [ -f "${ENV_FILE}" ]; then
-    info "Loading variables from ${ENV_FILE}..."
-    . "${ENV_FILE}"
+    info "Loading variables from ${HERE}/../${ENV_FILE}..."
+    . "${HERE}/../${ENV_FILE}"
 else
-    error "Could not find .env file at ${ENV_FILE}. Exiting..."
+    error "Could not find ${ENV_FILE} file at ${HERE}/../${ENV_FILE}. Exiting..."
     exit 1
 fi
 
@@ -155,18 +155,19 @@ else
 fi
 
 # Create local .env file
-touch .env
+TMP_ENV_FILE=".env-tmp"
+touch ${TMP_ENV_FILE}
 # Set environment variables
-echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>.env
-echo "VITE_PORT_API=${PORT_API}" >>.env
-echo "VITE_API_URL=${API_URL}" >>.env
-echo "VITE_SITE_IP=${SITE_IP}" >>.env
-echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>.env
-echo "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >>.env
-echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>.env
-echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>.env
-# Set trap to remove .env file on exit
-trap "rm ${HERE}/../packages/ui/.env" EXIT
+echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>${TMP_ENV_FILE}
+echo "VITE_PORT_API=${PORT_API}" >>${TMP_ENV_FILE}
+echo "VITE_API_URL=${API_URL}" >>${TMP_ENV_FILE}
+echo "VITE_SITE_IP=${SITE_IP}" >>${TMP_ENV_FILE}
+echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>${TMP_ENV_FILE}
+echo "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >>${TMP_ENV_FILE}
+echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>${TMP_ENV_FILE}
+echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>${TMP_ENV_FILE}
+# Set trap to remove ${TMP_ENV_FILE} file on exit
+trap "rm ${HERE}/../packages/ui/${TMP_ENV_FILE}" EXIT
 
 # Generate API information
 if is_yes "$API_GENERATE"; then
@@ -330,7 +331,7 @@ fi
 # Build Docker images
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
-docker-compose --env-file ${ENV_FILE} -f docker-compose-prod.yml build
+docker-compose --env-file "${HERE}/../${ENV_FILE}" -f docker-compose-prod.yml build
 docker pull ankane/pgvector:v0.4.4
 docker pull redis:7.4.0-alpine
 
@@ -404,14 +405,12 @@ elif is_yes "$DEPLOY_VPS"; then
     # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="/var/tmp/${VERSION}/"
-    prompt "Going to copy build and .env-prod to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
+    prompt "Going to copy build to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s
     # Ensure that target directory exists
     ssh -i ~/.ssh/id_rsa_${SITE_IP} root@${SITE_IP} "mkdir -p ${BUILD_DIR}"
-    # Copy everything except ENV_FILE
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz root@${SITE_IP}:${BUILD_DIR}
-    # ENV_FILE must be copied as .env-prod since that's what deploy.sh expects
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" ${ENV_FILE} root@${SITE_IP}:${BUILD_DIR}/.env-prod
+    # Copy everything
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz ${ENV_FILE} root@${SITE_IP}:${BUILD_DIR}
     if [ $? -ne 0 ]; then
         error "Failed to copy files to ${SITE_IP}:${BUILD_DIR}"
         exit 1
@@ -426,12 +425,6 @@ else
     cp -p build.tar.gz production-docker-images.tar.gz ${BUILD_DIR}
     if [ $? -ne 0 ]; then
         error "Failed to copy build.tar.gz and production-docker-images.tar.gz to ${BUILD_DIR}"
-        exit 1
-    fi
-    # If building locally, use .env and rename it to .env-prod
-    cp -p ${ENV_FILE} ${BUILD_DIR}/.env-prod
-    if [ $? -ne 0 ]; then
-        error "Failed to copy ${ENV_FILE} to ${BUILD_DIR}/.env-prod"
         exit 1
     fi
 fi

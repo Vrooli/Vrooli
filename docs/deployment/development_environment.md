@@ -36,7 +36,7 @@ A proper development environment should:
 
 3. **Edit the environment variables**:
    ```bash
-   nano .env-dev
+   vim .env-dev
    ```
    
    Important variables to configure:

@@ -15,7 +15,7 @@ To open the project from the command line, enter `code <PROJECT_NAME>` from the 
 
 ## 3. Set environment variables  
 1. Edit environment variables in [.env-example](https://github.com/Vrooli/Vrooli/blob/master/.env-example)
-2. Rename the file to .env
+2. Rename the file to .env-dev or .env-prod, depending on the environment you're setting up.
 
 ## 4. Set up linting (Python repos only)  
 If you're working on a Python repo, the linter will not work correctly unless you open up VSCode in the Docker container. To do this, follow [this guide](/setup/getting_started/working_with_docker.html)

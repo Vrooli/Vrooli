@@ -15,6 +15,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Read arguments
 SETUP_ARGS=()
+ENV_FILE=".env-prod"
 # Clean up old builds
 CLEAN_BUILDS=false
 # Number of recent builds to keep
@@ -35,6 +36,14 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
+    -e | --env-file)
+        if [ -z "$2" ] || [[ "$2" == -* ]]; then
+            echo "Error: Option $key requires an argument."
+            exit 1
+        fi
+        ENV_FILE="${2}"
+        shift # past argument
+        shift # past value
     -c | --clean)
         CLEAN_BUILDS=true
         shift # past argument
@@ -55,6 +64,7 @@ while [[ $# -gt 0 ]]; do
     -h | --help)
         echo "Usage: $0 [-v VERSION] [-c] [-k KEEP_BUILDS] [-y] [-h]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
+        echo "  -e --env-file: .env file name (e.g. \".env\") (must be in root directory)"
         echo "  -c --clean: Clean up old build directories"
         echo "  -k --keep: Number of recent builds to keep when cleaning (default: 3)"
         echo "  -y --yes: Skip confirmation when cleaning build directories"
@@ -159,22 +169,22 @@ else
     exit 1
 fi
 
-# Copy the .env-prod file to the correct location
-if [ -f "${BUILD_ZIP}/.env-prod" ]; then
-    info "Moving .env-prod file to ${HERE}/../.env-prod"
-    cp "${BUILD_ZIP}/.env-prod" "${HERE}/../.env-prod"
+# Copy the environment file to the correct location
+if [ -f "${BUILD_ZIP}/${ENV_FILE}" ]; then
+    info "Moving ${ENV_FILE} file to ${HERE}/../${ENV_FILE}"
+    cp "${BUILD_ZIP}/${ENV_FILE}" "${HERE}/../${ENV_FILE}"
     if [ $? -ne 0 ]; then
-        error "Failed to move .env-prod file to ${HERE}/../.env-prod"
+        error "Failed to move ${ENV_FILE} file to ${HERE}/../${ENV_FILE}"
         exit 1
     fi
 else
-    error "Could not find .env-prod file at ${BUILD_ZIP}/.env-prod"
+    error "Could not find ${ENV_FILE} file at ${BUILD_ZIP}/${ENV_FILE}"
     exit 1
 fi
 
 # Stop docker containers
 info "Stopping docker containers..."
-docker-compose --env-file .env-prod down
+docker-compose --env-file "${ENV_FILE}" down
 
 info "Getting production secrets..."
 readarray -t secrets <"${HERE}/secrets_list.txt"
@@ -256,7 +266,7 @@ fi
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose --env-file .env-prod -f docker-compose-prod.yml up -d
+docker-compose --env-file "${HERE}/../${ENV_FILE}" -f docker-compose-prod.yml up -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
 info "Now that you've deployed, here are some next steps:"

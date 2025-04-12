@@ -671,9 +671,6 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-# Copy env file
-cp "$ENV_FILE" .env
-
 # Select the appropriate docker-compose file
 if [ "$ENVIRONMENT" == "production" ]; then
   COMPOSE_FILE="docker-compose-prod.yml"
@@ -683,7 +680,7 @@ fi
 
 # Deploy with Docker Compose
 docker-compose -f $COMPOSE_FILE down
-docker-compose -f $COMPOSE_FILE up -d --build
+docker-compose -f $COMPOSE_FILE up -d --build --env-file $ENV_FILE
 
 # Check status
 docker-compose -f $COMPOSE_FILE ps

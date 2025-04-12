@@ -5,10 +5,10 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/utils.sh"
 
 # Load variables from .env file
-if [ -f "${HERE}/../.env" ]; then
-    . "${HERE}/../.env"
+if [ -f "${HERE}/../.env-dev" ]; then
+    . "${HERE}/../.env-dev"
 else
-    error "Could not find .env file. This may break the script."
+    error "Could not find .env-dev file. This may break the script."
 fi
 
 # Read argument

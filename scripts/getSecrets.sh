@@ -30,7 +30,7 @@ case $environment in
 esac
 
 # Set env file based on the environment
-env_file="${HERE}/../.env"
+env_file="${HERE}/../.env-dev"
 if [ "$environment" == "prod" ]; then
     env_file="${HERE}/../.env-prod"
 fi

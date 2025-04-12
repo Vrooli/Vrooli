@@ -16,14 +16,14 @@ CONN_TIMEOUT=10
 SETUP_MODE=false
 
 # Read arguments
-ENV_FILE="${HERE}/../.env-prod"
+ENV_FILE=".env-prod"
 while getopts "hse:" opt; do
     case $opt in
     h)
         echo "Usage: $0 [-h] [-s] [-e ENV_FILE] [SITE_IP]"
         echo "  -h --help: Show this help message"
         echo "  -s --setup: Server setup mode, guides through new server creation"
-        echo "  -e --env-file: .env file location (e.g. \"/root/my-folder/.env\")"
+        echo "  -e --env-file: .env file name (e.g. \".env\") (must be in root directory)"
         echo "  SITE_IP: Optional IP address to connect to (overrides .env)"
         exit 0
         ;;
@@ -87,26 +87,26 @@ if [ "$SETUP_MODE" = true ]; then
     mv ~/.ssh/${temp_key_name} ~/.ssh/${key_name}
     mv ~/.ssh/${temp_key_name}.pub ~/.ssh/${key_name}.pub
     
-    # Ask if the user wants to update .env file
-    info "Do you want to update SITE_IP in ${ENV_FILE}? (y/n)"
+    # Ask if the user wants to update SITE_IP in ${ENV_FILE}
+    info "Do you want to update SITE_IP in ${HERE}/../${ENV_FILE}? (y/n)"
     read -n 1 -s update_env
     echo ""
     
     if [ "$update_env" = "y" ]; then
-        if [ -f "${ENV_FILE}" ]; then
+        if [ -f "${HERE}/../${ENV_FILE}" ]; then
             # Check if SITE_IP exists in the file
-            if grep -q "SITE_IP=" "${ENV_FILE}"; then
+            if grep -q "SITE_IP=" "${HERE}/../${ENV_FILE}"; then
                 # Update existing SITE_IP
-                sed -i "s/SITE_IP=.*/SITE_IP=${SITE_IP}/" "${ENV_FILE}"
+                sed -i "s/SITE_IP=.*/SITE_IP=${SITE_IP}/" "${HERE}/../${ENV_FILE}"
             else
                 # Add SITE_IP to the file
-                echo "SITE_IP=${SITE_IP}" >> "${ENV_FILE}"
+                echo "SITE_IP=${SITE_IP}" >> "${HERE}/../${ENV_FILE}"
             fi
-            success "Updated SITE_IP in ${ENV_FILE}"
+            success "Updated SITE_IP in ${HERE}/../${ENV_FILE}"
         else
             # Create new .env file
-            echo "SITE_IP=${SITE_IP}" > "${ENV_FILE}"
-            success "Created ${ENV_FILE} with SITE_IP=${SITE_IP}"
+            echo "SITE_IP=${SITE_IP}" > "${HERE}/../${ENV_FILE}"
+            success "Created ${HERE}/../${ENV_FILE} with SITE_IP=${SITE_IP}"
         fi
     fi
     
@@ -114,17 +114,17 @@ if [ "$SETUP_MODE" = true ]; then
 else
     # Load variables from .env file if SITE_IP not provided as argument
     if [ -z "${SITE_IP}" ]; then
-        if [ -f "${ENV_FILE}" ]; then
-            info "Loading variables from ${ENV_FILE}..."
-            . "${ENV_FILE}"
+        if [ -f "${HERE}/../${ENV_FILE}" ]; then
+            info "Loading variables from ${HERE}/../${ENV_FILE}..."
+            . "${HERE}/../${ENV_FILE}"
         else
-            error "Could not find .env file at ${ENV_FILE}. Exiting..."
+            error "Could not find ${ENV_FILE} file at ${HERE}/../${ENV_FILE}. Exiting..."
             exit 1
         fi
         
-        # Check if SITE_IP was loaded from .env
+        # Check if SITE_IP was loaded from ${ENV_FILE}
         if [ -z "${SITE_IP}" ]; then
-            error "Could not find SITE_IP in .env file. Please provide IP as argument or in .env file."
+            error "Could not find SITE_IP in ${ENV_FILE} file. Please provide IP as argument or in ${ENV_FILE}."
             exit 1
         fi
     else

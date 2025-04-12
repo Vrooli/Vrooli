@@ -46,7 +46,7 @@ done
 # Set env file based on the environment
 env_file="${HERE}/../.env-prod"
 if [ "$ENVIRONMENT" = "dev" ]; then
-    env_file="${HERE}/../.env"
+    env_file="${HERE}/../.env-dev"
 fi
 # Check if env file exists
 if [ ! -f "$env_file" ]; then

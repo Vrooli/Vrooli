@@ -71,7 +71,7 @@ jobs:
           # Set production version
           VERSION=$(cat package.json | jq -r .version)
           # Run build script for production
-          ./scripts/build.sh -v "$VERSION" -t y
+          ./scripts/build.sh -v "$VERSION" -e ".env-prod" -t y
           # Set output for other jobs to use
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           # Also set env var for this job's remaining steps
@@ -105,7 +105,7 @@ jobs:
             git fetch && \
             git pull origin main && \
             cp '$BUILD_DIR/.env-prod' .env-prod && \
-            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y"
+            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -e '.env-prod'"
 
           # Verify deployment status
           ssh "$VPS_USERNAME@$VPS_HOST" "cd '$DEPLOY_PATH' && docker-compose -f docker-compose-prod.yml ps"
