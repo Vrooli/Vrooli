@@ -1,7 +1,6 @@
 import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, SEEDED_IDS, UserSortBy, getTranslation, userValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
-import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
@@ -240,11 +239,10 @@ export const UserModel: UserModelLogic = ({
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    OR: [
-                        // Owned objects
-                        useVisibility("User", "Own", data),
-                        // Public objects
-                        useVisibility("User", "Public", data),
+                    OR: [ // Either yourself, or a bot you created, or a public user
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                        { isPrivate: false },
                     ],
                 };
             },

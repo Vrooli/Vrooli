@@ -140,8 +140,11 @@ async function main() {
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 }
 
-// Only call this from the "server" package
-if (process.env.npm_package_name === "@local/server") {
+// Only call this from the "server" package when not testing
+if (
+    process.env.npm_package_name === "@local/server" &&
+    process.env.NODE_ENV !== "test"
+) {
     main();
 }
 

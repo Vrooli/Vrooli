@@ -29,7 +29,7 @@ export const statsUser_findMany = {
             "standardsCreated": true,
             "standardsCompleted": true,
             "standardCompletionTimeAverage": true,
-            "teamssCreated": true
+            "teamsCreated": true
         }
     },
     "pageInfo": {

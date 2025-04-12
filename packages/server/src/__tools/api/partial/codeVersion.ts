@@ -27,7 +27,6 @@ export const codeVersion: ApiPartial<CodeVersion> = {
         default: true,
         versionIndex: true,
         versionLabel: true,
-        calledByRoutineVersionsCount: true,
         commentsCount: true,
         directoryListingsCount: true,
         forksCount: true,
@@ -35,6 +34,7 @@ export const codeVersion: ApiPartial<CodeVersion> = {
         you: () => rel(versionYou, "full"),
     },
     full: {
+        calledByRoutineVersionsCount: true,
         content: true,
         versionNotes: true,
         pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),

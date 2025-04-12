@@ -135,8 +135,14 @@ export async function fetchPriceFromRedis(paymentType: PaymentType): Promise<num
             if (!redisClient) return;
             const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
             const price = await redisClient.get(key);
-            if (Number.isInteger(price) && Number(price) >= 0) {
-                result = Number(price);
+
+            // Redis returns values as strings, so we need to convert to a number
+            if (price !== null) {
+                const numPrice = Number(price);
+                // Check if it's a valid number and not negative
+                if (!isNaN(numPrice) && numPrice >= 0) {
+                    result = numPrice;
+                }
             }
         },
         trace: "0185",

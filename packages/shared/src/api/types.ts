@@ -271,6 +271,7 @@ export type ApiUpdateInput = {
 };
 
 export type ApiVersion = DbObject<"ApiVersion"> & {
+    calledByRoutineVersionsCount: Scalars["Int"];
     callLink: Scalars["String"];
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
@@ -317,6 +318,7 @@ export type ApiVersionCreateInput = BaseTranslatableCreateInput<ApiVersionTransl
 export type ApiVersionEdge = Edge<ApiVersion, "ApiVersionEdge">;
 
 export type ApiVersionSearchInput = BaseSearchInput<ApiVersionSortBy> & {
+    calledByRoutineVersionId?: InputMaybe<Scalars["ID"]>;
     createdByIdRoot?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     isCompleteWithRoot?: InputMaybe<Scalars["Boolean"]>;
@@ -6180,7 +6182,7 @@ export type StatsUser = DbObject<"StatsUser"> & {
     standardCompletionTimeAverage: Scalars["Float"];
     standardsCompleted: Scalars["Int"];
     standardsCreated: Scalars["Int"];
-    teamssCreated: Scalars["Int"];
+    teamsCreated: Scalars["Int"];
 };
 
 export type StatsUserEdge = Edge<StatsUser, "StatsUserEdge">;

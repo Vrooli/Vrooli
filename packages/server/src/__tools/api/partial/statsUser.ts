@@ -30,6 +30,6 @@ export const statsUser: ApiPartial<StatsUser> = {
         standardsCreated: true,
         standardsCompleted: true,
         standardCompletionTimeAverage: true,
-        teamssCreated: true,
+        teamsCreated: true,
     },
 };

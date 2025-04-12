@@ -78,8 +78,12 @@ export const AwardModel: AwardModelLogic = ({
             ownPrivate: function getOwnPrivate(data) {
                 return useVisibility("Award", "Own", data);
             },
-            ownPublic: null, // Search method disabled
-            public: null, // Search method disabled
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Award", "Own", data);
+            },
+            public: function getPublic(data) {
+                return useVisibility("Award", "Own", data);
+            },
         },
     }),
 });

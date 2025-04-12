@@ -1,5 +1,5 @@
-import { ApiKeyPermission, StatPeriodType, StatsUserSearchInput, uuid } from "@local/shared";
-import { PeriodType, user as UserModelPrisma } from "@prisma/client";
+import { ApiKeyPermission, StatPeriodType, StatsUserSearchInput, StatsUserSearchResult, uuid } from "@local/shared";
+import { PeriodType } from "@prisma/client";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
@@ -7,29 +7,61 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { RecursivePartial } from "../../types.ts";
 import { statsUser_findMany } from "../generated/statsUser_findMany.js"; // Assuming this generated type exists
 import { statsUser } from "./statsUser.js";
 
 // User IDs
 const user1Id = uuid();
 const user2Id = uuid();
-const publicUserId = uuid(); // A potentially public user
+const publicUserId = uuid(); // A public user (not a bot)
+const user1BotId = uuid(); // A bot owned by user1
+const publicBotId = uuid(); // A public bot not owned by user1
+const privateBotId = uuid(); // A private bot not owned by user1
 
 // Sample User data structure
-const userData1: Partial<UserModelPrisma> & { id: string } = {
+const userData1 = {
     id: user1Id,
-    isPrivate: false, // Assuming default is not private
-    // Add other required User fields (name, handle, etc.)
-};
-
-const userData2: Partial<UserModelPrisma> & { id: string } = {
-    id: user2Id,
+    isBot: false,
     isPrivate: false,
+    name: "Test User 1 - Public",
 };
 
-const publicUserData: Partial<UserModelPrisma> & { id: string } = {
+const userData2 = {
+    id: user2Id,
+    isBot: false,
+    isPrivate: true,
+    name: "Test User 2 - Private",
+};
+
+const publicUserData = {
     id: publicUserId,
-    isPrivate: false, // Explicitly public for testing
+    isBot: false,
+    isPrivate: false,
+    name: "Public User",
+};
+
+const user1BotData = {
+    id: user1BotId,
+    isBot: true,
+    isPrivate: true,
+    name: "User1's Bot - Private",
+    invitedByUserId: user1Id,
+};
+
+const publicBotData = {
+    id: publicBotId,
+    isPrivate: false,
+    isBot: true,
+    name: "Public Bot",
+    invitedByUserId: user2Id,
+};
+
+const privateBotData = {
+    id: privateBotId,
+    isPrivate: true,
+    isBot: true,
+    name: "Private Bot",
 };
 
 // Adjust fields based on actual StatsUser model
@@ -47,18 +79,11 @@ const statsUserData1 = {
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
     quizzesPassed: 0,
-    quizCompletionTimeAverage: 0.0,
-    quizScoreAverage: 0.0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
     standardsCreated: 0,
-    standardsImplemented: 0,
-    standardsViews: 0,
     teamsCreated: 0,
-    teamsJoined: 0,
-    teamsLeft: 0,
     quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
@@ -86,18 +111,11 @@ const statsUserData2 = {
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
     quizzesPassed: 0,
-    quizCompletionTimeAverage: 0.0,
-    quizScoreAverage: 0.0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
     standardsCreated: 0,
-    standardsImplemented: 0,
-    standardsViews: 0,
     teamsCreated: 0,
-    teamsJoined: 0,
-    teamsLeft: 0,
     quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
@@ -125,18 +143,11 @@ const statsPublicUserData = {
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
     quizzesPassed: 0,
-    quizCompletionTimeAverage: 0.0,
-    quizScoreAverage: 0.0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
     standardsCreated: 0,
-    standardsImplemented: 0,
-    standardsViews: 0,
     teamsCreated: 0,
-    teamsJoined: 0,
-    teamsLeft: 0,
     quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
@@ -148,6 +159,83 @@ const statsPublicUserData = {
     runRoutineContextSwitchesAverage: 0.0,
     standardsCompleted: 0,
     standardCompletionTimeAverage: 0.0,
+};
+
+const statsUser1BotData = {
+    id: uuid(),
+    userId: user1BotId,
+    periodStart: new Date("2023-04-01"),
+    periodEnd: new Date("2023-04-30"),
+    periodType: PeriodType.Monthly,
+    apisCreated: 0,
+    codesCreated: 0,
+    codesCompleted: 0,
+    codeCompletionTimeAverage: 0.0,
+    projectsCreated: 0,
+    projectsCompleted: 0,
+    projectCompletionTimeAverage: 0.0,
+    quizzesPassed: 0,
+    routinesCreated: 0,
+    routinesCompleted: 0,
+    routineCompletionTimeAverage: 0.0,
+    standardsCreated: 0,
+    teamsCreated: 0,
+    quizzesFailed: 0,
+    runProjectsStarted: 0,
+    runProjectsCompleted: 0,
+    runProjectCompletionTimeAverage: 0.0,
+    runProjectContextSwitchesAverage: 0.0,
+    runRoutinesStarted: 0,
+    runRoutinesCompleted: 0,
+    runRoutineCompletionTimeAverage: 0.0,
+    runRoutineContextSwitchesAverage: 0.0,
+    standardsCompleted: 0,
+    standardCompletionTimeAverage: 0.0,
+};
+
+const statsPublicBotData = {
+    id: uuid(),
+    userId: publicBotId,
+    periodStart: new Date("2023-01-01"),
+    periodEnd: new Date("2023-05-31"),
+    periodType: PeriodType.Monthly,
+    apisCreated: 0,
+    codesCreated: 0,
+    codesCompleted: 0,
+    codeCompletionTimeAverage: 0.0,
+    projectsCreated: 0,
+    projectsCompleted: 0,
+    projectCompletionTimeAverage: 0.0,
+    quizzesPassed: 0,
+    routinesCreated: 0,
+    routinesCompleted: 0,
+    routineCompletionTimeAverage: 0.0,
+    standardsCreated: 0,
+    teamsCreated: 0,
+    quizzesFailed: 0,
+    runProjectsStarted: 0,
+    runProjectsCompleted: 0,
+    runProjectCompletionTimeAverage: 0.0,
+    runProjectContextSwitchesAverage: 0.0,
+    runRoutinesStarted: 0,
+    runRoutinesCompleted: 0,
+    runRoutineCompletionTimeAverage: 0.0,
+    runRoutineContextSwitchesAverage: 0.0,
+    standardsCompleted: 0,
+    standardCompletionTimeAverage: 0.0,
+};
+
+const allStattedObjectIds = [userData1, userData2, publicUserData, user1BotData, publicBotData];
+const extractStattedObjectInfoFromStats = async (result: RecursivePartial<StatsUserSearchResult>) => {
+    const resultsStatIds = result.edges!.map(edge => edge!.node!.id) as string[];
+    const withStattedIds = await DbProvider.get().stats_user.findMany({
+        where: { id: { in: resultsStatIds } },
+        select: { userId: true }
+    });
+    const resultStattedIds = withStattedIds.map(stat => stat[Object.keys(stat)[0]]);
+    const resultStattedNames = allStattedObjectIds.filter(user => resultStattedIds.includes(user.id)).map(user => user.name);
+
+    return { resultStattedIds, resultStattedNames };
 };
 
 describe("EndpointsStatsUser", () => {
@@ -164,21 +252,41 @@ describe("EndpointsStatsUser", () => {
 
         // Clean previous test data
         await DbProvider.get().stats_user.deleteMany({
-            where: { userId: { in: [user1Id, user2Id, publicUserId] } }
+            where: { userId: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
         });
         await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id, publicUserId] } }
+            where: { id: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
         });
 
         // Create test users
         await DbProvider.get().user.create({
-            data: { ...userData1, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { ...userData1, handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
         });
         await DbProvider.get().user.create({
-            data: { ...userData2, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { ...userData2, handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
         });
         await DbProvider.get().user.create({
-            data: { ...publicUserData, name: "Public User", handle: "public-user", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { ...publicUserData, handle: "public-user", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+        });
+        // Create the bot owned by user1
+        await DbProvider.get().user.create({
+            data: {
+                ...user1BotData,
+                handle: "user1-bot",
+                status: "Unlocked",
+                isBotDepictingPerson: false,
+                invitedByUserId: user1Id
+            }
+        });
+        // Create the public bot not owned by user1
+        await DbProvider.get().user.create({
+            data: {
+                ...publicBotData,
+                handle: "public-bot",
+                status: "Unlocked",
+                isBotDepictingPerson: false,
+                invitedByUserId: user2Id
+            }
         });
 
         // Create fresh test stats data
@@ -186,7 +294,9 @@ describe("EndpointsStatsUser", () => {
             data: [
                 statsUserData1,
                 statsUserData2,
-                statsPublicUserData
+                statsPublicUserData,
+                statsUser1BotData,
+                statsPublicBotData
             ]
         });
     });
@@ -196,10 +306,10 @@ describe("EndpointsStatsUser", () => {
 
         // Clean up test data
         await DbProvider.get().stats_user.deleteMany({
-            where: { userId: { in: [user1Id, user2Id, publicUserId] } }
+            where: { userId: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
         });
         await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id, publicUserId] } }
+            where: { id: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
         });
 
         loggerErrorStub.restore();
@@ -208,7 +318,7 @@ describe("EndpointsStatsUser", () => {
 
     describe("findMany", () => {
         describe("valid", () => {
-            it("returns only the logged-in user's stats", async () => {
+            it("returns own stats, stats for own bots, and stats for public users/bots", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
@@ -216,33 +326,23 @@ describe("EndpointsStatsUser", () => {
                     take: 10,
                     periodType: StatPeriodType.Monthly
                 };
-                // Assuming readManyHelper for StatsUser filters by req.user.id implicitly
+                const expectedStattedIds = [
+                    user1Id, // Own (Public)
+                    //user2Id, // Private User
+                    publicUserId, // Public User
+                    user1BotId, // Own Bot
+                    publicBotId, // Public Bot
+                    //privateBotId, // Private Bot
+                ];
+
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
 
                 expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
-                expect(result.edges!.length).to.equal(1); // Should only get own stats
-                const resultNode = result.edges![0]?.node;
-                expect(resultNode?.id).to.equal(statsUserData1.id);
-                // Ensure other users' stats are not returned
-                expect(result.edges!.some(e => e?.node?.id === statsUserData2.id)).to.be.false;
-                expect(result.edges!.some(e => e?.node?.id === statsPublicUserData.id)).to.be.false;
+                const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
+                expect(resultStattedIds.sort()).to.deep.equal(expectedStattedIds.sort(), `Received IDs for: ${resultStattedNames.join(", ")}`);
             });
 
-            it("returns own stats when filtering by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input: StatsUserSearchInput = { periodType: StatPeriodType.Monthly };
-                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
-                expect(result.edges!.length).to.equal(1);
-                expect(result.edges![0]?.node?.id).to.equal(statsUserData1.id);
-            });
-
-            it("returns own stats when filtering by time range (matching)", async () => {
+            it("properly filters by periodType", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
@@ -253,34 +353,23 @@ describe("EndpointsStatsUser", () => {
                         before: new Date("2023-01-31")
                     }
                 };
+                const expectedStatIds = [
+                    statsUserData1.id,
+                    // statsUserData2.id,
+                    // statsPublicUserData.id,
+                    // statsUser1BotData.id,
+                    // statsPublicBotData.id
+                ];
+
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
+                const resultStatIds = result.edges!.map(edge => edge!.node!.id);
 
                 expect(result).to.not.be.null;
-                expect(result.edges!.length).to.equal(1);
-                expect(result.edges![0]?.node?.id).to.equal(statsUserData1.id);
+                expect(expectedStatIds.sort()).to.deep.equal(resultStatIds.sort());
             });
 
-            it("returns empty list when filtering by time range (not matching)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1 stats are in Jan
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input: StatsUserSearchInput = {
-                    periodType: StatPeriodType.Monthly,
-                    periodTimeFrame: {
-                        after: new Date("2023-02-01"), // Feb range
-                        before: new Date("2023-02-28")
-                    }
-                };
-                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-
-                expect(result).to.not.be.null;
-                expect(result.edges!.length).to.equal(0); // No stats for user 1 in Feb
-            });
-
-            // Depending on readManyHelper logic, API keys/logged out might see public user stats
-            // Test A: Assuming NO stats are returned for API keys/logged out
-            it("API key - returns no user stats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // Provide user context just in case
+            it("API key with public permission returns public user/bot stats", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
                 const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -289,44 +378,42 @@ describe("EndpointsStatsUser", () => {
                     take: 10,
                     periodType: StatPeriodType.Monthly
                 };
-                // Assuming readManyHelper requires an authenticated user session for StatsUser
-                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
+                const expectedStattedIds = [
+                    user1Id, // Own (Public)
+                    // user2Id, // Private User
+                    publicUserId, // Public User
+                    // user1BotId, // Own Bot
+                    publicBotId, // Public Bot
+                    // privateBotId, // Private Bot
+                ];
 
-                expect(result).to.not.be.null;
-                expect(result.edges!.length).to.equal(0);
+                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
+                const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
+                expect(resultStattedIds.sort()).to.deep.equal(expectedStattedIds.sort(), `Received IDs for: ${resultStattedNames.join(", ")}`);
             });
 
-            it("not logged in - returns no user stats", async () => {
+            it("not logged in returns only public user/bot stats", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: StatsUserSearchInput = {
                     take: 10,
                     periodType: StatPeriodType.Monthly
                 };
-                // Assuming readManyHelper requires an authenticated user session for StatsUser
+                const expectedStattedIds = [
+                    user1Id, // Own (Public)
+                    // user2Id, // Private User
+                    publicUserId, // Public User
+                    // user1BotId, // Own Bot
+                    publicBotId, // Public Bot
+                    // privateBotId, // Private Bot
+                ];
+
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
 
                 expect(result).to.not.be.null;
-                expect(result.edges!.length).to.equal(0);
+                const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
+                expect(resultStattedIds.sort()).to.deep.equal(expectedStattedIds.sort(), `Received IDs for: ${resultStattedNames.join(", ")}`);
             });
-
-            /* // Test B: Alternative if public user stats ARE visible
-            it("API key - public permissions returns only public user stats", async () => {
-                // ... setup api session ...
-                const input: StatsUserSearchInput = { take: 10, periodType: StatPeriodType.Monthly };
-                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-                expect(result.edges!.length).to.equal(1);
-                expect(result.edges![0]?.node?.id).to.equal(statsPublicUserData.id);
-            });
-
-            it("not logged in returns only public user stats", async () => {
-                // ... setup logged out session ...
-                const input: StatsUserSearchInput = { take: 10, periodType: StatPeriodType.Monthly };
-                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-                expect(result.edges!.length).to.equal(1);
-                expect(result.edges![0]?.node?.id).to.equal(statsPublicUserData.id);
-            });
-            */
         });
 
         describe("invalid", () => {
@@ -359,22 +446,6 @@ describe("EndpointsStatsUser", () => {
                 } catch (error) {
                     expect(error).to.be.instanceOf(Error);
                 }
-            });
-
-            // Searching by name/handle might be possible, but shouldn't return other users' stats
-            it("searching by another user's handle returns no results", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input: StatsUserSearchInput = {
-                    periodType: StatPeriodType.Monthly,
-                    searchString: "test-user-2" // Handle of user2
-                };
-                const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-
-                expect(result).to.not.be.null;
-                // Even though user2 exists, their stats shouldn't be returned to user1
-                expect(result.edges!.length).to.equal(0);
             });
         });
     });

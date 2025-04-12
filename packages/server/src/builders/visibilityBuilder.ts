@@ -45,7 +45,7 @@ export function getVisibilityFunc<
         const message = `Visibility function '${funcName}' ${isUnsupported ? 'is not supported' : 'not found'} for ${objectType}.`;
         if (throwIfNotFound) {
             // Use "InternalError" key, pass details in meta
-            throw new CustomError("0680", "InternalError", { message, objectType, funcName });
+            throw new CustomError("0780", "InternalError", { message, objectType, funcName });
         } else {
             // Use type assertion 'as any' for conciseness
             return null as any;
@@ -130,7 +130,6 @@ export function visibilityBuilderPrisma({
     //    of the requested visibility and the max allowed visibility.
     const chosenVisibility = getEffectiveVisibility(visibility, maxAllowedVisibility);
 
-
     // 3. Get the corresponding visibility function, falling back if necessary
     let visibilityFunc = getVisibilityFunc(objectType, chosenVisibility, false); // Don't throw immediately
     let finalVisibilityUsed = chosenVisibility; // Track the final visibility level used
@@ -147,19 +146,19 @@ export function visibilityBuilderPrisma({
         } else {
             // Use "InternalError" key, pass details in meta
             const message = `Neither requested visibility ('${chosenVisibility}') nor fallback 'Public' function found for ${objectType}.`;
-            throw new CustomError("0680", "InternalError", { message, objectType, chosenVisibility });
+            throw new CustomError("0781", "InternalError", { message, objectType, chosenVisibility });
         }
     } else if (!visibilityFunc && chosenVisibility === VisibilityType.Public) {
         // Use "InternalError" key, pass details in meta
         const message = `Required 'Public' visibility function not found for ${objectType}.`;
-        throw new CustomError("0680", "InternalError", { message, objectType });
+        throw new CustomError("0782", "InternalError", { message, objectType });
     }
 
     // Ensure we actually got a function before proceeding
     if (!visibilityFunc) {
         // This case should ideally be caught by the checks above, but safeguards are good.
         const message = `Failed to obtain a valid visibility function for ${objectType}.`;
-        throw new CustomError("0680", "InternalError", { message, objectType, chosenVisibility });
+        throw new CustomError("0783", "InternalError", { message, objectType, chosenVisibility });
     }
 
 

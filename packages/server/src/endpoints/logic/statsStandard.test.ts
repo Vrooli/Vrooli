@@ -56,8 +56,6 @@ const statsStandardData1 = {
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-01-31"),
     periodType: PeriodType.Monthly,
-    views: 1000, // Example field
-    implementations: 5, // Example field
     linksToInputs: 0, // Added required field
     linksToOutputs: 0, // Added required field
 };
@@ -68,8 +66,6 @@ const statsStandardData2 = {
     periodStart: new Date("2023-02-01"),
     periodEnd: new Date("2023-02-28"),
     periodType: PeriodType.Monthly,
-    views: 2000,
-    implementations: 10,
     linksToInputs: 0, // Added required field
     linksToOutputs: 0, // Added required field
 };
@@ -80,8 +76,6 @@ const privateStandardStats1 = {
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
     periodType: PeriodType.Monthly,
-    views: 500,
-    implementations: 2,
     linksToInputs: 0, // Added required field
     linksToOutputs: 0, // Added required field
 };
@@ -92,8 +86,6 @@ const privateStandardStats2 = {
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
     periodType: PeriodType.Monthly,
-    views: 750,
-    implementations: 3,
     linksToInputs: 0, // Added required field
     linksToOutputs: 0, // Added required field
 };

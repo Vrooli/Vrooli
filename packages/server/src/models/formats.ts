@@ -98,6 +98,7 @@ export const ApiVersionFormat: Formatter<ApiVersionModelInfo> = {
         directoryListings: "ProjectVersionDirectory",
     },
     countFields: {
+        calledByRoutineVersionsCount: true,
         commentsCount: true,
         directoryListingsCount: true,
         forksCount: true,
@@ -1706,6 +1707,7 @@ export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
     },
     prismaRelMap: {
         __typename: "CodeVersion",
+        calledByRoutineVersions: "RoutineVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         forks: "CodeVersion",

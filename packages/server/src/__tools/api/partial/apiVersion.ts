@@ -30,12 +30,13 @@ export const apiVersion: ApiPartial<ApiVersion> = {
         you: () => rel(versionYou, "full"),
     },
     full: {
-        pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
-        root: async () => rel((await import("./api.js")).api, "full", { omit: "versions" }),
-        translations: () => rel(apiVersionTranslation, "full"),
+        calledByRoutineVersionsCount: true,
         schemaLanguage: true,
         schemaText: true,
         versionNotes: true,
+        pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
+        root: async () => rel((await import("./api.js")).api, "full", { omit: "versions" }),
+        translations: () => rel(apiVersionTranslation, "full"),
     },
     list: {
         schemaLanguage: true,

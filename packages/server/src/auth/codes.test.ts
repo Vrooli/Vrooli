@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
+import sinon from "sinon";
 import { hashString, randomString, validateCode } from "./codes.js";
 
 describe("randomString function", () => {
@@ -17,7 +18,7 @@ describe("randomString function", () => {
         const chars = "ABC123";
         const result = randomString(length, chars);
         const isValid = [...result].every(char => chars.includes(char));
-        expect(isValid).to.be.ok;
+        expect(isValid).to.be.true;
     });
 
     // Test for error thrown on invalid length parameters
@@ -44,66 +45,71 @@ describe("randomString function", () => {
 
 describe("validateCode function", () => {
     const storedCode = "123456";
-    const dateNowSpy = jest.spyOn(Date, "now");
+    let clock: sinon.SinonFakeTimers;
     const timeoutInMs = 100000;
 
-    // Cleanup after all tests are done
-    after(() => {
-        dateNowSpy.mockRestore();
+    beforeEach(() => {
+        clock = sinon.useFakeTimers(new Date());
+    });
+
+    afterEach(() => {
+        clock.restore();
     });
 
     it("should return true if providedCode matches storedCode and is within timeout", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
-        dateNowSpy.mockReturnValue(new Date(dateRequested.getTime() + timeoutInMs - 1000).getTime());
+        clock.tick(timeoutInMs - 1000);
 
-        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.equal(true);
+        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.be.true;
     });
 
     it("should return false if providedCode matches storedCode but is outside timeout", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
-        dateNowSpy.mockReturnValue(new Date(dateRequested.getTime() + timeoutInMs + 1000).getTime());
+        clock.tick(timeoutInMs + 1000);
 
-        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.equal(false);
+        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.be.false;
     });
 
     it("should return false if providedCode does not match storedCode", () => {
         const providedCode = "654321";
         const dateRequested = new Date();
 
-        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.equal(false);
+        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.be.false;
     });
 
     it("should return false if either providedCode or storedCode is null", () => {
         const dateRequested = new Date();
-        expect(validateCode(null, storedCode, dateRequested, timeoutInMs)).to.equal(false);
-        expect(validateCode(storedCode, null, dateRequested, timeoutInMs)).to.equal(false);
+        expect(validateCode(null, storedCode, dateRequested, timeoutInMs)).to.be.false;
+        expect(validateCode(storedCode, null, dateRequested, timeoutInMs)).to.be.false;
     });
 
     it("should return false if dateRequested is null", () => {
         const providedCode = "123456";
-        expect(validateCode(providedCode, storedCode, null, timeoutInMs)).to.equal(false);
+        expect(validateCode(providedCode, storedCode, null, timeoutInMs)).to.be.false;
     });
 
     it("should return false is timeout is null", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
         // @ts-ignore: Testing runtime scenario
-        expect(validateCode(providedCode, storedCode, dateRequested, null)).to.equal(false);
+        expect(validateCode(providedCode, storedCode, dateRequested, null)).to.be.false;
     });
 
     it("should return false if timeout is less than 0", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
-        expect(validateCode(providedCode, storedCode, dateRequested, -1)).to.equal(false);
+        expect(validateCode(providedCode, storedCode, dateRequested, -1)).to.be.false;
     });
 
     // Additional test for robustness: check behavior when dateRequested is significantly in the past
     it("should return false if dateRequested is far in the past (well outside timeoutInMs)", () => {
         const providedCode = "123456";
-        const dateRequested = new Date(Date.now() - timeoutInMs * 2); // Double the timeout
-        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.equal(false);
+        const pastDate = new Date();
+        clock.tick(timeoutInMs * 2); // Double the timeout
+
+        expect(validateCode(providedCode, storedCode, pastDate, timeoutInMs)).to.be.false;
     });
 });
 
@@ -148,6 +154,7 @@ describe("hashString", () => {
     // Optional: Test error handling (if applicable)
     it("throws an error when input is not a string", () => {
         const invalidInput = 123; // This would be a TypeScript error, but just in case of runtime JS usage
-        expect(() => hashString(invalidInput as unknown as string)).to.throw();
+        // @ts-ignore: Testing runtime scenario
+        expect(() => hashString(invalidInput)).to.throw();
     });
 });

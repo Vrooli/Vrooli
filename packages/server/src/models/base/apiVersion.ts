@@ -115,6 +115,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
         defaultSort: ApiVersionSortBy.DateUpdatedDesc,
         sortBy: ApiVersionSortBy,
         searchFields: {
+            calledByRoutineVersionId: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,

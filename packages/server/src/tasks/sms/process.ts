@@ -12,6 +12,12 @@ let phoneNumber: string | null = null;
  * not available at startup.
  */
 export async function setupTextingClient() {
+    // Make sure we never set this up during testing
+    if (process.env.NODE_ENV === "test") {
+        console.warn("Skipping setupTextingClient because we're in testing mode");
+        return;
+    }
+
     if (texting_client === null) {
         try {
             const client = await import("twilio");

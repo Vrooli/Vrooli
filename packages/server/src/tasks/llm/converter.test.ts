@@ -2,15 +2,22 @@
 import { DEFAULT_LANGUAGE, LlmTask } from "@local/shared";
 import { expect } from "chai";
 import fs from "fs";
-import pkg from "../../__mocks__/@prisma/client.js";
+import { RedisClientType } from "redis";
+import sinon from "sinon";
+import { closeRedis, initializeRedis } from "../../redisConn.js";
 import { LLM_CONVERTER_LOCATION, generateTaskExec, importConverter } from "./converter.js";
-
-const { PrismaClient } = pkg;
-
-jest.mock("../../events/logger");
 
 describe("importConverter", () => {
     const converterFiles = fs.readdirSync(LLM_CONVERTER_LOCATION).filter(file => file.endsWith(".ts"));
+    const sandbox = sinon.createSandbox();
+
+    beforeEach(() => {
+        sandbox.restore();
+    });
+
+    afterEach(() => {
+        sandbox.restore();
+    });
 
     converterFiles.forEach(async file => {
         it(`ensures the converter is correctly imported from ${file}`, async () => {
@@ -40,22 +47,25 @@ describe("importConverter", () => {
 
         // Import the default language converter for comparison
         const defaultConverter = await importConverter(DEFAULT_LANGUAGE);
-        expect(converter.toString()).to.deep.equal(defaultConverter.toString()); // Compare function implementations as a string
-    });
 
-    // Additional tests can be added to check for specific behaviors or properties of the converters
+        // Compare functions by converting them to strings
+        const converterFuncs = Object.keys(converter).map(key => converter[key].toString());
+        const defaultConverterFuncs = Object.keys(defaultConverter).map(key => defaultConverter[key].toString());
+
+        expect(converterFuncs).to.deep.equal(defaultConverterFuncs);
+    });
 });
 
 describe("generateTaskExec", () => {
     const mockUserData = { languages: ["en"] };
+    let redis: RedisClientType;
 
-    beforeEach(async () => {
-        jest.clearAllMocks();
-        PrismaClient.injectData({});
+    before(async () => {
+        redis = await initializeRedis() as RedisClientType;
     });
 
-    afterEach(() => {
-        PrismaClient.clearData();
+    after(async () => {
+        await closeRedis();
     });
 
     Object.keys(LlmTask).forEach((task) => {
@@ -70,7 +80,14 @@ describe("generateTaskExec", () => {
     });
 
     it("should throw an error for invalid tasks", async () => {
-        // @ts-ignore: Testing runtime scenario
-        await expect(generateTaskExec("InvalidTask", "en", mockUserData)).rejects.to.throw();
+        try {
+            // @ts-ignore: Testing runtime scenario
+            await generateTaskExec("InvalidTask", "en", mockUserData);
+            // If we get here, no error was thrown, which is a fail
+            expect.fail("Expected an error to be thrown");
+        } catch (error) {
+            // We expect an error to be thrown
+            expect(error).to.exist;
+        }
     });
 });

@@ -1,9 +1,3 @@
-# Vrooli Architecture Documentation
-
-## Overview
-
-Vrooli is a polymorphic, collaborative, and self-improving automation platform built using a modern microservices architecture. This document provides a comprehensive overview of the system's architecture, components, and their interactions.
-
 ## System Architecture
 
 ### High-Level Architecture

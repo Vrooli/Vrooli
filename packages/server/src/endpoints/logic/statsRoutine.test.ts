@@ -55,7 +55,6 @@ const statsRoutineData1 = {
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-01-31"),
     periodType: PeriodType.Monthly,
-    calls: 100,
     // Add other relevant StatsRoutine fields (e.g., averageDuration, successCount)
     runsStarted: 0,
     runsCompleted: 0,
@@ -69,7 +68,6 @@ const statsRoutineData2 = {
     periodStart: new Date("2023-02-01"),
     periodEnd: new Date("2023-02-28"),
     periodType: PeriodType.Monthly,
-    calls: 200,
     runsStarted: 0,
     runsCompleted: 0,
     runCompletionTimeAverage: 0.0,
@@ -82,7 +80,6 @@ const privateRoutineStats1 = {
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
     periodType: PeriodType.Monthly,
-    calls: 50,
     runsStarted: 0,
     runsCompleted: 0,
     runCompletionTimeAverage: 0.0,
@@ -95,7 +92,6 @@ const privateRoutineStats2 = {
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
     periodType: PeriodType.Monthly,
-    calls: 75,
     runsStarted: 0,
     runsCompleted: 0,
     runCompletionTimeAverage: 0.0,
@@ -151,10 +147,10 @@ describe("EndpointsStatsRoutine", () => {
         // Placeholder: Assuming routines need a name, permissions, and versions
         await DbProvider.get().routine.createMany({
             data: [
-                { ...routineData1, permissions: JSON.stringify({}), versions: { create: [{ id: uuid() }] } },
-                { ...routineData2, permissions: JSON.stringify({}), versions: { create: [{ id: uuid() }] } },
-                { ...privateRoutineData1, permissions: JSON.stringify({}), versions: { create: [{ id: uuid() }] } },
-                { ...privateRoutineData2, permissions: JSON.stringify({}), versions: { create: [{ id: uuid() }] } }
+                { ...routineData1, permissions: JSON.stringify({}) },
+                { ...routineData2, permissions: JSON.stringify({}) },
+                { ...privateRoutineData1, permissions: JSON.stringify({}) },
+                { ...privateRoutineData2, permissions: JSON.stringify({}) }
             ].map(r => ({ // Adjust ownership fields
                 ...r,
                 ownedByUserId: r.ownedByUserId ?? undefined

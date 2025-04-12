@@ -14,10 +14,39 @@ type TimeFrameWhereQuery = {
  * @returns Prisma "where" query if any time frame fields are defined, undefined otherwise
  */
 export function timeFrameToPrisma(fieldName: string, time?: TimeFrame | null | undefined): TimeFrameWhereQuery | undefined {
-    if (!time || (!time.before && !time.after)) return undefined;
-    const where: TimeFrameWhereQuery = ({ [fieldName]: {} });
-    if (time.before) where[fieldName].lte = time.before;
-    if (time.after) where[fieldName].gte = time.after;
+    function safeTimeFrame<T extends TimeFrame>(time: T | null | undefined): T | undefined {
+        if (!time || typeof time !== "object") return undefined;
+        const where: TimeFrameWhereQuery = ({ [fieldName]: {} });
+
+        if (time.before) {
+            try {
+                // Validate by attempting to create a Date object
+                const date = new Date(time.before);
+                if (!isNaN(date.getTime())) {
+                    where[fieldName].lte = time.before;
+                }
+            } catch (e) {
+                // Invalid date format, ignore
+            }
+        }
+
+        if (time.after) {
+            try {
+                // Validate by attempting to create a Date object
+                const date = new Date(time.after);
+                if (!isNaN(date.getTime())) {
+                    where[fieldName].gte = time.after;
+                }
+            } catch (e) {
+                // Invalid date format, ignore
+            }
+        }
+
+        if (Object.keys(where[fieldName]).length > 0) return where as T;
+        return undefined;
+    }
+    const where = safeTimeFrame(time);
+    if (!where) return undefined;
     return where;
 }
 
