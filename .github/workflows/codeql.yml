@@ -1,19 +1,23 @@
 name: "CodeQL"
 
-# on:
-#   push:
-#   pull_request:
-#   schedule:
-#     - cron: '42 16 * * 0'
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "42 16 * * 0"
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
 
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
+    timeout-minutes: 60 # CodeQL analysis can take time
 
     strategy:
       fail-fast: false
@@ -22,23 +26,28 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
-          node-version: "16"
+          node-version: "18"
+          cache: "yarn"
 
       - name: Install Dependencies
-        run: yarn install # Install dependencies for all workspaces
+        run: yarn install --frozen-lockfile # Install dependencies for all workspaces
 
       - name: Build TypeScript
-        run: yarn workspace @local/shared build && yarn workspace @local/server build && yarn workspace @local/jobs build && yarn workspace @local/ui build
+        run: |
+          yarn workspace @local/shared build && \
+          yarn workspace @local/server build && \
+          yarn workspace @local/jobs build && \
+          yarn workspace @local/ui build
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@e4262713b504983e61c7728f5452be240d3e2b99 # v3.23.0
         with:
           languages: ${{ matrix.language }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@e4262713b504983e61c7728f5452be240d3e2b99 # v3.23.0

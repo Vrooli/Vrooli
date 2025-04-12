@@ -8,6 +8,7 @@ Not able to develop locally? Want to test deployment on a remote server? Follow 
 4. Enter `CTRL+SHIFT+P` to open the Command Palette  
 5. Search and select `Remote-SSH: Open Configuration File...`  
 6. Add new connection by entering `ssh root@<server_ip>`  
+   - If using WSL, you may have to copy the private and public keys from `~/.ssh` to `C:\Users\<username>\.ssh`
 7. Open Command Palette again and select `Remote-SSH: Connect to Host...` 
 8. A new VSCode terminal should open. Answer the questions (e.g. server type, server password), and you should be connected!  
 9. Open the `Extensions` page in VSCode, and download the extensions you want to use  

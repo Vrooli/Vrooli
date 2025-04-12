@@ -766,10 +766,10 @@ main() {
     set_script_permissions
 
     # If CI/CD setup is requested, do that and exit
-    if $SETUP_CI_CD; then
+    if is_yes "$SETUP_CI_CD"; then
         setup_ci_cd
         exit 0
-    }
+    fi
 
     load_env_file $ENVIRONMENT
     # Determine where this script is running (local or remote)
