@@ -1,5 +1,5 @@
 import { Notify, ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
-import { GqlModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
+import { ModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 /**
@@ -26,7 +26,7 @@ async function scheduleNotifications(
                         return;
                     }
                     const scheduleForId = objectData[0].id;
-                    const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as GqlModelType;
+                    const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as ModelType;
                     // Find notification preferences for each subscriber
                     const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                     for (const subscription of batch) {
@@ -69,6 +69,7 @@ async function scheduleNotifications(
                         // Filter out subscribers who have already been notified
                         const filteredSubscriberDelaysList = redisGetResults ? subscriberDelaysList.filter((_, index) => !redisGetResults[index]) : subscriberDelaysList;
                         // Send push notifications to each subscriber
+                        //TODO should add to bull queue to notify at correct time
                         await Notify(["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
 
                         // Set Redis keys for the subscribers who just received the notification, with an expiration time of 25 hours

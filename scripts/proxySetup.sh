@@ -37,7 +37,7 @@ Exit Codes:
 EOF
 }
 
-PROXY_LOCATION=""
+PROXY_LOCATION="$DEFAULT_PROXY_LOCATION"
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         key="$1"
@@ -191,7 +191,7 @@ main() {
     parse_arguments "$@"
 
     load_env_file $ENVIRONMENT
-    SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+    SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $API_URL | tail -n 1)
 
     # Get proxy location
     get_proxy_location

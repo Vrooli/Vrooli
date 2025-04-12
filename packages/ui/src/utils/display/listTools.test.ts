@@ -1,5 +1,6 @@
 import { DUMMY_ID } from "@local/shared";
-import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools";
+import { expect } from "chai";
+import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools.js";
 
 describe("getYou function", () => {
     beforeEach(() => {
@@ -7,8 +8,8 @@ describe("getYou function", () => {
     });
 
     it("should return defaultYou when object is null or undefined", () => {
-        expect(getYou(null)).toEqual(defaultYou);
-        expect(getYou(undefined)).toEqual(defaultYou);
+        expect(getYou(null)).to.deep.equal(defaultYou);
+        expect(getYou(undefined)).to.deep.equal(defaultYou);
     });
 
     it("should handle DUMMY_ID case", () => {
@@ -17,7 +18,7 @@ describe("getYou function", () => {
             id: DUMMY_ID,
         } as const;
         const result = getYou(dummyObject);
-        expect(result).toEqual({
+        expect(result).to.deep.equal({
             ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),
             canDelete: true,
         });
@@ -32,8 +33,8 @@ describe("getYou function", () => {
             },
         } as const;
         const result = getYou(object);
-        expect(result.canUpdate).toBe(true);
-        expect(result.canDelete).toBe(false);
+        expect(result.canUpdate).to.equal(true);
+        expect(result.canDelete).to.equal(false);
     });
 
     it("should get permissions from object.root.you if not in object.you", () => {
@@ -49,8 +50,8 @@ describe("getYou function", () => {
             },
         } as const;
         const result = getYou(object);
-        expect(result.canUpdate).toBe(true);
-        expect(result.canDelete).toBe(false);
+        expect(result.canUpdate).to.equal(true);
+        expect(result.canDelete).to.equal(false);
     });
 
     it("should default to false if permission is not found", () => {
@@ -59,8 +60,8 @@ describe("getYou function", () => {
             you: {},
         } as const;
         const result = getYou(object);
-        expect(result.canUpdate).toBe(false);
-        expect(result.canDelete).toBe(false);
+        expect(result.canUpdate).to.equal(false);
+        expect(result.canDelete).to.equal(false);
     });
 
     it("should filter invalid actions", () => {
@@ -76,29 +77,29 @@ describe("getYou function", () => {
             },
         } as any;
         const result = getYou(object);
-        expect(result.canBookmark).toBe(false);
-        expect(result.canComment).toBe(false);
-        expect(result.canCopy).toBe(false);
-        expect(result.canDelete).toBe(false);
-        expect(result.canReact).toBe(false);
-        expect(result.canReport).toBe(false);
+        expect(result.canBookmark).to.equal(false);
+        expect(result.canComment).to.equal(false);
+        expect(result.canCopy).to.equal(false);
+        expect(result.canDelete).to.equal(false);
+        expect(result.canReact).to.equal(false);
+        expect(result.canReport).to.equal(false);
     });
 });
 
 describe("simpleHash", () => {
     it("should return the same hash for the same input", () => {
         const input = "testString";
-        expect(simpleHash(input)).toBe(simpleHash(input));
+        expect(simpleHash(input)).to.equal(simpleHash(input));
     });
 
     it("should return different hashes for different inputs", () => {
         const input1 = "testString1";
         const input2 = "testString2";
-        expect(simpleHash(input1)).not.toBe(simpleHash(input2));
+        expect(simpleHash(input1)).not.to.equal(simpleHash(input2));
     });
 
     it("should handle an empty string", () => {
-        expect(simpleHash("")).toBe(0);
+        expect(simpleHash("")).to.equal(0);
     });
 });
 
@@ -112,7 +113,7 @@ describe("placeholderColor", () => {
         const seed = "consistentSeed";
         const result1 = placeholderColor(seed);
         const result2 = placeholderColor(seed);
-        expect(result1).toEqual(result2);
+        expect(result1).to.deep.equal(result2);
     });
 
     it("should return different results for different seeds", () => {
@@ -120,14 +121,14 @@ describe("placeholderColor", () => {
         const seed2 = "seed2";
         const result1 = placeholderColor(seed1);
         const result2 = placeholderColor(seed2);
-        expect(result1).not.toEqual(result2);
+        expect(result1).not.to.deep.equal(result2);
     });
 
     it("should handle numeric seeds", () => {
         const seed = 12345;
         const result1 = placeholderColor(seed);
         const result2 = placeholderColor(seed);
-        expect(result1).toEqual(result2);
+        expect(result1).to.deep.equal(result2);
     });
 
     it("should return different results without a seed", () => {
@@ -141,6 +142,6 @@ describe("placeholderColor", () => {
                 break;
             }
         }
-        expect(isDifferent).toBe(true);
+        expect(isDifferent).to.equal(true);
     });
 });

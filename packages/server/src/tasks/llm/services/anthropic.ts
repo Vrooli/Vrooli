@@ -1,13 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicModel, anthropicServiceInfo } from "@local/shared";
-import { CustomError } from "../../../events/error";
-import { logger } from "../../../events/logger";
-import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
+import { AnthropicModel, anthropicServiceInfo, LlmServiceId } from "@local/shared";
+import { CustomError } from "../../../events/error.js";
+import { logger } from "../../../events/logger.js";
+import { LlmServiceErrorType, LlmServiceRegistry } from "../registry.js";
+import { generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost } from "../service.js";
+import { TokenEstimationRegistry } from "../tokenEstimator.js";
+import { EstimateTokensParams, EstimateTokensResult, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, TokenEstimatorType } from "../types.js";
 
-type AnthropicTokenModel = "default";
-
-export class AnthropicService implements LanguageModelService<AnthropicModel, AnthropicTokenModel> {
+export class AnthropicService implements LanguageModelService<AnthropicModel> {
     public __id = LlmServiceId.Anthropic;
     private client: Anthropic;
     private defaultModel: AnthropicModel = AnthropicModel.Sonnet3_5;
@@ -17,7 +17,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
     }
 
     estimateTokens(params: EstimateTokensParams) {
-        return tokenEstimationDefault(params);
+        return TokenEstimationRegistry.get().estimateTokens(TokenEstimatorType.Tiktoken, params);
     }
 
     async getConfigObject(params: GetConfigObjectParams) {
@@ -64,7 +64,6 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         messages,
         model,
         systemMessage,
-        userData,
     }: GenerateResponseParams) {
         const params: Anthropic.MessageCreateParams = {
             messages: messages.map(({ role, content }) => ({ role, content })),
@@ -81,7 +80,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                 const errorType = this.getErrorType(error);
                 LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                 logger.error("Failed to call Anthropic", { trace, error, errorType });
-                throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
+                throw new CustomError(trace, "InternalError", { error, errorType });
             });
         const message = completion.content?.map(block => block.text).join("") ?? "";
         const cost = this.getResponseCost({
@@ -108,7 +107,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         } as const;
 
         const accumulatedText: [string, number][] = [];
-        let totalInputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
+        let totalInputTokens = this.estimateTokens({ aiModel: model, text: messages.map(m => m.content).join("\n") }).tokens;
         let totalOutputTokens = 0;
 
         try {
@@ -160,7 +159,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                 usage: {
                     input: totalInputTokens,
                     // We don't get the token usage until the end, so our best bet it to estimate the output tokens
-                    output: this.estimateTokens({ model, text: message }).tokens,
+                    output: this.estimateTokens({ aiModel: model, text: message }).tokens,
                 },
             });
             yield { __type: "error" as const, message, cost };
@@ -189,13 +188,8 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         return getDefaultResponseCost(params, this);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getEstimationMethod(_model?: string | null | undefined): "default" {
-        return "default";
-    }
-
-    getEstimationTypes() {
-        return ["default"] as const;
+    getEstimationInfo(model?: string | null): Pick<EstimateTokensResult, "estimationModel" | "encoding"> {
+        return TokenEstimationRegistry.get().getEstimationInfo(TokenEstimatorType.Tiktoken, model);
     }
 
     getModel(model?: string | null) {
@@ -253,7 +247,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                     const errorType = this.getErrorType(error);
                     LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                     logger.error("Failed to perform content moderation", { trace, error, errorType });
-                    throw new CustomError(trace, "InternalError", ["en"], { error, errorType });
+                    throw new CustomError(trace, "InternalError", { error, errorType });
                 });
 
             const moderationResult = completion.content

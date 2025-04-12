@@ -1,5 +1,6 @@
 import { FormSchema, GridContainer } from "@local/shared";
-import { normalizeFormContainers } from "./FormView";
+import { expect } from "chai";
+import { normalizeFormContainers } from "./FormView.js";
 
 describe("normalizeFormContainers", () => {
     it("should return one container covering all elements when no containers are provided", () => {
@@ -11,7 +12,7 @@ describe("normalizeFormContainers", () => {
             totalItems: 3,
         }];
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 
     it("should return correct ranges when containers are provided with valid ranges", () => {
@@ -28,7 +29,7 @@ describe("normalizeFormContainers", () => {
             { totalItems: 2, disableCollapse: undefined },
         ];
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 
     it("should handle containers exceeding the number of elements", () => {
@@ -44,7 +45,7 @@ describe("normalizeFormContainers", () => {
             { totalItems: 4, disableCollapse: undefined },
         ];
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 
     it("should add a final container if necessary to cover all elements", () => {
@@ -62,7 +63,7 @@ describe("normalizeFormContainers", () => {
             { totalItems: 1 },
         ];
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 
     it("should handle an empty elements array correctly", () => {
@@ -76,7 +77,7 @@ describe("normalizeFormContainers", () => {
 
         const expected: GridContainer[] = []; // No containers
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 
     it("should handle an empty containers array correctly", () => {
@@ -89,7 +90,7 @@ describe("normalizeFormContainers", () => {
             totalItems: 5,
         }];
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 
     it("should handle containers with disableCollapse set correctly", () => {
@@ -106,6 +107,6 @@ describe("normalizeFormContainers", () => {
             { totalItems: 3, disableCollapse: false },
         ];
 
-        expect(normalizeFormContainers(formSchema)).toEqual(expected);
+        expect(normalizeFormContainers(formSchema)).to.deep.equal(expected);
     });
 });

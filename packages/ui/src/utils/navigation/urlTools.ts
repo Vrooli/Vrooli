@@ -1,5 +1,6 @@
 import { base36ToUuid, handleRegex, LINKS, uuidValidate } from "@local/shared";
-import { getLastPathnamePart, SetLocation } from "route";
+import { getLastPathnamePart } from "../../route/getLastPathnamePart.js";
+import { SetLocation } from "../../route/types.js";
 
 export type UrlInfo = {
     handleRoot?: string,
@@ -51,7 +52,8 @@ export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname
         LINKS.Note,
         LINKS.Project,
         LINKS.Prompt,
-        LINKS.Routine,
+        LINKS.RoutineMultiStep,
+        LINKS.RoutineSingleStep,
         LINKS.SmartContract,
     ].map(link => link.split("/").pop());
     // Check if any part of the URL contains the name of a versioned object

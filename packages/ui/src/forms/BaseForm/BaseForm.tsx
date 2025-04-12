@@ -1,21 +1,19 @@
 import { Box, styled } from "@mui/material";
 import { useFormikContext } from "formik";
 import { ReactNode, useMemo } from "react";
-import { ViewDisplayType } from "types";
+import { ViewDisplayType } from "../../types.js";
 
 type OuterFormProps = {
     children: ReactNode;
     display: ViewDisplayType;
-    maxWidth?: number;
+    maxWidth?: number | "unset" | "100%";
 };
 
-type InnerFormProps = {
-    display: ViewDisplayType;
+type InnerFormProps = Pick<OuterFormProps, "display" | "maxWidth"> & {
     children: ReactNode;
     isLoading?: boolean;
     /** If true, we'll use a "div" tag instead of "form" */
     isNested?: boolean;
-    maxWidth?: number;
     style?: { [x: string]: string | number | null };
 };
 
@@ -42,7 +40,7 @@ export function OuterForm({
         return {
             height: display === "dialog" ? "100%" : "unset",
             overflowY: display === "dialog" ? "auto" : "unset",
-            maxWidth: `${maxWidth}px`,
+            maxWidth: typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth,
             margin: "auto",
             paddingLeft: 1,
             paddingRight: 1,
@@ -74,7 +72,7 @@ export function InnerForm({
             alignItems: "center",
             justifyContent: "flex-start",
             width: "100%",
-            maxWidth: `${maxWidth}px`,
+            maxWidth: typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth,
             margin: "auto",
             paddingBottom: "64px",
             paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,

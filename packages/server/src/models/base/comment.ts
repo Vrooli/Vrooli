@@ -1,26 +1,24 @@
-import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, getTranslation, GqlModelType, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, MaxObjects, ModelType, SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
-import { ModelMap } from ".";
-import { getUser } from "../../auth/request";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { combineQueries } from "../../builders/combineQueries";
-import { modelToGql } from "../../builders/modelToGql";
-import { selectHelper } from "../../builders/selectHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { getSearchStringQuery } from "../../getters";
-import { SessionUserToken } from "../../types";
-import { defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { SortMap } from "../../utils/sortMap";
-import { afterMutationsPlain } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { CommentFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic, TeamModelLogic } from "./types";
+import { SessionService } from "../../auth/session.js";
+import { combineQueries } from "../../builders/combineQueries.js";
+import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter.js";
+import { PartialApiInfo } from "../../builders/types.js";
+import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { getSearchStringQuery } from "../../getters/getSearchStringQuery.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { SearchMap } from "../../utils/searchMap.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { SortMap } from "../../utils/sortMap.js";
+import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { CommentFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic, TeamModelLogic } from "./types.js";
 
 const DEFAULT_TAKE = 10;
 
@@ -82,13 +80,13 @@ export const CommentModel: CommentModelLogic = ({
          * Custom search query for querying comment threads
          */
         async searchThreads(
-            userData: SessionUserToken | null,
+            userData: SessionUser | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: PartialApiInfo,
             nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, userData?.languages ?? ["en"], true);
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
@@ -98,11 +96,11 @@ export const CommentModel: CommentModelLogic = ({
             const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined;
             const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
             // Find requested search array
-            const searchResults = await prismaInstance.comment.findMany({
+            const searchResults = await DbProvider.get().comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? DEFAULT_TAKE,
-                ...selectHelper(partialInfo),
+                ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
             });
             // If there are no results
             if (searchResults.length === 0) return [];
@@ -111,20 +109,20 @@ export const CommentModel: CommentModelLogic = ({
             // For each result
             for (const result of searchResults) {
                 // Find total in thread
-                const totalInThread = await prismaInstance.comment.count({
+                const totalInThread = await DbProvider.get().comment.count({
                     where: {
                         ...where,
                         parentId: result.id,
                     },
                 });
                 // Query for nested threads
-                const nestedThreads = nestLimit > 0 ? await prismaInstance.comment.findMany({
+                const nestedThreads = nestLimit > 0 ? await DbProvider.get().comment.findMany({
                     where: {
                         ...where,
                         parentId: result.id,
                     },
                     take: input.take ?? DEFAULT_TAKE,
-                    ...selectHelper(partialInfo),
+                    ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
                 }) : [];
                 // Find end cursor of nested threads
                 const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
@@ -155,16 +153,17 @@ export const CommentModel: CommentModelLogic = ({
         async searchNested(
             req: Request,
             input: CommentSearchInput,
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: PartialApiInfo,
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
-            const userData = getUser(req.session);
+            const userData = SessionService.getUser(req);
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, req.session.languages, true);
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             const searchData = {
                 objectType: __typename,
+                req,
                 searchInput: input,
                 userData,
                 visibility: VisibilityType.Public,
@@ -188,7 +187,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
             const orderBy = orderByField in SortMap ? SortMap[orderByField] : undefined;
             // Find requested search array
-            const searchResults = await prismaInstance.comment.findMany({
+            const searchResults = await DbProvider.get().comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? DEFAULT_TAKE,
@@ -196,7 +195,7 @@ export const CommentModel: CommentModelLogic = ({
                 cursor: input.after ? {
                     id: input.after,
                 } : undefined,
-                ...selectHelper(partialInfo),
+                ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
             });
             // If there are no results
             if (searchResults.length === 0) return {
@@ -205,7 +204,7 @@ export const CommentModel: CommentModelLogic = ({
                 threads: [],
             };
             // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-            const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
+            const totalInThread = input.after ? undefined : await DbProvider.get().comment.count({
                 where: { ...where },
             });
             // Calculate end cursor
@@ -227,7 +226,7 @@ export const CommentModel: CommentModelLogic = ({
             }
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
-            comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
+            comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
             comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
@@ -284,11 +283,11 @@ export const CommentModel: CommentModelLogic = ({
         sortBy: CommentSortBy,
         searchStringQuery: () => ({ translations: "transText" }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<CommentModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<CommentModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -323,7 +322,7 @@ export const CommentModel: CommentModelLogic = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<CommentModelInfo["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<CommentModelInfo["DbSelect"]>([
             ["apiVersion", "ApiVersion"],
             ["codeVersion", "CodeVersion"],
             ["issue", "Issue"],
@@ -369,7 +368,7 @@ export const CommentModel: CommentModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {

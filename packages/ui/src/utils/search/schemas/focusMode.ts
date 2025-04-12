@@ -1,11 +1,15 @@
-import { endpointGetFocusMode, endpointGetFocusModes, FocusModeSortBy, FormSchema } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsFocusMode, FocusModeSortBy, FormSchema } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const focusModeSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchFocusMode"),
-    containers: [],
-    elements: [],
-});
+export function focusModeSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchFocusMode"),
+        containers: [],
+        elements: [],
+    } as const;
+}
 
-export const focusModeSearchParams = () => toParams(focusModeSearchSchema(), endpointGetFocusModes, endpointGetFocusMode, FocusModeSortBy, FocusModeSortBy.NameAsc);
+export function focusModeSearchParams() {
+    return toParams(focusModeSearchSchema(), endpointsFocusMode, FocusModeSortBy, FocusModeSortBy.NameAsc);
+}

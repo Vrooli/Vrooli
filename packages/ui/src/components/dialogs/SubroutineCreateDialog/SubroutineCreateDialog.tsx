@@ -1,21 +1,20 @@
 import { TranslationKeyCommon } from "@local/shared";
-import { Box, IconButton, useTheme } from "@mui/material";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Title } from "components/text/Title/Title";
-import { ArrowLeftIcon, RoutineIcon } from "icons";
+import { Box, useTheme } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SvgComponent } from "types";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { SubroutineCreateDialogProps } from "../types";
+import { IconInfo } from "../../../icons/Icons.js";
+import { CardGrid } from "../../lists/CardGrid/CardGrid.js";
+import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
+import { TopBar } from "../../navigation/TopBar.js";
+import { Title } from "../../text/Title.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { SubroutineCreateDialogProps } from "../types.js";
 
 type SubroutineType = "Api" | "Code" | "Data" | "Generate" | "Prompt" | "SmartContract" | "WebContent";
 type SubroutineInfo = {
     objectType: SubroutineType;
     description: TranslationKeyCommon,
-    Icon: SvgComponent,
+    iconInfo: IconInfo,
     id: string,
 }
 
@@ -23,61 +22,61 @@ const subroutineTypes: SubroutineInfo[] = [
     {
         objectType: "Prompt",
         description: "SubroutineDescriptionPrompt",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Standard", type: "Common" },
         id: "select-prompt-card",
     },
     {
         objectType: "Data",
         description: "SubroutineDescriptionData",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Article", type: "Common" },
         id: "select-data-card",
     },
     {
         objectType: "Generate",
         description: "SubroutineDescriptionGenerate",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Magic", type: "Common" },
         id: "select-generate-card",
     },
     {
         objectType: "Api",
         description: "SubroutineDescriptionApi",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Api", type: "Common" },
         id: "select-api-card",
     },
     {
         objectType: "SmartContract",
         description: "SubroutineDescriptionSmartContract",
-        Icon: RoutineIcon,
+        iconInfo: { name: "SmartContract", type: "Common" },
         id: "select-smart-contract-card",
     },
     {
         objectType: "WebContent",
         description: "SubroutineDescriptionWebContent",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Website", type: "Common" },
         id: "select-web-content-card",
     },
     {
         objectType: "Code",
         description: "SubroutineDescriptionCode",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Terminal", type: "Common" },
         id: "select-code-card",
     },
 ];
 
-export const SubroutineCreateDialog = ({
+export function SubroutineCreateDialog({
     isOpen,
     onClose,
-}: SubroutineCreateDialogProps) => {
+}: SubroutineCreateDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = "dialog";
 
     const [selectedType, setSelectedType] = useState<SubroutineType | null>(null);
     const [page, setPage] = useState<"select" | "create">("select");
-    const restart = () => {
+    function restart() {
         setPage("select");
         setSelectedType(null);
-    };
+    }
 
     const selectedForm = useMemo(() => {
         if (!selectedType) return null;
@@ -104,20 +103,24 @@ export const SubroutineCreateDialog = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                startComponent={selectedType ? <IconButton
-                    aria-label="Back"
-                    onClick={restart}
-                    sx={{
-                        width: "48px",
-                        height: "48px",
-                        marginLeft: 1,
-                        marginRight: 1,
-                        cursor: "pointer",
-                    }}
-                >
-                    <ArrowLeftIcon fill={palette.primary.contrastText} width="100%" height="100%" />
-                </IconButton> : undefined}
-                title={t("CreateSubroutine")}
+            // startComponent={selectedType ? <IconButton
+            //     aria-label={t("Back")}
+            //     onClick={restart}
+            //     sx={{
+            //         width: "48px",
+            //         height: "48px",
+            //         marginLeft: 1,
+            //         marginRight: 1,
+            //         cursor: "pointer",
+            //     }}
+            // >
+            //     <IconCommon
+            //         decorative
+            //         fill={palette.primary.contrastText}
+            //         name="ArrowLeft"
+            //     />
+            // </IconButton> : undefined}
+            // title={t("CreateSubroutine")}
             />
             {selectedForm}
             {!selectedForm && <Box p={2} display="flex" flexDirection="column" gap={2}>
@@ -126,19 +129,25 @@ export const SubroutineCreateDialog = ({
                     variant="subheader"
                 />
                 <CardGrid minWidth={300} disableMargin>
-                    {subroutineTypes.map(({ objectType, description, Icon, id }, index) => (
-                        <TIDCard
-                            buttonText={t("Create")}
-                            description={description}
-                            Icon={Icon}
-                            id={id}
-                            key={index}
-                            onClick={() => setSelectedType(objectType)}
-                            title={t(objectType, { count: 1, defaultValue: objectType })}
-                        />
-                    ))}
+                    {subroutineTypes.map(({ objectType, description, iconInfo, id }, index) => {
+                        function handleClick() {
+                            setSelectedType(objectType);
+                        }
+
+                        return (
+                            <TIDCard
+                                buttonText={t("Create")}
+                                description={description}
+                                iconInfo={iconInfo}
+                                id={id}
+                                key={index}
+                                onClick={handleClick}
+                                title={t(objectType, { count: 1, defaultValue: objectType })}
+                            />
+                        );
+                    })}
                 </CardGrid>
             </Box>}
         </LargeDialog>
     );
-};
+}

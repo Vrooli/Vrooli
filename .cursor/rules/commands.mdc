@@ -1,0 +1,127 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Below are detailed commands you may receive. Users may trigger these workflows with a single phrase containing keywords listed below. **Always match commands based on provided keywords.**
+
+## **Organize Next Task**
+
+**Keywords:**  
+_"organize next task," "structure task," "clarify next task," "organize backlog," "prepare next task"_
+
+Process the **first unstructured task** in the [background.md](mdc:docs/docs/about/background.md):
+
+1. **Explore the Codebase:**
+   - Search relevant files and code patterns thoroughly.
+   - Analyze existing implementations of similar tasks.
+   - Determine integration points within the architecture.
+   - Identify implicit or missing dependencies.
+
+2. **Clarify and Research:**
+   - Ask targeted clarifying questions if the task is incomplete or unclear.
+   - Conduct detailed research on unfamiliar technical concepts.
+
+3. **Decide on Splitting Tasks:**
+   - If the implementation clearly spans multiple files or separate logical components, split the task into multiple, focused subtasks.
+   - Clearly indicate reasoning for splitting and maintain consistent formatting for all subtasks.
+
+4. **Refine and Document (directly in TASKS.md):**
+   - Follow the established task template (title, priority, status, dependencies).
+   - Provide a clear description of technical approaches, potential strategies, and affected files.
+   - Break down each task or subtask into manageable deliverables.
+
+5. **Finalize:**
+   - Remove original unstructured task entry.
+   - Flag tasks or subtasks still needing information, with specific follow-up questions.
+
+---
+
+## **Reprioritize Tasks**
+
+**Keywords:**  
+_"reprioritize tasks," "reorder backlog," "adjust task priorities," "prioritize tasks"_
+
+- Evaluate all tasks and update priorities (**HIGH/MEDIUM/LOW**) based on:
+  - Business impact
+  - Technical urgency
+  - Dependencies
+  - Current project objectives
+- Include concise justification for priority changes, reorder tasks accordingly.
+
+---
+
+## **Suggest New Tasks**
+
+**Keywords:**  
+_"suggest tasks," "recommend improvements," "identify gaps," "propose new tasks"_
+
+- Identify potential gaps in:
+  - Technical infrastructure
+  - User experience
+  - Documentation quality
+  - Testing coverage
+  - Security practices
+- Clearly propose new tasks formatted using the established task template for user review.
+
+---
+
+## **Update Task Status**
+
+**Keywords:**  
+_"update task statuses," "refresh tasks," "task progress update," "update backlog"_
+
+- Review tasks, updating:
+  - Status (**TODO/IN_PROGRESS/BLOCKED/DONE**)
+  - Progress indicators
+  - Newly identified blockers or dependencies
+
+---
+
+## **Cleanup Task List**
+
+**Keywords:**  
+_"cleanup backlog," "merge duplicates," "split large tasks," "archive completed tasks," "cleanup tasks"_
+
+- Merge duplicated tasks.
+- Split tasks that are too large or complex.
+- Archive completed tasks clearly into "Completed Tasks" section.
+- Ensure consistent task formatting and sufficient detail throughout.
+
+---
+
+## **Start Next Task**
+
+**Keywords:**  
+_"start next task," "pick task," "begin task," "go," "work next," "start working"_
+
+- Select the highest-priority task from the backlog, preferring tasks closely related to recently completed work to reduce context switching.
+- Explore the codebase to determine feasible implementation strategies.
+- Draft and present a brief implementation plan clearly stating the approach and alternatives for confirmation.
+- Upon confirmation, set task status to **IN_PROGRESS**.
+- Wait for explicit confirmation before marking the task as **DONE** and moving it to the "Completed Tasks" section.
+
+---
+
+## **Update Documentation**
+
+**Keywords:**  
+_"update documentation," "refresh docs," "sync documentation," "update docs"_
+
+- Review existing documentation (README, ARCHITECTURE, guides, and inline comments).
+- Identify and note discrepancies, outdated sections, missing context, or incomplete explanations.
+- Update or expand documentation clearly to reflect current codebase state and practices.
+- Propose new sections if documentation gaps are identified.
+- Clearly summarize documentation updates performed.
+
+---
+
+## **Engage**
+
+**Keywords:**  
+_"engage," "prompt me," "interaction," "check-in"_
+
+Clearly prompt the user:  
+> _"Would you like me to review and update our task list, or should I start working on a backlog item?"_  
+
+Wait for user's input.

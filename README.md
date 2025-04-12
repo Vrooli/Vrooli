@@ -11,13 +11,62 @@
 
 </h1>
 
-[![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com&logo=data:image/svg%2bxml;base64,PHN2ZyB3aWR0aD0iMjRtbSIgaGVpZ2h0PSIyNG1tIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggc3R5bGU9ImNvbG9yOiNmZmY7ZmlsbDojZmZmO3N0cm9rZS13aWR0aDouOTk5OTk0O3N0cm9rZS1saW5lY2FwOnJvdW5kO3N0cm9rZS1saW5lam9pbjpyb3VuZCIgZD0iTTE2LjMyIDIuMmMtLjEuMTctLjIuNDMtLjI2Ljc2YTguNTQgOC41NCAwIDAgMC0uMDIgMi42MWMuMTQuOTkuNTQgMi4wMy44NiAzLjA1LS40Mi4xNy0uNzguNC0xLjA3LjY4YTMgMyAwIDAgMC0uODQgMS40M2MtMy40NS0uMDMtNy4wNC0uMDItMTAuNTMtLjAzYS44MS44MSAwIDAgMC0uODIuODJWMThjMCAuNzUuNTkgMS4zNSAxLjM0IDEuMzUuNzUgMCAxLjM1LS42IDEuMzUtMS4zNXYtMWMzLjUyIDAgNy4xNy4wNiAxMC43My4wOSAxLjY3IDAgMi4zMy40NCAyLjk3LjguNjYuMzcgMS42MS0uMzcgMS4zOS0xLjM1LS4yLS45MS0xLjQtMS40My0yLjYzLTEuNjRsLjAxLS4yNy43NC0uMDhhNS4yIDUuMiAwIDAgMCAyLjMxLS44OGMuOC0uNTggMS4yNi0xLjM1IDEuMjUtMi4yYTIuNzggMi43OCAwIDAgMC0xLjE3LTIuMTcgNS40MSA1LjQxIDAgMCAwLTMuMy0uOThjLS4xOS4wMS0uNDUgMC0uNjIuMDJhOS45IDkuOSAwIDAgMC0uNjQtNS40MSAyLjkyIDIuOTIgMCAwIDAtLjQ2LS43NGMtLjI1LS4yNi0uNDMtLjIzLS41OS4wMlptMy45OSAxLjA3Yy0uMTkuMDYtLjQyLjI0LS42Ny40Ni0uNDIuMzUtLjg4LjktMS4zIDEuNTYuMTQuODkuMTYgMS43MS4xIDIuNzRsLjU2LjAxYy4zMS0uNC42LS44NS44OS0xLjI2LjQ0LS43OSAxLjA2LTIuMTEuOTgtMy4xNy0uMDktLjM0LS4zNS0uNC0uNTYtLjM0Wm0uNDYgNi40OWEuNjkuNjkgMCAxIDEgMCAxLjM3LjY5LjY5IDAgMCAxIDAtMS4zN3ptLTE4LjYzLjkyQTEuMiAxLjIgMCAwIDAgLjkgMTEuOTJjMCAuNy42IDEuMjYgMS4yNCAxLjI0LjY0LS4wMSAxLjIyLS40MSAxLjI0LTEuMTZhMS4yNCAxLjI0IDAgMCAwLTEuMjQtMS4zMnoiLz48L3N2Zz4=)][website]
-[![GitHub Star](https://img.shields.io/badge/Star%20Our%20Repo-0?style=for-the-badge&logo=github&color=333)][github]
-[![X/Twitter Follow](https://img.shields.io/badge/Follow%20%40VrooliOfficial-0?style=for-the-badge&logo=x&color=111)][x]
-[![YouTube Subscribe](https://img.shields.io/badge/Subscribe%20%40Vrooli-0?style=for-the-badge&logo=youtube&color=f00)][youtube]
-[![License: AGPLv3](https://img.shields.io/badge/License-AGPL-green.svg?style=for-the-badge)][license]
+<table style="width: 100%; table-layout: fixed;">
+  <tr style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+    <td align="center" style="flex: 0 1 auto;">
+      <a href="https://vrooli.com" style="text-decoration: none; display: inline-block; white-space: nowrap;">
+        <div style="display: inline-flex; align-items: center; background-color: #072c6a; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
+          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
+            <img src="https://www.google.com/s2/favicons?domain=vrooli.com&sz=16" width="16" height="16" />
+          </div>
+          <span style="overflow: hidden; text-overflow: ellipsis;">Vrooli.com</span>
+        </div>
+      </a>
+    </td>
+    <td align="center" style="flex: 0 1 auto;">
+      <a href="https://github.com/Vrooli/Vrooli" style="text-decoration: none; display: inline-block; white-space: nowrap;">
+        <div style="display: inline-flex; align-items: center; background-color: #333; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
+          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
+            <img src="https://www.google.com/s2/favicons?domain=github.com&sz=16" width="16" height="16" />
+          </div>
+          <span style="overflow: hidden; text-overflow: ellipsis;">Star Our Repo</span>
+        </div>
+      </a>
+    </td>
+    <td align="center" style="flex: 0 1 auto;">
+      <a href="https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial" style="text-decoration: none; display: inline-block; white-space: nowrap;">
+        <div style="display: inline-flex; align-items: center; background-color: #111; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
+          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
+            <img src="https://www.google.com/s2/favicons?domain=x.com&sz=16" width="16" height="16" />
+          </div>
+          <span style="overflow: hidden; text-overflow: ellipsis;">Follow @VrooliOfficial</span>
+        </div>
+      </a>
+    </td>
+    <td align="center" style="flex: 0 1 auto;">
+      <a href="https://www.youtube.com/@vrooli" style="text-decoration: none; display: inline-block; white-space: nowrap;">
+        <div style="display: inline-flex; align-items: center; background-color: #f00; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
+          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
+            <img src="https://www.google.com/s2/favicons?domain=youtube.com&sz=16" width="16" height="16" />
+          </div>
+          <span style="overflow: hidden; text-overflow: ellipsis;">Subscribe @Vrooli</span>
+        </div>
+      </a>
+    </td>
+    <td align="center" style="flex: 0 1 auto;">
+      <a href="https://choosealicense.com/licenses/agpl-3.0/" style="text-decoration: none; display: inline-block; white-space: nowrap;">
+        <div style="display: inline-flex; align-items: center; background-color: #2a9d8f; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
+          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
+            <img src="https://www.google.com/s2/favicons?domain=choosealicense.com&sz=16" width="16" height="16" />
+          </div>
+          <span style="overflow: hidden; text-overflow: ellipsis;">License: AGPLv3</span>
+        </div>
+      </a>
+    </td>
+  </tr>
+</table>
 
-</div>
+
 
 <br/>
 
@@ -102,7 +151,7 @@
 # 📖 About
 
 ## ❓ What is Vrooli?
-Vrooli is a polymorphic, collaborative, and self-improving automation platform designed to automate entire teams with unprecedented efficiency. Here’s how it works:
+Vrooli is a polymorphic, collaborative, and self-improving automation platform designed to automate entire teams with unprecedented efficiency. Here's how it works:
 
 - **Create Autonomous Agents:** Users create bots, known as autonomous agents, which can be interacted with through chat to complete various tasks. Autonomous agents are AI-driven bots capable of performing tasks without constant human supervision. [Check out our current bots here](https://vrooli.com/search?type="User"&isBot=true).
 - **Build Dynamic Teams:** Users and bots can be organized into teams and assigned roles. Teams can collaborate towards specific goals or missions, such as building a business, conducting research, creating a game, or any other project that benefits from collaboration. Bots can be added or removed at any time, providing flexibility to grow and reshape your business without the complexities of hiring and payroll. [Check out our current teams here](https://vrooli.com/search?type="Team").
@@ -110,7 +159,7 @@ Vrooli is a polymorphic, collaborative, and self-improving automation platform d
 - **Recursive Self-Improvement:** Bots utilize cognitive routines to continually build and enhance various components on the site — including other cognitive routines — enabling recursive self-improvement. Recursive self-improvement refers to the process where bots iteratively enhance their own capabilities. One of our goals is to build a team of bots that automatically suggests improvements to the most popular routines on the platform. [Learn more about recursive self-improvement here](#-recursive-self-improvement).
 
 ## 🤔 Why use Vrooli?
-Vrooli is your ultimate tool for staying organized and achieving both personal and professional goals. Here’s what sets it apart from other solutions:
+Vrooli is your ultimate tool for staying organized and achieving both personal and professional goals. Here's what sets it apart from other solutions:
 
 - **Shared and Evolving Routines:** Routines can be shared and improved by anyone. They can be combined to create new, more sophisticated routines, promoting a collaborative ecosystem.
 - **Polymorphic Output:** The output of a routine varies significantly based on the bot executing it. For instance, an Edgar Allan Poe bot would approach a "Write a Novel" routine differently than an Isaac Asimov bot. Polymorphic in this context means that routines can produce different outputs based on the bot's unique personality, as well as their role and the team they are part of.
@@ -123,7 +172,65 @@ Vrooli is your ultimate tool for staying organized and achieving both personal a
 # ⚙️ Functionality
 
 ## ✨ Key Features
-Vrooli stands out as a dynamic and capable automation platform designed to maximize efficiency and innovation for both business and personal use. Here’s what you can expect:
+Vrooli stands out as a dynamic and capable automation platform designed to maximize efficiency and innovation for both business and personal use. Here's what you can expect:
+
+### Currently Supported Features
+
+#### Chat & Communication
+- 💬 Real-time chat with multiple bots and humans in the same conversation
+- 🤖 Create and customize bots with unique personas
+- 🎯 Instruct bots to perform site actions and agentic operations
+- 💡 Smart action suggestions from bots
+- 🔄 Context-aware conversations with chat history retention
+
+#### Automation & Workflows
+- 📋 Create, comment on, and vote for routines
+- 🔄 Reusable routine templates and references
+- 📊 Visual routine flowcharts with descriptive steps
+- ⏰ Reminders and scheduling capabilities
+- 🤖 Run routines automatically or step-by-step
+
+#### Platform Features
+- 💳 Access AI features by buying credits
+- ⚡ LLM fallback system for service continuity
+- 🎨 Enhanced markdown support
+- 🎓 Interactive (skippable) tutorial for new users
+- 🔍 Embedding infrastructure for similarity search
+
+### Coming Soon
+
+#### Core Functionality
+- 👥 Routine roles and team management
+- 📱 Comprehensive mobile support
+  - Android and iOS apps
+  - Push notifications
+- 📅 Calendar integration
+  - Calendar sync
+- 🤝 Team collaboration features
+  - Member invitations
+  - Object transfer capabilities
+  - Data importing/exporting
+
+#### Advanced Features
+- 🌐 Web browsing capabilities for routines
+- 🔌 API integration
+- 📜 Smart contract integration
+- 🎨 Custom routine interfaces
+- 🔍 Explore/Recommendation system
+- 💻 Offline/Local support
+- 🧠 World model for contextual awareness
+- 💰 Microtransactions for API calls and services
+
+#### Platform Evolution
+- 🌐 Decentralization and Governance
+  - DID-based reputation system
+  - Decentralized data storage
+  - Decentralized cloud service integration
+- ⚖️ Pull request system for routine improvements
+- 📈 Enhanced scaling capabilities
+
+## 🔑 Core Capabilities
+Learn more about our key features and how they work together:
 
 ### Autonomous Agents
 Vrooli allows you to create bots, known as autonomous agents, that perform tasks without constant human supervision. These agents can interact with users through chat and execute various functions, such as scheduling tasks, summarizing meetings, and generating marketing reports. This enables a seamless automation experience, providing reliable support around the clock.
@@ -132,7 +239,7 @@ Vrooli allows you to create bots, known as autonomous agents, that perform tasks
 At the heart of Vrooli is the concept of recursive self-improvement. Bots utilize cognitive routines to continuously enhance their own capabilities and those of the platform. This iterative process ensures that Vrooli evolves and becomes more efficient over time, learning from each interaction and task completion to better serve user needs.
 
 ### Polymorphic Routines
-Vrooli’s routines are polymorphic, meaning they can adapt and produce varied outputs based on the executing agent's unique personality and role. For example, a routine designed to analyze financial data will generate different insights when run by a Warren Buffett bot compared to an Elon Musk bot. This flexibility allows for a more personalized and dynamic approach to automation.
+Vrooli's routines are polymorphic, meaning they can adapt and produce varied outputs based on the executing agent's unique personality and role. For example, a routine designed to analyze financial data will generate different insights when run by a Warren Buffett bot compared to an Elon Musk bot. This flexibility allows for a more personalized and dynamic approach to automation.
 
 ### Dynamic Team Building
 Users can create and manage dynamic teams consisting of both bots and humans, with each member assigned specific roles. These teams foster collaboration towards common goals such as developing new products, conducting market research, or managing social media campaigns. The ability to add or remove bots at any time provides the flexibility to adapt to changing project requirements in a way that traditional organizations cannot.
@@ -149,98 +256,15 @@ Engage with multiple bots and humans in the same conversation, enabling integrat
 ### Scheduled and Conditional Automation
 Routines can be scheduled to run at specific times or triggered by certain conditions. This feature ensures timely and automated task completion, allowing users to focus on more strategic activities.
 
-Vrooli’s unique features make it a powerful tool for automating workflows and enhancing productivity. Whether you're managing a business, conducting research, or working on creative projects, Vrooli provides the capabilities to automate, improve, and innovate continuously.
+Vrooli's unique features make it a powerful tool for automating workflows and enhancing productivity. Whether you're managing a business, conducting research, or working on creative projects, Vrooli provides the capabilities to automate, improve, and innovate continuously.
 
 ## 🔄 Recursive Self-Improvement
-Recursive self-improvement is at the core of Vrooli's potential to revolutionize meaningful work, enabling both bots and humans to iteratively enhance their workflows and efficiencies. Here’s how it works:
+Recursive self-improvement is at the core of Vrooli's potential to revolutionize meaningful work, enabling both bots and humans to iteratively enhance their workflows and efficiencies. Here's how it works:
 
 - **Step 1:** Bots and humans create routines. These routines are sequences of tasks that can be reused and combined in various ways. Time, cost, and complexity metrics for each routine and their subroutines are tracked.
 - **Step 2:** Bots and humans analyze these metrics to improve the efficiency of routines and other components like standards, teams, and projects. By identifying the least efficient or least automated areas, they can prioritize these for enhancement. Improvements can be crowdsourced using Vrooli profits or donations.
 - **Step 3:** The same improvement process can be applied to the routines and components used in Step 2. This means bots and humans are constantly refining the tools they use to improve other routines.
 - **Step k:** This process is repeated as many times as necessary, continually improving the routines that enhance other routines. This creates a meta-improvement loop, where the system becomes more efficient over time.
-
-
-## 🙌 Progress
-
-### Q1 2022 
-- ✅ **Alpha Launch:** Users could create, comment on, and vote for basic routines.
-- ✅ **Routine Structure:** Introduced routines as flowcharts with descriptive steps and useful resources.
-
-### Q2 2022
-- ✅ **Routine Visualizer:** Enhanced visualization for routines.
-- ✅ **Routine References:** Enabled routines to reference other routines.
-- ✅ **Template-Based Creation:** Users could create new routines using existing templates.
-
-### Q3 2022
-- ✅ **UX Improvements:** Enhanced user experience for running routines.
-- ✅ **Server and API Enhancements:** Improved backend performance and reliability.
-- ✅ **TypeScript Safety:** Increased TypeScript type safety for better code quality.
-
-### Q4 2022
-- ✅ **Navigation Enhancements:** Improved website navigation, including the addition of a command palette.
-- ✅ **Database Expansion:** More than doubled the database schema size to support upcoming features.
-
-### Q1 2023
-- ✅ **Server Rewrite:** Standardized model logic across all objects for better consistency.
-- ✅ **UX Redesign:** Focused on enhancing personal productivity.
-
-### Q2 2023
-- ✅ **Developer Documentation:** Created extensive documentation for developers.
-- ✅ **Comprehensive Improvements:** Further enhancements to the website, server, and API.
-- ✅ **New Features:** Added support for reminders, schedules, and notes.
-- ✅ **Embedding Infrastructure:** Implemented infrastructure for creating and updating embeddings for similarity search.
-
-### Q3 2023
-- ✅ **Multi-Language Standards:** Enabled the creation of standards in various programming languages.
-- ✅ **Enhanced Markdown:** Improved the appearance and functionality of user-created markdown.
-- ✅ **Interactive Tutorials:** Developed an interactive tutorial for new users.
-- ✅ **Bot Creation and Updates:** Users can create and update bots.
-
-### Q4 2023
-- ✅ **Chat Functionality:** Users can chat with bots directly or create group chats with multiple bots.
-- ✅ **Bot Personas:** Bots respond in their unique personas and retain chat history context.
-- ✅ **Assistant Integration:** Users can chat with Vrooli's default assistant, *Valyxa*, directly from the dashboard.
-
-### Q1/Q2 2024
-- ✅ **Customizable LLMs:** Users can choose which LLM a bot uses to generate responses.
-- ✅ **Bot Task Performance:** Bots can sometimes perform simple tasks correctly.
-- ✅ **Command Detection:** User-entered commands in chat messages are detected and responded to (e.g., */reminder add title="Get oat milk"*).
-- ✅ **Action Suggestions:** Bots can suggest actions with buttons appearing below their messages.
-- ✅ **Message Regeneration:** Users can regenerate bot messages.
-- ✅ **Real-Time Streaming:** Bot messages are streamed to the client, allowing real-time response viewing.
-- ✅ **LLM Fallback System:** Implemented a fallback system for LLM calls to ensure service continuity.
-- ✅ **Stripe Subscriptions:** Activated Stripe subscriptions for payment processing.
-
-## 🔜 What's Next?
-- Routine roles
-- Fix commenting
-- Mobile support
-    - Android app
-    - iOS app
-    - Push notifications
-- Calendar
-    - Calendar sync
-    - Schedule and routines and meetings
-- Transfer objects
-- Invite members to your team
-- Run routines automatically
-- Pull request functionality for improving routines
-- Improved routine capabilities
-    - Browse the web
-    - Call APIs
-    - Call smart contracts
-    - Custom routine interfaces
-- Explore/Recommendation system
-- Scaling
-- Offline/Local support
-- World model for bot/routine/team contexts
-- Microtransactions implemented to pay for API calls, smart contract calls, and running custom interfaces
-- Decentralization/Governance
-    - Integration with DIDs to build a reputation system
-    - Decentralized data storage
-    - Vrooli services running on Akash or other decentralized cloud providers
-- Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
-
 
 # 💻 Installation
 
@@ -290,14 +314,19 @@ Vrooli is built using a modern and robust technology stack to ensure performance
 
 - [<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/) **PostgreSQL:** A powerful, open-source relational database system used for data storage and management.
 
-- [<img align="left" alt="Docker" width="26px" src="./assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/) **Docker:** A platform for developing, shipping, and running applications in containers, ensuring consistency across different environments.
+- [<img align="left" alt="Docker" width="26px" src="./packages/ui/src/assets/icons/service/docker.svg" style="padding-right:10px;" />](https://www.docker.com/) **Docker:** A platform for developing, shipping, and running applications in containers, ensuring consistency across different environments.
 
 ## [🗂️ Project Structure][project-structure]
-[This docs section][project-structure] provides a comprehensive overview of the project’s structure, helping developers get familiar with the layout and organization of the codebase.
+[This docs section][project-structure] provides a comprehensive overview of the project's structure, helping developers get familiar with the layout and organization of the codebase.
 
 ## [👩🏼‍💻 Developer Setup][setup-guide]
 [Follow this guide][setup-guide] to set up your development environment, including step-by-step instructions and useful tips for efficient development.
 
+### CI/CD Pipeline
+
+We have set up a CI/CD pipeline to automatically deploy changes to a development VPS whenever changes are pushed to the `development` branch. This allows for quick testing and validation of changes before they are merged into the main branch and deployed to production.
+
+For detailed instructions on how to set up and use the CI/CD pipeline, see the [CI/CD Setup documentation](docs/deployment/ci_cd_setup.md).
 
 # 🤟 Contribute
 
@@ -332,7 +361,7 @@ If you'd like to work with me on this project, or want to contact me for another
 
 
 ## 🔒 Privacy & Data
-At Vrooli, we take your privacy and data security seriously. Here’s an overview of our approach to managing your data:
+At Vrooli, we take your privacy and data security seriously. Here's an overview of our approach to managing your data:
 
 ### Data Collection
 We collect standard information necessary for the operation of Vrooli, including:
@@ -376,7 +405,7 @@ Vrooli is released under the [GNU Affero General Public License v3.0 (AGPLv3)][l
 We chose the AGPL 3.0 license for several key reasons:
 
 - **Network Use Transparency:** The AGPL 3.0 extends the GPLv3 by requiring that modifications made and deployed over a network are made available to the public. This ensures transparency and collaborative improvement even when the software is used as a network service.
-- **Freedom and Collaboration:** AGPL 3.0 promotes freedom and collaboration, aligning with Vrooli’s mission to create an open and shared ecosystem. It ensures that the software remains free for all users and encourages a collaborative approach to development and improvement.
+- **Freedom and Collaboration:** AGPL 3.0 promotes freedom and collaboration, aligning with Vrooli's mission to create an open and shared ecosystem. It ensures that the software remains free for all users and encourages a collaborative approach to development and improvement.
 - **Security and Accountability:** By requiring that all network-deployed modifications be open source, the AGPL 3.0 enhances security and accountability. Users can review, audit, and contribute to the code, fostering a trustworthy and secure platform.
 - **Community Growth:** The AGPL 3.0 encourages community growth and innovation. Developers can build upon Vrooli, creating new features and improvements that benefit the entire community.
 - **Preventing Proprietary Lock-in:** The AGPL 3.0 helps prevent proprietary lock-in of the software, ensuring that improvements and innovations remain accessible to everyone, especially in network-based deployments.

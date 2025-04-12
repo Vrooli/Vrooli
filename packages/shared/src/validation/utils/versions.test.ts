@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "./versions";
+import { expect } from "chai";
+import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "./versions.js";
 
 describe("Version Calculation Tests", () => {
     // Test suite for valid version strings
@@ -15,8 +16,8 @@ describe("Version Calculation Tests", () => {
 
         // Test each valid case
         validCases.forEach(({ version, expected }) => {
-            test(`"${version}" should return ${JSON.stringify(expected)}`, () => {
-                expect(calculateVersionsFromString(version)).toEqual(expected);
+            it(`"${version}" should return ${JSON.stringify(expected)}`, () => {
+                expect(calculateVersionsFromString(version)).to.deep.equal(expected);
             });
         });
     });
@@ -32,48 +33,48 @@ describe("Version Calculation Tests", () => {
 
         // Test each invalid case
         invalidCases.forEach(({ version, expected }) => {
-            test(`"${version}" should return ${JSON.stringify(expected)}`, () => {
-                expect(calculateVersionsFromString(version)).toEqual(expected);
+            it(`"${version}" should return ${JSON.stringify(expected)}`, () => {
+                expect(calculateVersionsFromString(version)).to.deep.equal(expected);
             });
         });
     });
 });
 
 describe("getMinVersion function tests", () => {
-    test("versions in random order", () => {
+    it("versions in random order", () => {
         const versions = ["1.0.0", "2.0.0", "1.5.0"];
         const result = getMinVersion(versions);
-        expect(result).toBe("2.0.0");
+        expect(result).to.equal("2.0.0");
     });
 
-    test("versions in ascending order", () => {
+    it("versions in ascending order", () => {
         const versions = ["1.0.0", "1.5.0", "2.0.0"];
         const result = getMinVersion(versions);
-        expect(result).toBe("2.0.0");
+        expect(result).to.equal("2.0.0");
     });
 
-    test("versions in descending order", () => {
+    it("versions in descending order", () => {
         const versions = ["2.0.0", "1.5.0", "1.0.0"];
         const result = getMinVersion(versions);
-        expect(result).toBe("2.0.0");
+        expect(result).to.equal("2.0.0");
     });
 
-    test("empty list of versions", () => {
+    it("empty list of versions", () => {
         const versions = [];
         const result = getMinVersion(versions);
-        expect(result).toBe("0.0.1");
+        expect(result).to.equal("0.0.1");
     });
 
-    test("list with only one version", () => {
+    it("list with only one version", () => {
         const versions = ["1.0.0"];
         const result = getMinVersion(versions);
-        expect(result).toBe("1.0.0");
+        expect(result).to.equal("1.0.0");
     });
 
-    test("list with duplicate versions", () => {
+    it("list with duplicate versions", () => {
         const versions = ["1.0.0", "1.0.0", "2.0.0"];
         const result = getMinVersion(versions);
-        expect(result).toBe("2.0.0");
+        expect(result).to.equal("2.0.0");
     });
 });
 
@@ -97,8 +98,8 @@ describe("Minimum Version Requirement Tests", () => {
 
         // Test each case
         comparisonCases.forEach(({ version, minimumVersion, expected }) => {
-            test(`"${version}" compared to "${minimumVersion}" should return ${expected}`, () => {
-                expect(meetsMinVersion(version, minimumVersion)).toEqual(expected);
+            it(`"${version}" compared to "${minimumVersion}" should return ${expected}`, () => {
+                expect(meetsMinVersion(version, minimumVersion)).to.deep.equal(expected);
             });
         });
     });
@@ -115,8 +116,8 @@ describe("Minimum Version Requirement Tests", () => {
 
         // Test each invalid or unusual case
         invalidCases.forEach(({ version, minimumVersion, expected }) => {
-            test(`"${version}" compared to "${minimumVersion}" should return ${expected}`, () => {
-                expect(meetsMinVersion(version, minimumVersion)).toEqual(expected);
+            it(`"${version}" compared to "${minimumVersion}" should return ${expected}`, () => {
+                expect(meetsMinVersion(version, minimumVersion)).to.deep.equal(expected);
             });
         });
     });

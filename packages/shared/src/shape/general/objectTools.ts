@@ -1,12 +1,12 @@
 /**
  * Functions for manipulating state objects
  */
-import { exists } from "../../utils/exists";
+import { exists } from "../../utils/exists.js";
 
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')
  */
-export const valueFromDot = (object: any, notation: string): any => {
+export function valueFromDot(object: any, notation: string): any {
     // Utility function to index into object using string key
     function index(obj: any, i: string) {
         // Return null if obj is falsy
@@ -18,12 +18,12 @@ export const valueFromDot = (object: any, notation: string): any => {
     // If the final result is falsy, return null
     const value = notation.split(".").reduce(index, object);
     return exists(value) ? value : null;
-};
+}
 
 /**
  * Maps the keys of an object to dot notation
  */
-export const convertToDot = (obj: Record<string, any>, parent = [], keyValue = {}) => {
+export function convertToDot(obj: Record<string, any>, parent = [], keyValue = {}) {
     for (const key in obj) {
         const keyPath: any = [...parent, key];
         if (obj[key] !== null && typeof obj[key] === "object") {
@@ -42,18 +42,20 @@ export const convertToDot = (obj: Record<string, any>, parent = [], keyValue = {
  * @param updated The updated object
  * @param fields The fields to check for changes, or empty array to check all fields
  */
-export const hasObjectChanged = (original: unknown, updated: unknown, fields: string[] = []): boolean => {
+export function hasObjectChanged(original: unknown, updated: unknown, fields: string[] = []): boolean {
     if (updated === null || updated === undefined) return false;
     if (original === null || original === undefined) return true;
 
-    const isObject = (obj: unknown) => obj && typeof obj === "object" && !Array.isArray(obj);
+    function isObject(obj: unknown) {
+        return obj && typeof obj === "object" && !Array.isArray(obj);
+    }
 
     // Direct comparison for non-objects
     if (!isObject(original) || !isObject(updated)) {
         return original !== updated;
     }
 
-    const checkField = (original: any, updated: any, field: string): boolean => {
+    function checkField(original: any, updated: any, field: string): boolean {
         const [topLevelField, ...rest] = field.split(".");
         if (typeof topLevelField !== "string") return false;
 
@@ -74,7 +76,7 @@ export const hasObjectChanged = (original: unknown, updated: unknown, fields: st
             }
             return original[topLevelField] !== updated[topLevelField];
         }
-    };
+    }
 
     // Combine keys from both objects
     const allKeys = new Set([...Object.keys(original), ...Object.keys(updated)]);
@@ -89,4 +91,4 @@ export const hasObjectChanged = (original: unknown, updated: unknown, fields: st
     }
 
     return false;
-};
+}

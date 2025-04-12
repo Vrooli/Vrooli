@@ -1,20 +1,33 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { noSelect } from "styles";
-import { ToggleSwitchProps } from "../types";
+import { Icon, IconInfo } from "../../../icons/Icons.js";
+import { noSelect } from "../../../styles.js";
+import { SxType } from "../../../types.js";
 
 const grey = {
     400: "#BFC7CF",
     800: "#2F3A45",
 };
 
+interface ToggleSwitchProps {
+    checked: boolean;
+    name?: string;
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => unknown;
+    offIconInfo?: IconInfo | null | undefined;
+    onIconInfo?: IconInfo | null | undefined;
+    label?: string;
+    tooltip?: string;
+    disabled?: boolean;
+    sx?: SxType;
+}
+
 export function ToggleSwitch({
     checked,
     disabled = false,
     name,
     onChange,
-    OffIcon,
-    OnIcon,
+    offIconInfo,
+    onIconInfo,
     label,
     tooltip,
     sx,
@@ -33,7 +46,7 @@ export function ToggleSwitch({
         onChange(customEvent as any);
     }, [disabled, checked, onChange, name]);
 
-    const Icon = useMemo(() => checked ? OnIcon : OffIcon, [checked, OffIcon, OnIcon]);
+    const iconInfo = useMemo(() => checked ? onIconInfo : offIconInfo, [checked, offIconInfo, onIconInfo]);
 
     return (
         <Tooltip title={tooltip}>
@@ -63,7 +76,7 @@ export function ToggleSwitch({
                     }}>
                         {/* Thumb */}
                         <IconButton sx={{
-                            background: (OnIcon || OffIcon) ? palette.secondary.main : "white",
+                            background: (onIconInfo || offIconInfo) ? palette.secondary.main : "white",
                             display: "inline-flex",
                             width: "30px",
                             height: "30px",
@@ -74,7 +87,10 @@ export function ToggleSwitch({
                             transition: "transform 150ms ease-in-out",
                             transform: `translateX(${checked ? "20" : "0"}px) translateY(-50%)`,
                         }}>
-                            {Icon && <Icon fill="white" width="80%" height="80%" />}
+                            {iconInfo && <Icon
+                                fill="white"
+                                info={iconInfo}
+                            />}
                         </IconButton>
                     </Box>
                     {/* Input */}

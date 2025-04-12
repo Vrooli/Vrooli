@@ -1,8 +1,8 @@
 import { MaxObjects, NotificationSortBy } from "@local/shared";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { NotificationFormat } from "../formats";
-import { NotificationModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { NotificationFormat } from "../formats.js";
+import { NotificationModelLogic } from "./types.js";
 
 const __typename = "Notification" as const;
 export const NotificationModel: NotificationModelLogic = ({

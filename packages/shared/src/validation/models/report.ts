@@ -1,4 +1,7 @@
-import { details, id, language, opt, reportCreatedFor, reportReason, req, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { details, id, language, reportCreatedFor, reportReason } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
 
 export const reportValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

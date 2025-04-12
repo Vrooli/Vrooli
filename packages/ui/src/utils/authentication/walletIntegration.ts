@@ -2,9 +2,9 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { endpointPostAuthWalletComplete, endpointPostAuthWalletInit, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
-import { fetchWrapper } from "api/fetchWrapper";
-import { PubSub } from "utils/pubsub";
+import { endpointsAuth, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput } from "@local/shared";
+import { fetchWrapper } from "../../api/fetchWrapper.js";
+import { PubSub } from "../../utils/pubsub.js";
 
 /**
  * Object returned from await window.cardano[providerKey].enable()
@@ -32,7 +32,7 @@ export type WalletProviderInfo = {
 /**
  * Known wallet extension download URLs
  */
-export const walletDownloadUrls: { [x: string]: [string, string] } = {
+export const walletDownloadUrls = {
     // 'cardwallet': ['Card Wallet', 'https://chrome.google.com/webstore/detail/cwallet/apnehcjmnengpnmccpaibjmhhoadaico'],
     //'eternl': ['eternl (CCVault.io)', 'https://chrome.google.com/webstore/detail/eternl/kmhcihpebfmpgmihbkipmjlmmioameka'],
     "flint": ["Flint", "https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj"],
@@ -40,7 +40,7 @@ export const walletDownloadUrls: { [x: string]: [string, string] } = {
     "nami": ["Nami", "https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo"],
     "nufi": ["NuFi", "https://chrome.google.com/webstore/detail/nufi/gpnihlnnodeiiaakbikldcihojploeca"],
     // 'yoroi': 'https://chrome.google.com/webstore/detail/yoroi/ffnbelfdoeiohenkjibnmadjiehjhajb',
-};
+} as const;
 
 /**
  * Maps network names to their ids
@@ -88,7 +88,7 @@ export function getInstalledWalletProviders(): [string, WalletProviderInfo][] {
         return !nextName && !exclude.includes(key);
     });
     return providers;
-};
+}
 
 /**
  * Connects to wallet provider
@@ -98,7 +98,7 @@ export function getInstalledWalletProviders(): [string, WalletProviderInfo][] {
 async function connectWallet(key: string): Promise<any> {
     if (!hasWalletExtension(key)) return false;
     return await window.cardano[key].enable();
-};
+}
 
 /**
  * Initiates handshake to verify wallet with backend.
@@ -106,12 +106,12 @@ async function connectWallet(key: string): Promise<any> {
  * @returns Hex string of payload to be signed by wallet
  */
 async function walletInit(stakingAddress: string): Promise<string | null> {
-    const data = await fetchWrapper<WalletInitInput, string>({
-        ...endpointPostAuthWalletInit,
+    const data = await fetchWrapper<WalletInitInput, WalletInit>({
+        ...endpointsAuth.walletInit,
         inputs: { stakingAddress },
     });
-    return data?.data ?? null;
-};
+    return data?.data?.nonce ?? null;
+}
 
 /**
  * Completes handshake to verify wallet with backend
@@ -121,11 +121,11 @@ async function walletInit(stakingAddress: string): Promise<string | null> {
  */
 async function walletComplete(stakingAddress: string, signedPayload: string): Promise<WalletComplete | null> {
     const data = await fetchWrapper<WalletCompleteInput, WalletComplete>({
-        ...endpointPostAuthWalletComplete,
+        ...endpointsAuth.walletComplete,
         inputs: { stakingAddress, signedPayload },
     });
     return data?.data ?? null;
-};
+}
 
 /**
  * Signs payload received from walletInit
@@ -142,7 +142,7 @@ async function signPayload(key: string, walletActions: WalletActions, stakingAdd
         return await window.cardano.signData(stakingAddress, payload);
     // For all other providers, we use the new method
     return await walletActions.signData(stakingAddress, payload);
-};
+}
 
 /**
  * Establish trust between a user's wallet and the backend
@@ -177,4 +177,4 @@ export async function validateWallet(key: string): Promise<WalletComplete | null
         });
     }
     return result;
-};
+}

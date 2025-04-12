@@ -1,22 +1,21 @@
 import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, uuidValidate } from "@local/shared";
-import { Box, Tooltip, useTheme } from "@mui/material";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { useBulkObjectActions } from "hooks/objectActions";
-import { useFindMany } from "hooks/useFindMany";
-import { useSelectableList } from "hooks/useSelectableList";
-import { useTabs } from "hooks/useTabs";
-import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SideActionsButton } from "styles";
-import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { participantTabParams } from "utils/search/objectToSearch";
-import { ChatInvitesUpsert } from "views/objects/chatInvite";
-import { ParticipantManageViewProps } from "../types";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
+import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { useBulkObjectActions } from "../../hooks/objectActions.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useSelectableList } from "../../hooks/useSelectableList.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
+import { participantTabParams } from "../../utils/search/objectToSearch.js";
+import { ChatInvitesUpsert } from "../../views/objects/chatInvite/ChatInvitesUpsert.js";
+import { ParticipantManageViewProps } from "../types.js";
 
 const scrollContainerId = "participant-search-scroll";
 const dialogStyle = {
@@ -103,14 +102,13 @@ export function ParticipantManageView({
     });
 
     const sideActionButtons = useMemo(() => {
-        const actionIconProps = { fill: palette.secondary.contrastText, width: "36px", height: "36px" };
         const buttons: JSX.Element[] = [];
         // If not selecting, show select button
         if (!isSelecting) {
             buttons.push(<Tooltip title={t("Select")}>
-                <SideActionsButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
-                    <ActionIcon {...actionIconProps} />
-                </SideActionsButton>
+                <IconButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                    <IconCommon name="Action" />
+                </IconButton>
             </Tooltip>);
             return buttons;
         }
@@ -118,34 +116,34 @@ export function ParticipantManageView({
         if (selectedData.length > 0) {
             if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.key as ParticipantManagePageTabOption)) {
                 buttons.push(<Tooltip title={t("Delete")}>
-                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
-                        <DeleteIcon {...actionIconProps} />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
+                        <IconCommon name="Delete" />
+                    </IconButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.ChatInvite) {
                 buttons.push(<Tooltip title={t("Edit")}>
-                    <SideActionsButton aria-label={t("Edit")} onClick={handleInvitesUpdate}>
-                        <EditIcon {...actionIconProps} />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Edit")} onClick={handleInvitesUpdate}>
+                        <IconCommon name="Edit" />
+                    </IconButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.Add) {
                 buttons.push(<Tooltip title={t("Add")}>
-                    <SideActionsButton aria-label={t("Add")} onClick={handleInvitesCreate}>
-                        <AddIcon {...actionIconProps} />
-                    </SideActionsButton>
+                    <IconButton aria-label={t("Add")} onClick={handleInvitesCreate}>
+                        <IconCommon name="Add" />
+                    </IconButton>
                 </Tooltip>);
             }
         }
         // Show cancel button to exit selection mode
         buttons.push(<Tooltip title={t("Cancel")}>
-            <SideActionsButton aria-label={t("Cancel")} onClick={handleToggleSelecting}>
-                <CancelIcon {...actionIconProps} />
-            </SideActionsButton>
+            <IconButton aria-label={t("Cancel")} onClick={handleToggleSelecting}>
+                <IconCommon name="Cancel" />
+            </IconButton>
         </Tooltip>);
         return buttons;
-    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
+    }, [palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
 
     return (
         <MaybeLargeDialog
@@ -174,15 +172,15 @@ export function ParticipantManageView({
                     display={display}
                     onClose={onClose}
                     title={t("Participant", { count: 2 })}
-                    below={<PageTabs
-                        ariaLabel="search-tabs"
+                    below={<PageTabs<typeof participantTabParams>
+                        ariaLabel="Search tabs"
                         currTab={currTab}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
                 />
-                <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
+                <Box overflow="auto" flexGrow={1}>
                     {searchType && <SearchList
                         {...findManyData}
                         display={display}

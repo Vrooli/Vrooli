@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { DbProvider, batch, batchGroup, logger } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 type BatchRunCountsResult = Record<string, {
@@ -15,11 +15,11 @@ type BatchRunCountsResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of routine version IDs to various run counts
  */
-const batchRunCounts = async (
+async function batchRunCounts(
     routineVersionIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunCountsResult> => {
+): Promise<BatchRunCountsResult> {
     const initialResult = Object.fromEntries(routineVersionIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
@@ -92,11 +92,11 @@ const batchRunCounts = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logRoutineStats = async (
+export async function logRoutineStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.routine_versionFindManyArgs>({
             objectType: "RoutineVersion",
@@ -105,7 +105,7 @@ export const logRoutineStats = async (
                 // have been started or completed within the period
                 const runCountsByVersion = await batchRunCounts(batch.map(version => version.id), periodStart, periodEnd);
                 // Create stats for each routine
-                await prismaInstance.stats_routine.createMany({
+                await DbProvider.get().stats_routine.createMany({
                     data: batch.map(routineVersion => {
                         const runCounts = runCountsByVersion[routineVersion.id];
                         if (!runCounts) return;

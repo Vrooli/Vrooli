@@ -1,23 +1,27 @@
-import { endpointGetProject, endpointGetProjects, FormSchema, ProjectSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { endpointsProject, FormSchema, ProjectSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
 
-export const projectSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchProject"),
-    containers: [
-        hasCompleteVersionContainer,
-        votesContainer(),
-        bookmarksContainer(),
-        languagesVersionContainer(),
-        tagsContainer(),
-    ],
-    elements: [
-        ...hasCompleteVersionFields(),
-        ...votesFields(),
-        ...bookmarksFields(),
-        ...languagesVersionFields(),
-        ...tagsFields(),
-    ],
-});
+export function projectSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchProject"),
+        containers: [
+            hasCompleteVersionContainer,
+            votesContainer(),
+            bookmarksContainer(),
+            languagesVersionContainer(),
+            tagsContainer(),
+        ],
+        elements: [
+            ...hasCompleteVersionFields(),
+            ...votesFields(),
+            ...bookmarksFields(),
+            ...languagesVersionFields(),
+            ...tagsFields(),
+        ],
+    };
+}
 
-export const projectSearchParams = () => toParams(projectSearchSchema(), endpointGetProjects, endpointGetProject, ProjectSortBy, ProjectSortBy.ScoreDesc);
+export function projectSearchParams() {
+    return toParams(projectSearchSchema(), endpointsProject, ProjectSortBy, ProjectSortBy.ScoreDesc);
+}

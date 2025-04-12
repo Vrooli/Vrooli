@@ -1,20 +1,46 @@
 import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
 import { RunStepStatus } from "@prisma/client";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { Trigger } from "../../events/trigger";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { RunProjectFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { Trigger } from "../../events/trigger.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { RunProjectFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } from "./types.js";
 
 const __typename = "RunProject" as const;
 export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
+    danger: {
+        async anonymize(owner) {
+            await DbProvider.get().run_project.updateMany({
+                where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
+                    userId: owner.__typename === "User" ? owner.id : undefined,
+                    isPrivate: false,
+                },
+                data: {
+                    teamId: null,
+                    userId: null,
+                },
+            });
+        },
+        async deleteAll(owner) {
+            const result = await DbProvider.get().run_project.deleteMany({
+                where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
+                    userId: owner.__typename === "User" ? owner.id : undefined,
+                },
+            });
+            return result.count;
+        },
+    },
     dbTable: "run_project",
     display: () => ({
         label: {
@@ -24,7 +50,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
             get: ({ name }, languages) => {
-                return getEmbeddableString({ name }, languages[0]);
+                return getEmbeddableString({ name }, languages?.[0]);
             },
         },
     }),
@@ -40,12 +66,13 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     id: data.id,
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
+                    data: noNull(data.data),
                     embeddingNeedsUpdate: true,
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     timeElapsed,
-                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    startedAt: data.startedAt,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
                     user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
                     projectVersion: await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest }),
@@ -62,13 +89,14 @@ export const RunProjectModel: RunProjectModelLogic = ({
                 return {
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
+                    data: noNull(data.data),
                     isPrivate: noNull(data.isPrivate),
                     status: noNull(data.status),
                     timeElapsed,
                     // TODO should have way to check previous status, so we don't overwrite startedAt/completedAt
-                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    startedAt: data.startedAt,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
-                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest }),
                     steps: await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
@@ -126,10 +154,10 @@ export const RunProjectModel: RunProjectModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 // Find the step with the highest "completedAt" Date for each run
-                const recentSteps = await prismaInstance.$queryRaw`
+                const recentSteps = await DbProvider.get().$queryRaw`
                     SELECT DISTINCT ON ("runProjectId")
                     "runProjectId",
                     step
@@ -144,7 +172,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<RunProjectModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunProjectModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -170,7 +198,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
             data.isPrivate === false &&
             (
                 (data.user === null && data.team === null) ||
-                oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
+                oneIsPublic<RunProjectModelInfo["DbSelect"]>([
                     ["team", "Team"],
                     ["user", "User"],
                 ], data, ...rest)
@@ -182,16 +210,16 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
                         { team: useVisibility("Team", "OwnOrPublic", data) },
                         { user: useVisibility("User", "OwnOrPublic", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
@@ -199,7 +227,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             ownPublic: function getOwnPublic(data) {
@@ -208,7 +236,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             public: function getPublic() {

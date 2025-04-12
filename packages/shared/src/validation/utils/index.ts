@@ -1,7 +1,8 @@
-export * from "./builders";
-export * from "./commonFields";
-export * from "./errors";
-export * from "./regex";
-export * from "./types";
-export * from "./versions";
+/* c8 ignore start */
+export * from "./builders/index.js";
+export * from "./commonFields.js";
+export * from "./errors.js";
+export * from "./regex.js";
+export * from "./types.js";
+export * from "./versions.js";
 

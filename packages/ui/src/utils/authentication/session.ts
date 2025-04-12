@@ -1,6 +1,8 @@
-import { ActiveFocusMode, FocusMode, Session, SessionUser, uuidValidate } from "@local/shared";
-import { getUserLanguages } from "utils/display/translationTools";
-import { getCookie } from "utils/localStorage";
+import { Session, SessionUser, uuidValidate } from "@local/shared";
+import { SocketService } from "../../api/socket.js";
+import { getUserLanguages } from "../display/translationTools.js";
+import { getCookie, removeCookie } from "../localStorage.js";
+import { PubSub } from "../pubsub.js";
 
 /**
  * Session object that indicates no user is logged in
@@ -48,40 +50,38 @@ export function checkIfLoggedIn(session: Session | null | undefined): boolean {
  */
 export const siteLanguages = ["en"];
 
-/**
- * Finds which language the site should be displayed in.
- * @param session Session object
- */
-export function getSiteLanguage(session: Session | null | undefined): string {
-    // Try to find languages from session. Make sure not to return default
-    const sessionLanguages = getUserLanguages(session, false);
-    // Find first language that is in site languages
-    const siteLanguage = sessionLanguages.find(language => siteLanguages.includes(language));
-    // If found, return it
-    if (siteLanguage) return siteLanguage;
-    // If no languages found in session, check local storage (i.e. cookies)
-    const storedLanguage = getCookie("Language");
-    // Check if it's a site language
-    if (storedLanguage && siteLanguages.includes(storedLanguage)) return storedLanguage;
-    // Otherwise, return default (first in array)
-    return siteLanguages[0];
-}
-
-export function getFocusModeInfo(session: Session | null | undefined): {
-    active: ActiveFocusMode | null,
-    all: FocusMode[]
-} {
-    // Try to find focus modes user from session
-    const { activeFocusMode, focusModes } = getCurrentUser(session);
-
-    const active = activeFocusMode ?? getCookie("FocusModeActive") ?? null;
-    let all = focusModes ?? getCookie("FocusModeAll") ?? [];
-
-    // If there is an active focus mode, move it to the first position in the 'all' array
-    if (active) {
-        all = all.filter(focusMode => focusMode.id !== active.mode.id);
-        all.unshift(active.mode);
+export class SessionService {
+    /**
+     * Finds which language the site should be displayed in.
+     * @param session Session object
+     */
+    static getSiteLanguage(session: Session | null | undefined): string {
+        // Try to find languages from session. Make sure not to return default
+        const sessionLanguages = getUserLanguages(session, false);
+        // Find first language that is in site languages
+        const siteLanguage = sessionLanguages.find(language => siteLanguages.includes(language));
+        // If found, return it
+        if (siteLanguage) return siteLanguage;
+        // If no languages found in session, check local storage (i.e. cookies)
+        const storedLanguage = getCookie("Language");
+        // Check if it's a site language
+        if (storedLanguage && siteLanguages.includes(storedLanguage)) return storedLanguage;
+        // Otherwise, return default (first in array)
+        return siteLanguages[0];
     }
 
-    return { active, all };
+    /**
+     * Handles logging out the user.
+     * @param session Session object
+     */
+    static logOut() {
+        // Reset socket connection
+        SocketService.get().connect();
+        // Clear old form data cache
+        removeCookie("FormData");
+        // Remove logged in flag
+        localStorage.removeItem("isLoggedIn");
+        // Close menus
+        PubSub.get().publish("menu", { id: "all", isOpen: false });
+    }
 }

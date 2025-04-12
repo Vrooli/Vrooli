@@ -1,13 +1,14 @@
 import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { defaultPermissions } from "../../utils";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { TagFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, TagModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { TagFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, TagModelLogic } from "./types.js";
 
 type TagPre = PreShapeEmbeddableTranslatableResult;
 
@@ -28,7 +29,7 @@ export const TagModel: TagModelLogic = ({
                 return getEmbeddableString({
                     description: trans.description,
                     tag,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -42,7 +43,7 @@ export const TagModel: TagModelLogic = ({
             },
             findConnects: async ({ Create }) => {
                 const createIds = Create.map(({ node }) => node.id);
-                const existingTags = await prismaInstance.tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
+                const existingTags = await DbProvider.get().tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
                 return createIds.map(id => existingTags.find(x => x.tag === id) ? id : null);
             },
             create: async ({ data, ...rest }) => {
@@ -78,9 +79,9 @@ export const TagModel: TagModelLogic = ({
         },
         searchStringQuery: () => "tagWrapped",
         supplemental: {
-            graphqlFields: SuppFields[__typename],
+            suppFields: SuppFields[__typename],
             dbFields: ["createdById", "id"],
-            toGraphQL: async ({ ids, objects, userData }) => ({
+            getSuppFields: async ({ ids, objects, userData }) => ({
                 you: {
                     isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                     isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),

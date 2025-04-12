@@ -1,20 +1,19 @@
 import { convertToDot, valueFromDot } from "@local/shared";
 import { Box, styled } from "@mui/material";
-import privacyMarkdown from "assets/policy/privacy.md";
-import { PageContainer } from "components/Page/Page";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { Footer } from "components/navigation/Footer/Footer";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useMarkdown } from "hooks/useMarkdown";
-import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { ScrollBox } from "styles";
-import { BUSINESS_DATA } from "utils/consts";
-import { PolicyTabsInfo, policyTabParams } from "utils/search/objectToSearch";
-import { MarkdownDisplay } from "../../components/text/MarkdownDisplay/MarkdownDisplay";
-import { PrivacyPolicyViewProps, TermsViewProps } from "../types";
+import privacyMarkdown from "../../assets/policy/privacy.md";
+import { PageContainer } from "../../components/Page/Page.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { Footer } from "../../components/navigation/Footer.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
+import { useMarkdown } from "../../hooks/useMarkdown.js";
+import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { useLocation } from "../../route/router.js";
+import { ScrollBox } from "../../styles.js";
+import { BUSINESS_DATA } from "../../utils/consts.js";
+import { PolicyTabsInfo, TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
 
 export enum PolicyTabOption {
     Privacy = "Privacy",
@@ -45,17 +44,14 @@ const ContentBox = styled(Box)(({ theme }) => ({
     },
 }));
 
-export function PrivacyPolicyView({
-    display,
-    onClose,
-}: PrivacyPolicyViewProps) {
+export function PrivacyPolicyView() {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
     const content = useMarkdown(privacyMarkdown, injectBusinessData);
 
     const { currTab, tabs } = useTabs({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<PolicyTabsInfo>>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
@@ -63,19 +59,13 @@ export function PrivacyPolicyView({
     return (
         <PageContainer contentType="text" size="fullSize">
             <ScrollBox>
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("Privacy")}
-                    titleBehaviorDesktop="Hide"
-                    titleBehaviorMobile="Hide"
-                    below={<PageTabs
-                        ariaLabel="privacy policy and terms tabs"
-                        currTab={currTab}
-                        fullWidth
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
+                <Navbar title={t("Privacy")} />
+                <PageTabs<typeof policyTabParams>
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
                 />
                 <ContentBox>
                     <MarkdownDisplay content={content} />
@@ -86,17 +76,14 @@ export function PrivacyPolicyView({
     );
 }
 
-export function TermsView({
-    display,
-    onClose,
-}: TermsViewProps) {
+export function TermsView() {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
     const content = useMarkdown(privacyMarkdown, injectBusinessData);
 
     const { currTab, tabs } = useTabs({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<PolicyTabsInfo>>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
@@ -104,19 +91,13 @@ export function TermsView({
     return (
         <PageContainer contentType="text" size="fullSize">
             <ScrollBox minHeight="100vh">
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("Terms")}
-                    titleBehaviorDesktop="Hide"
-                    titleBehaviorMobile="Hide"
-                    below={<PageTabs
-                        ariaLabel="privacy policy and terms tabs"
-                        currTab={currTab}
-                        fullWidth
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
+                <Navbar title={t("Terms")} />
+                <PageTabs<typeof policyTabParams>
+                    ariaLabel="privacy policy and terms tabs"
+                    currTab={currTab}
+                    fullWidth
+                    onChange={handleTabChange}
+                    tabs={tabs}
                 />
                 <ContentBox>
                     <MarkdownDisplay content={content} />

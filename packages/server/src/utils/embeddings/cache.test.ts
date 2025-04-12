@@ -1,6 +1,7 @@
 import { VisibilityType } from "@local/shared";
-import { RedisClientMock } from "../../__mocks__/redis";
-import { SearchEmbeddingsCache } from "./cache";
+import { expect } from "chai";
+import { RedisClientMock } from "../../__mocks__/redis.js";
+import { SearchEmbeddingsCache } from "./cache.js";
 
 const sampleKey = "search:type:query:option:visibility";
 const sampleResults = [{ id: "1" }, { id: "2" }];
@@ -22,7 +23,7 @@ describe("SearchEmbeddingsCache", () => {
                 visibility: VisibilityType.Own,
                 userId: "123",
             });
-            expect(key).toBe("search:User:query:EmbedTopDesc:Own:123");
+            expect(key).to.equal("search:User:query:EmbedTopDesc:Own:123");
         });
 
         it("should not include user ID for public visibility type", () => {
@@ -33,7 +34,7 @@ describe("SearchEmbeddingsCache", () => {
                 visibility: VisibilityType.Public,
                 userId: "123",
             });
-            expect(key).toBe("search:RoutineVersion:query:EmbedTopAsc:Public");
+            expect(key).to.equal("search:RoutineVersion:query:EmbedTopAsc:Public");
         });
 
         it("should change to public if user ID is not provided", () => {
@@ -44,14 +45,14 @@ describe("SearchEmbeddingsCache", () => {
                 visibility: VisibilityType.OwnOrPublic,
                 userId: null,
             });
-            expect(key).toBe("search:ProjectVersion:query:EmbedDateCreatedDesc:Public");
+            expect(key).to.equal("search:ProjectVersion:query:EmbedDateCreatedDesc:Public");
         });
     });
 
     describe("check", () => {
         it("should return null if there are no cached results", async () => {
             const result = await SearchEmbeddingsCache.check({ cacheKey: sampleKey, offset: 0, take: 2 });
-            expect(result).toBeNull();
+            expect(result).to.be.null;
         });
 
         it("should return the correct slice of results if they exist", async () => {
@@ -59,7 +60,7 @@ describe("SearchEmbeddingsCache", () => {
                 [sampleKey]: JSON.stringify(sampleResults),
             });
             const result = await SearchEmbeddingsCache.check({ cacheKey: sampleKey, offset: 0, take: 1 });
-            expect(result).toEqual([{ id: "1" }]);
+            expect(result).to.deep.equal([{ id: "1" }]);
         });
     });
 

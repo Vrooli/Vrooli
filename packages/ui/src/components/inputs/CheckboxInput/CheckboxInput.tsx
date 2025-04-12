@@ -1,12 +1,12 @@
 import { Checkbox, FormControlLabel } from "@mui/material";
-import { CheckboxInputProps } from "../types";
+import { CheckboxInputProps } from "../types.js";
 
-export const CheckboxInput = ({
+export function CheckboxInput({
     disabled,
     label,
     field,
     ...props
-}: CheckboxInputProps) => {
+}: CheckboxInputProps) {
     return (
         <FormControlLabel
             control={
@@ -31,4 +31,4 @@ export const CheckboxInput = ({
             disabled={disabled}
         />
     );
-};
+}

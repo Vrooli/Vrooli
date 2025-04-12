@@ -1,11 +1,15 @@
-import { endpointGetMeeting, endpointGetMeetings, FormSchema, MeetingSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsMeeting, FormSchema, MeetingSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const meetingSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchMeeting"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function meetingSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchMeeting"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const meetingSearchParams = () => toParams(meetingSearchSchema(), endpointGetMeetings, endpointGetMeeting, MeetingSortBy, MeetingSortBy.AttendeesDesc);
+export function meetingSearchParams() {
+    return toParams(meetingSearchSchema(), endpointsMeeting, MeetingSortBy, MeetingSortBy.AttendeesDesc);
+}

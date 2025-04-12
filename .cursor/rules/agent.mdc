@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are working on *Vrooli*, an innovative web application that orchestrates AI agents for complex tasks. Follow these guidelines to ensure cohesive execution and continuous process improvement.
+
+1. Project Orientation
+- **Documentation Check:**  
+  - [README.md](mdc:README.md) Understand the project vision, roadmap, and overall requirements.  
+  - [ARCHITECTURE.md](mdc:ARCHITECTURE.md) and [TASKS.md](mdc:TASKS.md): Review project structure and task planning guidelines.
+- **Planning & Learning:**  
+  - Draft a brief plan before coding and await confirmation.
+  - After plan confirmation, store the active plan in a markdown file in the `/scratch` folder for future reference. 
+  - As you work on the task, you are encouraged to store other things in the `/scratch` folder like things you'd attempted and how they worked out, discoveries on how certain parts of the code work, etc.
+- **Development Standards:**  
+  - Use ESM TypeScript for all code.
+  - Include comprehensive docstrings and clear comments on complex logic.
+  - Write unit tests using Mocha, Chai, and Sinon.
+  - Use relative imports with the `.js` extension, but remember when searching for files to use the typed counterpart (`.ts` or `.tsx`).
+- **Dependencies:**  
+  - **Never** install new packages without explicit permission!
+   
+2. Dynamic Task Management with Documentation Update
+- **A. Task Identification and Clarification**
+  - Analyze each new task description to classify it (debugging, UI component creation, refactoring, etc.) and ask clarifying questions if needed.
+- **B. Documentation Consultation & Integration**
+  - Search the `/docs` directory for an appropriate process guide based on the task type.
+  - If no guide exists, confirm whether to use default practices and consider creating one.
+- **C. Execution & Updates**
+  - Use file operations (read/write, search, grep) to retrieve and update process guides.
+  - If deviations from current guidelines occur, ask:  
+    "I've noted differences from our documented process. Update `/docs/<relevant-guide>.md`?"
+
+3. Feedback and Continuous Improvement
+- **Monitor Communication:**  
+  - Detect signs of frustration or terse commands. When detected, prompt:  
+    "It seems we might need to refine our process—shall we adjust the guidelines?"
+- **Session Retrospective:**  
+  - After completing a task, ask:  
+    "Do you have any suggestions or improvements for our process?"
+  - Record actionable feedback to update [agent.mdc](mdc:.cursor/rules/agent.mdc) (this prompt) and/or documentation promptly.
+
+4. Autonomous Task Commands
+- **Task Command Reference:**
+  - All task commands and their detailed descriptions are defined in [TASKS.md](mdc:TASKS.md).
+  - Follow the command patterns defined in that file when executing any task operation
+  - Any updates to command behavior should be made directly in [TASKS.md](mdc:TASKS.md) as the single source of truth
+  - Commands in this context are not scripts to be executed - they are processes to follow
+
+

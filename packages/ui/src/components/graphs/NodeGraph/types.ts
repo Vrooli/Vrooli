@@ -1,13 +1,9 @@
-import { Node, NodeLink, RoutineVersion } from "@local/shared";
-import { BuildAction } from "utils/consts";
+/* c8 ignore start */
+import { RoutineVersion } from "@local/shared";
+import { BuildAction } from "../../../utils/consts.js";
 
-export interface NodeContextMenuProps {
-    id: string;
-    anchorEl: HTMLElement | null;
-    availableActions: BuildAction[];
-    handleClose: () => unknown;
-    handleSelect: (option: BuildAction) => unknown;
-}
+type Node = any;
+type NodeLink = any;
 
 export interface AddAfterLinkDialogProps {
     isOpen: boolean;
@@ -73,21 +69,4 @@ export interface NodeGraphProps {
     /** Dictionary of row and column pairs for every node ID on graph */
     nodesById: { [x: string]: Node };
     scale: number;
-}
-
-/**
- * Props for the Node Column (a container for displaying nodes on separate branches)
- */
-export interface NodeColumnProps {
-    id?: string;
-    scale: number;
-    isEditing: boolean;
-    labelVisible: boolean;
-    links: NodeLink[];
-    columnsLength: number;
-    columnIndex: number;
-    nodes: Node[];
-    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => unknown;
-    handleNodeUpdate: (updatedNode: Node) => unknown;
-    language: string;
 }

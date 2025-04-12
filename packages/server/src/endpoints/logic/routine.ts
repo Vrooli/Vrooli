@@ -1,41 +1,33 @@
-import { FindByIdInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { rateLimit } from "../../middleware/rateLimit";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { FindByIdInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSearchResult, RoutineUpdateInput } from "@local/shared";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsRoutine = {
-    Query: {
-        routine: GQLEndpoint<FindByIdInput, FindOneResult<Routine>>;
-        routines: GQLEndpoint<RoutineSearchInput, FindManyResult<Routine>>;
-    },
-    Mutation: {
-        routineCreate: GQLEndpoint<RoutineCreateInput, CreateOneResult<Routine>>;
-        routineUpdate: GQLEndpoint<RoutineUpdateInput, UpdateOneResult<Routine>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, Routine>;
+    findMany: ApiEndpoint<RoutineSearchInput, RoutineSearchResult>;
+    createOne: ApiEndpoint<RoutineCreateInput, Routine>;
+    updateOne: ApiEndpoint<RoutineUpdateInput, Routine>;
 }
 
 const objectType = "Routine";
-export const RoutineEndpoints: EndpointsRoutine = {
-    Query: {
-        routine: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        routines: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const routine: EndpointsRoutine = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        routineCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 500, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        routineUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
+    },
+    createOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 500, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

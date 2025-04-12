@@ -1,19 +1,20 @@
-import { GqlModelType, MaxObjects, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
+import { MaxObjects, ModelType, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { onlyValidIds } from "../../builders/onlyValidIds";
-import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
-import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { Trigger } from "../../events/trigger";
-import { emitSocketEvent } from "../../sockets/events";
-import { PrismaDelegate, SessionUserToken } from "../../types";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { calculatePermissions } from "../../validators/permissions";
-import { ReactionFormat } from "../formats";
-import { ReactionModelInfo, ReactionModelLogic } from "./types";
+import { onlyValidIds } from "../../builders/onlyValid.js";
+import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { Trigger } from "../../events/trigger.js";
+import { emitSocketEvent } from "../../sockets/events.js";
+import { PrismaDelegate } from "../../types.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { calculatePermissions } from "../../validators/permissions.js";
+import { ReactionFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ReactionModelInfo, ReactionModelLogic } from "./types.js";
 
 const forMapper: { [key in ReactionFor]?: keyof Prisma.reactionUpsertArgs["create"] } = {
     Api: "api",
@@ -36,7 +37,7 @@ const reversedForMapper = Object.fromEntries(
 
 function reactionForToRelation(reactionFor: keyof typeof ReactionFor): string {
     if (!ReactionFor[reactionFor]) {
-        throw new CustomError("0597", "InvalidArgs", ["en"], { reactionFor });
+        throw new CustomError("0597", "InvalidArgs", { reactionFor });
     }
     // Convert to camelCase and sanitize
     return camelCase(reactionFor);
@@ -51,12 +52,12 @@ export const ReactionModel: ReactionModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.keys(ReactionFor).map((key) =>
-                    [reactionForToRelation(key as keyof typeof ReactionFor), { select: ModelMap.get(key as GqlModelType).display().label.select() }]),
+                    [reactionForToRelation(key as keyof typeof ReactionFor), { select: ModelMap.get(key as ModelType).display().label.select() }]),
             }),
             get: (select, languages) => {
                 for (const key of Object.keys(ReactionFor)) {
                     const value = reactionForToRelation(key as keyof typeof ReactionFor);
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return "";
             },
@@ -79,7 +80,7 @@ export const ReactionModel: ReactionModelLogic = ({
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(reactionFor)}Id`;
-            const reactionsArray = await prismaInstance.reaction.findMany({
+            const reactionsArray = await DbProvider.get().reaction.findMany({
                 where: { byId: userId, [fieldName]: { in: idsFiltered } },
                 select: { [fieldName]: true, emoji: true },
             });
@@ -99,13 +100,13 @@ export const ReactionModel: ReactionModelLogic = ({
      * A user may react on their own project/routine/etc.
      * @returns True if cast correctly (even if skipped because of duplicate)
      */
-    react: async (userData: SessionUserToken, input: ReactInput): Promise<boolean> => {
-        const { dbTable: reactedOnDbTable, validate: reactedOnValidate } = ModelMap.getLogic(["dbTable", "validate"], input.reactionFor as string as GqlModelType, true, `ModelMap.react for ${input.reactionFor}`);
+    react: async (userData: SessionUser, input: ReactInput): Promise<boolean> => {
+        const { dbTable: reactedOnDbTable, validate: reactedOnValidate } = ModelMap.getLogic(["dbTable", "validate"], input.reactionFor as string as ModelType, true, `ModelMap.react for ${input.reactionFor}`);
         const reactedOnValidator = reactedOnValidate();
         // Chat messages get additional treatment, as we need to send the updated reaction summaries to the chat room to update open clients
         const isChatMessage = input.reactionFor === "ChatMessage";
         // Check if object being reacted on exists, and if the user has already reacted on it
-        const reactedOnObject = await (prismaInstance[reactedOnDbTable] as PrismaDelegate).findUnique({
+        const reactedOnObject = await (DbProvider.get()[reactedOnDbTable] as PrismaDelegate).findUnique({
             where: { id: input.forConnect },
             select: {
                 id: true,
@@ -125,21 +126,21 @@ export const ReactionModel: ReactionModelLogic = ({
                     },
                 },
                 ...(isChatMessage ? { chatId: true } : {}),
-                ...permissionsSelectHelper(reactedOnValidator.permissionsSelect, userData.id, userData.languages),
+                ...permissionsSelectHelper(reactedOnValidator.permissionsSelect, userData.id),
             },
         });
         if (!reactedOnObject) {
-            throw new CustomError("0118", "NotFound", userData.languages, { reactionFor: input.reactionFor, forId: input.forConnect });
+            throw new CustomError("0118", "NotFound", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
         // Check if the user has permission to react on this object
         const authData = { __typename: input.reactionFor, ...reactedOnObject };
-        console.log("permissions select", JSON.stringify(permissionsSelectHelper(reactedOnValidator.permissionsSelect, userData.id, userData.languages)));
+        console.log("permissions select", JSON.stringify(permissionsSelectHelper(reactedOnValidator.permissionsSelect, userData.id)));
         console.log("auth data", JSON.stringify(authData));
         const permissions = await calculatePermissions(authData, userData, reactedOnValidator);
         const ownerData = reactedOnValidator.owner(authData, userData.id);
         const objectOwner = ownerData.Team ? { __typename: "Team" as const, id: ownerData.Team.id } : ownerData.User ? { __typename: "User" as const, id: ownerData.User.id } : null;
         if (!permissions.canReact) {
-            throw new CustomError("0637", "Unauthorized", userData.languages, { reactionFor: input.reactionFor, forId: input.forConnect });
+            throw new CustomError("0637", "Unauthorized", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
         const reaction = Array.isArray(reactedOnObject.reactions) && reactedOnObject.reactions.length > 0
             ? reactedOnObject.reactions[0] as { id: string, emoji: string }
@@ -160,7 +161,7 @@ export const ReactionModel: ReactionModelLogic = ({
         // Prepare transaction operations
         const transactionOps: Prisma.PrismaPromise<object>[] = [];
         // Update the score and reaction
-        transactionOps.push((prismaInstance[reactedOnDbTable] as PrismaDelegate).update({
+        transactionOps.push((DbProvider.get()[reactedOnDbTable] as PrismaDelegate).update({
             where: { id: input.forConnect },
             data: {
                 score: reactedOnObject.score + deltaScore,
@@ -199,7 +200,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 // Try to update existing summary
                 const createId = uuid();
                 transactionOps.push(
-                    prismaInstance.$executeRawUnsafe(`
+                    DbProvider.get().$executeRawUnsafe(`
                     INSERT INTO "reaction_summary" (id, emoji, count, "${reactedOnIdField}")
                     VALUES ($1::UUID, $2, $3, $4::UUID)
                     ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "standardId")
@@ -216,7 +217,7 @@ export const ReactionModel: ReactionModelLogic = ({
             } else if (delta < 0) {
                 // Decrement count
                 transactionOps.push(
-                    prismaInstance.reaction_summary.updateMany({
+                    DbProvider.get().reaction_summary.updateMany({
                         where: whereClause,
                         data: {
                             count: {
@@ -227,7 +228,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 );
                 // Delete summaries where count <= 0
                 transactionOps.push(
-                    prismaInstance.reaction_summary.deleteMany({
+                    DbProvider.get().reaction_summary.deleteMany({
                         where: {
                             ...whereClause,
                             count: {
@@ -251,7 +252,7 @@ export const ReactionModel: ReactionModelLogic = ({
             }
         }
         // Execute transaction
-        await prismaInstance.$transaction(transactionOps);
+        await DbProvider.get().$transaction(transactionOps);
         // If we reacted to a chat message, send the updated reaction summaries to the chat room
         if (isChatMessage && reactedOnObject.chatId) {
             emitSocketEvent("messages", reactedOnObject.chatId, { updated: [{ id: input.forConnect, reactionSummaries: updatedReactionSummaries }] });
@@ -294,7 +295,7 @@ export const ReactionModel: ReactionModelLogic = ({
         isPublic: function getIsPublic(data, ...rest) {
             if (!data.by) return false;
             if (data.by.isPrivateVotes) return false;
-            return oneIsPublic<ReactionModelInfo["PrismaSelect"]>([
+            return oneIsPublic<ReactionModelInfo["DbSelect"]>([
                 ["api", "Api"],
                 ["chatMessage", "ChatMessage"],
                 ["code", "Code"],
@@ -350,7 +351,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {

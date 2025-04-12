@@ -1,17 +1,22 @@
-import { CreateFormInputProps, FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormStructureType, FormViewProps, GridContainer, InputType, createFormInput, generateInitialValues, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
+import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "@hello-pangea/dnd";
+import { CreateFormInputProps, FormBuildViewProps, FormBuilder, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
-import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
-import { FormInput } from "components/inputs/form/FormInput/FormInput";
 import { Formik } from "formik";
-import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
-import { usePopover } from "hooks/usePopover";
-import { useWindowSize } from "hooks/useWindowSize";
-import { CaseSensitiveIcon, DragIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, HeaderIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
-import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "react-beautiful-dnd";
-import { randomString } from "utils/codes";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
+import { FormDivider } from "../../components/inputs/form/FormDivider.js";
+import { FORM_HEADER_SIZE_OPTIONS, FormHeader } from "../../components/inputs/form/FormHeader.js";
+import { FormImage } from "../../components/inputs/form/FormImage.js";
+import { FormInput } from "../../components/inputs/form/FormInput.js";
+import { FormQrCode } from "../../components/inputs/form/FormQrCode.js";
+import { FormTip } from "../../components/inputs/form/FormTip.js";
+import { FormVideo } from "../../components/inputs/form/FormVideo.js";
+import { FormErrorBoundary } from "../../forms/FormErrorBoundary/FormErrorBoundary.js";
+import { usePopover } from "../../hooks/usePopover.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { Icon, IconCommon, IconInfo } from "../../icons/Icons.js";
+import { randomString } from "../../utils/codes.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
 
 /**
  * Function to convert a FormSchema into an array of containers with start and end indices for rendering.
@@ -73,12 +78,21 @@ export function normalizeFormContainers(
 
 type PopoverListInput = {
     category: string;
-    items: readonly { type: InputType; icon: React.ReactNode; label: string }[];
+    items: readonly {
+        type: InputType;
+        iconInfo: IconInfo | null;
+        label: string
+    }[];
 }[]
 
 type PopoverListStructure = {
     category: string;
-    items: readonly { type: FormStructureType; icon: React.ReactNode; label: string; tag?: FormHeaderType["tag"] }[];
+    items: readonly {
+        type: FormStructureType;
+        iconInfo: IconInfo | null;
+        label: string;
+        tag?: FormHeaderType["tag"];
+    }[];
 }[]
 
 /**
@@ -112,7 +126,7 @@ const ElementBuildOuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
 })<ElementBuildOuterBoxProps>(({ isSelected, theme }) => ({
     display: "flex",
-    background: theme.palette.background.paper,
+    background: "inherit",
     border: isSelected ? `4px solid ${theme.palette.secondary.main}` : "none",
     borderRadius: "8px",
     overflow: "overlay",
@@ -162,39 +176,39 @@ const toolbarLargeButtonStyle = { cursor: "pointer" } as const;
 const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as const;
 
 interface PopoverListItemProps {
-    icon: React.ReactNode;
+    iconInfo: IconInfo | null;
     key: string;
     label: string;
     tag?: FormHeaderType["tag"];
-    type: FormElement["type"];
-    onAddDivider: () => unknown;
+    type: FormStructureType | InputType;
     onAddHeader: (headerData: Partial<FormHeaderType>) => unknown;
-    onAddInput: (InputData: Omit<Partial<FormInputType>, "type"> & { type: InputType; }) => unknown;
+    onAddInput: (inputData: Omit<Partial<FormInputType>, "type"> & { type: InputType; }) => unknown;
+    onAddStructure: (structureData: Omit<Partial<FormInformationalType>, "type"> & { type: "Divider" | "Image" | "QrCode" | "Tip" | "Video" }) => unknown;
 }
 
 const PopoverListItem = memo(function PopoverListItemMemo({
-    icon,
+    iconInfo,
     key,
     label,
-    onAddDivider,
     onAddHeader,
     onAddInput,
+    onAddStructure,
     tag,
     type,
 }: PopoverListItemProps) {
     const handleClick = useCallback(() => {
-        if (type === "Divider") {
-            onAddDivider();
-        } else if (type === "Header") {
+        if (type === FormStructureType.Header) {
             if (tag) {
                 onAddHeader({ tag });
             } else {
                 console.error("Missing tag for header - cannot add header to form.");
             }
+        } else if ([FormStructureType.Divider, FormStructureType.Image, FormStructureType.QrCode, FormStructureType.Tip, FormStructureType.Video].includes(type as unknown as FormStructureType)) {
+            onAddStructure({ type: type as "Divider" | "Image" | "QrCode" | "Tip" | "Video" });
         } else {
-            onAddInput({ type });
+            onAddInput({ type: type as InputType });
         }
-    }, [onAddDivider, onAddHeader, onAddInput, tag, type]);
+    }, [onAddHeader, onAddInput, onAddStructure, tag, type]);
 
     return (
         <ListItem
@@ -202,7 +216,13 @@ const PopoverListItem = memo(function PopoverListItemMemo({
             key={key}
             onClick={handleClick}
         >
-            <ListItemIcon>{icon}</ListItemIcon>
+            {iconInfo !== null && iconInfo !== undefined && <ListItemIcon>
+                <Icon
+                    decorative
+                    info={iconInfo}
+                    size={24}
+                />
+            </ListItemIcon>}
             <ListItemText primary={label} />
         </ListItem>
     );
@@ -292,37 +312,37 @@ export function FormBuildView({
             {
                 category: "Text Inputs",
                 items: [
-                    { type: InputType.Text, icon: <CaseSensitiveIcon />, label: "Text" },
-                    { type: InputType.JSON, icon: <ObjectIcon />, label: "JSON (structured text)" }, //TODO
+                    { type: InputType.Text, iconInfo: { name: "CaseSensitive", type: "Text" } as const, label: "Text" },
+                    { type: InputType.JSON, iconInfo: { name: "Object", type: "Common" } as const, label: "JSON (structured text)" }, //TODO
                 ],
             },
             {
                 category: "Selection Inputs",
                 items: [
-                    { type: InputType.Checkbox, icon: <ListCheckIcon />, label: "Checkbox (Select multiple from list)" },
-                    { type: InputType.Radio, icon: <ListBulletIcon />, label: "Radio (Select one from list)" },
-                    { type: InputType.Selector, icon: <ListIcon />, label: "Selector (Select one from list)" }, // TODO waiting on InputType.JSON to define item shape (standard) and InputType.LinkItem to connect standard
-                    { type: InputType.Switch, icon: <SwitchIcon />, label: "Switch (Toggle on/off or true/false)" },
+                    { type: InputType.Checkbox, iconInfo: { name: "ListCheck", type: "Text" } as const, label: "Checkbox (Select multiple from list)" },
+                    { type: InputType.Radio, iconInfo: { name: "ListBullet", type: "Text" } as const, label: "Radio (Select one from list)" },
+                    { type: InputType.Selector, iconInfo: { name: "List", type: "Text" } as const, label: "Selector (Select one from list)" }, // TODO waiting on InputType.JSON to define item shape (standard) and InputType.LinkItem to connect standard
+                    { type: InputType.Switch, iconInfo: { name: "Switch", type: "Common" } as const, label: "Switch (Toggle on/off or true/false)" },
                 ],
             },
             {
                 category: "Link Inputs",
                 items: [
-                    { type: InputType.LinkUrl, icon: <LinkIcon />, label: "Link any URL" }, //TODO
-                    { type: InputType.LinkItem, icon: <VrooliIcon />, label: "Link Vrooli object" }, //TODO
+                    { type: InputType.LinkUrl, iconInfo: { name: "Link", type: "Common" } as const, label: "Link any URL" }, //TODO
+                    { type: InputType.LinkItem, iconInfo: { name: "Vrooli", type: "Common" } as const, label: "Link Vrooli object" }, //TODO
                 ],
             },
             {
                 category: "Numeric Inputs",
                 items: [
-                    { type: InputType.IntegerInput, icon: <NumberIcon />, label: "Number" },
-                    { type: InputType.Slider, icon: <SliderIcon />, label: "Slider (Select a number from a range)" },
+                    { type: InputType.IntegerInput, iconInfo: { name: "Number", type: "Common" } as const, label: "Number" },
+                    { type: InputType.Slider, iconInfo: { name: "Slider", type: "Common" } as const, label: "Slider (Select a number from a range)" },
                 ],
             },
             {
                 category: "File Inputs",
                 items: [
-                    { type: InputType.Dropzone, icon: <UploadIcon />, label: "Dropzone (file upload)" },
+                    { type: InputType.Dropzone, iconInfo: { name: "Upload", type: "Common" } as const, label: "Dropzone (file upload)" },
                 ],
             },
         ] as const).reduce((acc, category) => {
@@ -338,16 +358,19 @@ export function FormBuildView({
         return ([
             {
                 category: "Headers",
-                items: [
-                    { type: FormStructureType.Header, tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
-                    { type: FormStructureType.Header, tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
-                    { type: FormStructureType.Header, tag: "h3", icon: <Header3Icon />, label: "Header (Medium)" },
-                    { type: FormStructureType.Header, tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
-                ],
+                items: FORM_HEADER_SIZE_OPTIONS,
             }, {
                 category: "Page Elements",
                 items: [
-                    { type: FormStructureType.Divider, icon: <MinusIcon />, label: "Divider" },
+                    { type: FormStructureType.Divider, iconInfo: { name: "Minus", type: "Common" } as const, label: "Divider" },
+                ],
+            }, {
+                category: "Informational",
+                items: [
+                    { type: FormStructureType.Tip, iconInfo: { name: "Help", type: "Common" } as const, label: "Tip" },
+                    { type: FormStructureType.Image, iconInfo: { name: "Image", type: "Common" } as const, label: "Image (URL)" },
+                    { type: FormStructureType.Video, iconInfo: { name: "Play", type: "Common" } as const, label: "Video (URL)" },
+                    { type: FormStructureType.QrCode, iconInfo: { name: "QrCode", type: "Common" } as const, label: "QR Code" },
                 ],
             },
         ] as const).reduce((acc, category) => {
@@ -388,33 +411,66 @@ export function FormBuildView({
         const tag = data.tag ?? "h1";
         handleAddElement<FormHeaderType>({
             type: FormStructureType.Header,
-            label: data.label ?? `New ${tag.toUpperCase()}`,
+            label: data.label ?? "",
             tag,
             ...data,
         });
         closeStructurePopover();
     }, [handleAddElement, closeStructurePopover]);
 
-    const handleUpdateHeader = useCallback(function handleUpdateHeaderCallback(index: number, data: Partial<FormHeaderType>) {
+    const handleAddStructure = useCallback(function handleAddStructureCallback({ type }: { type: "Divider" | "Image" | "QrCode" | "Tip" | "Video" }) {
+        switch (type) {
+            case "Divider":
+                handleAddElement<FormDividerType>({
+                    type: FormStructureType.Divider,
+                    label: "",
+                });
+                break;
+            case "Image":
+                handleAddElement<FormImageType>({
+                    type: FormStructureType.Image,
+                    label: "",
+                    url: "",
+                });
+                break;
+            case "QrCode":
+                handleAddElement<FormQrCodeType>({
+                    type: FormStructureType.QrCode,
+                    label: "",
+                    url: "",
+                });
+                break;
+            case "Tip":
+                handleAddElement<FormTipType>({
+                    type: FormStructureType.Tip,
+                    label: "",
+                });
+                break;
+            case "Video":
+                handleAddElement<FormVideoType>({
+                    type: FormStructureType.Video,
+                    label: "",
+                    url: "",
+                });
+                break;
+            default:
+                console.error("Invalid structure type", type);
+        }
+        closeStructurePopover();
+    }, [handleAddElement, closeStructurePopover]);
+
+    const handleUpdateStructure = useCallback(function handleUpdateStructureCallback(index: number, data: Partial<FormInformationalType>) {
         const element = {
             ...schema.elements[index],
             ...data,
-        };
-        const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)] as FormElement[];
+        } as FormElement;
+        const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)];
         onSchemaChange({
             ...schema,
             containers: normalizeFormContainers(schema),
             elements: newElements,
         });
     }, [onSchemaChange, schema]);
-
-    const handleAddDivider = useCallback(function handleAddDividerCallback() {
-        handleAddElement<FormDividerType>({
-            type: FormStructureType.Divider,
-            label: "",
-        });
-        closeStructurePopover();
-    }, [handleAddElement, closeStructurePopover]);
 
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
@@ -446,9 +502,9 @@ export function FormBuildView({
             }
         }
 
-        function onFormHeaderUpdate(data: Partial<FormHeaderType>) {
+        function onFormStructureUpdate(data: Partial<FormInformationalType>) {
             if (!isSelected) return;
-            handleUpdateHeader(index, data);
+            handleUpdateStructure(index, data);
         }
         function onFormInputConfigUpdate(updatedInput: Partial<FormInputType>) {
             if (!isSelected) return;
@@ -477,13 +533,45 @@ export function FormBuildView({
                         <FormHeader
                             element={element as FormHeaderType}
                             isEditing={isSelected}
-                            onUpdate={onFormHeaderUpdate}
+                            onUpdate={onFormStructureUpdate}
                             onDelete={onFormElementDelete}
                         />
                     )}
                     {element.type === FormStructureType.Divider && (
                         <FormDivider
                             isEditing={isSelected}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.Image && (
+                        <FormImage
+                            element={element as FormImageType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.QrCode && (
+                        <FormQrCode
+                            element={element as FormQrCodeType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.Tip && (
+                        <FormTip
+                            element={element as FormTipType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.Video && (
+                        <FormVideo
+                            element={element as FormVideoType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
                             onDelete={onFormElementDelete}
                         />
                     )}
@@ -502,10 +590,11 @@ export function FormBuildView({
                     <DragBox
                         {...providedDrag.dragHandleProps}
                     >
-                        <DragIcon
+                        <IconCommon
+                            decorative
                             fill={palette.secondary.contrastText}
-                            width="24px"
-                            height="24px"
+                            name="Drag"
+                            size={24}
                             style={dragIconStyle}
                         />
                     </DragBox>
@@ -517,7 +606,7 @@ export function FormBuildView({
     const Toolbar = useMemo(() => {
         const numInputItems = inputItems.reduce((acc, { items }) => acc + items.length, 0);
         const firstInputItem = numInputItems === 1 ? inputItems[0].items[0] : null;
-        const DisplayedInputIcon = firstInputItem ? (() => firstInputItem.icon) : TextInputIcon;
+        const displayedInputIconInfo = firstInputItem?.iconInfo ?? { name: "CaseSensitive", type: "Text" };
         function inputOnClick(event: React.MouseEvent<HTMLElement>) {
             if (firstInputItem) {
                 handleAddInput({ type: firstInputItem.type });
@@ -528,13 +617,13 @@ export function FormBuildView({
 
         const numStructureItems = structureItems.reduce((acc, { items }) => acc + items.length, 0);
         const firstStructureItem = numStructureItems === 1 ? structureItems[0].items[0] : null;
-        const DisplayedStructureIcon = firstStructureItem ? (() => firstStructureItem.icon) : HeaderIcon;
+        const displayedStructureIconInfo = firstStructureItem?.iconInfo ?? { name: "Header", type: "Text" };
         function structureOnClick(event: React.MouseEvent<HTMLElement>) {
             if (firstStructureItem) {
-                if (firstStructureItem.type === "Divider") {
-                    handleAddDivider();
-                } else {
+                if (firstStructureItem.tag) {
                     handleAddHeader({ tag: firstStructureItem.tag });
+                } else {
+                    handleAddStructure({ type: firstStructureItem.type as "Divider" | "Image" | "QrCode" | "Tip" | "Video" });
                 }
             } else {
                 handleStructurePopoverOpen(event);
@@ -545,24 +634,32 @@ export function FormBuildView({
             <ToolbarBox formElementsCount={schema.elements.length}>
                 {numInputItems > 0 && <>
                     {isMobile ? <IconButton onClick={inputOnClick}>
-                        <DisplayedInputIcon width={24} height={24} />
+                        <Icon
+                            decorative
+                            info={displayedInputIconInfo}
+                            size={24}
+                        />
                     </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={inputOnClick}>
                         {numInputItems === 1 && firstInputItem ? `Add ${firstInputItem.label.toLowerCase()}` : "Add input"}
                     </Typography>}
                 </>}
                 {numStructureItems > 0 && <>
                     {isMobile ? <IconButton onClick={structureOnClick}>
-                        <DisplayedStructureIcon width={24} height={24} />
+                        <Icon
+                            decorative
+                            info={displayedStructureIconInfo}
+                            size={24}
+                        />
                     </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={structureOnClick}>
                         {numStructureItems === 1 && firstStructureItem ? `Add ${firstStructureItem.label.toLowerCase()}` : "Add structure"}
                     </Typography>}
                 </>}
             </ToolbarBox>
         );
-    }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
+    }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddHeader, handleAddStructure, handleStructurePopoverOpen]);
 
     const initialValues = useMemo(function initialValuesMemo() {
-        return generateInitialValues(schema.elements, fieldNamePrefix);
+        return FormBuilder.generateInitialValues(schema.elements, fieldNamePrefix);
     }, [fieldNamePrefix, schema.elements]);
 
     return (
@@ -573,24 +670,25 @@ export function FormBuildView({
                 onClose={closeInputPopover}
                 anchorOrigin={popoverAnchorOrigin}
             >
-
-                {inputItems.map(({ category, items }) => (
-                    <Fragment key={category}>
-                        <ListSubheader>{category}</ListSubheader>
-                        {items.map((item) => (
-                            <PopoverListItem
-                                key={item.type}
-                                icon={item.icon}
-                                label={item.label}
-                                type={item.type as PopoverListItemProps["type"]}
-                                onAddDivider={handleAddDivider}
-                                onAddHeader={handleAddHeader}
-                                onAddInput={handleAddInput}
-                            />
-                        ))}
-                        <Divider />
-                    </Fragment>
-                ))}
+                <List disablePadding>
+                    {inputItems.map(({ category, items }) => (
+                        <Fragment key={category}>
+                            <ListSubheader>{category}</ListSubheader>
+                            {items.map((item) => (
+                                <PopoverListItem
+                                    key={item.type}
+                                    iconInfo={item.iconInfo}
+                                    label={item.label}
+                                    type={item.type as PopoverListItemProps["type"]}
+                                    onAddHeader={handleAddHeader}
+                                    onAddInput={handleAddInput}
+                                    onAddStructure={handleAddStructure}
+                                />
+                            ))}
+                            <Divider />
+                        </Fragment>
+                    ))}
+                </List>
             </Popover>
             <Popover
                 open={isStructurePopoverOpen}
@@ -598,20 +696,20 @@ export function FormBuildView({
                 onClose={closeStructurePopover}
                 anchorOrigin={popoverAnchorOrigin}
             >
-                <List>
+                <List disablePadding>
                     {structureItems.map(({ category, items }) => (
                         <Fragment key={category}>
                             <ListSubheader>{category}</ListSubheader>
                             {items.map((item) => (
                                 <PopoverListItem
                                     key={item.type}
-                                    icon={item.icon}
+                                    iconInfo={item.iconInfo}
                                     label={item.label}
                                     tag={item.tag}
                                     type={item.type}
-                                    onAddDivider={handleAddDivider}
                                     onAddHeader={handleAddHeader}
                                     onAddInput={handleAddInput}
+                                    onAddStructure={handleAddStructure}
                                 />
                             ))}
                             <Divider />
@@ -695,7 +793,7 @@ export function GeneratedGridItem({
     return isInGrid ? <Grid item {...calculateGridItemSize(fieldsInGrid)}>{children}</Grid> : children;
 }
 
-const ElementRunOuterBox = styled("button")(() => ({
+const ElementRunOuterBox = styled(Box)(() => ({
     padding: 0,
     width: "100%",
     overflow: "hidden",
@@ -703,7 +801,6 @@ const ElementRunOuterBox = styled("button")(() => ({
     color: "inherit",
     border: "none",
     textAlign: "left",
-    cursor: "pointer",
 }));
 
 const sectionsStackStyle = { width: "100%" } as const;
@@ -734,6 +831,38 @@ export function FormRunView({
                     <FormDivider
                         isEditing={false}
                         onDelete={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Image && (
+                    <FormImage
+                        element={element as FormImageType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.QrCode && (
+                    <FormQrCode
+                        element={element as FormQrCodeType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Tip && (
+                    <FormTip
+                        element={element as FormTipType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Video && (
+                    <FormVideo
+                        element={element as FormVideoType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
                     />
                 )}
                 {!(element.type in FormStructureType) && (
@@ -824,7 +953,7 @@ export function FormRunView({
     }, [renderElement, schema]);
 
     return (
-        <div>
+        <div id={fieldNamePrefix ? `${fieldNamePrefix}-${ELEMENT_IDS.FormRunView}` : ELEMENT_IDS.FormRunView}>
             {schema.elements.length === 0 && <FormHelperText variant="body1">The form is empty.</FormHelperText>}
             {/* Don't use formik here, since it should be provided by parent */}
             <FormErrorBoundary> {/* Error boundary to catch elements that fail to render */}

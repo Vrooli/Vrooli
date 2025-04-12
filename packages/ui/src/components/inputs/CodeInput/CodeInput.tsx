@@ -1,22 +1,23 @@
+/* eslint-disable import/extensions */
 import { CodeLanguage, Status, TranslationKeyLangs, isEqual } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { StatusButton } from "components/buttons/StatusButton/StatusButton";
-import { SelectorBase } from "components/inputs/Selector/Selector";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
+import { StatusButton } from "../../buttons/StatusButton/StatusButton.js";
+import { SelectorBase } from "../../inputs/Selector/Selector.js";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
-import { ActiveChatContext, SessionContext } from "contexts";
-import { generateContextLabel } from "hooks/tasks";
-import { useDebounce } from "hooks/useDebounce";
-import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
 import React from "react";
-import { SvgComponent } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { generateContext } from "utils/display/stringTools";
-import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
-import { CodeInputBaseProps, CodeInputProps } from "../types";
+import { SessionContext } from "../../../contexts/session.js";
+import { generateContextLabel } from "../../../hooks/tasks.js";
+import { useDebounce } from "../../../hooks/useDebounce.js";
+import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { useActiveChat } from "../../../stores/activeChatStore.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { generateContext } from "../../../utils/display/stringTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { CodeInputBaseProps, CodeInputProps } from "../types.js";
 
 // Stub types for code splitting
 type Extension = {
@@ -388,45 +389,45 @@ function getSeverityForLine(line: BlockInfo, errors: Diagnostic[], view: EditorV
  * Maps languages to their labels and help texts.
  */
 const languageDisplayMap: { [x in CodeLanguage]: [TranslationKeyLangs, TranslationKeyLangs] } = {
-    [CodeLanguage.Angular]: ["Angular", "AngularHelp"],
-    [CodeLanguage.Cpp]: ["Cpp", "CppHelp"],
-    [CodeLanguage.Css]: ["Css", "CssHelp"],
-    [CodeLanguage.Dockerfile]: ["Dockerfile", "DockerfileHelp"],
-    [CodeLanguage.Go]: ["Go", "GoHelp"],
-    [CodeLanguage.Graphql]: ["Graphql", "GraphqlHelp"],
-    [CodeLanguage.Groovy]: ["Groovy", "GroovyHelp"],
-    [CodeLanguage.Haskell]: ["Haskell", "HaskellHelp"],
-    [CodeLanguage.Html]: ["Html", "HtmlHelp"],
-    [CodeLanguage.Java]: ["Java", "JavaHelp"],
-    [CodeLanguage.Javascript]: ["Javascript", "JavascriptHelp"],
-    [CodeLanguage.Json]: ["Json", "JsonHelp"],
-    [CodeLanguage.JsonStandard]: ["JsonStandard", "JsonStandardHelp"],
-    [CodeLanguage.Nginx]: ["Nginx", "NginxHelp"],
-    [CodeLanguage.Nix]: ["Nix", "NixHelp"],
-    [CodeLanguage.Php]: ["Php", "PhpHelp"],
-    [CodeLanguage.Powershell]: ["Powershell", "PowershellHelp"],
-    [CodeLanguage.Protobuf]: ["Protobuf", "ProtobufHelp"],
-    [CodeLanguage.Puppet]: ["Puppet", "PuppetHelp"],
-    [CodeLanguage.Python]: ["Python", "PythonHelp"],
-    [CodeLanguage.R]: ["R", "RHelp"],
-    [CodeLanguage.Ruby]: ["Ruby", "RubyHelp"],
-    [CodeLanguage.Rust]: ["Rust", "RustHelp"],
-    [CodeLanguage.Sass]: ["Sass", "SassHelp"],
-    [CodeLanguage.Shell]: ["Shell", "ShellHelp"],
-    [CodeLanguage.Solidity]: ["Solidity", "SolidityHelp"],
-    [CodeLanguage.Spreadsheet]: ["Spreadsheet", "SpreadsheetHelp"],
-    [CodeLanguage.Sql]: ["Sql", "SqlHelp"],
-    [CodeLanguage.Svelte]: ["Svelte", "SvelteHelp"],
-    [CodeLanguage.Swift]: ["Swift", "SwiftHelp"],
-    [CodeLanguage.Typescript]: ["Typescript", "TypescriptHelp"],
-    [CodeLanguage.Vb]: ["Vb", "VbHelp"],
-    [CodeLanguage.Vbscript]: ["Vbscript", "VbscriptHelp"],
-    [CodeLanguage.Verilog]: ["Verilog", "VerilogHelp"],
-    [CodeLanguage.Vhdl]: ["Vhdl", "VhdlHelp"],
-    [CodeLanguage.Vue]: ["Vue", "VueHelp"],
-    [CodeLanguage.Xml]: ["Xml", "XmlHelp"],
-    [CodeLanguage.Yacas]: ["Yacas", "YacasHelp"],
-    [CodeLanguage.Yaml]: ["Yaml", "YamlHelp"],
+    [CodeLanguage.Angular]: ["Angular_Label", "Angular_Help"],
+    [CodeLanguage.Cpp]: ["Cpp_Label", "Cpp_Help"],
+    [CodeLanguage.Css]: ["Css_Label", "Css_Help"],
+    [CodeLanguage.Dockerfile]: ["Dockerfile_Label", "Dockerfile_Help"],
+    [CodeLanguage.Go]: ["Go_Label", "Go_Help"],
+    [CodeLanguage.Graphql]: ["Graphql_Label", "Graphql_Help"],
+    [CodeLanguage.Groovy]: ["Groovy_Label", "Groovy_Help"],
+    [CodeLanguage.Haskell]: ["Haskell_Label", "Haskell_Help"],
+    [CodeLanguage.Html]: ["Html_Label", "Html_Help"],
+    [CodeLanguage.Java]: ["Java_Label", "Java_Help"],
+    [CodeLanguage.Javascript]: ["Javascript_Label", "Javascript_Help"],
+    [CodeLanguage.Json]: ["Json_Label", "Json_Help"],
+    [CodeLanguage.JsonStandard]: ["JsonStandard_Label", "JsonStandard_Help"],
+    [CodeLanguage.Nginx]: ["Nginx_Label", "Nginx_Help"],
+    [CodeLanguage.Nix]: ["Nix_Label", "Nix_Help"],
+    [CodeLanguage.Php]: ["Php_Label", "Php_Help"],
+    [CodeLanguage.Powershell]: ["Powershell_Label", "Powershell_Help"],
+    [CodeLanguage.Protobuf]: ["Protobuf_Label", "Protobuf_Help"],
+    [CodeLanguage.Puppet]: ["Puppet_Label", "Puppet_Help"],
+    [CodeLanguage.Python]: ["Python_Label", "Python_Help"],
+    [CodeLanguage.R]: ["R_Label", "R_Help"],
+    [CodeLanguage.Ruby]: ["Ruby_Label", "Ruby_Help"],
+    [CodeLanguage.Rust]: ["Rust_Label", "Rust_Help"],
+    [CodeLanguage.Sass]: ["Sass_Label", "Sass_Help"],
+    [CodeLanguage.Shell]: ["Shell_Label", "Shell_Help"],
+    [CodeLanguage.Solidity]: ["Solidity_Label", "Solidity_Help"],
+    [CodeLanguage.Spreadsheet]: ["Spreadsheet_Label", "Spreadsheet_Help"],
+    [CodeLanguage.Sql]: ["Sql_Label", "Sql_Help"],
+    [CodeLanguage.Svelte]: ["Svelte_Label", "Svelte_Help"],
+    [CodeLanguage.Swift]: ["Swift_Label", "Swift_Help"],
+    [CodeLanguage.Typescript]: ["Typescript_Label", "Typescript_Help"],
+    [CodeLanguage.Vb]: ["Vb_Label", "Vb_Help"],
+    [CodeLanguage.Vbscript]: ["Vbscript_Label", "Vbscript_Help"],
+    [CodeLanguage.Verilog]: ["Verilog_Label", "Verilog_Help"],
+    [CodeLanguage.Vhdl]: ["Vhdl_Label", "Vhdl_Help"],
+    [CodeLanguage.Vue]: ["Vue_Label", "Vue_Help"],
+    [CodeLanguage.Xml]: ["Xml_Label", "Xml_Help"],
+    [CodeLanguage.Yacas]: ["Yacas_Label", "Yacas_Help"],
+    [CodeLanguage.Yaml]: ["Yaml_Label", "Yaml_Help"],
 };
 
 const InfoBar = styled(Box)(({ theme }) => ({
@@ -493,7 +494,7 @@ export function CodeInputBase({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { chat } = useContext(ActiveChatContext);
+    const { chat } = useActiveChat();
 
     const availableLanguages = Array.isArray(limitTo) && limitTo.length > 0 ? limitTo : Object.values(CodeLanguage);
 
@@ -549,7 +550,7 @@ export function CodeInputBase({
 
         async function loadGutter() {
             const { gutter } = await import("@codemirror/view");
-            const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers");
+            const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers.js");
             return gutter({
                 lineMarker: (view, line) => {
                     const severity = getSeverityForLine(line, errors, view as unknown as EditorView);
@@ -653,7 +654,8 @@ export function CodeInputBase({
         const contextValue = generateContext(selection, fullText);
 
         // Open the side chat and provide it context
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { tab: "Chat" } });
+        //TODO
+        // PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: true, data: { tab: "Chat" } });
         const context = {
             id: `code-${name}`,
             data: contextValue,
@@ -678,7 +680,7 @@ export function CodeInputBase({
 
     // Handle action buttons
     type Action = {
-        Icon: SvgComponent,
+        iconInfo: IconInfo,
         key: string,
         label: string,
         onClick: () => unknown,
@@ -688,7 +690,7 @@ export function CodeInputBase({
         // If user has premium, add button for AI assistant
         if (credits && BigInt(credits) > 0) {
             actionsList.push({
-                Icon: MagicIcon,
+                iconInfo: { name: "Magic", type: "Common" },
                 key: "assistant",
                 label: "AI assistant",
                 onClick: () => { openAssistantDialog(); },
@@ -696,7 +698,7 @@ export function CodeInputBase({
         }
         // Always add undo and redo buttons
         actionsList.push({
-            Icon: UndoIcon,
+            iconInfo: { name: "Undo", type: "Common" },
             key: "undo",
             label: t("Undo"),
             onClick: async () => {
@@ -707,7 +709,7 @@ export function CodeInputBase({
             },
         });
         actionsList.push({
-            Icon: RedoIcon,
+            iconInfo: { name: "Redo", type: "Common" },
             key: "redo",
             label: t("Redo"),
             onClick: async () => {
@@ -720,7 +722,7 @@ export function CodeInputBase({
         // For json and jsonStandard, add "pretty print" button to format JSON
         if (codeLanguage === CodeLanguage.Json || codeLanguage === CodeLanguage.JsonStandard) {
             actionsList.push({
-                Icon: OpenThreadIcon,
+                iconInfo: { name: "OpenThread", type: "Common" },
                 key: "format",
                 label: t("Format"),
                 onClick: () => {
@@ -805,12 +807,17 @@ export function CodeInputBase({
                             flexWrap: "wrap",
                             alignItems: "center",
                         }}>
-                            {actions.map(({ Icon, key, label, onClick }, i) => <Tooltip key={key} title={label}>
+                            {actions.map(({ iconInfo, key, label, onClick }) => <Tooltip key={key} title={label}>
                                 <IconButton
-                                    onClick={onClick}
+                                    aria-label={label}
                                     disabled={disabled}
+                                    onClick={onClick}
                                 >
-                                    <Icon fill={palette.primary.contrastText} />
+                                    <Icon
+                                        decorative
+                                        fill={palette.primary.contrastText}
+                                        info={iconInfo}
+                                    />
                                 </IconButton>
                             </Tooltip>)}
                             <HelpButton
@@ -825,10 +832,15 @@ export function CodeInputBase({
                         </Box>}
                         {/* Copy button */}
                         {disabled && Boolean(content) && <IconButton
+                            aria-label={t("Copy")}
                             onClick={handleCopy}
                             sx={copyButtonStyle}
                         >
-                            <CopyIcon fill={palette.primary.contrastText} />
+                            <IconCommon
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="Copy"
+                            />
                         </IconButton>}
                     </Grid>
                 </InfoBar>
@@ -862,7 +874,12 @@ export function CodeInputBase({
                         onClick={refreshEditor}
                         sx={refreshIconStyle}
                     >
-                        <RefreshIcon fill={palette.background.textPrimary} width={48} height={48} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Refresh"
+                            size={48}
+                        />
                     </IconButton>}
                 </Box>
                 {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect

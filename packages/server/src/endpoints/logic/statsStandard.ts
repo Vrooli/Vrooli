@@ -1,20 +1,16 @@
-import { StatsStandardSearchInput, StatsStandardSearchResult } from "@local/shared";
-import { readManyHelper } from "../../actions/reads";
-import { rateLimit } from "../../middleware/rateLimit";
-import { GQLEndpoint } from "../../types";
+import { StatsStandardSearchInput, StatsStandardSearchResult, VisibilityType } from "@local/shared";
+import { readManyHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsStatsStandard = {
-    Query: {
-        statsStandard: GQLEndpoint<StatsStandardSearchInput, StatsStandardSearchResult>;
-    },
+    findMany: ApiEndpoint<StatsStandardSearchInput, StatsStandardSearchResult>;
 }
 
 const objectType = "StatsStandard";
-export const StatsStandardEndpoints: EndpointsStatsStandard = {
-    Query: {
-        statsStandard: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const statsStandard: EndpointsStatsStandard = {
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.OwnOrPublic });
     },
 };

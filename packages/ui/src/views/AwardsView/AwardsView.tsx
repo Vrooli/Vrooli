@@ -1,20 +1,19 @@
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointPostAwards } from "@local/shared";
+import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, awardNames, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
-import { CompletionBar } from "components/CompletionBar/CompletionBar";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
-import { useFetch } from "hooks/useFetch";
-import { AwardIcon } from "icons";
+import { TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollBox } from "styles";
-import { AwardDisplay } from "types";
-import { awardToDisplay } from "utils/display/awardsDisplay";
-import { getUserLanguages } from "utils/display/translationTools";
-import { AwardsViewProps } from "views/types";
+import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
+import { PageContainer } from "../../components/Page/Page.js";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
+import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
+import { TIDCardBase, TIDContent, TIDIcon, TIDTextBox } from "../../components/lists/TIDCard/TIDCard.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SessionContext } from "../../contexts/session.js";
+import { useFetch } from "../../hooks/useFetch.js";
+import { ScrollBox } from "../../styles.js";
+import { AwardDisplay } from "../../types.js";
+import { getUserLanguages } from "../../utils/display/translationTools.js";
 
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
@@ -24,11 +23,49 @@ const ALMOST_THERE_PERCENT = 90;
 //TODO store tiers in @local/shared, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
+const awardIconInfo = { name: "Award", type: "Common" } as const;
 const completionBarStyle = {
     root: { display: "block" },
     barBox: { maxWidth: "unset" },
 } as const;
 const almostThereStyle = { fontStyle: "italic" } as const;
+
+/**
+ * Converts a queried award object into an AwardDisplay object.
+ * @param award The queried award object.
+ * @param t The translation function.
+ * @returns The AwardDisplay object.
+ */
+export function awardToDisplay(award: Award, t: TFunction<"common", undefined, "common">): AwardDisplay {
+    // Find earned tier
+    const earnedTierDisplay = awardNames[award.category](award.progress, false);
+    let earnedTier: AwardDisplay["earnedTier"] | undefined = undefined;
+    if (earnedTierDisplay.name && earnedTierDisplay.body) {
+        earnedTier = {
+            title: t(`${earnedTierDisplay.name}`, { ns: "award", ...earnedTierDisplay.nameVariables }),
+            description: t(`${earnedTierDisplay.body}`, { ns: "award", ...earnedTierDisplay.bodyVariables }),
+            level: earnedTierDisplay.level,
+        };
+    }
+    // Find next tier
+    const nextTierDisplay = awardNames[award.category](award.progress, true);
+    let nextTier: AwardDisplay["nextTier"] | undefined = undefined;
+    if (nextTierDisplay.name && nextTierDisplay.body) {
+        nextTier = {
+            title: t(`${nextTierDisplay.name}`, { ns: "award", ...nextTierDisplay.nameVariables }),
+            description: t(`${nextTierDisplay.body}`, { ns: "award", ...nextTierDisplay.bodyVariables }),
+            level: nextTierDisplay.level,
+        };
+    }
+    return {
+        category: award.category,
+        categoryDescription: t(`${award.category}Title`, { ns: "award", defaultValue: "" }),
+        categoryTitle: t(`${award.category}Body`, { ns: "award", defaultValue: "" }),
+        earnedTier,
+        nextTier,
+        progress: award.progress,
+    };
+}
 
 function AwardCard({
     award,
@@ -64,48 +101,52 @@ function AwardCard({
     }, [percentage, award.progress, level]);
 
     return (
-        <TIDCard
-            description={description}
-            Icon={AwardIcon} //TODO Add custom icons/images for each category
+        <TIDCardBase
             id={award.category}
-            key={award.category}
-            title={title}
-            below={percentage >= 0 && <Box mt={2}>
-                <CompletionBar
-                    color={isAlmostThere ? "warning" : "secondary"}
-                    showLabel={false}
-                    value={percentage}
-                    sxs={completionBarStyle}
+            isClickable={false}
+        >
+            <TIDIcon iconInfo={awardIconInfo} />
+            <TIDTextBox>
+                <TIDContent
+                    title={title}
+                    description={description}
                 />
-                <Typography
-                    variant="body2"
-                    component="p"
-                    textAlign="center"
-                    mt={1}
-                    color="text.secondary"
-                >
-                    {award.progress} / {level} ({percentage}%)
-                </Typography>
-                {isAlmostThere &&
-                    <Typography
-                        variant="body2"
-                        component="p"
-                        textAlign="start"
-                        mt={1}
-                        style={almostThereStyle}
-                    >
-                        Almost there!
-                    </Typography>
-                }
-            </Box>}
-        />
+                {percentage >= 0 && (
+                    <Box mt={2}>
+                        <CompletionBar
+                            color={isAlmostThere ? "warning" : "secondary"}
+                            showLabel={false}
+                            value={percentage}
+                            sxs={completionBarStyle}
+                        />
+                        <Typography
+                            variant="body2"
+                            component="p"
+                            textAlign="center"
+                            mt={1}
+                            color="text.secondary"
+                        >
+                            {award.progress} / {level} ({percentage}%)
+                        </Typography>
+                        {isAlmostThere && (
+                            <Typography
+                                variant="body2"
+                                component="p"
+                                textAlign="start"
+                                mt={1}
+                                style={almostThereStyle}
+                            >
+                                Almost there!
+                            </Typography>
+                        )}
+                    </Box>
+                )}
+            </TIDTextBox>
+        </TIDCardBase>
     );
 }
 
-export function AwardsView({
-    display,
-    onClose,
-}: AwardsViewProps) {
+export function AwardsView() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
@@ -122,7 +163,7 @@ export function AwardsView({
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
     const { data, refetch, loading } = useFetch<AwardSearchInput, AwardSearchResult>({
-        ...endpointPostAwards,
+        ...endpointsAward.findMany,
     });
     useEffect(() => {
         if (!data) return;
@@ -135,50 +176,44 @@ export function AwardsView({
     console.log(awards);
 
     return (
-        <ScrollBox>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("Award", { count: 2 })}
-            />
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-            }}>
-                {/* Display earned awards as a list of tags. Press or hover to see description */}
-                <ContentCollapse
-                    isOpen={true}
-                    title={t("Earned") + "🏆"}
-                    sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
-                >
-                    <CardGrid minWidth={300}>
-                        {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
-                            <AwardCard
-                                key={award.category}
-                                award={award}
-                                isEarned={true}
-                            />
-                        ))}
-                    </CardGrid>
-                </ContentCollapse>
-                {/* Display progress of awards as cards */}
-                <ContentCollapse
-                    isOpen={true}
-                    title={t("InProgress") + "🏃‍♂️"}
-                    sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
-                >
-                    <CardGrid minWidth={300}>
-                        {awards.map((award) => (
-                            <AwardCard
-                                key={award.category}
-                                award={award}
-                                isEarned={false}
-                            />
-                        ))}
-                    </CardGrid>
-                </ContentCollapse>
-            </Box>
-        </ScrollBox>
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Navbar title={t("Award", { count: 2 })} />
+                <Box display="flex" flexDirection="column" width="100%" gap={4}>
+                    {/* Display earned awards as a list of tags. Press or hover to see description */}
+                    <ContentCollapse
+                        isOpen={true}
+                        title={`${t("Earned")}🏆`}
+                        sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
+                    >
+                        <CardGrid minWidth={300}>
+                            {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
+                                <AwardCard
+                                    key={award.category}
+                                    award={award}
+                                    isEarned={true}
+                                />
+                            ))}
+                        </CardGrid>
+                    </ContentCollapse>
+                    {/* Display progress of awards as cards */}
+                    <ContentCollapse
+                        isOpen={true}
+                        title={t("InProgress") + "🏃‍♂️"}
+                        sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
+                    >
+                        <CardGrid minWidth={300}>
+                            {awards.map((award) => (
+                                <AwardCard
+                                    key={award.category}
+                                    award={award}
+                                    isEarned={false}
+                                />
+                            ))}
+                        </CardGrid>
+                    </ContentCollapse>
+                </Box>
+            </ScrollBox>
+        </PageContainer>
     );
 }

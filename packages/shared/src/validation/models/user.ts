@@ -1,8 +1,13 @@
 import * as yup from "yup";
-import { bio, bool, email, handle, id, imageFile, maxStrErr, name, opt, password, req, theme, transRel, YupModel, yupObj } from "../utils";
-import { botSettings, botValidation } from "./bot";
-import { emailValidation } from "./email";
-import { focusModeValidation } from "./focusMode";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bio, bool, email, handle, id, imageFile, name, password, theme } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { botSettings, botValidation } from "./bot.js";
+import { emailValidation } from "./email.js";
+import { focusModeValidation } from "./focusMode.js";
 
 /**
  * Schema for traditional email/password log in. NOT the form
@@ -27,7 +32,7 @@ export const profileValidation: YupModel<["update"]> = {
     update: (d) => yupObj({
         bannerImage: opt(imageFile),
         handle: opt(handle),
-        name: opt(name),
+        id: req(id),
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
@@ -48,6 +53,7 @@ export const profileValidation: YupModel<["update"]> = {
         isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
+        name: opt(name),
         profileImage: opt(imageFile),
         theme: opt(theme),
     }, [
@@ -64,13 +70,12 @@ export const userValidation: YupModel<["create", "update"]> = {
     // For update, we must combine both botValidation.update and profileValidation.update
     update: (d) => yupObj({
         // Bot part
-        id: opt(id), // Have to make this optional
         isBotDepictingPerson: opt(bool),
         botSettings: opt(botSettings),
         // Profile part
         bannerImage: opt(imageFile),
         handle: opt(handle),
-        name: opt(name),
+        id: req(id),
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
@@ -91,6 +96,7 @@ export const userValidation: YupModel<["create", "update"]> = {
         isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
+        name: opt(name),
         profileImage: opt(imageFile),
         theme: opt(theme),
     }, [
@@ -115,9 +121,23 @@ export const emailRequestPasswordChangeSchema = yup.object().shape({
 });
 
 /** Schema for resetting your password */
-export const emailResetPasswordSchema = yup.object().shape({
+export const emailResetPasswordFormSchema = yup.object().shape({
     newPassword: req(password),
     confirmNewPassword: req(password).oneOf([yup.ref("newPassword")], "Passwords must match"),
+});
+
+export const emailResetPasswordSchema = yup.object().shape({
+    id: req(id),
+    code: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    newPassword: req(password),
+});
+
+export const validateSessionSchema = yup.object().shape({
+    timeZone: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+});
+
+export const switchCurrentAccountSchema = yup.object().shape({
+    id: req(id),
 });
 
 export const profileEmailUpdateValidation: YupModel<["update"]> = {

@@ -1,8 +1,8 @@
-import { MINUTES_1_MS, ServerLlmTaskInfo, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
+import { MINUTES_1_MS, ServerLlmTaskInfo, SessionUser, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { SessionUserToken } from "../../types.js";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
+import { BaseQueue } from "../base/queue.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
 
 export type LlmTaskProcessPayload = {
     __process: "LlmTask";
@@ -15,23 +15,23 @@ export type LlmTaskProcessPayload = {
     /** The task to be run */
     taskInfo: ServerLlmTaskInfo;
     /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 
 let logger: winston.Logger;
 let llmTaskProcess: (job: Bull.Job<LlmTaskProcessPayload>) => Promise<unknown>;
-let llmTaskQueue: Bull.Queue<LlmTaskProcessPayload>;
+export let llmTaskQueue: BaseQueue<LlmTaskProcessPayload>;
 const FOLDER = "llmTask";
 
 // Call this on server startup
 export async function setupLlmTaskQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         llmTaskProcess = (await import(getProcessPath(FOLDER))).llmTaskProcess;
 
         // Initialize the Bull queue
-        llmTaskQueue = new Bull<LlmTaskProcessPayload>(FOLDER, {
+        llmTaskQueue = new BaseQueue<LlmTaskProcessPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
@@ -48,7 +48,7 @@ export async function setupLlmTaskQueue() {
 
 export async function processLlmTask(data: Omit<LlmTaskProcessPayload, "status">): Promise<Success> {
     return addJobToQueue(
-        llmTaskQueue,
+        llmTaskQueue.getQueue(),
         { ...data, status: "Scheduled" },
         { jobId: data.taskInfo.taskId, timeout: MINUTES_1_MS },
     );
@@ -66,7 +66,7 @@ export async function changeLlmTaskStatus(
     status: TaskStatus | `${TaskStatus}`,
     userId: string,
 ): Promise<Success> {
-    return changeTaskStatus(llmTaskQueue, jobId, status, userId);
+    return changeTaskStatus(llmTaskQueue.getQueue(), jobId, status, userId);
 }
 
 /**
@@ -75,5 +75,5 @@ export async function changeLlmTaskStatus(
  * @returns Promise that resolves to an array of objects with task ID and status.
  */
 export async function getLlmTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
-    return getTaskStatuses(llmTaskQueue, taskIds);
+    return getTaskStatuses(llmTaskQueue.getQueue(), taskIds);
 }

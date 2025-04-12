@@ -1,11 +1,15 @@
-import { endpointGetQuestion, endpointGetQuestions, FormSchema, QuestionSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsQuestion, FormSchema, QuestionSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const questionSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchQuestion"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function questionSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchQuestion"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const questionSearchParams = () => toParams(questionSearchSchema(), endpointGetQuestions, endpointGetQuestion, QuestionSortBy, QuestionSortBy.ScoreDesc);
+export function questionSearchParams() {
+    return toParams(questionSearchSchema(), endpointsQuestion, QuestionSortBy, QuestionSortBy.ScoreDesc);
+}

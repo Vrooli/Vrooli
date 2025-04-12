@@ -1,11 +1,15 @@
-import { endpointGetPost, endpointGetPosts, FormSchema, PostSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsPost, FormSchema, PostSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const postSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchPost"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function postSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchPost"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const postSearchParams = () => toParams(postSearchSchema(), endpointGetPosts, endpointGetPost, PostSortBy, PostSortBy.DateCreatedDesc);
+export function postSearchParams() {
+    return toParams(postSearchSchema(), endpointsPost, PostSortBy, PostSortBy.DateCreatedDesc);
+}

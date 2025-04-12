@@ -1,12 +1,11 @@
 // import GoogleClient, { ChatCompletionResponse } from "@mistralai/mistralai";
-// import { logger } from "../../../events/logger";
-// import { ChatContextCollector } from "../context";
+// import { logger } from "../../../events/logger.js";
+// import { ChatContextCollector } from "../context.js";
 // import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 // type GoogleGenerateModel = "open-mistral-7b" | "open-mixtral-8x7b";
-// type GoogleTokenModel = "default";
 
-// export class GoogleService implements LanguageModelService<GoogleGenerateModel, GoogleTokenModel> {
+// export class GoogleService implements LanguageModelService<GoogleGenerateModel> {
 //     public __id = "google";
 //     private client: GoogleClient;
 //     private defaultModel: GoogleGenerateModel = "open-mistral-7b";
@@ -16,7 +15,7 @@
 //     }
 
 //     estimateTokens(params: EstimateTokensParams) {
-//         return tokenEstimationDefault(params);
+//         return TokenEstimationRegistry.get().estimateTokens(TokenEstimatorType.Tiktoken, params);
 //     }
 
 //     async getConfigObject(params: GetConfigObjectParams) {
@@ -98,7 +97,7 @@
 // const errorType = this.getErrorType(error);
 // LlmServiceRegistry.get().updateServiceState(this.__id, errorType)
 // logger.error("Failed to call Google", { trace, error, errorType });
-// throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
+// throw new CustomError(trace, "InternalError", { error, errorType });
 //             });
 //         return completion.choices[0].message.content ?? "";
 //     }

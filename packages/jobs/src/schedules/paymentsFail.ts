@@ -1,20 +1,20 @@
-import { batch, logger, prismaInstance, sendPaymentFailed } from "@local/server";
-import { PaymentStatus, PaymentType } from "@local/shared";
+import { DbProvider, batch, logger, sendPaymentFailed } from "@local/server";
+import { PaymentStatus, PaymentType, WEEKS_1_MS } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
-const PENDING_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 days
+const PENDING_TIMEOUT = WEEKS_1_MS;
 
 /**
  * Updates pending payments to failed if they have been stuck in pending for a long time
  */
-export const paymentsFail = async () => {
+export async function paymentsFail() {
     try {
         await batch<Prisma.paymentFindManyArgs>({
             objectType: "Payment",
             processBatch: async (batch) => {
                 // Set payments to failed
                 const paymentIds = batch.map(payment => payment.id);
-                await prismaInstance.payment.updateMany({
+                await DbProvider.get().payment.updateMany({
                     data: { status: PaymentStatus.Failed },
                     where: { id: { in: paymentIds } },
                 });

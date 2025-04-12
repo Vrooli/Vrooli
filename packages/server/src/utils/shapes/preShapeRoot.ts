@@ -1,10 +1,9 @@
-import { exists, GqlModelType } from "@local/shared";
-import { PrismaDelegate } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { ModelMap } from "../../models/base";
-import { transfer } from "../../models/base/transfer";
-import { SessionUserToken } from "../../types";
+import { exists, ModelType, SessionUser } from "@local/shared";
+import { type PrismaDelegate } from "../../builders/types.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { ModelMap } from "../../models/base/index.js";
+import { transfer } from "../../models/base/transfer.js";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
@@ -60,8 +59,8 @@ type PreShapeRootParams = {
     Delete: {
         input: string;
     }[],
-    objectType: GqlModelType | `${GqlModelType}`,
-    userData: SessionUserToken,
+    objectType: ModelType | `${ModelType}`,
+    userData: SessionUser,
 };
 
 export type PreShapeRootResult = {
@@ -102,7 +101,6 @@ export async function preShapeRoot({
 }: PreShapeRootParams): Promise<PreShapeRootResult> {
     // Get db table
     const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
-    console.log("dbTable", dbTable, "objectType", objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};
@@ -128,7 +126,7 @@ export async function preShapeRoot({
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
-        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+        const originalData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
@@ -136,7 +134,7 @@ export async function preShapeRoot({
         for (const { input } of Update) {
             // Find original
             const original = originalData.find(r => r.id === input.id);
-            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: input?.id });
+            if (!original) throw new CustomError("0412", "InternalError", { id: input?.id });
             const isRootPrivate = input.isPrivate ?? original.isPrivate;
             // Convert original versions to map for easy lookup
             const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
@@ -175,7 +173,7 @@ export async function preShapeRoot({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
-        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+        const originalData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });
@@ -183,7 +181,7 @@ export async function preShapeRoot({
         for (const { input: id } of Delete) {
             // Find original
             const original = originalData.find(r => r.id === id);
-            if (!original) throw new CustomError("0413", "InternalError", userData.languages, { id });
+            if (!original) throw new CustomError("0413", "InternalError", { id });
             triggerMap[id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some(v => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter

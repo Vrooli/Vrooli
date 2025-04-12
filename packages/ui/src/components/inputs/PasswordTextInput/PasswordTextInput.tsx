@@ -1,9 +1,9 @@
 import { FormControl, FormControlProps, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { InvisibleIcon, LockIcon, VisibleIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PasswordTextInputProps } from "../types";
+import { IconCommon } from "../../../icons/Icons.js";
+import { PasswordTextInputProps } from "../types.js";
 
 type PasswordStrengthProps = {
     label: string;
@@ -14,18 +14,21 @@ type PasswordStrengthProps = {
 
 const passwordStartAdornment = (
     <InputAdornment position="start">
-        <LockIcon />
+        <IconCommon
+            decorative
+            name="Lock"
+        />
     </InputAdornment>
 );
 
-export const PasswordTextInput = ({
+export function PasswordTextInput({
     autoComplete = "current-password",
     autoFocus = false,
     fullWidth = true,
     label,
     name,
     ...props
-}: PasswordTextInputProps) => {
+}: PasswordTextInputProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [field, meta] = useField(name);
@@ -91,11 +94,11 @@ export const PasswordTextInput = ({
                                 borderRadius: "2px",
                             }}
                         >
-                            {
-                                showPassword ?
-                                    <InvisibleIcon fill={palette.background.textSecondary} /> :
-                                    <VisibleIcon fill={palette.background.textSecondary} />
-                            }
+                            <IconCommon
+                                decorative
+                                fill={palette.background.textSecondary}
+                                name={showPassword ? "Invisible" : "Visible"}
+                            />
                         </IconButton>
                     </InputAdornment>
                 }
@@ -127,4 +130,4 @@ export const PasswordTextInput = ({
             </FormHelperText>
         </FormControl>
     );
-};
+}

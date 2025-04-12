@@ -1,13 +1,13 @@
 import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
-import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase";
-import { RoleListProps } from "../types";
+import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { RoleListProps } from "../types.js";
 
-export const RoleList = ({
+export function RoleList({
     maxCharacters = 50,
     roles,
     sx,
-}: RoleListProps) => {
+}: RoleListProps) {
     const { palette } = useTheme();
 
     const [chips, numTagsCutOff] = useMemo(() => {
@@ -48,4 +48,4 @@ export const RoleList = ({
             </Stack>
         </Tooltip>
     );
-};
+}

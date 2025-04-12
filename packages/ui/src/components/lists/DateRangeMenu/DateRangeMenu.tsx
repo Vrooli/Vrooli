@@ -1,12 +1,12 @@
 import { fromDatetimeLocal, toDatetimeLocal } from "@local/shared";
 import { Box, Button, Grid, Popover } from "@mui/material";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DateRangeMenuProps } from "../types";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
+import { TopBar } from "../../navigation/TopBar.js";
+import { DateRangeMenuProps } from "../types.js";
 
-export const DateRangeMenu = ({
+export function DateRangeMenu({
     anchorEl,
     minDate = new Date(0),
     maxDate = new Date(),
@@ -14,7 +14,7 @@ export const DateRangeMenu = ({
     onSubmit,
     range,
     strictIntervalRange,
-}: DateRangeMenuProps) => {
+}: DateRangeMenuProps) {
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
@@ -125,4 +125,4 @@ export const DateRangeMenu = ({
             </Box>
         </Popover >
     );
-};
+}

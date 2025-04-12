@@ -1,16 +1,19 @@
-import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
-import { GqlModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
+import { DbProvider, FindManyArgs, batch, logger } from "@local/server";
+import { ModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
+import pkg from "@prisma/client";
 
-const processTableInBatches = async (tableName: string): Promise<void> => {
+const { PrismaClient } = pkg;
+
+async function processTableInBatches(tableName: keyof InstanceType<typeof PrismaClient>): Promise<void> {
     try {
         await batch<FindManyArgs>({
-            objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
+            objectType: uppercaseFirstLetter(camelCase(tableName as string)) as ModelType,
             processBatch: async (batch) => {
                 for (const item of batch) {
                     const actualCount = item._count.bookmarkedBy;
                     if (item.bookmarks !== actualCount) {
-                        logger.warning(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
-                        await prismaInstance[tableName].update({
+                        logger.warning(`Updating ${tableName as string} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
+                        await (DbProvider.get()[tableName] as { update: any }).update({
                             where: { id: item.id },
                             data: { bookmarks: actualCount },
                         });
@@ -30,9 +33,9 @@ const processTableInBatches = async (tableName: string): Promise<void> => {
     } catch (error) {
         logger.error("processTableInBatches caught error", { error, trace: "0166" });
     }
-};
+}
 
-export const countBookmarks = async (): Promise<void> => {
+export async function countBookmarks(): Promise<void> {
     const tableNames = [
         "api",
         "bookmark_list",
@@ -50,9 +53,9 @@ export const countBookmarks = async (): Promise<void> => {
         "tag",
         "team",
         "user",
-    ];
+    ] as const;
 
     for (const tableName of tableNames) {
         await processTableInBatches(tableName);
     }
-};
+}

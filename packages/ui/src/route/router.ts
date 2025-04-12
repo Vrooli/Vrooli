@@ -1,8 +1,8 @@
 import { parseSearchParams } from "@local/shared";
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
-import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
-import { SetLocationOptions } from "./types";
-import locationHook, { HookNavigationOptions, Pathname, UseLocationHook, UseLocationResult } from "./useLocation";
+import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher.js";
+import { SetLocationOptions } from "./types.js";
+import locationHook, { HookNavigationOptions, Pathname, UseLocationHook, UseLocationResult } from "./useLocation.js";
 
 export type ExtractRouteOptionalParam<PathType extends Pathname> =
     PathType extends `${infer Param}?`

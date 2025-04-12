@@ -1,32 +1,12 @@
-import { BookmarkFor, FormSchema, NavigableObject, OrArray, ReactionFor, ReportFor, RunnableProjectVersion, RunnableRoutineVersion, SearchType, Status } from "@local/shared";
+/* c8 ignore start */
+import { BookmarkFor, FormSchema, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, SearchType, Status } from "@local/shared";
 import { ButtonProps } from "@mui/material";
 import React from "react";
-import { FormErrors, SvgProps, SxType, ViewDisplayType } from "types";
+import { FormErrors, SxType, ViewDisplayType } from "../../types.js";
 
 export type AutoFillButtonProps = {
     handleAutoFill: () => unknown;
     isAutoFillLoading: boolean;
-}
-
-export interface AdvancedSearchButtonProps {
-    advancedSearchParams: object | null;
-    advancedSearchSchema: FormSchema | null | undefined;
-    controlsUrl: boolean;
-    searchType: SearchType | `${SearchType}`;
-    setAdvancedSearchParams: (params: object | null) => unknown;
-}
-
-export interface BuildEditButtonsProps {
-    canSubmitMutate: boolean;
-    canCancelMutate: boolean;
-    errors: BottomActionsButtonsProps["errors"];
-    handleCancel: () => unknown;
-    handleScaleChange: (delta: number) => unknown;
-    handleSubmit: () => unknown;
-    isAdding: boolean;
-    isEditing: boolean;
-    loading: boolean;
-    scale: number;
 }
 
 export type CameraButtonProps = {
@@ -75,15 +55,19 @@ export interface HelpButtonProps extends ButtonProps {
     onMarkdownChange?: (markdown: string) => unknown;
     /** On click event. Not needed to open the menu */
     onClick?: (event: React.MouseEvent) => unknown;
+    /** Size of the button */
+    size?: number;
     /** Style applied to the root element */
     sxRoot?: object;
-    /** Style applied to the question mark icon */
-    sx?: SvgProps;
 }
 
 export type MicrophoneButtonProps = {
     disabled?: boolean;
+    fill?: string;
+    height?: number;
     onTranscriptChange: (result: string) => unknown;
+    showWhenUnavailable?: boolean;
+    width?: number;
 }
 
 export interface PopupMenuProps extends ButtonProps {
@@ -108,7 +92,7 @@ export interface ReportsLinkProps {
 export interface RunButtonProps {
     isEditing: boolean;
     objectType: "ProjectVersion" | "RoutineVersion";
-    runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null;
+    runnableObject: ProjectVersion | RoutineVersion | null;
 }
 
 export type SearchButtonsProps = {
@@ -135,12 +119,6 @@ export interface SideActionsButtonsProps {
     sx?: SxType;
 }
 
-export interface SortButtonProps {
-    options: any; // No way to specify generic enum
-    setSortBy: (sortBy: string) => unknown;
-    sortBy: string;
-}
-
 export interface BookmarkButtonProps {
     disabled?: boolean;
     isBookmarked?: boolean | null; // Defaults to false
@@ -165,11 +143,6 @@ export interface StatusButtonProps extends ButtonProps {
 export type TimeFrame = {
     after?: Date;
     before?: Date;
-}
-
-export interface TimeButtonProps {
-    setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
-    timeFrame: TimeFrame | undefined;
 }
 
 export interface VoteButtonProps {

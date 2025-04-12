@@ -1,15 +1,17 @@
 import { AutocompleteOption, ListObject, SearchType, TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
-import { SearchQueryVariablesInput } from "components/lists/types";
-import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { SetLocation, addSearchParams, useLocation } from "route";
-import { listToAutocomplete } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { searchTypeToParams } from "utils/search/objectToSearch";
-import { SearchParams } from "utils/search/schemas/base";
-import { useLazyFetch } from "./useLazyFetch";
-import { useStableCallback } from "./useStableCallback";
-import { useStableObject } from "./useStableObject";
+import { SearchQueryVariablesInput } from "../components/lists/types.js";
+import { SessionContext } from "../contexts/session.js";
+import { useLocation } from "../route/router.js";
+import { addSearchParams } from "../route/searchParams.js";
+import { SetLocation } from "../route/types.js";
+import { listToAutocomplete } from "../utils/display/listTools.js";
+import { getUserLanguages } from "../utils/display/translationTools.js";
+import { searchTypeToParams } from "../utils/search/objectToSearch.js";
+import { SearchParams } from "../utils/search/schemas/base.js";
+import { useLazyFetch } from "./useLazyFetch.js";
+import { useStableCallback } from "./useStableCallback.js";
+import { useStableObject } from "./useStableObject.js";
 
 type UseFindManyProps = {
     canSearch?: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
@@ -78,7 +80,9 @@ export function parseData(
     if (resolve) return resolve(data);
     // Otherwise, treat as typically-shaped paginated data
     if (!Array.isArray((data as { edges?: unknown }).edges)) return [];
-    return (data as { edges: any[] }).edges.map((edge) => edge.node);
+    return (data as { edges: unknown[] }).edges
+        .filter((edge) => typeof edge === "object" && edge !== null && Object.prototype.hasOwnProperty.call(edge, "node"))
+        .map((edge) => (edge as { node: object }).node);
 }
 
 /**
@@ -250,8 +254,7 @@ export function useFindMany<DataType extends Record<string, any>>({
         params.current.loading = loading;
     }, [loading]);
 
-    // Fetch data when canSearch changes to true
-    useEffect(() => {
+    useEffect(function fetchWhenCanSearchIsTrue() {
         const oldCanSearch = params.current.canSearch;
         const newCanSearch = typeof stableCanSearch === "function" ? stableCanSearch(stableWhere) : true;
         params.current.canSearch = newCanSearch;
@@ -304,11 +307,12 @@ export function useFindMany<DataType extends Record<string, any>>({
             ...newParams,
             sortBy,
             hasMore: true,
+            where: stableWhere ?? {},
         };
         setAllData([]);
         updateSearchUrl(controlsUrlRef.current, params.current, setLocation);
         getData();
-    }, [searchType, getData, setLocation]);
+    }, [searchType, stableWhere, getData, setLocation]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -354,7 +358,7 @@ export function useFindMany<DataType extends Record<string, any>>({
             return;
         }
         // Parse data
-        const parsedData = parseData(pageData, stableResolve);
+        const parsedData = parseData(pageData, stableResolve) as DataType[];
         if (!parsedData) {
             setAllData([]);
             return;

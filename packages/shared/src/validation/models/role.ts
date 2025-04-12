@@ -1,4 +1,8 @@
-import { description, id, name, opt, permissions, req, transRel, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { description, id, name, permissions } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
 
 export const roleTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

@@ -12,13 +12,13 @@ source "${HERE}/utils.sh"
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") SITE_IP SERVER_URL
+Usage: $(basename "$0") SITE_IP API_URL
 
 Checks if the domain resolves to this server's IP.
 
 Arguments:
   SITE_IP     IP address (IPv4 or IPv6) of the server associated with the domain.
-  SERVER_URL  URL of the server.
+  API_URL     URL of the API.
 
 Exit Codes:
   0                     Success

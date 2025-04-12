@@ -1,6 +1,11 @@
 import * as yup from "yup";
-import { ScheduleRecurrenceType } from "../../api/generated/graphqlTypes";
-import { endDate, enumToYup, id, intPositiveOrOne, maxNumErr, minNumErr, opt, req, YupModel, yupObj } from "../utils";
+import { ScheduleRecurrenceType } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { endDate, id, intPositiveOrOne } from "../utils/commonFields.js";
+import { maxNumErr, minNumErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
 const recurrenceType = enumToYup(ScheduleRecurrenceType);
 const dayOfWeek = yup.number().min(1, minNumErr).max(7, maxNumErr).integer();

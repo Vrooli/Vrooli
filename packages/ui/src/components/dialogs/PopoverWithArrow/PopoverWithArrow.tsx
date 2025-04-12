@@ -1,71 +1,62 @@
 import { Box, ClickAwayListener, Palette, Popper, PopperPlacementType, useTheme } from "@mui/material";
-import { useHotkeys } from "hooks/useHotkeys";
-import { useZIndex } from "hooks/useZIndex";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PopoverWithArrowProps } from "../types";
+import { useHotkeys } from "../../../hooks/useHotkeys.js";
+import { Z_INDEX } from "../../../utils/consts.js";
+import { PopoverWithArrowProps } from "../types.js";
+
+/** Size of arrow pointing to anchor */
+const ARROW_SIZE = 10;
+const TIMEOUT_TO_PREVENT_TOUCH_MULTIPLE_EVENTS_MS = 250;
 
 type Direction = "top" | "bottom" | "left" | "right";
 
 /** Style for each arrow direction */
 const ArrowStyles: Record<Direction, (palette: Palette) => React.CSSProperties> = {
     top: (palette: Palette) => ({
-        borderLeft: "10px solid transparent",
-        borderRight: "10px solid transparent",
-        borderTop: `10px solid ${palette.background.paper}`,
-        bottom: "-10px",
+        borderLeft: `${ARROW_SIZE}px solid transparent`,
+        borderRight: `${ARROW_SIZE}px solid transparent`,
+        borderTop: `${ARROW_SIZE}px solid ${palette.background.paper}`,
+        bottom: "0px",
     }),
     bottom: (palette: Palette) => ({
-        borderLeft: "10px solid transparent",
-        borderRight: "10px solid transparent",
-        borderBottom: `10px solid ${palette.background.paper}`,
-        top: "-10px",
+        borderLeft: `${ARROW_SIZE}px solid transparent`,
+        borderRight: `${ARROW_SIZE}px solid transparent`,
+        borderBottom: `${ARROW_SIZE}px solid ${palette.background.paper}`,
+        top: "0px",
     }),
     left: (palette: Palette) => ({
-        borderTop: "10px solid transparent",
-        borderBottom: "10px solid transparent",
-        borderLeft: `10px solid ${palette.background.paper}`,
-        right: "-10px",
+        borderTop: `${ARROW_SIZE}px solid transparent`,
+        borderBottom: `${ARROW_SIZE}px solid transparent`,
+        borderLeft: `${ARROW_SIZE}px solid ${palette.background.paper}`,
+        right: "0px",
     }),
     right: (palette: Palette) => ({
-        borderTop: "10px solid transparent",
-        borderBottom: "10px solid transparent",
-        borderRight: `10px solid ${palette.background.paper}`,
-        left: "-10px",
+        borderTop: `${ARROW_SIZE}px solid transparent`,
+        borderBottom: `${ARROW_SIZE}px solid transparent`,
+        borderRight: `${ARROW_SIZE}px solid ${palette.background.paper}`,
+        left: "0px",
     }),
 };
-
-function getOffsetModifier(placement: string) {
-    switch (placement) {
-        case "top":
-        case "bottom":
-            return { offset: [0, 10] };  // Adjust the Y-offset
-        case "left":
-        case "right":
-            return { offset: [10, 0] };  // Adjust the X-offset
-        default:
-            return { offset: [0, 0] };
-    }
-}
 
 export function PopoverWithArrow({
     anchorEl,
     children,
     handleClose,
-    placement = "top",
+    placement = "auto",
     sxs,
     ...props
 }: PopoverWithArrowProps) {
     const { palette } = useTheme();
     const isOpen = Boolean(anchorEl);
-    const zIndex = useZIndex(isOpen, false, 1000);
     const [canTouch, setCanTouch] = useState(false);
-    const [actualPlacement, setActualPlacement] = useState(placement);
+    const [actualPlacement, setActualPlacement] = useState<Direction | null>(null);
 
     const handlePopperState = useCallback((popperState: { placement: PopperPlacementType }) => {
         if (popperState) {
             const { placement } = popperState;
-            // Limit to top, bottom, left, right
-            setActualPlacement(placement.split("-")[0] as "top" | "bottom" | "left" | "right");
+            // Limit to top, bottom, left, right. Avoid corners.
+            const newPlacement = placement.split("-")[0] as Direction;
+            setActualPlacement(newPlacement);
         }
     }, []);
 
@@ -84,7 +75,7 @@ export function PopoverWithArrow({
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
                 setCanTouch(true);
-            }, 250);
+            }, TIMEOUT_TO_PREVENT_TOUCH_MULTIPLE_EVENTS_MS);
         }
         else { stopTimeout(); }
         return () => { stopTimeout(); };
@@ -99,27 +90,76 @@ export function PopoverWithArrow({
 
     useHotkeys([{ keys: ["Escape"], callback: onClose }], isOpen);
 
-    const arrowStyle = useMemo(() => ArrowStyles[actualPlacement](palette), [actualPlacement, palette]);
-    const offsetModifier = getOffsetModifier(actualPlacement);
+    const arrowStyle = useMemo(function arrowStyleMemo() {
+        if (!actualPlacement || !ArrowStyles[actualPlacement]) {
+            return {};
+        }
+        return ArrowStyles[actualPlacement](palette);
+    }, [actualPlacement, palette]);
 
     const popoverOptions = useMemo(function popoverOptionsMemo() {
         return {
             modifiers: [
-                { name: "flip", options: { altBoundary: true, fallbackPlacements: ["top", "right", "bottom", "left"] } },
-                { name: "preventOverflow", options: { altAxis: true, tether: false, padding: 10, boundary: "viewport" } },
-                { name: "onUpdate", enabled: true, phase: "write", fn: ({ state }) => handlePopperState(state) },
-                { name: "offset", options: offsetModifier },
                 { name: "arrow", options: { element: "[data-popper-arrow]" } },
+                {
+                    name: "flip",
+                    options: {
+                        altBoundary: true,
+                        fallbackPlacements: ["top", "right", "bottom", "left"],
+                    },
+                },
+                {
+                    name: "preventOverflow",
+                    options: {
+                        altAxis: true,
+                        tether: true,
+                        boundary: "viewport",
+                    },
+                },
+                { name: "onUpdate", enabled: true, phase: "write", fn: ({ state }) => handlePopperState(state) },
             ],
         };
-    }, [handlePopperState, offsetModifier]);
+    }, [handlePopperState]);
 
     const popoverStyle = useMemo(function popoverStyleMemo() {
         return {
-            zIndex: zIndex + 1000,
+            zIndex: Z_INDEX.Popup,
             ...sxs?.root,
-        };
-    }, [sxs?.root, zIndex]);
+        } as const;
+    }, [sxs?.root]);
+
+    const innerBoxStyle = useMemo(function innerBoxStyleMemo() {
+        return {
+            ...(sxs?.paper ?? {}),
+        } as const;
+    }, [sxs?.paper]);
+
+    const childrenWrapperStyle = useMemo(function childrenWrapperStyleMemo() {
+        return {
+            overflow: "auto",
+            padding: 1,
+            margin: `${ARROW_SIZE}px`,
+            minWidth: "50px",
+            minHeight: "25px",
+            // Disable touch while timeout is active
+            pointerEvents: canTouch ? "auto" : "none",
+            background: palette.background.paper,
+            color: palette.background.textPrimary,
+            boxShadow: 12,
+            borderRadius: 2,
+            ...(sxs?.content ?? {}),
+        } as const;
+    }, [canTouch, palette.background.paper, palette.background.textPrimary, sxs?.content]);
+
+    const triangleStyle = useMemo(function triangleStyleMemo() {
+        return {
+            width: "0",
+            height: "0",
+            ...arrowStyle,
+            position: "absolute",
+            transform: actualPlacement === "top" || actualPlacement === "bottom" ? "translateX(-50%)" : "translateY(-50%)",
+        } as const;
+    }, [actualPlacement, arrowStyle]);
 
     return (
         <Popper
@@ -131,37 +171,11 @@ export function PopoverWithArrow({
             style={popoverStyle}
         >
             <ClickAwayListener onClickAway={onClose}>
-                <Box sx={{
-                    paddingTop: actualPlacement === "bottom" ? "10px" : undefined,
-                    paddingBottom: actualPlacement === "top" ? "10px" : undefined,
-                    paddingLeft: actualPlacement === "right" ? "10px" : undefined,
-                    paddingRight: actualPlacement === "left" ? "10px" : undefined,
-                    ...(sxs?.paper ?? {}),
-                }}>
-                    <Box sx={{
-                        overflow: "auto",
-                        padding: 1,
-                        minWidth: "50px",
-                        minHeight: "25px",
-                        // Disable touch while timeout is active
-                        pointerEvents: canTouch ? "auto" : "none",
-                        background: palette.background.paper,
-                        color: palette.background.textPrimary,
-                        boxShadow: 12,
-                        borderRadius: 2,
-                        ...(sxs?.content ?? {}),
-                    }}>
+                <Box sx={innerBoxStyle}>
+                    <Box sx={childrenWrapperStyle}>
                         {children}
                     </Box>
-                    {/* Triangle placed accordingly to the popper */}
-                    <Box data-popper-arrow sx={{
-                        width: "0",
-                        height: "0",
-                        ...arrowStyle,
-                        position: "absolute",
-                        margin: "10px",
-                        transform: actualPlacement === "top" || actualPlacement === "bottom" ? "translateX(-50%)" : "translateY(-50%)",
-                    }} />
+                    <Box data-popper-arrow sx={triangleStyle} />
                 </Box>
             </ClickAwayListener>
         </Popper>

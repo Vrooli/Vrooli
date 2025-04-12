@@ -3,10 +3,10 @@
  * award
  */
 
-import { AwardCategory, awardNames, awardVariants, GqlModelType } from "@local/shared";
+import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, ModelType } from "@local/shared";
 import i18next from "i18next";
-import { prismaInstance } from "../db/instance";
-import { Notify } from "../notify";
+import { DbProvider } from "../db/provider.js";
+import { Notify } from "../notify/notify.js";
 
 /**
  * Given an ordered list of numbers, returns the closest lower number in the list
@@ -29,7 +29,7 @@ function closestLower(num: number, list: number[]): number | null {
  * @param currentCount The current count of the award category
  * @returns True if the user should receive the award
  */
-const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, currentCount: number): boolean => {
+function shouldAward(awardCategory: `${AwardCategory}`, previousCount: number, currentCount: number): boolean {
     // Anniversary and new accounts are special cases
     if (awardCategory === "AccountAnniversary") return currentCount > previousCount;
     if (awardCategory === "AccountNew") return false;
@@ -41,57 +41,60 @@ const shouldAward = (awardCategory: `${AwardCategory}`, previousCount: number, c
     const current = closestLower(currentCount, tiers);
     // Only award if moving to a new tier
     return current !== null && current > (previous ?? 0);
-};
+}
 
 /**
  * Checks if an object type is tracked by the award system
  * @param objectType The object type to check
  * @returns `${objectType}Create` if it's a tracked award category
  */
-export const objectAwardCategory = <T extends keyof typeof GqlModelType>(objectType: T): `${T}Create` | null => {
+export function objectAwardCategory<T extends keyof typeof ModelType>(objectType: T): `${T}Create` | null {
     return `${objectType}Create` in AwardCategory ? `${objectType}Create` : null;
-};
+}
 
 /**
  * Handles tracking awards for a user. If a new award is earned, a notification
  * can be sent to the user (push or email)
  */
-export const Award = (userId: string, languages: string[]) => ({
-    /**
-     * Upserts an award into the database. If the award progress reaches a new goal,
-     * the user is notified
-     * @param category The category of the award
-     * @param newProgress The new progress of the award
-     * @param languages Preferred languages for the award name and body
-     * @returns The award
-     */
-    update: async (category: `${AwardCategory}`, newProgress: number) => {
-        // Upsert the award into the database, with progress incremented
-        // by the new progress
-        const award = await prismaInstance.award.upsert({
-            where: { userId_category: { userId, category } },
-            update: { progress: { increment: newProgress } },
-            create: { userId, category, progress: newProgress },
-        });
-        // Check if user should receive a new award (i.e. the progress has put them
-        // into a new award tier)
-        const isNewTier = shouldAward(category, award.progress - newProgress, award.progress);
-        if (isNewTier) {
-            // Get translated award name and body
-            const lng = languages.length > 0 ? languages[0] : "en";
-            const { name, nameVariables, body, bodyVariables } = awardNames[category](award.progress);
-            const transTitle = name ? i18next.t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
-            const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
-            // Send a notification to the user
-            if (transTitle && transBody) {
-                await Notify(languages).pushAward(transTitle, transBody).toUser(userId);
-            }
-            // Set "timeCurrentTierCompleted" to the current time
-            await prismaInstance.award.update({
+export function Award(userId: string, languages: string[] | undefined) {
+    return {
+        /**
+         * Upserts an award into the database. If the award progress reaches a new goal,
+         * the user is notified
+         * @param category The category of the award
+         * @param newProgress The new progress of the award
+         * @param languages Preferred languages for the award name and body
+         * @returns The award
+         */
+        update: async (category: `${AwardCategory}`, newProgress: number) => {
+            // Upsert the award into the database, with progress incremented
+            // by the new progress
+            const award = await DbProvider.get().award.upsert({
                 where: { userId_category: { userId, category } },
-                data: { timeCurrentTierCompleted: new Date() },
+                update: { progress: { increment: newProgress } },
+                create: { userId, category, progress: newProgress },
             });
-        }
-        return award;
-    },
-});
+            // Check if user should receive a new award (i.e. the progress has put them
+            // into a new award tier)
+            const isNewTier = shouldAward(category, award.progress - newProgress, award.progress);
+            if (isNewTier) {
+                // Get translated award name and body
+                const lng = languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE;
+                const { name, nameVariables, body, bodyVariables } = awardNames[category](award.progress);
+                const transTitle = name ? i18next.t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
+                const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
+                // Send a notification to the user
+                if (transTitle && transBody) {
+                    await Notify(languages).pushAward(transTitle, transBody).toUser(userId);
+                }
+                // Set "timeCurrentTierCompleted" to the current time
+                await DbProvider.get().award.update({
+                    where: { userId_category: { userId, category } },
+                    data: { timeCurrentTierCompleted: new Date() },
+                });
+            }
+            return award;
+        },
+    };
+}
+

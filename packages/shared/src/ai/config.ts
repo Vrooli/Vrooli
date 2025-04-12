@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask } from "../api/generated/graphqlTypes";
-import { PassableLogger } from "../consts/commonTypes";
-import { DEFAULT_LANGUAGE } from "../consts/ui";
-import { pascalCase } from "../utils/casing";
-import { type AIServicesInfo } from "./services";
-import { AITaskConfig, AITaskConfigBuilder, AITaskUnstructuredConfig, CommandToTask, LanguageModelResponseMode, LlmTaskStructuredConfig, TaskNameMap } from "./types";
+import { LlmTask } from "../api/types.js";
+import { PassableLogger } from "../consts/commonTypes.js";
+import { DEFAULT_LANGUAGE } from "../consts/ui.js";
+import { pascalCase } from "../utils/casing.js";
+import { type AIServicesInfo } from "./services.js";
+import { AITaskConfig, AITaskConfigBuilder, AITaskUnstructuredConfig, CommandToTask, LanguageModelResponseMode, LlmTaskStructuredConfig, TaskNameMap } from "./types.js";
 
 const CONFIG_RELATIVE_PATH = "../../dist/ai/configs";
 

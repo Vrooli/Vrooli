@@ -1,4 +1,4 @@
-import { FormHeaderType, FormInputType } from "@local/shared";
+import { FormHeaderType, FormImageType, FormInputType, FormQrCodeType, FormTipType, FormVideoType } from "@local/shared";
 
 export interface FormDividerProps {
     isEditing: boolean;
@@ -9,6 +9,34 @@ export interface FormHeaderProps {
     element: FormHeaderType;
     isEditing: boolean;
     onUpdate: (data: Partial<FormHeaderType>) => unknown;
+    onDelete: () => unknown;
+}
+
+export interface FormImageProps {
+    element: FormImageType;
+    isEditing: boolean;
+    onUpdate: (data: Partial<FormImageType>) => unknown;
+    onDelete: () => unknown;
+}
+
+export interface FormQrCodeProps {
+    element: FormQrCodeType;
+    isEditing: boolean;
+    onUpdate: (data: Partial<FormQrCodeType>) => unknown;
+    onDelete: () => unknown;
+}
+
+export interface FormTipProps {
+    element: FormTipType;
+    isEditing: boolean;
+    onUpdate: (data: Partial<FormTipType>) => unknown;
+    onDelete: () => unknown;
+}
+
+export interface FormVideoProps {
+    element: FormVideoType;
+    isEditing: boolean;
+    onUpdate: (data: Partial<FormVideoType>) => unknown;
     onDelete: () => unknown;
 }
 

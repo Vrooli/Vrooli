@@ -1,4 +1,5 @@
 import winston from "winston";
+// eslint-disable-next-line import/extensions
 import { ConsoleTransportInstance, FileTransportInstance } from "winston/lib/winston/transports";
 
 const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
@@ -7,13 +8,13 @@ const MAX_LOG_SIZE = 5_242_880; // 5MB
 /**
  * @returns Array of transports to use for logging, depending on environment
  */
-const getTransports = () => {
-
-    const transports: (FileTransportInstance | ConsoleTransportInstance)[] = []
-    const isTest = process.env.JEST_WORKER_ID !== undefined;
+function getTransports() {
+    const transports: (FileTransportInstance | ConsoleTransportInstance)[] = [];
+    const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === "test";
+    const canLogToFile = process.env.PROJECT_DIR !== undefined;
 
     // Add file transports when in development or production
-    if (!isTest) {
+    if (canLogToFile && !isTest) {
         transports.push(
             new winston.transports.File({
                 filename: `${LOG_DIR}/error.log`,
@@ -23,30 +24,21 @@ const getTransports = () => {
             new winston.transports.File({
                 filename: `${LOG_DIR}/combined.log`,
                 maxsize: MAX_LOG_SIZE,
-            })
+            }),
         );
     }
 
     // Add console transports for development
-    if (!(process.env.NODE_ENV || "").startsWith("prod") && !isTest) {
+    if (!(process.env.NODE_ENV || "").startsWith("prod")) {
         transports.push(
             new winston.transports.Console({
                 format: winston.format.simple(),
-            })
-        );
-    }
-
-    // Add stub placeholder for testing, which will not log anything
-    if (isTest) {
-        transports.push(
-            new winston.transports.Console({
-                silent: true,
-            })
+            }),
         );
     }
 
     return transports;
-};
+}
 
 /**
  * Preferred logging method. Allows you to specify 

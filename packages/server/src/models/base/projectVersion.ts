@@ -1,14 +1,20 @@
 import { MaxObjects, ProjectVersionSortBy, getTranslation, projectVersionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ProjectVersionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
+import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { versionsCheck } from "../../validators/versionsCheck.js";
+import { ProjectVersionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types.js";
 
 type ProjectVersionPre = PreShapeVersionResult;
 
@@ -34,7 +40,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -50,7 +56,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     Update,
                     userData,
                 });
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
@@ -95,7 +101,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //     async searchContents(
     //         req: Request,
     //         input: ProjectVersionContentsSearchInput,
-    //         info: GraphQLInfo | PartialGraphQLInfo,
+    //         info: PartialApiInfo,
     //         nestLimit: number = 2,
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
@@ -107,7 +113,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             resources: 'Resource',
     //             runProjectSchedules: 'RunProjectSchedule',
     //             runRoutineSchedules: 'RunRoutineSchedule',
-    //         }, req.session.languages, true);
+    //         }, true);
     //         // Determine text search query
     //         const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
     //         // Loop through search fields and add each to the search query, 
@@ -115,11 +121,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const customQueries: { [x: string]: any }[] = [];
     //         for (const field of Object.keys(ModelMap.get<CommentModelLogic>("Comment").search.searchFields)) {
     //             if (input[field as string] !== undefined) {
-    //                 customQueries.push(SearchMap[field as string](input, getUser(req.session), __typename));
+    //                 customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
     //             }
     //         }
     // Create query for visibility
-    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req.session), visibility: input.visibility ?? VisibilityType.Public });
+    //const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req), visibility: input.visibility ?? VisibilityType.Public });
     //         // Combine queries
     //         const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
     //         // Determine sort order
@@ -128,7 +134,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined
     //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
     //         // Find requested search array
-    //         const searchResults = await prismaInstance.comment.findMany({
+    //         const searchResults = await DbProvider.get().comment.findMany({
     //             where,
     //             orderBy,
     //             take: input.take ?? 10,
@@ -136,7 +142,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             cursor: input.after ? {
     //                 id: input.after
     //             } : undefined,
-    //             ...selectHelper(partialInfo)
+    //             ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)
     //         });
     //         // If there are no results
     //         if (searchResults.length === 0) return {
@@ -145,13 +151,13 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             threads: [],
     //         }
     //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-    //         const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
+    //         const totalInThread = input.after ? undefined : await DbProvider.get().comment.count({
     //             where: { ...where }
     //         });
     //         // Calculate end cursor
     //         const endCursor = searchResults[searchResults.length - 1].id;
     //         // If not as nestLimit, recurse with all result IDs
-    //         const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req.session), {
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
     //             sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -167,8 +173,8 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         }
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
-    //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-    //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
+    //         comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
+    //         comments = await addSupplementalFields(getUser(req), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
     //         const shapeThreads = (threads: CommentThread[]) => {
@@ -238,11 +244,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -252,10 +258,10 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ProjectVersionModelInfo["PrismaSelect"]>([["root", "Project"]], data, ...rest),
+            oneIsPublic<ProjectVersionModelInfo["DbSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

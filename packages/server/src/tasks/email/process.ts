@@ -1,7 +1,7 @@
 import { Job } from "bull";
 import nodemailer from "nodemailer";
-import { logger } from "../../events/logger";
-import { EmailProcessPayload } from "./queue";
+import { logger } from "../../events/logger.js";
+import { EmailProcessPayload } from "./queue.js";
 
 const HOST = "smtp.gmail.com";
 const PORT = 465;

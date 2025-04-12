@@ -60,7 +60,7 @@ info "Logging into Docker Hub"
 docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 
 # Build the Docker images
-if [[ "$BUILD" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+if is_yes "$BUILD"; then
     cd ${HERE}/..
     info "Building Docker images"
     docker-compose --env-file .env-prod -f docker-compose-prod.yml build
@@ -75,7 +75,6 @@ fi
 info "Tagging Docker images"
 docker tag ui:prod $DOCKER_USERNAME/vrooli_ui:${ENVIRONMENT}-${VERSION}
 docker tag server:prod $DOCKER_USERNAME/vrooli_server:${ENVIRONMENT}-${VERSION}
-docker tag docs:prod $DOCKER_USERNAME/vrooli_docs:${ENVIRONMENT}-${VERSION}
 
 # Push the Docker images to Docker Hub
 info "Pushing Docker images to Docker Hub"

@@ -1,11 +1,15 @@
-import { endpointGetReputationHistories, endpointGetReputationHistory, FormSchema, ReputationHistorySortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsReputationHistory, FormSchema, ReputationHistorySortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const reputationHistorySearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchReputationHistory"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function reputationHistorySearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchReputationHistory"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const reputationHistorySearchParams = () => toParams(reputationHistorySearchSchema(), endpointGetReputationHistories, endpointGetReputationHistory, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc);
+export function reputationHistorySearchParams() {
+    return toParams(reputationHistorySearchSchema(), endpointsReputationHistory, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc);
+}

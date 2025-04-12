@@ -1,9 +1,8 @@
-import { GqlModelType } from "@local/shared";
-import { CustomError } from "../../events/error";
-import { Trigger } from "../../events/trigger";
-import { TransferModel } from "../../models/base/transfer";
-import { PreMap } from "../../models/types";
-import { SessionUserToken } from "../../types";
+import { ModelType, SessionUser } from "@local/shared";
+import { CustomError } from "../../events/error.js";
+import { Trigger } from "../../events/trigger.js";
+import { TransferModel } from "../../models/base/transfer.js";
+import { PreMap } from "../../models/types.js";
 
 /**
  * Used in mutate.trigger.onCommon of version objects. Has two purposes:
@@ -11,14 +10,14 @@ import { SessionUserToken } from "../../types";
  * because we might need to update additional versions not specified in the mutation
  * 2. Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, preMap, updatedIds, userData }: {
+export async function afterMutationsRoot({ createdIds, deletedIds, objectType, preMap, updatedIds, userData }: {
     createdIds: string[],
     deletedIds: string[],
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     preMap: PreMap,
     updatedIds: string[]
-    userData: SessionUserToken,
-}) => {
+    userData: SessionUser,
+}) {
     // Loop through created items
     for (let i = 0; i < createdIds.length; i++) {
         const objectId = createdIds[i];
@@ -92,7 +91,7 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
         // Get trigger info
         const preData = preMap[objectType];
         if (!preData || !preData.triggerMap || !preData.triggerMap[objectId]) {
-            throw new CustomError("0085", "InternalError", ["en"]);
+            throw new CustomError("0085", "InternalError");
         }
         const { hasBeenTransferred, hasParent, wasCompleteAndPublic } = preData.triggerMap[objectId];
         // Trigger objectDeleted
@@ -105,4 +104,4 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
             wasCompleteAndPublic,
         });
     }
-};
+}

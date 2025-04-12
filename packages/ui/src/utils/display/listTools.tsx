@@ -1,9 +1,9 @@
-import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
+import { ActiveFocusMode, Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
-import { BotIcon } from "icons";
-import { routineTypes } from "utils/search/schemas/routine";
-import { displayDate, firstString } from "./stringTools";
-import { getUserLanguages } from "./translationTools";
+import { IconCommon } from "../../icons/Icons.js";
+import { routineTypes } from "../search/schemas/routine.js";
+import { displayDate, firstString } from "./stringTools.js";
+import { getUserLanguages } from "./translationTools.js";
 
 /**
  * Most possible counts (including score) any object can have
@@ -176,8 +176,6 @@ export function getCounts(
     if (isOfType(object, "RunRoutine")) return getCounts((object as Partial<RunRoutine>).routineVersion);
     // If a run project, use the project version
     if (isOfType(object, "RunProject")) return getCounts((object as Partial<RunProject>).projectVersion);
-    // If a NodeRoutineListItem, use the routine version
-    if (isOfType(object, "NodeRoutineListItem")) return getCounts((object as Partial<NodeRoutineListItem>).routineVersion);
     // Otherwise, get the counts from the object
     // Loop through all count fields
     for (const key in defaultCounts) {
@@ -284,6 +282,8 @@ type GetDisplayResult = {
     adornments: DisplayAdornment[],
 };
 
+const botAdornmentStyle = { padding: "1px" } as const;
+
 /**
  * Gets the name and subtitle of a list object
  * @param object A list object
@@ -345,25 +345,19 @@ export function getDisplay(
     }
     // If a member or chat participant, use the user's display
     if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | ChatInvite | Member | MemberInvite>).user } as ListObject);
+    // If it's an active focus mode, use the focus mode's title
+    if (isOfType(object, "ActiveFocusMode")) return getDisplay({ ...(object as Partial<ActiveFocusMode>).focusMode, __typename: "FocusMode" } as ListObject, langs);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
-    // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
-    if (isOfType(object, "NodeRoutineListItem") && title.length === 0 && subtitle.length === 0) {
-        const routineVersionDisplay = getDisplay({ __typename: "RoutineVersion", ...(object as Partial<NodeRoutineListItem>).routineVersion } as ListObject, langs);
-        return {
-            title: firstString(title, routineVersionDisplay.title),
-            subtitle: firstString(subtitle, routineVersionDisplay.subtitle),
-            adornments: [],
-        };
-    }
     // If a User, and `isBot` is true, add BotIcon to adornments
     if (isOfType(object, "User") && (object as Partial<User>).isBot) {
         adornments.push({
-            Adornment: <BotIcon
+            Adornment: <IconCommon
+                decorative
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
-                width="100%"
-                height="100%"
-                style={{ padding: "1px" }}
+                name="Bot"
+                size={20}
+                style={botAdornmentStyle}
             />,
             key: "bot",
         });
@@ -408,8 +402,6 @@ export function getBookmarkFor(
     if (isOfType(object, "RunRoutine")) return getBookmarkFor((object as Partial<RunRoutine>).routineVersion);
     // If a run project, use the project version
     if (isOfType(object, "RunProject")) return getBookmarkFor((object as Partial<RunProject>).projectVersion);
-    // If a NodeRoutineListItem, use the routine version
-    if (isOfType(object, "NodeRoutineListItem")) return getBookmarkFor((object as Partial<NodeRoutineListItem>).routineVersion);
     // If the object contains a root object, use that
     if (Object.prototype.hasOwnProperty.call(object, "root"))
         return getBookmarkFor((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
@@ -427,6 +419,7 @@ export function listToAutocomplete(
     objects: readonly ListObject[],
     languages: readonly string[],
 ): AutocompleteOption[] {
+    if (!Array.isArray(objects)) return [];
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,

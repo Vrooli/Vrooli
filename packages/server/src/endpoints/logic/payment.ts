@@ -1,25 +1,21 @@
-import { FindByIdInput, Payment, PaymentSearchInput } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { rateLimit } from "../../middleware/rateLimit";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { FindByIdInput, Payment, PaymentSearchInput, PaymentSearchResult } from "@local/shared";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsPayment = {
-    Query: {
-        payment: GQLEndpoint<FindByIdInput, FindOneResult<Payment>>;
-        payments: GQLEndpoint<PaymentSearchInput, FindManyResult<Payment>>;
-    },
+    findOne: ApiEndpoint<FindByIdInput, Payment>;
+    findMany: ApiEndpoint<PaymentSearchInput, PaymentSearchResult>;
 }
 
 const objectType = "Payment";
-export const PaymentEndpoints: EndpointsPayment = {
-    Query: {
-        payment: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        payments: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const payment: EndpointsPayment = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
+    },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
     },
 };

@@ -1,10 +1,13 @@
 import { OwnerShape, RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
-import { FindSubroutineDialogProps } from "../types";
+import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog.js";
+import { FindSubroutineDialogProps } from "../types.js";
 
-const limitTo = ["Routine"] as const;
+const limitTo = [
+    "RoutineSingleStep",
+    "RoutineMultiStep",
+] as const;
 
 export function FindSubroutineDialog({
     handleComplete,

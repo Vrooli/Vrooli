@@ -1,22 +1,15 @@
-import { socket } from "api/socket";
 import { useEffect } from "react";
-import { PubSub } from "utils/pubsub";
+import { SocketService, socket } from "../api/socket.js";
 
 export function useSocketConnect() {
     useEffect(() => {
+        // Instead of using SocketService functions directly, we have to 
+        // wrap them in closures to ensure that the SocketService instance is updated when calling them
         const events = [
-            ["connect", () => {
-                console.info("Websocket connected to server");
-            }],
-            ["disconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected", autoHideDuration: 15000 });
-            }],
-            ["reconnect_attempt", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: "ServerReconnectAttempt", autoHideDuration: 10000 });
-            }],
-            ["reconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: "ServerReconnected" });
-            }],
+            ["connect", () => { SocketService.get().handleConnected(); }],
+            ["disconnect", () => { SocketService.get().handleDisconnected(); }],
+            ["reconnect_attempt", () => { SocketService.get().handleReconnectAttempted(); }],
+            ["reconnect", () => { SocketService.get().handleReconnected(); }],
         ] as const;
 
         events.forEach(([event, handler]) => { socket.on(event, handler); });

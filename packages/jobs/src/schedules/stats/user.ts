@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { batch, batchGroup, DbProvider, logger } from "@local/server";
 import { PeriodType, Prisma, QuizAttemptStatus } from "@prisma/client";
 
 type BatchApisResult = Record<string, {
@@ -626,11 +626,11 @@ const batchStandards = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logUserStats = async (
+export async function logUserStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.userFindManyArgs>({
             objectType: "User",
@@ -648,7 +648,7 @@ export const logUserStats = async (
                 const standardStats = await batchStandards(userIds, periodStart, periodEnd);
                 const teamStats = await batchTeams(userIds, periodStart, periodEnd);
                 // Create stats for each user
-                await prismaInstance.stats_user.createMany({
+                await DbProvider.get().stats_user.createMany({
                     data: batch.map(user => ({
                         userId: user.id,
                         periodStart,

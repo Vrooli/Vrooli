@@ -1,23 +1,29 @@
 import { FocusMode, FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared";
-import { SessionContext } from "contexts";
-import { FocusModeIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { SelectorBase } from "../Selector/Selector";
+import { SessionContext } from "../../../contexts/session.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
+import { useFocusModes, useFocusModesStore } from "../../../stores/focusModeStore.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { SelectorBase } from "../Selector/Selector.js";
 
-function getFocusModeOptionDescription(focusMode: FocusMode) {
+type FocusModeOption = Omit<FocusMode, "__typename">;
+
+function getFocusModeOptionDescription(focusMode: FocusModeOption) {
     return focusMode.description;
 }
 
-function getFocusModeOptionLabel(focusMode: FocusMode) {
+function getFocusModeOptionLabel(focusMode: FocusModeOption) {
     return focusMode.name;
 }
 
 function getDisplayIcon() {
-    return <FocusModeIcon />;
+    return <IconCommon
+        decorative
+        name="FocusMode"
+    />;
 }
 
 /**
@@ -28,13 +34,14 @@ export function FocusModeSelector() {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { active, all } = useMemo(() => getFocusModeInfo(session), [session]);
+    const putActiveFocusMode = useFocusModesStore(state => state.putActiveFocusMode);
+    const focusModeInfo = useFocusModes(session);
 
     const { canAdd, hasPremium } = useMemo(() => {
         const { hasPremium } = getCurrentUser(session);
         const max = hasPremium ? MaxObjects.FocusMode.User.premium : MaxObjects.FocusMode.User.noPremium;
-        return { canAdd: all.length < max, hasPremium };
-    }, [all.length, session]);
+        return { canAdd: focusModeInfo.all.length < max, hasPremium };
+    }, [focusModeInfo.all.length, session]);
 
     const handleAddNewFocusMode = useCallback(function handleAddNewFocusMode() {
         // If you can add, open settings
@@ -48,13 +55,16 @@ export function FocusModeSelector() {
         else PubSub.get().publish("snack", { message: "Max reached", severity: "Error" });
     }, [canAdd, hasPremium, setLocation]);
 
-    const handleChangedFocusMode = useCallback(function handleChangedFocusMode(newMode: FocusMode) {
-        newMode && PubSub.get().publish("focusMode", {
+    const handleChangedFocusMode = useCallback(function handleChangedFocusMode(updatedFocusMode: FocusModeOption) {
+        putActiveFocusMode({
             __typename: "ActiveFocusMode" as const,
-            mode: newMode,
+            focusMode: {
+                ...updatedFocusMode,
+                __typename: "ActiveFocusModeFocusMode" as const,
+            },
             stopCondition: FocusModeStopCondition.NextBegins,
-        });
-    }, []);
+        }, session);
+    }, [putActiveFocusMode, session]);
 
     const addOption = useMemo(function addOptionMemo() {
         return {
@@ -66,7 +76,7 @@ export function FocusModeSelector() {
     return (
         <SelectorBase
             name="active"
-            options={all}
+            options={focusModeInfo.all as FocusModeOption[]}
             getDisplayIcon={getDisplayIcon}
             getOptionLabel={getFocusModeOptionLabel}
             getOptionDescription={getFocusModeOptionDescription}
@@ -75,7 +85,7 @@ export function FocusModeSelector() {
             label={t("FocusMode", { count: 1, defaultValue: "Focus Mode" })}
             onChange={handleChangedFocusMode}
             addOption={addOption}
-            value={active?.mode ?? null}
+            value={(focusModeInfo.active?.focusMode as FocusModeOption | undefined) ?? null}
         />
     );
 }

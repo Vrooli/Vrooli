@@ -1,18 +1,17 @@
-import { DecisionStep, EndStep, RoutineListStep, RunnableProjectVersion, RunnableRoutineVersion } from "@local/shared";
+import { DeferredDecisionData, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, RoutineVersion } from "@local/shared";
 import { FormikProps } from "formik";
 import { RefObject } from "react";
-import { ViewProps } from "types";
+import { ViewProps } from "../../types.js";
 
 export type DecisionViewProps = Omit<ViewProps, "display" | "isOpen"> & {
-    /** The decision step data */
-    data: DecisionStep;
+    /** The decision to make */
+    data: DeferredDecisionData;
     /** Callback when a decision is selected */
-    handleDecisionSelect: (step: DecisionStep | EndStep | RoutineListStep) => unknown;
+    handleDecisionSelect: (data: ResolvedDecisionDataChooseOne | ResolvedDecisionDataChooseMultiple) => unknown;
 }
 
 export type RunViewProps = ViewProps & {
     onClose?: () => unknown;
-    runnableObject: RunnableRoutineVersion | RunnableProjectVersion;
 }
 
 export type SubroutineViewProps = {
@@ -20,5 +19,5 @@ export type SubroutineViewProps = {
     handleGenerateOutputs: () => unknown;
     isGeneratingOutputs: boolean;
     isLoading: boolean;
-    routineVersion: RunnableRoutineVersion;
+    routineVersion: RoutineVersion;
 }

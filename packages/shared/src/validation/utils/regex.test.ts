@@ -1,4 +1,5 @@
-import { handleRegex, hexColorRegex, urlRegex, urlRegexDev, walletAddressRegex } from "./regex";
+import { expect } from "chai";
+import { handleRegex, hexColorRegex, urlRegex, urlRegexDev, walletAddressRegex } from "./regex.js";
 
 describe("Regular Expressions Tests", () => {
     // Test suite for urlRegex
@@ -19,13 +20,17 @@ describe("Regular Expressions Tests", () => {
         ];
 
         // Test each valid URL
-        test.each(validUrls)("\"%s\" should be a valid URL", (url) => {
-            expect(urlRegex.test(url)).toBeTruthy();
+        validUrls.forEach((url) => {
+            it(`"${url}" should be a valid URL`, () => {
+                expect(urlRegex.test(url)).to.be.true;
+            });
         });
 
         // Test each invalid URL
-        test.each(invalidUrls)("\"%s\" should be an invalid URL", (url) => {
-            expect(urlRegex.test(url)).toBeFalsy();
+        invalidUrls.forEach((url) => {
+            it(`"${url}" should be an invalid URL`, () => {
+                expect(urlRegex.test(url)).to.be.false;
+            });
         });
     });
 
@@ -47,24 +52,28 @@ describe("Regular Expressions Tests", () => {
         ];
 
         // Test each valid URL for development
-        test.each(validDevUrls)("\"%s\" should be a valid development URL", (url) => {
-            expect(urlRegexDev.test(url)).toBeTruthy();
+        validDevUrls.forEach((url) => {
+            it(`"${url}" should be a valid development URL`, () => {
+                expect(urlRegexDev.test(url)).to.be.true;
+            });
         });
 
         // Test each invalid URL for development
-        test.each(invalidDevUrls)("\"%s\" should be an invalid development URL", (url) => {
-            expect(urlRegexDev.test(url)).toBeFalsy();
+        invalidDevUrls.forEach((url) => {
+            it(`"${url}" should be an invalid development URL`, () => {
+                expect(urlRegexDev.test(url)).to.be.false;
+            });
         });
 
         describe("ReDoS Vulnerability Tests for urlRegexDev", () => {
             // Function to measure execution time
-            const measureExecutionTime = (regex, input) => {
+            function measureExecutionTime(regex, input) {
                 const start = process.hrtime.bigint();
                 const result = regex.test(input);
                 const end = process.hrtime.bigint();
                 const duration = Number(end - start) / 1e6; // Convert to milliseconds
                 return { result, duration };
-            };
+            }
 
             // Benign input
             const benignInput = "ftp://example.com";
@@ -76,14 +85,16 @@ describe("Regular Expressions Tests", () => {
                 "ftp://0." + "0.".repeat(1000) + "0", // Repeats '0.' 1000 times
             ];
 
-            test("Benign input should execute quickly", () => {
+            it("Benign input should execute quickly", () => {
                 const { duration } = measureExecutionTime(urlRegexDev, benignInput);
-                expect(duration).toBeLessThan(1); // Less than 1 millisecond
+                expect(duration).to.be.lessThan(1); // Less than 1 millisecond
             });
 
-            test.each(maliciousInputs)("Malicious input of length %i should not cause performance issues", (input) => {
-                const { duration } = measureExecutionTime(urlRegexDev, input);
-                expect(duration).toBeLessThan(10); // Execution should be quick
+            maliciousInputs.forEach((input) => {
+                it(`Malicious input of length ${input.length} should not cause performance issues`, () => {
+                    const { duration } = measureExecutionTime(urlRegexDev, input);
+                    expect(duration).to.be.lessThan(10); // Execution should be quick
+                });
             });
         });
     });
@@ -103,13 +114,17 @@ describe("Regular Expressions Tests", () => {
         ];
 
         // Test each valid Cardano wallet address
-        test.each(validWalletAddresses)("\"%s\" should be a valid Cardano wallet address", (address) => {
-            expect(walletAddressRegex.test(address)).toBeTruthy();
+        validWalletAddresses.forEach((address) => {
+            it(`"${address}" should be a valid Cardano wallet address`, () => {
+                expect(walletAddressRegex.test(address)).to.be.true;
+            });
         });
 
         // Test each invalid Cardano wallet address
-        test.each(invalidWalletAddresses)("\"%s\" should be an invalid Cardano wallet address", (address) => {
-            expect(walletAddressRegex.test(address)).toBeFalsy();
+        invalidWalletAddresses.forEach((address) => {
+            it(`"${address}" should be an invalid Cardano wallet address`, () => {
+                expect(walletAddressRegex.test(address)).to.be.false;
+            });
         });
     });
 
@@ -144,13 +159,17 @@ describe("Regular Expressions Tests", () => {
         ];
 
         // Test each valid handle
-        test.each(validHandles)("\"%s\" should be a valid handle", (handle) => {
-            expect(handleRegex.test(handle)).toBeTruthy();
+        validHandles.forEach((handle) => {
+            it(`"${handle}" should be a valid handle`, () => {
+                expect(handleRegex.test(handle)).to.be.true;
+            });
         });
 
         // Test each invalid handle
-        test.each(invalidHandles)("\"%s\" should be an invalid handle", (handle) => {
-            expect(handleRegex.test(handle)).toBeFalsy();
+        invalidHandles.forEach((handle) => {
+            it(`"${handle}" should be an invalid handle`, () => {
+                expect(handleRegex.test(handle)).to.be.false;
+            });
         });
     });
 
@@ -179,13 +198,17 @@ describe("Regular Expressions Tests", () => {
         ];
 
         // Test each valid hex color
-        test.each(validHexColors)("\"%s\" should be a valid hex color", (hex) => {
-            expect(hexColorRegex.test(hex)).toBeTruthy();
+        validHexColors.forEach((hex) => {
+            it(`"${hex}" should be a valid hex color`, () => {
+                expect(hexColorRegex.test(hex)).to.be.true;
+            });
         });
 
         // Test each invalid hex color
-        test.each(invalidHexColors)("\"%s\" should be an invalid hex color", (hex) => {
-            expect(hexColorRegex.test(hex)).toBeFalsy();
+        invalidHexColors.forEach((hex) => {
+            it(`"${hex}" should be an invalid hex color`, () => {
+                expect(hexColorRegex.test(hex)).to.be.false;
+            });
         });
     });
 });

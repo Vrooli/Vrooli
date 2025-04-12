@@ -1,13 +1,13 @@
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
-import { LineGraph } from "components/graphs/LineGraph/LineGraph";
-import { useDimensions } from "hooks/useDimensions";
-import { LineGraphCardProps } from "../types";
+import { useDimensions } from "../../../hooks/useDimensions.js";
+import { LineGraph } from "../../graphs/LineGraph/LineGraph.js";
+import { LineGraphCardProps } from "../types.js";
 
-export const LineGraphCard = ({
+export function LineGraphCard({
     title,
     index,
     ...lineGraphProps
-}: LineGraphCardProps) => {
+}: LineGraphCardProps) {
     const { breakpoints, palette } = useTheme();
     const { dimensions, ref } = useDimensions<HTMLDivElement>();
 
@@ -48,4 +48,4 @@ export const LineGraphCard = ({
             </CardContent>
         </Card>
     );
-};
+}

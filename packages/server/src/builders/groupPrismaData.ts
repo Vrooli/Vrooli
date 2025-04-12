@@ -1,7 +1,7 @@
-import { GqlModelType, isObject, OrArray } from "@local/shared";
+import { ModelType, OrArray, isObject } from "@local/shared";
 import pkg from "lodash";
-import { isRelationshipObject } from "./isOfType";
-import { PartialGraphQLInfo } from "./types";
+import { isRelationshipObject } from "./isOfType.js";
+import { PartialApiInfo } from "./types.js";
 
 const { merge } = pkg;
 
@@ -17,7 +17,7 @@ type GroupPrismaDataReturn = {
  * @param dict2
  * @returns dict1 and dict2 combined
  */
-const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn): GroupPrismaDataReturn => {
+function combineDicts(dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn): GroupPrismaDataReturn {
     // Initialize result
     const result: GroupPrismaDataReturn = dict1;
     // Update objectTypesIdsDict
@@ -30,7 +30,7 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
     // Update objectIdsDataDict
     result.objectIdsDataDict = merge(result.objectIdsDataDict, dict2.objectIdsDataDict);
     return result;
-};
+}
 
 /**
  * Combines fields from a Prisma object with arbitrarily nested relationships. Used to get 
@@ -41,12 +41,12 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  *     a. Finding the data for a given object, when we use the ID to look it up
  *     b. Combining known data if the same object appears in multiple places in the data
  * @param data GraphQL-shaped data, where each object contains at least an ID
- * @param partialInfo PartialGraphQLInfo object
+ * @param partialInfo API endpoint info object
  */
-export const groupPrismaData = (
+export function groupPrismaData(
     data: OrArray<{ [x: string]: any }>,
-    partialInfo: OrArray<PartialGraphQLInfo>,
-): GroupPrismaDataReturn => {
+    partialInfo: OrArray<PartialApiInfo>,
+): GroupPrismaDataReturn {
     // Check for valid input
     if (!data || !partialInfo) return {
         objectTypesIdsDict: {},
@@ -70,7 +70,7 @@ export const groupPrismaData = (
     }
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
-        let childPartialInfo: PartialGraphQLInfo = partialInfo[key] as any;
+        let childPartialInfo: PartialApiInfo = partialInfo[key] as any;
         if (childPartialInfo && value) {
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
@@ -90,7 +90,7 @@ export const groupPrismaData = (
                 // If no union type matches, skip
                 if (!matchingType) continue;
                 // If union type, update child partial
-                childPartialInfo = childPartialInfo[matchingType] as PartialGraphQLInfo;
+                childPartialInfo = childPartialInfo[matchingType] as PartialApiInfo;
             }
         }
         // If value is an array
@@ -110,15 +110,15 @@ export const groupPrismaData = (
             result = combineDicts(result, childDicts);
         }
         // If key is 'id'
-        else if (key === "id" && (partialInfo as PartialGraphQLInfo).__typename) {
-            const type = (partialInfo as PartialGraphQLInfo).__typename as `${GqlModelType}`;
+        else if (key === "id" && (partialInfo as PartialApiInfo).__typename) {
+            const type = (partialInfo as PartialApiInfo).__typename as `${ModelType}`;
             // Add to objectTypesIdsDict
             result.objectTypesIdsDict[type] = result.objectTypesIdsDict[type] ?? [];
             result.objectTypesIdsDict[type].push(value);
         }
     }
     // Add keys to selectFieldsDict
-    const currType = (partialInfo as PartialGraphQLInfo)?.__typename as `${GqlModelType}`;
+    const currType = (partialInfo as PartialApiInfo)?.__typename as `${ModelType}`;
     if (currType) {
         result.selectFieldsDict[currType] = merge(result.selectFieldsDict[currType] ?? {}, partialInfo);
     }
@@ -132,4 +132,4 @@ export const groupPrismaData = (
     }
     // Return dictionaries
     return result;
-};
+}

@@ -1,9 +1,9 @@
-import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, RunContext, Success, TaskContextInfo } from "@local/shared";
+import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, SessionUser, Success, TaskContextInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { SessionUserToken } from "../../types.js";
 import { PreMapUserData } from "../../utils/chat.js";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { BaseQueue } from "../base/queue.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 /**
  * Payload for generating a bot response in a chat
@@ -18,6 +18,10 @@ export type RequestBotMessagePayload = {
      * The mode to use when generating the response
      */
     mode: LanguageModelResponseMode;
+    /**
+     * The model to use when generating the response
+     */
+    model: string;
     /** 
      * The ID of the message that triggered the bot response. 
      * 
@@ -44,10 +48,6 @@ export type RequestBotMessagePayload = {
      */
     respondingBotId: string;
     /**
-     * The context for the current run, if any
-     */
-    runContext?: RunContext;
-    /**
      * If true, we'll always suggest tasks instead of running them immediately. 
      * This is useful for things like autofilling forms.
      */
@@ -63,7 +63,7 @@ export type RequestBotMessagePayload = {
     /**
      * The user data of the user who triggered the bot response
      */
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 // TODO can provide state management to bot message payload by adding a routineId field and some field that describes our spot in the routine. This plus passing in data (for autofilling forms, etc.) and passing data to the next step in the routine will allow us to automate routines. Then we can build all of the routines needed to build/improve routines, and we should be good to go!
 
@@ -75,24 +75,24 @@ export type LlmRequestPayload = RequestBotMessagePayload | LlmTestPayload;
 
 let logger: winston.Logger;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
-let llmQueue: Bull.Queue<LlmRequestPayload>;
+export let llmQueue: BaseQueue<LlmRequestPayload>;
 const FOLDER = "llm";
 
 // Call this on server startup
 export async function setupLlmQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         llmProcess = (await import(getProcessPath(FOLDER))).llmProcess;
 
         // Initialize the Bull queue
-        llmQueue = new Bull<LlmRequestPayload>(FOLDER, {
+        llmQueue = new BaseQueue<LlmRequestPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         llmQueue.process(llmProcess);
         // Verify that the queue is working
-        addJobToQueue(llmQueue, { __process: "Test" }, { timeout: MINUTES_1_MS });
+        addJobToQueue(llmQueue.getQueue(), { __process: "Test" }, { timeout: MINUTES_1_MS });
     } catch (error) {
         const errorMessage = "Failed to setup sms queue";
         if (logger) {
@@ -110,7 +110,7 @@ export async function setupLlmQueue() {
 export function requestBotResponse(
     props: Omit<RequestBotMessagePayload, "__process">,
 ): Promise<Success> {
-    return addJobToQueue(llmQueue,
+    return addJobToQueue(llmQueue.getQueue(),
         { ...props, __process: "BotMessage" as const },
         { timeout: MINUTES_1_MS });
 }

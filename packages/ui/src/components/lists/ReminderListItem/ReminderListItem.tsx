@@ -1,15 +1,15 @@
 // Used to display popular/search results of a particular object type
-import { endpointPutReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
+import { endpointsReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { CompletionBar } from "components/CompletionBar/CompletionBar";
-import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
-import { ReminderListItemProps } from "components/lists/types";
-import { useObjectActions } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { DeleteIcon, ScheduleIcon } from "icons";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useObjectActions } from "../../../hooks/objectActions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
+import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
+import { ObjectListItemBase } from "../../lists/ObjectListItemBase/ObjectListItemBase.js";
+import { ReminderListItemProps } from "../../lists/types.js";
 
 //  // Internal state
 //  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
@@ -66,7 +66,7 @@ export function ReminderListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
+    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointsReminder.updateOne);
 
     // State of the checkbox
     const { checked, checkDisabled, checkTooltip } = useMemo(() => {
@@ -133,7 +133,7 @@ export function ReminderListItem({
             dueDate.getFullYear() === today.getFullYear();
         const isPast = dueDate < today;
         const color = isToday ? palette.warning.main : isPast ? palette.error.main : palette.background.textPrimary;
-        return <ScheduleIcon fill={color} style={scheduleIconStyle} />;
+        return <IconCommon name="Schedule" fill={color} style={scheduleIconStyle} />;
     }, [palette.background.textPrimary, palette.error.main, palette.warning.main, data?.dueDate]);
 
     return (
@@ -167,7 +167,7 @@ export function ReminderListItem({
                     {checked && (
                         <Tooltip title="Delete">
                             <IconButton edge="end" size="small" onClick={handleDeleteClick}>
-                                <DeleteIcon fill={palette.error.main} />
+                                <IconCommon name="Delete" fill="error.main" />
                             </IconButton>
                         </Tooltip>
                     )}

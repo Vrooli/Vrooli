@@ -1,71 +1,28 @@
-import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslation, userValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { withRedis } from "../../redisConn";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { UserFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { Mutater } from "../types";
-import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types";
+import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, SEEDED_IDS, UserSortBy, getTranslation, userValidation } from "@local/shared";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { withRedis } from "../../redisConn.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { handlesCheck } from "../../validators/handlesCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { UserFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types.js";
+
 
 type UserPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "User" as const;
 
-type UpdateProfileType = Exclude<Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
-async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
-    const preData = rest.preMap[__typename] as UserPre;
-    return {
-        bannerImage: data.bannerImage,
-        handle: data.handle ?? null,
-        name: noNull(data.name),
-        profileImage: data.profileImage,
-        theme: noNull(data.theme),
-        isPrivate: noNull(data.isPrivate),
-        isPrivateApis: noNull(data.isPrivateApis),
-        isPrivateApisCreated: noNull(data.isPrivateApisCreated),
-        isPrivateCodes: noNull(data.isPrivateCodes),
-        isPrivateCodesCreated: noNull(data.isPrivateCodesCreated),
-        isPrivateMemberships: noNull(data.isPrivateMemberships),
-        isPrivateProjects: noNull(data.isPrivateProjects),
-        isPrivateProjectsCreated: noNull(data.isPrivateProjectsCreated),
-        isPrivatePullRequests: noNull(data.isPrivatePullRequests),
-        isPrivateQuestionsAnswered: noNull(data.isPrivateQuestionsAnswered),
-        isPrivateQuestionsAsked: noNull(data.isPrivateQuestionsAsked),
-        isPrivateQuizzesCreated: noNull(data.isPrivateQuizzesCreated),
-        isPrivateRoles: noNull(data.isPrivateRoles),
-        isPrivateRoutines: noNull(data.isPrivateRoutines),
-        isPrivateRoutinesCreated: noNull(data.isPrivateRoutinesCreated),
-        isPrivateStandards: noNull(data.isPrivateStandards),
-        isPrivateStandardsCreated: noNull(data.isPrivateStandardsCreated),
-        isPrivateTeamsCreated: noNull(data.isPrivateTeamsCreated),
-        isPrivateBookmarks: noNull(data.isPrivateBookmarks),
-        isPrivateVotes: noNull(data.isPrivateVotes),
-        notificationSettings: data.notificationSettings ?? null,
-        // languages: TODO!!!
-        focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
-        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
-    };
-}
-
-type UpdateBotType = Exclude<Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"], undefined>;
-async function updateBot({ data, ...rest }: Parameters<UpdateBotType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
-    const preData = rest.preMap[__typename] as UserPre;
-    return {
-        bannerImage: data.bannerImage,
-        botSettings: noNull(data.botSettings),
-        handle: data.handle ?? null,
-        isBotDepictingPerson: noNull(data.isBotDepictingPerson),
-        isPrivate: noNull(data.isPrivate),
-        name: noNull(data.name),
-        profileImage: data.profileImage,
-        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
-    };
-}
+/**
+ * Length of random characters added to new user's name, 
+ * if not provided by OAuth provider or other means.
+ */
+export const DEFAULT_USER_NAME_LENGTH = 8;
 
 export const UserModel: UserModelLogic = ({
     __typename,
@@ -84,41 +41,120 @@ export const UserModel: UserModelLogic = ({
                     bio: trans.bio,
                     handle,
                     name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ Update, userData }): Promise<UserPre> => {
-                await handlesCheck(__typename, [], Update, userData.languages);
+            pre: async ({ Update }): Promise<UserPre> => {
+                await handlesCheck(__typename, [], Update);
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create: [], Update, objectType: __typename });
                 return { ...maps };
             },
-            /** Create only applies for bots */
+            // Create only applies for bots normally, but seeding and tests might create non-bot users
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                return {
+                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && rest.additionalData?.isBot !== true;
+                const commonData = {
                     id: data.id,
                     bannerImage: noNull(data.bannerImage),
-                    botSettings: data.botSettings,
                     handle: data.handle ?? null,
-                    isBot: true,
-                    isBotDepictingPerson: data.isBotDepictingPerson,
-                    isPrivate: data.isPrivate,
-                    name: data.name,
+                    isPrivate: noNull(data.isPrivate),
+                    name: data.name ?? "",
                     profileImage: noNull(data.profileImage),
-                    invitedByUser: { connect: { id: rest.userData.id } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
+                if (!isUser) {
+                    const botData = data as BotCreateInput;
+                    return {
+                        ...commonData,
+                        botSettings: botData.botSettings,
+                        isBot: true,
+                        isBotDepictingPerson: botData.isBotDepictingPerson,
+                        invitedByUser: { connect: { id: rest.userData.id } },
+                    };
+                }
+                const profileData = data as (ProfileUpdateInput & { id: string });
+                return {
+                    ...commonData,
+                    isBot: false,
+                    theme: noNull(profileData.theme),
+                    isPrivateApis: noNull(profileData.isPrivateApis),
+                    isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
+                    isPrivateCodes: noNull(profileData.isPrivateCodes),
+                    isPrivateCodesCreated: noNull(profileData.isPrivateCodesCreated),
+                    isPrivateMemberships: noNull(profileData.isPrivateMemberships),
+                    isPrivateProjects: noNull(profileData.isPrivateProjects),
+                    isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
+                    isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
+                    isPrivateQuestionsAnswered: noNull(profileData.isPrivateQuestionsAnswered),
+                    isPrivateQuestionsAsked: noNull(profileData.isPrivateQuestionsAsked),
+                    isPrivateQuizzesCreated: noNull(profileData.isPrivateQuizzesCreated),
+                    isPrivateRoles: noNull(profileData.isPrivateRoles),
+                    isPrivateRoutines: noNull(profileData.isPrivateRoutines),
+                    isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
+                    isPrivateStandards: noNull(profileData.isPrivateStandards),
+                    isPrivateStandardsCreated: noNull(profileData.isPrivateStandardsCreated),
+                    isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
+                    isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
+                    isPrivateVotes: noNull(profileData.isPrivateVotes),
+                    notificationSettings: profileData.notificationSettings ?? null,
+                    // languages: TODO!!!
+                    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
+                }
             },
             /** Update can be either a bot or your profile */
             update: async ({ data, ...rest }) => {
-                const isBot = Boolean((data as BotUpdateInput).id) && (data as BotUpdateInput).id !== rest.userData.id;
-                return isBot ?
-                    await updateBot({ data: data as BotUpdateInput, ...rest }) :
-                    await updateProfile({ data: data as ProfileUpdateInput, ...rest });
+                const preData = rest.preMap[__typename] as UserPre;
+                const isBot = rest.additionalData?.isBot ?? false;
+                const commonData = {
+                    bannerImage: data.bannerImage,
+                    handle: data.handle ?? null,
+                    id: data.id,
+                    isPrivate: noNull(data.isPrivate),
+                    name: noNull(data.name),
+                    profileImage: data.profileImage,
+                }
+                if (isBot) {
+                    const botData = data as BotUpdateInput;
+                    return {
+                        ...commonData,
+                        botSettings: botData.botSettings,
+                        isBotDepictingPerson: noNull(botData.isBotDepictingPerson),
+                        translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                    }
+                }
+                const profileData = data as ProfileUpdateInput;
+                return {
+                    ...commonData,
+                    theme: noNull(profileData.theme),
+                    id: rest.userData.id,
+                    isPrivateApis: noNull(profileData.isPrivateApis),
+                    isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
+                    isPrivateCodes: noNull(profileData.isPrivateCodes),
+                    isPrivateCodesCreated: noNull(profileData.isPrivateCodesCreated),
+                    isPrivateMemberships: noNull(profileData.isPrivateMemberships),
+                    isPrivateProjects: noNull(profileData.isPrivateProjects),
+                    isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
+                    isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
+                    isPrivateQuestionsAnswered: noNull(profileData.isPrivateQuestionsAnswered),
+                    isPrivateQuestionsAsked: noNull(profileData.isPrivateQuestionsAsked),
+                    isPrivateQuizzesCreated: noNull(profileData.isPrivateQuizzesCreated),
+                    isPrivateRoles: noNull(profileData.isPrivateRoles),
+                    isPrivateRoutines: noNull(profileData.isPrivateRoutines),
+                    isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
+                    isPrivateStandards: noNull(profileData.isPrivateStandards),
+                    isPrivateStandardsCreated: noNull(profileData.isPrivateStandardsCreated),
+                    isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
+                    isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
+                    isPrivateVotes: noNull(profileData.isPrivateVotes),
+                    notificationSettings: profileData.notificationSettings ?? null,
+                    // languages: TODO!!!
+                    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
+                };
             },
         },
         trigger: {
@@ -165,11 +201,11 @@ export const UserModel: UserModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<UserModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<UserModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
@@ -203,11 +239,10 @@ export const UserModel: UserModelLogic = ({
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    OR: [
-                        // Owned objects
-                        useVisibility("User", "Own", data),
-                        // Public objects
-                        useVisibility("User", "Public", data),
+                    OR: [ // Either yourself, or a bot you created, or a public user
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                        { isPrivate: false },
                     ],
                 };
             },

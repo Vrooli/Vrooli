@@ -1,46 +1,12 @@
-import { LINKS, stringifySearchParams } from "@local/shared";
+import { LINKS, UrlTools } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { useElementDimensions } from "hooks/useDimensions";
-import { useWindowSize } from "hooks/useWindowSize";
 import { useContext, useEffect, useMemo } from "react";
-import { Redirect, useLocation } from "route";
-import { bottomNavHeight, pagePaddingBottom } from "styles";
-import { PageProps, SxType } from "types";
-import { PubSub } from "utils/pubsub";
-
-/**
- * Sets up CSS variables that can be shared across components.
- */
-function useCssVariables() {
-    const { breakpoints } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const contentWrapDims = useElementDimensions({ id: "content-wrap" });
-
-    useEffect(function pagPaddingBottomEffect() {
-        // Page bottom padding depends on the existence of the BottomNav component, 
-        // which only appears on mobile sizes.
-        const paddingBottom = isMobile
-            ? `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`
-            : "env(safe-area-inset-bottom)";
-        document.documentElement.style.setProperty("--page-padding-bottom", paddingBottom);
-    }, [isMobile]);
-
-    useEffect(function pagePaddingLeftRightEffect() {
-        // Page left and right padding depends on the width of the content-wrap element minus 
-        // its margin. If it's larger than the mobile size, then we add padding
-        const contentWrapWidth = contentWrapDims.width;
-        const contentWrapElement = document.getElementById("content-wrap");
-        const contentWrapMarginLeft = contentWrapElement ? parseInt(getComputedStyle(contentWrapElement).marginLeft) : 0;
-        const contentWrapMarginRight = contentWrapElement ? parseInt(getComputedStyle(contentWrapElement).marginRight) : 0;
-        const effectiveContentWrapWidth = contentWrapWidth - contentWrapMarginLeft - contentWrapMarginRight;
-        const pagePaddingSide = effectiveContentWrapWidth > breakpoints.values.md
-            ? "max(1em, calc(15% - 75px))"
-            : "0px";
-        document.documentElement.style.setProperty("--page-padding-left", pagePaddingSide);
-        document.documentElement.style.setProperty("--page-padding-right", pagePaddingSide);
-    }, [breakpoints.values.md, contentWrapDims.width]);
-}
+import { SessionContext } from "../../contexts/session.js";
+import { Redirect, useLocation } from "../../route/router.js";
+import { pagePaddingBottom } from "../../styles.js";
+import { PageProps, SxType } from "../../types.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
+import { PubSub } from "../../utils/pubsub.js";
 
 interface PageContainerProps extends BoxProps {
     contentType?: "normal" | "text";
@@ -51,8 +17,7 @@ interface PageContainerProps extends BoxProps {
     size?: "normal" | "fullSize";
     sx?: SxType;
 }
-
-export const PageContainer = styled(Box, {
+const StyledPageContainer = styled(Box, {
     shouldForwardProp: (prop) => prop !== "contentType" && prop !== "size" && prop !== "sx",
 })<PageContainerProps>(({ contentType, size, sx, theme }) => ({
     background: contentType === "text" ?
@@ -64,11 +29,19 @@ export const PageContainer = styled(Box, {
     overflow: "hidden",
     margin: "auto",
     paddingBottom: pagePaddingBottom,
-    paddingLeft: size === "fullSize" ? 0 : "var(--page-padding-left)",
-    paddingRight: size === "fullSize" ? 0 : "var(--page-padding-right)",
+    paddingLeft: size === "fullSize" ? 0 : "max(1em, calc(15% - 75px))",
+    paddingRight: size === "fullSize" ? 0 : "max(1em, calc(15% - 75px))",
+    position: "relative",
     ...sx,
 } as any));
-
+export function PageContainer({
+    children,
+    ...props
+}: PageContainerProps) {
+    return <StyledPageContainer id={ELEMENT_IDS.PageContainer} {...props}>
+        {children}
+    </StyledPageContainer>;
+}
 
 /**
  * Hidden div under the page for top overscroll color
@@ -97,7 +70,6 @@ export function Page({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [{ pathname }] = useLocation();
-    useCssVariables();
 
     const background = useMemo(function backgroundMemo() {
         const backgroundColor = (sx as { background?: string })?.background
@@ -139,8 +111,9 @@ export function Page({
             </PageContainer>);
         }
         if (sessionChecked && pathname !== LINKS.Signup) {
+            console.log("Redirecting to signup page...", sessionChecked, pathname, mustBeLoggedIn, session);
             PubSub.get().publish("snack", { messageKey: "PageRestricted", severity: "Error" });
-            return <Redirect to={`${LINKS.Signup}${stringifySearchParams({ redirect: pathname })}`} />;
+            return <Redirect to={UrlTools.linkWithSearchParams(LINKS.Signup, { redirect: pathname })} />;
         }
         return null;
     }

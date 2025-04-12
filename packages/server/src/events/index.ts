@@ -1,8 +1,8 @@
-export * from "./awards";
-export * from "./error";
-export * from "./logger";
-export * from "./reputation";
-export * from "./schedule";
-export * from "./subscriber";
-export * from "./trigger";
+export * from "./awards.js";
+export * from "./error.js";
+export * from "./logger.js";
+export * from "./reputation.js";
+export * from "./schedule.js";
+export * from "./subscriber.js";
+export * from "./trigger.js";
 

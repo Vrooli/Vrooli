@@ -1,6 +1,10 @@
-import { bool, description, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
-import { chatInviteValidation } from "./chatInvite";
-import { chatMessageValidation } from "./chatMessage";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, name } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { chatInviteValidation } from "./chatInvite.js";
+import { chatMessageValidation } from "./chatMessage.js";
 
 export const chatTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

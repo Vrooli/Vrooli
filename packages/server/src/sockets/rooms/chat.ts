@@ -1,24 +1,27 @@
 import { JOIN_CHAT_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS } from "@local/shared";
 import { Socket } from "socket.io";
-import { assertRequestFrom } from "../../auth/request";
-import { prismaInstance } from "../../db/instance";
-import { logger } from "../../events/logger";
-import { rateLimitSocket } from "../../middleware";
-import { onSocketEvent } from "../../sockets/events";
+import { AuthTokensService } from "../../auth/auth.js";
+import { RequestService } from "../../auth/request.js";
+import { DbProvider } from "../../db/provider.js";
+import { logger } from "../../events/logger.js";
+import { onSocketEvent } from "../../sockets/events.js";
 
 /** Socket room for chat events */
 export function chatSocketRoomHandlers(socket: Socket) {
     onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
-        const rateLimitError = await rateLimitSocket({ maxUser: 1000, socket });
-        if (rateLimitError) {
-            callback({ success: false, error: rateLimitError });
-            return;
-        }
         try {
+            if (AuthTokensService.isAccessTokenExpired(socket.session)) {
+                callback({ success: false, error: JOIN_CHAT_ROOM_ERRORS.SessionExpired });
+            }
+            const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
+            if (rateLimitError) {
+                callback({ success: false, error: rateLimitError });
+                return;
+            }
             // Check if user is authenticated
-            const { id } = assertRequestFrom(socket, { isUser: true });
+            const { id } = RequestService.assertRequestFrom(socket, { isUser: true });
             // Find chat only if permitted
-            const chat = await prismaInstance.chat.findMany({
+            const chat = await DbProvider.get().chat.findMany({
                 where: {
                     id: chatId,
                     OR: [

@@ -19,7 +19,8 @@
     },
     "parser": "@typescript-eslint/parser",
     "plugins": [
-        "@typescript-eslint"
+        "@typescript-eslint",
+        "import" // eslint-plugin-import
     ],
     "rules": {
         "quotes": [
@@ -40,6 +41,17 @@
         "prefer-const": "error",
         "no-var": "error",
         "no-empty-function": "off",
+        // Keep no-unused-vars rule, but allow unused variables that start with an underscore.
+        // This is useful for destructuring.
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_[^_].*$|^_$",
+                "varsIgnorePattern": "^_[^_].*$|^_$",
+                "caughtErrorsIgnorePattern": "^_[^_].*$|^_$"
+            }
+        ],
         "object-shorthand": "error",
         "eol-last": "error",
         "padding-line-between-statements": [
@@ -74,13 +86,38 @@
                     0,
                     0.5,
                     1,
-                    2
+                    2,
+                    3,
+                    4,
+                    100
                 ],
                 "ignoreArrayIndexes": true,
                 "enforceConst": true,
                 "detectObjects": false
             }
+        ],
+        // Require the extension for JavaScript files in import statements.
+        // The first "always" enforces that extensions are always used.
+        // The object then specifies that for .js files, the extension must be present.
+        "import/extensions": [
+            "error",
+            "always",
+            {
+                "js": "always",
+                "jsx": "always"
+            }
         ]
+    },
+    "settings": {
+        // This setting is important so the eslint-plugin-import knows which file extensions to resolve.
+        "import/resolver": {
+            "node": {
+                "extensions": [
+                    ".js",
+                    ".jsx"
+                ]
+            }
+        }
     },
     "overrides": [
         {
@@ -91,8 +128,8 @@
                 "**/*.test.tsx"
             ],
             "rules": {
-                "no-magic-numbers": "off",
+                "no-magic-numbers": "off"
             }
         }
-    ],
+    ]
 }

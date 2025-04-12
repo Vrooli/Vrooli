@@ -1,2 +1,2 @@
-export * from "./ReminderCrud/ReminderCrud";
+export * from "./ReminderCrud.js";
 

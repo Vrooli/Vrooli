@@ -1,6 +1,0 @@
-schema: "http://localhost:5329/api/v2/graphql"
-generates:
-  generatedTypes.ts:
-    plugins:
-      - "@graphql-codegen/typescript"
-      - "@graphql-codegen/typescript-resolvers"

@@ -1,9 +1,9 @@
-import { errorToMessage } from "api/errorParser";
-import { fetchData } from "api/fetchData";
-import { LazyRequestWithResult, Method, ServerResponse } from "api/types";
+import { HttpMethod, ServerResponse } from "@local/shared";
 import { useCallback, useEffect, useState } from "react";
-import { PubSub } from "utils/pubsub";
-import { useDebounce } from "./useDebounce";
+import { fetchData } from "../api/fetchData.js";
+import { ServerResponseParser } from "../api/responseParser.js";
+import { LazyRequestWithResult } from "../api/types.js";
+import { useDebounce } from "./useDebounce.js";
 
 type RequestState<TData> = {
     loading: boolean;
@@ -15,7 +15,7 @@ type UseFetchProps<TInput extends Record<string, any> | undefined, TData> = {
     debounceMs?: number;
     endpoint: string | undefined;
     inputs?: TInput;
-    method?: Method;
+    method?: HttpMethod;
     options?: RequestInit;
     /** Omits rest endpoint base from URL */
     omitRestBase?: boolean;
@@ -47,19 +47,12 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
         errors: undefined,
     });
 
-    const displayErrors = (errors?: ServerResponse["errors"]) => {
-        if (!errors) return;
-        for (const error of errors) {
-            const message = errorToMessage({ errors: [error] }, ["en"]);
-            PubSub.get().publish("snack", { message, severity: "Error" });
-        }
-    };
-
     const refetch = useCallback<LazyRequestWithResult<TInput, TData>>(async (input, inputOptions) => {
         if (!endpoint && !inputOptions?.endpointOverride) {
+            const trace = "0693";
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
-            return { errors: [{ message }] };
+            return { errors: [{ trace, message }] };
         }
         // Update the inputs stored in the ref if a new input is provided
         if (input) {
@@ -78,13 +71,13 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
             .then(({ data, errors, version }: ServerResponse) => {
                 setState({ loading: false, data, errors });
                 if (Array.isArray(errors) && errors.length > 0) {
-                    inputOptions?.displayError !== false && displayErrors(errors);
+                    inputOptions?.displayError !== false && ServerResponseParser.displayErrors(errors);
                 }
                 return { data, errors, version };
             })
             .catch(({ errors, version }: ServerResponse) => {
                 setState({ loading: false, data: undefined, errors });
-                inputOptions?.displayError !== false && displayErrors(errors);
+                inputOptions?.displayError !== false && ServerResponseParser.displayErrors(errors);
                 return { errors, version };
             });
         return result;

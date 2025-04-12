@@ -1,9 +1,9 @@
 import { MaxObjects, pushDeviceValidation } from "@local/shared";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { PushDeviceFormat } from "../formats";
-import { PushDeviceModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { PushDeviceFormat } from "../formats.js";
+import { PushDeviceModelLogic } from "./types.js";
 
 const __typename = "PushDevice" as const;
 export const PushDeviceModel: PushDeviceModelLogic = ({

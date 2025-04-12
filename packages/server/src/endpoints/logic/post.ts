@@ -1,41 +1,33 @@
-import { FindByIdInput, Post, PostCreateInput, PostSearchInput, PostUpdateInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { rateLimit } from "../../middleware/rateLimit";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { FindByIdInput, Post, PostCreateInput, PostSearchInput, PostSearchResult, PostUpdateInput } from "@local/shared";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsPost = {
-    Query: {
-        post: GQLEndpoint<FindByIdInput, FindOneResult<Post>>;
-        posts: GQLEndpoint<PostSearchInput, FindManyResult<Post>>;
-    },
-    Mutation: {
-        postCreate: GQLEndpoint<PostCreateInput, CreateOneResult<Post>>;
-        postUpdate: GQLEndpoint<PostUpdateInput, UpdateOneResult<Post>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, Post>;
+    findMany: ApiEndpoint<PostSearchInput, PostSearchResult>;
+    createOne: ApiEndpoint<PostCreateInput, Post>;
+    updateOne: ApiEndpoint<PostUpdateInput, Post>;
 }
 
 const objectType = "Post";
-export const PostEndpoints: EndpointsPost = {
-    Query: {
-        post: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        posts: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const post: EndpointsPost = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        postCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 500, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        postUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 500, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
+    },
+    createOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 500, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 500, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

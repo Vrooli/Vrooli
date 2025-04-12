@@ -1,6 +1,11 @@
-import { IssueFor } from "../../api/generated/graphqlTypes";
-import { description, enumToYup, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
-import { labelValidation } from "./label";
+import { IssueFor } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { description, id, name } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { labelValidation } from "./label.js";
 
 const issueFor = enumToYup(IssueFor);
 

@@ -26,6 +26,7 @@
         }
     },
     "module": {
+        // NOTE: If changing to or from "commonjs", make sure package.json and tsconfig.json are updated as well
         "type": "es6",
         "strict": false,
         "strictMode": true,

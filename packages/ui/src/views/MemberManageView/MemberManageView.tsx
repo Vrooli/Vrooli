@@ -1,20 +1,19 @@
 import { ListObject, uuidValidate } from "@local/shared";
-import { Box, Button, Checkbox, Divider, FormControlLabel, Stack, useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { Field } from "formik";
-import { useFindMany } from "hooks/useFindMany";
-import { useSelectableList } from "hooks/useSelectableList";
-import { useTabs } from "hooks/useTabs";
-import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SideActionsButton } from "styles";
-import { memberTabParams } from "utils/search/objectToSearch";
-import { MemberManageViewProps } from "../types";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
+import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useSelectableList } from "../../hooks/useSelectableList.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { memberTabParams } from "../../utils/search/objectToSearch.js";
+import { MemberManageViewProps } from "../types.js";
 
 const scrollContainerId = "member-search-scroll";
 const dialogStyle = {
@@ -36,7 +35,6 @@ export function MemberManageView({
 }: MemberManageViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    console.log("in MemberManageView", team);
 
     const {
         currTab,
@@ -46,7 +44,12 @@ export function MemberManageView({
         where,
     } = useTabs({ id: "member-manage-tabs", tabParams: memberTabParams, display });
     const toInviteNewMembersTab = useCallback(function toInviteNewMembersTabCallback() {
-        handleTabChange(undefined, tabs.find(tab => tab.key === "NonMembers")!);
+        const nonMembersTab = tabs.find(tab => tab.key === "NonMembers");
+        if (nonMembersTab) {
+            handleTabChange(undefined, nonMembersTab);
+        } else {
+            console.error("NonMembers tab not found");
+        }
     }, [handleTabChange, tabs]);
 
     const findManyData = useFindMany<ListObject>({
@@ -143,7 +146,7 @@ export function MemberManageView({
             case "Members":
                 return (
                     <>
-                        <Stack direction="row" alignItems="center" justifyContent="flex-start" sx={{ padding: 2 }}>
+                        <Stack direction="row" alignItems="center" justifyContent="flex-start" p={2}>
                             <FormControlLabel
                                 control={<Field
                                     name="isOpenToNewMembers"
@@ -227,33 +230,31 @@ export function MemberManageView({
     }, [currTab.key, t, findManyData, notIfEditing, display, handleToggleSelect, isSelecting, selectedData, showSearchFilters, toInviteNewMembersTab]);
 
     const renderActionButtons = useMemo(function renderActionButtonsMemo() {
-        const actionIconProps = { fill: palette.secondary.contrastText, width: "36px", height: "36px" };
-
         if (isSelecting && selectedData.length > 0) {
             switch (currTab.key) {
                 case "Members":
                     return (
-                        <SideActionsButton aria-label={t("RemoveMembers")} onClick={handleRemoveMembers}>
-                            <DeleteIcon {...actionIconProps} />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("RemoveMembers")} onClick={handleRemoveMembers}>
+                            <IconCommon name="Delete" />
+                        </IconButton>
                     );
                 case "Invites":
                     return (
-                        <SideActionsButton aria-label={t("CancelInvites")} onClick={handleCancelInvites}>
-                            <DeleteIcon {...actionIconProps} />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("CancelInvites")} onClick={handleCancelInvites}>
+                            <IconCommon name="Delete" />
+                        </IconButton>
                     );
                 case "NonMembers":
                     return (
-                        <SideActionsButton aria-label={t("InviteMembers")} onClick={handleInviteMembers}>
-                            <AddIcon {...actionIconProps} />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("InviteMembers")} onClick={handleInviteMembers}>
+                            <IconCommon name="Add" />
+                        </IconButton>
                     );
             }
         }
 
         return null;
-    }, [currTab.key, isSelecting, selectedData.length, palette.secondary.contrastText, t, handleRemoveMembers, handleCancelInvites, handleInviteMembers]);
+    }, [currTab.key, isSelecting, selectedData.length, t, handleRemoveMembers, handleCancelInvites, handleInviteMembers]);
 
 
     return (
@@ -278,8 +279,8 @@ export function MemberManageView({
                 <TopBar
                     display={display}
                     onClose={onClose}
-                    below={<PageTabs
-                        ariaLabel="search-tabs"
+                    below={<PageTabs<typeof memberTabParams>
+                        ariaLabel="Search tabs"
                         currTab={currTab}
                         fullWidth
                         onChange={handleTabChange}
@@ -289,13 +290,13 @@ export function MemberManageView({
                 {renderTabContent}
                 <SideActionsButtons display={display}>
                     {renderActionButtons}
-                    <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
-                        {isSelecting ? <CancelIcon fill={palette.secondary.contrastText} width='36px' height='36px' /> : <ActionIcon fill={palette.secondary.contrastText} width='36px' height='36px' />}
-                    </SideActionsButton>
+                    <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
+                        <IconCommon name={isSelecting ? "Cancel" : "Action"} />
+                    </IconButton>
                     {!isSelecting ? (
-                        <SideActionsButton aria-label={t("Search")} onClick={toggleSearchFilters}>
-                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </SideActionsButton>
+                        <IconButton aria-label={t("Search")} onClick={toggleSearchFilters}>
+                            <IconCommon name="Search" />
+                        </IconButton>
                     ) : null}
                 </SideActionsButtons>
             </SearchListScrollContainer>

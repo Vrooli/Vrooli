@@ -7,14 +7,14 @@ import { exists, uuidValidate } from "@local/shared";
  * @param args - List of arguments
  * @returns First non-null value
  */
-export const noNull = <T>(...args: (T | undefined | null)[]): T | undefined => {
+export function noNull<T>(...args: (T | undefined | null)[]): T | undefined {
     for (const arg of args) {
         if (exists(arg)) {
             return arg;
         }
     }
     return undefined;
-};
+}
 
 /**
  * Returns the first non-empty string from the list of parameters,
@@ -22,7 +22,7 @@ export const noNull = <T>(...args: (T | undefined | null)[]): T | undefined => {
  * @param args - List of string arguments
  * @returns First non-empty string value
  */
-export const noEmptyString = (...args: unknown[]): string | undefined => {
+export function noEmptyString(...args: unknown[]): string | undefined {
     for (const arg of args) {
         // Check if arg is a string, not null, not undefined, and not an empty string
         if (typeof arg === "string" && arg !== "") {
@@ -30,7 +30,7 @@ export const noEmptyString = (...args: unknown[]): string | undefined => {
         }
     }
     return undefined;
-};
+}
 
 
 /**
@@ -39,7 +39,7 @@ export const noEmptyString = (...args: unknown[]): string | undefined => {
  * @param args - List of numeric arguments
  * @returns First valid number value
  */
-export const validNumber = (...args: unknown[]): number | undefined => {
+export function validNumber(...args: unknown[]): number | undefined {
     for (const arg of args) {
         // Check if arg is a finite number
         if (typeof arg === "number" && isFinite(arg)) {
@@ -47,7 +47,7 @@ export const validNumber = (...args: unknown[]): number | undefined => {
         }
     }
     return undefined;
-};
+}
 
 /**
  * Returns the first valid uuid from the list of parameters,
@@ -55,11 +55,26 @@ export const validNumber = (...args: unknown[]): number | undefined => {
  * @param args - List of uuid arguments
  * @returns First valid uuid value
  */
-export const validUuid = (...args: unknown[]): string | undefined => {
+export function validUuid(...args: unknown[]): string | undefined {
     for (const arg of args) {
         if (typeof arg === "string" && uuidValidate(arg)) {
             return arg;
         }
     }
     return undefined;
-};
+}
+
+/**
+ * Converts a value to boolean, using the following rules:
+ * - "true" -> true
+ * - "false" -> false
+ * Everything else uses Boolean(value) 
+ * 
+ * @param value The value to convert to a boolean
+ * @returns The boolean value of the input
+ */
+export function toBool(value: unknown): boolean {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return Boolean(value);
+}

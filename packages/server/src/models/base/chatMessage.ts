@@ -1,29 +1,28 @@
-import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, getTranslation, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, getTranslation, MaxObjects, openAIServiceInfo, uuidValidate } from "@local/shared";
 import { Request } from "express";
-import { InputNode } from "utils/inputNode";
-import { ModelMap } from ".";
-import { getUser } from "../../auth/request";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
-import { selectHelper } from "../../builders/selectHelper";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { Trigger } from "../../events/trigger";
-import { emitSocketEvent } from "../../sockets/events";
-import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context";
-import { requestBotResponse } from "../../tasks/llm/queue";
-import { getAuthenticatedData, SortMap } from "../../utils";
-import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, PreMapChatData, PreMapMessageData, PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData, prepareChatMessageOperations } from "../../utils/chat";
-import { translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, isOwnerAdminCheck, permissionsCheck } from "../../validators";
-import { ChatMessageFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
+import { SessionService } from "../../auth/session.js";
+import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { PartialApiInfo } from "../../builders/types.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { Trigger } from "../../events/trigger.js";
+import { emitSocketEvent } from "../../sockets/events.js";
+import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context.js";
+import { requestBotResponse } from "../../tasks/llm/queue.js";
+import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, PreMapChatData, PreMapMessageData, PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData, prepareChatMessageOperations } from "../../utils/chat.js";
+import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
+import { InputNode } from "../../utils/inputNode.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { SortMap } from "../../utils/sortMap.js";
+import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
+import { getSingleTypePermissions, permissionsCheck } from "../../validators/permissions.js";
+import { ChatMessageFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types.js";
 
 const DEFAULT_CHAT_TAKE = 50;
 
@@ -50,7 +49,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
              * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message 
              * with versionIndex set to the previous version's index + 1.
              */
-            pre: async ({ Create, Update, Delete, userData, inputsById }): Promise<ChatMessagePre> => {
+            pre: async ({ Create, Update, Delete, userData, inputsById, ...rest }): Promise<ChatMessagePre> => {
                 // Initialize objects to store bot, message, and chat information
                 const preMap: ChatMessagePre = { chatData: {}, messageData: {}, userData: {} };
 
@@ -145,8 +144,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 const { branchInfo } = await populatePreMapForChatUpdates({ updateInputs: chatUpdateInputs });
                 for (const data of chatUpdateInputs) {
                     // Update Creates and Updates (and add new Updates if needed) to include parent and children information
-                    const rest = { idsCreateToConnect: {}, preMap: {}, userData };
-                    const operations = await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
+                    const operations = await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, idsCreateToConnect: {}, preMap: {}, userData, ...rest });
                     const { summary } = prepareChatMessageOperations(operations, branchInfo[data.id]);
                     for (const { id: messageId, parentId } of summary.Create) {
                         // Update the corresponding message in preMapMessageData
@@ -203,7 +201,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Query potential bot IDs. Any found to be bots will automatically be accepted, 
                 // and can potentially be used for AI responses.
                 if (potentialBotIds.length) {
-                    const potentialBots = await prismaInstance.user.findMany({
+                    const potentialBots = await DbProvider.get().user.findMany({
                         where: {
                             id: { in: potentialBotIds },
                             isBot: true,
@@ -241,7 +239,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 }
                 // Query participants being deleted and remove them from botData and chatData.botParticipants
                 if (participantsBeingRemovedIds.length) {
-                    const participantsBeingRemoved = await prismaInstance.chat_participants.findMany({
+                    const participantsBeingRemoved = await DbProvider.get().chat_participants.findMany({
                         where: {
                             id: { in: participantsBeingRemovedIds },
                         },
@@ -268,7 +266,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 for (const { node } of Create) {
                     const message = preMap.messageData[node.id] as PreMapMessageDataCreate | undefined;
                     if (message && message.userId !== userData.id && !Object.keys(preMap.userData).includes(message.userId ?? "")) {
-                        throw new CustomError("0526", "Unauthorized", userData.languages, { message });
+                        throw new CustomError("0526", "Unauthorized", { message });
                     }
                 }
 
@@ -321,7 +319,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     }
                     const messageText = getTranslation({ translations: messageData.translations }, userData.languages).text || null;
                     // Add message to cache
-                    await (new ChatContextManager()).addMessage(messageData);
+                    const model = additionalData.model || openAIServiceInfo.defaultModel;
+                    await (new ChatContextManager(model, userData.languages)).addMessage(messageData);
                     // Common trigger logic
                     await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
@@ -353,6 +352,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             requestBotResponse({
                                 chatId,
                                 mode: "text",
+                                model,
                                 parentId: messageData.messageId,
                                 parentMessage: messageText,
                                 respondingBotId: botId,
@@ -378,7 +378,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     // Update message in cache
                     const messageData = preMapMessageData[objectId] as PreMapMessageDataUpdate | undefined;
                     if (messageData) {
-                        await (new ChatContextManager()).editMessage(messageData);
+                        const model = additionalData.model || openAIServiceInfo.defaultModel;
+                        await (new ChatContextManager(model, userData.languages)).editMessage(messageData);
                     }
                     //TODO should probably call determineRespondingBots and requestBotResponse here as well
                     const chatMessage = resultsById[objectId] as ChatMessage | undefined;
@@ -422,40 +423,40 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         async searchTree(
             req: Request,
             input: ChatMessageSearchTreeInput,
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: PartialApiInfo,
         ): Promise<ChatMessageSearchTreeResult> {
-            if (!input.chatId) throw new CustomError("0531", "InvalidArgs", getUser(req.session)?.languages ?? ["en"], { input });
+            if (!input.chatId) throw new CustomError("0531", "InvalidArgs", { input });
             // Query for all authentication data
-            const userData = getUser(req.session);
+            const userData = SessionService.getUser(req);
             const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, userData ?? null);
             if (Object.keys(authDataById).length === 0) {
-                throw new CustomError("0016", "NotFound", userData?.languages ?? req.session.languages, { input, userId: userData?.id });
+                throw new CustomError("0016", "NotFound", { input, userId: userData?.id });
             }
             await permissionsCheck(authDataById, { ["Read"]: [input.chatId] }, {}, userData);
             // Partially convert info type
-            const partial = toPartialGqlInfo(info, {
+            const partial = InfoConverter.get().fromApiToPartialApi(info, {
                 __typename: "ChatMessageSearchTreeResult",
                 messages: "ChatMessage",
-            }, req.session.languages, true);
+            }, true);
             // Determine sort order. This is only used if startId is not provided, since the sort is used 
             // to determine the starting point of the search.
             const orderByField = input.sortBy ?? ModelMap.get<ChatMessageModelLogic>("ChatMessage").search.defaultSort;
             const orderBy = !input.startId && orderByField in SortMap ? SortMap[orderByField] : undefined;
             // First, find the total number of messages in the chat
-            const totalInThread = await prismaInstance.chat_message.count({
+            const totalInThread = await DbProvider.get().chat_message.count({
                 where: { chatId: input.chatId },
             });
             // If it's less than or equal to the take amount, we can just return all messages. 
             const take = input.take ?? DEFAULT_CHAT_TAKE;
             if (totalInThread <= take) {
-                let messages: any[] = await prismaInstance.chat_message.findMany({
+                let messages: any[] = await DbProvider.get().chat_message.findMany({
                     where: { chatId: input.chatId },
                     orderBy,
                     take,
-                    ...selectHelper(partial.messages as PartialGraphQLInfo),
+                    ...InfoConverter.get().fromPartialApiToPrismaSelect(partial.messages as PartialApiInfo),
                 });
-                messages = messages.map((c: any) => modelToGql(c, partial.messages as PartialGraphQLInfo));
-                messages = await addSupplementalFields(getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
+                messages = messages.map((c: any) => InfoConverter.get().fromDbToApi(c, partial.messages as PartialApiInfo));
+                messages = await addSupplementalFields(SessionService.getUser(req), messages, partial.messages as PartialApiInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,
@@ -486,11 +487,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ChatMessageModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ChatMessageModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
@@ -506,7 +507,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             User: data?.user,
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
-            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["PrismaModel"], userId), userId) : false;
+            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["DbModel"], userId), userId) : false;
             const isParticipant = uuidValidate(userId) && (data.chat as Record<string, any>).participants?.some((p) => p.user?.id === userId || p.userId === userId);
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,

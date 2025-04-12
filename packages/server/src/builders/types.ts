@@ -1,40 +1,27 @@
-import { GqlModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
-import { GraphQLResolveInfo } from "graphql";
-import { SessionUserToken } from "../types";
+import { ModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
+import { type RequestService } from "../auth/request.js";
 
 /**
- * Shape 1 of 4 for GraphQL to Prisma conversion (i.e. GraphQL data before conversion)
- */
-export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
-
-/**
- * Shape 2 of 4 for GraphQL to Prisma converstion. Used by many functions because it is more 
- * convenient than straight up GraphQL request data. Each level contains a __typename field. 
+ * Shape 2 of 4 for API endpoint to Prisma converstion. Each level contains a __typename field. 
  * This type of data is also easier to hard-code in a pinch.
  */
-export interface PartialGraphQLInfo {
-    [x: string]: `${GqlModelType}` | undefined | boolean | PartialGraphQLInfo;
-    __typename?: `${GqlModelType}`;
+export interface PartialApiInfo {
+    [x: string]: string | `${ModelType}` | undefined | boolean | PartialApiInfo; // string and `${ModelType}` only included for __typename (known TypeScript limitation: https://github.com/microsoft/TypeScript/issues/27144)
+    __typename?: `${ModelType}`;
+    __cacheKey?: string;
 }
 
 /**
- * Shape 3 of 4 for GraphQL to Prisma conversion. Still contains the type fields, 
- * but does not pad objects with a "select" field. Calculated fields, join tables, and other 
- * data transformations from the GraphqL shape are removed. This is useful when checking 
- * which fields are requested from a Prisma query.
- */
-export type PartialPrismaSelect = { __typename?: `${GqlModelType}` } & { [x: string]: boolean | PartialPrismaSelect };
-
-/**
- * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
+ * Shape 4 of 4 for API endpoint to Prisma conversion. This is the final shape of the requested data 
  * as it will be sent to the database. It is has type fields removed, and objects padded with "select"
  */
 export type PrismaSelect = {
     select: { [key: string]: boolean | PrismaSelectInside }
 }
 
-type PrismaSelectInside = Omit<PrismaSearch, "select"> & {
-    select: { [x: string]: boolean | PrismaSelectInside }
+type PrismaSelectInside = Omit<PrismaSearch, "select" | "where"> & {
+    select: { [x: string]: boolean | PrismaSelectInside };
+    where?: Record<string, unknown>;
 }
 
 export type PrismaSearch = {
@@ -188,9 +175,9 @@ export type RelUpdate<Shaped extends { [x: string]: any }, IDField extends strin
 export type RelDelete<IDField extends string> = { [key in IDField]: string }
 
 export type VisibilityBuilderProps = {
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
+    req: Parameters<typeof RequestService.assertRequestFrom>[0],
     searchInput: { [x: string]: any };
-    userData: SessionUserToken | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }
 

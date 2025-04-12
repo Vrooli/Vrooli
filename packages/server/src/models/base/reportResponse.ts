@@ -2,15 +2,16 @@
 // they created or own the object of
 import { MaxObjects, ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { ReportResponseFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportResponseModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ReportResponseFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportResponseModelLogic } from "./types.js";
 
 const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({
@@ -22,7 +23,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
                 id: true,
                 report: { select: ModelMap.get<ReportModelLogic>("Report").display().label.select() },
             }),
-            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ModelMap.get<ReportModelLogic>("Report").display().label.get(select.report as ReportModelInfo["PrismaModel"], languages) }),
+            get: (select, languages) => i18next.t("common:ReportResponseLabel", { report: ModelMap.get<ReportModelLogic>("Report").display().label.get(select.report as ReportModelInfo["DbModel"], languages) }),
         },
     }),
     format: ReportResponseFormat,
@@ -61,12 +62,12 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
+            suppFields: SuppFields[__typename],
             dbFields: ["createdById"],
-            toGraphQL: async ({ ids, userData }) => {
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ReportResponseModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ReportResponseModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -77,9 +78,9 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate().owner(data?.report as ReportModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["PrismaSelect"]>([["report", "Report"]], ...rest),
+        owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate().owner(data?.report as ReportModelInfo["DbModel"], userId),
+        isDeleted: (data) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["DbModel"]),
+        isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["DbSelect"]>([["report", "Report"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

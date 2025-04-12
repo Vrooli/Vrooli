@@ -1,14 +1,15 @@
+import { MINUTES_1_MS } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Typography, useTheme } from "@mui/material";
-import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { useField } from "formik";
-import { usePopover } from "hooks/usePopover";
-import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
-import { TextInput } from "../TextInput/TextInput";
-import { TimezoneSelectorProps } from "../types";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
+import { TextInput } from "../TextInput/TextInput.js";
+import { TimezoneSelectorProps } from "../types.js";
 
-function formatOffset(offset) {
+function formatOffset(offset: number) {
     const sign = offset > 0 ? "-" : "+";
     const hours = Math.abs(Math.floor(offset / 60));
     const minutes = Math.abs(offset % 60);
@@ -18,17 +19,26 @@ function formatOffset(offset) {
 function getTimezoneOffset(timezone) {
     const now = new Date();
     const localTime = now.getTime();
-    const localOffset = now.getTimezoneOffset() * 60 * 1000;
+    const localOffset = now.getTimezoneOffset() * MINUTES_1_MS;
     const utcTime = localTime + localOffset;
 
     const targetTime = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
     const targetOffset = targetTime.getTime() - utcTime;
 
     // Divide by the number of milliseconds in a minute, then round to the nearest tenth
-    const roundedOffset = Math.round((targetOffset / (60 * 1000)) * 10) / 10;
+    const roundedOffset = Math.round((targetOffset / MINUTES_1_MS) * 10) / 10;
 
     return -roundedOffset;
 }
+
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "center",
+} as const;
+const transformOrigin = {
+    vertical: "top",
+    horizontal: "center",
+} as const;
 
 export function TimezoneSelector({
     onChange,
@@ -72,14 +82,8 @@ export function TimezoneSelector({
                 open={isOpen}
                 anchorEl={anchorEl}
                 onClose={handleClose}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "center",
-                }}
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "center",
-                }}
+                anchorOrigin={anchorOrigin}
+                transformOrigin={transformOrigin}
                 sx={{
                     "& .MuiPopover-paper": {
                         width: "100%",
@@ -99,6 +103,8 @@ export function TimezoneSelector({
                         value={searchString}
                         onChange={updateSearchString}
                     />
+                    {/* TODO Remove this once react-window is updated */}
+                    {/* @ts-expect-error Incompatible JSX type definitions */}
                     <FixedSizeList
                         height={600}
                         width="100%"
@@ -143,10 +149,21 @@ export function TimezoneSelector({
                 onClick={onOpen}
                 InputProps={{
                     endAdornment: (
-                        <IconButton size="small" aria-label="timezone-select">
+                        <IconButton
+                            aria-label="timezone-select"
+                            size="small"
+                        >
                             {isOpen ?
-                                <ArrowDropUpIcon fill={palette.background.textPrimary} /> :
-                                <ArrowDropDownIcon fill={palette.background.textPrimary} />
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="ArrowDropUp"
+                                />
+                                : <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="ArrowDropDown"
+                                />
                             }
                         </IconButton>
                     ),

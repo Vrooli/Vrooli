@@ -1,41 +1,33 @@
-import { FindByIdInput, Role, RoleCreateInput, RoleSearchInput, RoleUpdateInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { rateLimit } from "../../middleware/rateLimit";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { FindByIdInput, Role, RoleCreateInput, RoleSearchInput, RoleSearchResult, RoleUpdateInput } from "@local/shared";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsRole = {
-    Query: {
-        role: GQLEndpoint<FindByIdInput, FindOneResult<Role>>;
-        roles: GQLEndpoint<RoleSearchInput, FindManyResult<Role>>;
-    },
-    Mutation: {
-        roleCreate: GQLEndpoint<RoleCreateInput, CreateOneResult<Role>>;
-        roleUpdate: GQLEndpoint<RoleUpdateInput, UpdateOneResult<Role>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, Role>;
+    findMany: ApiEndpoint<RoleSearchInput, RoleSearchResult>;
+    createOne: ApiEndpoint<RoleCreateInput, Role>;
+    updateOne: ApiEndpoint<RoleUpdateInput, Role>;
 }
 
 const objectType = "Role";
-export const RoleEndpoints: EndpointsRole = {
-    Query: {
-        role: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        roles: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const role: EndpointsRole = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        roleCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        roleUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
+    },
+    createOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 100, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 250, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

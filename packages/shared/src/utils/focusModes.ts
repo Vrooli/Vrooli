@@ -1,5 +1,6 @@
-import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/generated/graphqlTypes";
-import { calculateOccurrences } from "./schedules";
+import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/types.js";
+import { MINUTES_1_MS } from "../consts/numbers.js";
+import { calculateOccurrences } from "./schedules.js";
 
 /**
  * Finds which focus modes are active for a given time frame, based on the focus 
@@ -9,11 +10,11 @@ import { calculateOccurrences } from "./schedules";
  * @param endDate The end of the time frame.
  * @returns An array of focus modes that are active for the given time frame.
  */
-export const getFocusModesFromOccurrences = async (
+export async function getFocusModesFromOccurrences(
     focusModes: FocusMode[],
     startDate: Date,
     endDate: Date,
-): Promise<FocusMode[]> => {
+): Promise<FocusMode[]> {
     // Map each focus mode to a promise that resolves to its occurrences
     const occurrencesPromises = focusModes.map(async (focusMode) => {
         return focusMode.schedule ? await calculateOccurrences(focusMode.schedule as Schedule, startDate, endDate) : [];
@@ -28,7 +29,7 @@ export const getFocusModesFromOccurrences = async (
         return occurrence && occurrence.length > 0;
     });
     return activeFocusModes;
-};
+}
 
 /**
  * Finds the actual active focus mode
@@ -37,10 +38,10 @@ export const getFocusModesFromOccurrences = async (
  * @param focusModes The user's focus modes
  * @returns The focus mode that should be active
  */
-export const getActiveFocusMode = async (
+export async function getActiveFocusMode(
     currentlyActive: ActiveFocusMode | null | undefined,
     focusModes: FocusMode[],
-): Promise<ActiveFocusMode | null> => {
+): Promise<ActiveFocusMode | null> {
     // If there is an active focus mode
     if (currentlyActive) {
         // If the focus mode must be manually switched, then return it
@@ -55,7 +56,7 @@ export const getActiveFocusMode = async (
         }
     }
     // Get the focus modes that are active according to their schedules
-    const activeFocusModes = await getFocusModesFromOccurrences(focusModes, new Date(), new Date(new Date().getTime() + 1000 * 60)); // Add 1 minute buffer just in case
+    const activeFocusModes = await getFocusModesFromOccurrences(focusModes, new Date(), new Date(new Date().getTime() + MINUTES_1_MS)); // Add 1 minute buffer just in case
     // If there are no active focus modes and currently active is set to NextBegins, then return 
     // currently active
     if (activeFocusModes.length === 0 && currentlyActive && currentlyActive.stopCondition === FocusModeStopCondition.NextBegins) {
@@ -63,18 +64,26 @@ export const getActiveFocusMode = async (
     }
     // If there is at least one active focus mode, then return the first one. 
     // Otherwise, return null
-    if (activeFocusModes.length > 0) {
+    const firstActiveFocusMode = activeFocusModes[0];
+    if (firstActiveFocusMode) {
         return {
             __typename: "ActiveFocusMode",
-            mode: activeFocusModes[0]!,
+            focusMode: {
+                ...firstActiveFocusMode,
+                __typename: "ActiveFocusModeFocusMode",
+            },
             stopCondition: FocusModeStopCondition.Automatic,
         };
     }
     // If there is at least one focus mode in the list, then return the first one.
     // Otherwise, return null
-    return focusModes.length > 0 ? {
+    const firstFocusMode = focusModes[0];
+    return firstFocusMode ? {
         __typename: "ActiveFocusMode",
-        mode: focusModes[0]!,
+        focusMode: {
+            ...firstFocusMode,
+            __typename: "ActiveFocusModeFocusMode",
+        },
         stopCondition: FocusModeStopCondition.Automatic,
     } : null;
-};
+}

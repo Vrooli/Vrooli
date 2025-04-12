@@ -1,10 +1,10 @@
-import { AwardSortBy, MaxObjects, TranslationKeyAward, awardNames } from "@local/shared";
+import { AwardSortBy, DEFAULT_LANGUAGE, MaxObjects, TranslationKeyAward, awardNames } from "@local/shared";
 import i18next from "i18next";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { AwardFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { AwardModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { AwardFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { AwardModelLogic } from "./types.js";
 
 const __typename = "Award" as const;
 export const AwardModel: AwardModelLogic = ({
@@ -18,7 +18,7 @@ export const AwardModel: AwardModelLogic = ({
                 const { name, nameVariables } = awardNames[select.category](select.progress);
                 // If key is not found, return empty string
                 if (!name) return "";
-                return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
+                return i18next.t(`award:${name}`, { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, ...(nameVariables ?? {}) });
             },
         },
     }),
@@ -32,8 +32,8 @@ export const AwardModel: AwardModelLogic = ({
         searchStringQuery: () => ({}),
         supplemental: {
             dbFields: ["category", "progress"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, objects, userData }) => {
                 // Find name and description of highest tier achieved
                 const titles: (string | null)[] = [];
                 const descriptions: (string | null)[] = [];
@@ -78,8 +78,12 @@ export const AwardModel: AwardModelLogic = ({
             ownPrivate: function getOwnPrivate(data) {
                 return useVisibility("Award", "Own", data);
             },
-            ownPublic: null, // Search method disabled
-            public: null, // Search method disabled
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Award", "Own", data);
+            },
+            public: function getPublic(data) {
+                return useVisibility("Award", "Own", data);
+            },
         },
     }),
 });

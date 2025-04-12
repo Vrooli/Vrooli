@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE } from "@local/shared";
 import stopword from "stopword";
 
 /**
@@ -51,23 +52,23 @@ const processString = (str: string, language: string, minimalProcessing: boolean
  * @param minimalProcessing If set to true, only trim, lowercasing, and character limit are performed. 
  * Use https://github.com/Vrooli/text-embedder-tests to test which processing steps are necessary for your target situation.
  */
-export const getEmbeddableString = (
+export function getEmbeddableString(
     input: string | Record<string, any>,
-    language: string,
+    language: string | undefined,
     minimalProcessing = false,
-): string => {
+): string {
     let processedInput: Record<string, any> | string;
 
     if (typeof input === "string") {
-        processedInput = processString(input, language, minimalProcessing);
+        processedInput = processString(input, language || DEFAULT_LANGUAGE, minimalProcessing);
     } else if (typeof input === "object" && input !== null) {
         processedInput = {};
 
         for (const key in input) {
             if (typeof input[key] === "string") {
-                processedInput[key] = processString(input[key], language, minimalProcessing);
+                processedInput[key] = processString(input[key], language || DEFAULT_LANGUAGE, minimalProcessing);
             } else if (Array.isArray(input[key])) {
-                processedInput[key] = input[key].map(el => typeof el === "string" ? processString(el, language, minimalProcessing) : el);
+                processedInput[key] = input[key].map(el => typeof el === "string" ? processString(el, language || DEFAULT_LANGUAGE, minimalProcessing) : el);
             }
         }
     } else {

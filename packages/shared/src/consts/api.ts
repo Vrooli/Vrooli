@@ -1,5 +1,6 @@
 /* eslint-disable no-magic-numbers */
-import { ValueOf } from ".";
+import { TranslationKeyError } from "../types.js";
+import { ValueOf } from "./commonTypes.js";
 
 export const COOKIE = {
     Jwt: "XNVj2", // Random string
@@ -53,6 +54,41 @@ export enum HttpStatus {
     NetworkAuthenticationRequired = 511
 }
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+
+type ServerErrorBase = {
+    /**
+     * A unique code for the error for identifying it in the codebase.
+     * Typically a 4-digit string.
+     */
+    trace: string;
+}
+export type ServerErrorTranslated = ServerErrorBase & {
+    /**
+     * The translation key for the error message.
+     */
+    code: TranslationKeyError;
+}
+export type ServerErrorUntranslated = ServerErrorBase & {
+    /**
+     * The error message. Use sparingly, since translation is preferred.
+     */
+    message: string;
+}
+export type ServerError = ServerErrorTranslated | ServerErrorUntranslated;
+
+export type ServerResponse<Output = any> = {
+    errors?: ServerError[];
+    data?: Output;
+    version?: string;
+};
+
+/**
+ * The version of the API that the server is running, 
+ * or that UI expects the server to be running.
+ */
+export const SERVER_VERSION = "v2";
+
 /**
  * The multiplier to convert USD cents to API credits. 
  * Allows us to track fractional cents without using floats.
@@ -79,6 +115,7 @@ export const API_CREDITS_PREMIUM = BigInt(1_500) * API_CREDITS_MULTIPLIER;
 export const JOIN_CHAT_ROOM_ERRORS = {
     ChatNotFoundOrUnauthorized: "ChatNotFoundOrUnauthorized",
     ErrorUnknown: "ErrorUnknown",
+    SessionExpired: "SessionExpired",
 } as const;
 
 export const LEAVE_CHAT_ROOM_ERRORS = {
@@ -88,6 +125,7 @@ export const LEAVE_CHAT_ROOM_ERRORS = {
 export const JOIN_RUN_ROOM_ERRORS = {
     RunNotFoundOrUnauthorized: "RunNotFoundOrUnauthorized",
     ErrorUnknown: "ErrorUnknown",
+    SessionExpired: "SessionExpired",
 } as const;
 
 export const LEAVE_RUN_ROOM_ERRORS = {
@@ -97,8 +135,39 @@ export const LEAVE_RUN_ROOM_ERRORS = {
 export const JOIN_USER_ROOM_ERRORS = {
     UserNotFoundOrUnauthorized: "UserNotFoundOrUnauthorized",
     ErrorUnknown: "ErrorUnknown",
+    SessionExpired: "SessionExpired",
 } as const;
 
 export const LEAVE_USER_ROOM_ERRORS = {
     ErrorUnknown: "ErrorUnknown",
 } as const;
+
+export const AUTH_ROUTE_PREFIX = "/auth";
+export const OAUTH_ROUTE_CALLBACK = "/callback";
+
+export function getOAuthInitRoute(provider: string) {
+    return `${AUTH_ROUTE_PREFIX}/${provider}`;
+}
+export function getOAuthCallbackRoute(provider: string) {
+    return `${AUTH_ROUTE_PREFIX}/${provider}${OAUTH_ROUTE_CALLBACK}`;
+}
+
+export const OAUTH_PROVIDERS = {
+    Apple: "apple",
+    Facebook: "facebook",
+    GitHub: "github",
+    Google: "google",
+    X: "x",
+} as const;
+export const AUTH_PROVIDERS = {
+    ...OAUTH_PROVIDERS,
+    Password: "password",
+} as const;
+
+export enum ApiKeyPermission {
+    ReadPublic = "ReadPublic",
+    ReadPrivate = "ReadPrivate",
+    WritePrivate = "WritePrivate",
+    ReadAuth = "ReadAuth",
+    WriteAuth = "WriteAuth",
+}

@@ -1,5 +1,8 @@
-import { id, req, YupModel, yupObj } from "../utils";
-import { reminderValidation } from "./reminder";
+import { req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { reminderValidation } from "./reminder.js";
 
 export const reminderListValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

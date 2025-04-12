@@ -1,26 +1,25 @@
-import { Count, MaxObjects, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
+import { MaxObjects, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
 import { RunStatus, RunStepStatus } from "@prisma/client";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { Trigger } from "../../events/trigger";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { RunRoutineFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { Trigger } from "../../events/trigger.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { RunRoutineFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types.js";
 
 const __typename = "RunRoutine" as const;
 export const RunRoutineModel: RunRoutineModelLogic = ({
     __typename,
     danger: {
-        /**
-         * Anonymizes all public runs associated with a user or team
-         */
-        async anonymize(owner: { __typename: "Team" | "User", id: string }): Promise<void> {
-            await prismaInstance.run_routine.updateMany({
+        async anonymize(owner) {
+            await DbProvider.get().run_routine.updateMany({
                 where: {
                     teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
@@ -32,16 +31,14 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 },
             });
         },
-        /**
-         * Deletes all runs associated with a user or team
-         */
-        async deleteAll(owner: { __typename: "Team" | "User", id: string }): Promise<Count> {
-            return prismaInstance.run_routine.deleteMany({
+        async deleteAll(owner) {
+            const result = await DbProvider.get().run_routine.deleteMany({
                 where: {
                     teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
                 },
-            }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
+            });
+            return result.count;
         },
     },
     dbTable: "run_routine",
@@ -53,7 +50,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
             get: ({ name }, languages) => {
-                return getEmbeddableString({ name }, languages[0]);
+                return getEmbeddableString({ name }, languages?.[0]);
             },
         },
     }),
@@ -69,21 +66,20 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     id: data.id,
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
+                    data: noNull(data.data),
                     embeddingNeedsUpdate: true,
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
                     timeElapsed,
-                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    startedAt: data.startedAt,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
                     user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
                     routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
-                    runProject: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest }),
                     steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
                     team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runRoutines", data, ...rest }),
-                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest }),
-                    outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineOutput", parentRelationshipName: "runRoutine", data, ...rest }),
+                    io: await shapeHelper({ relation: "io", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineIO", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -94,16 +90,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 return {
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
+                    data: noNull(data.data),
                     isPrivate: noNull(data.isPrivate),
                     status: noNull(data.status),
                     timeElapsed,
                     // TODO should have way of checking old status, so we don't reset startedAt/completedAt
-                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    startedAt: data.startedAt,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
-                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
                     steps: await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
-                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest }),
-                    outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineOutput", parentRelationshipName: "runRoutine", data, ...rest }),
+                    io: await shapeHelper({ relation: "io", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineIO", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
         },
@@ -162,10 +158,10 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ["name"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 // Find the step with the highest "completedAt" Date for each run
-                const recentSteps = await prismaInstance.$queryRaw`
+                const recentSteps = await DbProvider.get().$queryRaw`
                     SELECT DISTINCT ON ("runRoutineId")
                     "runRoutineId",
                     step
@@ -180,7 +176,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<RunRoutineModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunRoutineModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -206,7 +202,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             data.isPrivate === false &&
             (
                 (data.user === null && data.team === null) ||
-                oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
+                oneIsPublic<RunRoutineModelInfo["DbSelect"]>([
                     ["team", "Team"],
                     ["user", "User"],
                 ], data, ...rest)
@@ -218,16 +214,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
                         { team: useVisibility("Team", "OwnOrPublic", data) },
                         { user: useVisibility("User", "OwnOrPublic", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
@@ -235,7 +231,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             ownPublic: function getOwnPublic(data) {
@@ -244,7 +240,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             public: function getPublic() {

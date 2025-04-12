@@ -1,16 +1,16 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
-import { GraphQLResolveInfo } from "graphql";
 import path from "path";
 import { fileURLToPath } from "url";
 import { readManyWithEmbeddingsHelper } from "../../actions/reads";
+import { PartialApiInfo } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events";
 import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
 import { ModelMap } from "../../models/base";
 import { processRunProject, processRunRoutine } from "../../tasks/run";
-import { CreateOneResult, FindOneResult, SessionUserToken, UpdateOneResult } from "../../types";
+import { RecursivePartial } from "../../types";
 
 type LlmTaskDataValue = string | number | boolean | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
@@ -118,8 +118,8 @@ type LlmTaskResult = {
 type LlmTaskExec = (data: LlmTaskData) => (LlmTaskResult | Promise<LlmTaskResult>);
 
 type ValidateFieldsFunc = (...validators: [string, ((data: LlmTaskData) => boolean)][]) => (data: LlmTaskData) => void;
-type GetObjectLabelFunc<T extends { __typename: string }> = (object: CreateOneResult<T> | UpdateOneResult<T> | FindOneResult<T>) => string | null;
-type GetObjectLinkFunc<T extends object> = (object: CreateOneResult<T> | UpdateOneResult<T> | FindOneResult<T>) => string | null;
+type GetObjectLabelFunc<T extends { __typename: string }> = (object: RecursivePartial<T>) => string | null;
+type GetObjectLinkFunc<T extends object> = (object: RecursivePartial<T>) => string | null;
 type TaskHandlerHelperFuncs<Task extends Exclude<LlmTask, "Start">> = {
     context: Context,
     converter: LlmTaskConverters,
@@ -127,7 +127,7 @@ type TaskHandlerHelperFuncs<Task extends Exclude<LlmTask, "Start">> = {
     getObjectLabel: GetObjectLabelFunc<{ __typename: string }>,
     getObjectLink: GetObjectLinkFunc<object>,
     task: Task,
-    userData: SessionUserToken,
+    userData: SessionUser,
     validateFields: ValidateFieldsFunc,
 };
 
@@ -148,50 +148,32 @@ export async function importConverter(language: string): Promise<LlmTaskConverte
     }
 }
 
-/**
- * Dynamically imports a "select" shape from a module based on the module name.
- * @param moduleName The name of the module to import
- * @returns The exported shape from the module
- */
-async function loadInfo(moduleName: string): Promise<GraphQLResolveInfo> {
-    // Construct the path to the module based on the provided module name
-    const path = `../../endpoints/generated/${moduleName}`;
-
-    // Dynamically import the module
-    const module = await import(path);
-
-    // Access the export using the same name as the module name
-    const exportedValue = module[moduleName] as unknown as GraphQLResolveInfo;
-
-    return exportedValue;
-}
-
-const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
-const CountInfo = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
+const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as PartialApiInfo;
+const CountInfo = { __typename: "Count" as const, count: true } as unknown as PartialApiInfo;
 
 const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskHandlerHelperFuncs<Task>) => Promise<LlmTaskExec> } = {
     "ApiAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { ApiEndpoints } = await import("../../endpoints/logic/api");
-        const info = await loadInfo("api_findOne");
+        const Endpoints = await import("../../endpoints/logic/api");
+        const info = await import("../../endpoints/generated/api_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await ApiEndpoints.Mutation.apiCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.api.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "ApiDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "ApiFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("api_findMany");
+        const info = await import("../../endpoints/generated/api_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "ApiVersion", req: context.req });
@@ -202,39 +184,39 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more. This means we should probably be running a routine instead
     },
     "ApiUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { ApiEndpoints } = await import("../../endpoints/logic/api");
-        const info = await loadInfo("api_findOne");
+        const Endpoints = await import("../../endpoints/logic/api");
+        const info = await import("../../endpoints/generated/api_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await ApiEndpoints.Mutation.apiUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.api.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "BotAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { UserEndpoints } = await import("../../endpoints/logic/user");
-        const info = await loadInfo("user_findOne");
+        const Endpoints = await import("../../endpoints/logic/user");
+        const info = await import("../../endpoints/generated/user_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await UserEndpoints.Mutation.botCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.user.botCreateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "BotDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "BotFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("user_findMany");
+        const info = await import("../../endpoints/generated/user_findMany");
         return async (data) => {
             const input = { ...converter[task](data, language), isBot: true };
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "User", req: context.req });
@@ -243,9 +225,9 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
             return { label, link, payload };
         };
     },
-    "BotUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, userData, validateFields }) => {
-        const { UserEndpoints } = await import("../../endpoints/logic/user");
-        const info = await loadInfo("user_findOne");
+    "BotUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
+        const Endpoints = await import("../../endpoints/logic/user");
+        const info = await import("../../endpoints/generated/user_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const existingUser = await prismaInstance.user.findUnique({
@@ -257,37 +239,37 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
                 },
             });
             if (!existingUser) {
-                throw new CustomError("0276", "NotFound", userData.languages, { id: data.id, task });
+                throw new CustomError("0276", "NotFound", { id: data.id, task });
             }
             const input = converter[task](data, language, existingUser);
-            const payload = await UserEndpoints.Mutation.botUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.user.botUpdateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "DataConverterAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { CodeEndpoints } = await import("../../endpoints/logic/code");
-        const info = await loadInfo("code_findOne");
+        const Endpoints = await import("../../endpoints/logic/code");
+        const info = await import("../../endpoints/generated/code_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await CodeEndpoints.Mutation.codeCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.code.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "DataConverterDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "DataConverterFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("code_findMany");
+        const info = await import("../../endpoints/generated/code_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "CodeVersion", req: context.req });
@@ -297,79 +279,81 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "DataConverterUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { CodeEndpoints } = await import("../../endpoints/logic/code");
-        const info = await loadInfo("code_findOne");
+        const Endpoints = await import("../../endpoints/logic/code");
+        const info = await import("../../endpoints/generated/code_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await CodeEndpoints.Mutation.codeUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.code.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "MembersAdd": async () => {
-        // const { MemberEndpoints } = await import("../../endpoints/logic/member");
-        // const info = await loadInfo("member_findOne");
+        // const Endpoints = await import("../../endpoints/logic/member");
+        // const info = await import("../../endpoints/generated/member_findOne");
         return async (data) => {
             //TODO
             return { label: null, link: null, payload: null };
         };
     },
     "MembersDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = CountInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteMany(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteMany({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "MembersFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { MemberEndpoints } = await import("../../endpoints/logic/member");
-        const info = await loadInfo("member_findMany");
+        const Endpoints = await import("../../endpoints/logic/member");
+        const info = await import("../../endpoints/generated/member_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await MemberEndpoints.Query.members(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.member.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
     "MembersUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { MemberEndpoints } = await import("../../endpoints/logic/member");
-        const info = await loadInfo("member_findOne");
+        const Endpoints = await import("../../endpoints/logic/member");
+        const info = await import("../../endpoints/generated/member_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await MemberEndpoints.Mutation.memberUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.member.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "NoteAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { NoteEndpoints } = await import("../../endpoints/logic/note");
-        const info = await loadInfo("note_findOne");
+        const Endpoints = await import("../../endpoints/logic/note");
+        const info = await import("../../endpoints/generated/note_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await NoteEndpoints.Mutation.noteCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.note.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "NoteDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "NoteFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("note_findMany");
+        const info = await import("../../endpoints/generated/note_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "NoteVersion", req: context.req });
@@ -379,39 +363,39 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "NoteUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { NoteEndpoints } = await import("../../endpoints/logic/note");
-        const info = await loadInfo("note_findOne");
+        const Endpoints = await import("../../endpoints/logic/note");
+        const info = await import("../../endpoints/generated/note_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await NoteEndpoints.Mutation.noteUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.note.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "ProjectAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { ProjectEndpoints } = await import("../../endpoints/logic/project");
-        const info = await loadInfo("project_findOne");
+        const Endpoints = await import("../../endpoints/logic/project");
+        const info = await import("../../endpoints/generated/project_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await ProjectEndpoints.Mutation.projectCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.project.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "ProjectDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "ProjectFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("project_findMany");
+        const info = await import("../../endpoints/generated/project_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "ProjectVersion", req: context.req });
@@ -421,39 +405,39 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "ProjectUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { ProjectEndpoints } = await import("../../endpoints/logic/project");
-        const info = await loadInfo("project_findOne");
+        const Endpoints = await import("../../endpoints/logic/project");
+        const info = await import("../../endpoints/generated/project_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await ProjectEndpoints.Mutation.projectUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.project.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "QuestionAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { QuestionEndpoints } = await import("../../endpoints/logic/question");
-        const info = await loadInfo("question_findOne");
+        const Endpoints = await import("../../endpoints/logic/question");
+        const info = await import("../../endpoints/generated/question_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await QuestionEndpoints.Mutation.questionCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.question.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "QuestionDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "QuestionFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("question_findMany");
+        const info = await import("../../endpoints/generated/question_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Question", req: context.req });
@@ -463,133 +447,137 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "QuestionUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { QuestionEndpoints } = await import("../../endpoints/logic/question");
-        const info = await loadInfo("question_findOne");
+        const Endpoints = await import("../../endpoints/logic/question");
+        const info = await import("../../endpoints/generated/question_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await QuestionEndpoints.Mutation.questionUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.question.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "ReminderAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task, userData }) => {
-        const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
-        const info = await loadInfo("reminder_findOne");
+        const Endpoints = await import("../../endpoints/logic/reminder");
+        const info = await import("../../endpoints/generated/reminder_findOne");
         return async (data) => {
             const input = converter[task](data, language);
             if (!input.reminderListConnect && !input.reminderListCreate) {
-                const activeReminderList = userData?.activeFocusMode?.mode?.reminderList?.id;
+                const activeReminderList = userData?.activeFocusMode?.focusMode?.reminderListId;
                 if (activeReminderList) {
                     input.reminderListConnect = activeReminderList;
                 } else {
-                    throw new CustomError("0555", "InternalError", userData.languages, { task, data, language });
+                    throw new CustomError("0555", "InternalError", { task, data, language });
                 }
             }
-            const payload = await ReminderEndpoints.Mutation.reminderCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.reminder.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "ReminderDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "ReminderFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
-        const info = await loadInfo("reminder_findMany");
+        const Endpoints = await import("../../endpoints/logic/reminder");
+        const info = await import("../../endpoints/generated/reminder_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await ReminderEndpoints.Query.reminders(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.reminder.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
     "ReminderUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
-        const info = await loadInfo("reminder_findOne");
+        const Endpoints = await import("../../endpoints/logic/reminder");
+        const info = await import("../../endpoints/generated/reminder_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await ReminderEndpoints.Mutation.reminderUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.reminder.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "RoleAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { RoleEndpoints } = await import("../../endpoints/logic/role");
-        const info = await loadInfo("role_findOne");
+        const Endpoints = await import("../../endpoints/logic/role");
+        const info = await import("../../endpoints/generated/role_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await RoleEndpoints.Mutation.roleCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.role.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "RoleDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "RoleFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { RoleEndpoints } = await import("../../endpoints/logic/role");
-        const info = await loadInfo("role_findMany");
+        const Endpoints = await import("../../endpoints/logic/role");
+        const info = await import("../../endpoints/generated/role_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await RoleEndpoints.Query.roles(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.role.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
     "RoleUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { RoleEndpoints } = await import("../../endpoints/logic/role");
-        const info = await loadInfo("role_findOne");
+        const Endpoints = await import("../../endpoints/logic/role");
+        const info = await import("../../endpoints/generated/role_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await RoleEndpoints.Mutation.roleUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.role.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "RoutineAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
-        const info = await loadInfo("routine_findOne");
+        const Endpoints = await import("../../endpoints/logic/routine");
+        const info = await import("../../endpoints/generated/routine_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await RoutineEndpoints.Mutation.routineCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.routine.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "RoutineDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "RoutineFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("routine_findMany");
+        const info = await import("../../endpoints/generated/routine_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "RoutineVersion", req: context.req });
@@ -599,24 +587,24 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "RoutineUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
-        const info = await loadInfo("routine_findOne");
+        const Endpoints = await import("../../endpoints/logic/routine");
+        const info = await import("../../endpoints/generated/routine_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await RoutineEndpoints.Mutation.routineUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.routine.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "RunProjectStart": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { RunProjectEndpoints } = await import("../../endpoints/logic/runProject");
-        const info = await loadInfo("runProject_findOne");
+        const Endpoints = await import("../../endpoints/logic/runProject");
+        const info = await import("../../endpoints/generated/runProject_findOne");
         return async (data) => {
             const input = converter[task](data, language);
             // Create the run
-            const payload = await RunProjectEndpoints.Mutation.runProjectCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.runProject.createOne({ input }, context, info);
             // Start the run
             await processRunProject({} as any);//TODO
             // Return the run
@@ -626,12 +614,12 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "RunRoutineStart": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { RunRoutineEndpoints } = await import("../../endpoints/logic/runRoutine");
-        const info = await loadInfo("runRoutine_findOne");
+        const Endpoints = await import("../../endpoints/logic/runRoutine");
+        const info = await import("../../endpoints/generated/runRoutine_findOne");
         return async (data) => {
             const input = converter[task](data, language);
             // Create the run
-            const payload = await RunRoutineEndpoints.Mutation.runRoutineCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.runRoutine.createOne({ input }, context, info);
             // Start the run
             await processRunRoutine({} as any);//TODO
             // Return the run
@@ -641,70 +629,72 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "ScheduleAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
-        const info = await loadInfo("schedule_findOne");
+        const Endpoints = await import("../../endpoints/logic/schedule");
+        const info = await import("../../endpoints/generated/schedule_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await ScheduleEndpoints.Mutation.scheduleCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.schedule.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "ScheduleDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "ScheduleFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
-        const info = await loadInfo("schedule_findMany");
+        const Endpoints = await import("../../endpoints/logic/schedule");
+        const info = await import("../../endpoints/generated/schedule_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await ScheduleEndpoints.Query.schedules(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.schedule.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
     "ScheduleUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
-        const info = await loadInfo("schedule_findOne");
+        const Endpoints = await import("../../endpoints/logic/schedule");
+        const info = await import("../../endpoints/generated/schedule_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await ScheduleEndpoints.Mutation.scheduleUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.schedule.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "SmartContractAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { CodeEndpoints } = await import("../../endpoints/logic/code");
-        const info = await loadInfo("code_findOne");
+        const Endpoints = await import("../../endpoints/logic/code");
+        const info = await import("../../endpoints/generated/code_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await CodeEndpoints.Mutation.codeCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.code.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "SmartContractDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "SmartContractFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("code_findMany");
+        const info = await import("../../endpoints/generated/code_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "CodeVersion", req: context.req });
@@ -714,39 +704,39 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "SmartContractUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { CodeEndpoints } = await import("../../endpoints/logic/code");
-        const info = await loadInfo("code_findOne");
+        const Endpoints = await import("../../endpoints/logic/code");
+        const info = await import("../../endpoints/generated/code_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await CodeEndpoints.Mutation.codeUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.code.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "StandardAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { StandardEndpoints } = await import("../../endpoints/logic/standard");
-        const info = await loadInfo("standard_findOne");
+        const Endpoints = await import("../../endpoints/logic/standard");
+        const info = await import("../../endpoints/generated/standard_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await StandardEndpoints.Mutation.standardCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.standard.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "StandardDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "StandardFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("standard_findMany");
+        const info = await import("../../endpoints/generated/standard_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "StandardVersion", req: context.req });
@@ -756,39 +746,39 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "StandardUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { StandardEndpoints } = await import("../../endpoints/logic/standard");
-        const info = await loadInfo("standard_findOne");
+        const Endpoints = await import("../../endpoints/logic/standard");
+        const info = await import("../../endpoints/generated/standard_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await StandardEndpoints.Mutation.standardUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.standard.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "TeamAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const { TeamEndpoints } = await import("../../endpoints/logic/team");
-        const info = await loadInfo("team_findOne");
+        const Endpoints = await import("../../endpoints/logic/team");
+        const info = await import("../../endpoints/generated/team_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await TeamEndpoints.Mutation.teamCreate(undefined, { input }, context, info);
+            const payload = await Endpoints.team.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
         };
     },
     "TeamDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const Endpoints = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
     "TeamFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await loadInfo("team_findMany");
+        const info = await import("../../endpoints/generated/team_findMany");
         return async (data) => {
             const input = converter[task](data, language);
             const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Team", req: context.req });
@@ -798,12 +788,12 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "TeamUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const { TeamEndpoints } = await import("../../endpoints/logic/team");
-        const info = await loadInfo("team_findOne");
+        const Endpoints = await import("../../endpoints/logic/team");
+        const info = await import("../../endpoints/generated/team_findOne");
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await TeamEndpoints.Mutation.teamUpdate(undefined, { input }, context, info);
+            const payload = await Endpoints.team.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -817,7 +807,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
 export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
     task: Task,
     language: string,
-    userData: SessionUserToken,
+    userData: SessionUser,
 ): Promise<LlmTaskExec> {
     // Import converter, which shapes data for the task
     const converter = await importConverter(language);
@@ -843,7 +833,7 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
         return (data: LlmTaskData) => {
             for (const [field, validator] of validators) {
                 if (!validator(data)) {
-                    throw new CustomError("0047", "InvalidArgs", userData.languages, { field, task });
+                    throw new CustomError("0047", "InvalidArgs", { field, task });
                 }
             }
         };
@@ -854,7 +844,7 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
         if (object === null || object === undefined) {
             return null;
         }
-        const { display } = ModelMap.getLogic(["display"], object.__typename as GqlModelType, true);
+        const { display } = ModelMap.getLogic(["display"], object.__typename as ModelType, true);
         return display().label.get(object, languages);
     }
 
@@ -880,6 +870,6 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
     if (taskHandlerMap[task]) {
         return taskHandlerMap[task](helperFuncs as TaskHandlerHelperFuncs<Task>);
     } else {
-        throw new CustomError("0043", "TaskNotSupported", userData.languages, { task });
+        throw new CustomError("0043", "TaskNotSupported", { task });
     }
 }

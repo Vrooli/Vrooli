@@ -1,10 +1,10 @@
 import { Box, Checkbox, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { SxType } from "types";
-import { getCookie } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
+import { noSelect } from "../../../styles.js";
+import { SxType } from "../../../types.js";
+import { getCookie } from "../../../utils/localStorage.js";
+import { PubSub } from "../../../utils/pubsub.js";
 
 type LeftHandedCheckboxProps = {
     sx?: SxType;

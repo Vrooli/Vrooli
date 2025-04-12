@@ -1,4 +1,4 @@
-export * from "./base";
-export * from "./formats";
-export * from "./suppFields";
+export * from "./base/index.js";
+export * from "./formats.js";
+export * from "./suppFields.js";
 

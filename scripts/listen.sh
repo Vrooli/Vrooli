@@ -4,7 +4,8 @@
 # for catching errors in production
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/utils.sh"
-. "${HERE}/keylessSsh.sh"
+
+"${HERE}/keylessSsh.sh"
 
 # The error codes you want to track
 error_codes='(9999|0192|4200)'

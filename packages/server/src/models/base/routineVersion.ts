@@ -1,14 +1,21 @@
 import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, getTranslation, routineVersionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { SubroutineWeightData, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { RoutineVersionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { calculateWeightData, type SubroutineWeightData } from "../../utils/routineComplexity.js";
+import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
+import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { versionsCheck } from "../../validators/versionsCheck.js";
+import { RoutineVersionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types.js";
 
 type RoutineVersionPre = PreShapeVersionResult & {
     /** Map of routine version ID to graph complexity metrics */
@@ -20,7 +27,6 @@ type RoutineVersionPre = PreShapeVersionResult & {
  */
 async function validateNodePositions(
     input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
-    languages: string[],
 ): Promise<void> {
     // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
     // let combinedNodes = [];
@@ -56,7 +62,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -73,14 +79,13 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     userData,
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
-                combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(input, userData.languages); }));
+                combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
+                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(input); }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once. 
                 // We exclude deleting versions to ensure that they don't affect the calculations. 
                 // If a deleting version appears in the calculations, an error will be thrown.
                 const { dataWeights } = await calculateWeightData(
-                    userData.languages,
                     combinedInputs,
                     Delete.map(d => d.input),
                 );
@@ -98,9 +103,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     id: data.id,
                     simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
                     complexity: preData.weightMap[data.id]?.complexity ?? 0,
-                    configCallData: noNull(data.configCallData),
-                    configFormInput: noNull(data.configFormInput),
-                    configFormOutput: noNull(data.configFormOutput),
+                    config: noNull(data.config),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
@@ -111,11 +114,25 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     codeVersion: await shapeHelper({ relation: "codeVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "CodeVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
                     directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childRoutineVersions", data, ...rest }),
                     inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersionInput", parentRelationshipName: "routineVersion", data, ...rest }),
-                    nodes: await shapeHelper({ relation: "nodes", relTypes: ["Create"], isOneToOne: false, objectType: "Node", parentRelationshipName: "routineVersion", data, ...rest }),
-                    nodeLinks: await shapeHelper({ relation: "nodeLinks", relTypes: ["Create"], isOneToOne: false, objectType: "NodeLink", parentRelationshipName: "routineVersion", data, ...rest }),
                     outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersionOutput", parentRelationshipName: "routineVersion", data, ...rest }),
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "routineVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
+                    subroutineLinks: await shapeHelper({
+                        relation: "subroutineLinks",
+                        relTypes: ["Connect"],
+                        isOneToOne: false,
+                        objectType: "RoutineVersion",
+                        parentRelationshipName: "",
+                        data,
+                        joinData: {
+                            fieldName: "id",
+                            uniqueFieldName: "routine_version_subroutine_parentRoutineId_subroutineId_unique",
+                            childIdFieldName: "subroutineId",
+                            parentIdFieldName: "parentRoutineId",
+                            parentId: data.id ?? null,
+                        },
+                        ...rest,
+                    }),
                     // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), TODO needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
@@ -125,9 +142,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                 return {
                     simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
                     complexity: preData.weightMap[data.id]?.complexity ?? 0,
-                    configCallData: noNull(data.configCallData),
-                    configFormInput: noNull(data.configFormInput),
-                    configFormOutput: noNull(data.configFormOutput),
+                    config: noNull(data.config),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
@@ -137,11 +152,25 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     codeVersion: await shapeHelper({ relation: "codeVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "CodeVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
                     directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childRoutineVersions", data, ...rest }),
                     inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionInput", parentRelationshipName: "routineVersion", data, ...rest }),
-                    nodes: await shapeHelper({ relation: "nodes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Node", parentRelationshipName: "routineVersion", data, ...rest }),
-                    nodeLinks: await shapeHelper({ relation: "nodeLinks", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeLink", parentRelationshipName: "routineVersion", data, ...rest }),
                     outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionOutput", parentRelationshipName: "routineVersion", data, ...rest }),
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "routineVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
+                    subroutineLinks: await shapeHelper({
+                        relation: "subroutineLinks",
+                        relTypes: ["Connect", "Disconnect"],
+                        isOneToOne: false,
+                        objectType: "RoutineVersion",
+                        parentRelationshipName: "",
+                        data,
+                        joinData: {
+                            fieldName: "id",
+                            uniqueFieldName: "routine_version_subroutine_parentRoutineId_subroutineId_unique",
+                            childIdFieldName: "subroutineId",
+                            parentIdFieldName: "parentRoutineId",
+                            parentId: data.id ?? null,
+                        },
+                        ...rest,
+                    }),
                     // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
@@ -189,6 +218,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             reportId: true,
             rootId: true,
             routineType: true,
+            routineTypes: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -202,11 +232,11 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<RoutineVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RoutineVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -216,10 +246,10 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<RoutineVersionModelInfo["PrismaSelect"]>([["root", "Routine"]], data, ...rest),
+            oneIsPublic<RoutineVersionModelInfo["DbSelect"]>([["root", "Routine"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.root as RoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.root as RoutineModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

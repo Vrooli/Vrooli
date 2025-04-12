@@ -1,15 +1,19 @@
-import { endpointGetLabel, endpointGetLabels, FormSchema, LabelSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { languagesContainer, languagesFields, searchFormLayout } from "./common";
+import { endpointsLabel, FormSchema, LabelSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { languagesContainer, languagesFields, searchFormLayout } from "./common.js";
 
-export const labelSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchLabel"),
-    containers: [
-        languagesContainer(),
-    ],
-    elements: [
-        ...languagesFields(),
-    ],
-});
+export function labelSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchLabel"),
+        containers: [
+            languagesContainer(),
+        ],
+        elements: [
+            ...languagesFields(),
+        ],
+    };
+}
 
-export const labelSearchParams = () => toParams(labelSearchSchema(), endpointGetLabels, endpointGetLabel, LabelSortBy, LabelSortBy.DateCreatedDesc);
+export function labelSearchParams() {
+    return toParams(labelSearchSchema(), endpointsLabel, LabelSortBy, LabelSortBy.DateCreatedDesc);
+}

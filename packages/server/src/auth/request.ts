@@ -1,505 +1,617 @@
-import { COOKIE, DAYS_30_MS, mergeDeep, uuidValidate } from "@local/shared";
-import cookie from "cookie";
-import { CookieOptions, NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
+import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
+import { type Request } from "express";
+import fs from "fs";
+import pkg from "lodash";
+import { RedisClientType } from "redis";
 import { Socket } from "socket.io";
-import { ExtendedError } from "socket.io/dist/namespace";
-import { DefaultEventsMap } from "socket.io/dist/typed-events";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { UI_URL_REMOTE } from "../server";
-import { ApiToken, BasicToken, RecursivePartial, RecursivePartialNullable, SessionData, SessionToken, SessionUserToken } from "../types";
-import { isSafeOrigin } from "../utils/origin";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { initializeRedis } from "../redisConn.js";
+import { SessionData } from "../types.js";
+import { SessionService } from "./session.js";
 
-const SESSION_MILLI = DAYS_30_MS;
+const { escapeRegExp } = pkg;
 
-interface JwtKeys {
-    privateKey: string;
-    publicKey: string;
-}
-let jwtKeys: JwtKeys | null = null;
-function getJwtKeys(): JwtKeys {
-    // If jwtKeys is already defined, return it immediately
-    if (jwtKeys) {
-        return jwtKeys;
-    }
+const DEFAULT_RATE_LIMIT = 250;
+const DEFAULT_RATE_LIMIT_WINDOW_S = DAYS_1_S;
+const MAX_DOMAIN_LENGTH = 253;
 
-    // Load the keys from process.env. They may be in a single line, so replace \n with actual newlines
-    const privateKey = process.env.JWT_PRIV ?? "";
-    const publicKey = process.env.JWT_PUB ?? "";
-
-    // Check if the keys are available and log an error if not
-    if (privateKey.length <= 0) {
-        logger.error("JWT private key not found");
-    }
-    if (publicKey.length <= 0) {
-        logger.error("JWT public key not found");
-    }
-
-    // Store the keys in jwtKeys for future use
-    jwtKeys = { privateKey, publicKey };
-
-    return jwtKeys;
-}
-
-/**
- * Parses a request's accept-language header
- * @param req The request
- * @returns A list of languages without any subtags
- */
-function parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
-    const acceptString = req.headers["accept-language"];
-    // Default to english if not found or a wildcard
-    if (!acceptString || acceptString === "*") return ["en"];
-    // Strip q values
-    let acceptValues = acceptString.split(",").map((lang: string) => lang.split(";")[0]);
-    // Remove subtags
-    acceptValues = acceptValues.map((lang: string) => lang.split("-")[0]);
-    return acceptValues;
-}
-
-function verifyJwt(token: string, publicKey: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (error: any, payload: any) => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(payload);
-            }
-        });
-    });
-}
-
-/**
- * Verifies if a user is authenticated, using an http cookie. 
- * Also populates helpful request properties, which can be used by endpoints
- * @param req The request object
- * @param res The response object. Has to be passed in, but it's not used.
- * @param next The next function to call.
- */
-export async function authenticate(req: Request, res: Response, next: NextFunction) {
-    function handleUnauthenticatedRequest(req: Request, next: NextFunction) {
-        let error: CustomError | undefined;
-        // If from unsafe origin, deny access.
-        if (!req.session.fromSafeOrigin) error = new CustomError("0247", "UnsafeOriginNoApiToken", req.session.languages);
-        next(error);
-    }
-    try {
-        const { cookies } = req;
-        // Initialize session
-        req.session = {
-            fromSafeOrigin: isSafeOrigin(req),  // Useful for handling public API requests.
-            languages: parseAcceptLanguage(req), // Language fallback for error messages
-        };
-        req.session.languages = parseAcceptLanguage(req); // Useful for error messages
-        // Check if a valid session cookie was supplied
-        const token = cookies[COOKIE.Jwt];
-        if (token === null || token === undefined) {
-            handleUnauthenticatedRequest(req, next);
-            return;
-        }
-        // Verify that the session token is valid and not expired
-        const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            handleUnauthenticatedRequest(req, next);
-            return;
-        }
-        // Set token and role variables for other middleware to use
-        req.session.apiToken = payload.apiToken ?? false;
-        req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-        req.session.timeZone = payload.timeZone ?? "UTC";
-        // Keep session token users, but make sure they all have unique ids
-        req.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
-        // Find preferred languages for first user. Combine with languages in request header
-        const firstUser = req.session.users[0];
-        const firstUserLanguages = firstUser?.languages ?? [];
-        if (firstUser && firstUserLanguages.length) {
-            const languages = [...firstUserLanguages, ...(req.session.languages ?? [])];
-            req.session.languages = [...new Set(languages)];
-        }
-        req.session.validToken = true;
-        next();
-
-    } catch (error) {
-        if (error instanceof jwt.JsonWebTokenError) {
-            handleUnauthenticatedRequest(req, next);
-            return;
-        }
-        logger.error("Error authenticating request", { trace: "0451", error });
-        res.clearCookie(COOKIE.Jwt);
-        next(error);
-    }
-}
-
-/**
- * Middleware to authenticate a user via JWT in a WebSocket handshake.
- *
- * This function parses the JWT from the cookies in the handshake, verifies it, 
- * and if the verification is successful, attaches the decoded JWT payload 
- * to the socket object as `socket.session`.
- *
- * @param socket - The socket object
- * @param next - The next function to call
- */
-export async function authenticateSocket(
-    socket: Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
-    next: (err?: ExtendedError | undefined) => void,
-) {
-    try {
-        // Add IP address to socket object, so we can use it later
-        socket.req = { ip: socket.handshake.address };
-        // Initialize session
-        socket.session = {
-            fromSafeOrigin: true,  // Always from a safe origin due to cors settings
-            languages: parseAcceptLanguage(socket.handshake), // Language fallback for error messages
-            validToken: false,
-        };
-        // Get token
-        const cookies = cookie.parse(socket.handshake.headers.cookie ?? "");
-        const token = cookies[COOKIE.Jwt];
-        if (!token) {
-            return next(new Error("Unauthorized"));
-        }
-        // Verify that the session token is valid and not expired
-        const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            throw new Error("Token expiration is invalid");
-        }
-        // Set token and role variables for other middleware to use
-        socket.session.apiToken = payload.apiToken ?? false;
-        socket.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-        socket.session.timeZone = payload.timeZone ?? "UTC";
-        // Keep session token users, but make sure they all have unique ids
-        socket.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
-        // Find preferred languages for first user. Combine with languages in request header
-        if (socket.session.users.length && socket.session.users[0].languages && socket.session.users[0].languages.length) {
-            let languages: string[] = socket.session.users[0].languages;
-            languages.push(...(socket.session.languages ?? []));
-            languages = [...new Set(languages)];
-            socket.session.languages = languages;
-        }
-        socket.session.validToken = true;
-        next();
-    } catch (error) {
-        return next(new Error("Unauthorized"));
-    }
-}
-
-/**
- * Generates the minimum data required for a session token
- */
-function basicToken(): BasicToken {
-    return {
-        iat: Date.now(),
-        iss: UI_URL_REMOTE,
-        exp: Date.now() + SESSION_MILLI,
-    };
-}
-
-/** Maximum size of a JWT token. Limited by the JWT standard. */
-const TOKEN_LENGTH_LIMIT = 4096;
-/** Buffer for additional data in the token that we didn't account for, and just to be safe */
-const TOKEN_BUFFER = 200;
-// Options for the jwt cookie
-const tokenOptions: CookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: SESSION_MILLI,
-};
-// Size of the header and signature of a JWT token
-let tokenHeaderSize = 0;
-let tokenSignatureSize = 0;
-// Maximum size of the payload of a JWT token
-let maxPayloadSize = 0;
-
-/**
- * Calculates token and signature size for JWT tokens
- */
-function calculateTokenSizes() {
-    if (tokenHeaderSize <= 0 || tokenSignatureSize <= 0 || maxPayloadSize <= 0) {
-        const emptyToken = jwt.sign({}, getJwtKeys().privateKey, { algorithm: "RS256" });
-        const [header, , signature] = emptyToken.split(".");
-        tokenHeaderSize = Buffer.byteLength(header, "utf8");
-        tokenSignatureSize = Buffer.byteLength(signature, "utf8");
-        // Total allowed size (both name and jwt value) - name - jwt header size - jwt payload size - jwt signature size - options size - buffer for additional data (e.g. "=" between name and value, ";" after value, path, expires)
-        maxPayloadSize = TOKEN_LENGTH_LIMIT - COOKIE.Jwt.length - tokenHeaderSize - tokenSignatureSize - JSON.stringify(tokenOptions).length - TOKEN_BUFFER;
-    }
-}
-
-/**
- * Calculates the length of a base64url encoded string (without padding, as that's added to the 
- * full JWT [i.e. with header and signature]) from a given JWT payload.
- * @param payload The payload to be encoded. If an object is provided, it will be stringified.
- * @returns The length of the base64url encoded string without padding.
- */
-function calculateBase64Length(payload: string | object) {
-    // Calculate base64 string from payload
-    const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
-    // Remove padding
-    const withoutPadding = base64Payload.replace(/=/g, "");
-    // Return size of base64 string
-    return withoutPadding.length;
-}
-
-/**
- * Creates user payload for session token
- */
-function createUserPayload(user: SessionUserToken): SessionUserToken {
-    return {
-        id: user.id,
-        activeFocusMode: user.activeFocusMode ? {
-            mode: {
-                id: user.activeFocusMode.mode?.id,
-                reminderList: user.activeFocusMode?.mode?.reminderList ? {
-                    id: user.activeFocusMode.mode.reminderList.id,
-                } : undefined,
-            },
-            stopCondition: user.activeFocusMode.stopCondition,
-            stopTime: user.activeFocusMode.stopTime,
-        } : undefined,
-        credits: user.credits + "", // Convert to string because BigInt cannot be serialized
-        handle: user.handle,
-        hasPremium: user.hasPremium ?? false,
-        languages: user.languages ?? [],
-        name: user.name ?? undefined,
-        profileImage: user.profileImage ?? undefined,
-        updated_at: user.updated_at,
-    };
-}
-
-/**
- * Generates a JSON Web Token (JWT) for user authentication (including guest access).
- * The token is added to the "res" object as a cookie.
- * @param res 
- * @param session 
- * @returns 
- */
-export async function generateSessionJwt(
-    res: Response,
-    session: RecursivePartialNullable<Pick<SessionData, "isLoggedIn" | "languages" | "timeZone" | "users">>,
-): Promise<void> {
-    const languages = getUser(session)?.languages ?? ["en"];
-    // Make token sizes and limits have been calculated
-    calculateTokenSizes();
-    // Start with minimal token data
-    const tokenContents: SessionToken = {
-        ...basicToken(),
-        isLoggedIn: session.isLoggedIn ?? false,
-        timeZone: session.timeZone ?? undefined,
-        users: [],
-    };
-    // Track current payload size
-    let currPayloadSize = calculateBase64Length(tokenContents);
-    // If payload is too large, throw an error. We cannot return a token without at least one user.
-    if (currPayloadSize > maxPayloadSize) {
-        throw new CustomError("0545", "ErrorUnknown", languages);
-    }
-    // Create array of users, unique by id
-    let users = [...new Map((session.users ?? []).map((user) => [user.id, user])).values()];
-    // Make sure current user is first
-    const currentUserId = getUser(session)?.id;
-    const currentUser = users.find((user) => user.id === currentUserId);
-    if (currentUser) {
-        users = [currentUser, ...users.filter((user) => user.id !== currentUser.id)];
-    }
-    // Add users until we run out of users or reach the limit
-    for (const user of users) {
-        const userPayload = createUserPayload(user);
-        currPayloadSize += calculateBase64Length(userPayload);
-        if (currPayloadSize > maxPayloadSize) {
-            logger.warning(`Could not add user ${user.id} to session token due to size limit`, { trace: "0546" });
-            break;
-        }
-        tokenContents.users.push(userPayload);
-    }
-    const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
-    if (!res.headersSent) {
-        res.cookie(COOKIE.Jwt, token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            maxAge: SESSION_MILLI,
-        });
-    }
-}
-
-/**
- * Generates a JSON Web Token (JWT) for API authentication.
- * @param res 
- * @param apiToken
- * @returns 
- */
-export async function generateApiJwt(res: Response, apiToken: string): Promise<void> {
-    const tokenContents: ApiToken = {
-        ...basicToken(),
-        apiToken,
-    };
-    const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
-    if (!res.headersSent) {
-        res.cookie(COOKIE.Jwt, token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            maxAge: SESSION_MILLI,
-        });
-    }
-}
-
-/**
- * Update the session token with new time zone information.
- * Does not extend the max age of the token.
- */
-export async function updateSessionTimeZone(req: Request, res: Response, timeZone: string): Promise<undefined> {
-    if (req.session.timeZone === timeZone) return;
-    const { cookies } = req;
-    const token = cookies[COOKIE.Jwt];
-    if (token === null || token === undefined) {
-        logger.error("❗️ No session token found", { trace: "0006" });
-        return;
-    }
-    try {
-        const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            throw new Error("Token expiration is invalid");
-        }
-        const tokenContents: SessionToken = {
-            ...payload,
-            timeZone,
-        };
-        const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
-
-        if (!res.headersSent) {
-            res.cookie(COOKIE.Jwt, newToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                maxAge: payload.exp - Date.now(),
-            });
-        }
-    } catch (error) {
-        logger.error("❗️ Session token is invalid", { trace: "0008" });
-    }
-}
-
-/**
- * Updates one or more user properties in the session token.
- * Does not extend the max age of the token.
- */
-export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUserToken>): Promise<undefined> {
-    const { cookies } = req;
-    const token = cookies[COOKIE.Jwt];
-    if (token === null || token === undefined) {
-        logger.error("❗️ No session token found", { trace: "0445" });
-        return;
-    }
-    try {
-        const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            throw new Error("Token expiration is invalid");
-        }
-        // Make token sizes and limits have been calculated
-        calculateTokenSizes();
-        // Start with minimal token data
-        const tokenContents: SessionToken = {
-            ...payload,
-            users: [],
-        };
-        let currPayloadSize = calculateBase64Length(tokenContents);
-        // If payload is too large, throw an error
-        if (currPayloadSize > maxPayloadSize) {
-            throw new CustomError("0545", "ErrorUnknown", ["en"]);
-        }
-        // Add users until we run out of users or reach the limit
-        for (let i = 0; i < payload.users.length; i++) {
-            const currUser = payload.users[i];
-            // Use new user data if it's the first user
-            const userPayload = i === 0 ? createUserPayload(mergeDeep(currUser, user) as SessionUserToken) : currUser;
-            currPayloadSize += calculateBase64Length(userPayload);
-            if (currPayloadSize > maxPayloadSize) {
-                logger.warning(`Could not add user ${user.id} to session token due to size limit`, { trace: "0547" });
-                break;
-            }
-            tokenContents.users.push(userPayload);
-        }
-        const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
-
-        if (!res.headersSent) {
-            res.cookie(COOKIE.Jwt, newToken, {
-                ...tokenOptions,
-                maxAge: payload.exp - Date.now(), // Make sure token expires at the same time
-            });
-        }
-    } catch (error) {
-        logger.error("❗️ Session token is invalid", { trace: "0447" });
-    }
-}
-
-/**
- * Middleware that restricts access to logged in users
- */
-export async function requireLoggedIn(req: Request, _: unknown, next: NextFunction) {
-    let error: CustomError | undefined;
-    if (!req.session.isLoggedIn) error = new CustomError("0018", "NotLoggedIn", req.session.languages);
-    next(error);
-}
-
-/**
- * Finds current user in Request object. Also validates that the user data is valid
- * @param req Request object
- * @returns First userId in Session object, or null if not found/invalid
- */
-export function getUser(session: RecursivePartialNullable<Pick<SessionData, "users">>): SessionUserToken | null {
-    if (!session || !Array.isArray(session?.users) || session.users.length === 0) return null;
-    const user = session.users[0];
-    return user !== undefined && typeof user.id === "string" && uuidValidate(user.id) ? user : null;
-}
+const tokenBucketScriptFile = `${process.env.PROJECT_DIR}/packages/server/${process.env.NODE_ENV === "development" ? "src" : "dist"}/utils/tokenBucketScript.lua`;
 
 export type RequestConditions = {
-    /**
-     * Checks if the request is coming from an API token directly
-     */
-    isApiRoot?: boolean;
     /**
      * Checks if the request is coming from a user logged in via an API token, or the official Vrooli app/website
      * This allows other services to use Vrooli as a backend, in a way that 
      * we can price it accordingly.
      */
-    isUser?: boolean;
+    isUser?: true;
     /**
      * Checks if the request is coming from a user logged in via the official Vrooli app/website
      */
-    isOfficialUser?: boolean;
+    isOfficialUser?: true;
+    /**
+     * Checks if the request is coming from a valid API token
+     */
+    isApiToken?: true;
+    /**
+     * Checks if the request has ReadPublic permission
+     */
+    hasReadPublicPermissions?: boolean;
+    /**
+     * Checks if the request has ReadPrivate permission
+     */
+    hasReadPrivatePermissions?: boolean;
+    /**
+     * Checks if the request has WritePrivate permission
+     */
+    hasWritePrivatePermissions?: boolean;
+    /**
+     * Checks if the request has ReadAuth permission
+     */
+    hasReadAuthPermissions?: boolean;
+    /**
+     * Checks if the request has WriteAuth permission
+     */
+    hasWriteAuthPermissions?: boolean;
 }
 
-type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUserToken : undefined;
+type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } | { hasReadPrivatePermissions: true } | { hasWritePrivatePermissions: true } | { hasReadAuthPermissions: true } | { hasWriteAuthPermissions: true } ? SessionUser : undefined;
 
-/**
- * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
- * @param req Object with request data
- * @param conditions The conditions to check
- * @returns user data, if isUser or isOfficialUser is true
- */
-export function assertRequestFrom<Conditions extends RequestConditions>(req: { session: SessionData }, conditions: Conditions): AssertRequestFromResult<Conditions> {
-    const { session } = req;
-    // Determine if user data is found in the request
-    const userData = getUser(session);
-    const hasUserData = session.isLoggedIn === true && Boolean(userData);
-    // Determine if api token is supplied
-    const hasApiToken = session.apiToken === true;
-    // Check isApiRoot condition
-    if (conditions.isApiRoot !== undefined) {
-        const isApiRoot = hasApiToken && !hasUserData;
-        if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError("0265", "MustUseApiToken", session.languages);
-        if (conditions.isApiRoot === false && isApiRoot) throw new CustomError("0266", "MustNotUseApiToken", session.languages);
+export interface RateLimitProps {
+    /**
+     * Maximum number of requests allowed per window, tied to API key (if not made from a safe origin)
+     */
+    maxApi?: number;
+    /**
+     * Maximum number of requests allowed per window, tied to IP address (if API key is not supplied)
+     */
+    maxIp?: number;
+    /**
+     * Maximum number of requests allowed per window, tied to user (regardless of origin)
+     */
+    maxUser?: number;
+    req: Request;
+    window?: number;
+}
+
+interface SocketRateLimitProps {
+    maxIp?: number;
+    maxUser?: number;
+    window?: number;
+    socket: Socket;
+}
+
+export class RequestService {
+    private static instance: RequestService;
+
+    private cachedOrigins: Array<string | RegExp> | null = null;
+
+    private static ipv4Regex = /^((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$/;
+    private static ipv6Pattern = `
+    (
+        ([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|          # 1:2:3:4:5:6:7:8
+        ([0-9a-fA-F]{1,4}:){1,7}:|                         # 1::                              1:2:3:4:5:6:7::
+        ([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|         # 1::8             1:2:3:4:5:6::8  1:2:3:4:5:6::8
+        ([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|  # 1::7:8           1:2:3:4:5::7:8  1:2:3:4:5::8
+        ([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|  # 1::6:7:8         1:2:3:4::6:7:8  1:2:3:4::8
+        ([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|  # 1::5:6:7:8       1:2:3::5:6:7:8  1:2:3::8
+        ([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|  # 1::4:5:6:7:8     1:2::4:5:6:7:8  1:2::8
+        [0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|       # 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8  
+        :((:[0-9a-fA-F]{1,4}){1,7}|:)|                     # ::2:3:4:5:6:7:8  ::2:3:4:5:6:7:8 ::8       ::     
+        fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|     # fe80::7:8%eth0   fe80::7:8%1     (link-local IPv6 addresses with zone index)
+        ::(ffff(:0{1,4}){0,1}:){0,1}
+        ((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}
+        (25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|          # ::255.255.255.255   ::ffff:255.255.255.255  ::ffff:0:255.255.255.255  (IPv4-mapped IPv6 addresses and IPv4-translated addresses)
+        ([0-9a-fA-F]{1,4}:){1,4}:
+        ((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}
+        (25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])           # 2001:db8:3:4::192.0.2.33  64:ff9b::192.0.2.33 (IPv4-Embedded IPv6 Address)
+    )
+    `.replace(/\s*#.*$/gm, "").replace(/\s+/g, "");
+    private static ipv6Regex = new RegExp(RequestService.ipv6Pattern);
+    private static domainRegex = /^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,63}$/i;
+    private static localhostRegex = /^http:\/\/localhost(?::[0-9]+)?$/;
+    private static localhostIpRegex = /^http:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}(?::[0-9]+)?$/;
+
+
+    static tokenBucketScript = "";
+    private static tokenBucketScriptSha: string | null = null;
+
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    private constructor() { }
+    static get(): RequestService {
+        if (!RequestService.instance) {
+            RequestService.instance = new RequestService();
+            // Load the token bucket script
+            try {
+                RequestService.tokenBucketScript = fs.readFileSync(tokenBucketScriptFile, "utf8");
+            } catch (error) {
+                logger.error(`Could not find or read token bucket script file at ${tokenBucketScriptFile}`, { trace: "0369" });
+            }
+        }
+        return RequestService.instance;
     }
-    // Check isUser condition
-    if (conditions.isUser !== undefined) {
-        const isUser = hasUserData && (hasApiToken || session.fromSafeOrigin === true);
-        if (conditions.isUser === true && !isUser) throw new CustomError("0267", "NotLoggedIn", session.languages);
-        if (conditions.isUser === false && isUser) throw new CustomError("0268", "NotLoggedIn", session.languages);
+
+    /**
+     * Validate if the given string is a valid IP address.
+     * @param ip The IP address to validate.
+     * @returns True if valid, false otherwise.
+     */
+    static isValidIP(ip: string): boolean {
+        return RequestService.ipv4Regex.test(ip) || RequestService.ipv6Regex.test(ip);
     }
-    // Check isOfficialUser condition
-    if (conditions.isOfficialUser !== undefined) {
-        const isOfficialUser = hasUserData && !hasApiToken && session.fromSafeOrigin === true;
-        if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError("0269", "NotLoggedInOfficial", session.languages);
-        if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError("0270", "NotLoggedInOfficial", session.languages);
+
+    /**
+     * Validate if the given string is a valid domain name 
+     * (e.g. mysite.com, www.mysite.com, subdomain.mysite.com).
+     * @param domain The domain name to validate.
+     * @returns True if valid, false otherwise.
+     */
+    static isValidDomain(domain: string): boolean {
+        if (domain.length > MAX_DOMAIN_LENGTH) return false;
+        return RequestService.domainRegex.test(domain);
     }
-    return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
+
+    /**
+     * Origins which are allowed to make requests without an API key.
+     * @returns An array of strings and regular expressions
+     */
+    safeOrigins(): Array<string | RegExp> {
+        if (Array.isArray(this.cachedOrigins) && this.cachedOrigins.length > 0) {
+            return this.cachedOrigins;
+        }
+
+        const origins: Array<string | RegExp> = [];
+        const siteIp = process.env.SITE_IP;
+        if (process.env.VITE_SERVER_LOCATION === "local") {
+            origins.push(RequestService.localhostRegex, RequestService.localhostIpRegex);
+        }
+        const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
+        for (const domain of domains) {
+            if (!RequestService.isValidDomain(domain)) continue;
+            origins.push(new RegExp(`^http(s)?://${escapeRegExp(domain)}$`));
+        }
+        if (siteIp && RequestService.isValidIP(siteIp)) {
+            origins.push(new RegExp(`^http(s)?://${escapeRegExp(siteIp)}(?::[0-9]+)?$`));
+        }
+
+        this.cachedOrigins = origins;
+        return origins;
+    }
+
+    /**
+     * Checks if a request comes from a safe origin.
+     * @param req The request to check
+     * @returns True if the request comes from a safe origin
+     */
+    isSafeOrigin(req: Request): boolean {
+        // Allow all on development. This ensures that dev tools work properly.
+        if (process.env.NODE_ENV === "development") return true;
+        const origins = this.safeOrigins();
+        let origin = req.headers.origin;
+        // Sometimes the origin is undefined. Luckily, we can parse it from the referer.
+        if (!origin) {
+            if (req.headers.referer) {
+                const refererUrl = new URL(req.headers.referer);
+                origin = refererUrl.origin;
+            }
+        }
+        if (origin === undefined) {
+            return false;
+        }
+        for (const o of origins) {
+            if (o instanceof RegExp) {
+                if (o.test(origin)) {
+                    return true;
+                }
+            }
+            else if (o === origin) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * WARNING: For testing purposes only
+     */
+    resetCachedOrigins(): void {
+        this.cachedOrigins = null;
+    }
+
+    /**
+     * Extracts basic device information from the incoming HTTP request. 
+     * Useful for detecting when a user logs in from a new device
+     *
+     * @param req - The incoming HTTP request object.
+     * @returns A string containing the device's User-Agent and Accept-Language information.
+     */
+    static getDeviceInfo(req: Request): string {
+        // Retrieve the User-Agent header from the request
+        const userAgent = req.headers["user-agent"] || "Unknown";
+
+        // Optionally, include other headers or information as needed
+        // For example, you can include the Accept-Language header
+        const acceptLanguage = req.headers["accept-language"] || "Unknown";
+
+        // Combine the information into a single string
+        const deviceInfo = `User-Agent: ${userAgent}; Accept-Language: ${acceptLanguage}`;
+
+        return deviceInfo;
+    }
+
+    /**
+     * Parses a request's accept-language header
+     * @param req The request
+     * @returns A list of languages without any subtags
+     */
+    static parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
+        const acceptString = req.headers["accept-language"];
+        // Default to english if not found or a wildcard
+        if (!acceptString || typeof acceptString !== "string" || acceptString === "*") return [DEFAULT_LANGUAGE];
+        // Strip q values
+        let acceptValues = acceptString.split(",").map((lang: string) => lang.split(";")[0]);
+        // Remove subtags
+        acceptValues = acceptValues.map((lang: string) => lang.split("-")[0]);
+        return acceptValues;
+    }
+
+    /**
+     * Finds the permissions object based on the request conditions
+     * 
+     * @param req Object with request data
+     * @returns user data, if isUser or isOfficialUser is true
+     */
+    static getRequestPermissions(
+        req: { session: Pick<SessionData, "apiToken" | "fromSafeOrigin" | "isLoggedIn" | "languages" | "permissions" | "userId"> & { users?: Pick<SessionUser, "id" | "languages">[] | null | undefined } },
+    ): {
+        hasApiToken: boolean;
+        isVerifiedUser: boolean;
+        permissions: { [key in ApiKeyPermission]?: boolean };
+        userData: ReturnType<typeof SessionService.getUser>;
+    } {
+        const { session } = req;
+        // Determine if user data is found in the request
+        let userData = SessionService.getUser(req);
+        // Determine if api token is supplied
+        const hasApiToken = typeof session?.apiToken === "string" && session?.apiToken?.length > 0;
+        // Determine permissions
+        const isVerifiedUser = session?.isLoggedIn === true && Boolean(userData) && session.fromSafeOrigin === true;
+        let permissions: { [key in ApiKeyPermission]?: boolean } = {};
+        // Verified users have all permissions
+        if (isVerifiedUser) {
+            permissions = {
+                [ApiKeyPermission.ReadPublic]: true,
+                [ApiKeyPermission.ReadPrivate]: true,
+                [ApiKeyPermission.WritePrivate]: true,
+                [ApiKeyPermission.WriteAuth]: true,
+                [ApiKeyPermission.ReadAuth]: true,
+            };
+        }
+        // API token requests have the permissions of the API token
+        else if (hasApiToken) {
+            permissions = session?.permissions ?? {};
+        } else if (session.fromSafeOrigin === true) {
+            permissions = {
+                [ApiKeyPermission.ReadPublic]: true,
+            }
+        }
+
+        return {
+            hasApiToken,
+            isVerifiedUser,
+            permissions,
+            userData
+        };
+    }
+
+    /**
+     * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
+     * @param req Object with request data
+     * @param conditions The conditions to check
+     * @returns user data, if isUser or isOfficialUser is true
+     * @throws CustomError if conditions are not met
+     */
+    static assertRequestFrom<Conditions extends RequestConditions>(
+        req: Parameters<typeof RequestService.getRequestPermissions>[0],
+        conditions: Conditions,
+    ): AssertRequestFromResult<Conditions> {
+        const {
+            hasApiToken,
+            isVerifiedUser,
+            permissions,
+            userData
+        } = RequestService.getRequestPermissions(req);
+
+        // Check isUser condition
+        if (conditions.isUser === true && !isVerifiedUser) throw new CustomError("0267", "NotLoggedIn");
+        // Check isOfficialUser condition
+        if (conditions.isOfficialUser === true && hasApiToken) throw new CustomError("0269", "NotLoggedInOfficial");
+        // Check isApiToken condition
+        if (conditions.isApiToken === true && !hasApiToken) throw new CustomError("0272", "MustUseApiToken");
+        // Check permissions
+        if (conditions.hasReadPublicPermissions === true && !permissions[ApiKeyPermission.ReadPublic]) {
+            throw new CustomError("0274", "Unauthorized");
+        }
+        if (conditions.hasReadPrivatePermissions === true && !permissions[ApiKeyPermission.ReadPrivate]) {
+            throw new CustomError("0275", "Unauthorized");
+        }
+        if (conditions.hasWritePrivatePermissions === true && !permissions[ApiKeyPermission.WritePrivate]) {
+            throw new CustomError("0276", "Unauthorized");
+        }
+        if (conditions.hasReadAuthPermissions === true && !permissions[ApiKeyPermission.ReadAuth]) {
+            throw new CustomError("0277", "Unauthorized");
+        }
+        if (conditions.hasWriteAuthPermissions === true && !permissions[ApiKeyPermission.WriteAuth]) {
+            throw new CustomError("0278", "Unauthorized");
+        }
+
+        return (userData ?? {}) as AssertRequestFromResult<Conditions>;
+    }
+
+    /**
+     * Builds a key for rate limiting a normal (non-socket) request
+     * @param req The request to build the key from
+     * @returns The key base
+     */
+    private static buildKeyBase(req: Request): string {
+        let keyBase = "rate-limit:";
+
+        // For GraphQL requests, use the operation name
+        if (req.body?.operationName) {
+            keyBase += `${req.body.operationName}:`;
+        }
+        // For REST requests, use the route path and method
+        else if (req.route) {
+            keyBase += `${req.route.path}:${req.method}:`;
+        }
+        // For other requests (typically when req is mocked by a task queue), use the path
+        else {
+            keyBase += `${req.path}:`;
+        }
+
+        return keyBase;
+    }
+
+    /**
+     * Builds a key for rate limiting an IP address
+     * @param req The request to build the key from
+     * @returns The key base
+     */
+    private static buildIpKey(req: Request): string {
+        return `${RequestService.buildKeyBase(req)}ip:${req.ip}`;
+    }
+
+    /**
+     * Builds a key for rate limiting an API token
+     * @param req The request to build the key from
+     * @returns The key base
+     */
+    private static buildApiKey(req: Request): string {
+        return `${RequestService.buildKeyBase(req)}api:${req.session.apiToken}`;
+    }
+
+    /**
+     * Builds a key for rate limiting a user
+     * @param req The request to build the key from
+     * @param userData The user data to build the key from
+     * @returns The key base
+     */
+    private static buildUserKey(req: Request, userData: SessionUser): string {
+        return `${RequestService.buildKeyBase(req)}user:${userData.id}`;
+    }
+
+    /**
+     * Builds a key base for rate limiting a socket request
+     * @param socket The socket to build the key from
+     * @returns The key base
+     */
+    private static buildSocketKeyBase(socket: Socket): string {
+        return `rate-limit:${socket.id}:`;
+    }
+
+    /**
+     * Builds a key for rate limiting an IP address for a socket request
+     * @param socket The socket to build the key from
+     * @returns The key base
+     */
+    private static buildSocketIpKey(socket: Socket): string {
+        return `${RequestService.buildSocketKeyBase(socket)}ip:${socket.req.ip}`;
+    }
+
+    /**
+     * Builds a key for rate limiting a user for a socket request
+     * @param socket The socket to build the key from
+     * @param userData The user data to build the key from
+     * @returns The key base
+     */
+    private static buildSocketUserKey(socket: Socket, userData: SessionUser): string {
+        return `${RequestService.buildSocketKeyBase(socket)}user:${userData.id}`;
+    }
+
+    /**
+     * Applies a rate limit check to keys in redis. 
+     * Throws an error if the limit is exceeded.
+     * @param client The redis client
+     * @param keys The keys to check
+     * @param maxTokensList The maximum number of tokens allowed in the bucket 
+     * for each key, in order
+     * @param refillRates The rate at which the bucket refills for each key, in order
+     */
+    async checkRateLimit(
+        client: RedisClientType | null,
+        keys: string[],
+        maxTokensList: number[],
+        refillRates: number[],
+    ) {
+        if (!client) {
+            return;
+        }
+
+        const nowMs = Date.now();
+
+        const args: string[] = [];
+
+        // Build ARGV
+        for (let i = 0; i < keys.length; i++) {
+            args.push(maxTokensList[i].toString());
+            args.push(refillRates[i].toString());
+        }
+
+        // Append nowMs
+        args.push(nowMs.toString());
+
+        // Result is an array of [allowed1, waitTimeMs1, allowed2, waitTimeMs2, ...]  
+        let result: number[] | undefined;
+        if (RequestService.tokenBucketScriptSha) {
+            try {
+                result = await client.evalSha(RequestService.tokenBucketScriptSha, {
+                    keys,
+                    arguments: args,
+                }) as number[];
+            } catch (error) {
+                if (!(error instanceof Error && error.message.startsWith("NOSCRIPT"))) {
+                    throw error;
+                }
+                // If NOSCRIPT, proceed to load the script
+            }
+        }
+        if (result === undefined) {
+            RequestService.tokenBucketScriptSha = await client.scriptLoad(RequestService.tokenBucketScript);
+            result = await client.evalSha(RequestService.tokenBucketScriptSha, {
+                keys,
+                arguments: args,
+            }) as number[];
+        }
+
+        // Check if any of the rate limits are exceeded
+        for (let i = 0; i < keys.length; i++) {
+            const allowed = result[2 * i];
+            const waitTimeMs = result[2 * i + 1];
+            if (allowed === 0) {
+                throw new CustomError("0017", "RateLimitExceeded", { retryAfterMs: waitTimeMs });
+            }
+        }
+    }
+
+    /**
+     * Middelware to rate limit the requests. 
+     * Limits requests based on API token, account, and IP address.
+     * Throws error if rate limit is exceeded.
+     */
+    async rateLimit({
+        maxApi,
+        maxIp,
+        maxUser = DEFAULT_RATE_LIMIT,
+        req,
+        window = DEFAULT_RATE_LIMIT_WINDOW_S,
+    }: RateLimitProps): Promise<void> {
+        // If maxApi not supplied, use maxUser * 1000
+        maxApi = maxApi ?? (maxUser * 1000);
+        // If maxIp not supplied, use maxUser
+        maxIp = maxIp ?? maxUser;
+
+        // Parse request
+        const hasApiToken = typeof req.session?.apiToken === "string" && req.session?.apiToken?.length > 0;
+        const userData = SessionService.getUser(req);
+        const hasUserData = req.session?.isLoggedIn === true && userData !== null;
+
+        // Try connecting to redis
+        try {
+            const client = await initializeRedis();
+
+            // Calculate refill rates
+            const apiRefillRate = maxApi / window;
+            const ipRefillRate = maxIp / window;
+            const userRefillRate = maxUser / window;
+
+            // Build arrays
+            const keys: string[] = [];
+            const maxTokensList: number[] = [];
+            const refillRates: number[] = [];
+
+            // Apply rate limit to API
+            if (hasApiToken) {
+                const apiKey = RequestService.buildApiKey(req);
+                keys.push(apiKey);
+                maxTokensList.push(maxApi);
+                refillRates.push(apiRefillRate);
+            }
+            // Make sure that all non-API requests are from a safe origin
+            else if (req.session?.fromSafeOrigin !== true) {
+                throw new CustomError("0271", "MustUseApiToken", { keyBase: RequestService.buildKeyBase(req) });
+            }
+
+            // Apply rate limit to IP address
+            const ipKey = RequestService.buildIpKey(req);
+            keys.push(ipKey);
+            maxTokensList.push(maxIp);
+            refillRates.push(ipRefillRate);
+
+            // Apply rate limit to user
+            if (hasUserData) {
+                const userKey = RequestService.buildUserKey(req, userData);
+                keys.push(userKey);
+                maxTokensList.push(maxUser);
+                refillRates.push(userRefillRate);
+            }
+
+            // Call checkRateLimit with arrays
+            await this.checkRateLimit(client, keys, maxTokensList, refillRates);
+        }
+        // If Redis fails, let the user through. It's not their fault. 
+        catch (error) {
+            logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
+            throw error;
+        }
+    }
+
+    /**
+     * Rate limit a socket handler. Similar to how you would rate limit an API endpoint. 
+     * Returns instead of throws an error if rate limit is exceeded.
+     */
+    async rateLimitSocket({
+        maxIp,
+        maxUser = DEFAULT_RATE_LIMIT,
+        window = DEFAULT_RATE_LIMIT_WINDOW_S,
+        socket,
+    }: SocketRateLimitProps): Promise<string | undefined> {
+        // Retrieve user data from the socket
+        const userData = SessionService.getUser(socket);
+        const hasUserData = socket.session?.isLoggedIn === true && userData !== null;
+        // If maxIp not supplied, use maxUser
+        maxIp = maxIp ?? maxUser;
+        // Try connecting to redis
+        try {
+            const client = await initializeRedis();
+
+            // Calculate refill rates
+            const ipRefillRate = maxIp / window;
+            const userRefillRate = maxUser / window;
+
+            // Build arrays
+            const keys: string[] = [];
+            const maxTokensList: number[] = [];
+            const refillRates: number[] = [];
+
+            // Apply rate limit to IP address
+            const ipKey = RequestService.buildSocketIpKey(socket);
+            keys.push(ipKey);
+            maxTokensList.push(maxIp);
+            refillRates.push(ipRefillRate);
+
+            // Apply rate limit to user
+            if (hasUserData) {
+                const userKey = RequestService.buildSocketUserKey(socket, userData);
+                keys.push(userKey);
+                maxTokensList.push(maxUser);
+                refillRates.push(userRefillRate);
+            }
+
+            // Call checkRateLimit with arrays
+            await this.checkRateLimit(client, keys, maxTokensList, refillRates);
+        } catch (error) {
+            console.error("Error occurred while connecting or accessing redis server", { trace: "0492", error });
+            return (error as Error)?.message ?? "Rate limit exceeded";
+        }
+    }
 }

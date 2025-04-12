@@ -1,37 +1,27 @@
 import { AITaskInfo, ChatMessageShape, ChatParticipantShape, ListObject, LlmTask, getTranslation } from "@local/shared";
-import { Box, Button, Chip, ChipProps, CircularProgress, Divider, IconButton, ListItemText, Menu, MenuItem, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { RichInputBase } from "components/inputs/RichInput/RichInput";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts";
-import useDraggableScroll from "hooks/gestures";
-import { useShowBotWarning } from "hooks/subscriptions";
-import { UseChatTaskReturn } from "hooks/tasks";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
-import { useWindowSize } from "hooks/useWindowSize";
-import { AddIcon, CancelIcon, DeleteIcon, EditIcon, ErrorIcon, PlayIcon, SearchIcon, SendIcon, SuccessIcon } from "icons";
+import { Box, Chip, ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "styles";
-import { ViewDisplayType } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { isTaskStale } from "utils/display/chatTools";
-import { getDisplay } from "utils/display/listTools";
-import { displayDate } from "utils/display/stringTools";
-import { PubSub } from "utils/pubsub";
+import { SessionContext } from "../../../contexts/session.js";
+import useDraggableScroll from "../../../hooks/gestures.js";
+import { UseChatTaskReturn } from "../../../hooks/tasks.js";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { ViewDisplayType } from "../../../types.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../../utils/consts.js";
+import { isTaskStale } from "../../../utils/display/chatTools.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { displayDate } from "../../../utils/display/stringTools.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
 
 const DEFAULT_TYPING_INDICATOR_MAX_CHARS = 40;
 const NUM_TYPING_INDICATOR_ELLIPSIS_DOTS = 3;
 const TYPING_INDICATOR_DOTS_INTERVAL_MS = 500;
 
 type ChatIndicatorProps = {
-    participantsAll: Omit<ChatParticipantShape, "chat">[] | undefined,
     participantsTyping: Omit<ChatParticipantShape, "chat">[],
-    messagesCount: number,
-}
-
-type MenuPosition = {
-    mouseX: number;
-    mouseY: number
 }
 
 /**
@@ -41,7 +31,7 @@ type MenuPosition = {
  * @returns The text to display in the typing indicator
  */
 export function getTypingIndicatorText(participants: ListObject[], maxChars: number) {
-    if (participants.length === 0) return "";
+    if (!Array.isArray(participants) || participants.length === 0) return "";
 
     const ellipsis = "…";
     const remainingCountPrefix = ", +";
@@ -83,84 +73,32 @@ export function getTypingIndicatorText(participants: ListObject[], maxChars: num
     return `${text}${append}`;
 }
 
-function showBotWarningDetails() {
-    PubSub.get().publish("alertDialog", {
-        messageKey: "BotChatWarningDetails",
-        buttons: [
-            { labelKey: "Ok" },
-        ],
-    });
-}
-
-const ChatIndicatorBox = styled(Box)(() => ({
+const ChatIndicatorBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     justifyContent: "flex-start",
     alignItems: "center",
     gap: 0,
-    width: "min(100%, 700px)",
+    width: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
     margin: "auto",
+    color: theme.palette.background.textSecondary,
 }));
-
-// interface HideBotWarningMenuProps extends MenuProps {
-//     menuPosition: MenuPosition | null;
-// }
-// const HideBotWarningMenu = styled(Box, {
-//     shouldForwardProp: (prop) => prop !== "menuPosition",
-// })<HideBotWarningMenuProps>(({ menuPosition, theme }) => ({
-//    anch
-// }));
-
-const showBotWarningButtonStyle = { textTransform: "none" } as const;
-const contextItemStyle = { display: "flex", alignItems: "center" } as const;
 
 /**
  * Displays text information about the chat. Can be a warning that you 
  * are chatting with a bot, a typing indicator, or blank.
  */
 export function ChatIndicator({
-    participantsAll,
     participantsTyping,
-    messagesCount,
 }: ChatIndicatorProps) {
-    const { t } = useTranslation();
-
-    const botWarningPreferences = useShowBotWarning();
-    const [contextMenu, setContextMenu] = useState<MenuPosition | null>(null);
-    const onHideBotWarning = useCallback(function onHideBotWarningCallback() {
-        botWarningPreferences.handleUpdateShowBotWarning(false);
-        setContextMenu(null);
-    }, [botWarningPreferences]);
-    const handleContextMenu = useCallback(function handleContextMenuCallback(event: React.MouseEvent) {
-        if (botWarningPreferences.showBotWarning === false) return;
-        event.preventDefault();
-        setContextMenu(
-            contextMenu === null
-                ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4 }
-                : null,
-        );
-    }, [botWarningPreferences.showBotWarning, contextMenu]);
-    const handleContextMenuClose = useCallback(function handleContextMenuClose() {
-        setContextMenu(null);
-    }, []);
-
-    // Bot warning should only be displayed at the beginning of a chat, 
-    // when there are no other participants typing, and there is a bot participant
-    const showBotWarning = useMemo(function showBotWarningMemo() {
-        if (botWarningPreferences.showBotWarning === false) return false;
-        const hasBotParticipant = participantsAll?.some(p => p.user?.isBot) ?? false;
-        return participantsTyping.length === 0
-            && messagesCount <= 2
-            && hasBotParticipant;
-    }, [botWarningPreferences.showBotWarning, messagesCount, participantsAll, participantsTyping.length]);
+    const [dots, setDots] = useState("");
 
     const typingIndicatorText = useMemo(function typingIndicatorTextMemo() {
         return getTypingIndicatorText(participantsTyping, DEFAULT_TYPING_INDICATOR_MAX_CHARS);
     }, [participantsTyping]);
 
-    const [dots, setDots] = useState("");
     useEffect(function typingIndicatorDotsAnimationEffect() {
-        let interval;
+        let interval: NodeJS.Timeout;
         if (typingIndicatorText !== "") {
             interval = setInterval(() => {
                 setDots(prevDots => {
@@ -175,31 +113,10 @@ export function ChatIndicator({
         return () => clearInterval(interval);
     }, [typingIndicatorText]);
 
-    const contextAnchorPosition = useMemo(function contextAnchorPositionMemo() {
-        if (contextMenu === null) return undefined;
-        return { top: contextMenu.mouseY, left: contextMenu.mouseX };
-    }, [contextMenu]);
-
-    if (!showBotWarning && typingIndicatorText === "") return null;
+    if (typingIndicatorText === "") return null;
     return (
-        <ChatIndicatorBox onContextMenu={handleContextMenu}>
-            {/* Right-click context menu */}
-            <Menu
-                open={contextMenu !== null}
-                onClose={handleContextMenuClose}
-                anchorReference="anchorPosition"
-                anchorPosition={contextAnchorPosition}
-            >
-                <MenuItem onClick={onHideBotWarning}
-                    sx={contextItemStyle}>
-                    <ListItemText primary="Hide Warning" secondary="Hide bot warning. You can reenable this in the settings by clearing display cache." />
-                </MenuItem>
-            </Menu>
-            {showBotWarning && <>
-                <Typography variant="body2" p={1}>{t("BotChatWarning")}</Typography>
-                <Button variant="text" sx={showBotWarningButtonStyle} onClick={showBotWarningDetails}>{t("LearnMore")}</Button>
-            </>}
-            {!showBotWarning && <Typography variant="body2" p={1}>{typingIndicatorText}{dots}</Typography>}
+        <ChatIndicatorBox>
+            <Typography variant="body2" p={1}>{typingIndicatorText}{dots}</Typography>
         </ChatIndicatorBox>
     );
 }
@@ -261,50 +178,92 @@ function TaskChip({
 
     function getActionIcon() {
         //TODO should be different from status icon, and should trigger respondToTask. Should also support multiple actions
-        if (isStale || !task) return <ErrorIcon />;
+        if (isStale || !task) return <IconCommon
+            decorative
+            name="Error"
+        />;
         switch (status) {
             case "Running":
             case "Canceling":
                 return <CircularProgress size={20} color="inherit" />;
             case "Completed":
-                return <SuccessIcon />;
+                return <IconCommon
+                    decorative
+                    name="Success"
+                />;
             case "Failed":
-                return <ErrorIcon />;
+                return <IconCommon
+                    decorative
+                    name="Error"
+                />;
             default:
                 // Base Icon style on task type
                 if (task.endsWith("Add"))
-                    return <AddIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Add"
+                    />;
                 if (task.endsWith("Delete"))
-                    return <DeleteIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Delete"
+                    />;
                 if (task.endsWith("Find"))
-                    return <SearchIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Search"
+                    />;
                 if (task.endsWith("Update"))
-                    return <EditIcon />;
-                return <PlayIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Edit"
+                    />;
+                return <IconCommon decorative name="Play" />;
         }
     }
 
     function getStatusIcon() {
-        if (isStale || !task) return <ErrorIcon />;
+        if (isStale || !task) return <IconCommon
+            decorative
+            name="Error"
+        />;
         switch (status) {
             case "Running":
             case "Canceling":
                 return <CircularProgress size={20} color="inherit" />;
             case "Completed":
-                return <SuccessIcon />;
+                return <IconCommon
+                    decorative
+                    name="Success"
+                />;
             case "Failed":
-                return <ErrorIcon />;
+                return <IconCommon
+                    decorative
+                    name="Error"
+                />;
             default:
                 // Base Icon style on task type
                 if (task.endsWith("Add"))
-                    return <AddIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Add"
+                    />;
                 if (task.endsWith("Delete"))
-                    return <DeleteIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Delete"
+                    />;
                 if (task.endsWith("Find"))
-                    return <SearchIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Search"
+                    />;
                 if (task.endsWith("Update"))
-                    return <EditIcon />;
-                return <PlayIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Edit"
+                    />;
+                return <IconCommon decorative name="Play" />;
         }
     }
 
@@ -358,7 +317,7 @@ const TasksRowOuter = styled(Box)(({ theme }) => ({
     padding: theme.spacing(0.5),
     gap: theme.spacing(1),
     height: "50px",
-    width: "min(700px, 100%)",
+    width: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
     marginLeft: "auto",
     marginRight: "auto",
     overflowX: "auto",
@@ -391,6 +350,7 @@ function TasksRow({
     if (!hasNonStartTasks) return null;
     return (
         <TasksRowOuter
+            id={ELEMENT_IDS.TasksRow}
             onMouseDown={onMouseDown}
             ref={ref}
         >
@@ -438,14 +398,22 @@ export function ReplyingToMessageDisplay({
     messageBeingRepliedTo,
     onCancelReply,
 }: ReplyingToMessageDisplayProps) {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { languages } = useMemo(() => getCurrentUser(session), [session]);
 
     return (
         <Box p={1}>
             <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center">
-                <IconButton onClick={onCancelReply} sx={replyToCloseIconStyle}>
-                    <CancelIcon />
+                <IconButton
+                    aria-label={t("Cancel")}
+                    onClick={onCancelReply}
+                    sx={replyToCloseIconStyle}
+                >
+                    <IconCommon
+                        decorative
+                        name="Cancel"
+                    />
                 </IconButton>
                 <Typography variant="body2" color="textSecondary">
                     Replying to: {getDisplay(messageBeingRepliedTo.user).title || "User"}
@@ -466,11 +434,20 @@ type EditingMessageDisplayProps = {
 function EditingMessageDisplay({
     onCancelEdit,
 }: EditingMessageDisplayProps) {
+    const { t } = useTranslation();
+
     return (
         <Box p={1}>
             <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center">
-                <IconButton onClick={onCancelEdit} sx={replyToCloseIconStyle}>
-                    <CancelIcon />
+                <IconButton
+                    aria-label={t("Cancel")}
+                    onClick={onCancelEdit}
+                    sx={replyToCloseIconStyle}
+                >
+                    <IconCommon
+                        decorative
+                        name="Cancel"
+                    />
                 </IconButton>
                 <Typography variant="body2" color="textSecondary">
                     Editing message
@@ -480,14 +457,27 @@ function EditingMessageDisplay({
     );
 }
 
-type ChatMessageInputProps = Pick<ChatIndicatorProps, "participantsAll" | "participantsTyping" | "messagesCount"> & {
+type OuterProps = {
+    isMobile: boolean;
+}
+const Outer = styled(Box)<OuterProps>(({ isMobile }) => ({
+    width: "100%",
+    maxWidth: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
+    margin: "auto",
+    "& .advanced-input": {
+        // Remove rounded bottom corners on mobile
+        borderBottomLeftRadius: isMobile ? 0 : undefined,
+        borderBottomRightRadius: isMobile ? 0 : undefined,
+    },
+}));
+
+type ChatMessageInputProps = Pick<ChatIndicatorProps, "participantsTyping"> & {
     disabled: boolean;
     display: ViewDisplayType;
     isLoading: boolean;
     message: string;
     messageBeingEdited: ChatMessageShape | null;
     messageBeingRepliedTo: ChatMessageShape | null;
-    onFocused?: () => unknown;
     placeholder: string;
     stopEditingMessage: () => unknown;
     stopReplyingToMessage: () => unknown;
@@ -506,9 +496,6 @@ export function ChatMessageInput({
     message,
     messageBeingEdited,
     messageBeingRepliedTo,
-    messagesCount,
-    onFocused,
-    participantsAll,
     participantsTyping,
     placeholder,
     setMessage,
@@ -517,79 +504,7 @@ export function ChatMessageInput({
     submitMessage,
     taskInfo,
 }: ChatMessageInputProps) {
-    const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const isKeyboardOpen = useKeyboardOpen();
-
-    const [inputFocused, setInputFocused] = useState(false);
-    const onFocus = useCallback(() => {
-        setInputFocused(true);
-        onFocused?.();
-    }, [onFocused]);
-    const onBlur = useCallback(() => { setInputFocused(false); }, []);
-
-    // TODO update to connect more than just participants (though these results should be at the top).
-    // Should also be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
-    const getTaggableItems = useCallback(async function getTaggableItemsCallback(searchString: string) {
-        // Find all users in the chat, plus @Everyone
-        let users = [
-            //TODO handle @Everyone
-            ...participantsAll?.map(p => p.user) ?? [],
-        ];
-        // Filter out current user
-        users = users.filter(p => p.id !== getCurrentUser(session).id);
-        // Filter out users that don't match the search string
-        users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-        console.log("got taggable items", users, searchString);
-        return users;
-    }, [participantsAll, session]);
-
-    const inputActionButtons = useMemo(function inputActionButtonsMemo() {
-        return [{
-            Icon: SendIcon,
-            disabled: disabled || isLoading,
-            onClick: () => {
-                submitMessage(message);
-            },
-        }];
-    }, [disabled, isLoading, message, submitMessage]);
-
-    const inputStyle = useMemo(function inputStyleMemo() {
-        // If this is the full width of the page, we have to add 
-        // additional padding to account for the side menu touch areas
-        const usesFullViewportWidth = display === "page" && isMobile;
-        // If this is place on the bottom of the page and the virtual keyboard 
-        // is open, we need to remove the bottom margin that keeps this above the 
-        // BottomNav, since the nav is hiddenwhen the keyboard is open
-        const shouldRemoveBottomPadding = display !== "page" || (display === "page" && isKeyboardOpen);
-
-        return {
-            root: {
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                maxHeight: "min(75vh, 500px)",
-                width: "min(700px, 100%)",
-                marginTop: "auto",
-                marginLeft: "auto",
-                marginRight: "auto",
-                paddingBottom: shouldRemoveBottomPadding ? "0" : pagePaddingBottom,
-            },
-            topBar: {
-                borderRadius: 0,
-                paddingLeft: usesFullViewportWidth ? "20px" : 0,
-                paddingRight: usesFullViewportWidth ? "20px" : 0,
-            },
-            bottomBar: {
-                paddingLeft: usesFullViewportWidth ? "20px" : 0,
-                paddingRight: usesFullViewportWidth ? "20px" : 0,
-            },
-            inputRoot: {
-                border: "none",
-                background: palette.background.paper,
-            },
-        };
-    }, [display, isKeyboardOpen, isMobile, palette.background.paper, palette.primary.contrastText, palette.primary.dark]);
+    const isMobile = useWindowSize(({ width }) => width <= MAX_CHAT_INPUT_WIDTH);
 
     const handleSubmit = useCallback(function handleAddMessageCallback(message: string) {
         if (disabled || isLoading) return;
@@ -597,11 +512,9 @@ export function ChatMessageInput({
     }, [disabled, isLoading, submitMessage]);
 
     return (
-        <>
+        <Outer isMobile={isMobile}>
             <ChatIndicator
-                participantsAll={participantsAll}
                 participantsTyping={participantsTyping}
-                messagesCount={messagesCount}
             />
             {!messageBeingRepliedTo && <TasksRow
                 activeTask={taskInfo.activeTask}
@@ -614,25 +527,18 @@ export function ChatMessageInput({
                 onCancelReply={stopReplyingToMessage}
             />}
             {messageBeingEdited && <EditingMessageDisplay onCancelEdit={stopEditingMessage} />}
-            <RichInputBase
-                actionButtons={inputActionButtons}
+            <AdvancedInputBase
+                contextData={[]}
                 disabled={disabled}
-                disableAssistant={true}
-                fullWidth
-                getTaggableItems={getTaggableItems}
                 maxChars={1500}
-                maxRows={inputFocused ? INPUT_ROWS_FOCUSED : INPUT_ROWS_UNFOCUSED}
-                minRows={1}
-                onBlur={onBlur}
                 onChange={setMessage}
-                onFocus={onFocus}
                 onSubmit={handleSubmit}
                 name="newMessage"
                 placeholder={placeholder}
-                sxs={inputStyle}
-                taskInfo={taskInfo}
+                // taskInfo={taskInfo}
+                tools={[]}
                 value={message}
             />
-        </>
+        </Outer>
     );
 }

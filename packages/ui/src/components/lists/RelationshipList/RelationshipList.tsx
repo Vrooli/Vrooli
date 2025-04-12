@@ -1,17 +1,17 @@
-import { GqlModelType, OwnerShape, Session } from "@local/shared";
+import { ModelType, OwnerShape, Session } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { FocusModeButton } from "components/buttons/relationships/FocusModeButton/FocusModeButton";
-import { IsCompleteButton } from "components/buttons/relationships/IsCompleteButton/IsCompleteButton";
-import { IsPrivateButton } from "components/buttons/relationships/IsPrivateButton/IsPrivateButton";
-import { MembersButton } from "components/buttons/relationships/MembersButton/MembersButton";
-import { OwnerButton } from "components/buttons/relationships/OwnerButton/OwnerButton";
-import { ParticipantsButton } from "components/buttons/relationships/ParticipantsButton/ParticipantsButton";
-import { QuestionForButton } from "components/buttons/relationships/QuestionForButton/QuestionForButton";
 import { useMemo } from "react";
-import { formSection, noSelect } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { RelationshipButtonType } from "utils/consts";
-import { RelationshipListProps } from "../types";
+import { formSection, noSelect } from "../../../styles.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS, RelationshipButtonType } from "../../../utils/consts.js";
+import { FocusModeButton } from "../../buttons/relationships/FocusModeButton.js";
+import { IsCompleteButton } from "../../buttons/relationships/IsCompleteButton.js";
+import { IsPrivateButton } from "../../buttons/relationships/IsPrivateButton.js";
+import { MembersButton } from "../../buttons/relationships/MembersButton.js";
+import { OwnerButton } from "../../buttons/relationships/OwnerButton.js";
+import { ParticipantsButton } from "../../buttons/relationships/ParticipantsButton.js";
+import { QuestionForButton } from "../../buttons/relationships/QuestionForButton.js";
+import { RelationshipListProps } from "../types.js";
 
 /**
  * Converts session to user object
@@ -29,7 +29,7 @@ export function userFromSession(session: Session): Exclude<OwnerShape, null> {
 }
 
 /** Map of button types to objects they're shown on */
-const buttonTypeMap: Record<RelationshipButtonType, (GqlModelType | `${GqlModelType}`)[]> = {
+const buttonTypeMap: Record<RelationshipButtonType, (ModelType | `${ModelType}`)[]> = {
     IsPrivate: ["Api", "Code", "Note", "Project", "Routine", "RunProject", "RunRoutine", "Standard", "Team", "User"],
     IsComplete: ["Project", "Routine"],
     Owner: ["Api", "Code", "Comment", "Label", "Note", "Project", "Routine", "Standard"],
@@ -74,6 +74,7 @@ export function RelationshipList({
             justifyContent: "flex-start",
             gap: 1,
             overflowX: "auto",
+            background: theme.palette.background.paper,
             ...props.sx,
         } as const;
     }, [theme, props.sx]);
@@ -82,7 +83,7 @@ export function RelationshipList({
         return null;
     }
     return (
-        <Box sx={outerStyle}>
+        <Box id={ELEMENT_IDS.RelationshipList} sx={outerStyle}>
             {visibleButtons.includes(RelationshipButtonType.IsPrivate) && <IsPrivateButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.IsComplete) && <IsCompleteButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Owner) && <OwnerButton {...props} />}

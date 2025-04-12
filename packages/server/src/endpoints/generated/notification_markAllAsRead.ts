@@ -1,4 +1,4 @@
 export const notification_markAllAsRead = {
-  "count": true,
-  "__typename": "Notification"
-} as const;
+    "count": true,
+    "__cacheKey": "-1728504849"
+};

@@ -1,32 +1,32 @@
-import { Bookmark, GqlModelType, isOfType, ListObject, noop, OrArray, Reaction, View } from "@local/shared";
+import { Bookmark, ListObject, ModelType, OrArray, Reaction, View, isOfType, noop } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { UsePressEvent } from "hooks/gestures";
-import { useObjectActions } from "hooks/objectActions";
-import { useDimensions } from "hooks/useDimensions";
-import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import { useStableCallback } from "hooks/useStableCallback";
-import { useStableObject } from "hooks/useStableObject";
 import { memo, useMemo } from "react";
 import { lazily } from "react-lazily";
-import { useLocation } from "route";
-import { ObjectAction } from "utils/actions/objectActions";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { ObjectListItemProps } from "../types";
+import { UsePressEvent } from "../../../hooks/gestures.js";
+import { useObjectActions } from "../../../hooks/objectActions.js";
+import { useDimensions } from "../../../hooks/useDimensions.js";
+import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
+import { useStableCallback } from "../../../hooks/useStableCallback.js";
+import { useStableObject } from "../../../hooks/useStableObject.js";
+import { useLocation } from "../../../route/router.js";
+import { ObjectAction } from "../../../utils/actions/objectActions.js";
+import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { ObjectListItemProps } from "../types.js";
 
 // Custom list item components
-const { BookmarkListListItem } = lazily(() => import("../BookmarkListListItem/BookmarkListListItem"));
-const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem"));
-const { ChatInviteListItem } = lazily(() => import("../ChatInviteListItem/ChatInviteListItem"));
-const { ChatParticipantListItem } = lazily(() => import("../ChatParticipantListItem/ChatParticipantListItem"));
-const { MeetingInviteListItem } = lazily(() => import("../MeetingInviteListItem/MeetingInviteListItem"));
-const { MemberInviteListItem } = lazily(() => import("../MemberInviteListItem/MemberInviteListItem"));
-const { MemberListItem } = lazily(() => import("../MemberListItem/MemberListItem"));
-const { NotificationListItem } = lazily(() => import("../NotificationListItem/NotificationListItem"));
-const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem"));
-const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem"));
-const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem"));
-function getListItemComponent(objectType: `${GqlModelType}` | "CalendarEvent") {
+const { BookmarkListListItem } = lazily(() => import("../BookmarkListListItem/BookmarkListListItem.js"));
+const { ChatListItem } = lazily(() => import("../ChatListItem/ChatListItem.js"));
+const { ChatInviteListItem } = lazily(() => import("../ChatInviteListItem/ChatInviteListItem.js"));
+const { ChatParticipantListItem } = lazily(() => import("../ChatParticipantListItem/ChatParticipantListItem.js"));
+const { MeetingInviteListItem } = lazily(() => import("../MeetingInviteListItem/MeetingInviteListItem.js"));
+const { MemberInviteListItem } = lazily(() => import("../MemberInviteListItem/MemberInviteListItem.js"));
+const { MemberListItem } = lazily(() => import("../MemberListItem/MemberListItem.js"));
+const { NotificationListItem } = lazily(() => import("../NotificationListItem/NotificationListItem.js"));
+const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem.js"));
+const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem.js"));
+const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem.js"));
+function getListItemComponent(objectType: `${ModelType}` | "CalendarEvent") {
     switch (objectType) {
         case "BookmarkList": return BookmarkListListItem;
         case "Chat": return ChatListItem;
@@ -69,7 +69,7 @@ type ObjectListItemPropsForMultiple<T extends OrArray<ListObject>> = T extends L
 
 export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItemPropsForMultiple<T>, "canNavigate" | "hideUpdateButton" | "loading" | "onAction" | "onClick"> & {
     /** List of dummy items types to display while loading */
-    dummyItems?: (GqlModelType | `${GqlModelType}`)[];
+    dummyItems?: (ModelType | `${ModelType}`)[];
     handleToggleSelect?: (item: ListObject, event?: UsePressEvent) => unknown,
     /** True if list can be reordered (e.g. resource list) */
     isListReorderable?: boolean;
@@ -111,7 +111,7 @@ export function ObjectList<T extends OrArray<ListObject>>({
     const actionData = useObjectActions({
         canNavigate,
         isListReorderable,
-        objectType: contextData.object?.__typename as GqlModelType | undefined,
+        objectType: contextData.object?.__typename as ModelType | undefined,
         onAction,
         setLocation,
         ...contextData,

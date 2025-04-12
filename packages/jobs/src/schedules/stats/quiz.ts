@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { DbProvider, batch, batchGroup, logger } from "@local/server";
 import { QuizAttemptStatus } from "@local/shared";
 import { PeriodType, Prisma } from "@prisma/client";
 
@@ -17,11 +17,11 @@ type BatchDirectoryAttemptCountsResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of quiz IDs to various attempt counts
  */
-const batchAttemptCounts = async (
+async function batchAttemptCounts(
     quizIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchDirectoryAttemptCountsResult> => {
+): Promise<BatchDirectoryAttemptCountsResult> {
     const initialResult = Object.fromEntries(quizIds.map(id => [id, {
         timesStarted: 0,
         timesPassed: 0,
@@ -97,11 +97,11 @@ const batchAttemptCounts = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logQuizStats = async (
+export async function logQuizStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.quizFindManyArgs>({
             objectType: "Quiz",
@@ -110,7 +110,7 @@ export const logQuizStats = async (
                 // have been started or completed within the period
                 const attemptCountsByQuiz = await batchAttemptCounts(batch.map(quiz => quiz.id), periodStart, periodEnd);
                 // Create stats for each routine
-                await prismaInstance.stats_quiz.createMany({
+                await DbProvider.get().stats_quiz.createMany({
                     data: batch.map(quiz => {
                         const attemptCounts = attemptCountsByQuiz[quiz.id];
                         if (!attemptCounts) return;

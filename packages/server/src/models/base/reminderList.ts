@@ -1,10 +1,10 @@
 import { MaxObjects, reminderListValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { ReminderListFormat } from "../formats";
-import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from "./types";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { ReminderListFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from "./types.js";
 
 const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({
@@ -14,7 +14,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
         label: {
             select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.select() } }),
             // Label is schedule's label
-            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.get(select.focusMode as FocusModeModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.get(select.focusMode as FocusModeModelInfo["DbModel"], languages),
         },
     }),
     format: ReminderListFormat,
@@ -41,7 +41,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["DbModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {

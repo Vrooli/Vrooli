@@ -55,7 +55,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-. "${HERE}/setup.sh" -e y -r n "${SETUP_ARGS[@]}"
+"${HERE}/setup.sh" -e y -r n "${SETUP_ARGS[@]}"
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -71,7 +71,7 @@ export REDIS_URL="redis://:${REDIS_PASSWORD}@redis:${PORT_REDIS:-6379}"
 # This is not the case for the other secrets.
 export JWT_PRIV
 export JWT_PUB
-export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $API_URL | tail -n 1)
 if [ $? -ne 0 ]; then
     echo $SERVER_LOCATION
     error "Failed to determine server location"
@@ -127,7 +127,11 @@ else
     docker-compose down
 
     # Start the reverse proxy
-    . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
+    "${HERE}/proxySetup.sh"
+    if [ $? -ne 0 ]; then
+        error "Failed to set up proxy"
+        exit 1
+    fi
 
     # Start the development environment
     info "Starting development environment using Docker Compose..."

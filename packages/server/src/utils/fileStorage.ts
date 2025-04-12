@@ -1,12 +1,11 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { uuid } from "@local/shared";
-import { fileTypeFromBuffer } from "file-type";
+import { SessionUser, uuid } from "@local/shared";
 import https from "https";
 import sharp from "sharp";
-import { UploadConfig } from "../endpoints/rest";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { SessionUserToken } from "../types";
+import { UploadConfig } from "../endpoints/rest.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { RequestFile } from "../types.js";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -18,12 +17,12 @@ const BUCKET_NAME = "vrooli-bucket";
  * the environment variables are loaded from the secrets location, so they're 
  * not available at startup.
  */
-const getS3Client = (): S3Client => {
+function getS3Client(): S3Client {
     if (!s3) {
         s3 = new S3Client({ region: REGION });
     }
     return s3 as S3Client;
-};
+}
 interface NSFWCheckResult {
     [key: string]: {
         drawings: number,
@@ -36,12 +35,28 @@ interface NSFWCheckResult {
 
 // heic-convert has to defer initialization because (presumably) the wasm file messes up the compiler error logs
 let heicConvert;
-const getHeicConvert = async () => {
+async function getHeicConvert() {
     if (!heicConvert) {
         heicConvert = (await import("heic-convert")).default;
     }
     return heicConvert;
+}
+
+// file-type has to defer because jest tests don't like it for some reason
+type FileTypeResult = {
+    readonly ext: string;
+    readonly mime: string;
 };
+let fileTypeFromBuffer: (buffer: Uint8Array | ArrayBuffer) => Promise<FileTypeResult | undefined>;
+async function getFileType(buffer: Uint8Array | ArrayBuffer) {
+    if (!fileTypeFromBuffer) {
+        const fileTypePkg = await import("file-type");
+        const { fileTypeFromBuffer: func } = fileTypePkg.default;
+        fileTypeFromBuffer = func;
+    }
+    return fileTypeFromBuffer(buffer);
+}
+
 /** Common configuration for profile images */
 export const profileImageConfig = {
     allowedExtensions: ["png", "jpg", "jpeg", "webp", "svg", "gif", "heic", "heif"], // gif will lose animation
@@ -74,7 +89,7 @@ interface NSFWCheckResponse {
  * @param hash The hash of the image data.
  * @returns The NSFW check result.
  */
-const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult> => {
+async function checkNSFW(buffer: Buffer, hash: string): Promise<NSFWCheckResult> {
     // Convert the image data to base64
     const base64Image = buffer.toString("base64");
 
@@ -118,9 +133,9 @@ const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult>
         apiRequest.write(data);
         apiRequest.end();
     });
-};
+}
 
-const resizeImage = async (buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") => {
+async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") {
     return await sharp(buffer)
         // Don't enlarge the image if it's already smaller than the requested size.
         .resize(width, height, { withoutEnlargement: true })
@@ -130,9 +145,9 @@ const resizeImage = async (buffer: Buffer, width: number, height: number, format
         .toFormat(format)
         // Convert to a buffer.
         .toBuffer();
-};
+}
 
-const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
+async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer> {
     const convert = await getHeicConvert();
     const outputBuffer = await convert({
         buffer,  // the HEIC file buffer
@@ -140,18 +155,18 @@ const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
         quality: 1, // the jpeg compression quality, between 0 and 1
     });
     return Buffer.from(outputBuffer);
-};
+}
 
 /** Supported image types/extensions */
 const IMAGE_TYPES = ["jpeg", "jpg", "png", "gif", "webp", "tiff", "bmp"];
 
 /** Uploads a file to S3 */
-const uploadFile = async (
+async function uploadFile(
     s3: S3Client,
     key: string,
     body: Buffer,
     mimetype: string,
-) => {
+) {
     // Construct the PutObjectCommand with the necessary parameters.
     const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
@@ -163,17 +178,17 @@ const uploadFile = async (
     await s3.send(command);
     // Return the URL of the uploaded file.
     return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
-};
+}
 
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
-export const processAndStoreFiles = async <TInput extends object | undefined>(
-    files: Express.Multer.File[],
+export async function processAndStoreFiles<TInput>(
+    files: RequestFile[],
     input: TInput,
-    userData: SessionUserToken,
+    userData: SessionUser,
     config?: UploadConfig<TInput>,
-): Promise<{ [x: string]: string[] }> => {
+): Promise<{ [x: string]: string[] }> {
     const s3 = getS3Client();
 
     // Keep track of the number of files processed for each field, so 
@@ -192,12 +207,12 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
 
         // Check if the maximum number of files for this field has been exceeded
         if (fileConfig?.maxFiles !== undefined && fileCounts[file.fieldname] > fileConfig.maxFiles) {
-            throw new CustomError("0524", "MaxFilesExceeded", ["en"], { file: file.filename });
+            throw new CustomError("0524", "MaxFilesExceeded", { file: file.originalname });
         }
 
         // Check if the file size exceeds the maximum allowed size
         if (fileConfig?.maxFileSize !== undefined && file.size > fileConfig.maxFileSize) {
-            throw new CustomError("0525", "MaxFileSizeExceeded", ["en"], { file: file.filename });
+            throw new CustomError("0525", "MaxFileSizeExceeded", { file: file.originalname });
         }
 
         // Get the file name
@@ -206,16 +221,16 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
         // Find extension using the beginning of the file buffer. 
         // This is safer than using the file extension from the original file name, 
         // as malicious users can spoof the file extension.
-        const fileType = await fileTypeFromBuffer(file.buffer);
+        const fileType = await getFileType(file.buffer);
         let extension = fileType?.ext;
         if (!extension) {
-            throw new CustomError("0502", "InternalError", ["en"], { file: file.filename });
+            throw new CustomError("0502", "InternalError", { file: file.originalname });
         }
 
         // Check if the file extension is allowed
         const allowedExtensions = fileConfig?.allowedExtensions ?? ["txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "heic", "heif", "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp"];
         if (!allowedExtensions.includes(extension)) {
-            throw new CustomError("0508", "InternalError", ["en"], { file: file.filename });
+            throw new CustomError("0508", "InternalError", { file: file.originalname });
         }
 
         // Find other information about the file
@@ -235,7 +250,7 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
             // const classificationsMap = await checkNSFW(buffer, hash);
             // const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
             // if (isNsfw) {
-            //     throw new CustomError("0503", "InternalError", ["en"], { file: file.filename });
+            //     throw new CustomError("0503", "InternalError", { file: file.filename });
             // }
             // Upload image in various sizes, specified in fileConfig
             for (let i = 0; i < fileConfig.imageSizes.length; i++) {
@@ -273,4 +288,4 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
     const fileUrls = Object.assign({}, ...fileUrlsArr);
 
     return fileUrls;
-};
+}

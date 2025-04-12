@@ -1,5 +1,5 @@
-import { prismaInstance } from "../db/instance";
-import { emitSocketEvent } from "../sockets/events";
+import { DbProvider } from "../db/provider.js";
+import { emitSocketEvent } from "../sockets/events.js";
 
 /**
  * Reduces the credits of a user by the specified amount, and 
@@ -15,7 +15,7 @@ export async function reduceUserCredits(userId: string, decrement: number | bigi
         return;
     }
     // Update the user's credits
-    const updatedUser = await prismaInstance.user.update({
+    const updatedUser = await DbProvider.get().user.update({
         where: { id: userId },
         data: {
             premium: {
@@ -25,8 +25,8 @@ export async function reduceUserCredits(userId: string, decrement: number | bigi
                     create: { credits: 0, hasReceivedFreeTrial: false, isActive: false },
                     // The actual update for most users
                     update: { credits: { decrement } },
-                }
-            }
+                },
+            },
         },
         select: { premium: { select: { credits: true } } },
     });

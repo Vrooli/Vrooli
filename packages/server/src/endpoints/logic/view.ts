@@ -1,23 +1,17 @@
-import { View, ViewSearchInput, ViewSearchResult } from "@local/shared";
-import { GraphQLResolveInfo } from "graphql";
-import { readManyHelper } from "../../actions/reads";
-import { assertRequestFrom } from "../../auth/request";
-import { Context, rateLimit } from "../../middleware";
-import { FindManyResult, GQLEndpoint, IWrap } from "../../types";
+import { ViewSearchInput, ViewSearchResult } from "@local/shared";
+import { readManyHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsView = {
-    Query: {
-        views: GQLEndpoint<ViewSearchInput, FindManyResult<View>>;
-    },
+    findMany: ApiEndpoint<ViewSearchInput, ViewSearchResult>;
 }
 
 const objectType = "View";
-export const ViewEndpoints: EndpointsView = {
-    Query: {
-        views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, req, additionalQueries: { byId: userData.id } });
-        },
+export const view: EndpointsView = {
+    findMany: async ({ input }, { req }, info) => {
+        const userData = RequestService.assertRequestFrom(req, { isUser: true });
+        await RequestService.get().rateLimit({ maxUser: 2000, req });
+        return readManyHelper({ info, input, objectType, req, additionalQueries: { byId: userData.id } });
     },
 };

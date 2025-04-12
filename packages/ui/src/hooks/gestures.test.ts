@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
 import { act } from "react";
-import { useInfiniteScroll } from "./gestures";
+import { useInfiniteScroll } from "./gestures.js";
 
 describe("useInfiniteScroll", () => {
     let mockLoadMore: jest.Mock;

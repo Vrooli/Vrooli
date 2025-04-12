@@ -1,5 +1,8 @@
-import { id, intPositiveOrOne, language, opt, req, YupModel, yupObj } from "../utils";
-import { quizQuestionResponseValidation } from "./quizQuestionResponse";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id, intPositiveOrOne, language } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { quizQuestionResponseValidation } from "./quizQuestionResponse.js";
 
 export const quizAttemptValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

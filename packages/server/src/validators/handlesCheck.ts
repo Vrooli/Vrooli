@@ -1,8 +1,8 @@
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { hasProfanity } from "../utils/censor";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { hasProfanity } from "../utils/censor.js";
 
 /** 
  * Handles that are not allowed to be used, regardless if they are in the database.
@@ -111,14 +111,12 @@ const RESERVED_HANDLES = [
  * @param forType The type of object to check handles for
  * @param Create Handle and id pairs for new objects
  * @param Update Handle and id pairs for updated objects
- * @param languages Preferred languages for error messages
  */
-export const handlesCheck = async (
+export async function handlesCheck(
     forType: "User" | "Project" | "Team",
     Create: { input: { id: string, handle?: string | null | undefined } }[],
     Update: { input: { id: string, handle?: string | null | undefined } }[],
-    languages: string[],
-): Promise<void> => {
+): Promise<void> {
     // Filter out empty handles from createList and updateList
     const filteredCreateList = Create.filter(x => x.input.handle).map(x => x.input) as { id: string, handle: string }[];
     const filteredUpdateList = Update.filter(x => x.input.handle).map(x => x.input) as { id: string, handle: string }[];
@@ -126,7 +124,7 @@ export const handlesCheck = async (
     // Find all existing handles that match the handles in createList and updateList.
     // There should be none, unless some of the updates are changing the existing handles to something else.
     const { dbTable } = ModelMap.getLogic(["dbTable"], forType);
-    const existingHandles = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+    const existingHandles = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
         where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
         select: { id: true, handle: true },
     });
@@ -139,15 +137,15 @@ export const handlesCheck = async (
             handleUsage[handle] = (handleUsage[handle] || 0) + 1;
             // If there is more than one use of a handle, throw an error
             if (handleUsage[handle] > 1) {
-                throw new CustomError("0019", "HandleTaken", languages);
+                throw new CustomError("0019", "HandleTaken");
             }
             // Also check for profanity while we're at it
             if (hasProfanity(handle)) {
-                throw new CustomError("0374", "BannedWord", languages);
+                throw new CustomError("0374", "BannedWord");
             }
             // Also check for reserved handles while we're at it
             if (RESERVED_HANDLES.includes(handle.toLowerCase())) {
-                throw new CustomError("0375", "HandleTaken", languages);
+                throw new CustomError("0375", "HandleTaken");
             }
         }
     }
@@ -160,7 +158,7 @@ export const handlesCheck = async (
         }
         // Check if a handle is taken
         if (handleUsage[handle] > 0) {
-            throw new CustomError("0019", "HandleTaken", languages);
+            throw new CustomError("0019", "HandleTaken");
         }
     }
-};
+}

@@ -1,11 +1,15 @@
-import { endpointGetStatsApi, FormSchema, StatsApiSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsStatsApi, FormSchema, StatsApiSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const statsApiSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchStatsApi"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function statsApiSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchStatsApi"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), endpointGetStatsApi, undefined, StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);
+export function statsApiSearchParams() {
+    return toParams(statsApiSearchSchema(), endpointsStatsApi, StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);
+}

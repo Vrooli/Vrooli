@@ -1,16 +1,14 @@
-import { Bookmark, BookmarkFor, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RootStep, RoutineVersion, TranslationKeyCommon } from "@local/shared";
+/* c8 ignore start */
+import { Bookmark, BookmarkFor, ListObject, RoutineVersion, TranslationKeyCommon } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
-import { HelpButtonProps } from "components/buttons/types";
-import { TitleProps } from "components/text/types";
-import { type UseObjectActionsReturn } from "hooks/objectActions";
 import { ReactNode } from "react";
-import { SvgComponent, SxType, ViewDisplayType } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { CookiePreferences } from "utils/localStorage";
-import { FormProps } from "../../types";
-
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface SideMenuProps { }
+import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType, ViewDisplayType } from "../../types.js";
+import { ObjectAction } from "../../utils/actions/objectActions.js";
+import { CookiePreferences } from "../../utils/localStorage.js";
+import { HelpButtonProps } from "../buttons/types.js";
+import { TitleProps } from "../text/types.js";
 
 export interface BulkDeleteDialogProps {
     handleClose: (selectedForDelete: ListObject[]) => unknown;
@@ -60,7 +58,8 @@ export type FindObjectType = |
     "Prompt" |
     "Question" |
     "Reminder" |
-    "Routine" |
+    "RoutineMultiStep" |
+    "RoutineSingleStep" |
     "RunProject" |
     "RunRoutine" |
     "SmartContract" |
@@ -97,10 +96,10 @@ export interface FindSubroutineDialogProps {
 export interface ListMenuItemData<T> {
     /** Displays help button with data */
     helpData?: HelpButtonProps;
-    /** Icon to display */
-    Icon?: SvgComponent;
     /** Color of Icon, if different than text */
     iconColor?: string;
+    /** Icon to display */
+    iconInfo?: IconInfo;
     /** Text to display */
     label?: string;
     /** Translation key for label, if label not provided */
@@ -109,7 +108,7 @@ export interface ListMenuItemData<T> {
     value: T;
 }
 export interface ListMenuProps<T> {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     data?: ListMenuItemData<T>[];
     id: string;
     onSelect: (value: T) => unknown;
@@ -147,35 +146,28 @@ export interface ShareObjectDialogProps extends DialogProps {
     onClose: () => unknown;
 }
 
-export interface TranscriptDialogProps {
-    handleClose: () => unknown;
-    isListening: boolean;
-    showHint: boolean;
-    transcript: string;
-}
-
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
     object: ListObject | null | undefined;
 }
 
 export interface ObjectActionMenuProps {
     actionData: UseObjectActionsReturn;
-    anchorEl: HTMLElement | null;
-    exclude?: ObjectAction[];
+    anchorEl: Element | null;
+    exclude?: readonly ObjectAction[];
     object: ListObject | null | undefined;
     onClose: () => unknown;
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NodeLinkShape) => unknown;
-    handleDelete: (link: NodeLinkShape) => unknown;
-    isAdd: boolean;
-    isOpen: boolean;
-    language: string; // Language to display/edit
-    link?: NodeLinkShape; // Link to display on open, if editing
-    nodeFrom?: NodeShape | null; // Initial "from" node
-    nodeTo?: NodeShape | null; // Initial "to" node
-    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
+    // handleClose: (newLink?: NodeLinkShape) => unknown;
+    // handleDelete: (link: NodeLinkShape) => unknown;
+    // isAdd: boolean;
+    // isOpen: boolean;
+    // language: string; // Language to display/edit
+    // link?: NodeLinkShape; // Link to display on open, if editing
+    // nodeFrom?: NodeShape | null; // Initial "from" node
+    // nodeTo?: NodeShape | null; // Initial "to" node
+    // routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
 }
 
 export interface SubroutineCreateDialogProps {
@@ -183,46 +175,27 @@ export interface SubroutineCreateDialogProps {
     onClose: () => unknown;
 }
 
-export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
-    /**
-     * True if the routine version itself can be updated. Otherwise, 
-     * only node-level properties can be updated (e.g. index)
-     */
-    canUpdateRoutineVersion: boolean;
-    isEditing: boolean;
-    isOpen: boolean;
-    /** Number of subroutines in parent routine list */
-    numSubroutines: number;
-};
+export type SubroutineFormProps = any;//Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
+//     /**
+//      * True if the routine version itself can be updated. Otherwise, 
+//      * only node-level properties can be updated (e.g. index)
+//      */
+//     canUpdateRoutineVersion: boolean;
+//     isEditing: boolean;
+//     isOpen: boolean;
+//     /** Number of subroutines in parent routine list */
+//     numSubroutines: number;
+// };
 
 export interface SubroutineInfoDialogProps {
-    data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
-    defaultLanguage: string;
-    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => unknown;
-    handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => unknown;
-    handleViewFull: () => unknown;
-    isEditing: boolean;
-    open: boolean;
-    onClose: () => unknown;
-}
-
-export interface UnlinkedNodesDialogProps {
-    handleNodeDelete: (nodeId: string) => unknown;
-    /** Expand/shrink dialog */
-    handleToggleOpen: () => unknown;
-    language: string;
-    nodes: Node[];
-    open: boolean;
-}
-
-export interface RunStepsDialogProps {
-    currStep: number[] | null;
-    handleLoadSubroutine: (id: string) => unknown;
-    handleCurrStepLocationUpdate: (step: number[]) => unknown;
-    history: number[][];
-    /** Out of 100 */
-    percentComplete: number;
-    rootStep: RootStep | null;
+    // data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
+    // defaultLanguage: string;
+    // handleUpdate: (updatedSubroutine: NodeRoutineListItem) => unknown;
+    // handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => unknown;
+    // handleViewFull: () => unknown;
+    // isEditing: boolean;
+    // open: boolean;
+    // onClose: () => unknown;
 }
 
 export interface DeleteBookmarkListDialogProps {
@@ -264,7 +237,18 @@ export interface LargeDialogProps {
         paper?: SxType;
         root?: SxType;
     };
-    zIndexOffset?: number;
+    /** Optional anchor element to position the dialog relative to */
+    anchorEl?: HTMLElement | null;
+    /** Optional anchor origin for positioning when using anchorEl */
+    anchorOrigin?: {
+        vertical: "top" | "center" | "bottom";
+        horizontal: "left" | "center" | "right";
+    };
+    /** Optional transform origin for positioning when using anchorEl */
+    transformOrigin?: {
+        vertical: "top" | "center" | "bottom";
+        horizontal: "left" | "center" | "right";
+    };
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {
@@ -285,19 +269,13 @@ export interface WalletSelectDialogProps {
 }
 
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     children: ReactNode;
     handleClose?: () => unknown;
-    placement?: "top" | "right" | "bottom" | "left";
+    placement?: "auto" | "top" | "right" | "bottom" | "left";
     sxs?: {
         root?: Record<string, unknown>;
         content?: SxType;
         paper?: SxType;
     }
-}
-
-
-export interface TutorialDialogProps {
-    isOpen: boolean;
-    onClose: () => unknown;
 }

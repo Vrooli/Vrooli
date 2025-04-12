@@ -1,44 +1,44 @@
-import { assertRequestFrom } from "../auth/request";
-import { addSupplementalFields } from "../builders/addSupplementalFields";
-import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { RecursivePartial } from "../types";
-import { cudHelper } from "./cuds";
-import { CreateManyHelperProps, CreateOneHelperProps } from "./types";
+import { SessionUser } from "@local/shared";
+import { SessionService } from "../auth/session.js";
+import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { RecursivePartial } from "../types.js";
+import { cudHelper } from "./cuds.js";
+import { CreateManyHelperProps, CreateOneHelperProps } from "./types.js";
 
 /**
  * Helper function for creating multiple objects of the same type in a single line.
  * Throws error if not successful.
- * @returns GraphQL response object
+ * @returns API response object
  */
-export async function createManyHelper<GraphQLModel>({
+export async function createManyHelper<ObjectModel>({
     additionalData,
     info,
     input,
     objectType,
     req,
-}: CreateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
-    const userData = assertRequestFrom(req, { isUser: true });
+}: CreateManyHelperProps): Promise<RecursivePartial<ObjectModel>[]> {
+    const userData = SessionService.getUser(req) as SessionUser;
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
+    const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
         additionalData,
+        info: partialInfo,
         inputData: input.map(d => ({
             action: "Create",
             input: d,
             objectType,
         })),
-        partialInfo,
         userData,
     });
     // Make sure none of the items in the array are booleans
     if (created.some(d => typeof d === "boolean")) {
-        throw new CustomError("0028", "ErrorUnknown", userData.languages);
+        throw new CustomError("0028", "ErrorUnknown");
     }
-    return await addSupplementalFields(userData, created as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
+    return await addSupplementalFields(userData, created as Record<string, any>[], partialInfo) as RecursivePartial<ObjectModel>[];
 }
 
 /**
@@ -46,9 +46,9 @@ export async function createManyHelper<GraphQLModel>({
  * Throws error if not successful.
  * @returns GraphQL response object
  */
-export async function createOneHelper<GraphQLModel>({
+export async function createOneHelper<ObjectModel>({
     input,
     ...rest
-}: CreateOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
-    return (await createManyHelper<GraphQLModel>({ input: [input], ...rest }))[0];
+}: CreateOneHelperProps): Promise<RecursivePartial<ObjectModel>> {
+    return (await createManyHelper<ObjectModel>({ input: [input], ...rest }))[0];
 }

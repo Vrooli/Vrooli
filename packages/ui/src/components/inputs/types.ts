@@ -1,19 +1,13 @@
-import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
+/* c8 ignore start */
+import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
-import { FindObjectType } from "components/dialogs/types";
-import { ResourceListProps } from "components/lists/types";
 import { FieldProps } from "formik";
-import { type UseChatTaskReturn } from "hooks/tasks";
 import { CSSProperties, RefObject } from "react";
-import { SvgComponent, SxType } from "types";
-
-export interface CharLimitIndicatorProps {
-    chars: number;
-    /** Hides indicator until this number of characters is reached */
-    minCharsToShow?: number;
-    maxChars: number;
-    size?: number;
-}
+import { type UseChatTaskReturn } from "../../hooks/tasks.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType } from "../../types.js";
+import { FindObjectType } from "../dialogs/types.js";
+import { ResourceListProps } from "../lists/types.js";
 
 export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
     label: string;
@@ -180,23 +174,10 @@ export interface LinkInputBaseProps {
 
 export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
-export type GetTaggableItemsFunc = (query: string) => Promise<ListObject[]>;
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
-    actionButtons?: Array<{
-        disabled?: boolean;
-        Icon: SvgComponent;
-        onClick: () => unknown;
-        tooltip?: string;
-    }>;
     autoFocus?: boolean;
     disabled?: boolean;
-    disableAssistant?: boolean;
     error?: boolean;
-    /**
-     * Callback to provide data for "@" tagging dropdown. 
-     * If not provided, the dropdown will not appear.
-     */
-    getTaggableItems?: GetTaggableItemsFunc;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
@@ -211,61 +192,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
     tabIndex?: number;
     taskInfo?: Pick<UseChatTaskReturn, "activeTask" | "contexts">;
     value: string;
-    sxs?: {
-        topBar?: SxType;
-        bottomBar?: SxType;
-        root?: SxType;
-        inputRoot?: SxType;
-        textArea?: CSSProperties;
-    };
 }
-
-export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
-
-export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "helperText" | "maxChars" | "sxs"> {
-    enterWillSubmit?: boolean;
-    id: string;
-    openAssistantDialog: (selected: string, fullText: string) => unknown;
-    onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
-    redo: () => unknown;
-    setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
-    toggleMarkdown: () => unknown;
-    undo: () => unknown;
-    sxs?: {
-        inputRoot?: SxType;
-        textArea?: CSSProperties;
-    };
-}
-
-export type RichInputMarkdownProps = RichInputChildProps;
-export type RichInputLexicalProps = RichInputChildProps;
-
-export enum RichInputAction {
-    Assistant = "Assistant",
-    Bold = "Bold",
-    Code = "Code",
-    Header1 = "Header1",
-    Header2 = "Header2",
-    Header3 = "Header3",
-    Header4 = "Header4",
-    Header5 = "Header5",
-    Header6 = "Header6",
-    Italic = "Italic",
-    Link = "Link",
-    ListBullet = "ListBullet",
-    ListCheckbox = "ListCheckbox",
-    ListNumber = "ListNumber",
-    Mode = "Mode",
-    Quote = "Quote",
-    Redo = "Redo",
-    SetValue = "SetValue",
-    Spoiler = "Spoiler",
-    Strikethrough = "Strikethrough",
-    Table = "Table",
-    Underline = "Underline",
-    Undo = "Undo",
-}
-export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
 export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;
@@ -329,9 +256,9 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
-    getDisplayIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
+    getDisplayIcon?: (option: T) => JSX.Element | undefined;
     getOptionDescription?: (option: T, t: TranslationFunc) => string | null | undefined;
-    getOptionIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
+    getOptionIcon?: (option: T) => JSX.Element | undefined;
     getOptionLabel: (option: T, t: TranslationFunc) => string | null | undefined;
     inputAriaLabel?: string;
     isRequired?: boolean,
@@ -401,22 +328,10 @@ export type TextInputProps = Omit<TextFieldProps, "ref"> & {
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
 
-export interface ToggleSwitchProps {
-    checked: boolean;
-    name?: string;
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => unknown;
-    OffIcon?: SvgComponent;
-    OnIcon?: SvgComponent;
-    label?: string;
-    tooltip?: string;
-    disabled?: boolean;
-    sx?: SxType;
-}
-
 export interface TranslatedRichInputProps {
     actionButtons?: Array<{
         disabled?: boolean;
-        Icon: SvgComponent;
+        iconInfo: IconInfo;
         onClick: () => unknown;
         tooltip?: string;
     }>;
@@ -453,11 +368,10 @@ export interface TranslatedTextInputProps {
 }
 
 export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "onChange" | "value"> & {
-    autoFocus?: boolean;
-    fullWidth?: boolean;
     /** Label for input component, NOT the version label. */
     label?: string;
     name?: string;
     /** Existing versions of the object. Used to determine mimum version number. */
     versions: string[];
 }
+

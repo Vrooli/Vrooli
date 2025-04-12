@@ -1,0 +1,9 @@
+---
+description: Used for frontend development
+globs: 
+alwaysApply: false
+---
+
+- This is a functional React application.
+- Styling is accomplished using `@mui`.
+- Ensure that the code adheres to our styling rules @.eslintrc [.eslintrc](mdc:packages/ui/.eslintrc).

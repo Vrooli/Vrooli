@@ -1,7 +1,7 @@
 import { Job } from "bull";
 import { Twilio } from "twilio";
-import { logger } from "../../events/logger";
-import { SmsProcessPayload } from "./queue";
+import { logger } from "../../events/logger.js";
+import { SmsProcessPayload } from "./queue.js";
 
 let texting_client: Twilio | null = null;
 let phoneNumber: string | null = null;
@@ -11,7 +11,13 @@ let phoneNumber: string | null = null;
  * the auth token is loaded from the secrets location, so it's 
  * not available at startup.
  */
-export const setupTextingClient = async () => {
+export async function setupTextingClient() {
+    // Make sure we never set this up during testing
+    if (process.env.NODE_ENV === "test") {
+        console.warn("Skipping setupTextingClient because we're in testing mode");
+        return;
+    }
+
     if (texting_client === null) {
         try {
             const client = await import("twilio");
@@ -27,9 +33,9 @@ export const setupTextingClient = async () => {
             logger.warning("TWILIO phone number not set. Sending SMS will not work", { trace: "0015" });
         }
     }
-};
+}
 
-export const smsProcess = async (job: Job<SmsProcessPayload>) => {
+export async function smsProcess(job: Job<SmsProcessPayload>) {
     try {
         await setupTextingClient();
         if (texting_client === null || phoneNumber === null) {
@@ -50,5 +56,5 @@ export const smsProcess = async (job: Job<SmsProcessPayload>) => {
         logger.error("Error sending sms", { trace: "0082" });
     }
     return false;
-};
+}
 

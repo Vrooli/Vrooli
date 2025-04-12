@@ -86,7 +86,7 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/../domainCheck.sh"
     refute [[ "$last_line" == "local" ]]
 }
 
-@test "Script handles invalid SERVER_URL" {
+@test "Script handles invalid API_URL" {
     run "$SCRIPT_PATH" "5.6.7.8" "invalid_url"
     assert_equal "$status" $ERROR_USAGE
     last_line=$(echo "$output" | tail -n 1)

@@ -1,211 +1,14 @@
-import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ModelInfo, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
-import { cudHelper } from "../../actions/cuds";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { emitSocketEvent } from "../../sockets/events";
-import { SessionUserToken } from "../../types";
-import { objectToYaml } from "../../utils";
-import { PreMapUserData } from "../../utils/chat";
-import { ChatContextCollector, CollectMessageContextInfoParams, ContextInfo, MessageContextInfo } from "./context";
-import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry";
-
-type SimpleChatMessageData = {
-    id: string;
-    translations: { language: string, text: string }[];
-}
-
-export type LanguageModelMessage = Partial<ContextInfo> & {
-    role: "user" | "assistant";
-    content: string;
-}
-export type LanguageModelContext = {
-    messages: LanguageModelMessage[];
-    systemMessage: string;
-}
-
-export type EstimateTokensParams = {
-    /** The requested model to base token logic on */
-    model: string;
-    /** The text to estimate tokens for */
-    text: string;
-}
-export type EstimateTokensResult = {
-    /** The name of the token estimation model used (if requested one was invalid/incomplete) */
-    model: string;
-    /** The estimated amount of tokens */
-    tokens: number;
-}
-export type GetConfigObjectParams = {
-    botSettings: BotSettings,
-    includeInitMessage: boolean,
-    mode: LanguageModelResponseMode,
-    userData: Pick<SessionUserToken, "languages">,
-    task: LlmTask | `${LlmTask}` | undefined,
-    force: boolean,
-}
-export type GenerateContextParams = {
-    /** 
-     * Determines if context should be written to force the response to be a command 
-     */
-    force: boolean;
-    contextInfo: ContextInfo[];
-    /**
-     * The mode to use when generating the response
-     */
-    mode: LanguageModelResponseMode;
-    /**
-     * The model to use for generating the response.
-     */
-    model: string;
-    participantsData?: Record<string, PreMapUserData> | null;
-    respondingBotConfig: BotSettings;
-    respondingBotId: string;
-    task: LlmTask | `${LlmTask}` | undefined;
-    taskMessage?: string | null;
-    userData: SessionUserToken;
-}
-export type GenerateResponseParams = {
-    /**
-     * Messages to include as context for the response. 
-     * Typically the whole chat history tree, or as many as you can fit 
-     * within the current token limit.
-     */
-    messages: LanguageModelMessage[];
-    /**
-     * The maximum number of tokens to output (meaning the input cost is not included). 
-     * The model may (and most likely will) stop before reaching this limit.
-     * If null, the service will decide what the maximum output should be.
-     */
-    maxTokens: number | null;
-    /**
-     * The mode to use when generating the response
-     */
-    mode: LanguageModelResponseMode;
-    /**
-     * The model to use for generating the response.
-     */
-    model: string;
-    /**
-     * The system message to include in the context. This is typically
-     * the configuration for the bot and task instructions.
-     */
-    systemMessage: string;
-    /**
-     * Information about the user requesting the response.
-     */
-    userData: Pick<SessionUserToken, "languages" | "name">;
-}
-export type GenerateResponseResult = {
-    /** How many attempts it took to generate a reponse */
-    attempts: number;
-    /** The generated message */
-    message: string;
-    /** How many API credits were used to generate the response */
-    cost: number;
-}
-export type GenerateResponseStreamingResult = {
-    __type: "stream" | "end" | "error";
-    /**
-     * The current stream of the message if __type is "stream" 
-     * (so we can minimize the amount of data sent to the UI), 
-     * or the full message if __type is "end"
-     */
-    message: string;
-    /**
-     * The accumulated cost of the response so far, or the total 
-     * cost if __type is "end"
-     */
-    cost: number;
-}
-
-export type GetResponseCostParams = {
-    model: string;
-    usage: { input: number, output: number };
-}
-
-export type GetOutputTokenLimitParams = {
-    maxCredits: bigint;
-    model: string;
-    inputTokens: number;
-}
-
-export type GetOutputTokenLimitResult = {
-    cost: number;
-    isSafe: boolean;
-}
-
-export interface LanguageModelService<GenerateNameType extends string, TokenNameType extends string> {
-    /** Identifier for service */
-    __id: LlmServiceId;
-    /** Estimate the amount of tokens a string is */
-    estimateTokens(params: EstimateTokensParams): EstimateTokensResult;
-    /** Generates config for setting up bot persona and task instructions */
-    getConfigObject(params: GetConfigObjectParams): Promise<Record<string, unknown>>;
-    /** Generates context prompt from messages */
-    generateContext(params: GenerateContextParams): Promise<LanguageModelContext>;
-    /** Generate a message response, non-streaming */
-    generateResponse(params: GenerateResponseParams): Promise<GenerateResponseResult>;
-    /**  Generate a message repsonse, streaming */
-    generateResponseStreaming(params: GenerateResponseParams): AsyncIterable<GenerateResponseStreamingResult>;
-    /** @returns the context size of the model */
-    getContextSize(requestedModel?: string | null): number;
-    /** @returns Information about the available models */
-    getModelInfo(): Record<GenerateNameType, ModelInfo>;
-    /** @returns the max output window for the model */
-    getMaxOutputTokens(requestedModel?: string | null): number;
-    /**
-     * Calculates the maximum number of tokens that can be output by the model 
-     * to stay under the cost limit.
-     * @param maxCredits The maximum cost (in cents * 1_000_000) that the response can have
-     * @param model The model to use for the calculation
-     * @param inputTokens The number of tokens in the input
-     * @returns The maximum number of tokens that can be output, or 0 if the cost is too low 
-     * (i.e. the input already exceeds the cost limit)
-     */
-    getMaxOutputTokensRestrained(params: GetOutputTokenLimitParams): number;
-    /** 
-     * Calculates the api credits used by the generation of an LLM response, 
-     * based on the model's input token and output token costs (in cents per 1_000_000 tokens).
-     * 
-     * NOTE: Instead of using decimals, the cost is in cents multiplied by 1_000_000. This 
-     * can be normalized in the UI so the number isn't overwhelming. 
-     * 
-     * @returns the total cost of the response
-     */
-    getResponseCost(params: GetResponseCostParams): number;
-    /** @returns the estimation method for the model */
-    getEstimationMethod(model?: string | null): TokenNameType;
-    /** @returns a list of token estimation types used by this service */
-    getEstimationTypes(): readonly TokenNameType[];
-    /** Convert a preferred model to an available one */
-    getModel(model?: string | null): GenerateNameType;
-    /** Converts error received by service to a standardized type */
-    getErrorType(error: unknown): LlmServiceErrorType;
-    /** 
-     * Checks if the input contains potentially harmful content 
-     * @returns true if the input is safe, false otherwise
-     */
-    safeInputCheck(input: string): Promise<GetOutputTokenLimitResult>;
-}
-
-/**
- * Basic token estimation, which can be used as a placeholder 
- * until a more advanced one is implemented
- * @returns The name of the token estimation model, and the estimated amount of tokens
- */
-export function tokenEstimationDefault({ text }: EstimateTokensParams) {
-    const words = text.split(" ");
-    let tokens = 0;
-    for (const word of words) {
-        // Add token for each 5 characters
-        // eslint-disable-next-line no-magic-numbers
-        tokens += Math.floor(word.length / 5);
-        // Also increment for whitespace
-        tokens++;
-    }
-    return { model: "default" as const, tokens };
-}
+import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsConfig, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ServerLlmTaskInfo, SessionUser, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage } from "@local/shared";
+import { cudHelper } from "../../actions/cuds.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { emitSocketEvent } from "../../sockets/events.js";
+import { PreMapUserData } from "../../utils/chat.js";
+import { objectToYaml } from "../../utils/toYaml.js";
+import { ChatContextManager, CollectMessageContextInfoParams, MessageContextInfo } from "./context.js";
+import { LlmServiceRegistry, LlmServiceState } from "./registry.js";
+import { GenerateContextParams, GenerateResponseResult, GetConfigObjectParams, GetOutputTokenLimitParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, SimpleChatMessageData } from "./types.js";
 
 /**
  * General configuration builder for providing context for language model services. 
@@ -232,7 +35,7 @@ export async function getDefaultConfigObject({
     delete translation.startingMessage;
     delete translation.language;
     // Remove empty values from the translation object
-    translation = Object.fromEntries(Object.entries(translation).filter(([_, value]) => value !== ""));
+    translation = Object.fromEntries(Object.entries(translation).filter(([, value]) => value !== ""));
 
     let taskConfig: LlmTaskStructuredConfig | undefined;
     if (task) {
@@ -266,7 +69,7 @@ export async function getDefaultConfigObject({
  * 
  * Can be used as a fallback for services that don't have a specific implementation.
  */
-export async function generateDefaultContext<GenerateNameType extends string, TokenNameType extends string>({
+export async function generateDefaultContext<GenerateNameType extends string>({
     contextInfo,
     mode,
     model,
@@ -278,7 +81,7 @@ export async function generateDefaultContext<GenerateNameType extends string, To
     userData,
     service,
 }: GenerateContextParams & {
-    service: LanguageModelService<GenerateNameType, TokenNameType>;
+    service: LanguageModelService<GenerateNameType>;
 }): Promise<LanguageModelContext> {
     const messages: LanguageModelContext["messages"] = [];
 
@@ -318,7 +121,7 @@ export async function generateDefaultContext<GenerateNameType extends string, To
 
             for (const [_, data] of otherBots) {
                 // Find bot personality
-                const botSettings = toBotSettings(data, logger);
+                const botSettings = BotSettingsConfig.deserialize(data, logger).schema;
                 const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
                 const translation = getTranslation({ translations: translationsList }, userData.languages) as BotSettingsTranslation & { language?: string };
                 delete translation.language;
@@ -341,7 +144,7 @@ export async function generateDefaultContext<GenerateNameType extends string, To
     }
 
     // Calculate token size for the YAML configuration
-    const { tokens: systemMessageSize } = service.estimateTokens({ text: systemMessage, model });
+    const { tokens: systemMessageSize } = service.estimateTokens({ text: systemMessage, aiModel: model });
     const maxContentSize = service.getContextSize(model);
 
     // Fetch messages from the database
@@ -368,7 +171,7 @@ export async function generateDefaultContext<GenerateNameType extends string, To
         const role: LanguageModelMessage["role"] = isBot ? "assistant" : "user";
 
         const content = hasOtherParticipants ? `[${role === "assistant" ? "Bot" : "User"}: ${userName ?? "Unknown"}]: ${messageTranslation.text}` : messageTranslation.text;
-        const tokenSize = context.tokenSize + service.estimateTokens({ text: content, model }).tokens;
+        const tokenSize = context.tokenSize + service.estimateTokens({ text: content, aiModel: model }).tokens;
 
         // Stop if adding this message would exceed the context size
         if (currentTokenCount + tokenSize > maxContentSize) {
@@ -390,9 +193,9 @@ export async function generateDefaultContext<GenerateNameType extends string, To
  * Since credits are stored with this multiplier already, it should cancel out (meaning 
  * we won't be using API_CREDITS_MULTIPLIER in the calculation).
  */
-export function getDefaultMaxOutputTokensRestrained<GenerateNameType extends string, TokenNameType extends string>(
+export function getDefaultMaxOutputTokensRestrained<GenerateNameType extends string>(
     { maxCredits, model, inputTokens }: GetOutputTokenLimitParams,
-    service: LanguageModelService<GenerateNameType, TokenNameType>,
+    service: LanguageModelService<GenerateNameType>,
 ) {
     const modelToUse = service.getModel(model);
     const modelInfo = service.getModelInfo()[modelToUse];
@@ -419,9 +222,9 @@ export function getDefaultMaxOutputTokensRestrained<GenerateNameType extends str
  * Since credits are stored with this multiplier already, it should cancel out (meaning 
  * we won't be using API_CREDITS_MULTIPLIER in the calculation).
  */
-export function getDefaultResponseCost<GenerateNameType extends string, TokenNameType extends string>(
+export function getDefaultResponseCost<GenerateNameType extends string>(
     { model, usage }: GetResponseCostParams,
-    service: LanguageModelService<GenerateNameType, TokenNameType>,
+    service: LanguageModelService<GenerateNameType>,
 ) {
     const { input, output } = usage;
     const modelToUse = service.getModel(model);
@@ -441,7 +244,7 @@ export function getDefaultResponseCost<GenerateNameType extends string, TokenNam
  * @returns An array of message objects
  */
 export async function fetchMessagesFromDatabase(messageIds: string[]): Promise<SimpleChatMessageData[]> {
-    const messages = await prismaInstance.chat_message.findMany({
+    const messages = await DbProvider.get().chat_message.findMany({
         where: {
             id: { in: messageIds },
         },
@@ -521,7 +324,7 @@ type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, 
     /** If we should use a stream to show the response as its being generated */
     stream: boolean;
     task: LlmTask | `${LlmTask}` | undefined;
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 
 const UNSAFE_CONTENT_CODE = "0605";
@@ -557,20 +360,18 @@ export async function generateResponseWithFallback({
 
         const serviceId = LlmServiceRegistry.get().getBestService(respondingBotConfig.model);
         if (!serviceId) {
-            throw new CustomError("0252", "InternalError", userData.languages, { respondingBotConfig });
+            throw new CustomError("0252", "InternalError", { respondingBotConfig });
         }
 
         try {
             // Try using the service to generate a response
-            const serviceInstance = LlmServiceRegistry.get().getService(serviceId) as LanguageModelService<string, string>;
+            const serviceInstance = LlmServiceRegistry.get().getService(serviceId);
             const model = serviceInstance.getModel(respondingBotConfig?.model);
             const languages = userData.languages;
 
-            const contextInfo = await (new ChatContextCollector(serviceInstance)).collectMessageContextInfo({
+            const contextInfo = await (new ChatContextManager(model, languages)).collectMessageContextInfo({
                 chatId,
-                languages,
                 latestMessage,
-                model,
                 taskMessage,
             });
             const { messages, systemMessage } = await serviceInstance.generateContext({
@@ -595,12 +396,12 @@ export async function generateResponseWithFallback({
                 try {
                     if (latestMessage) {
                         await cudHelper({
+                            info: {},
                             inputData: [{
                                 action: "Delete",
                                 input: latestMessage,
                                 objectType: "ChatMessage",
                             }],
-                            partialInfo: {},
                             userData,
                         });
                     }
@@ -608,14 +409,14 @@ export async function generateResponseWithFallback({
                     logger.error("Failed to delete unsafe message", { trace: "0607", chatId, respondingBotId, error });
                 }
                 const MAX_LOGGED_INPUT_LENGTH = 1000;
-                throw new CustomError(UNSAFE_CONTENT_CODE, "UnsafeContent", userData.languages, {
+                throw new CustomError(UNSAFE_CONTENT_CODE, "UnsafeContent", {
                     input: stringifiedInput.length > MAX_LOGGED_INPUT_LENGTH ? stringifiedInput.slice(0, MAX_LOGGED_INPUT_LENGTH) + "..." : stringifiedInput,
                     latestMessage,
                 });
             }
 
             // Calculate input tokens and determine max output tokens based on maxCredits
-            const inputTokens = serviceInstance.estimateTokens({ text: stringifiedInput, model }).tokens;
+            const inputTokens = serviceInstance.estimateTokens({ text: stringifiedInput, aiModel: model }).tokens;
             const maxOutputCredits = calculateMaxCredits(
                 userData.credits,
                 maxCredits || DEFAULT_MAX_RESPONSE_CREDITS,
@@ -627,7 +428,7 @@ export async function generateResponseWithFallback({
                 inputTokens,
             });
             if (maxOutputTokens !== null && maxOutputTokens <= 0) {
-                throw new CustomError("0604", "CostLimitExceeded", userData.languages, { maxCredits, accumulatedCost });
+                throw new CustomError("0604", "CostLimitExceeded", { maxCredits, accumulatedCost });
             }
 
             let responseMessage = "";
@@ -688,7 +489,7 @@ export async function generateResponseWithFallback({
         }
     }
 
-    throw new CustomError("0253", "InternalError", userData.languages, { respondingBotConfig });
+    throw new CustomError("0253", "InternalError", { respondingBotConfig });
 }
 
 export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" | "latestMessage" | "taskMessage"> & {
@@ -703,7 +504,7 @@ export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" 
     respondingBotConfig: BotSettings,
     respondingBotId: string,
     task: LlmTask | `${LlmTask}`,
-    userData: SessionUserToken,
+    userData: SessionUser,
 }
 
 /**

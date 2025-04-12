@@ -1,30 +1,29 @@
 import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
 import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
-import { CompletionBar } from "components/CompletionBar/CompletionBar";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
-import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
-import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { CompletionBarProps } from "components/types";
-import { SessionContext } from "contexts";
-import { UsePressEvent, usePress } from "hooks/gestures";
-import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "styles";
-import { SvgComponent } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { extractImageUrl } from "utils/display/imageTools";
-import { getBookmarkFor, getCounts, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
-import { fontSizeToPixels } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { setCookiePartialData } from "utils/localStorage";
-import { getObjectEditUrl } from "utils/navigation/openObject";
-import { TagList } from "../TagList/TagList";
-import { TextLoading } from "../TextLoading/TextLoading";
-import { ObjectListItemProps } from "../types";
+import { SessionContext } from "../../../contexts/session.js";
+import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
+import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "../../../styles.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { extractImageUrl } from "../../../utils/display/imageTools.js";
+import { getBookmarkFor, getCounts, getDisplay, getYou, placeholderColor } from "../../../utils/display/listTools.js";
+import { fontSizeToPixels } from "../../../utils/display/stringTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { setCookiePartialData } from "../../../utils/localStorage.js";
+import { getObjectEditUrl } from "../../../utils/navigation/openObject.js";
+import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
+import { BookmarkButton } from "../../buttons/BookmarkButton.js";
+import { CommentsButton } from "../../buttons/CommentsButton/CommentsButton.js";
+import { ReportsButton } from "../../buttons/ReportsButton/ReportsButton.js";
+import { VoteButton } from "../../buttons/VoteButton.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { CompletionBarProps } from "../../types.js";
+import { TagList } from "../TagList/TagList.js";
+import { TextLoading } from "../TextLoading/TextLoading.js";
+import { ObjectListItemProps } from "../types.js";
 
 const LIST_PREFIX = "list-item-";
 const EDIT_PREFIX = "edit-list-item-";
@@ -199,7 +198,9 @@ interface GiantSelectorProps extends BoxProps {
 const GiantSelector = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
 })<GiantSelectorProps>(({ isSelected, theme }) => ({
+    // eslint-disable-next-line no-magic-numbers
     width: theme.spacing(3),
+    // eslint-disable-next-line no-magic-numbers
     height: theme.spacing(3),
     borderRadius: "50%",
     backgroundColor: isSelected ? theme.palette.secondary.dark : theme.palette.background.paper,
@@ -328,13 +329,13 @@ export function ObjectListItemBase<T extends ListObject>({
             type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updated_at: string, isBot?: boolean };
             const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
             const isBot = orgOrUser.isBot;
-            let Icon: SvgComponent;
+            let iconInfo: IconInfo;
             if (object.__typename === "Team") {
-                Icon = TeamIcon;
+                iconInfo = { name: "Team", type: "Common" };
             } else if (isBot) {
-                Icon = BotIcon;
+                iconInfo = { name: "Bot", type: "Common" };
             } else {
-                Icon = UserIcon;
+                iconInfo = { name: "User", type: "Common" };
             }
             return (
                 <ObjectListProfileAvatar
@@ -344,7 +345,10 @@ export function ObjectListItemBase<T extends ListObject>({
                     profileColors={profileColors}
                     src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updated_at, TARGET_IMAGE_SIZE)}
                 >
-                    <Icon fill={profileColors[1]} width="75%" height="75%" />
+                    <Icon
+                        fill={profileColors[1]}
+                        info={iconInfo}
+                    />
                 </ObjectListProfileAvatar>
             );
         }
@@ -365,7 +369,10 @@ export function ObjectListItemBase<T extends ListObject>({
                         profileColors={profileColors}
                         src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, TARGET_IMAGE_SIZE)}
                     >
-                        {firstUser?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                        <IconCommon
+                            decorative
+                            name={firstUser?.isBot ? "Bot" : "User"}
+                        />
                     </ObjectListProfileAvatar>
                 );
             }
@@ -383,7 +390,10 @@ export function ObjectListItemBase<T extends ListObject>({
                                 profileColors={placeholderColor(user.id)}
                                 src={extractImageUrl(user?.profileImage, user?.updated_at, TARGET_IMAGE_SIZE)}
                             >
-                                {user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                                <IconCommon
+                                    decorative
+                                    name={user?.isBot ? "Bot" : "User"}
+                                />
                             </ObjectListProfileAvatar>
                         );
                     })}
@@ -392,7 +402,12 @@ export function ObjectListItemBase<T extends ListObject>({
         }
         // Other custom object icons
         if (isOfType(object, "BookmarkList")) {
-            return <BookmarkFilledIcon fill="#cbae30" width={isMobile ? "40px" : "50px"} height={isMobile ? "40px" : "50px"} />;
+            return <IconCommon
+                decorative
+                fill="#cbae30"
+                name="BookmarkFilled"
+                size={isMobile ? 40 : 50}
+            />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -433,16 +448,21 @@ export function ObjectListItemBase<T extends ListObject>({
             <ActionButtonsRow isMobile={isMobile}>
                 {willShowEditButton &&
                     <EditIconBox
-                        id={`${EDIT_PREFIX}button-${id}`}
-                        component="a"
                         aria-label={t("Edit")}
+                        component="a"
+                        id={`${EDIT_PREFIX}button-${id}`}
                         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-ignore
                         href={editUrl}
                         isMobile={isMobile}
                         onClick={handleEditClick}
                     >
-                        <EditIcon id={`${EDIT_PREFIX}icon-${id}`} fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            id={`${EDIT_PREFIX}icon-${id}`}
+                            name="Edit"
+                        />
                     </EditIconBox>}
                 {willShowVoteButton && (
                     <VoteButton

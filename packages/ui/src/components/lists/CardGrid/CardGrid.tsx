@@ -1,6 +1,6 @@
 import { Box, useTheme } from "@mui/material";
 import { useMemo } from "react";
-import { CardGridProps } from "../types";
+import { CardGridProps } from "../types.js";
 
 export function CardGrid({
     children,

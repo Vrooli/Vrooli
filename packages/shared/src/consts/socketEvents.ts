@@ -1,7 +1,7 @@
-import { AITaskInfo, MessageStream } from "../ai/types";
-import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
-import { RunTaskInfo } from "../utils/runUtils";
-import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api";
+import { AITaskInfo, MessageStream } from "../ai/types.js";
+import { ChatMessage, ChatParticipant, Notification } from "../api/types.js";
+import { DeferredDecisionData, RunTaskInfo } from "../run/types.js";
+import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api.js";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinRunRoom" | "leaveRunRoom" | "joinUserRoom" | "leaveUserRoom";
@@ -16,18 +16,15 @@ export type UserSocketEventPayloads = {
     };
     joinUserRoom: { userId: string };
     leaveUserRoom: { userId: string };
-    notification: {
-        body: string;
-        icon: string;
-        link: string | undefined;
-        title: string;
-    };
+    notification: Notification;
 }
 export type RunSocketEventPayloads = {
     joinRunRoom: { runId: string, runType: "RunProject" | "RunRoutine" };
     leaveRunRoom: { runId: string };
     /** Runs that can or have been performed */
     runTask: RunTaskInfo;
+    /** Requests a decision from the user */
+    runTaskDecisionRequest: DeferredDecisionData;
 }
 export type ChatSocketEventPayloads = {
     messages: {

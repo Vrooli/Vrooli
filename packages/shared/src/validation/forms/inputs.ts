@@ -2,7 +2,7 @@
  * Validation schemas for all standards/inputs/outputs
  */
 import * as yup from "yup";
-import { opt, req } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
 
 const required = yup.boolean();
 

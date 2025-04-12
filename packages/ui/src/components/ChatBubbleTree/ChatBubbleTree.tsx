@@ -1,29 +1,28 @@
-import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointPostReact, getObjectUrl, getTranslation, noop } from "@local/shared";
-import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, IconButtonProps, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { green, red } from "@mui/material/colors";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
-import { ReportButton } from "components/buttons/ReportButton/ReportButton";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { ChatBubbleProps } from "components/types";
-import { SessionContext } from "contexts";
-import { usePress } from "hooks/gestures";
-import { MessageTree } from "hooks/messages";
-import { useDeleter } from "hooks/objectActions";
-import { useDimensions } from "hooks/useDimensions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { ArrowDownIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
-import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointsReaction, getObjectUrl, getTranslation, noop } from "@local/shared";
+import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "route";
-import { ProfileAvatar } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { extractImageUrl } from "utils/display/imageTools";
-import { getDisplay, placeholderColor } from "utils/display/listTools";
-import { fontSizeToPixels } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { BranchMap } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
+import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
+import { SessionContext } from "../../contexts/session.js";
+import { usePress } from "../../hooks/gestures.js";
+import { MessageTree } from "../../hooks/messages.js";
+import { useDeleter } from "../../hooks/objectActions.js";
+import { useDimensions } from "../../hooks/useDimensions.js";
+import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { Link, useLocation } from "../../route/router.js";
+import { ProfileAvatar } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { extractImageUrl } from "../../utils/display/imageTools.js";
+import { getDisplay, placeholderColor } from "../../utils/display/listTools.js";
+import { fontSizeToPixels } from "../../utils/display/stringTools.js";
+import { getUserLanguages } from "../../utils/display/translationTools.js";
+import { BranchMap } from "../../utils/localStorage.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { EmojiPicker } from "../EmojiPicker/EmojiPicker.js";
+import { ReportButton } from "../buttons/ReportButton/ReportButton.js";
+import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
+import { ChatBubbleProps } from "../types.js";
 
 const PERCENTS = 100;
 const STILL_SENDING_MAX_PERCENT = 90;
@@ -41,122 +40,28 @@ const ChatBubbleSendingSpinner = styled(CircularProgress, {
     color: status === "sending"
         ? theme.palette.secondary.main
         : status === "failed"
-            ? red[500]
-            : green[500],
+            ? theme.palette.error.main
+            : theme.palette.success.main,
 }));
 
-const ChatBubbleErrorIconButton = styled(IconButton)(() => ({
-    color: red[500],
-}));
-const ChatBubbleEditIconButton = styled(IconButton)(() => ({
-    color: green[500],
-}));
-const ChatBubbleDeleteIconButton = styled(IconButton)(() => ({
-    color: red[500],
-}));
-
-type ChatBubbleStatusProps = {
+type ChatBubbleReactionsProps = {
+    activeIndex: number,
+    handleActiveIndexChange: (newIndex: number) => unknown,
+    handleCopy: () => unknown,
+    handleReactionAdd: (emoji: string) => unknown,
+    handleReply: () => unknown,
+    handleRegenerateResponse: () => unknown,
+    isBot: boolean,
+    isBotOnlyChat: boolean,
+    isMobile: boolean;
+    isOwn: boolean,
+    numSiblings: number,
+    messageId: string,
+    reactions: ReactionSummary[],
+    status: ChatMessageStatus,
     onDelete: () => unknown;
     onEdit: () => unknown;
     onRetry: () => unknown;
-    /** Indicates if the edit and delete buttons should be shown */
-    showButtons: boolean;
-    status: ChatMessageStatus;
-}
-
-/**
- * Displays a visual indicator for the status of a chat message (that you sent).
- * It shows a CircularProgress that progresses as the message is sending,
- * and changes color and icon based on the success or failure of the operation.
- */
-export function ChatBubbleStatus({
-    onDelete,
-    onEdit,
-    onRetry,
-    showButtons,
-    status,
-}: ChatBubbleStatusProps) {
-    const { t } = useTranslation();
-    const [progress, setProgress] = useState(0);
-    const [isCompleted, setIsCompleted] = useState(false);
-
-    useEffect(function chatStatusLoaderEffect() {
-        // Updates the progress value every 100ms, but stops at 90 if the message is still sending
-        let timer: NodeJS.Timeout;
-        if (status === "sending") {
-            timer = setInterval(() => {
-                setProgress((oldProgress) => {
-                    if (oldProgress === PERCENTS) {
-                        setIsCompleted(true);
-                        return PERCENTS;
-                    }
-                    const diff = 3;
-                    return Math.min(oldProgress + diff, status === "sending" ? STILL_SENDING_MAX_PERCENT : PERCENTS);
-                });
-            }, SEND_STATUS_INTERVAL_MS);
-        }
-
-        // Cleans up the interval when the component is unmounted or the message is not sending anymore
-        return () => {
-            if (timer) clearInterval(timer);
-        };
-    }, [status]);
-
-    useEffect(function chatStatusTimeoutEffect() {
-        // Resets the progress and completion state after a delay when the sending has completed
-        if (isCompleted && status !== "sending") {
-            const timer = setTimeout(() => {
-                setProgress(0);
-                setIsCompleted(false);
-            }, HIDE_SEND_SUCCESS_DELAY_MS);
-            return () => {
-                clearTimeout(timer);
-            };
-        }
-    }, [isCompleted, status]);
-
-    // While the message is sending or has just completed, show a CircularProgress
-    if (status === "sending" || isCompleted) {
-        return (
-            <ChatBubbleSendingSpinner
-                variant="determinate"
-                value={progress}
-                size={24}
-                status={status}
-            />
-        );
-    }
-
-    // If there was an error, show an ErrorIcon
-    if (status === "failed") {
-        return (
-            <ChatBubbleErrorIconButton
-                aria-label={t("Retry")}
-                onClick={onRetry}
-            >
-                <ErrorIcon />
-            </ChatBubbleErrorIconButton>
-        );
-    }
-    // If allowed to show buttons, show edit and delete buttons
-    if (showButtons) return (
-        <>
-            <ChatBubbleEditIconButton
-                aria-label={t("Edit")}
-                onClick={onEdit}
-            >
-                <EditIcon />
-            </ChatBubbleEditIconButton>
-            <ChatBubbleDeleteIconButton
-                aria-label={t("Delete")}
-                onClick={onDelete}
-            >
-                <DeleteIcon />
-            </ChatBubbleDeleteIconButton>
-        </>
-    );
-    // Otherwise, show nothing
-    return null;
 }
 
 const NavigationBox = styled(Box)(() => ({
@@ -173,8 +78,6 @@ export function NavigationArrows({
     numSiblings: number,
     onIndexChange: (newIndex: number) => unknown,
 }) {
-    const { palette } = useTheme();
-
     // eslint-disable-next-line no-magic-numbers
     if (numSiblings < 2) {
         return null; // Do not render anything if there are less than 2 siblings
@@ -194,45 +97,57 @@ export function NavigationArrows({
 
     return (
         <NavigationBox>
-            <IconButton
-                size="small"
-                onClick={handlePrevious}
-                disabled={activeIndex <= 0}
-                aria-label="left"
-            >
-                <ChevronLeftIcon fill={palette.background.textSecondary} />
-            </IconButton>
+            <Tooltip title="Previous">
+                <IconButton
+                    size="small"
+                    onClick={handlePrevious}
+                    disabled={activeIndex <= 0}
+                >
+                    <IconCommon
+                        decorative
+                        fill="background.textSecondary"
+                        name="ChevronLeft"
+                    />
+                </IconButton>
+            </Tooltip>
             <Typography variant="body2" color="textSecondary">
                 {activeIndex + 1}/{numSiblings}
             </Typography>
-            <IconButton
-                size="small"
-                onClick={handleNext}
-                disabled={activeIndex >= numSiblings - 1}
-                aria-label="right"
-            >
-                <ChevronRightIcon fill={palette.background.textSecondary} />
-            </IconButton>
+            <Tooltip title="Next">
+                <IconButton
+                    size="small"
+                    onClick={handleNext}
+                    disabled={activeIndex >= numSiblings - 1}
+                >
+                    <IconCommon
+                        decorative
+                        fill="background.textSecondary"
+                        name="ChevronRight"
+                    />
+                </IconButton>
+            </Tooltip>
         </NavigationBox>
     );
 }
 
-type ChatBubbleReactionsProps = {
-    activeIndex: number,
-    handleActiveIndexChange: (newIndex: number) => unknown,
-    handleCopy,
-    handleReactionAdd: (emoji: string) => unknown,
-    handleReply: () => unknown,
-    handleRegenerateResponse: () => unknown,
-    isBot: boolean,
-    isBotOnlyChat: boolean,
-    isMobile: boolean;
-    isOwn: boolean,
-    numSiblings: number,
-    messageId: string,
-    reactions: ReactionSummary[],
-    status: ChatMessageStatus,
+interface ChatBubbleOuterBoxProps extends BoxProps {
+    showAll: boolean;
 }
+const ChatBubbleOuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "showAll",
+})<ChatBubbleOuterBoxProps>(({ showAll }) => ({
+    display: "flex",
+    flexDirection: "column",
+    padding: "8px",
+    maxWidth: "100vw",
+    ".chat-bubble-actions": {
+        opacity: showAll ? 1 : 0,
+        transition: "opacity 0.2s ease-in-out",
+    },
+    "&:hover .chat-bubble-actions": {
+        opacity: 1,
+    },
+}));
 
 interface ReactionsOuterBoxProps extends BoxProps {
     isOwn: boolean;
@@ -245,6 +160,7 @@ const ReactionsOuterBox = styled(Box, {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: isOwn ? "flex-end" : "flex-start",
+    transition: "opacity 0.2s ease-in-out",
 }));
 
 interface ReactionsMainStackProps extends BoxProps {
@@ -258,14 +174,14 @@ const ReactionsMainStack = styled(Box, {
     display: "flex",
     flexDirection: "row",
     padding: 0,
+    // eslint-disable-next-line no-magic-numbers
     marginLeft: (isOwn || isMobile) ? 0 : theme.spacing(6),
+    // eslint-disable-next-line no-magic-numbers
     marginRight: isOwn ? theme.spacing(6) : 0,
     paddingRight: isOwn ? theme.spacing(1) : 0,
     background: theme.palette.background.paper,
     color: theme.palette.background.textPrimary,
     borderRadius: "0 0 8px 8px",
-    boxShadow: `1px 2px 3px rgba(0,0,0,0.2),
-                1px 2px 2px rgba(0,0,0,0.14)`,
     overflow: "overlay",
 }));
 
@@ -291,15 +207,73 @@ function ChatBubbleReactions({
     messageId,
     reactions,
     status,
+    onDelete,
+    onEdit,
+    onRetry,
 }: ChatBubbleReactionsProps) {
-    const { palette } = useTheme();
     const { t } = useTranslation();
+    const [progress, setProgress] = useState(0);
+    const [isCompleted, setIsCompleted] = useState(false);
+
+    useEffect(function chatStatusLoaderEffect() {
+        let timer: NodeJS.Timeout;
+        if (status === "sending") {
+            timer = setInterval(() => {
+                setProgress((oldProgress) => {
+                    if (oldProgress === PERCENTS) {
+                        setIsCompleted(true);
+                        return PERCENTS;
+                    }
+                    const diff = 3;
+                    return Math.min(oldProgress + diff, status === "sending" ? STILL_SENDING_MAX_PERCENT : PERCENTS);
+                });
+            }, SEND_STATUS_INTERVAL_MS);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [status]);
+
+    useEffect(function chatStatusTimeoutEffect() {
+        if (isCompleted && status !== "sending") {
+            const timer = setTimeout(() => {
+                setProgress(0);
+                setIsCompleted(false);
+            }, HIDE_SEND_SUCCESS_DELAY_MS);
+            return () => {
+                clearTimeout(timer);
+            };
+        }
+    }, [isCompleted, status]);
 
     function onReactionAdd(emoji: string) {
         handleReactionAdd(emoji);
     }
 
     if (status === "unsent") return null;
+
+    // Render status indicator if message is sending/failed
+    const statusIndicator = status === "sending" || isCompleted ? (
+        <ChatBubbleSendingSpinner
+            variant="determinate"
+            value={progress}
+            size={24}
+            status={status}
+        />
+    ) : status === "failed" ? (
+        <Tooltip title={t("Retry")}>
+            <IconButton
+                color="error"
+                onClick={onRetry}
+            >
+                <IconCommon
+                    decorative
+                    name="Error"
+                />
+            </IconButton>
+        </Tooltip>
+    ) : null;
+
     return (
         <ReactionsOuterBox isOwn={isOwn}>
             <ReactionsMainStack isMobile={isMobile} isOwn={isOwn}>
@@ -326,39 +300,78 @@ function ChatBubbleReactions({
                 })}
                 {!isOwn && <EmojiPicker onSelect={onReactionAdd} />}
             </ReactionsMainStack>
-            <Stack direction="row">
-                <Tooltip title={t("Copy")}>
-                    <IconButton size="small" onClick={handleCopy}>
-                        <CopyIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>
-                {(isBot && isBotOnlyChat) && <Tooltip title={t("Retry")}>
-                    <IconButton size="small" onClick={handleRegenerateResponse}>
-                        <RefreshIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>}
-                {isBot && <Tooltip title={t("Reply")}>
-                    <IconButton size="small" onClick={handleReply}>
-                        <ReplyIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>}
-                {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
+            <Stack direction="row" alignItems="center">
+                {statusIndicator}
                 <NavigationArrows
                     activeIndex={activeIndex}
                     numSiblings={numSiblings}
                     onIndexChange={handleActiveIndexChange}
                 />
+                <Box className="chat-bubble-actions">
+                    <Tooltip title={t("Copy")}>
+                        <IconButton
+                            size="small"
+                            onClick={handleCopy}
+                        >
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Copy"
+                            />
+                        </IconButton>
+                    </Tooltip>
+                    {(isBot && isBotOnlyChat) && <Tooltip title={t("Retry")}>
+                        <IconButton size="small" onClick={handleRegenerateResponse}>
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Refresh"
+                            />
+                        </IconButton>
+                    </Tooltip>}
+                    {isBot && <Tooltip title={t("Reply")}>
+                        <IconButton size="small" onClick={handleReply}>
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Reply"
+                            />
+                        </IconButton>
+                    </Tooltip>}
+                    {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
+                    {isOwn && status === "sent" && (
+                        <>
+                            <Tooltip title={t("Edit")}>
+                                <IconButton
+                                    onClick={onEdit}
+                                    size="small"
+                                >
+                                    <IconCommon
+                                        decorative
+                                        fill="background.textSecondary"
+                                        name="Edit"
+                                    />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={t("Delete")}>
+                                <IconButton
+                                    onClick={onDelete}
+                                    size="small"
+                                >
+                                    <IconCommon
+                                        decorative
+                                        fill="background.textSecondary"
+                                        name="Delete"
+                                    />
+                                </IconButton>
+                            </Tooltip>
+                        </>
+                    )}
+                </Box>
             </Stack>
         </ReactionsOuterBox>
     );
 }
-
-const ChatBubbleOuterBox = styled(Box)(() => ({
-    display: "flex",
-    flexDirection: "column",
-    padding: "8px",
-    maxWidth: "100vw",
-}));
 
 interface ChatBubbleBoxProps extends BoxProps {
     isOwn: boolean;
@@ -392,7 +405,6 @@ const UserNameDisplay = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    spacing: theme.spacing(0.5),
     marginBottom: theme.spacing(0.5),
     cursor: "pointer",
     "&:hover": { textDecoration: "underline" },
@@ -434,7 +446,7 @@ export function ChatBubble({
     const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
     const profileColors = useMemo(() => placeholderColor(message.user?.id), [message.user?.id]);
 
-    const [react] = useLazyFetch<ReactInput, Success>(endpointPostReact);
+    const [react] = useLazyFetch<ReactInput, Success>(endpointsReaction.createOne);
 
     const {
         handleDelete,
@@ -445,40 +457,22 @@ export function ChatBubble({
         onActionComplete: () => { onDeleted(message); },
     });
 
-    // const shouldRetry = useRef(true);
-    // useEffect(() => {
-    //     if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
-    //         shouldRetry.current = false;
-    //         fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
-    //             fetch: createMessage,
-    //             inputs: shapeChatMessage.create({ ...message }),
-    //             successCondition: (data) => data !== null,
-    //             onSuccess: (data) => {
-    //                 setEditingText(undefined);
-    //                 console.log("chatbubble setting error false 1", data);
-    //                 setHasError(false);
-    //                 onUpdated({ ...data, isUnsent: false });
-    //             },
-    //         });
-    //     }
-    // }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
-
     function handleReactionAdd(emoji: string) {
         if (message.status !== "sent") return;
         const originalSummaries = message.reactionSummaries;
         // Add to summaries right away, so that the UI updates immediately
-        // const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
-        // if (existingReaction) {
-        //     onUpdated({
-        //         ...message,
-        //         reactionSummaries: message.reactionSummaries.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1 } : r),
-        //     } as ChatBubbleProps["message"]);
-        // } else {
-        //     onUpdated({
-        //         ...message,
-        //         reactionSummaries: [...message.reactionSummaries, { __typename: "ReactionSummary", emoji, count: 1 }],
-        //     } as ChatBubbleProps["message"]);
-        // }
+        const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
+        if (existingReaction) {
+            onDeleted({
+                ...message,
+                reactionSummaries: message.reactionSummaries.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1 } : r),
+            });
+        } else {
+            onDeleted({
+                ...message,
+                reactionSummaries: [...message.reactionSummaries, { __typename: "ReactionSummary", emoji, count: 1 }],
+            });
+        }
         // Send the request to the backend
         fetchLazyWrapper<ReactInput, Success>({
             fetch: react,
@@ -490,7 +484,7 @@ export function ChatBubble({
             successCondition: (data) => data.success,
             onError: () => {
                 // If the request fails, revert the UI changes
-                // onUpdated({ ...message, reactionSummaries: originalSummaries } as ChatBubbleProps["message"]);
+                onDeleted({ ...message, reactionSummaries: originalSummaries });
             },
         });
     }
@@ -524,7 +518,6 @@ export function ChatBubble({
 
     const [bubblePressed, setBubblePressed] = useState(false);
     function toggleBubblePressed() {
-        if (!isMobile && bubblePressed) return;
         setBubblePressed(!bubblePressed);
     }
     const pressEvents = usePress({
@@ -552,7 +545,7 @@ export function ChatBubble({
     return (
         <>
             {DeleteDialogComponent}
-            <ChatBubbleOuterBox key={message.id}>
+            <ChatBubbleOuterBox showAll={bubblePressed}>
                 {!isOwn && (
                     <Link to={profileUrl}>
                         <UserNameDisplay>
@@ -565,7 +558,7 @@ export function ChatBubble({
                                 </AdornmentBox>
                             ))}
                             {handle && (
-                                <Typography variant="body2" color="textSecondary">
+                                <Typography variant="body2" color="textSecondary" marginLeft={0.5}>
                                     @{handle}
                                 </Typography>
                             )}
@@ -583,7 +576,10 @@ export function ChatBubble({
                             profileColors={profileColors}
                             sx={profileAvatarStyle}
                         >
-                            {message.user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                            <IconCommon
+                                decorative
+                                name={message.user?.isBot ? "Bot" : "Profile"}
+                            />
                         </ProfileAvatar>
                     )}
                     <ChatBubbleBox
@@ -596,20 +592,7 @@ export function ChatBubble({
                             sx={markdownDisplayStyle}
                         />
                     </ChatBubbleBox>
-                    {/* Status indicator and edit/retry buttons */}
-                    {isOwn && (
-                        <Box display="flex" alignItems="center">
-                            <ChatBubbleStatus
-                                onDelete={handleDelete}
-                                onEdit={startEdit}
-                                onRetry={startRetry}
-                                showButtons={bubblePressed}
-                                status={message.status ?? "sent"}
-                            />
-                        </Box>
-                    )}
                 </Stack>
-                {/* Reactions */}
                 <ChatBubbleReactions
                     activeIndex={activeIndex}
                     handleActiveIndexChange={onActiveIndexChange}
@@ -625,31 +608,30 @@ export function ChatBubble({
                     messageId={message.id}
                     reactions={message.reactionSummaries}
                     status={message.status ?? "sent"}
+                    onDelete={handleDelete}
+                    onEdit={startEdit}
+                    onRetry={startRetry}
                 />
             </ChatBubbleOuterBox>
         </>
     );
 }
 
-const SCROLL_POSITION_CHECK_INTERVAL_MS = 2_000;
+const SCROLL_THRESHOLD_PX = 200;
+const HIDE_SCROLL_BUTTON_CLASS = "hide-scroll-button";
 
-interface ScrollToBottomIconButtonProps extends IconButtonProps {
-    isVisible: boolean;
-}
-
-const ScrollToBottomIconButton = styled(IconButton, {
-    shouldForwardProp: (prop) => prop !== "isVisible",
-})<ScrollToBottomIconButtonProps>(({ isVisible, theme }) => ({
+const ScrollToBottomIconButton = styled(IconButton)(({ theme }) => ({
     background: theme.palette.background.paper,
-    position: "absolute",
-    bottom: theme.spacing(1),
+    position: "sticky",
+    bottom: theme.spacing(2),
     left: "50%",
     transform: "translateX(-50%)",
     width: "36px",
     height: "36px",
-    // eslint-disable-next-line no-magic-numbers
-    opacity: isVisible ? 0.8 : 0,
+    opacity: 0.8,
     transition: "opacity 0.2s ease-in-out !important",
+    zIndex: 1,
+    boxShadow: theme.shadows[2],
 }));
 
 export function ScrollToBottomButton({
@@ -658,46 +640,93 @@ export function ScrollToBottomButton({
     containerRef: RefObject<HTMLElement>,
 }) {
     const { palette } = useTheme();
-    const [isVisible, setIsVisible] = useState(false);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const lastScrollTop = useRef(0);
+    const shouldAutoScroll = useRef(false);
 
-    useEffect(() => {
-        function checkScrollPosition() {
-            const scroll = containerRef.current;
-            if (!scroll) return;
+    const scrollToBottom = useCallback(function scrollToBottomCallback() {
+        const container = containerRef.current;
+        if (!container) return;
 
-            // Threshold to determine "close to the bottom"
-            // Adjust this value based on your needs
-            const threshold = 100;
-            const isCloseToBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < threshold;
-
-            setIsVisible(!isCloseToBottom);
-        }
-
-        const scroll = containerRef.current;
-        scroll?.addEventListener("scroll", checkScrollPosition);
-        setTimeout(checkScrollPosition, SCROLL_POSITION_CHECK_INTERVAL_MS);
-        return () => {
-            scroll?.removeEventListener("scroll", checkScrollPosition);
-        };
-    }, [containerRef]); // Re-run effect if containerRef changes
-
-    function scrollToBottom() {
-        const scroll = containerRef.current;
-        if (!scroll) return;
-        // Directly using smooth scrolling to the calculated bottom
-        scroll.scroll({
-            top: scroll.scrollHeight - scroll.clientHeight,
+        container.scroll({
+            top: container.scrollHeight,
             behavior: "smooth",
         });
-    }
+        shouldAutoScroll.current = true;
+    }, [containerRef]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        // Create mutation observer to watch for content changes
+        const mutationObserver = new MutationObserver(() => {
+            if (shouldAutoScroll.current) {
+                scrollToBottom();
+            }
+        });
+
+        // Watch for changes to the container's content
+        mutationObserver.observe(container, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+        });
+
+        // Handle scroll events to show/hide button and track scroll position
+        function handleScroll() {
+            if (!container || !buttonRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = container;
+
+            // Detect scroll direction
+            const isScrollingUp = scrollTop < lastScrollTop.current;
+            lastScrollTop.current = scrollTop;
+
+            // If scrolling up at all, disable auto-scroll
+            if (isScrollingUp) {
+                shouldAutoScroll.current = false;
+            }
+
+            // Only re-enable auto-scroll when manually scrolled to bottom
+            const isAtBottom = scrollHeight - scrollTop - clientHeight === 0;
+            if (isAtBottom) {
+                shouldAutoScroll.current = true;
+            }
+
+            // Show/hide the scroll button based on being close to the bottom
+            if (buttonRef.current) {
+                const isNearBottom = scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_PX;
+                if (isNearBottom) {
+                    buttonRef.current.classList.add(HIDE_SCROLL_BUTTON_CLASS);
+                } else {
+                    buttonRef.current.classList.remove(HIDE_SCROLL_BUTTON_CLASS);
+                }
+            }
+        }
+
+        container.addEventListener("scroll", handleScroll);
+
+        // Initial check
+        handleScroll();
+
+        return () => {
+            mutationObserver.disconnect();
+            container.removeEventListener("scroll", handleScroll);
+        };
+    }, [containerRef, scrollToBottom]);
 
     return (
         <ScrollToBottomIconButton
-            isVisible={isVisible}
             onClick={scrollToBottom}
+            ref={buttonRef}
             size="small"
         >
-            <ArrowDownIcon fill={palette.background.textSecondary} />
+            <IconCommon
+                decorative
+                fill={palette.background.textSecondary}
+                name="ArrowDown"
+            />
         </ScrollToBottomIconButton>
     );
 }
@@ -713,13 +742,13 @@ type MessageRenderData = {
 }
 
 type ChatBubbleTreeProps = {
-    belowMessageList?: React.ReactNode,
     branches: BranchMap,
     handleEdit: (originalMessage: ChatMessageShape) => unknown,
     handleRegenerateResponse: (message: ChatMessageShape) => unknown,
     handleReply: (message: ChatMessageShape) => unknown,
     handleRetry: (message: ChatMessageShape) => unknown,
     isBotOnlyChat: boolean,
+    id?: string;
     isEditingMessage: boolean,
     isReplyingToMessage: boolean,
     messageStream: ChatSocketEventPayloads["responseStream"] | null,
@@ -736,6 +765,9 @@ const OuterMessageList = styled(Box)(() => ({
     overflowY: "auto",
     height: "100%",
     justifyContent: "space-between",
+    [`& .${HIDE_SCROLL_BUTTON_CLASS}`]: {
+        opacity: 0,
+    },
 }));
 
 interface InnerMessageListProps extends BoxProps {
@@ -747,20 +779,13 @@ const InnerMessageList = styled(Box, {
     filter: isEditingOrReplying ? "blur(20px)" : "none",
 }));
 
-const BelowMessageListButtonsBox = styled(Box)(({ theme }) => ({
-    position: "sticky",
-    bottom: 0,
-    padding: theme.spacing(1),
-    height: "52px",
-}));
-
 export function ChatBubbleTree({
-    belowMessageList,
     branches,
     handleEdit,
     handleRegenerateResponse,
     handleReply,
     handleRetry,
+    id,
     isBotOnlyChat,
     isEditingMessage,
     isReplyingToMessage,
@@ -772,13 +797,13 @@ export function ChatBubbleTree({
     const session = useContext(SessionContext);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
-    const { dimensions, ref: dimRef } = useDimensions();
+    const { dimensions, ref: outerBoxRef } = useDimensions();
 
     const messageData = useMemo<MessageRenderData[]>(() => {
         function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {
             // Find information for current message
             const siblingId = withSiblings[activeIndex];
-            const sibling = siblingId ? tree.map.get(siblingId) : null;
+            const sibling = siblingId ? tree.getMap().get(siblingId) : null;
             if (!sibling) return [];
             const isOwn = sibling.message.user?.id === userId;
 
@@ -812,11 +837,11 @@ export function ChatBubbleTree({
                 ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
             ];
         }
-        return renderMessage(tree.roots, 0);
-    }, [branches, removeMessages, setBranches, tree.map, tree.roots, userId]);
+        return renderMessage(tree.getRoots(), 0);
+    }, [branches, removeMessages, setBranches, tree, userId]);
 
     return (
-        <OuterMessageList ref={dimRef}>
+        <OuterMessageList id={id} ref={outerBoxRef}>
             <InnerMessageList isEditingOrReplying={isEditingMessage || isReplyingToMessage}>
                 {messageData.map((data) => (
                     <ChatBubble
@@ -866,10 +891,8 @@ export function ChatBubbleTree({
                     />
                 )}
             </InnerMessageList>
-            {!(isEditingMessage || isReplyingToMessage) && <BelowMessageListButtonsBox>
-                <ScrollToBottomButton containerRef={dimRef} />
-                {belowMessageList}
-            </BelowMessageListButtonsBox>}
+            <ScrollToBottomButton containerRef={outerBoxRef} />
         </OuterMessageList>
     );
 }
+

@@ -1,15 +1,14 @@
-import { DUMMY_ID, GqlModelType } from "@local/shared";
-import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { Validator } from "../models/types";
-import { SessionUserToken } from "../types";
-import { AuthDataById, AuthDataItem } from "../utils/getAuthenticatedData";
-import { getParentInfo } from "../utils/getParentInfo";
-import { InputsById, QueryAction } from "../utils/types";
-import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
+import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
+import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { ModelMap } from "../models/base/index.js";
+import { Validator } from "../models/types.js";
+import { AuthDataById, AuthDataItem } from "../utils/getAuthenticatedData.js";
+import { InputsById, QueryAction } from "../utils/types.js";
+import { isOwnerAdminCheck } from "./isOwnerAdminCheck.js";
 
 /**
  * Handles setting and interpreting permission policies for teams and their objects. Permissions are stored as stringified JSON 
@@ -224,6 +223,19 @@ export type TeamPolicy = PolicyPart & {
 type ResolvedPermissions = { [x in Exclude<QueryAction, "Create"> as `can${x}`]: boolean } & { canReact: boolean };
 
 /**
+* Helper function to find the parent validation data for an object
+* @param id ID of object to find parent for
+* @param typename Only return parent if it matches this typename
+* @param inputsById Map of all input data, keyed by ID
+* @returns Input data for parent object, or undefined if parent doesn't exist or doesn't match typename
+*/
+export function getParentInfo(id: string, typename: `${ModelType}`, inputsById: InputsById): any | undefined {
+    const node = inputsById[id]?.node;
+    if (node?.__typename !== typename) return undefined;
+    return node?.parent ? inputsById[node.parent.id]?.input : undefined;
+}
+
+/**
  * Calculates and returns permissions for a given object based on user and auth data.
  * @param authData The authentication data for the object.
  * @param userData Details about the user, such as ID and role.
@@ -233,15 +245,14 @@ type ResolvedPermissions = { [x in Exclude<QueryAction, "Create"> as `can${x}`]:
  */
 export async function calculatePermissions(
     authData: AuthDataItem,
-    userData: SessionUserToken | null,
+    userData: Pick<SessionUser, "id"> | null,
     validator: ReturnType<Validator<any>>,
     inputsById?: InputsById,
 ): Promise<ResolvedPermissions> {
-    const languages = userData?.languages ?? ["en"];
     const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authData, userData.id), userData.id) : false;
-    const isDeleted = validator.isDeleted(authData, languages);
+    const isDeleted = validator.isDeleted(authData);
     const isLoggedIn = !!userData?.id;
-    const isPublic = validator.isPublic(authData, (...rest) => inputsById ? getParentInfo(...rest, inputsById) : undefined, languages);
+    const isPublic = validator.isPublic(authData, (...rest) => inputsById ? getParentInfo(...rest, inputsById) : undefined);
 
     const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authData, userId: userData?.id });
 
@@ -263,7 +274,7 @@ export async function calculatePermissions(
 export async function getMultiTypePermissions(
     authDataById: AuthDataById,
     inputsById: InputsById,
-    userData: SessionUserToken | null,
+    userData: Pick<SessionUser, "id"> | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
     // Initialize result
     const permissionsById: { [id: string]: { [key in QueryAction as `can${key}`]?: boolean } } = {};
@@ -285,9 +296,9 @@ export async function getMultiTypePermissions(
  * of that permission's value for each object (in the same order as the IDs)
  */
 export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
-    type: `${GqlModelType}`,
+    type: `${ModelType}`,
     ids: string[],
-    userData: SessionUserToken | null,
+    userData: Pick<SessionUser, "id" | "languages"> | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
@@ -298,14 +309,14 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     let select: any;
     let dataById: Record<string, object>;
     try {
-        select = permissionsSelectHelper(validator.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
-        const authData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+        select = permissionsSelectHelper(validator.permissionsSelect, userData?.id ?? null);
+        const authData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: ids } },
             select,
         });
         dataById = Object.fromEntries(authData.map(item => [item.id, item]));
     } catch (error) {
-        throw new CustomError("0388", "InternalError", userData?.languages ?? ["en"], { ids, select, objectType: type });
+        throw new CustomError("0388", "InternalError", { ids, select, objectType: type });
     }
     // Loop through each id and calculate permissions
     for (const id of ids) {
@@ -329,10 +340,10 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * @param throwsOnError Whether to throw an error if the user does not have permission, or return a boolean
  */
 export async function permissionsCheck(
-    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
+    authDataById: { [id: string]: { __typename: `${ModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     inputsById: InputsById,
-    userData: SessionUserToken | null,
+    userData: Pick<SessionUser, "id"> | null,
     throwsOnError = true,
 ): Promise<boolean> {
     // Get permissions
@@ -357,7 +368,7 @@ export async function permissionsCheck(
             // If permissions doesn't exist, something went wrong.
             if (!permissions) {
                 if (throwsOnError) {
-                    throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
+                    throw new CustomError("0390", "CouldNotFindPermissions", { action, id, __typename: authDataById?.[id]?.__typename });
                 } else {
                     return false;
                 }
@@ -365,7 +376,13 @@ export async function permissionsCheck(
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
                 if (throwsOnError) {
-                    throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                    // If you're ad admin, do it anyway
+                    const isAdmin = userData?.id && userData.id === SEEDED_IDS.User.Admin;
+                    if (isAdmin) {
+                        logger.warning("Using admin privileges to perform action", { action, id, __typename: authDataById[id].__typename });
+                    } else {
+                        throw new CustomError("0297", "Unauthorized", { action, id, __typename: authDataById[id].__typename });
+                    }
                 } else {
                     return false;
                 }

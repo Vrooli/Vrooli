@@ -1,8 +1,8 @@
 import * as yup from "yup";
-import { splitDotNotation } from "../../../utils";
-import { omit } from "../../../utils/omit";
-import { YupModel, YupModelOptions, YupMutateParams } from "../types";
-import { RelationshipType, rel } from "./rel";
+import { splitDotNotation } from "../../../utils/objects.js";
+import { omit } from "../../../utils/omit.js";
+import { YupModel, YupModelOptions, YupMutateParams } from "../types.js";
+import { RelationshipType, rel } from "./rel.js";
 
 /**
  * Creates a yup object
@@ -42,6 +42,7 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
         // Create relationship
         const relResult = rel({
             ...data,
+            // eslint-disable-next-line no-magic-numbers
             omitFields: [...relNestedFields, ...(params.length === 6 && Array.isArray(params[5]) ? params[5] : [])],
             recurseCount: (data.recurseCount ?? 0) + 1,
         }, ...params);
@@ -64,15 +65,24 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
                 // If the value (meaning the value of the full object, not the fields being tested) is null or undefined, 
                 // we shouldn't be here. So we'll return true to pass the test
                 if (value === null || value === undefined) return true;
+
                 // Count the number of fields which are present
-                const fieldCounts = typeof value === "object" ? [field1, field2].filter((field) => value[field] !== undefined).length : 0;
+                // Field is present if it's defined and not null
+                const fieldCounts = typeof value === "object" ?
+                    [field1, field2].filter((field) => value[field] !== undefined && value[field] !== null).length : 0;
+
                 // While we're here, we'll check if any of the fields were marked as required.  
                 // If so, it will always fail. So we'll give a warning
-                const anyRequired = [field1, field2].some((field) => this.schema.fields[field].tests.some((test) => test.OPTIONS.name === "required"));
+                const anyRequired = [field1, field2].some((field) =>
+                    this.schema?.fields?.[field]?.tests?.some((test) => test.OPTIONS?.name === "required"));
+
                 if (anyRequired) {
-                    console.warn(`One of the following fields is marked as required, so this require-one test will always fail: ${field1}, ${field2}`);
+                    console.warn(`[yupObj] One of the following fields is marked as required, so this require-one test will always fail: ${field1}, ${field2}`);
                 }
-                return isOneRequired ? fieldCounts === 1 : fieldCounts <= 1;
+
+                // Check if fields actually exist in the value object
+                const result = isOneRequired ? fieldCounts === 1 : fieldCounts <= 1;
+                return result;
             },
         );
     });

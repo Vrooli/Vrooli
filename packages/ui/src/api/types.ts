@@ -1,15 +1,6 @@
-import { TranslationKeyError } from "@local/shared";
+/* c8 ignore start */
+import { ServerResponse } from "@local/shared";
 
-export type Method = "GET" | "POST" | "PUT" | "DELETE";
-
-export type ServerResponse<Output = any> = {
-    errors?: {
-        message: string;
-        code?: TranslationKeyError;
-    }[];
-    data?: Output;
-    version?: string;
-};
 export type ServerResponseWithTimestamp<T = any> = ServerResponse<T> & { __fetchTimestamp: number };
 
 export type FetchInputOptions = {

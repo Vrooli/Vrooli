@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { findLatestPublicVersionIndex, getChangedVersions, prepareVersionUpdates, sortVersions } from "./afterMutationsVersion";
+import { expect } from "chai";
+import { findLatestPublicVersionIndex, getChangedVersions, prepareVersionUpdates, sortVersions } from "./afterMutationsVersion.js";
 
 describe("sortVersions", () => {
     it("should correctly sort an array of versions by major, moderate, and minor", () => {
@@ -11,20 +12,20 @@ describe("sortVersions", () => {
             { versionLabel: "0.9.9" },
         ];
         const sorted = sortVersions(versions);
-        expect(sorted.map(v => v.versionLabel)).toEqual(["0.9.9", "1.2.1", "1.2.3", "1.3.1", "2.1.1"]);
+        expect(sorted.map(v => v.versionLabel)).to.deep.equal(["0.9.9", "1.2.1", "1.2.3", "1.3.1", "2.1.1"]);
     });
 
     it("should return an empty array when provided with a non-array input", () => {
         const invalidInput = "not an array";
         // @ts-ignore: Testing runtime scenario
         const sorted = sortVersions(invalidInput);
-        expect(sorted).toEqual([]);
+        expect(sorted).to.deep.equal([]);
     });
 
     it("should return an empty array when provided with an empty array", () => {
         const emptyArray = [];
         const sorted = sortVersions(emptyArray);
-        expect(sorted).toEqual([]);
+        expect(sorted).to.deep.equal([]);
     });
 
     it("should sort versions that are identical", () => {
@@ -34,7 +35,7 @@ describe("sortVersions", () => {
             { versionLabel: "1.1.1" },
         ];
         const sorted = sortVersions(versions);
-        expect(sorted.map(v => v.versionLabel)).toEqual(["1.1.1", "1.1.1", "1.1.1"]);
+        expect(sorted.map(v => v.versionLabel)).to.deep.equal(["1.1.1", "1.1.1", "1.1.1"]);
     });
 
     it("should maintain the order of elements with the same version", () => {
@@ -45,13 +46,13 @@ describe("sortVersions", () => {
             { versionLabel: "1.1.1", name: "C" },
         ];
         const sorted = sortVersions(versions);
-        expect(sorted.map(v => v.name)).toEqual(["A", "B", "C"]);
+        expect(sorted.map(v => v.name)).to.deep.equal(["A", "B", "C"]);
     });
 });
 
 describe("findLatestPublicVersionIndex", () => {
     it("returns -1 if no versions are available", () => {
-        expect(findLatestPublicVersionIndex([])).toBe(-1);
+        expect(findLatestPublicVersionIndex([])).to.equal(-1);
     });
 
     it("returns -1 if all versions are private", () => {
@@ -60,7 +61,7 @@ describe("findLatestPublicVersionIndex", () => {
             { id: "2", isPrivate: true },
         ];
         // @ts-ignore: Testing runtime scenario
-        expect(findLatestPublicVersionIndex(versions)).toBe(-1);
+        expect(findLatestPublicVersionIndex(versions)).to.equal(-1);
     });
 
     it("returns the correct index for a single public version", () => {
@@ -68,7 +69,7 @@ describe("findLatestPublicVersionIndex", () => {
             { id: "1", isPrivate: false },
         ];
         // @ts-ignore: Testing runtime scenario
-        expect(findLatestPublicVersionIndex(versions)).toBe(0);
+        expect(findLatestPublicVersionIndex(versions)).to.equal(0);
     });
 
     it("returns the index of the last public version when multiple are public", () => {
@@ -78,7 +79,7 @@ describe("findLatestPublicVersionIndex", () => {
             { id: "3", isPrivate: false },
         ];
         // @ts-ignore: Testing runtime scenario
-        expect(findLatestPublicVersionIndex(versions)).toBe(2);
+        expect(findLatestPublicVersionIndex(versions)).to.equal(2);
     });
 
     it("correctly identifies the public version at the boundaries", () => {
@@ -88,7 +89,7 @@ describe("findLatestPublicVersionIndex", () => {
             { id: "3", isPrivate: true },
         ];
         // @ts-ignore: Testing runtime scenario
-        expect(findLatestPublicVersionIndex(versions)).toBe(0);
+        expect(findLatestPublicVersionIndex(versions)).to.equal(0);
     });
 
     it("handles large data sets efficiently", () => {
@@ -97,7 +98,7 @@ describe("findLatestPublicVersionIndex", () => {
             isPublic: index === 9999, // only the last one is public
         }));
         // @ts-ignore: Testing runtime scenario
-        expect(findLatestPublicVersionIndex(versions)).toBe(9999);
+        expect(findLatestPublicVersionIndex(versions)).to.equal(9999);
     });
 });
 
@@ -110,7 +111,7 @@ describe("getChangedVersions", () => {
         ];
         // @ts-ignore: Testing runtime scenario
         const changes = getChangedVersions(original, updated);
-        expect(changes).toEqual([
+        expect(changes).to.deep.equal([
             { id: "1", isLatest: true, isLatestPublic: true, versionIndex: 0 },
             { id: "2", isLatest: false, isLatestPublic: false, versionIndex: 1 },
         ]);
@@ -120,7 +121,7 @@ describe("getChangedVersions", () => {
         const original = [{ id: "1", isLatest: true, isLatestPublic: true, versionIndex: 0 }];
         const updated = [{ id: "1", isLatest: true, isLatestPublic: true, versionIndex: 0 }];
         // @ts-ignore: Testing runtime scenario
-        expect(getChangedVersions(original, updated)).toEqual([]);
+        expect(getChangedVersions(original, updated)).to.deep.equal([]);
     });
 });
 
@@ -132,7 +133,7 @@ describe("prepareVersionUpdates", () => {
         };
 
         const updatedVersions = prepareVersionUpdates(root);
-        expect(updatedVersions.length).toBe(0);
+        expect(updatedVersions.length).to.equal(0);
     });
 
     it("already correct, so no changes", () => {
@@ -146,7 +147,7 @@ describe("prepareVersionUpdates", () => {
         };
 
         const updatedVersions = prepareVersionUpdates(root);
-        expect(updatedVersions.length).toBe(0);
+        expect(updatedVersions.length).to.equal(0);
     });
 
     it("index change", () => {
@@ -160,10 +161,10 @@ describe("prepareVersionUpdates", () => {
         };
 
         const updatedVersions = prepareVersionUpdates(root);
-        expect(updatedVersions.length).toBe(3);
-        expect(updatedVersions.find(v => v.where.id === "v1")).toEqual({ where: { id: "v1" }, data: { versionIndex: 0, isLatest: false, isLatestPublic: false } });
-        expect(updatedVersions.find(v => v.where.id === "v2")).toEqual({ where: { id: "v2" }, data: { versionIndex: 1, isLatest: false, isLatestPublic: true } });
-        expect(updatedVersions.find(v => v.where.id === "v3")).toEqual({ where: { id: "v3" }, data: { versionIndex: 2, isLatest: true, isLatestPublic: false } });
+        expect(updatedVersions.length).to.equal(3);
+        expect(updatedVersions.find(v => v.where.id === "v1")).to.deep.equal({ where: { id: "v1" }, data: { versionIndex: 0, isLatest: false, isLatestPublic: false } });
+        expect(updatedVersions.find(v => v.where.id === "v2")).to.deep.equal({ where: { id: "v2" }, data: { versionIndex: 1, isLatest: false, isLatestPublic: true } });
+        expect(updatedVersions.find(v => v.where.id === "v3")).to.deep.equal({ where: { id: "v3" }, data: { versionIndex: 2, isLatest: true, isLatestPublic: false } });
     });
 
     it("isLatest change", () => {
@@ -177,9 +178,9 @@ describe("prepareVersionUpdates", () => {
         };
 
         const updatedVersions = prepareVersionUpdates(root);
-        expect(updatedVersions.length).toBe(2);
-        expect(updatedVersions.find(v => v.where.id === "v1")).toEqual({ where: { id: "v1" }, data: { versionIndex: 0, isLatest: false, isLatestPublic: false } });
-        expect(updatedVersions.find(v => v.where.id === "v3")).toEqual({ where: { id: "v3" }, data: { versionIndex: 2, isLatest: true, isLatestPublic: false } });
+        expect(updatedVersions.length).to.equal(2);
+        expect(updatedVersions.find(v => v.where.id === "v1")).to.deep.equal({ where: { id: "v1" }, data: { versionIndex: 0, isLatest: false, isLatestPublic: false } });
+        expect(updatedVersions.find(v => v.where.id === "v3")).to.deep.equal({ where: { id: "v3" }, data: { versionIndex: 2, isLatest: true, isLatestPublic: false } });
     });
 
     it("isLatestPublic change", () => {
@@ -193,8 +194,8 @@ describe("prepareVersionUpdates", () => {
         };
 
         const updatedVersions = prepareVersionUpdates(root);
-        expect(updatedVersions.length).toBe(1);
-        expect(updatedVersions.find(v => v.where.id === "v2")).toEqual({ where: { id: "v2" }, data: { versionIndex: 1, isLatest: false, isLatestPublic: true } });
+        expect(updatedVersions.length).to.equal(1);
+        expect(updatedVersions.find(v => v.where.id === "v2")).to.deep.equal({ where: { id: "v2" }, data: { versionIndex: 1, isLatest: false, isLatestPublic: true } });
     });
 
     it("multiple changes", () => {
@@ -208,9 +209,9 @@ describe("prepareVersionUpdates", () => {
         };
 
         const updatedVersions = prepareVersionUpdates(root);
-        expect(updatedVersions.length).toBe(3);
-        expect(updatedVersions.find(v => v.where.id === "v1")).toEqual({ where: { id: "v1" }, data: { versionIndex: 0, isLatest: false, isLatestPublic: false } });
-        expect(updatedVersions.find(v => v.where.id === "v2")).toEqual({ where: { id: "v2" }, data: { versionIndex: 1, isLatest: false, isLatestPublic: true } });
-        expect(updatedVersions.find(v => v.where.id === "v3")).toEqual({ where: { id: "v3" }, data: { versionIndex: 2, isLatest: true, isLatestPublic: false } });
+        expect(updatedVersions.length).to.equal(3);
+        expect(updatedVersions.find(v => v.where.id === "v1")).to.deep.equal({ where: { id: "v1" }, data: { versionIndex: 0, isLatest: false, isLatestPublic: false } });
+        expect(updatedVersions.find(v => v.where.id === "v2")).to.deep.equal({ where: { id: "v2" }, data: { versionIndex: 1, isLatest: false, isLatestPublic: true } });
+        expect(updatedVersions.find(v => v.where.id === "v3")).to.deep.equal({ where: { id: "v3" }, data: { versionIndex: 2, isLatest: true, isLatestPublic: false } });
     });
 });

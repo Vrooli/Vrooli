@@ -1,12 +1,12 @@
-import { ListObject, noop, OrArray } from "@local/shared";
-import { LazyRequestWithResult, Method } from "api/types";
-import { useLazyFetch, UseLazyFetchProps } from "./useLazyFetch";
+import { HttpMethod, ListObject, OrArray, noop } from "@local/shared";
+import { LazyRequestWithResult } from "../api/types.js";
+import { UseLazyFetchProps, useLazyFetch } from "./useLazyFetch.js";
 
 type CommonProps<IsMutate extends boolean> = {
     isCreate: boolean,
     isMutate: IsMutate,
 };
-type Endpoint = { endpoint: string, method: Method };
+type Endpoint = { endpoint: string, method: HttpMethod };
 type Endpoints = {
     endpointCreate: Endpoint,
     endpointUpdate: Endpoint,

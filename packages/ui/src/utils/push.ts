@@ -1,9 +1,9 @@
-import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { errorToMessage } from "api/errorParser";
-import { fetchData } from "api/fetchData";
-import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
-import { getDeviceInfo } from "./display/device";
-import { PubSub } from "./pubsub";
+import { endpointsPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
+import { fetchData } from "../api/fetchData.js";
+import { ServerResponseParser } from "../api/responseParser.js";
+import { requestNotificationPermission, subscribeUserToPush } from "../serviceWorkerRegistration.js";
+import { getDeviceInfo } from "./display/device.js";
+import { PubSub } from "./pubsub.js";
 
 /**
  * Sets up push notifications for the user
@@ -42,7 +42,7 @@ export async function setupPush(showErrorWhenNotSupported = true): Promise<PushD
         // Call pushDeviceCreate
         try {
             const response = await fetchData<PushDeviceCreateInput, PushDevice>({
-                ...endpointPostPushDevice,
+                ...endpointsPushDevice.createOne,
                 inputs: {
                     endpoint: subscription.endpoint,
                     expires: subscription.expirationTime ?? undefined,
@@ -58,7 +58,7 @@ export async function setupPush(showErrorWhenNotSupported = true): Promise<PushD
                 PubSub.get().publish("snack", { messageKey: "PushDeviceCreated", severity: "Success" });
                 return response.data;
             } else if (response.errors) {
-                PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
+                ServerResponseParser.displayErrors(response.errors);
             } else {
                 PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             }

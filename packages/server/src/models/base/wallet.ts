@@ -1,11 +1,11 @@
 import { MaxObjects, walletValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { defaultPermissions } from "../../utils";
-import { WalletFormat } from "../formats";
-import { TeamModelLogic, WalletModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { WalletFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { TeamModelLogic, WalletModelLogic } from "./types.js";
 
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
@@ -23,19 +23,19 @@ export const WalletModel: WalletModelLogic = ({
             pre: async ({ Delete, userData }) => {
                 // Prevent deleting wallets if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allWallets = await prismaInstance.wallet.findMany({
+                    const allWallets = await DbProvider.get().wallet.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedPhonesCount = await prismaInstance.phone.count({
+                    const verifiedPhonesCount = await DbProvider.get().phone.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    const verifiedEmailsCount = await prismaInstance.email.count({
+                    const verifiedEmailsCount = await DbProvider.get().email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)
-                        throw new CustomError("0275", "MustLeaveVerificationMethod", userData.languages);
+                        throw new CustomError("0275", "MustLeaveVerificationMethod");
                 }
             },
             update: async ({ data }) => data,

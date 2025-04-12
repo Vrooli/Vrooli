@@ -1,45 +1,50 @@
-import { FocusModeStopCondition, GqlModelType, SessionUser } from "@local/shared";
-import pkg from "@prisma/client";
-import { GraphQLResolveInfo } from "graphql";
-import { Context } from "./middleware";
+import { ApiKeyPermission, ModelType, SessionUser } from "@local/shared";
+import { PartialApiInfo } from "./api/types.js";
+import { Context } from "./middleware/context.js";
 
 declare module "@local/server";
+// eslint-disable-next-line import/extensions
 export * from ".";
 
+/**
+ * Information required in any JWT token
+ */
 export interface BasicToken {
     iat: number;
     iss: string;
     exp: number;
 }
-export interface ApiToken extends BasicToken {
+export interface AccessToken extends BasicToken {
+    /** When we need to check the database to see if the token is still valid. */
+    accessExpiresAt: number;
+}
+export interface ApiToken extends AccessToken {
+    /** The API key */
     apiToken: string;
+    /** The permissions of the API key */
+    permissions: Record<ApiKeyPermission, boolean>;
+    /** The ID of the user that the API key belongs to */
+    userId: string;
 }
 
-// Tokens store more limited data than the session object returned by the API. 
-// This is because the maximum size of a cookie is 4kb
-export interface SessionToken extends BasicToken {
+/**
+ * Information stored in a session token.
+ * Contains less data than the full session object, since it is stored in a cookie 
+ * and the maximum size of a cookie is 4kb.
+ */
+export interface SessionToken extends AccessToken {
     isLoggedIn: boolean;
     timeZone?: string;
     // Supports logging in with multiple accounts
-    users: SessionUserToken[];
-}
-export type SessionUserToken = Pick<SessionUser, "id" | "credits" | "handle" | "hasPremium" | "languages" | "name" | "profileImage" | "updated_at"> & {
-    activeFocusMode?: {
-        mode: {
-            id: string,
-            reminderList?: {
-                id: string;
-            } | null,
-        },
-        stopCondition: FocusModeStopCondition,
-        stopTime?: Date | null,
-    } | null;
+    users: SessionUser[];
 }
 
 /** All data stored in session */
 export type SessionData = {
+    /** When we need to check the database to see if the token is still valid. */
+    accessExpiresAt?: number | null;
     /** Public API token, if present */
-    apiToken?: boolean;
+    apiToken?: string | null;
     /** True if the request is coming from a safe origin (e.g. our own frontend) */
     fromSafeOrigin?: boolean;
     /** True if user is logged in. False if not, or if token is invalid or for an API token */
@@ -48,11 +53,15 @@ export type SessionData = {
      * Preferred languages to display errors, push notifications, etc. in. 
      * Always has at least one language
      */
-    languages: string[];
+    languages?: string[];
+    /** API token permissions */
+    permissions?: Record<ApiKeyPermission, boolean>;
     /** User's current time zone */
-    timeZone?: string;
+    timeZone?: string | null;
+    /** ID of user if using API token */
+    userId?: string | null;
     /** Users logged in with this session (if isLoggedIn is true) */
-    users?: SessionUserToken[];
+    users?: SessionUser[] | null;
     validToken?: boolean;
 }
 
@@ -73,10 +82,20 @@ declare module "winston" {
     }
 }
 
+export type RequestFile = {
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    buffer: Buffer;
+    size: number;
+}
+
 // Request type
 declare global {
     namespace Express {
         interface Request {
+            files?: RequestFile[];
             session: SessionData;
         }
     }
@@ -86,14 +105,11 @@ export type WithIdField<IdField extends string = "id"> = {
     [key in IdField]: string;
 }
 
-/** Prisma type shorthand */
-export type PrismaType = pkg.PrismaClient<pkg.Prisma.PrismaClientOptions, never, pkg.Prisma.RejectOnNotFound | pkg.Prisma.RejectPerOperation | undefined>
-
-/** Wrapper for GraphQL input types */
+/** Wrapper for API endpoint input types */
 export type IWrap<T> = { input: T }
 
 /**
- * Type for converting GraphQL objects (where nullables are set based on database), 
+ * Type for converting API endpoint objects (where nullables are set based on database), 
  * to fully OPTIONAL objects (including relationships)
  */
 export type RecursivePartial<T> = {
@@ -113,26 +129,13 @@ export type RecursivePartialNullable<T> = {
     : T[P] | null
 };
 
-/** Return type of find one queries */
-export type FindOneResult<T> = RecursivePartial<T> | null
+export type ApiEndpoint<T, U> = (
+    data: T extends undefined ? undefined : IWrap<T>,
+    context: Context,
+    info: PartialApiInfo
+) => Promise<U extends Array<infer V> ? RecursivePartial<V>[] : RecursivePartial<U>>;
 
-/** Return type of find many queries */
-export type FindManyResult<T> = {
-    pageInfo: {
-        hasNextPage: boolean,
-        endCursor?: string | null
-    },
-    edges: Array<{ cursor: string, node: RecursivePartial<T> }>
-}
-
-export type CreateOneResult<T> = FindOneResult<T>
-export type CreateManyResult<T> = FindOneResult<T>[]
-export type UpdateOneResult<T> = FindOneResult<T>
-export type UpdateManyResult<T> = FindOneResult<T>[]
-
-export type GQLEndpoint<T, U> = (parent: undefined, data: IWrap<T>, context: Context, info: GraphQLResolveInfo) => Promise<U>;
-
-export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
+export type UnionResolver = { __resolveType: (obj: any) => `${ModelType}` };
 
 /** Either a promise or a value */
 export type PromiseOrValue<T> = Promise<T> | T;

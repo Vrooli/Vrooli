@@ -1,11 +1,12 @@
 import { GutterMarker } from "@codemirror/view";
-import { ErrorIcon, WarningIcon } from "icons";
+// eslint-disable-next-line import/extensions
 import ReactDOMServer from "react-dom/server";
+import { IconCommon } from "../../../icons/Icons.js";
 
 export class ErrorMarker extends GutterMarker {
     toDOM() {
         const marker = document.createElement("div");
-        marker.innerHTML = ReactDOMServer.renderToString(<ErrorIcon fill="red" />);
+        marker.innerHTML = ReactDOMServer.renderToString(<IconCommon decorative name="Error" fill="red" />);
         return marker;
     }
 }
@@ -13,7 +14,7 @@ export class ErrorMarker extends GutterMarker {
 export class WarnMarker extends GutterMarker {
     toDOM() {
         const marker = document.createElement("div");
-        marker.innerHTML = ReactDOMServer.renderToString(<WarningIcon fill="yellow" />);
+        marker.innerHTML = ReactDOMServer.renderToString(<IconCommon decorative name="Warning" fill="yellow" />);
         return marker;
     }
 }

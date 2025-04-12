@@ -1,8 +1,12 @@
-import { bio, bool, handle, id, imageFile, name, opt, req, transRel, YupModel, yupObj } from "../utils";
-import { memberInviteValidation } from "./memberInvite";
-import { resourceListValidation } from "./resourceList";
-import { roleValidation } from "./role";
-import { tagValidation } from "./tag";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bio, bool, handle, id, imageFile, name } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { memberInviteValidation } from "./memberInvite.js";
+import { resourceListValidation } from "./resourceList.js";
+import { roleValidation } from "./role.js";
+import { tagValidation } from "./tag.js";
 
 export const teamTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

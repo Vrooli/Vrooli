@@ -1,15 +1,18 @@
-import { GqlModelType, MaxObjects, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
+import { MaxObjects, ModelType, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
-import { afterMutationsPlain } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { QuestionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, QuestionModelInfo, QuestionModelLogic, ReactionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { QuestionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, QuestionModelInfo, QuestionModelLogic, ReactionModelLogic } from "./types.js";
 
 type QuestionPre = PreShapeEmbeddableTranslatableResult;
 
@@ -40,7 +43,7 @@ export const QuestionModel: QuestionModelLogic = ({
                 return getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -120,11 +123,11 @@ export const QuestionModel: QuestionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<QuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuestionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -153,7 +156,7 @@ export const QuestionModel: QuestionModelLogic = ({
                         // The question is not tied to an object
                         Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value + "Id", null])),
                         // The object the question is tied to is public
-                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as GqlModelType, "Public", data)])),
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as ModelType, "Public", data)])),
                     ],
                 };
             },
@@ -162,7 +165,7 @@ export const QuestionModel: QuestionModelLogic = ({
                     OR: [
                         useVisibility("Question", "Own", data),
                         useVisibility("Question", "Public", data),
-                    ]
+                    ],
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
@@ -184,7 +187,7 @@ export const QuestionModel: QuestionModelLogic = ({
                         // The question is not tied to an object
                         Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value + "Id", null])),
                         // The object the question is tied to is public
-                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as GqlModelType, "Public", data)])),
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as ModelType, "Public", data)])),
                     ],
                 };
             },

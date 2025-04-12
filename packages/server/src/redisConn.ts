@@ -2,14 +2,23 @@
  * Redis connection, so we don't have to keep creating new connections
  */
 import { createClient, RedisClientType } from "redis";
-import { ErrorTrace } from "./events/error";
-import { logger } from "./events/logger";
+import { ErrorTrace } from "./events/error.js";
+import { logger } from "./events/logger.js";
 
-export const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
 const MAX_RETRIES = 5;
 
 let redisClient: RedisClientType | null = null;
 let retryCount = 0;
+
+/**
+ * Get the Redis URL from the environment variable.
+ * This is a function because it allows us to mock the Redis URL for testing.
+ * 
+ * @returns The Redis URL
+ */
+export function getRedisUrl() {
+    return process.env.REDIS_URL || "redis://redis:6379";
+}
 
 export async function createRedisClient() {
     if (retryCount >= MAX_RETRIES) {
@@ -18,6 +27,7 @@ export async function createRedisClient() {
     }
 
     logger.info("Creating Redis client.", { trace: "0184" });
+    const REDIS_URL = getRedisUrl();
     const redisClient = createClient({ url: REDIS_URL });
     redisClient.on("error", (error) => {
         retryCount++;
@@ -52,6 +62,71 @@ export async function initializeRedis(): Promise<RedisClientType | null> {
         redisClient = await createRedisClient() as RedisClientType | null;
     }
     return redisClient;
+}
+
+/**
+ * Safely closes the Redis client connection
+ * This should be called during test teardown to prevent hanging connections
+ */
+export async function closeRedis(): Promise<void> {
+    // If client doesn't exist, nothing to do
+    if (!redisClient) {
+        logger.info("No Redis client to close", { trace: "0585" });
+        return;
+    }
+
+    try {
+        logger.info("Closing Redis client connection", { trace: "0582" });
+
+        // Check if the client is actually connected before trying operations
+        let isConnected = false;
+        try {
+            // Try a simple operation to check connection status
+            if (redisClient.isReady) {
+                await redisClient.ping().catch(() => { });
+                isConnected = true;
+            }
+        } catch (e) {
+            // The connection is already closed
+            logger.info("Redis client is already disconnected", { trace: "0586" });
+            redisClient = null;
+            retryCount = 0;
+            return;
+        }
+
+        // Only perform cleanup if the connection is still active
+        if (isConnected) {
+            // Remove all listeners before disconnecting
+            redisClient.removeAllListeners();
+
+            // Try to unsubscribe from all channels if this is a subscriber
+            try {
+                if (typeof redisClient.unsubscribe === 'function') {
+                    await redisClient.unsubscribe();
+                }
+            } catch (e) {
+                // Ignore unsubscribe errors
+                logger.error("Error unsubscribing from Redis channels", { trace: "0584", error: e });
+            }
+
+            // Disconnect with force option
+            await redisClient.disconnect();
+        }
+
+        // Ensure the client is really closed by setting it to null
+        redisClient = null;
+
+        // Reset retry count
+        retryCount = 0;
+
+        logger.info("Redis client successfully closed", { trace: "0587" });
+    } catch (error) {
+        logger.error("Error closing Redis client", { trace: "0583", error });
+
+        // Even if there's an error, set the client to null to prevent further usage
+        redisClient = null;
+        retryCount = 0;
+    }
 }
 
 interface WithRedisProps {

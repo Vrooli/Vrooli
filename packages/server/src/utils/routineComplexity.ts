@@ -1,6 +1,6 @@
 import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
 
 /**
  * Weight data for a subroutine, or all subroutines in a node combined.
@@ -25,19 +25,17 @@ type LinkData = {
  * Each node has a weight that is the summation of its contained subroutines.
  * @param nodes A map of node IDs to their weight (simplicity/complexity)
  * @param edges The edges of the graph, with each object containing a fromId and toId
- * @param languages Preferred languages for error messages
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
-export const calculateShortestLongestWeightedPath = (
+export function calculateShortestLongestWeightedPath(
     nodes: { [id: string]: SubroutineWeightData },
     edges: LinkData[],
-    languages: string[],
-): [number, number] => {
+): [number, number] {
     // First, check that all edges point to valid nodes. 
     // If this isn't the case, this algorithm could run into an error
     for (const edge of edges) {
         if (!nodes[edge.toId] || !nodes[edge.fromId]) {
-            throw new CustomError("0237", "UnlinkedNodes", languages, { failedEdge: edge });
+            throw new CustomError("0237", "UnlinkedNodes", { failedEdge: edge });
         }
     }
     // If no nodes or edges, return 1
@@ -56,7 +54,7 @@ export const calculateShortestLongestWeightedPath = (
      * @returns [shortest, longest] The shortest and longest distance. -1 if doesn't 
      * end with a start node (i.e. caught in a loop)
      */
-    const getShortLong = (currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] => {
+    function getShortLong(currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] {
         const fromEdges = edgesByNode[currentNodeId];
         // If no from edges, must be start node. Return currShortest and currLongest unchanged
         if (!fromEdges || fromEdges.length === 0) return [currShortest, currLongest];
@@ -87,7 +85,7 @@ export const calculateShortestLongestWeightedPath = (
         const shortest = edgeShorts.length > 0 ? Math.min(...edgeShorts) : -1;
         const longest = edgeLongs.length > 0 ? Math.max(...edgeLongs) : -1;
         return [shortest, longest];
-    };
+    }
     // Find all of the end nodes, by finding all nodes without any outgoing edges
     const endNodes = Object.keys(nodes).filter(nodeId => !edges.find(e => e.fromId === nodeId));
     // Calculate the shortest and longest for each end node
@@ -97,7 +95,7 @@ export const calculateShortestLongestWeightedPath = (
         Math.min(...distances.map(d => d[0])),
         Math.max(...distances.map(d => d[1])),
     ];
-};
+}
 
 /**
  * Select query for calculating the complexity of a routine version
@@ -153,7 +151,7 @@ type GroupRoutineVersionDataResult = {
  * @param ids The routine version IDs, and the id of the routine they're in, if they're a subroutine
  * @returns Object with linkData, nodeData, subroutineItemData, and input counts by routine version ID
  */
-const groupRoutineVersionData = async (ids: { id: string, parentId: string | null }[]): Promise<GroupRoutineVersionDataResult> => {
+async function groupRoutineVersionData(ids: { id: string, parentId: string | null }[]): Promise<GroupRoutineVersionDataResult> {
     // Initialize data
     const linkData: Pick<GroupRoutineVersionDataResult, "linkData">["linkData"] = {};
     const nodeData: Pick<GroupRoutineVersionDataResult, "nodeData">["nodeData"] = {};
@@ -161,14 +159,14 @@ const groupRoutineVersionData = async (ids: { id: string, parentId: string | nul
     const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
     const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
-    const data = await prismaInstance.routine_version.findMany({
+    const data = await DbProvider.get().routine_version.findMany({
         where: { id: { in: ids.map(i => i.id) } },
         select: routineVersionSelect,
     });
     // Add existing links, nodes data, subroutineItemData, and input counts
     for (const routineVersion of data) {
         // Links
-        for (const link of routineVersion.nodeLinks) {
+        for (const link of (routineVersion as any).nodeLinks) { //TODO
             linkData[link.id] = {
                 fromId: link.fromId,
                 toId: link.toId,
@@ -176,7 +174,7 @@ const groupRoutineVersionData = async (ids: { id: string, parentId: string | nul
             };
         }
         // Nodes and subroutineItemData
-        for (const node of routineVersion.nodes) {
+        for (const node of (routineVersion as any).nodes) { //TODO
             if (node.routineList) {
                 nodeData[node.id] = {
                     routineVersionId: routineVersion.id,
@@ -212,7 +210,7 @@ const groupRoutineVersionData = async (ids: { id: string, parentId: string | nul
         optionalRoutineVersionInputCounts,
         allRoutineVersionInputCounts,
     };
-};
+}
 
 type CalculateComplexityResult = {
     updatingSubroutineIds: string[],
@@ -224,21 +222,19 @@ type CalculateComplexityResult = {
  * routine versions based on the number of steps. 
  * Simplicity is a the minimum number of inputs and decisions required to complete the routine version, while 
  * complexity is the maximum. 
- * @param languages Preferred languages for error messages
  * @param inputs The routine version's create or update input
  * @param disallowIds IDs of routine versions that are not allowed to be used. This is used to 
  * prevent multiple updates of the same version.
  * @returns Data used for recursion, as well as an array of weightData (in same order as inputs)
  */
-export const calculateWeightData = async (
-    languages: string[],
+export async function calculateWeightData(
     inputs: (RoutineVersionUpdateInput | RoutineVersionCreateInput)[],
     disallowIds: string[],
-): Promise<CalculateComplexityResult> => {
+): Promise<CalculateComplexityResult> {
     // Make sure inputs do not contain disallowed IDs
     const inputIds = inputs.map(i => i.id);
     if (inputIds.some(id => disallowIds.includes(id))) {
-        throw new CustomError("0370", "InvalidArgs", languages);
+        throw new CustomError("0370", "InvalidArgs");
     }
     // Initialize data used to calculate complexity/simplicity
     const linkData: { [id: string]: LinkData } = {};
@@ -266,7 +262,7 @@ export const calculateWeightData = async (
     // Add new/updated links and nodes data from inputs
     for (const rVerCreateOrUpdate of inputs) {
         // Adding links
-        for (const link of rVerCreateOrUpdate.nodeLinksCreate ?? []) {
+        for (const link of (rVerCreateOrUpdate as any).nodeLinksCreate ?? []) { //TODO
             linkData[link.id] = {
                 fromId: link.fromConnect,
                 toId: link.toConnect,
@@ -274,19 +270,19 @@ export const calculateWeightData = async (
             };
         }
         // Updating links
-        const linksUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksUpdate ?? [];
+        const linksUpdate = (rVerCreateOrUpdate as any).nodeLinksUpdate ?? []; //TODO RoutineVersionUpdateInput
         for (const link of linksUpdate) {
             if (link.fromConnect) linkData[link.id].fromId = link.fromConnect;
             if (link.toConnect) linkData[link.id].toId = link.toConnect;
             linkData[link.id].routineVersionId = rVerCreateOrUpdate.id;
         }
         // Removing links
-        const linksDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksDelete ?? [];
+        const linksDelete = (rVerCreateOrUpdate as any).nodeLinksDelete ?? []; //TODO RoutineVersionUpdateInput
         for (const linkId of linksDelete) {
             delete linkData[linkId];
         }
         // Adding nodes
-        for (const node of rVerCreateOrUpdate.nodesCreate ?? []) {
+        for (const node of (rVerCreateOrUpdate as any).nodesCreate ?? []) { //TODO
             if (node.routineListCreate) {
                 // When adding nodes, subroutines can only be connected
                 const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => ({ id: item.routineVersionConnect, parentId: rVerCreateOrUpdate.id }));
@@ -306,7 +302,7 @@ export const calculateWeightData = async (
             }
         }
         // Updating nodes
-        const nodesUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesUpdate ?? [];
+        const nodesUpdate = (rVerCreateOrUpdate as any).nodesUpdate ?? []; //TODO RoutineVersionUpdateInput
         for (const node of nodesUpdate) {
             // Ignore if routine list is not being updated
             if (!node.routineListUpdate) continue;
@@ -334,7 +330,7 @@ export const calculateWeightData = async (
             }
         }
         // Removing nodes
-        const nodesDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesDelete ?? [];
+        const nodesDelete = (rVerCreateOrUpdate as any).nodesDelete ?? []; //TODO RoutineVersionUpdateInput
         for (const nodeId of nodesDelete) {
             delete nodeData[nodeId];
         }
@@ -356,7 +352,7 @@ export const calculateWeightData = async (
         const {
             updatingSubroutineIds: recursedUpdatingSubroutineIds,
             dataWeights: recursedDataWeights,
-        } = await calculateWeightData(languages, updatingSubroutineData, [...disallowIds, ...inputIds]);
+        } = await calculateWeightData(updatingSubroutineData, [...disallowIds, ...inputIds]);
         updatingSubroutineIds.push(...recursedUpdatingSubroutineIds);
         for (let i = 0; i < recursedDataWeights.length; i++) {
             const currWeight = recursedDataWeights[i];
@@ -406,7 +402,7 @@ export const calculateWeightData = async (
             squishedNodes[node.nodeId] = squishedNode;
         }
         // Calculate shortest and longest weighted paths
-        const [shortest, longest] = calculateShortestLongestWeightedPath(squishedNodes, links, languages);
+        const [shortest, longest] = calculateShortestLongestWeightedPath(squishedNodes, links);
         // Add with +1, so that nesting routines has a small (but not zero) factor in determining weight
         dataWeights.push({
             id: versionId,
@@ -418,4 +414,4 @@ export const calculateWeightData = async (
         });
     }
     return { updatingSubroutineIds, dataWeights };
-};
+}

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import * as yup from "yup";
 
 export type YupMutateParams = {

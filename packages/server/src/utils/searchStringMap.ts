@@ -1,14 +1,16 @@
-import { SearchStringQueryParams } from "../models/types";
+import { SearchStringQueryParams } from "../models/types.js";
 
 type P = SearchStringQueryParams;
 
 /**
  * Query for some translated field 
  */
-const transField = <Field extends string>(
+function transField<Field extends string>(
     { insensitive, languages }: P,
     field: Field,
-) => ({ some: { language: languages ? { in: languages } : undefined, [field]: { ...insensitive } } });
+) {
+    return { some: { language: languages ? { in: languages } : undefined, [field]: { ...insensitive } } };
+}
 
 /**
  * Maps any search string fields to their corresponding Prisma query.

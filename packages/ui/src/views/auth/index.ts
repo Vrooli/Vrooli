@@ -1,5 +1,5 @@
-export * from "./ForgotPasswordView/ForgotPasswordView";
-export * from "./LoginView/LoginView";
-export * from "./ResetPasswordView/ResetPasswordView";
-export * from "./SignupView/SignupView";
+export * from "./ForgotPasswordView.js";
+export * from "./LoginView.js";
+export * from "./ResetPasswordView.js";
+export * from "./SignupView.js";
 

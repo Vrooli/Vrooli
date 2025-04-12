@@ -1,13 +1,12 @@
 {
     "recommendations": [
-        "apollographql.vscode-apollo",
         "dbaeumer.vscode-eslint",
-        "github.copilot",
         "prisma.prisma",
         "redhat.vscode-xml",
         "redhat.vscode-yaml",
         "christian-kohler.npm-intellisense",
         "johnpapa.vscode-peacock",
-        "jetmartin.bats"
+        "jetmartin.bats",
+        "ms-vscode-remote.remote-ssh"
     ]
 }

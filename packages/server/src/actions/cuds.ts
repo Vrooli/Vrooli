@@ -1,28 +1,38 @@
-import { DUMMY_ID, GqlModelType } from "@local/shared";
+import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { modelToGql } from "../builders/modelToGql";
-import { selectHelper } from "../builders/selectHelper";
-import { PartialGraphQLInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { PreMap } from "../models/types";
-import { SessionUserToken } from "../types";
-import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps";
-import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
-import { getAuthenticatedData } from "../utils/getAuthenticatedData";
-import { CudInputData } from "../utils/types";
-import { maxObjectsCheck } from "../validators/maxObjectsCheck";
-import { permissionsCheck } from "../validators/permissions";
-import { profanityCheck } from "../validators/profanityCheck";
-import { CudAdditionalData } from "./types";
+import { AnyObjectSchema } from "yup";
+import { InfoConverter } from "../builders/infoConverter.js";
+import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { PreMap } from "../models/types.js";
+import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps.js";
+import { cudOutputsToMaps } from "../utils/cudOutputsToMaps.js";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
+import { CudInputData } from "../utils/types.js";
+import { maxObjectsCheck } from "../validators/maxObjectsCheck.js";
+import { permissionsCheck } from "../validators/permissions.js";
+import { profanityCheck } from "../validators/profanityCheck.js";
+import { CudAdditionalData } from "./types.js";
 
 type CudHelperParams = {
-    inputData: CudInputData[],
-    partialInfo: PartialGraphQLInfo,
-    userData: SessionUserToken,
     /** Additional data that can be passed to ModelLogic functions */
     additionalData?: CudAdditionalData,
+    /**
+     * If the user is an admin, flags to disable different checks
+     */
+    adminFlags?: {
+        disableAllChecks?: boolean,
+        disableInputValidationAndCasting?: boolean,
+        disableMaxObjectsCheck?: boolean,
+        disablePermissionsCheck?: boolean,
+        disableProfanityCheck?: boolean,
+        disableTriggerAfterMutations?: boolean,
+    }
+    info: PartialApiInfo,
+    inputData: CudInputData[],
+    userData: SessionUser,
 }
 
 type CudHelperResult = Array<boolean | Record<string, any>>;
@@ -34,11 +44,11 @@ type TopLevelInputsByAction = {
     Update: { index: number, input: PrismaUpdate }[],
     Delete: { index: number, input: string }[],
 }
-type TopLevelInputsByType = { [key in GqlModelType]?: TopLevelInputsByAction };
+type TopLevelInputsByType = { [key in ModelType]?: TopLevelInputsByAction };
 
 type CudTransactionData = {
-    deletedIdsByType: { [key in GqlModelType]?: string[] };
-    beforeDeletedData: { [key in GqlModelType]?: object };
+    deletedIdsByType: { [key in ModelType]?: string[] };
+    beforeDeletedData: { [key in ModelType]?: object };
     operations: PrismaPromise<object>[];
 }
 
@@ -54,33 +64,35 @@ function initializeResults(length: number): Array<boolean | Record<string, any>>
 /**
  * Validates and casts input data using the model's Yup schemas.
  * @param inputData The array of input data to validate and cast.
- * @param userData The session user data.
  * @throws CustomError if validation fails.
  */
-async function validateAndCastInputs(
-    inputData: CudInputData[],
-    userData: SessionUserToken
-): Promise<void> {
-    for (let i = 0; i < inputData.length; i++) {
-        const { action, input, objectType } = inputData[i];
-        const { mutate } = ModelMap.getLogic(["mutate"], objectType as GqlModelType, true, `cudHelper cast ${action.toLowerCase()}`);
-        let transformedInput;
-        if (action === "Create") {
-            if (!mutate.yup.create) {
-                throw new CustomError("0559", "InternalError", userData.languages, { action, objectType });
+async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
+    try {
+        for (let i = 0; i < inputData.length; i++) {
+            const { action, input, objectType } = inputData[i];
+            const { mutate } = ModelMap.getLogic(["mutate"], objectType as ModelType, true, `cudHelper cast ${action.toLowerCase()}`);
+            let transformedInput: AnyObjectSchema;
+            if (action === "Create") {
+                // If the mutate object doesn't have a yup.create property, it's not meant to be created this way
+                if (!mutate.yup.create) {
+                    throw new CustomError("0559", "InternalError", { action, objectType });
+                }
+                transformedInput = mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
+            } else if (action === "Update") {
+                // If the mutate object doesn't have a yup.update property, it's not meant to be updated this way
+                if (!mutate.yup.update) {
+                    throw new CustomError("0560", "InternalError", { action, objectType });
+                }
+                transformedInput = mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
+            } else if (action === "Delete") {
+                continue;
+            } else {
+                throw new CustomError("0558", "InternalError", { action });
             }
-            transformedInput = mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
-        } else if (action === "Update") {
-            if (!mutate.yup.update) {
-                throw new CustomError("0560", "InternalError", userData.languages, { action, objectType });
-            }
-            transformedInput = mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
-        } else if (action === "Delete") {
-            continue;
-        } else {
-            throw new CustomError("0558", "InternalError", userData.languages, { action });
+            inputData[i].input = transformedInput as unknown as PrismaCreate | PrismaUpdate;
         }
-        inputData[i].input = transformedInput;
+    } catch (error) {
+        throw new CustomError("0561", "InternalError", { error, inputData });
     }
 }
 
@@ -93,13 +105,13 @@ async function validateAndCastInputs(
  */
 export async function calculatePreShapeData(
     inputsByType: { [key: string]: any },
-    userData: SessionUserToken,
+    userData: SessionUser,
     inputsById: { [key: string]: any },
-    preMap: PreMap
+    preMap: PreMap,
 ): Promise<void> {
     for (const [type, inputs] of Object.entries(inputsByType)) {
         preMap[type] = {};
-        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper preshape type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as ModelType, true, "cudHelper preshape type");
 
         if (mutate.shape.pre) {
             const preResult = await mutate.shape.pre({ ...inputs, userData, inputsById });
@@ -120,7 +132,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
         if (!topInputsByType[objectType]) {
             topInputsByType[objectType] = { Create: [], Update: [], Delete: [] };
         }
-        topInputsByType[objectType as GqlModelType]![action].push({ index, input: input as any });
+        topInputsByType[objectType as ModelType]![action].push({ index, input: input as any });
     }
 
     return topInputsByType;
@@ -130,24 +142,26 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
  * Builds the array of database operations to be executed in the transaction.
  * @param topInputsByType The top-level inputs grouped by type and action.
  * @param inputData The original (but shaped) input data.
- * @param partialInfo The partial GraphQL info for selecting fields.
+ * @param partialInfo The API endpoint info for selecting fields.
  * @param userData The session user data.
  * @param maps The maps containing grouped data.
+ * @param additionalData Additional data to pass to the shape functions.
  * @returns An object containing the operations array and transaction data.
  */
 async function buildOperations(
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
-    partialInfo: PartialGraphQLInfo,
-    userData: SessionUserToken,
+    partialInfo: PartialApiInfo,
+    userData: SessionUser,
     maps: CudDataMaps,
+    additionalData: CudAdditionalData,
 ): Promise<CudTransactionData> {
     const operations: PrismaPromise<object>[] = [];
-    const deletedIdsByType: { [key in GqlModelType]?: string[] } = {};
-    const beforeDeletedData: { [key in GqlModelType]?: object } = {};
+    const deletedIdsByType: { [key in ModelType]?: string[] } = {};
+    const beforeDeletedData: { [key in ModelType]?: object } = {};
 
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
-        const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
+        const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as ModelType, true, "cudHelper loop");
         const deletingIds = Delete.map(({ input }) => input);
 
         // Create operations
@@ -157,14 +171,20 @@ async function buildOperations(
             // since they're typically used to satisfy validation for relationships that aren't needed for the create 
             // (e.g. `listConnect` on a resource item that's already being created in a list)
             if ((input as PrismaCreate)?.id === DUMMY_ID) {
-                throw new CustomError("0501", "InternalError", userData.languages, { input, objectType });
+                throw new CustomError("0501", "InternalError", { input, objectType });
             }
             const data = mutate.shape.create
-                ? await mutate.shape.create({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
+                ? await mutate.shape.create({
+                    additionalData,
+                    data: input,
+                    idsCreateToConnect: maps.idsCreateToConnect,
+                    preMap: maps.preMap,
+                    userData
+                })
                 : input;
-            const select = selectHelper(partialInfo)?.select;
+            const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
-            const createOperation = (prismaInstance[dbTable] as PrismaDelegate).create({
+            const createOperation = (DbProvider.get()[dbTable] as PrismaDelegate).create({
                 data,
                 select,
             }) as PrismaPromise<object>;
@@ -174,12 +194,35 @@ async function buildOperations(
         // Update operations
         for (const { index } of Update) {
             const { input } = inputData[index];
-            const data = mutate.shape.update
-                ? await mutate.shape.update({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
-                : input;
-            const select = selectHelper(partialInfo)?.select;
 
-            const updateOperation = (prismaInstance[dbTable] as PrismaDelegate).update({
+            // Check if the input has an ID and if the input is not empty
+            if (!input || typeof input !== "object" || !(input as object)[idField]) {
+                console.error(`[buildOperations] Missing required ID for update operation: ${JSON.stringify({ objectType, input, idField })}`);
+                continue; // Skip this update operation
+            }
+
+            const data = mutate.shape.update
+                ? await mutate.shape.update({
+                    additionalData,
+                    data: input,
+                    idsCreateToConnect: maps.idsCreateToConnect,
+                    preMap: maps.preMap,
+                    userData
+                })
+                : input;
+
+            // Verify that the shape function returned a valid update object
+            if (!data || Object.keys(data).length === 0) {
+                console.warn(`[buildOperations] Empty data after shape.update for ${objectType}:`, {
+                    id: (input as PrismaUpdate)[idField],
+                    originalInput: input,
+                });
+                continue; // Skip this update operation if data is empty
+            }
+
+            const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
+
+            const updateOperation = (DbProvider.get()[dbTable] as PrismaDelegate).update({
                 where: { [idField]: (input as PrismaUpdate)[idField] },
                 data,
                 select,
@@ -194,21 +237,21 @@ async function buildOperations(
             }
 
             try {
-                const existingIds: string[] = await (prismaInstance[dbTable] as PrismaDelegate)
+                const existingIds: string[] = await (DbProvider.get()[dbTable] as PrismaDelegate)
                     .findMany({
                         where: { [idField]: { in: deletingIds } },
                         select: { id: true },
                     })
                     .then((records) => records.map(({ id }) => id));
 
-                deletedIdsByType[objectType as GqlModelType] = existingIds;
+                deletedIdsByType[objectType as ModelType] = existingIds;
 
-                const deleteOperation = (prismaInstance[dbTable] as PrismaDelegate).deleteMany({
+                const deleteOperation = (DbProvider.get()[dbTable] as PrismaDelegate).deleteMany({
                     where: { [idField]: { in: existingIds } },
                 }) as PrismaPromise<object>;
                 operations.push(deleteOperation);
             } catch (error) {
-                throw new CustomError("0417", "InternalError", userData.languages, { error, deletingIds, objectType });
+                throw new CustomError("0417", "InternalError", { error, deletingIds, objectType });
             }
         }
     }
@@ -223,15 +266,14 @@ async function buildOperations(
 /**
  * Executes all database operations in a transaction.
  * @param operations The array of database operation promises.
- * @param userData The session user data.
  * @returns The result of the transaction.
  * @throws CustomError if the transaction fails.
  */
-async function executeTransaction(operations: PrismaPromise<object>[], userData: SessionUserToken): Promise<object[]> {
+async function executeTransaction(operations: PrismaPromise<object>[]): Promise<object[]> {
     try {
-        return await prismaInstance.$transaction(operations);
+        return await DbProvider.get().$transaction(operations);
     } catch (error) {
-        throw new CustomError("0557", "InternalError", userData.languages, { error });
+        throw new CustomError("0557", "InternalError", { error });
     }
 }
 
@@ -250,9 +292,9 @@ function processTransactionResults(
     transactionData: CudTransactionData,
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
-    partialInfo: PartialGraphQLInfo,
+    partialInfo: PartialApiInfo,
     maps: CudDataMaps,
-    result: Array<boolean | Record<string, any>>
+    result: Array<boolean | Record<string, any>>,
 ): void {
     let transactionIndex = 0;
     const { deletedIdsByType } = transactionData;
@@ -260,7 +302,7 @@ function processTransactionResults(
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         for (const { index, input } of Create) {
             const createdObject = transactionResult[transactionIndex++];
-            const converted = modelToGql<object>(createdObject, partialInfo);
+            const converted = InfoConverter.get().fromDbToApi<object>(createdObject, partialInfo);
             result[index] = converted;
             if (input.id) {
                 maps.resultsById[input.id as string] = converted;
@@ -269,7 +311,7 @@ function processTransactionResults(
 
         for (const { index, input } of Update) {
             const updatedObject = transactionResult[transactionIndex++];
-            const converted = modelToGql<object>(updatedObject, partialInfo);
+            const converted = InfoConverter.get().fromDbToApi<object>(updatedObject, partialInfo);
             result[index] = converted;
             if (input.id) {
                 maps.resultsById[input.id as string] = converted;
@@ -277,7 +319,7 @@ function processTransactionResults(
         }
 
         if (Delete.length > 0) {
-            const ids = deletedIdsByType[objectType as GqlModelType] || [];
+            const ids = deletedIdsByType[objectType as ModelType] || [];
             for (const id of ids) {
                 const index = inputData.findIndex(({ input }) => input === id);
                 if (index >= 0) result[index] = true;
@@ -298,7 +340,7 @@ async function triggerAfterMutations(
     transactionData: CudTransactionData,
     maps: CudDataMaps,
     additionalData: CudAdditionalData,
-    userData: SessionUserToken,
+    userData: SessionUser,
 ): Promise<void> {
     const { deletedIdsByType, beforeDeletedData } = transactionData;
     const { idsByAction, inputsById, preMap, resultsById } = maps;
@@ -306,7 +348,7 @@ async function triggerAfterMutations(
     const allTypes = new Set([...Object.keys(outputsByType), ...Object.keys(deletedIdsByType)]);
 
     for (const type of allTypes) {
-        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper afterMutations type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as ModelType, true, "cudHelper afterMutations type");
 
         if (!mutate.trigger?.afterMutations) continue;
 
@@ -314,7 +356,7 @@ async function triggerAfterMutations(
         const createdIds = outputsByType[type]?.createdIds || [];
         const updatedIds = outputsByType[type]?.updatedIds || [];
         const updateInputs = outputsByType[type]?.updateInputs || [];
-        const deletedIds = deletedIdsByType[type as GqlModelType] || [];
+        const deletedIds = deletedIdsByType[type as ModelType] || [];
 
         await mutate.trigger.afterMutations({
             additionalData,
@@ -333,30 +375,46 @@ async function triggerAfterMutations(
 
 /**
  * Performs create, update, and delete operations with validation, data shaping, and transaction management.
- * @param params An object containing inputData, partialInfo, and userData.
  * @returns An array of results corresponding to the inputData operations.
  */
-export async function cudHelper(params: CudHelperParams): Promise<CudHelperResult> {
-    const { additionalData, inputData, partialInfo, userData } = params;
+export async function cudHelper({
+    additionalData,
+    adminFlags,
+    info,
+    inputData,
+    userData,
+}: CudHelperParams): Promise<CudHelperResult> {
+    if (adminFlags && userData.id !== SEEDED_IDS.User.Admin) {
+        throw new CustomError("0562", "Unauthorized", { adminFlags });
+    }
 
     const result = initializeResults(inputData.length);
-    await validateAndCastInputs(inputData, userData);
+    if (!adminFlags?.disableInputValidationAndCasting && !adminFlags?.disableAllChecks) {
+        await validateAndCastInputs(inputData);
+    }
 
-    const maps = await cudInputsToMaps({ inputData })
+    const maps = await cudInputsToMaps({ inputData });
     await calculatePreShapeData(maps.inputsByType, userData, maps.inputsById, maps.preMap);
 
     const authDataById = await getAuthenticatedData(maps.idsByType, userData);
-    await permissionsCheck(authDataById, maps.idsByAction, maps.inputsById, userData);
-    profanityCheck(inputData, maps.inputsById, authDataById, userData.languages);
-    await maxObjectsCheck(maps.inputsById, authDataById, maps.idsByAction, userData);
+    if (!adminFlags?.disablePermissionsCheck && !adminFlags?.disableAllChecks) {
+        await permissionsCheck(authDataById, maps.idsByAction, maps.inputsById, userData);
+    }
+    if (!adminFlags?.disableProfanityCheck && !adminFlags?.disableAllChecks) {
+        profanityCheck(inputData, maps.inputsById, authDataById);
+    }
+    if (!adminFlags?.disableMaxObjectsCheck && !adminFlags?.disableAllChecks) {
+        await maxObjectsCheck(maps.inputsById, authDataById, maps.idsByAction, userData);
+    }
 
     const topInputsByType = groupTopLevelDataByType(inputData);
 
-    const transactionData = await buildOperations(topInputsByType, inputData, partialInfo, userData, maps);
+    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {});
 
-    const transactionResult = await executeTransaction(transactionData.operations, userData);
-    processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, partialInfo, maps, result);
-    await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
-
+    const transactionResult = await executeTransaction(transactionData.operations);
+    processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, info, maps, result);
+    if (!adminFlags?.disableTriggerAfterMutations && !adminFlags?.disableAllChecks) {
+        await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
+    }
     return result;
 }

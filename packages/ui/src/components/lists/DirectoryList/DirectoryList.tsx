@@ -1,33 +1,32 @@
-import { ApiVersion, CodeVersion, Count, DeleteManyInput, DeleteType, GqlModelType, ListObject, NoteVersion, ProjectVersion, ProjectVersionDirectory, RoutineVersion, Session, StandardVersion, Team, TimeFrame, endpointPostDeleteMany, getObjectUrl, isOfType } from "@local/shared";
+import { ApiVersion, CodeVersion, Count, DeleteManyInput, DeleteType, ListObject, ModelType, NoteVersion, ProjectVersion, ProjectVersionDirectory, RoutineVersion, Session, StandardVersion, Team, TimeFrame, endpointsActions, getObjectUrl, isOfType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { SortButton } from "components/buttons/SortButton/SortButton";
-import { TimeButton } from "components/buttons/TimeButton/TimeButton";
-import { SearchButtonsProps } from "components/buttons/types";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts";
-import { UsePressEvent, usePress } from "hooks/gestures";
-import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import { useSelectableList } from "hooks/useSelectableList";
-import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { CardBox, multiLineEllipsis, searchButtonStyle } from "styles";
-import { ArgsType } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "utils/consts";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, DirectoryListProps, DirectoryListVerticalProps } from "../types";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SortButton, StyledSearchButton, TimeButton } from "../../../components/buttons/SearchButtons/SearchButtons.js";
+import { SearchButtonsProps } from "../../../components/buttons/types.js";
+import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
+import { TextLoading } from "../../../components/lists/TextLoading/TextLoading.js";
+import { ObjectListActions } from "../../../components/lists/types.js";
+import { SessionContext } from "../../../contexts/session.js";
+import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
+import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
+import { useSelectableList } from "../../../hooks/useSelectableList.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
+import { multiLineEllipsis, noSelect } from "../../../styles.js";
+import { ArgsType } from "../../../types.js";
+import { ObjectAction } from "../../../utils/actions/objectActions.js";
+import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "../../../utils/consts.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { ListContainer } from "../../containers/ListContainer.js";
+import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, DirectoryListProps, DirectoryListVerticalProps } from "../types.js";
 
 export enum DirectoryListSortBy {
     DateCreatedAsc = "DateCreatedAsc",
@@ -36,6 +35,12 @@ export enum DirectoryListSortBy {
     DateUpdatedDesc = "DateUpdatedDesc",
     NameAsc = "NameAsc",
     NameDesc = "NameDesc",
+}
+
+// Helper function to safely parse dates and return a timestamp
+function parseDate(dateString: string) {
+    const date = new Date(dateString);
+    return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
 }
 
 export function initializeDirectoryList(
@@ -56,12 +61,6 @@ export function initializeDirectoryList(
     ];
     const userLanguages = getUserLanguages(session);
 
-    // Helper function to safely parse dates and return a timestamp
-    const parseDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
-    };
-
     // Filter items based on time frame
     if (timeFrame?.after || timeFrame?.before) {
         const afterTime = timeFrame?.after ? parseDate(timeFrame.after) : -Infinity;
@@ -77,12 +76,6 @@ export function initializeDirectoryList(
         // Extracting titles for name-based sorting
         const { title: aTitle } = getDisplay(a, userLanguages);
         const { title: bTitle } = getDisplay(b, userLanguages);
-
-        // Helper function to safely parse dates and return a timestamp
-        const parseDate = (dateString: string) => {
-            const date = new Date(dateString);
-            return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
-        };
 
         switch (sortBy) {
             case "DateCreatedAsc":
@@ -102,7 +95,7 @@ export function initializeDirectoryList(
                 return aTitle.localeCompare(bTitle);
         }
     });
-};
+}
 
 type ViewMode = "card" | "list";
 type DirectorySearchButtonsProps = Omit<SearchButtonsProps, "advancedSearchParams" | "advancedSearchSchema" | "controlsUrl" | "searchType" | "setAdvancedSearchParams" | "setSortBy" | "sortByOptions"> & {
@@ -120,7 +113,6 @@ function DirectorySearchButtons({
     timeFrame,
     viewMode,
 }: DirectorySearchButtonsProps) {
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const toggleViewMode = useCallback(function toggleViewModeCallback() {
@@ -140,17 +132,41 @@ function DirectorySearchButtons({
             />
             {/* Card/list toggle TODO */}
             <Tooltip title={t(viewMode === "list" ? "CardModeSwitch" : "ListModeSwitch")} placement="top">
-                <Box
+                <StyledSearchButton
+                    active={false}
                     id="card-list-toggle-button"
                     onClick={toggleViewMode}
-                    sx={searchButtonStyle(palette)}
                 >
-                    {viewMode === "list" ? <ListIcon fill={palette.secondary.main} /> : <GridIcon fill={palette.secondary.main} />}
-                </Box>
+                    <IconCommon name={viewMode === "list" ? "List" : "Grid"} fill="secondary.main" />
+                </StyledSearchButton>
             </Tooltip>
         </Box>
     );
 }
+
+const CardBox = styled(Box)(({ theme }) => ({
+    ...noSelect,
+    alignItems: "center",
+    background: theme.palette.background.paper,
+    borderRadius: theme.spacing(3),
+    boxShadow: theme.shadows[2],
+    color: theme.palette.background.textSecondary,
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    height: "40px",
+    cursor: "pointer",
+    maxWidth: "250px",
+    minWidth: "120px",
+    padding: theme.spacing(1),
+    position: "relative",
+    textDecoration: "none",
+    width: "fit-content",
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
+}));
 
 /**
  * Unlike ResourceCard, these aren't draggable. This is because the objects 
@@ -171,16 +187,16 @@ export function DirectoryCard({
 
     const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
 
-    const Icon = useMemo(() => {
-        if (!data || !data.__typename) return HelpIcon;
-        if (isOfType(data, "ApiVersion")) return ApiIcon;
-        if (isOfType(data, "CodeVersion")) return TerminalIcon;
-        if (isOfType(data, "NoteVersion")) return NoteIcon;
-        if (isOfType(data, "ProjectVersion")) return ProjectIcon;
-        if (isOfType(data, "RoutineVersion")) return RoutineIcon;
-        if (isOfType(data, "StandardVersion")) return StandardIcon;
-        if (isOfType(data, "Team")) return TeamIcon;
-        return HelpIcon;
+    const iconInfo = useMemo(() => {
+        if (!data || !data.__typename) return { name: "Help", type: "Common" } as const;
+        if (isOfType(data, "ApiVersion")) return { name: "Api", type: "Common" } as const;
+        if (isOfType(data, "CodeVersion")) return { name: "Terminal", type: "Common" } as const;
+        if (isOfType(data, "NoteVersion")) return { name: "Note", type: "Common" } as const;
+        if (isOfType(data, "ProjectVersion")) return { name: "Project", type: "Common" } as const;
+        if (isOfType(data, "RoutineVersion")) return { name: "Routine", type: "Routine" } as const;
+        if (isOfType(data, "StandardVersion")) return { name: "Standard", type: "Common" } as const;
+        if (isOfType(data, "Team")) return { name: "Team", type: "Common" } as const;
+        return { name: "Help", type: "Common" } as const;
     }, [data]);
 
     const href = useMemo(() => data ? getObjectUrl(data) : "#", [data]);
@@ -232,7 +248,7 @@ export function DirectoryCard({
                                 id='delete-icon-button'
                                 sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
                             >
-                                <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
+                                <IconCommon name="Delete" id='delete-icon' fill="secondary.contrastText" />
                             </IconButton>
                         </Tooltip>
                     </>
@@ -248,7 +264,10 @@ export function DirectoryCard({
                         textOverflow: "ellipsis",
                     }}
                 >
-                    <Icon fill="white" />
+                    <Icon
+                        fill="white"
+                        info={iconInfo}
+                    />
                     <Typography
                         gutterBottom
                         variant="body2"
@@ -285,6 +304,8 @@ function LoadingCard() {
     );
 }
 
+const contextActionsExcluded = [ObjectAction.Comment, ObjectAction.FindInPage] as const;
+
 export function DirectoryListHorizontal({
     canUpdate = true,
     isEditing,
@@ -302,7 +323,7 @@ export function DirectoryListHorizontal({
     const actionData = useObjectActions({
         canNavigate: () => !isEditing,
         isListReorderable: isEditing,
-        objectType: contextData.object?.__typename as GqlModelType | undefined,
+        objectType: contextData.object?.__typename as ModelType | undefined,
         onAction,
         setLocation,
         ...contextData,
@@ -313,7 +334,7 @@ export function DirectoryListHorizontal({
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={contextData.anchorEl}
-                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
+                exclude={contextActionsExcluded} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={contextData.object}
                 onClose={contextData.closeContextMenu}
             />
@@ -356,7 +377,7 @@ export function DirectoryListHorizontal({
                             justifyContent: "center",
                         }}
                     >
-                        <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
+                        <IconCommon name="Link" fill="secondary.contrastText" size={56} />
                     </CardBox>
                 </Tooltip> : null)}
             </Box>
@@ -398,13 +419,13 @@ export function DirectoryListVertical({
                 />
             </ListContainer>
             {/* Add button */}
-            {canUpdate && <Box sx={{
-                margin: "auto",
-                width: "100%",
-            }}>
+            {canUpdate && <Box
+                margin="auto"
+                width="100%"
+            >
                 <Button
                     fullWidth onClick={openAddDialog}
-                    startIcon={<AddIcon />}
+                    startIcon={<IconCommon name="Add" />}
                     variant="outlined"
                 >{t("AddItem")}</Button>
             </Box>}
@@ -458,7 +479,7 @@ export function DirectoryList(props: DirectoryListProps) {
         });
     }, [closeAddDialog, directory, handleUpdate, list]);
 
-    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
+    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
     const onDelete = useCallback((item: DirectoryItem) => {
         if (!directory) return;
         if (mutate) {
@@ -588,14 +609,14 @@ export function DirectoryList(props: DirectoryListProps) {
                 handleComplete={onAdd as (item: object) => unknown}
             />
             {BulkDeleteDialogComponent}
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 1,
-                paddingBottom: "80px",
-            }}>
+            <Box
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                gap={1}
+                paddingBottom="80px"
+            >
                 <DirectorySearchButtons
                     setSortBy={setSortBy}
                     setTimeFrame={setTimeFrame}

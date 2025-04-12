@@ -6,19 +6,19 @@
  * that format matches the fields below, there should be no errors.
  */
 import * as yup from "yup";
-import { ReportFor } from "../../api/generated/graphqlTypes";
-import { uuidValidate } from "../../id/uuid";
-import { urlRegexDev } from "../../validation/utils/regex";
-import { YupMutateParams } from "../../validation/utils/types";
-import { enumToYup } from "./builders";
-import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
-import { handleRegex, hexColorRegex, urlRegex } from "./regex";
-import { meetsMinVersion } from "./versions";
+import { ReportFor } from "../../api/types.js";
+import { uuidValidate } from "../../id/uuid.js";
+import { urlRegexDev } from "../../validation/utils/regex.js";
+import { YupMutateParams } from "../../validation/utils/types.js";
+import { enumToYup } from "./builders/convert.js";
+import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
+import { handleRegex, hexColorRegex, urlRegex } from "./regex.js";
+import { meetsMinVersion } from "./versions.js";
 
 /**
  * Test for minimum version
  */
-export const minVersionTest = (minVersion: string): [string, string, (value: string | undefined) => boolean] => {
+export function minVersionTest(minVersion: string): [string, string, (value: string | undefined) => boolean] {
     const versionRegex = /^\d+\.\d+\.\d+$/;
     return [
         "version",
@@ -28,15 +28,15 @@ export const minVersionTest = (minVersion: string): [string, string, (value: str
             return versionRegex.test(value) && meetsMinVersion(value, minVersion);
         },
     ];
-};
+}
 
-yup.addMethod(yup.string, "removeEmptyString", function () {
+yup.addMethod(yup.string, "removeEmptyString", function transformRemoveEmptyString() {
     return this.transform((value: unknown) => {
         return typeof value === "string" && value.trim() !== "" ? value : undefined;
     });
 });
 
-yup.addMethod(yup.bool, "toBool", function () {
+yup.addMethod(yup.bool, "toBool", function transformToBool() {
     return this.transform((value: unknown) => {
         if (typeof value === "boolean") return value;
         if (typeof value === "string") return value.trim() === "true" || value.trim() === "yes" || value.trim() === "1";
@@ -57,12 +57,12 @@ export const email = yup.string().trim().removeEmptyString().email("Please enter
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
 export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
 export const imageFile = yup.string().trim().removeEmptyString().max(256, maxStrErr);
-export const pushNotificationKeys = yup.object().shape({
+export const pushNotificationKeys = yup.object({
     p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
     auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
-});
-export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
-    yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
+}).default(undefined).nullable();
+export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
+    return yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
         "link",
         "Must be a URL",
         (value: string | undefined) => {
@@ -73,8 +73,36 @@ export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
                 true;
         },
     );
+}
 
 export const bool = yup.boolean().toBool();
+
+export const bigIntString = yup
+    .mixed()
+    .transform(function transformBigIntString(value, originalValue) {
+        // Allow null/undefined to pass through untransformed.
+        if (originalValue == null) {
+            return originalValue;
+        }
+        if (typeof originalValue === "string") {
+            return originalValue.trim();
+        }
+        if (typeof originalValue === "number" && !Number.isNaN(originalValue)) {
+            return originalValue.toString();
+        }
+        if (typeof originalValue === "bigint") {
+            return originalValue.toString();
+        }
+        return originalValue;
+    })
+    .test("is-bigint-string", "Must be a valid integer", function testBigIntString(value) {
+        // Allow null/undefined if the field is optional.
+        if (value == null) return true;
+        if (typeof value !== "string") {
+            return this.createError({ message: "Must be a valid integer" });
+        }
+        return /^-?\d+$/.test(value) || this.createError({ message: "Must be a valid integer" });
+    });
 
 // numbers
 export const MAX_INT = 2 ** 32 - 1;
@@ -95,7 +123,7 @@ export const endTime = yup.date()
     .test(
         "is-greater",
         "End time must be at least a second after start time",
-        function (value) {
+        function testEndTime(value) {
             const startTime = this.resolve(yup.ref("startTime"));
 
             if (startTime === null || startTime === undefined) {
@@ -125,7 +153,7 @@ export const newEndTime = yup.date()
     .test(
         "is-greater",
         "End time must be at least a second after start time",
-        function (value) {
+        function testEndTime(value) {
             const startTime = this.resolve(yup.ref("newStartTime"));
 
             if (startTime === null || startTime === undefined) {
@@ -159,7 +187,9 @@ export const referencing = yup.string().trim().removeEmptyString().max(2048, max
 export const language = yup.string().trim().removeEmptyString().min(2, minStrErr).max(3, maxStrErr); // Language code
 export const name = yup.string().trim().removeEmptyString().min(3, minStrErr).max(50, maxStrErr);
 export const tag = yup.string().trim().removeEmptyString().min(2, minStrErr).max(64, maxStrErr);
-export const versionLabel = ({ minVersion = "0.0.1" }: { minVersion?: string }) => yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
+export function versionLabel({ minVersion = "0.0.1" }: { minVersion?: string }) {
+    return yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
+}
 export const versionNotes = yup.string().trim().removeEmptyString().max(4092, maxStrErr);
 export const idArray = yup.array().of(id.required(reqErr));
 export const tagArray = yup.array().of(tag.required(reqErr));

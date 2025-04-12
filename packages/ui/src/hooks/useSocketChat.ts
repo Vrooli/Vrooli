@@ -1,11 +1,11 @@
 import { ChatMessageShape, ChatParticipantShape, ChatShape, ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, Session } from "@local/shared";
-import { emitSocketEvent, onSocketEvent } from "api/socket";
-import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, updateCookiePartialTaskForChat, upsertCookieTaskForChat } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
-import { useThrottle } from "./useThrottle";
+import { SocketService } from "../api/socket.js";
+import { SessionContext } from "../contexts/session.js";
+import { getCurrentUser } from "../utils/authentication/session.js";
+import { removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, updateCookiePartialTaskForChat, upsertCookieTaskForChat } from "../utils/localStorage.js";
+import { PubSub } from "../utils/pubsub.js";
+import { useThrottle } from "./useThrottle.js";
 
 type ParticipantWithoutChat = Omit<ChatParticipantShape, "chat">;
 
@@ -211,7 +211,7 @@ export function useSocketChat({
     useEffect(function connectToChatEffect() {
         if (!chat?.id || chat.id === DUMMY_ID) return;
 
-        emitSocketEvent("joinChatRoom", { chatId: chat.id }, (response) => {
+        SocketService.get().emitEvent("joinChatRoom", { chatId: chat.id }, (response) => {
             if (response.error) {
                 PubSub.get().publish("snack", { messageKey: "ChatRoomJoinFailed", severity: "Error" });
                 // If the response indicates that the chat was deleted or is unauthorized,
@@ -223,7 +223,7 @@ export function useSocketChat({
         });
 
         return () => {
-            emitSocketEvent("leaveChatRoom", { chatId: chat.id }, (response) => {
+            SocketService.get().emitEvent("leaveChatRoom", { chatId: chat.id }, (response) => {
                 if (response.error) {
                     console.error("Failed to leave chat room", response.error);
                 }
@@ -250,11 +250,11 @@ export function useSocketChat({
     usersTypingRef.current = usersTyping;
 
     // Handle incoming data
-    useEffect(() => onSocketEvent("messages", (payload) => processMessages(payload, addMessages, editMessage, removeMessages)), [addMessages, editMessage, removeMessages]);
-    useEffect(() => onSocketEvent("typing", (payload) => processTypingUpdates(payload, usersTypingRef.current, participantsRef.current, session, setUsersTyping)), [session, setUsersTyping]);
-    useEffect(() => onSocketEvent("llmTasks", (payload) => processLlmTasks(payload, chat?.id)), [chat?.id]);
-    useEffect(() => onSocketEvent("participants", (payload) => processParticipantsUpdates(payload, participantsRef.current, chatRef.current, setParticipants)), [setParticipants]);
-    useEffect(() => onSocketEvent("responseStream", (payload) => processResponseStream(payload, messageStreamRef, setMessageStream, throttledSetMessageStream)), [throttledSetMessageStream]);
+    useEffect(() => SocketService.get().onEvent("messages", (payload) => processMessages(payload, addMessages, editMessage, removeMessages)), [addMessages, editMessage, removeMessages]);
+    useEffect(() => SocketService.get().onEvent("typing", (payload) => processTypingUpdates(payload, usersTypingRef.current, participantsRef.current, session, setUsersTyping)), [session, setUsersTyping]);
+    useEffect(() => SocketService.get().onEvent("llmTasks", (payload) => processLlmTasks(payload, chat?.id)), [chat?.id]);
+    useEffect(() => SocketService.get().onEvent("participants", (payload) => processParticipantsUpdates(payload, participantsRef.current, chatRef.current, setParticipants)), [setParticipants]);
+    useEffect(() => SocketService.get().onEvent("responseStream", (payload) => processResponseStream(payload, messageStreamRef, setMessageStream, throttledSetMessageStream)), [throttledSetMessageStream]);
 
     return { messageStream };
 }

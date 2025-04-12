@@ -1,9 +1,10 @@
+/* eslint-disable import/extensions */
 import { Session, TranslationKeyCommon, TranslationKeyError, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
-import { FormErrors } from "types";
-import { getCurrentUser } from "utils/authentication/session";
 import { ObjectSchema, ValidationError } from "yup";
+import { FormErrors } from "../../types.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
 
 type NestedString = string | string[] | { [key: string]: NestedString };
 export type TranslationObject = {

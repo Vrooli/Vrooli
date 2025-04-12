@@ -1,39 +1,57 @@
-import { logger as mockLogger } from "./__mocks__/logger";
-import { CustomError } from "./error";
-import { logger } from "./logger";
-
-jest.mock("i18next");
+import { expect } from "chai";
+import sinon from "sinon";
+import { CustomError } from "./error.js";
+import { logger } from "./logger.js";
 
 describe("CustomError", () => {
-    let originalLoggerMethods;
+    let loggerErrorStub: sinon.SinonStub;
 
     beforeEach(() => {
-        // Save the original logger methods
-        originalLoggerMethods = { ...logger };
-
-        // Replace the logger methods with mocks
-        Object.assign(logger, mockLogger);
-
-        // Clear all mock calls
-        jest.clearAllMocks();
+        // Create a stub for the logger.error method
+        loggerErrorStub = sinon.stub(logger, "error");
     });
 
     afterEach(() => {
         // Restore the original logger methods after each test
-        Object.assign(logger, originalLoggerMethods);
+        loggerErrorStub.restore();
     });
 
-    it("should generate an error with a correct message", () => {
-        const error = new CustomError("TEST", "CouldNotReadObject", ["en"]);
+    it("should generate an error with a correct CouldNotReadObject message", () => {
+        const error = new CustomError("TEST", "CouldNotReadObject");
 
-        expect(error.message).toMatch(/CouldNotReadObject: TEST-/);
-        expect(logger.error).toHaveBeenCalled();
+        expect(error.message).to.match(/CouldNotReadObject: TEST-/);
+        expect(loggerErrorStub.called).to.be.true;
+        expect(error.code).to.equal("CouldNotReadObject");
+        expect(error.trace).to.match(/TEST-/);
     });
 
-    it("should generate an error with a correct message", () => {
-        const error = new CustomError("TEST", "MaxFileSizeExceeded", ["en"]);
+    it("should generate an error with a correct MaxFileSizeExceeded message", () => {
+        const error = new CustomError("TEST", "MaxFileSizeExceeded");
 
-        expect(error.message).toMatch(/MaxFileSizeExceeded: TEST-/);
-        expect(logger.error).toHaveBeenCalled();
+        expect(error.message).to.match(/MaxFileSizeExceeded: TEST-/);
+        expect(loggerErrorStub.called).to.be.true;
+        expect(error.code).to.equal("MaxFileSizeExceeded");
+        expect(error.trace).to.match(/TEST-/);
+    });
+
+    it("should include additional data when provided", () => {
+        const additionalData = { userId: "123", action: "upload" };
+        const error = new CustomError("TEST", "CouldNotReadObject", additionalData);
+
+        expect(error.message).to.match(/CouldNotReadObject: TEST-/);
+        expect(loggerErrorStub.calledOnce).to.be.true;
+
+        // Check that the logger was called with the additional data
+        const logArgs = loggerErrorStub.firstCall.args[0];
+        expect(logArgs).to.include(additionalData);
+    });
+
+    it("should provide a method to convert to ServerError", () => {
+        const error = new CustomError("TEST", "CouldNotReadObject");
+        const serverError = error.toServerError();
+
+        expect(serverError).to.have.property("trace");
+        expect(serverError).to.have.property("code", "CouldNotReadObject");
+        expect(serverError.trace).to.equal(error.trace);
     });
 });

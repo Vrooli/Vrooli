@@ -1,6 +1,4 @@
-import { ViewProps } from "../../types";
-
-export type CreateViewProps = ViewProps
+import { ViewProps } from "../../types.js";
 
 export type DashboardViewProps = ViewProps
 

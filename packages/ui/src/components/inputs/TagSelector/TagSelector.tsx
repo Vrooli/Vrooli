@@ -1,15 +1,15 @@
-import { BookmarkFor, DUMMY_ID, endpointGetTags, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
+import { BookmarkFor, DUMMY_ID, endpointsTag, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
 import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useField } from "formik";
-import { useFetch } from "hooks/useFetch";
-import { TagIcon } from "icons";
 import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CHIP_LIST_LIMIT } from "utils/consts";
-import { PubSub } from "utils/pubsub";
-import { TextInput } from "../TextInput/TextInput";
-import { TagSelectorBaseProps, TagSelectorProps } from "../types";
+import { useFetch } from "../../../hooks/useFetch.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { BookmarkButton } from "../../buttons/BookmarkButton.js";
+import { TextInput } from "../TextInput/TextInput.js";
+import { TagSelectorBaseProps, TagSelectorProps } from "../types.js";
 
 type TagOption = string | Tag | TagShape;
 
@@ -152,7 +152,7 @@ export function TagSelectorBase({
     const tagsRef = useRef<{ [key: string]: TagShape | Tag }>({});
 
     const { data: autocompleteData, loading } = useFetch<TagSearchInput, TagSearchResult>({
-        ...endpointGetTags,
+        ...endpointsTag.findMany,
         debounceMs: 250,
         inputs: {
             sortBy: TagSortBy.EmbedTopDesc,
@@ -265,7 +265,10 @@ export function TagSelectorBase({
             startAdornment: (
                 <>
                     <InputAdornment position="start">
-                        <TagIcon />
+                        <IconCommon
+                            decorative
+                            name="Tag"
+                        />
                     </InputAdornment>
                     {params.InputProps.startAdornment}
                 </>
@@ -328,6 +331,7 @@ export function TagSelector({
 }: TagSelectorProps) {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
+    const tags = useMemo(() => field.value ?? [], [field.value]);
     const handleTagsUpdate = useCallback((tags: (TagShape | Tag)[]) => {
         exists(helpers) && helpers.setValue(tags);
     }, [helpers]);
@@ -335,7 +339,7 @@ export function TagSelector({
     return (
         <TagSelectorBase
             handleTagsUpdate={handleTagsUpdate}
-            tags={field.value ?? []}
+            tags={tags}
             {...props}
         />
     );

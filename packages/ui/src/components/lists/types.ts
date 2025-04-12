@@ -1,15 +1,15 @@
-import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
-import { LineGraphProps } from "components/graphs/types";
-import { UsePressEvent } from "hooks/gestures";
-import { type UseObjectActionsReturn } from "hooks/objectActions";
-import { type UseFindManyResult } from "hooks/useFindMany";
+import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { ReactNode } from "react";
-import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "react-beautiful-dnd";
-import { SvgComponent, SxType, ViewDisplayType } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { RelationshipButtonType } from "utils/consts";
-import { ObjectType } from "utils/navigation/openObject";
-import { ObjectListProps } from "./ObjectList/ObjectList";
+import { UsePressEvent } from "../../hooks/gestures.js";
+import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
+import { type UseFindManyResult } from "../../hooks/useFindMany.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType, ViewDisplayType } from "../../types.js";
+import { ObjectAction } from "../../utils/actions/objectActions.js";
+import { RelationshipButtonType } from "../../utils/consts.js";
+import { ObjectType } from "../../utils/navigation/openObject.js";
+import { LineGraphProps } from "../graphs/types.js";
+import { ObjectListProps } from "./ObjectList/ObjectList.js";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
@@ -72,7 +72,7 @@ export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     onClose: () => unknown;
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => unknown;
     minDate?: Date;
@@ -173,14 +173,23 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
         scrollContainerId: string;
-        searchPlaceholder?: TranslationKeyCommon;
+        searchBarVariant?: "basic" | "paper";
+        searchPlaceholder?: string;
         searchType: SearchType | `${SearchType}`;
         sxs?: {
-            search?: SxType;
+            searchBarAndButtonsBox?: SxType;
             buttons?: SxType;
             listContainer?: SxType;
         }
         onItemClick?: (item: any) => unknown;
+        /**
+         * Callback when search input is focused
+         */
+        onSearchFocus?: () => void;
+        /**
+         * Callback when search input loses focus
+         */
+        onSearchBlur?: () => void;
         /**
          * Changes the display of the search list.
          * - "normal" displays the list with a search bar and buttons
@@ -227,14 +236,16 @@ export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {
     index: number;
 }
 
+export type TIDCardSize = "default" | "small";
 export interface TIDCardProps {
     below?: ReactNode;
     buttonText?: string;
     description: string;
+    iconInfo: IconInfo | null | undefined;
     key: string | number;
-    Icon: SvgComponent | null | undefined;
     id?: string;
     onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
+    size?: TIDCardSize;
     title: string;
     warning?: string;
 }
@@ -275,62 +286,3 @@ export type DirectoryListHorizontalProps = DirectoryListProps & {
 }
 
 export type DirectoryListVerticalProps = DirectoryListHorizontalProps
-
-export interface ResourceCardProps {
-    data: Resource;
-    dragProps: DraggableProvidedDraggableProps;
-    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
-    /** 
-     * Hides edit and delete icons when in edit mode, 
-     * making only drag'n'drop and the context menu available.
-     **/
-    isEditing: boolean;
-    onContextMenu: (target: EventTarget, data: Resource) => unknown;
-    onEdit: (data: Resource) => unknown;
-    onDelete: (data: Resource) => unknown;
-}
-
-export type ResourceListProps = {
-    title?: string;
-    canUpdate?: boolean;
-    handleUpdate?: (updatedList: ResourceList) => unknown;
-    horizontal?: boolean;
-    id?: string;
-    list: ResourceList | null | undefined;
-    loading?: boolean;
-    mutate?: boolean;
-    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
-    sxs?: { list?: SxType };
-}
-
-export interface ResourceListItemProps {
-    canUpdate: boolean;
-    data: Resource;
-    handleContextMenu: (event: UsePressEvent, index: number) => unknown;
-    handleEdit: (index: number) => unknown;
-    handleDelete: (index: number) => unknown;
-    index: number;
-    loading: boolean;
-}
-
-export type ResourceListHorizontalProps = ResourceListProps & {
-    handleToggleSelect: (data: Resource) => unknown;
-    isEditing: boolean;
-    isSelecting: boolean;
-    onAction: (action: keyof ObjectListActions<Resource>, ...data: unknown[]) => unknown;
-    onClick: (data: Resource) => unknown;
-    onDelete: (data: Resource) => unknown;
-    openAddDialog: () => unknown;
-    openUpdateDialog: (data: Resource) => unknown;
-    selectedData: Resource[];
-}
-
-export type ResourceListVerticalProps = ResourceListHorizontalProps
-
-export interface ScheduleListProps {
-
-}
-
-export interface ScheduleListItemProps {
-
-}

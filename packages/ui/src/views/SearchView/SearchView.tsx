@@ -1,39 +1,94 @@
-import { GqlModelType, LINKS, ListObject, SearchType, getObjectUrlBase } from "@local/shared";
-import { useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
-import { useFindMany } from "hooks/useFindMany";
-import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
-import { useCallback, useContext, useMemo } from "react";
+import { BUSINESS_NAME, LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
+import { Box, IconButton, Typography, styled, useTheme } from "@mui/material";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { SideActionsButton } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { scrollIntoFocusedView } from "utils/display/scroll";
-import { PubSub } from "utils/pubsub";
-import { searchViewTabParams } from "utils/search/objectToSearch";
-import { SearchViewProps } from "views/types";
+import { PageContainer } from "../../components/Page/Page.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SessionContext } from "../../contexts/session.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { ELEMENT_CLASSES, ELEMENT_IDS } from "../../utils/consts.js";
+import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { searchViewTabParams } from "../../utils/search/objectToSearch.js";
+import { SearchViewProps } from "../../views/types.js";
 
 const scrollContainerId = "main-search-scroll";
+const pageContainerStyle = {
+    [`& .${ELEMENT_CLASSES.SearchBar}`]: {
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        maxWidth: '600px',
+    },
+} as const;
 
-const searchListStyle = { search: { marginTop: 2 } } as const;
+// Styled components for the search header
+const SearchHeader = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing(3, 2),
+    maxWidth: '600px',
+    margin: '0 auto',
+    textAlign: 'center',
+}));
+
+const LogoContainer = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: theme.spacing(3),
+    cursor: 'pointer',
+}));
+
+const LogoName = styled(Typography)(({ theme }) => ({
+    fontSize: '4em',
+    fontFamily: "sakbunderan",
+    lineHeight: "1.3",
+    marginLeft: theme.spacing(1),
+}));
+
+const SearchBarContainer = styled(Box)(({ theme }) => ({
+    width: '100%',
+    maxWidth: '800px',
+    margin: '0 auto',
+}));
+
+function LogoWithName({ onClick }: { onClick: () => void }) {
+    return (
+        <LogoContainer onClick={onClick}>
+            <IconCommon
+                decorative
+                name="Vrooli"
+                size={96}
+            />
+            <LogoName variant="h4">{BUSINESS_NAME}</LogoName>
+        </LogoContainer>
+    );
+};
 
 /**
  * Search page for teams, projects, routines, standards, users, and other main objects
  */
 export function SearchView({
     display,
-    onClose,
 }: SearchViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
-    const { palette } = useTheme();
     const { t } = useTranslation();
+    const { breakpoints } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
+    // Track if header has been hidden at least once during this session
+    const [headerHidden, setHeaderHidden] = useState(false);
 
     const {
         currTab,
@@ -41,22 +96,27 @@ export function SearchView({
         searchType,
         tabs,
         where,
-    } = useTabs({ id: "search-tabs", tabParams: searchViewTabParams, display });
+    } = useTabs({ id: ELEMENT_IDS.SearchTabs, tabParams: searchViewTabParams, display });
+
+    // Reset headerHidden when tab changes
+    useEffect(() => {
+        setHeaderHidden(false);
+    }, [searchType]);
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where(),
+        where: where(undefined),
     });
 
     const onCreateStart = useCallback(function onCreateStartCallback() {
         // If tab is 'All', go to "Create" page
-        if (searchType === SearchType.Popular) {
+        if (searchType === "Popular") {
             setLocation(LINKS.Create);
             return;
         }
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${ModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
             PubSub.get().publish("snack", { messageKey: "NotLoggedIn", severity: "Error" });
@@ -69,41 +129,150 @@ export function SearchView({
 
     function focusSearch() { scrollIntoFocusedView("search-bar-main-search-page-list"); }
 
+    const handleLogoClick = useCallback(() => {
+        setLocation(LINKS.Home);
+    }, [setLocation]);
+
+    // Handler for search bar focus/blur
+    const handleSearchFocus = useCallback(() => {
+        if (isMobile) {
+            setHeaderHidden(true);
+        }
+    }, [isMobile]);
+
+    // No need to handle blur events for header visibility
+    const handleSearchBlur = useCallback(() => {
+        // Do nothing - we want to keep the header hidden
+    }, []);
+
+    // Dynamic header text based on the current tab
+    const headerText = useMemo(() => {
+        switch (searchType) {
+            case "Popular":
+                return {
+                    primary: "DiscoverAIAgents" as const,
+                    secondary: "SuperchargeWorkflow" as const
+                };
+            case "Routine":
+                return {
+                    primary: "FindPerfectRoutine" as const,
+                    secondary: "AutomateWorkWithRoutines" as const
+                };
+            case "Project":
+                return {
+                    primary: "ExploreProjects" as const,
+                    secondary: "FindCollaborativeSpaces" as const
+                };
+            case "Team":
+                return {
+                    primary: "DiscoverTeams" as const,
+                    secondary: "JoinForcesWithAgents" as const
+                };
+            case "User":
+                return {
+                    primary: "FindUsersAndAgents" as const,
+                    secondary: "ConnectWithPeople" as const
+                };
+            case "Standard":
+                return {
+                    primary: "BrowseStandards" as const,
+                    secondary: "FindDataStructure" as const
+                };
+            case "Api":
+                return {
+                    primary: "ExploreAPIs" as const,
+                    secondary: "ConnectWorkflows" as const
+                };
+            case "Code":
+                return {
+                    primary: "DiscoverCodeComponents" as const,
+                    secondary: "FindReusableCode" as const
+                };
+            default:
+                return {
+                    primary: "SearchResources" as const,
+                    secondary: "FindWhatYouNeed" as const
+                };
+        }
+    }, [searchType]);
+
+    // Get placeholder text based on the current tab
+    const searchPlaceholder = useMemo(() => {
+        switch (searchType) {
+            case "Popular":
+                return "SearchForRoutinesTeamsUsers" as const;
+            case "Routine":
+                return "SearchForRoutines" as const;
+            case "Project":
+                return "SearchForProjects" as const;
+            case "Team":
+                return "SearchForTeams" as const;
+            case "User":
+                return "SearchForUsersAndAgents" as const;
+            case "Standard":
+                return "SearchForStandards" as const;
+            case "Api":
+                return "SearchForAPIs" as const;
+            case "Code":
+                return "SearchForCodeComponents" as const;
+            default:
+                return "Search" as const;
+        }
+    }, [searchType]);
+
+    // Determine if we should show the header - show only when NOT on mobile or header has never been hidden
+    const showHeader = useMemo(() => {
+        return !isMobile || !headerHidden;
+    }, [isMobile, headerHidden]);
+
     return (
-        <>
+        <PageContainer size="fullSize" sx={pageContainerStyle}>
+            <Navbar title={t("Search")} titleBehavior="Hide" />
+            <PageTabs<typeof searchViewTabParams>
+                ariaLabel="Search tabs"
+                fullWidth
+                id={ELEMENT_IDS.SearchTabs}
+                ignoreIcons
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
+            />
             <SearchListScrollContainer id={scrollContainerId}>
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    title={t("Search")}
-                    titleBehaviorDesktop="ShowIn"
-                    below={<PageTabs
-                        ariaLabel="search-tabs"
-                        fullWidth
-                        id="search-tabs"
-                        ignoreIcons
-                        currTab={currTab}
-                        onChange={handleTabChange}
-                        tabs={tabs}
+                {showHeader && (
+                    <SearchHeader>
+                        <LogoWithName onClick={handleLogoClick} />
+                        <Typography variant="h5" color="text.primary" mb={1}>{t(headerText.primary)}</Typography>
+                        <Typography variant="subtitle1" color="text.secondary" mb={3}>{t(headerText.secondary)}</Typography>
+                    </SearchHeader>
+                )}
+                <SearchBarContainer>
+                    {searchType && <SearchList
+                        {...findManyData}
+                        display={display}
+                        scrollContainerId={scrollContainerId}
+                        searchBarVariant="paper"
+                        searchPlaceholder={t(searchPlaceholder)}
+                        onSearchFocus={handleSearchFocus}
+                        onSearchBlur={handleSearchBlur}
                     />}
-                />
-                {searchType && <SearchList
-                    {...findManyData}
-                    display={display}
-                    scrollContainerId={scrollContainerId}
-                    sxs={searchListStyle}
-                />}
+                </SearchBarContainer>
             </SearchListScrollContainer>
             <SideActionsButtons display={display}>
-                <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton>
+                <IconButton
+                    aria-label={t("FilterList")}
+                    onClick={focusSearch}
+                >
+                    <IconCommon name="Search" />
+                </IconButton>
                 {userId ? (
-                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
+                    <IconButton
+                        aria-label={t("Add")}
+                        onClick={onCreateStart}
+                    >
+                        <IconCommon name="Add" />
+                    </IconButton>
                 ) : null}
             </SideActionsButtons>
-        </>
+        </PageContainer>
     );
 }

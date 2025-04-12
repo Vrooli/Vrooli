@@ -1,24 +1,24 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointPostDeleteOne, getTranslation, updateArray } from "@local/shared";
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointsActions, getTranslation, updateArray } from "@local/shared";
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ReportButton } from "components/buttons/ReportButton/ReportButton";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
-import { SessionContext } from "contexts";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { DeleteIcon, OpenThreadIcon, ReplyIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { getYou, placeholderColor } from "utils/display/listTools";
-import { displayDate } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ObjectType } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { CommentUpsert } from "views/objects/comment";
-import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SessionContext } from "../../../contexts/session.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { getYou, placeholderColor } from "../../../utils/display/listTools.js";
+import { displayDate } from "../../../utils/display/stringTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { ObjectType } from "../../../utils/navigation/openObject.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { CommentUpsert } from "../../../views/objects/comment/CommentUpsert.js";
+import { BookmarkButton } from "../../buttons/BookmarkButton.js";
+import { ReportButton } from "../../buttons/ReportButton/ReportButton.js";
+import { ShareButton } from "../../buttons/ShareButton/ShareButton.js";
+import { VoteButton } from "../../buttons/VoteButton.js";
+import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
+import { OwnerLabel } from "../../text/OwnerLabel.js";
+import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types.js";
 
 /**
  * Collapsible, vertical line for indicating a comment level. Top of line 
@@ -34,12 +34,12 @@ export function CommentConnector({
     // Random color for profile image (since we don't display custom image yet)
     const profileColors = useMemo(() => placeholderColor(), []);
     // Determine profile image type
-    const ProfileIcon = useMemo(() => {
+    const profileIconInfo = useMemo(() => {
         switch (parentType) {
             case "Team":
-                return TeamIcon;
+                return { name: "Team", type: "Common" } as const;
             default:
-                return UserIcon;
+                return { name: "User", type: "Common" } as const;
         }
     }, [parentType]);
 
@@ -55,13 +55,12 @@ export function CommentConnector({
                 minHeight: "48px",
             }}
         >
-            <ProfileIcon
+            <Icon
                 fill={profileColors[1]}
-                width="75%"
-                height="75%"
+                info={profileIconInfo}
             />
         </Avatar>
-    ), [ProfileIcon, profileColors]);
+    ), [profileColors, profileIconInfo]);
 
     // If open, profile image on top of collapsible line
     if (isOpen) {
@@ -102,7 +101,7 @@ export function CommentConnector({
                     height: "48px",
                 }}
             >
-                <OpenThreadIcon fill={profileColors[0]} />
+                <IconCommon name="OpenThread" fill={profileColors[0]} />
             </IconButton>
             {profileImage}
         </Stack>
@@ -134,7 +133,7 @@ export function CommentThreadItem({
         return { canDelete, canUpdate, canReply, canReport, canBookmark, canReact, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -266,7 +265,7 @@ export function CommentThreadItem({
                             <IconButton
                                 onClick={() => { handleUpsertCommentOpen(); }}
                             >
-                                <ReplyIcon fill={palette.background.textSecondary} />
+                                <IconCommon name="Reply" fill="background.textSecondary" />
                             </IconButton>
                         </Tooltip>}
                         <ShareButton object={object} />
@@ -279,7 +278,7 @@ export function CommentThreadItem({
                                 onClick={handleDelete}
                                 disabled={loadingDelete}
                             >
-                                <DeleteIcon fill={palette.background.textSecondary} />
+                                <IconCommon name="Delete" fill="background.textSecondary" />
                             </IconButton>
                         </Tooltip>}
                     </Stack>}
@@ -311,11 +310,11 @@ export function CommentThreadItem({
  * Each level  contains a list of comment items, then a "Show more" text button.
  * To the left of this is a CommentConnector item, which is a collapsible line.
  */
-export const CommentThread = ({
+export function CommentThread({
     canOpen,
     data,
     language,
-}: CommentThreadProps) => {
+}: CommentThreadProps) {
     // open state
     const [isOpen, setIsOpen] = useState(true);
 
@@ -374,7 +373,7 @@ export const CommentThread = ({
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}
-            <Stack direction="column" spacing={1} sx={{ width: "100%" }}>
+            <Stack direction="column" spacing={1} width="100%">
                 {/* Comment */}
                 <CommentThreadItem
                     data={data.comment}
@@ -392,4 +391,4 @@ export const CommentThread = ({
             </Stack>
         </Stack>
     ) : null;
-};
+}

@@ -1,10 +1,10 @@
-import { MaxObjects } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { PremiumFormat } from "../formats";
-import { PremiumModelLogic, TeamModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { PremiumFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { PremiumModelLogic, TeamModelLogic } from "./types.js";
 
 const __typename = "Premium" as const;
 export const PremiumModel: PremiumModelLogic = ({
@@ -14,7 +14,7 @@ export const PremiumModel: PremiumModelLogic = ({
         label: {
             select: () => ({ id: true, customPlan: true }),
             get: (select, languages) => {
-                const lng = languages[0];
+                const lng = languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE;
                 if (select.customPlan) return i18next.t("common:PaymentPlanCustom", { lng });
                 return i18next.t("common:PaymentPlanBasic", { lng });
             },

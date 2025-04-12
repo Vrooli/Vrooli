@@ -1,1 +1,1 @@
-export * from "./FocusModeUpsert/FocusModeUpsert";
+export * from "./FocusModeUpsert.js";

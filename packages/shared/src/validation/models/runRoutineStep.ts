@@ -1,26 +1,34 @@
 import * as yup from "yup";
-import { RunRoutineStepStatus } from "../../api/generated/graphqlTypes";
-import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
+import { RunStepStatus } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id, intPositiveOrOne, intPositiveOrZero, name } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
-const runRoutineStepStatus = enumToYup(RunRoutineStepStatus);
+const nodeId = yup.string().trim().removeEmptyString().max(128, maxStrErr);
+const runStepStatus = enumToYup(RunStepStatus);
 
 export const runRoutineStepValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
+        complexity: req(intPositiveOrZero),
         contextSwitches: opt(intPositiveOrOne),
         name: req(name),
+        nodeId: req(nodeId),
         order: req(intPositiveOrZero),
-        step: req(yup.array().of(intPositiveOrZero)),
+        status: opt(runStepStatus),
+        subroutineInId: req(id),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ["node", ["Connect"], "one", "opt"],
         ["runRoutine", ["Connect"], "one", "req"],
         ["subroutine", ["Connect"], "one", "opt"],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),
-        status: opt(runRoutineStepStatus),
+        status: opt(runStepStatus),
         timeElapsed: opt(intPositiveOrZero),
     }, [], [], d),
 };

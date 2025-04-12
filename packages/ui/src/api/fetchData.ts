@@ -1,17 +1,19 @@
-import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
-import { apiUrlBase, restBase } from "utils/consts";
-import { invalidateAIConfigCache } from "./ai";
-import { Method, ServerResponseWithTimestamp } from "./types";
+import { HttpMethod, ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
+import { apiUrlBase, restBase } from "../utils/consts.js";
+import { invalidateAIConfigCache } from "./ai.js";
+import { ServerResponseWithTimestamp } from "./types.js";
 
 const SERVER_VERSION_CACHE_KEY = "serverVersionCache";
 
 type FetchDataProps<Input extends object | undefined> = {
     endpoint: string;
-    method: Method;
+    method: HttpMethod;
     inputs: Input;
     options?: RequestInit;
     /** Omits rest endpoint base from URL */
     omitRestBase?: boolean;
+    /** Signal to abort the fetch request */
+    signal?: AbortSignal;
 };
 
 /**
@@ -38,6 +40,7 @@ export async function fetchData<Input extends object | undefined, Output>({
     inputs,
     options,
     omitRestBase = false,
+    signal,
 }: FetchDataProps<Input>): Promise<ServerResponseWithTimestamp<Output>> {
 
     // Replace variables in the endpoint with their values from inputs.
@@ -77,6 +80,7 @@ export async function fetchData<Input extends object | undefined, Output>({
         },
         body,
         credentials: "include",
+        signal,
     };
 
     // Capture the current date and time, which can be useful to determine the order of events. 
@@ -96,6 +100,11 @@ export async function fetchData<Input extends object | undefined, Output>({
                 invalidateAIConfigCache();
             }
             return { ...data, __fetchTimestamp };
+        })
+        .catch(error => {
+            if ((error as { name?: string }).name === "AbortError") {
+                return { errors: [{ message: "Request was aborted" }] };
+            }
+            throw error;
         });
 }
-

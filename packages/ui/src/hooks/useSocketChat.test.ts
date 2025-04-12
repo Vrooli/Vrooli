@@ -1,6 +1,7 @@
 import { ChatMessage, ChatParticipant, ChatShape, LlmTaskInfo, Session, uuid } from "@local/shared";
-import { fullPreferences, getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage";
-import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat";
+import { expect } from "chai";
+import { fullPreferences, getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage.js";
+import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat.js";
 
 describe("processMessages", () => {
     const addMessages = jest.fn();
@@ -167,7 +168,7 @@ describe("processParticipantsUpdates", () => {
         global.localStorage.clear();
         setCookie("Preferences", fullPreferences);
     });
-    afterAll(() => {
+    after(() => {
         global.localStorage.clear();
         jest.restoreAllMocks();
     });
@@ -238,7 +239,7 @@ describe("processParticipantsUpdates", () => {
         // expect(getCookieMatchingChat(participants.map(p => p.user.id))).toEqual(['user1']);
     });
 
-    test("should not call setParticipants if no changes are made - test3", () => {
+    it("should not call setParticipants if no changes are made - test3", () => {
         const participants = [
             { user: { id: "user1" }, id: "participant1" },
         ] as Omit<ChatParticipant, "chat">[];
@@ -258,7 +259,7 @@ describe("processLlmTasks", () => {
         global.localStorage.clear();
         setCookie("Preferences", fullPreferences);
     });
-    afterAll(() => {
+    after(() => {
         global.localStorage.clear();
         jest.restoreAllMocks();
     });
@@ -267,7 +268,7 @@ describe("processLlmTasks", () => {
         processLlmTasks({ tasks: [], updates: [] }, "chat1");
 
         const storedTasks = getCookieTasksForChat("chat1");
-        expect(storedTasks?.inactiveTasks).toBeUndefined();
+        expect(storedTasks?.inactiveTasks).to.be.undefined;
     });
 
     it("should process full tasks", () => {
@@ -331,7 +332,7 @@ describe("processLlmTasks", () => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         storedTasks!.inactiveTasks.forEach(task => {
             // Make sure `lastUpdated` can be parsed as a valid date
-            expect(new Date(task.lastUpdated).toString()).not.toBe("Invalid Date");
+            expect(new Date(task.lastUpdated).toString()).not.to.equal("Invalid Date");
         });
     });
 
@@ -379,7 +380,7 @@ describe("processLlmTasks", () => {
         processLlmTasks({ tasks, updates: [] }, "chat1");
 
         const storedTasks = getCookieTasksForChat("chat1");
-        expect(storedTasks?.inactiveTasks).toBeUndefined();
+        expect(storedTasks?.inactiveTasks).to.be.undefined;
     });
 
     it("should ignore updates without an ID", () => {
@@ -413,7 +414,7 @@ describe("processResponseStream", () => {
     it("should append to the existing message on stream type", () => {
         messageStreamRef.current = { __type: "stream", botId: "bot123", message: "Hello" };
         processResponseStream({ __type: "stream", botId: "bot123", message: " World" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current.message).toBe("Hello World");
+        expect(messageStreamRef.current.message).to.equal("Hello World");
     });
 
     it("should clear message and update botId on new bot message", () => {
@@ -424,13 +425,13 @@ describe("processResponseStream", () => {
 
     it("should handle error type by continuing to append message", () => {
         processResponseStream({ __type: "error", botId: "bot123", message: "Error occurred" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current.message).toBe("Error occurred");
+        expect(messageStreamRef.current.message).to.equal("Error occurred");
     });
 
     it("should clear the stream on end type", () => {
         console.log = jest.fn();
         processResponseStream({ __type: "end", botId: "bot123", message: "Complete" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current).toBeNull();
+        expect(messageStreamRef.current).to.be.null;
         expect(setMessageStream).toHaveBeenCalledWith(null);
     });
 

@@ -1,35 +1,39 @@
-import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared";
-import { useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
-import { useFindMany } from "hooks/useFindMany";
-import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
+import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
+import { IconButton } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { SideActionsButton } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { scrollIntoFocusedView } from "utils/display/scroll";
-import { PubSub } from "utils/pubsub";
-import { searchVersionViewTabParams } from "utils/search/objectToSearch";
-import { SearchVersionViewProps } from "../types";
+import { PageContainer } from "../../components/Page/Page.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { SessionContext } from "../../contexts/session.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { ELEMENT_CLASSES } from "../../utils/consts.js";
+import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { searchVersionViewTabParams } from "../../utils/search/objectToSearch.js";
+import { SearchVersionViewProps } from "../types.js";
 
 const scrollContainerId = "version-search-scroll";
+const pageContainerStyle = {
+    [`& .${ELEMENT_CLASSES.SearchBar}`]: {
+        margin: 2,
+    },
+} as const;
 
 /**
  * Uncommon search page for versioned objects
  */
 export function SearchVersionView({
     display,
-    onClose,
 }: SearchVersionViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -45,11 +49,11 @@ export function SearchVersionView({
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where(),
+        where: where(undefined),
     });
 
     const onCreateStart = useCallback(function onCreateStartCallback(e: React.MouseEvent<HTMLElement>) {
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${ModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
             PubSub.get().publish("snack", { messageKey: "NotLoggedIn", severity: "Error" });
@@ -63,37 +67,40 @@ export function SearchVersionView({
     function focusSearch() { scrollIntoFocusedView("search-bar-version-search-page-list"); }
 
     return (
-        <SearchListScrollContainer id={scrollContainerId}>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("SearchVersions")}
-                titleBehaviorDesktop="ShowIn"
-                below={<PageTabs
-                    ariaLabel="search-version-tabs"
-                    fullWidth
-                    id="search-version-tabs"
-                    ignoreIcons
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
+        <PageContainer size="fullSize" sx={pageContainerStyle}>
+            <Navbar title={t("SearchVersions")} />
+            <PageTabs<typeof searchVersionViewTabParams>
+                ariaLabel="search-version-tabs"
+                fullWidth
+                id="search-version-tabs"
+                ignoreIcons
+                currTab={currTab}
+                onChange={handleTabChange}
+                tabs={tabs}
             />
-            {searchType && <SearchList
-                {...findManyData}
-                display={display}
-                scrollContainerId={scrollContainerId}
-            />}
-            <SideActionsButtons display={display}>
-                <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </SideActionsButton>
-                {userId ? (
-                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
-                ) : null}
-            </SideActionsButtons>
-        </SearchListScrollContainer>
+            <SearchListScrollContainer id={scrollContainerId}>
+                {searchType && <SearchList
+                    {...findManyData}
+                    display={display}
+                    scrollContainerId={scrollContainerId}
+                />}
+                <SideActionsButtons display={display}>
+                    <IconButton
+                        aria-label={t("FilterList")}
+                        onClick={focusSearch}
+                    >
+                        <IconCommon name="Search" />
+                    </IconButton>
+                    {userId ? (
+                        <IconButton
+                            aria-label={t("Add")}
+                            onClick={onCreateStart}
+                        >
+                            <IconCommon name="Add" />
+                        </IconButton>
+                    ) : null}
+                </SideActionsButtons>
+            </SearchListScrollContainer>
+        </PageContainer>
     );
 }

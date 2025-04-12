@@ -1,7 +1,8 @@
-import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
-import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
-import { SnackSeverity } from "components/snacks/BasicSnack/BasicSnack";
-import { ThemeType } from "./localStorage";
+import { AITaskInfo, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
+import { AlertDialogSeverity } from "../components/dialogs/AlertDialog/AlertDialog.js";
+import { SnackSeverity } from "../components/snacks/BasicSnack/BasicSnack.js";
+import { ELEMENT_IDS } from "./consts.js";
+import { ThemeType } from "./localStorage.js";
 
 export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
     messageKey: KeyList;
@@ -23,6 +24,10 @@ export type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = Sna
     id?: string;
     severity: `${SnackSeverity}`;
 };
+export type ClearSnackPub = {
+    all?: boolean;
+    id?: string;
+}
 
 export type TaskConnect = {
     __type: "taskType";
@@ -145,63 +150,113 @@ export type RequestTaskContextPub = {
     context: TaskContextInfo;
 }
 
+export type PopupImagePub = {
+    alt: string;
+    src: string;
+}
 
-/** Determines how many options should be displayed directly in the rich input toolbar */
-export type RichInputToolbarViewSize = "minimal" | "partial" | "full";
+export type PopupVideoPub = {
+    src: string;
+}
 
-export const SIDE_MENU_ID = "side-menu" as const;
-export const CHAT_SIDE_MENU_ID = "chat-side-menu" as const;
-type SideMenuBase = {
+type MenuBase = {
     isOpen: boolean;
 }
-export type SideMenuPayloads = {
-    [SIDE_MENU_ID]: SideMenuBase & { id: typeof SIDE_MENU_ID };
-    [CHAT_SIDE_MENU_ID]: SideMenuBase & {
-        id: typeof CHAT_SIDE_MENU_ID;
+export type MenuPayloads = {
+    [ELEMENT_IDS.CommandPalette]: MenuBase & {
+        id: typeof ELEMENT_IDS.CommandPalette;
         /**
          * Optional data to provide to the menu
          */
         data?: {
-            /**
-             * Tab to switch to
-             */
-            tab?: ChatPageTabOption | `${ChatPageTabOption}`;
+            // Add data here
+        }
+    };
+    [ELEMENT_IDS.FindInPage]: MenuBase & {
+        id: typeof ELEMENT_IDS.FindInPage;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
         }
     }
+    [ELEMENT_IDS.FullPageSpinner]: Omit<MenuBase, "isOpen"> & {
+        id: typeof ELEMENT_IDS.FullPageSpinner;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            /** How long in milliseconds to wait before the spinner is shown */
+            delay?: number;
+            /** Whether to show the spinner */
+            show?: boolean;
+        }
+    }
+    [ELEMENT_IDS.LeftDrawer]: MenuBase & {
+        id: typeof ELEMENT_IDS.LeftDrawer;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        }
+    }
+    [ELEMENT_IDS.RightDrawer]: MenuBase & {
+        id: typeof ELEMENT_IDS.RightDrawer;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        }
+    }
+    [ELEMENT_IDS.Tutorial]: MenuBase & {
+        id: typeof ELEMENT_IDS.Tutorial;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        };
+    };
+    [ELEMENT_IDS.UserMenu]: MenuBase & {
+        id: typeof ELEMENT_IDS.UserMenu;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            isDisplaySettingsCollapsed?: boolean;
+            anchorEl?: HTMLElement | null;
+        };
+    };
 }
-export type SideMenuPub = SideMenuPayloads[keyof SideMenuPayloads];
+export type MenuPub = { id: "all", isOpen: false } | MenuPayloads[keyof MenuPayloads];
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
-    /** Can be used to move content based on the appearance of a banner ad */
-    banner: { isDisplayed: boolean };
     celebration: CelebrationPub;
     chatTask: ChatTaskPub;
-    commandPalette: void;
+    clearSnack: ClearSnackPub;
     cookies: void;
-    fastUpdate: { on?: boolean, duration?: number };
-    findInPage: void;
-    focusMode: ActiveFocusMode;
     fontSize: number;
     isLeftHanded: boolean;
     language: string;
-    /** Pass delay to show spinner if turning on, or false to turn off. */
-    loading: number | boolean;
     logOut: void;
+    menu: MenuPub;
     nodeDrag: { nodeId: string };
     nodeDrop: { nodeId: string, position: { x: number, y: number } };
+    popupImage: PopupImagePub;
+    popupVideo: PopupVideoPub;
+    proDialog: void;
     requestTaskContext: RequestTaskContextPub;
-    richInputToolbarViewSize: RichInputToolbarViewSize;
     session: Session | undefined;
-    showBotWarning: boolean;
-    sideMenu: SideMenuPub;
     snack: SnackPub;
     theme: ThemeType;
-    tutorial: void;
 }
 
 const defaultPayloads: Partial<{ [K in keyof EventPayloads]: EventPayloads[K] }> = {
-    fastUpdate: { on: true, duration: 1000 },
+    // Add default payloads here
 };
 
 export type PubType = keyof EventPayloads;

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { InputType, NodeType, ValueOf } from "@local/shared";
+import { InputType, SERVER_VERSION, ValueOf } from "@local/shared";
 
 export const Forms = {
     ForgotPassword: "forgot-password",
@@ -120,9 +120,6 @@ export const DEFAULT_MIN_ROWS = 4;
 export const FONT_SIZE_MIN = 8;
 export const FONT_SIZE_MAX = 24;
 
-export const LEFT_DRAWER_WIDTH = 280;
-export const RIGHT_DRAWER_WIDTH = 280;
-
 export const BUSINESS_DATA = {
     BUSINESS_NAME: "Vrooli",
     EMAIL: {
@@ -143,28 +140,97 @@ export const BUSINESS_DATA = {
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
-const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
-const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
+const serverUrlProvided = Boolean(process.env.VITE_API_URL && process.env.VITE_API_URL.length > 0);
+const portServer: string = process.env.VITE_PORT_API ?? "5329";
 export const apiUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}/api` :
     serverUrlProvided ?
-        `${process.env.VITE_SERVER_URL}` :
+        `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
-export const restBase = "/v2/rest";
+export const restBase = `/${SERVER_VERSION}/rest`;
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :
     serverUrlProvided ?
-        `${process.env.VITE_SERVER_URL}` :
+        `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}`;
-
-export const NodeWidth = {
-    [NodeType.End]: 100,
-    [NodeType.Redirect]: 100,
-    [NodeType.RoutineList]: 350,
-    [NodeType.Start]: 100,
-};
 
 /**
  * Distance before a click is considered a drag
  */
 export const DRAG_THRESHOLD = 10;
+
+/** Maximum width of the chat input */
+export const MAX_CHAT_INPUT_WIDTH = 800;
+
+export const ELEMENT_IDS = {
+    AdaptiveLayout: "adaptive-layout",
+    AdvancedSearchDialog: "advanced-search-dialog",
+    AdvancedSearchDialogTitle: "advanced-search-dialog-title",
+    BottomNav: "bottom-nav",
+    CommandPalette: "command-palette",
+    DashboardEventList: "dashboard-event-list",
+    DashboardReminderList: "dashboard-reminder-list",
+    DashboardResourceList: "dashboard-resource-list",
+    DashboardFocusModeTabs: "dashboard-focus-mode-tabs",
+    EventCards: "event-cards",
+    FindInPage: "find-in-page",
+    FormRunView: "form-run-view",
+    FullPageSpinner: "full-page-spinner",
+    LandingViewSlideContainerNeon: "neon-container",
+    LandingViewSlideContainerSky: "sky-container",
+    LandingViewSlideWorkflow: "revolutionize-workflow",
+    LandingViewSlideChats: "chats",
+    LandingViewSlideRoutines: "routines",
+    LandingViewSlideTeams: "teams",
+    LandingViewSlidePricing: "pricing",
+    LandingViewSlideGetStarted: "get-started",
+    LeftDrawer: "left-drawer",
+    MyStuffTabs: "my-stuff-tabs",
+    PageContainer: "page-container",
+    ProViewDonateBox: "donate",
+    ProViewFAQBox: "faq",
+    ProViewFeatures: "features",
+    RelationshipList: "relationship-list",
+    ReminderCards: "reminder-cards",
+    ResourceCards: "resource-cards",
+    RightDrawer: "right-drawer",
+    RoutineGenerateSettings: "routine-generate-settings",
+    RoutineMultiStepCrudDialog: "routine-multi-step-crud-dialog",
+    RoutineMultiStepCrudGraph: "routine-multi-step-crud-graph",
+    RoutineTypeForm: "routine-type-form",
+    RoutineSingleStepUpsertDialog: "routine-single-step-upsert-dialog",
+    RoutineWizardDialog: "routine-wizard-dialog",
+    SearchTabs: "search-tabs",
+    SelectBookmarkListDialog: "select-bookmark-list-dialog",
+    SiteNavigatorMenuMessageTree: "site-navigator-menu-message-tree",
+    SiteNavigatorMenuIcon: "site-navigator-menu-icon",
+    TasksRow: "tasks-row",
+    TeamUpsertDialog: "team-upsert-dialog",
+    Tutorial: "tutorial",
+    UserMenu: "user-menu",
+    UserMenuAccountList: "user-menu-account-list",
+    UserMenuDisplaySettings: "user-menu-display-settings",
+    UserMenuProfileIcon: "user-menu-profile-icon",
+    UserMenuQuickLinks: "user-menu-quick-links",
+    WalletInstallDialogTitle: "wallet-install-dialog-title",
+    WalletSelectDialogTitle: "wallet-select-dialog-title",
+} as const;
+
+export const ELEMENT_CLASSES = {
+    ScrollBox: "scroll-box",
+    SearchBar: "search-bar",
+} as const;
+
+export const Z_INDEX = {
+    Popup: 1000,
+    TutorialDialog: 800,
+    CommandPalette: 700,
+    CookieSettingsDialog: 200,
+    Dialog: 100,
+    Drawer: 60,
+    TopBar: 50,
+    BottomNav: 50,
+    ActionButton: 20,
+    PageElement: 10,
+    Page: 0,
+};

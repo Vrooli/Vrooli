@@ -1,14 +1,15 @@
-import { MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionResponseFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic, QuizQuestionResponseModelInfo, QuizQuestionResponseModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { QuizQuestionResponseFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic, QuizQuestionResponseModelInfo, QuizQuestionResponseModelLogic } from "./types.js";
 
 const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
@@ -18,8 +19,8 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
         label: {
             select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.select() } }),
             get: (select, languages) => i18next.t("common:QuizQuestionResponseLabel", {
-                lng: languages.length > 0 ? languages[0] : "en",
-                questionLabel: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.get(select.quizQuestion as QuizQuestionModelInfo["PrismaModel"], languages),
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
+                questionLabel: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.get(select.quizQuestion as QuizQuestionModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -53,11 +54,11 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<QuizQuestionResponseModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizQuestionResponseModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -65,10 +66,10 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizQuestionResponseModelInfo["PrismaSelect"]>([["quizAttempt", "QuizAttempt"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionResponseModelInfo["DbSelect"]>([["quizAttempt", "QuizAttempt"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate().owner(data?.quizAttempt as QuizAttemptModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate().owner(data?.quizAttempt as QuizAttemptModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

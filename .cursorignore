@@ -106,9 +106,11 @@ dist
 .out
 .storybook-out
 storybook-static
+*storybook.log
 
 # rollup.js default build output
 dist/
+test-dist/
 
 # Gatsby files
 .cache/

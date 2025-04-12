@@ -1,4 +1,4 @@
-export * from "./defaultGenerator";
-export * from "./types";
-export * from "./yupGenerator";
+/* c8 ignore start */
+export * from "./builder.js";
+export * from "./types.js";
 

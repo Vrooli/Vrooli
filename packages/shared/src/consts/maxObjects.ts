@@ -381,7 +381,7 @@ export const MaxObjects = {
         User: 5000,
         Team: 50000,
     },
-    RunRoutineInput: 100000,
+    RunRoutineIO: 100000,
     RunRoutineStep: 100000,
     Schedule: {
         User: {
@@ -395,6 +395,7 @@ export const MaxObjects = {
     },
     ScheduleException: 100000,
     ScheduleRecurrence: 100000,
+    Session: 1000,
     Standard: {
         private: {
             noPremium: 5,

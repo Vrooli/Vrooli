@@ -123,8 +123,13 @@ export function useInfiniteScroll({
 }
 
 interface UsePinchZoomProps {
-    onScaleChange: (scale: number, position: { x: number, y: number }) => unknown;
+    onScaleChange: (scale: number, position: { x: number; y: number }) => unknown;
     validTargetIds: string[];
+    initialScale?: number;
+    minScale?: number;
+    maxScale?: number;
+    pinchSpeed?: number;
+    wheelSpeed?: number;
 }
 
 type UsePinchZoomReturn = {
@@ -136,67 +141,104 @@ type PinchRefs = {
     lastDistance: number; // Last distance between two fingers
 }
 
+const DEFAULT_INITIAL_SCALE = 1;
+const DEFAULT_MIN_SCALE = 0.5;
+const DEFAULT_MAX_SCALE = 3;
+const DEFAULT_PINCH_SPEED = 1;
+const DEFAULT_WHEEL_SPEED = 1;
+const PINCH_THROTLLE = 5;
+
 /**
- * Hook for zooming in and out of a component, using pinch gestures. 
- * Supports both touch and trackpad. 
- * NOTE: Make sure to disable the accessibility zoom on the component you're using this hook on. Not sure how to do this yet
+ * Hook for zooming in and out of a component, using pinch gestures and trackpad wheel.
+ *
+ * Configurable:
+ * - initialScale (default 1)
+ * - minScale (default 0.5)
+ * - maxScale (default 3)
+ * - pinchSpeed (default 1) - multiplier for pinch delta
+ * - wheelSpeed (default 1) - multiplier for wheel delta
  */
 export function usePinchZoom({
     onScaleChange,
     validTargetIds = [],
+    initialScale = DEFAULT_INITIAL_SCALE,
+    minScale = DEFAULT_MIN_SCALE,
+    maxScale = DEFAULT_MAX_SCALE,
+    pinchSpeed = DEFAULT_PINCH_SPEED,
+    wheelSpeed = DEFAULT_WHEEL_SPEED,
 }: UsePinchZoomProps): UsePinchZoomReturn {
     const [isPinching, setIsPinching] = useState(false);
+    const [scale, setScale] = useState(initialScale);
+
     const refs = useRef<PinchRefs>({
         currDistance: 0,
         lastDistance: 0,
     });
-    // Wait ref so we can update every k iterations
+    // Wait ref so we can update every k iterations to reduce jitter
     const waitRef = useRef<number>(0);
 
     useEffect(() => {
-        function getTouchDistance(e: TouchEvent) {
+        function getTouchDistance(e: TouchEvent): number {
             const touch1 = e.touches[0];
             const touch2 = e.touches[1];
-            return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
+            return Math.sqrt(
+                Math.pow(touch1.clientX - touch2.clientX, 2) +
+                Math.pow(touch1.clientY - touch2.clientY, 2),
+            );
         }
-        function handleTouchStart(e: TouchEvent) {
-            // Find the target
+
+        function isValidTarget(e: Event): boolean {
             const targetId = (e as any)?.target?.id;
-            if (!targetId) return;
-            if (!validTargetIds.some(id => targetId.startsWith(id))) return;
+            if (!targetId) return false;
+            return validTargetIds.some(id => targetId.startsWith(id));
+        }
+
+        function handleTouchStart(e: TouchEvent) {
+            if (!isValidTarget(e)) return;
             // Pinch requires two touches
             if (e.touches.length !== 2) return;
             setIsPinching(true);
             refs.current.currDistance = getTouchDistance(e);
             refs.current.lastDistance = refs.current.currDistance;
         }
+
         function handleTouchMove(e: TouchEvent) {
+            // Prevent default scroll/zoom behavior
             e.preventDefault();
-            // If pinching
             if (isPinching && e.touches.length === 2) {
-                // Only update every 5 iterations
-                if (waitRef.current < 5) {
+                // Throttle updates
+                if (waitRef.current < PINCH_THROTLLE) {
                     waitRef.current++;
                     return;
                 }
                 waitRef.current = 0;
-                // Get the current position
+
                 const newDistance = getTouchDistance(e);
-                // Calculate the scale delta
-                const scaleDelta = (newDistance - refs.current.currDistance) / 250;
-                // Find the center of the two touches, so we can zoom in on that point
+                const distanceChange = newDistance - refs.current.currDistance;
+                // Scale delta adjusted by pinch speed
+                const scaleDelta = (distanceChange / 250) * pinchSpeed;
+
+                // Find the center of the two touches
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
                 const center = {
                     x: (touch1.clientX + touch2.clientX) / 2,
                     y: (touch1.clientY + touch2.clientY) / 2,
                 };
-                // Update the scale and refs
-                onScaleChange(scaleDelta, center);
+
+                // Apply scale delta
+                let newScale = scale + scaleDelta;
+                // Clamp the new scale
+                newScale = Math.min(Math.max(newScale, minScale), maxScale);
+
+                setScale(newScale);
+                onScaleChange(newScale, center);
+
                 refs.current.lastDistance = refs.current.currDistance;
                 refs.current.currDistance = newDistance;
             }
         }
+
         function handleTouchEnd(e: TouchEvent) {
             if (e.touches.length === 0) {
                 setIsPinching(false);
@@ -204,36 +246,52 @@ export function usePinchZoom({
                 refs.current.lastDistance = 0;
             }
         }
+
         function handleWheel(e: WheelEvent) {
+            if (!isValidTarget(e)) return;
+
             e.preventDefault();
-            // Scale down movement so it's no too fast
-            const moveBy = e.deltaY / 500;
-            // Check if the target is valid
-            const targetId = (e as any)?.target?.id;
-            if (!targetId) return;
-            if (!validTargetIds.some(id => targetId.startsWith(id))) return;
-            // Find cursor position, so we can zoom in on that point
+            // Scale down movement so it's not too fast
+            const delta = e.deltaY / 500;
+            // Adjust by wheelSpeed
+            const scaleDelta = -delta * wheelSpeed;
+
+            // Cursor position for zoom focusing
             const cursor = {
                 x: e.clientX,
                 y: e.clientY,
             };
-            if (e.deltaY > 0) {
-                onScaleChange(-moveBy, cursor);
-            } else if (e.deltaY < 0) {
-                onScaleChange(-moveBy, cursor);
-            }
+
+            let newScale = scale + scaleDelta;
+            // Clamp scale
+            newScale = Math.min(Math.max(newScale, minScale), maxScale);
+
+            setScale(newScale);
+            console.log("newScale", newScale);
+            onScaleChange(newScale, cursor);
         }
-        document.addEventListener("touchstart", handleTouchStart);
-        document.addEventListener("touchmove", handleTouchMove);
-        document.addEventListener("touchend", handleTouchEnd);
-        document.addEventListener("wheel", handleWheel);
+
+        document.addEventListener("touchstart", handleTouchStart, { passive: false });
+        document.addEventListener("touchmove", handleTouchMove, { passive: false });
+        document.addEventListener("touchend", handleTouchEnd, { passive: false });
+        document.addEventListener("wheel", handleWheel, { passive: false });
+
         return () => {
             document.removeEventListener("touchstart", handleTouchStart);
             document.removeEventListener("touchmove", handleTouchMove);
             document.removeEventListener("touchend", handleTouchEnd);
             document.removeEventListener("wheel", handleWheel);
         };
-    }, [onScaleChange, isPinching, validTargetIds]);
+    }, [
+        onScaleChange,
+        isPinching,
+        validTargetIds,
+        scale,
+        minScale,
+        maxScale,
+        pinchSpeed,
+        wheelSpeed,
+    ]);
 
     return {
         isPinching,

@@ -11,17 +11,16 @@
  * We want objects to be owned by teams rather than users, as this means the objects are tied to 
  * the team's governance structure.
  */
-import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
-import { PrismaDelegate } from "../builders/types";
-import { getVisibilityFunc } from "../builders/visibilityBuilder";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { SessionUserToken } from "../types";
-import { authDataWithInput } from "../utils/authDataWithInput";
-import { AuthDataById } from "../utils/getAuthenticatedData";
-import { getParentInfo } from "../utils/getParentInfo";
-import { InputsById, QueryAction } from "../utils/types";
+import { ModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from "@local/shared";
+import { PrismaDelegate } from "../builders/types.js";
+import { getVisibilityFunc } from "../builders/visibilityBuilder.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { authDataWithInput } from "../utils/authDataWithInput.js";
+import { AuthDataById } from "../utils/getAuthenticatedData.js";
+import { InputsById, QueryAction } from "../utils/types.js";
+import { getParentInfo } from "./permissions.js";
 
 /**
  * Helper function to check if a count exceeds a number
@@ -29,10 +28,9 @@ import { InputsById, QueryAction } from "../utils/types";
 function checkObjectLimitNumber(
     count: number,
     limit: number,
-    languages: string[],
 ): void {
     if (count > limit) {
-        throw new CustomError("0352", "MaxObjectsReached", languages);
+        throw new CustomError("0352", "MaxObjectsReached");
     }
 }
 
@@ -44,10 +42,9 @@ function checkObjectLimitPremium(
     count: number,
     hasPremium: boolean,
     limit: ObjectLimitPremium,
-    languages: string[],
 ): void {
-    if (hasPremium) checkObjectLimitNumber(count, limit.premium, languages);
-    else checkObjectLimitNumber(count, limit.noPremium, languages);
+    if (hasPremium) checkObjectLimitNumber(count, limit.premium);
+    else checkObjectLimitNumber(count, limit.noPremium);
 }
 
 /**
@@ -58,15 +55,14 @@ function checkObjectLimitPrivacy(
     hasPremium: boolean,
     isPublic: boolean,
     limit: ObjectLimitPrivacy,
-    languages: string[],
 ): void {
     if (isPublic) {
-        if (typeof limit.public === "number") checkObjectLimitNumber(count, limit.public, languages);
-        else checkObjectLimitPremium(count, hasPremium, limit.public as ObjectLimitPremium, languages);
+        if (typeof limit.public === "number") checkObjectLimitNumber(count, limit.public);
+        else checkObjectLimitPremium(count, hasPremium, limit.public as ObjectLimitPremium);
     }
     else {
-        if (typeof limit.private === "number") checkObjectLimitNumber(count, limit.private, languages);
-        else checkObjectLimitPremium(count, hasPremium, limit.private as ObjectLimitPremium, languages);
+        if (typeof limit.private === "number") checkObjectLimitNumber(count, limit.private);
+        else checkObjectLimitPremium(count, hasPremium, limit.private as ObjectLimitPremium);
     }
 }
 
@@ -79,17 +75,16 @@ function checkObjectLimitOwner(
     hasPremium: boolean,
     isPublic: boolean,
     limit: ObjectLimitOwner,
-    languages: string[],
 ): void {
     if (ownerType === "User") {
-        if (typeof limit.User === "number") checkObjectLimitNumber(count, limit.User, languages);
-        else if (typeof (limit.User as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.User as ObjectLimitPremium, languages);
-        else checkObjectLimitPrivacy(count, hasPremium, isPublic, limit.User as ObjectLimitPrivacy, languages);
+        if (typeof limit.User === "number") checkObjectLimitNumber(count, limit.User);
+        else if (typeof (limit.User as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.User as ObjectLimitPremium);
+        else checkObjectLimitPrivacy(count, hasPremium, isPublic, limit.User as ObjectLimitPrivacy);
     }
     else {
-        if (typeof limit.Team === "number") checkObjectLimitNumber(count, limit.Team, languages);
-        else if (typeof (limit.Team as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Team as ObjectLimitPremium, languages);
-        else checkObjectLimitPrivacy(count, hasPremium, isPublic, limit.Team as ObjectLimitPrivacy, languages);
+        if (typeof limit.Team === "number") checkObjectLimitNumber(count, limit.Team);
+        else if (typeof (limit.Team as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Team as ObjectLimitPremium);
+        else checkObjectLimitPrivacy(count, hasPremium, isPublic, limit.Team as ObjectLimitPrivacy);
     }
 }
 
@@ -102,7 +97,6 @@ function checkObjectLimit({
     hasPremium,
     isPublic,
     limit,
-    languages,
 }: {
     /** The Count */
     count: number,
@@ -112,15 +106,13 @@ function checkObjectLimit({
     hasPremium: boolean,
     /** Whether the object is public */
     isPublic: boolean,
-    /** The languages to use for error messages */
-    languages: string[],
     /** The limit object. Can be a number, or object with different limits depending on premium status, owner type, etc. */
     limit: ObjectLimit,
 }): void {
-    if (typeof limit === "number") checkObjectLimitNumber(count, limit, languages);
-    else if (typeof (limit as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit as ObjectLimitPremium, languages);
-    else if (typeof (limit as ObjectLimitPrivacy).private !== undefined) checkObjectLimitPrivacy(count, hasPremium, isPublic, limit as ObjectLimitPrivacy, languages);
-    else checkObjectLimitOwner(count, ownerType, hasPremium, isPublic, limit as ObjectLimitOwner, languages);
+    if (typeof limit === "number") checkObjectLimitNumber(count, limit);
+    else if (typeof (limit as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit as ObjectLimitPremium);
+    else if (typeof (limit as ObjectLimitPrivacy).private !== undefined) checkObjectLimitPrivacy(count, hasPremium, isPublic, limit as ObjectLimitPrivacy);
+    else checkObjectLimitOwner(count, ownerType, hasPremium, isPublic, limit as ObjectLimitOwner);
 }
 
 // TODO Would be nice if we could check max number of relations for an object, not just the absolute number of the object. 
@@ -138,10 +130,10 @@ export async function maxObjectsCheck(
     inputsById: InputsById,
     authDataById: AuthDataById,
     idsByAction: { [key in QueryAction]?: string[] },
-    userData: SessionUserToken,
+    userData: SessionUser,
 ) {
     // Initialize counts. This is used to count how many objects a user or team will have after every action is applied.
-    const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
+    const counts: { [key in ModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
@@ -159,7 +151,7 @@ export async function maxObjectsCheck(
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validator.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
+            const isPublic = validator.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById));
             // Increment count
             counts[typename]![ownerId][isPublic ? "public" : "private"]++;
         }
@@ -181,7 +173,7 @@ export async function maxObjectsCheck(
             counts[authData.__typename] = counts[authData.__typename] || {};
             counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validator.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
+            const isPublic = validator.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById));
             // Decrement count
             counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]--;
         }
@@ -190,8 +182,8 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const delegator = prismaInstance[ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
-        const validator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 4").validate();
+        const delegator = DbProvider.get()[ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
+        const validator = ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 4").validate();
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
@@ -199,8 +191,8 @@ export async function maxObjectsCheck(
             let currCountPrivate = 0;
             let currCountPublic = 0;
             // Some objects don't support private/public, so may have null visibility functions. We can ignore these.
-            const privateVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPrivate", false);
-            const publicVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPublic", false);
+            const privateVisibility = getVisibilityFunc(objectType as ModelType, "OwnPrivate", false);
+            const publicVisibility = getVisibilityFunc(objectType as ModelType, "OwnPublic", false);
             if (privateVisibility) currCountPrivate = await delegator.count({ where: privateVisibility(searchData) });
             if (publicVisibility) currCountPublic = await delegator.count({ where: publicVisibility(searchData) });
             // Add count obtained from add and deletes to the current counts
@@ -214,7 +206,6 @@ export async function maxObjectsCheck(
                 count: currCountPrivate,
                 hasPremium,
                 isPublic: false,
-                languages: userData.languages,
                 limit: maxObjects,
                 ownerType,
             });
@@ -222,7 +213,6 @@ export async function maxObjectsCheck(
                 count: currCountPublic,
                 hasPremium,
                 isPublic: true,
-                languages: userData.languages,
                 limit: maxObjects,
                 ownerType,
             });

@@ -1,6 +1,6 @@
-import { endpointGetTeam, endpointGetTeams, FormSchema, TeamSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, tagsContainer, tagsFields, yesNoDontCare } from "./common";
+import { endpointsTeam, FormSchema, TeamSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, tagsContainer, tagsFields, yesNoDontCare } from "./common.js";
 
 export function teamSearchSchema(): FormSchema {
     return {
@@ -26,6 +26,6 @@ export function teamSearchSchema(): FormSchema {
 }
 
 export function teamSearchParams() {
-    return toParams(teamSearchSchema(), endpointGetTeams, endpointGetTeam, TeamSortBy, TeamSortBy.BookmarksDesc);
+    return toParams(teamSearchSchema(), endpointsTeam, TeamSortBy, TeamSortBy.BookmarksDesc);
 }
 

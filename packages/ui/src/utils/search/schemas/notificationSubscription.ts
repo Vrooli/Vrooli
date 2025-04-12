@@ -1,11 +1,15 @@
-import { endpointGetNotificationSubscription, endpointGetNotificationSubscriptions, FormSchema, NotificationSubscriptionSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsNotificationSubscription, FormSchema, NotificationSubscriptionSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const notificationSubscriptionSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchNotificationSubscription"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function notificationSubscriptionSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchNotificationSubscription"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const notificationSubscriptionSearchParams = () => toParams(notificationSubscriptionSearchSchema(), endpointGetNotificationSubscriptions, endpointGetNotificationSubscription, NotificationSubscriptionSortBy, NotificationSubscriptionSortBy.DateCreatedDesc);
+export function notificationSubscriptionSearchParams() {
+    return toParams(notificationSubscriptionSearchSchema(), endpointsNotificationSubscription, NotificationSubscriptionSortBy, NotificationSubscriptionSortBy.DateCreatedDesc);
+}

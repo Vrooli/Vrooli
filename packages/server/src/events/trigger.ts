@@ -1,12 +1,12 @@
-import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
-import { setupEmailVerificationCode } from "../auth/email";
-import { prismaInstance } from "../db/instance";
-import { Notify, isObjectSubscribable } from "../notify";
-import { emitSocketEvent } from "../sockets/events";
-import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat";
-import { Award, objectAwardCategory } from "./awards";
-import { logger } from "./logger";
-import { Reputation, objectReputationEvent } from "./reputation";
+import { AwardCategory, BookmarkFor, ChatMessage, CopyType, IssueStatus, ModelType, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
+import { PasswordAuthService } from "../auth/email.js";
+import { DbProvider } from "../db/provider.js";
+import { Notify, isObjectSubscribable } from "../notify/notify.js";
+import { emitSocketEvent } from "../sockets/events.js";
+import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat.js";
+import { Award, objectAwardCategory } from "./awards.js";
+import { logger } from "./logger.js";
+import { Reputation, objectReputationEvent } from "./reputation.js";
 
 export type ActionTrigger = "AccountNew" |
     "ObjectComplete" | // except runs
@@ -37,11 +37,11 @@ type Owner = { __typename: "User" | "Team", id: string };
  * Some actions may also do nothing right now, but it's good to send them through this function
  * in case we want to add functionality later.
  */
-export function Trigger(languages: string[]) {
+export function Trigger(languages: string[] | undefined) {
     return {
         acountNew: async (userId: string, emailAddress?: string) => {
             // Send a welcome/verification email (if not created with wallet)
-            if (emailAddress) await setupEmailVerificationCode(emailAddress, userId, languages);
+            if (emailAddress) await PasswordAuthService.setupEmailVerificationCode(emailAddress, userId, languages);
             // Give the user an award
             Award(userId, languages).update("AccountNew", 1);
         },
@@ -102,7 +102,7 @@ export function Trigger(languages: string[]) {
             issueStatus: IssueStatus,
             objectId: string,
             objectOwner: Owner,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             userUpdatingIssueId: string,
         }) => {
             // Ignore drafts
@@ -124,7 +124,7 @@ export function Trigger(languages: string[]) {
             }
             // Send notification
             const notification = Notify(languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
-            notification.toAll("Issue", objectId, objectOwner, [userUpdatingIssueId])
+            notification.toAll("Issue", objectId, objectOwner, [userUpdatingIssueId]);
         },
         /**
          * Handle object creation. 
@@ -156,7 +156,7 @@ export function Trigger(languages: string[]) {
             hasParent: boolean,
             owner: Owner,
             objectId: string,
-            objectType: `${GqlModelType}`,
+            objectType: `${ModelType}`,
             projectId?: string,
         }) => {
             // Step 1
@@ -225,7 +225,7 @@ export function Trigger(languages: string[]) {
             hasParent: boolean,
             owner: Owner,
             objectId: string,
-            objectType: `${GqlModelType}`,
+            objectType: `${ModelType}`,
             originalProjectId?: string,
             projectId?: string,
             wasCompleteAndPublic: boolean,
@@ -269,7 +269,7 @@ export function Trigger(languages: string[]) {
             hasBeenTransferred: boolean,
             hasParent: boolean,
             objectId: string,
-            objectType: `${GqlModelType}`,
+            objectType: `${ModelType}`,
             wasCompleteAndPublic: boolean,
         }) => {
             // Step 1
@@ -317,7 +317,7 @@ export function Trigger(languages: string[]) {
             const dontNotifyFor = ["ChatMessage"];
             if (scoreNotifyThresolds.includes(updatedScore) && deltaScore > 0 && !dontNotifyFor.includes(objectType)) {
                 const notification = Notify(languages).pushObjectReceivedUpvote(objectType, objectId, updatedScore);
-                notification.toAll(objectType as string as GqlModelType, objectId, objectOwner, [userId])
+                notification.toAll(objectType as string as ModelType, objectId, objectOwner, [userId]);
             }
             // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
             // TODO
@@ -341,7 +341,7 @@ export function Trigger(languages: string[]) {
             pullRequestStatus: PullRequestStatus,
             objectId: string,
             objectOwner: Owner,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             userUpdatingPullRequestId: string,
         }) => {
             // Ignore drafts
@@ -412,7 +412,7 @@ export function Trigger(languages: string[]) {
         }: {
             objectId: string,
             objectOwner: Owner,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             reportContributors: string[],
             reportCreatedById: string | null,
             reportId: string,
@@ -446,7 +446,7 @@ export function Trigger(languages: string[]) {
             if (reportStatus === "ClosedDeleted") {
                 // If owners are a team, decrease reputation of all admins
                 if (objectOwner.__typename === "Team") {
-                    const admins = await prismaInstance.team.findUnique({
+                    const admins = await DbProvider.get().team.findUnique({
                         where: { id: objectOwner.id },
                         select: {
                             members: {

@@ -1,4 +1,4 @@
 
-export * from "./TeamUpsert/TeamUpsert";
-export * from "./TeamView/TeamView";
+export * from "./TeamUpsert.js";
+export * from "./TeamView.js";
 

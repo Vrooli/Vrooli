@@ -1,12 +1,13 @@
 import { Box, IconButtonProps, DialogTitle as MuiDialogTitle, DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
-import { Title } from "components/text/Title/Title";
-import { useIsLeftHanded } from "hooks/subscriptions";
-import { CloseIcon } from "icons";
 import { forwardRef, useMemo } from "react";
-import { useLocation } from "route";
-import { noSelect } from "styles";
-import { tryOnClose } from "utils/navigation/urlTools";
-import { DialogTitleProps } from "../types";
+import { useTranslation } from "react-i18next";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
+import { noSelect } from "../../../styles.js";
+import { tryOnClose } from "../../../utils/navigation/urlTools.js";
+import { Title } from "../../text/Title.js";
+import { DialogTitleProps } from "../types.js";
 
 interface StyledTitleContainerProps extends MuiDialogTitleProps {
     isLeftHanded: boolean;
@@ -19,6 +20,7 @@ const StyledTitleContainer = styled(MuiDialogTitle, {
     display: "flex",
     flexDirection: isLeftHanded ? "row-reverse" : "row",
     alignItems: "center",
+    justifyContent: "space-between",
     padding: theme.spacing(0.5),
     paddingLeft: theme.spacing(2),
     paddingRight: theme.spacing(2),
@@ -41,6 +43,7 @@ const CloseIconButton = styled(MuiDialogTitle, {
     marginRight: isLeftHanded ? "auto" : "0px",
     padding: theme.spacing(1),
 }));
+const titleStyle = { stack: { padding: 0 } } as const;
 
 export const DialogTitle = forwardRef(({
     below,
@@ -49,9 +52,14 @@ export const DialogTitle = forwardRef(({
     startComponent,
     ...titleData
 }: DialogTitleProps, ref) => {
+    const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const isLeftHanded = useIsLeftHanded();
+
+    function handleClose() {
+        tryOnClose(onClose, setLocation);
+    }
 
     const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
         return {
@@ -63,15 +71,6 @@ export const DialogTitle = forwardRef(({
             ...titleData.sxs?.root,
         } as const;
     }, [palette.primary.contrastText, palette.primary.dark, titleData.sxs]);
-
-    const titleStyle = useMemo(function titleStyleMemo() {
-        return {
-            stack: {
-                ...(isLeftHanded ? { marginRight: "auto" } : { marginLeft: "auto" }),
-                padding: 0,
-            },
-        } as const;
-    }, [isLeftHanded]);
 
     return (
         <Box ref={ref} sx={outerBoxStyle}>
@@ -86,12 +85,16 @@ export const DialogTitle = forwardRef(({
                     sxs={titleStyle}
                 />
                 <CloseIconButton
-                    aria-label="close"
+                    aria-label={t("Close")}
                     edge="end"
                     isLeftHanded={isLeftHanded}
-                    onClick={() => { tryOnClose(onClose, setLocation); }}
+                    onClick={handleClose}
                 >
-                    <CloseIcon fill={palette.primary.contrastText} />
+                    <IconCommon
+                        decorative
+                        fill={palette.primary.contrastText}
+                        name="Close"
+                    />
                 </CloseIconButton>
             </StyledTitleContainer>
             {below}

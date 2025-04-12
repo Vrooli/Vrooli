@@ -1,8 +1,10 @@
+/* c8 ignore start */
 import { ChatMessageShape, Comment, CommentThread, NavigableObject } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
-import { PageTab } from "hooks/useTabs";
-import { SxType } from "types";
-import { TabsInfo } from "utils/search/objectToSearch";
+import { ReactNode } from "react";
+import { PageTab } from "../hooks/useTabs.js";
+import { SxType } from "../types.js";
+import { TabListType } from "../utils/search/objectToSearch.js";
 
 export interface ChatBubbleProps {
     /** Which sibling (version) is currently being displayed */
@@ -28,15 +30,6 @@ export interface ChatBubbleProps {
     onRegenerateResponse: (message: ChatMessageShape) => unknown;
     /** Try to send a failed message */
     onRetry: (message: ChatMessageShape) => unknown;
-}
-
-export interface ChatBubbleTreeProps {
-    chatWidth: number;
-    message: ChatMessageShape;
-    index: number;
-    isOwn: boolean;
-    onDeleted: (message: ChatMessageShape) => unknown;
-    onUpdated: (message: ChatMessageShape) => unknown;
 }
 
 export interface CommentConnectorProps {
@@ -80,14 +73,20 @@ export interface DiagonalWaveLoaderProps {
     sx?: SxType;
 }
 
-export interface PageTabsProps<TabList extends TabsInfo> {
+export interface PageTabsProps<TabList extends TabListType = TabListType> {
     ariaLabel: string,
-    currTab: PageTab<TabList>,
+    currTab: PageTab<TabList[number]>,
     fullWidth?: boolean,
     id?: string,
     /** Ignore Icons in tabs, rendering them using labels instead */
     ignoreIcons?: boolean,
-    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList>) => unknown,
-    tabs: PageTab<TabList>[],
+    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList[number]>) => unknown,
+    tabs: PageTab<TabList[number]>[],
     sx?: SxType,
+}
+
+export interface SlideProps {
+    id: string;
+    children: ReactNode;
+    sx?: SxType;
 }

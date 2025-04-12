@@ -1,7 +1,10 @@
 import * as yup from "yup";
-import { description, id, index, name, opt, req, YupModel, yupObj } from "../utils";
-import { reminderItemValidation } from "./reminderItem";
-import { reminderListValidation } from "./reminderList";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { description, id, index, name } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { reminderItemValidation } from "./reminderItem.js";
+import { reminderListValidation } from "./reminderList.js";
 
 export const reminderValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

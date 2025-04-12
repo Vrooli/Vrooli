@@ -1,3 +1,3 @@
 
-export * from "./MemberInvitesUpsert/MemberInvitesUpsert";
+export * from "./MemberInvitesUpsert.js";
 

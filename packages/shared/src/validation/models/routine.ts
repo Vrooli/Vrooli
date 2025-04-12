@@ -1,7 +1,10 @@
-import { bool, id, opt, permissions, req, YupModel, yupObj } from "../utils";
-import { labelValidation } from "./label";
-import { routineVersionValidation } from "./routineVersion";
-import { tagValidation } from "./tag";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, id, permissions } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { labelValidation } from "./label.js";
+import { routineVersionValidation } from "./routineVersion.js";
+import { tagValidation } from "./tag.js";
 
 export const routineValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
@@ -27,6 +30,6 @@ export const routineValidation: YupModel<["create", "update"]> = {
         ["ownedByTeam", ["Connect"], "one", "opt"],
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
-        ["versions", ["Create", "Update", "Delete"], "many", "req", routineVersionValidation, ["root"]],
+        ["versions", ["Create", "Update", "Delete"], "many", "opt", routineVersionValidation, ["root"]],
     ], [["ownedByTeamConnect", "ownedByUserConnect", false]], d),
 };

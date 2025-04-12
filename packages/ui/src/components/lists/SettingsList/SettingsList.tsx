@@ -1,12 +1,13 @@
 import { LINKS } from "@local/shared";
 import { Box, BoxProps, Divider, List, ListItem, ListItemIcon, ListItemProps, ListItemText, ListProps, styled, useTheme } from "@mui/material";
-import { useElementDimensions } from "hooks/useDimensions";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
-import { accountSettingsData, displaySettingsData } from "views/settings";
-import { SettingsData } from "views/settings/types";
+import { useElementDimensions } from "../../../hooks/useDimensions.js";
+import { Icon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
+import { pagePaddingBottom } from "../../../styles.js";
+import { accountSettingsData, displaySettingsData } from "../../../views/settings/index.js";
+import { SettingsData } from "../../../views/settings/types.js";
 
 type ViewSize = "minimal" | "full";
 
@@ -72,7 +73,7 @@ const SettingsListBox = styled(Box, {
 const listItemTextStyle = { marginLeft: 2 } as const;
 
 function SettingsListItem({
-    Icon,
+    iconInfo,
     index,
     link,
     onSelect,
@@ -98,7 +99,10 @@ function SettingsListItem({
             viewSize={viewSize}
         >
             <ListItemIcon>
-                <Icon fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary} />
+                <Icon
+                    info={iconInfo}
+                    fill={isSelected(link) ? palette.primary.contrastText : palette.background.textSecondary}
+                />
             </ListItemIcon>
             {viewSize === "full" && <ListItemText primary={t(title, { ...titleVariables, defaultValue: title })} sx={listItemTextStyle} />}
         </StyledListItem>
@@ -111,7 +115,6 @@ export function SettingsList() {
 
     const dimensions = useElementDimensions({ id: "settings-page" });
     const viewSize = useMemo<"minimal" | "full">(() => {
-        console.log("checking dimensions", dimensions);
         if (dimensions.width <= MINIMIZE_AT_PX) return "minimal";
         return "full";
     }, [dimensions]);

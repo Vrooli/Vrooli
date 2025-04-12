@@ -10,8 +10,8 @@ import { Button, Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { PubSub } from "utils/pubsub";
-import { DropzoneProps } from "../types";
+import { PubSub } from "../../../utils/pubsub.js";
+import { DropzoneProps } from "../types.js";
 
 export const MAX_DROPZONE_FILES = 100;
 

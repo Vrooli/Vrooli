@@ -1,0 +1,7 @@
+---
+description: Used for backend development
+globs: 
+alwaysApply: false
+---
+- This is a TypeScript NodeJS server running through ExpressJS.
+- Ensure that the code adheres to our styling rules [.eslintrc](mdc:.eslintrc) [.eslintrc](mdc:packages/server/.eslintrc).

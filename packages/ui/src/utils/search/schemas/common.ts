@@ -213,63 +213,73 @@ export const simplicityRootFields = (): FormInputType[] => ([
         fieldName: "maxSimplicityRoot",
     },
 ]);
-export const complexityFields = (): FormInputType[] => ([
-    {
-        fieldName: "minComplexity",
-        id: "minComplexity",
-        label: i18next.t("Min"),
-        type: InputType.IntegerInput,
-        props: {
-            min: 0,
-            defaultValue: 0,
-            zeroText: i18next.t("MinNo"),
+export function complexityFields(): FormInputType[] {
+    return [
+        {
+            fieldName: "minComplexity",
+            id: "minComplexity",
+            label: i18next.t("Min"),
+            type: InputType.IntegerInput,
+            props: {
+                min: 0,
+                defaultValue: 0,
+                zeroText: i18next.t("MinNo"),
+            },
         },
-    },
-    {
-        fieldName: "maxComplexity",
-        id: "maxComplexity",
-        label: i18next.t("Max"),
-        type: InputType.IntegerInput,
-        props: {
-            min: 0,
-            defaultValue: 0,
-            zeroText: i18next.t("MaxNo"),
+        {
+            fieldName: "maxComplexity",
+            id: "maxComplexity",
+            label: i18next.t("Max"),
+            type: InputType.IntegerInput,
+            props: {
+                min: 0,
+                defaultValue: 0,
+                zeroText: i18next.t("MaxNo"),
+            },
         },
-    },
-]);
-export const complexityRootFields = (): FormInputType[] => ([
-    {
-        ...complexityFields()[0],
-        fieldName: "minComplexityRoot",
-        id: "minComplexityRoot",
-    },
-    {
-        ...complexityFields()[1],
-        fieldName: "maxComplexityRoot",
-        id: "maxComplexityRoot",
-    },
-]);
-export const hasCompleteVersionFields = (): FormInputType[] => ([
-    {
-        fieldName: "hasCompleteVersion",
-        id: "hasCompleteVersion",
-        label: i18next.t("HasCompleteVersion"),
-        ...yesNoDontCare(),
-    },
-]);
-export const isCompleteWithRootFields = (): FormInputType[] => ([
-    {
-        fieldName: "isCompleteWithRoot",
-        id: "isCompleteWithRoot",
-        label: i18next.t("VersionAndRootComplete"),
-        ...yesNoDontCare(),
-    },
-]);
-export const isLatestFields = (): FormInputType[] => ([
-    {
-        fieldName: "isLatest",
-        id: "isLatest",
-        label: i18next.t("IsLatestVersion"),
-        ...yesNoDontCare(),
-    },
-]);
+    ];
+}
+export function complexityRootFields(): FormInputType[] {
+    return [
+        {
+            ...complexityFields()[0],
+            fieldName: "minComplexityRoot",
+            id: "minComplexityRoot",
+        },
+        {
+            ...complexityFields()[1],
+            fieldName: "maxComplexityRoot",
+            id: "maxComplexityRoot",
+        },
+    ];
+}
+export function hasCompleteVersionFields(): FormInputType[] {
+    return [
+        {
+            fieldName: "hasCompleteVersion",
+            id: "hasCompleteVersion",
+            label: i18next.t("HasCompleteVersion"),
+            ...yesNoDontCare(),
+        },
+    ];
+}
+export function isCompleteWithRootFields(): FormInputType[] {
+    return [
+        {
+            fieldName: "isCompleteWithRoot",
+            id: "isCompleteWithRoot",
+            label: i18next.t("VersionAndRootComplete"),
+            ...yesNoDontCare(),
+        },
+    ];
+}
+export function isLatestFields(): FormInputType[] {
+    return [
+        {
+            fieldName: "isLatest",
+            id: "isLatest",
+            label: i18next.t("IsLatestVersion"),
+            ...yesNoDontCare(),
+        },
+    ];
+}

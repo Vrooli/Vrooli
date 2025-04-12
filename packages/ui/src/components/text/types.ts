@@ -1,8 +1,9 @@
 import { ListObject, Routine } from "@local/shared";
 import { BoxProps } from "@mui/material";
-import { SvgComponent, SxType } from "types";
-import { DisplayAdornment } from "utils/display/listTools";
-import { ObjectType } from "utils/navigation/openObject";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType } from "../../types.js";
+import { type DisplayAdornment } from "../../utils/display/listTools.js";
+import { ObjectType } from "../../utils/navigation/openObject.js";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     loading?: boolean;
@@ -28,14 +29,18 @@ export interface StatsCompactProps<T extends ListObject> {
 }
 
 export interface TitleProps {
+    /**
+     * If true, adds padding to the left and right of the title
+     */
+    addSidePadding?: boolean;
     /** Informational icons displayed to the right of the title */
     adornments?: DisplayAdornment[];
     help?: string;
     /** Icon displayed to the left of the title */
-    Icon?: SvgComponent;
+    iconInfo?: IconInfo | null | undefined;
     /** Action icons displayed to the right of the title and adornments */
     options?: {
-        Icon: SvgComponent;
+        iconInfo?: IconInfo | null | undefined;
         label: string;
         onClick: (e?: any) => unknown;
     }[];

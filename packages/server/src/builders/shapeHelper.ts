@@ -1,11 +1,10 @@
-import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { PreMap } from "../models/types";
-import { SessionUserToken } from "../types";
-import { IdsCreateToConnect } from "../utils/types";
-import { shapeRelationshipData } from "./shapeRelationshipData";
-import { RelationshipType } from "./types";
+import { ModelType, SessionUser, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { PreMap } from "../models/types.js";
+import { IdsCreateToConnect } from "../utils/types.js";
+import { shapeRelationshipData } from "./shapeRelationshipData.js";
+import { RelationshipType } from "./types.js";
 
 type OrMany<T, IsOneToOne extends boolean> = IsOneToOne extends true ? T : T[];
 type OrBoolean<T, IsOneToOne extends boolean> = IsOneToOne extends true ? boolean : T[];
@@ -31,6 +30,8 @@ export type ShapeHelperProps<
     Types extends readonly RelationshipType[],
     SoftDelete extends boolean = false,
 > = {
+    /** Additional data to pass to the shape functions */
+    additionalData: Record<string, any>,
     /** The data to convert */
     data: Record<string, any>,
     /** Ids which should result in a connect instead of a create */
@@ -53,7 +54,7 @@ export type ShapeHelperProps<
         parentIdFieldName: string, // e.g. team.tags.tag => 'taggedId'
         parentId: string | null, // Only needed if not a create
     }
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     /**
     * The name of the parent relationship, from the child's perspective. 
     * Used to ensure that the child does not have a circular reference to the parent.
@@ -76,7 +77,7 @@ export type ShapeHelperProps<
      * Session data of the user performing the operation. Relationship building is only used when performing 
      * create, update, and delete operations, so id is always required
      */
-    userData: SessionUserToken,
+    userData: SessionUser,
 }
 /**
  * Creates the relationship operations for a mutater shape create or update function
@@ -88,6 +89,7 @@ export async function shapeHelper<
     PrimaryKey extends string = "id",
     SoftDelete extends boolean = false,
 >({
+    additionalData,
     data,
     idsCreateToConnect = {},
     isOneToOne,
@@ -167,7 +169,7 @@ export async function shapeHelper<
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await mutate.shape.create({ data: create, idsCreateToConnect, preMap, userData });
+            const created = await mutate.shape.create({ additionalData, data: create, idsCreateToConnect, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = created;
             shaped.push(rest);
@@ -177,7 +179,7 @@ export async function shapeHelper<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await mutate.shape.update({ data: update.data, idsCreateToConnect, preMap, userData });
+            const updated = await mutate.shape.update({ additionalData, data: update.data, idsCreateToConnect, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });
@@ -245,11 +247,10 @@ export async function shapeHelper<
         // Perform the following checks:
         // 1. Does not have both a connect and create
         // 2. Does not have both a disconnect and delete
-        const isAdd = ("create" in result || "connect" in result) && !("delete" in result || "disconnect" in result || "update" in result);
         if (result.connect && result.create)
-            throw new CustomError("0342", "InvalidArgs", userData.languages, { relation });
+            throw new CustomError("0342", "InvalidArgs", { relation });
         if (result.disconnect && result.delete)
-            throw new CustomError("0343", "InvalidArgs", userData.languages, { relation });
+            throw new CustomError("0343", "InvalidArgs", { relation });
         // Remove arrays
         // one-to-one's disconnect/delete must be true or undefined
         if (result.disconnect) result.disconnect = true;

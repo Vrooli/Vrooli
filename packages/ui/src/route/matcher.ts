@@ -1,4 +1,4 @@
-import { Pathname } from "./useLocation";
+import { Pathname } from "./useLocation.js";
 
 export interface DefaultParams {
     [paramName: string]: string;

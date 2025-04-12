@@ -1,12 +1,9 @@
 import { exists, isObject } from "@local/shared";
 import fs from "fs";
 import pkg from "lodash";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
+import { logger } from "../events/logger.js";
 
 const { flatten } = pkg;
-
-const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
 
 let profanity: string[] = [];
 let profanityRegex: RegExp;
@@ -15,6 +12,7 @@ let profanityRegex: RegExp;
  * Initializes the profanity array and regex
  */
 export function initializeProfanity() {
+    const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
     try {
         const fileContent = fs.readFileSync(profanityFile, "utf8");
         profanity = fileContent.toString().split("\n");
@@ -23,16 +21,16 @@ export function initializeProfanity() {
     } catch (error) {
         logger.error(`Could not find or read profanity file at ${profanityFile}`, { trace: "0634" });
     }
-};
+}
 
 /**
  * Determines if a string contains any banned words
  * @param text The text which may contain bad words
  * @returns True if any bad words were found
  */
-export const hasProfanity = (...text: (string | null | undefined)[]): boolean => {
+export function hasProfanity(...text: (string | null | undefined)[]): boolean {
     return text.some(t => exists(t) && t.search(profanityRegex) !== -1);
-};
+}
 
 /**
  * Recursively converts an items to an array of its string values
@@ -40,7 +38,7 @@ export const hasProfanity = (...text: (string | null | undefined)[]): boolean =>
  * @param fields The fields to convert (supports dot notation). If not specified, all fields will be converted
  * @returns An array of strings
  */
-export const toStringArray = (item: any, fields: string[] | null): string[] | null => {
+export function toStringArray(item: any, fields: string[] | null): string[] | null {
     // Check if item is array
     if (Array.isArray(item)) {
         // Recursively convert each item in the array
@@ -64,20 +62,7 @@ export const toStringArray = (item: any, fields: string[] | null): string[] | nu
         return [item];
     }
     return null;
-};
-
-/**
- * Throws an error if any string/object contains any banned words
- * @param items The items to check
- * @param languages Preferred languages to use for error messages
- */
-export const validateProfanity = (items: (string | null | undefined)[], languages: string[]): void => {
-    // Filter out non-string items
-    const strings = items.filter(i => typeof i === "string") as string[];
-    // Check if any strings contain profanity
-    if (hasProfanity(...strings))
-        throw new CustomError("0042", "BannedWord", languages);
-};
+}
 
 /**
  * Removes profanity from a string
@@ -85,7 +70,7 @@ export const validateProfanity = (items: (string | null | undefined)[], language
  * @param censorCharacter The character to replace profanity with
  * @returns The censored text
  */
-export const filterProfanity = (text: string, censorCharacter = "*"): string => {
+export function filterProfanity(text: string, censorCharacter = "*"): string {
     return text.replace(profanityRegex, (s: string) => {
         let i = 0;
         let asterisks = "";
@@ -97,4 +82,4 @@ export const filterProfanity = (text: string, censorCharacter = "*"): string => 
 
         return asterisks;
     });
-};
+}

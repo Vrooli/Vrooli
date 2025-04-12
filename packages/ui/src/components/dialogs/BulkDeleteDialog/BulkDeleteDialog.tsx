@@ -1,15 +1,15 @@
 import { Button, Checkbox, DialogContent, FormControlLabel, Grid, List, ListItem, Typography, useTheme } from "@mui/material";
-import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useWindowSize } from "hooks/useWindowSize";
-import { CancelIcon, DeleteIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "styles";
-import { getDisplay } from "utils/display/listTools";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { BulkDeleteDialogProps } from "../types";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { pagePaddingBottom } from "../../../styles.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { BottomActionsGrid } from "../../buttons/BottomActionsGrid.js";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
+import { TopBar } from "../../navigation/TopBar.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { BulkDeleteDialogProps } from "../types.js";
 
 // Delete confirmation prompt is 2 random bunny words
 const BUNNY_WORDS = ["bunny", "rabbit", "boop", "binky", "zoom", "ears", "fluffy", "hop", "tail", "whiskers", "burrow", "nose", "grass", "meadow"];
@@ -35,21 +35,21 @@ export function BulkDeleteDialog({
     }, [isOpen]);
     const isConfirmationValid = confirmationInput.toUpperCase() === randomWords.toUpperCase();
 
-    const handleCheckboxChange = (object) => {
+    function handleCheckboxChange(object) {
         if (selectedItems.includes(object)) {
             setSelectedItems(prev => prev.filter(item => item !== object));
         } else {
             setSelectedItems(prev => [...prev, object]);
         }
-    };
+    }
 
-    const toggleAllItems = () => {
+    function toggleAllItems() {
         if (selectedItems.length === selectedData.length) {
             setSelectedItems([]);
         } else {
             setSelectedItems(selectedData);
         }
-    };
+    }
 
     const onCancel = useCallback(() => {
         handleClose([]);
@@ -116,7 +116,10 @@ export function BulkDeleteDialog({
                     <Button
                         disabled={!isConfirmationValid}
                         fullWidth
-                        startIcon={<DeleteIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Delete"
+                        />}
                         type="submit"
                         onClick={onDelete}
                         variant="contained"
@@ -125,7 +128,10 @@ export function BulkDeleteDialog({
                 <Grid item xs={6}>
                     <Button
                         fullWidth
-                        startIcon={<CancelIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Cancel"
+                        />}
                         onClick={onCancel}
                         variant="outlined"
                     >{t("Cancel")}</Button>

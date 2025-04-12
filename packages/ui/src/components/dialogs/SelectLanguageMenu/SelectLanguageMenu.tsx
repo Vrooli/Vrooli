@@ -1,19 +1,19 @@
-import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
+import { endpointsTranslate, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { SessionContext } from "contexts";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useZIndex } from "hooks/useZIndex";
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";
-import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { ListMenu } from "../ListMenu/ListMenu";
-import { MenuTitle } from "../MenuTitle/MenuTitle";
-import { ListMenuItemData, SelectLanguageMenuProps } from "../types";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SessionContext } from "../../../contexts/session.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { Z_INDEX } from "../../../utils/consts.js";
+import { AllLanguages, getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
+import { ListMenu } from "../ListMenu/ListMenu.js";
+import { MenuTitle } from "../MenuTitle/MenuTitle.js";
+import { ListMenuItemData, SelectLanguageMenuProps } from "../types.js";
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -52,6 +52,14 @@ const autoTranslateLanguages = [
 ] as const;
 
 const titleId = "select-language-dialog-title";
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "center",
+} as const;
+const transformOrigin = {
+    vertical: "top",
+    horizontal: "center",
+} as const;
 
 export function SelectLanguageMenu({
     currentLanguage,
@@ -71,7 +79,7 @@ export function SelectLanguageMenu({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointGetTranslate);
+    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointsTranslate.translate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
@@ -102,7 +110,7 @@ export function SelectLanguageMenu({
         // Convert to list menu item data
         return autoTranslateLanguagesFiltered.map(l => ({ label: AllLanguages[l], value: l }));
     }, [languages]);
-    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<HTMLElement | null>(null);
+    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<Element | null>(null);
     const openTranslateSource = useCallback((ev: React.MouseEvent<any>, targetLanguage: string) => {
         // Stop propagation so that the list item is not selected
         ev.stopPropagation();
@@ -157,10 +165,9 @@ export function SelectLanguageMenu({
     }, [isEditing, searchString, session, languages]);
 
     // Popup for selecting language
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [anchorEl, setAnchorEl] = useState<Element | null>(null);
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open, false, 1000);
-    const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+    const onOpen = useCallback((event: MouseEvent<Element>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
         if (currentLanguage) handleCurrent(currentLanguage);
@@ -195,21 +202,15 @@ export function SelectLanguageMenu({
                 onClose={onClose}
                 aria-labelledby={titleId}
                 sx={{
-                    zIndex,
+                    zIndex: Z_INDEX.Popup,
                     "& .MuiPopover-paper": {
                         background: "transparent",
                         border: "none",
                         paddingBottom: 1,
                     },
                 }}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "center",
-                }}
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "center",
-                }}
+                anchorOrigin={anchorOrigin}
+                transformOrigin={transformOrigin}
             >
                 {/* Title */}
                 <MenuTitle
@@ -238,6 +239,8 @@ export function SelectLanguageMenu({
                             paddingRight: 1,
                         }}
                     />
+                    {/* TODO Remove this once react-window is updated */}
+                    {/* @ts-expect-error Incompatible JSX type definitions */}
                     <FixedSizeList
                         height={600}
                         width={400}
@@ -277,7 +280,11 @@ export function SelectLanguageMenu({
                                 >
                                     {/* Display check mark if selected */}
                                     {isSelected && (
-                                        <CompleteIcon fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary} />
+                                        <IconCommon
+                                            decorative
+                                            fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary}
+                                            name="Complete"
+                                        />
                                     )}
                                     <Typography variant="body2" style={{
                                         display: "block",
@@ -291,7 +298,11 @@ export function SelectLanguageMenu({
                                                 size="small"
                                                 onClick={(e) => onDelete(e, option[0])}
                                             >
-                                                <DeleteIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
+                                                <IconCommon
+                                                    decorative
+                                                    fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary}
+                                                    name="Delete"
+                                                />
                                             </IconButton>
                                         </Tooltip>
                                     )}
@@ -330,15 +341,27 @@ export function SelectLanguageMenu({
                     ...(sxs?.root ?? {}),
                 }}>
                     <IconButton size="large" sx={{ padding: "4px" }}>
-                        <LanguageIcon fill={"white"} />
+                        <IconCommon
+                            decorative
+                            fill={"white"}
+                            name="Language"
+                        />
                     </IconButton>
                     {/* Only show language code when editing to save space. You'll know what language you're reading just by reading */}
                     {isEditing && <Typography variant="body2" sx={{ color: "white", marginRight: "8px" }}>
                         {currentLanguage?.toLocaleUpperCase()}
                     </Typography>}
                     {/* Drop down or drop up icon */}
-                    <IconButton size="large" aria-label="language-select" sx={{ padding: "4px", marginLeft: "-8px" }}>
-                        {open ? <ArrowDropUpIcon fill={"white"} /> : <ArrowDropDownIcon fill={"white"} />}
+                    <IconButton
+                        aria-label="language-select"
+                        size="large"
+                        sx={{ padding: "4px", marginLeft: "-8px" }}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={"white"}
+                            name={open ? "ArrowDropUp" : "ArrowDropDown"}
+                        />
                     </IconButton>
                 </Stack>
             </Tooltip>

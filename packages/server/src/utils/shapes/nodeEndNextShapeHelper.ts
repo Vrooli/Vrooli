@@ -1,6 +1,6 @@
-import { GqlModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
-import { RelationshipType } from "../../builders/types";
+import { ModelType } from "@local/shared";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { RelationshipType } from "../../builders/types.js";
 
 type NodeEndNextShapeHelperProps<
     Types extends readonly RelationshipType[],
@@ -10,13 +10,13 @@ type NodeEndNextShapeHelperProps<
 * Connects and disconnects suggested next routine versions from end nodes, 
 * which is actually creating and deleting node_end_next (i.e. join table) objects.
 */
-export const nodeEndNextShapeHelper = async <
+export async function nodeEndNextShapeHelper<
     Types extends readonly RelationshipType[],
 >({
     data,
     ...rest
 }: NodeEndNextShapeHelperProps<Types>):
-    Promise<ShapeHelperOutput<false, "id">> => {
+    Promise<ShapeHelperOutput<false, "id">> {
     return shapeHelper({
         data,
         isOneToOne: false,
@@ -27,9 +27,9 @@ export const nodeEndNextShapeHelper = async <
             parentIdFieldName: "fromEndId",
             parentId: (data as { id?: string | null | undefined }).id ?? null,
         },
-        objectType: "RoutineVersion" as GqlModelType,
+        objectType: "RoutineVersion" as ModelType,
         parentRelationshipName: "suggestedNextByNode",
         relation: "suggestedNextRoutineVersions",
         ...rest,
     });
-};
+}

@@ -1,43 +1,34 @@
 import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentUpdateInput, FindByIdInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { rateLimit } from "../../middleware/rateLimit";
-import { CommentModel } from "../../models/base/comment";
-import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
-
+import { createOneHelper } from "../../actions/creates.js";
+import { readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { CommentModel } from "../../models/base/comment.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsComment = {
-    Query: {
-        comment: GQLEndpoint<FindByIdInput, FindOneResult<Comment>>;
-        comments: GQLEndpoint<CommentSearchInput, CommentSearchResult>;
-    },
-    Mutation: {
-        commentCreate: GQLEndpoint<CommentCreateInput, CreateOneResult<Comment>>;
-        commentUpdate: GQLEndpoint<CommentUpdateInput, UpdateOneResult<Comment>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, Comment>;
+    findMany: ApiEndpoint<CommentSearchInput, CommentSearchResult>;
+    createOne: ApiEndpoint<CommentCreateInput, Comment>;
+    updateOne: ApiEndpoint<CommentUpdateInput, Comment>;
 }
 
 const objectType = "Comment";
-export const CommentEndpoints: EndpointsComment = {
-    Query: {
-        comment: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        comments: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return CommentModel.query.searchNested(req, input, info);
-        },
+export const comment: EndpointsComment = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        commentCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        commentUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return CommentModel.query.searchNested(req, input, info);
+    },
+    createOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 250, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

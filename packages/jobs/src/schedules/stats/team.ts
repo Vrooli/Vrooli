@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { batch, batchGroup, DbProvider, logger } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 type BatchRunRoutinesResult = Record<string, {
@@ -15,11 +15,11 @@ type BatchRunRoutinesResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of team IDs to run routine stats
  */
-const batchRunRoutines = async (
+async function batchRunRoutines(
     teamIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunRoutinesResult> => {
+): Promise<BatchRunRoutinesResult> {
     const initialResult = Object.fromEntries(teamIds.map(id => [id, {
         runRoutinesStarted: 0,
         runRoutinesCompleted: 0,
@@ -92,17 +92,17 @@ const batchRunRoutines = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logTeamStats = async (
+export async function logTeamStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.teamFindManyArgs>({
             objectType: "Team",
             processBatch: async (batch) => {
                 const runRoutineStats = await batchRunRoutines(batch.map(team => team.id), periodStart, periodEnd);
-                await prismaInstance.stats_team.createMany({
+                await DbProvider.get().stats_team.createMany({
                     data: batch.map(team => ({
                         teamId: team.id,
                         periodStart,

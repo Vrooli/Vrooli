@@ -1,9 +1,8 @@
 import { Bookmark, BookmarkFor, CommentFor, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, TranslationKeyCommon, getReactionScore } from "@local/shared";
-import { ListMenuItemData } from "components/dialogs/types";
-import { ArrowDownIcon, ArrowUpIcon, BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, CommentIcon, DeleteIcon, DonateIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon } from "icons";
-import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session";
-import { getYou } from "utils/display/listTools";
+import { ListMenuItemData } from "../../components/dialogs/types.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { checkIfLoggedIn } from "../../utils/authentication/session.js";
+import { getYou } from "../../utils/display/listTools.js";
 
 /**
  * All available actions an object can possibly have
@@ -134,25 +133,25 @@ export function getAvailableActions(
 /**
  * Maps an ObjectAction to [labelKey, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in ObjectAction]: [TranslationKeyCommon, SvgComponent, string, boolean] } = ({
-    [ObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
-    [ObjectAction.BookmarkUndo]: ["BookmarkUndo", BookmarkFilledIcon, "#cbae30", false],
-    [ObjectAction.Comment]: ["Comment", CommentIcon, "default", false],
-    [ObjectAction.Delete]: ["Delete", DeleteIcon, "default", false],
-    [ObjectAction.Donate]: ["Donate", DonateIcon, "default", true],
-    [ObjectAction.Edit]: ["Edit", EditIcon, "default", false],
-    [ObjectAction.FindInPage]: ["FindEllipsis", SearchIcon, "default", false],
-    [ObjectAction.Fork]: ["Fork", BranchIcon, "default", false],
-    [ObjectAction.Report]: ["Report", ReportIcon, "default", false],
-    [ObjectAction.Share]: ["Share", ShareIcon, "default", false],
-    [ObjectAction.Stats]: ["StatisticsShort", StatsIcon, "default", true],
-    [ObjectAction.VoteDown]: ["VoteDown", ArrowDownIcon, "default", false],
-    [ObjectAction.VoteUp]: ["VoteUp", ArrowUpIcon, "default", false],
+const allOptionsMap: { [key in ObjectAction]: [TranslationKeyCommon, IconInfo, string, boolean] } = ({
+    [ObjectAction.Bookmark]: ["Bookmark", { name: "BookmarkOutline", type: "Common" }, "#cbae30", false],
+    [ObjectAction.BookmarkUndo]: ["BookmarkUndo", { name: "BookmarkFilled", type: "Common" }, "#cbae30", false],
+    [ObjectAction.Comment]: ["Comment", { name: "Comment", type: "Common" }, "default", false],
+    [ObjectAction.Delete]: ["Delete", { name: "Delete", type: "Common" }, "default", false],
+    [ObjectAction.Donate]: ["Donate", { name: "Donate", type: "Common" }, "default", true],
+    [ObjectAction.Edit]: ["Edit", { name: "Edit", type: "Common" }, "default", false],
+    [ObjectAction.FindInPage]: ["FindEllipsis", { name: "Search", type: "Common" }, "default", false],
+    [ObjectAction.Fork]: ["Fork", { name: "Branch", type: "Routine" }, "default", false],
+    [ObjectAction.Report]: ["Report", { name: "Report", type: "Common" }, "default", false],
+    [ObjectAction.Share]: ["Share", { name: "Share", type: "Common" }, "default", false],
+    [ObjectAction.Stats]: ["StatisticsShort", { name: "Stats", type: "Common" }, "default", true],
+    [ObjectAction.VoteDown]: ["VoteDown", { name: "ArrowDown", type: "Common" }, "default", false],
+    [ObjectAction.VoteUp]: ["VoteUp", { name: "ArrowUp", type: "Common" }, "default", false],
 });
 
-export function getActionsDisplayData(actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] {
+export function getActionsDisplayData(actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "iconColor" | "iconInfo" | "labelKey" | "value">[] {
     return actions.map((action) => {
-        const [labelKey, Icon, iconColor, preview] = allOptionsMap[action];
-        return { labelKey, Icon, iconColor, preview, value: action };
+        const [labelKey, iconInfo, iconColor, preview] = allOptionsMap[action];
+        return { labelKey, iconInfo, iconColor, preview, value: action };
     });
 }

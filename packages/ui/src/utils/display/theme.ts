@@ -8,8 +8,21 @@ declare module "@mui/material/styles/createPalette" {
     }
 }
 
+export const BREAKPOINTS = {
+    xs: 0,
+    sm: 600,
+    md: 900,
+    lg: 1200,
+    xl: 1536,
+} as const;
+
+export const drawerTransitionDuration = { enter: 300, exit: 300 };
+
 // Define common theme options (button appearance, etc.)
 const commonTheme = createTheme({
+    breakpoints: {
+        values: BREAKPOINTS,
+    },
     components: {
         MuiButton: {
             defaultProps: {
@@ -22,10 +35,20 @@ const commonTheme = createTheme({
                 variant: "outlined",
             },
         },
+        MuiDrawer: {
+            defaultProps: {
+                transitionDuration: drawerTransitionDuration,
+            },
+        },
+        MuiSwipeableDrawer: {
+            defaultProps: {
+                transitionDuration: drawerTransitionDuration,
+            },
+        },
     },
 });
 
-const lightPalette = {
+export const lightPalette = {
     mode: "light",
     primary: {
         light: "#4372a3",
@@ -51,17 +74,6 @@ const lightTheme = createTheme({
     ...commonTheme,
     palette: lightPalette,
     components: {
-        // Override the default MuiTextField background color
-        MuiTextField: {
-            styleOverrides: {
-                root: {
-                    "& .MuiOutlinedInput-root": {
-                        // backgroundColor: lightPalette.background.paper,
-                        color: lightPalette.background.textPrimary,
-                    },
-                },
-            },
-        },
         MuiButton: {
             variants: [
                 {
@@ -83,6 +95,7 @@ const lightTheme = createTheme({
                         backgroundColor: lightPalette.secondary.main,
                         color: lightPalette.secondary.contrastText,
                         "&:hover": {
+                            // eslint-disable-next-line no-magic-numbers
                             backgroundColor: lighten(lightPalette.secondary.main, 0.1),
                         },
                     },
@@ -94,11 +107,20 @@ const lightTheme = createTheme({
                 disableRipple: true, // GlobalStyles overrides highlighting behavior
             },
         },
+        MuiTextField: {
+            styleOverrides: {
+                root: {
+                    "& .MuiOutlinedInput-root": {
+                        color: lightPalette.background.textPrimary,
+                    },
+                },
+            },
+        },
     },
 });
 
 // Dark theme
-const darkPalette = {
+export const darkPalette = {
     mode: "dark",
     primary: {
         light: "#5f6a89",
@@ -124,17 +146,6 @@ const darkTheme = createTheme({
     ...commonTheme,
     palette: darkPalette,
     components: {
-        // Override the default MuiTextField background color
-        MuiTextField: {
-            styleOverrides: {
-                root: {
-                    "& .MuiOutlinedInput-root": {
-                        // backgroundColor: darkPalette.background.paper,
-                        color: darkPalette.background.textPrimary,
-                    },
-                },
-            },
-        },
         MuiButton: {
             variants: [
                 {
@@ -156,6 +167,7 @@ const darkTheme = createTheme({
                         backgroundColor: darkPalette.secondary.main,
                         color: darkPalette.secondary.contrastText,
                         "&:hover": {
+                            // eslint-disable-next-line no-magic-numbers
                             backgroundColor: lighten(darkPalette.secondary.main, 0.1),
                         },
                     },
@@ -165,6 +177,15 @@ const darkTheme = createTheme({
         MuiIconButton: {
             defaultProps: {
                 disableRipple: true, // GlobalStyles overrides highlighting behavior
+            },
+        },
+        MuiTextField: {
+            styleOverrides: {
+                root: {
+                    "& .MuiOutlinedInput-root": {
+                        color: darkPalette.background.textPrimary,
+                    },
+                },
             },
         },
     },

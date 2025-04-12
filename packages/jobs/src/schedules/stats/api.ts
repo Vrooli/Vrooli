@@ -1,4 +1,4 @@
-import { batch, logger, prismaInstance } from "@local/server";
+import { DbProvider, batch, logger } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 /**
@@ -7,16 +7,16 @@ import { PeriodType, Prisma } from "@prisma/client";
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logApiStats = async (
+export async function logApiStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.api_versionFindManyArgs>({
             objectType: "ApiVersion",
             processBatch: async (batch) => {
-                await prismaInstance.stats_api.createMany({
+                await DbProvider.get().stats_api.createMany({
                     data: batch.map(apiVersion => ({
                         apiId: apiVersion.root.id,
                         periodStart,

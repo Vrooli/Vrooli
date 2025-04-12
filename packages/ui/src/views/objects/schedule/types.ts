@@ -1,11 +1,11 @@
 import { Schedule, ScheduleShape, TranslationKeyCommon } from "@local/shared";
-import { SvgComponent } from "types";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
+import { IconInfo } from "../../../icons/Icons.js";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
 
 export type ScheduleForType = "FocusMode" | "Meeting" | "RunProject" | "RunRoutine";
 
 export type ScheduleForOption = {
-    Icon: SvgComponent
+    iconInfo: IconInfo;
     labelKey: TranslationKeyCommon;
     objectType: ScheduleForType;
 }

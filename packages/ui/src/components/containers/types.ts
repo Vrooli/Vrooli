@@ -1,8 +1,10 @@
+/* c8 ignore start */
 import { CommentFor, TranslationKeyCommon } from "@local/shared";
 import { TypographyProps } from "@mui/material";
-import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "components/inputs/types";
 import { ReactNode } from "react";
-import { SvgComponent, SvgProps, SxType } from "types";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType } from "../../types.js";
+import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "../inputs/types.js";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;
@@ -17,15 +19,15 @@ export interface TitleContainerProps {
     children: ReactNode;
     help?: string;
     /** Icon displayed to the left of the title */
-    Icon?: SvgComponent;
+    iconInfo?: IconInfo | null | undefined;
     title: string;
     id?: string;
     loading?: boolean;
     options?: {
         /** Adds icon for option to the right of the title */
-        Icon?: SvgComponent;
+        iconInfo?: IconInfo | null | undefined;
         label: string;
-        onClick: (e?: any) => unknown;
+        onClick: (event?: any) => unknown;
     }[];
     sx?: SxType;
 }
@@ -39,13 +41,8 @@ export interface ListContainerProps {
     sx?: SxType;
 }
 
-export interface ListTitleContainerProps extends TitleContainerProps {
-    emptyText?: string;
-    isEmpty: boolean;
-}
-
 /** Array of label, Icon, disabled, isSubmit, onClick */
-export type DialogActionItem = [string, SvgComponent, boolean, boolean, () => unknown]
+export type DialogActionItem = [string, IconInfo | null | undefined, boolean, boolean, () => unknown]
 
 export interface ContentCollapseProps {
     children?: React.ReactNode;
@@ -58,7 +55,6 @@ export interface ContentCollapseProps {
     sxs?: {
         titleContainer?: SxType;
         root?: SxType;
-        helpButton?: SvgProps;
     }
     title?: string | null;
     titleComponent?: TypographyProps["component"];

@@ -1,6 +1,6 @@
-import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { ChatParticipantListItemProps } from "../types";
+import { DateDisplay } from "../../text/DateDisplay.js";
+import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { ChatParticipantListItemProps } from "../types.js";
 
 export function ChatParticipantListItem({
     data,

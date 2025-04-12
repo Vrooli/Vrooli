@@ -1,4 +1,4 @@
 export const notification_markAsRead = {
-  "success": true,
-  "__typename": "Notification"
-} as const;
+    "success": true,
+    "__cacheKey": "1826958523"
+};

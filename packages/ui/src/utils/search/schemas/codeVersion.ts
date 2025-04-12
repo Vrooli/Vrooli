@@ -1,25 +1,29 @@
-import { CodeVersionSortBy, FormSchema, endpointGetCodeVersion, endpointGetCodeVersions } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
+import { CodeVersionSortBy, FormSchema, endpointsCodeVersion } from "@local/shared";
+import { toParams } from "./base.js";
+import { bookmarksRootContainer, bookmarksRootFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common.js";
 
-export const codeVersionSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchCodeVersion"),
-    containers: [
-        isCompleteWithRootContainer,
-        isLatestContainer,
-        votesRootContainer(),
-        bookmarksRootContainer(),
-        languagesContainer(),
-        tagsRootContainer(),
-    ],
-    elements: [
-        ...isCompleteWithRootFields(),
-        ...isLatestFields(),
-        ...votesRootFields(),
-        ...bookmarksRootFields(),
-        ...languagesFields(),
-        ...tagsRootFields(),
-    ],
-});
+export function codeVersionSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchCodeVersion"),
+        containers: [
+            isCompleteWithRootContainer,
+            isLatestContainer,
+            votesRootContainer(),
+            bookmarksRootContainer(),
+            languagesContainer(),
+            tagsRootContainer(),
+        ],
+        elements: [
+            ...isCompleteWithRootFields(),
+            ...isLatestFields(),
+            ...votesRootFields(),
+            ...bookmarksRootFields(),
+            ...languagesFields(),
+            ...tagsRootFields(),
+        ],
+    };
+}
 
-export const codeVersionSearchParams = () => toParams(codeVersionSearchSchema(), endpointGetCodeVersions, endpointGetCodeVersion, CodeVersionSortBy, CodeVersionSortBy.DateCreatedDesc);
+export function codeVersionSearchParams() {
+    return toParams(codeVersionSearchSchema(), endpointsCodeVersion, CodeVersionSortBy, CodeVersionSortBy.DateCreatedDesc);
+}

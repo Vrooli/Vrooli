@@ -1,12 +1,12 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { Trigger } from "../../events/trigger";
-import { defaultPermissions } from "../../utils";
-import { PhoneFormat } from "../formats";
-import { PhoneModelLogic, TeamModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { Trigger } from "../../events/trigger.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { PhoneFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { PhoneModelLogic, TeamModelLogic } from "./types.js";
 
 const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({
@@ -31,28 +31,28 @@ export const PhoneModel: PhoneModelLogic = ({
                 // Prevent creating phones if at least one is already in use
                 if (Create.length) {
                     const phoneNumbers = Create.map(x => x.input.phoneNumber);
-                    const existingPhones = await prismaInstance.phone.findMany({
+                    const existingPhones = await DbProvider.get().phone.findMany({
                         where: { phoneNumber: { in: phoneNumbers } },
                     });
                     if (existingPhones.length > 0) {
-                        throw new CustomError("0147", "PhoneInUse", userData.languages, { phoneNumbers });
+                        throw new CustomError("0147", "PhoneInUse", { phoneNumbers });
                     }
                 }
                 // Prevent deleting phones if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allPhones = await prismaInstance.phone.findMany({
+                    const allPhones = await DbProvider.get().phone.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedPhonesCount = allPhones.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedEmailsCount = await prismaInstance.email.count({
+                    const verifiedEmailsCount = await DbProvider.get().email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    const verifiedWalletsCount = await prismaInstance.wallet.count({
+                    const verifiedWalletsCount = await DbProvider.get().wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedPhonesCount + verifiedEmailsCount + verifiedWalletsCount < 1)
-                        throw new CustomError("0153", "MustLeaveVerificationMethod", userData.languages);
+                        throw new CustomError("0153", "MustLeaveVerificationMethod");
                 }
                 return {};
             },

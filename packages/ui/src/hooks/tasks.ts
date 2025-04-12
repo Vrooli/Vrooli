@@ -1,11 +1,11 @@
-import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, StartLlmTaskInput, TaskContextInfo, TaskType, VALYXA_ID, endpointGetCheckTaskStatuses, endpointPostStartLlmTask, getTranslation, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ActiveChatContext } from "contexts";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { taskToTaskInfo } from "utils/display/chatTools";
-import { getCookieTasksForChat, setCookieTasksForChat } from "utils/localStorage";
-import { ChatTaskPub, ContextConnect, PubSub } from "utils/pubsub";
-import { useLazyFetch } from "./useLazyFetch";
+import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, uuid } from "@local/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchLazyWrapper } from "../api/fetchWrapper.js";
+import { useActiveChat } from "../stores/activeChatStore.js";
+import { taskToTaskInfo } from "../utils/display/chatTools.js";
+import { getCookieTasksForChat, setCookieTasksForChat } from "../utils/localStorage.js";
+import { ChatTaskPub, ContextConnect, PubSub } from "../utils/pubsub.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
 export type UseAutoFillProps<FormShape = object> = {
     /**
@@ -155,7 +155,8 @@ export function useAutoFill<T = object>({
     task,
 }: UseAutoFillProps<T>) {
     // Should always be associated with the main active chat
-    const { chat, latestMessageId } = useContext(ActiveChatContext);
+    const { chat, latestMessageId } = useActiveChat();
+    const model = "gpt-4o-mini"; //TODO
 
     /**
      * ID used when sending form data as a task context to the server. 
@@ -164,7 +165,7 @@ export function useAutoFill<T = object>({
     const contextId = useRef<string>(uuid());
 
     // Starts the autofill process in the server. Must listen to socket events for the result
-    const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartLlmTaskInput, undefined>(endpointPostStartLlmTask);
+    const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartLlmTaskInput, undefined>(endpointsTask.startLlmTask);
     const autoFill = useCallback(function autoFillCallback() {
         const chatId = chat?.id;
         if (!chatId) {
@@ -187,9 +188,10 @@ export function useAutoFill<T = object>({
             fetch: startLlmTask,
             inputs: {
                 chatId,
+                model,
                 // Used to add messages to the LLM context
                 parentId: latestMessageId,
-                respondingBotId: VALYXA_ID,
+                respondingBotId: SEEDED_IDS.User.Valyxa,
                 // Used to ensure that the task is only suggested, and not actually run. 
                 // We only want what it'd look like to create/update this object, and let the user 
                 // press the submit button to actually do it.
@@ -619,7 +621,7 @@ export function useChatTasks({
     }, [handleActiveTaskChange, handleInactiveTasksChange]);
 
     // Query for tasks which are in a running state, to see if they were completed when we were offline
-    const [getTaskData, { data: fetchedTaskData, loading: isTaskLoading }] = useLazyFetch<CheckTaskStatusesInput, CheckTaskStatusesResult>(endpointGetCheckTaskStatuses);
+    const [getTaskData, { data: fetchedTaskData, loading: isTaskLoading }] = useLazyFetch<CheckTaskStatusesInput, CheckTaskStatusesResult>(endpointsTask.checkStatuses);
 
     // Fetch task data when the chat ID changes
     const hasCheckedRunningTasks = useRef(false);

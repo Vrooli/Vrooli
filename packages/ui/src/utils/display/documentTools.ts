@@ -1,28 +1,119 @@
+// Names of all highlight classes. Must be defined in 
+// theme styles in App.tsx
+/** Style for current search match */
+export const SEARCH_HIGHLIGHT_CURRENT = "search-highlight-current";
+/** Style for element search map is placed in */
+export const SEARCH_HIGHLIGHT_ELEMENT = "search-highlight-wrap";
+/** Style for wrapper element that the search element is placed in */
+export const SEARCH_HIGHLIGHT_WRAPPER = "search-highlight";
+/** Style for tutorial element highlight */
+export const TUTORIAL_HIGHLIGHT = "tutorial-highlight";
+/** Style for snack message highlight */
+export const SNACK_HIGHLIGHT = "snack-highlight";
+/** Style for node with error */
+export const NODE_HIGHLIGHT_ERROR = "node-highlight-error";
+/** Style for node with warning */
+export const NODE_HIGHLIGHT_WARNING = "node-highlight-warning";
+/** Style for selected node */
+export const NODE_HIGHLIGHT_SELECTED = "node-highlight-selected";
+
 /**
- * Removes all highlight spans from the given element, and combines the text nodes within.
- * @param highlightClass The class name of the highlight spans to remove.
+ * Highlights all instances of the search term. Accomplishes this by doing the following: 
+ * 1. Remove all previous highlights
+ * 2. Finds all text nodes in the document
+ * 3. Maps diacritics from the search term and text nodes to their base characters
+ * 4. Checks if the search term is a substring of the text node, while adhering to the search options (case sensitive, whole word, regex)
+ * 5. Highlights the text node if it matches the search term, by wrapping it in a span with a custom class (custom class is necessary to remove the highlight later)
+ * @param searchString The search term
+ * @param isCaseSensitive Whether or not the search should be case sensitive
+ * @param isWholeWord Whether or not the search should be whole word
+ * @param isRegex Whether or not the search should be regex
+ * @returns Highlight spans
+ */
+export function highlightText(
+    searchString: string,
+    isCaseSensitive: boolean,
+    isWholeWord: boolean,
+    isRegex: boolean,
+): HTMLSpanElement[] {
+    // Remove all previous highlights
+    removeHighlights(SEARCH_HIGHLIGHT_WRAPPER); // General highlight class
+    removeHighlights(SEARCH_HIGHLIGHT_CURRENT); // Highlight class for the current match
+    removeHighlights(SEARCH_HIGHLIGHT_ELEMENT); // Wrapper class for a highlight's text node
+    // If text is empty, return
+    if (searchString.trim().length === 0) return [];
+    // Finds all text nodes in the document
+    const textNodes: Text[] = getTextNodes();
+    // Normalize the search term
+    const normalizedSearchString = normalizeText(searchString);
+    // Build the regex
+    let regexString = normalizedSearchString;
+    // If not regex, escape regex characters
+    if (!isRegex) { regexString = regexString.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"); }
+    // If whole word, wrap the search term in word boundaries
+    if (isWholeWord) { regexString = `\\b${regexString}\\b`; }
+    // Create global regex expression 
+    const regex = new RegExp(regexString, isCaseSensitive ? "g" : "gi");
+    // Loop through all text nodes, and store highlights. 
+    // These will be used for previous/next buttons
+    const highlightSpans: HTMLSpanElement[] = [];
+    textNodes.forEach((textNode) => {
+        const spans = wrapMatches(textNode, regex);
+        highlightSpans.push(...spans);
+    });
+    // If there is at least one highlight, change the first highlight's class to 'search-highlight-current'
+    if (highlightSpans.length > 0) {
+        highlightSpans[0].classList.add(SEARCH_HIGHLIGHT_CURRENT);
+    }
+    return highlightSpans;
+}
+
+/**
+ * Adds a highlight class to the provided element.
+ * @param highlightClass The class name of the highlight spans or elements to add.
+ * @param element The element to add the highlight class to.
+ */
+export function addHighlight(highlightClass: string, element: Element) {
+    element.classList.add(highlightClass);
+}
+
+/**
+ * Removes all highlight spans from the given element and removes highlight classes from non-text elements.
+ * @param highlightClass The class name of the highlight spans or elements to remove.
  * @param element The element to remove the highlight spans from. If not given, the entire document is used.
  */
-export const removeHighlights = (highlightClass: string, element?: HTMLElement) => {
-    const root = element || document.body; //document.getElementById('content-wrap');
+export function removeHighlights(highlightClass: string, element?: Element) {
+    const root = element || document.body;
     if (!root) return;
-    const highlightedElements = root.querySelectorAll(`.${highlightClass}`);
-    highlightedElements.forEach((root) => {
-        const parent = root.parentNode;
-        if (!parent) return;
-        const text = root.textContent;
-        if (!text) return;
-        const textNode = document.createTextNode(text);
-        parent.replaceChild(textNode, root);
+    let highlightedElements: Element[] = [];
+    // Check children of the root element for highlight spans
+    const highlightedChildren = root.querySelectorAll(`.${highlightClass}`);
+    highlightedElements = Array.from(highlightedChildren);
+    // Check the root element itself for highlight spans
+    if (root.classList.contains(highlightClass)) {
+        highlightedElements.push(root);
+    }
+    highlightedElements.forEach((element) => {
+        if (element instanceof HTMLSpanElement && element.classList.contains(SEARCH_HIGHLIGHT_ELEMENT)) {
+            const parent = element.parentNode;
+            if (!parent) return;
+            const text = element.textContent;
+            if (!text) return;
+            const textNode = document.createTextNode(text);
+            parent.replaceChild(textNode, element);
+        } else {
+            // Remove the highlight class from non-text elements
+            element.classList.remove(highlightClass);
+        }
     });
-};
+}
 
 /**
  * Finds all text nodes in the given element that are not hidden by another element on top of them.
  * @param element The element to find the text nodes in. If not given, the entire document is used.
  * @returns An array of text nodes.
  */
-export const getTextNodes = (element?: HTMLElement) => {
+export function getTextNodes(element?: HTMLElement) {
     const textNodes: Text[] = [];
     const root = element || document.body; //document.getElementById('content-wrap');
     if (!root) return textNodes;
@@ -37,7 +128,7 @@ export const getTextNodes = (element?: HTMLElement) => {
         node = walker.nextNode();
     }
     return textNodes;
-};
+}
 
 /**
  * Normalizes the given text by replacing diacritics with their base characters.
@@ -45,37 +136,38 @@ export const getTextNodes = (element?: HTMLElement) => {
  * @param text The text to normalize.
  * @returns The normalized text.
  */
-export const normalizeText = (text: string) => {
+export function normalizeText(text: string) {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-};
+}
 
 /**
  * Removes emojis from the given text.
  * @param text The text to remove emojis from.
  * @returns The text without emojis.
  */
-export const removeEmojis = (text: string) => {
+export function removeEmojis(text: string) {
     return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, "");
-};
+}
 
 /**
  * Removes punctuation from the given text.
  * @param text The text to remove punctuation from.
  * @returns The text without punctuation.
  */
-export const removePunctuation = (text: string) => {
+export function removePunctuation(text: string) {
     return text.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
-};
+}
 
 /**
  * Wraps matches in the given text node with a span element.
  * @param textNode The text node to highlight matches in.
  * @param searchRegex The regex used to search for matches.
- * @param wrapperClass The class name of the wrapper span, which is wrapped around the entire text node.
- * @param spanClass The class name of the span, which is wrapped around each match.
  * @returns The highlighted span elements
  */
-export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: string, spanClass: string): HTMLSpanElement[] => {
+export function wrapMatches(
+    textNode: Text,
+    searchRegex: RegExp,
+): HTMLSpanElement[] {
     const highlightSpans: HTMLSpanElement[] = [];
     if (!textNode.textContent) return highlightSpans;
     // Normalize the text node
@@ -87,7 +179,7 @@ export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: s
     // This element will have the same text as the text node, but with the matching sections each 
     // wrapped in a span with a custom class
     const newElement = document.createElement("span");
-    newElement.className = wrapperClass;
+    newElement.className = SEARCH_HIGHLIGHT_ELEMENT;
     let lastIndex = 0;
     matches.forEach((match) => {
         // Get the index of the match
@@ -101,7 +193,7 @@ export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: s
         // Create a span for the match
         const matchSpan = document.createElement("span");
         // Add the custom class to the span
-        matchSpan.classList.add(spanClass);
+        matchSpan.classList.add(SEARCH_HIGHLIGHT_WRAPPER);
         // Create a text node for the match
         const matchTextNode = document.createTextNode(match);
         // Append the text node to the span
@@ -122,4 +214,4 @@ export const wrapMatches = (textNode: Text, searchRegex: RegExp, wrapperClass: s
     // Replace the text node with the new element
     textNode.replaceWith(newElement);
     return highlightSpans;
-};
+}

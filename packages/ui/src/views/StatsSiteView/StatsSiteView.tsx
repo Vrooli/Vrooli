@@ -1,19 +1,21 @@
-import { DAYS_1_MS, endpointGetStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
+import { DAYS_1_MS, endpointsStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
-import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { statsDisplay } from "utils/display/statsDisplay";
-import { displayDate } from "utils/display/stringTools";
-import { TabParam } from "utils/search/objectToSearch";
-import { StatsSiteViewProps } from "../types";
+import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
+import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
+import { DateRangeMenu } from "../../components/lists/DateRangeMenu/DateRangeMenu.js";
+import { LineGraphCard } from "../../components/lists/LineGraphCard/LineGraphCard.js";
+import { Navbar } from "../../components/navigation/Navbar.js";
+import { PageContainer } from "../../components/Page/Page.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { ScrollBox } from "../../styles.js";
+import { statsDisplay } from "../../utils/display/statsDisplay.js";
+import { displayDate } from "../../utils/display/stringTools.js";
+import { TabParamBase } from "../../utils/search/objectToSearch.js";
+import { StatsSiteViewProps } from "../types.js";
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -59,29 +61,30 @@ type StatsSiteTabsInfo = {
     WhereParams: undefined;
 };
 
-export const statsSiteTabParams: TabParam<StatsSiteTabsInfo>[] = [
+export const statsSiteTabParams: TabParamBase<StatsSiteTabsInfo>[] = [
     {
-        key: "Daily",
+        key: StatsTabOption.Daily,
         titleKey: "Daily",
     }, {
-        key: "Weekly",
+        key: StatsTabOption.Weekly,
         titleKey: "Weekly",
     },
     {
-        key: "Monthly",
+        key: StatsTabOption.Monthly,
         titleKey: "Monthly",
     },
     {
-        key: "Yearly",
+        key: StatsTabOption.Yearly,
         titleKey: "Yearly",
     },
     {
-        key: "AllTime",
+        key: StatsTabOption.AllTime,
         titleKey: "AllTime",
     },
 ];
 
 // Stats should not be earlier than February 2023.
+// eslint-disable-next-line no-magic-numbers
 const MIN_DATE = new Date(2023, 1, 1);
 
 /**
@@ -89,22 +92,23 @@ const MIN_DATE = new Date(2023, 1, 1);
  */
 export function StatsSiteView({
     display,
-    onClose,
 }: StatsSiteViewProps) {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
 
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({
-        after: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        after: new Date(Date.now() - DAYS_1_MS),
         before: new Date(),
     });
     // Menu for picking date range.
-    const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-    const handleDateRangeOpen = (event: any) => setCustomRangeAnchorEl(event.currentTarget);
-    const handleDateRangeClose = () => {
+    const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<Element | null>(null);
+    function handleDateRangeOpen(event: any) {
+        setCustomRangeAnchorEl(event.currentTarget);
+    }
+    function handleDateRangeClose() {
         setCustomRangeAnchorEl(null);
-    };
+    }
     const handleDateRangeSubmit = useCallback((newAfter?: Date | undefined, newBefore?: Date | undefined) => {
         setPeriod({
             after: newAfter || period.after,
@@ -114,7 +118,7 @@ export function StatsSiteView({
     }, [period.after, period.before]);
 
     const { currTab, setCurrTab, tabs } = useTabs({ id: "stats-site-tabs", tabParams: statsSiteTabParams, display });
-    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<StatsSiteTabsInfo>) => {
+    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<StatsSiteTabsInfo>>) => {
         setCurrTab(tab);
         // Reset date range based on tab selection.
         const period = tabPeriods[tab.key];
@@ -125,7 +129,7 @@ export function StatsSiteView({
 
     // Handle querying stats data.
     const [getStats, { data: statsData, loading }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
-        ...endpointGetStatsSite,
+        ...endpointsStatsSite.findMany,
         inputs: {
             periodType: tabPeriodTypes[currTab.key] as StatPeriodType,
             periodTimeFrame: {
@@ -211,82 +215,79 @@ export function StatsSiteView({
     ), [t, visual]);
 
     return (
-        <>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("StatisticsShort")}
-                titleBehaviorDesktop="ShowIn"
-                below={<PageTabs
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Navbar title={t("StatisticsShort")} />
+                <PageTabs
                     ariaLabel="stats-period-tabs"
                     currTab={currTab}
                     fullWidth={true}
                     onChange={handleTabChange}
                     tabs={tabs}
-                />}
-            />
-            {/* Date range picker */}
-            <DateRangeMenu
-                anchorEl={dateRangeAnchorEl}
-                minDate={MIN_DATE}
-                maxDate={new Date()}
-                onClose={handleDateRangeClose}
-                onSubmit={handleDateRangeSubmit}
-                range={period}
-                strictIntervalRange={tabPeriods[currTab.key]}
-            />
-            {/* Date range diplay */}
-            <Typography
-                component="h3"
-                variant="body1"
-                textAlign="center"
-                onClick={handleDateRangeOpen}
-                sx={{ cursor: "pointer", marginBottom: 4, marginTop: 2 }}
-            >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
-            {/* Aggregate stats for the time period */}
-            <ContentCollapse
-                isOpen={true}
-                titleKey="Overview"
-                sxs={{
-                    root: {
-                        marginBottom: 4,
-                    },
-                    titleContainer: {
-                        justifyContent: "center",
-                    },
-                }}
-            >
-                {stats.length === 0 && <Typography
+                />
+                {/* Date range picker */}
+                <DateRangeMenu
+                    anchorEl={dateRangeAnchorEl}
+                    minDate={MIN_DATE}
+                    maxDate={new Date()}
+                    onClose={handleDateRangeClose}
+                    onSubmit={handleDateRangeSubmit}
+                    range={period}
+                    strictIntervalRange={tabPeriods[currTab.key]}
+                />
+                {/* Date range diplay */}
+                <Typography
+                    component="h3"
                     variant="body1"
                     textAlign="center"
-                    color="text.secondary"
-                    sx={{ marginTop: 4 }}
-                >{t("NoData")}</Typography>}
-                {aggregateCards.length > 0 && <CardGrid minWidth={300}>
-                    {aggregateCards}
-                </CardGrid>}
-            </ContentCollapse>
+                    onClick={handleDateRangeOpen}
+                    sx={{ cursor: "pointer", marginBottom: 4, marginTop: 2 }}
+                >{displayDate(period.after.getTime(), false) + " - " + displayDate(period.before.getTime(), false)}</Typography>
+                {/* Aggregate stats for the time period */}
+                <ContentCollapse
+                    isOpen={true}
+                    titleKey="Overview"
+                    sxs={{
+                        root: {
+                            marginBottom: 4,
+                        },
+                        titleContainer: {
+                            justifyContent: "center",
+                        },
+                    }}
+                >
+                    {stats.length === 0 && <Typography
+                        variant="body1"
+                        textAlign="center"
+                        color="text.secondary"
+                        sx={{ marginTop: 4 }}
+                    >{t("NoData")}</Typography>}
+                    {aggregateCards.length > 0 && <CardGrid minWidth={300}>
+                        {aggregateCards}
+                    </CardGrid>}
+                </ContentCollapse>
 
-            {/* Line graph cards */}
-            <ContentCollapse
-                isOpen={true}
-                titleKey="Visual"
-                sxs={{
-                    titleContainer: {
-                        justifyContent: "center",
-                    },
-                }}
-            >
-                {graphCards.length === 0 && <Typography
-                    variant="body1"
-                    textAlign="center"
-                    color="text.secondary"
-                    sx={{ marginTop: 4 }}
-                >{t("NoData")}</Typography>}
-                {graphCards.length > 0 && <CardGrid minWidth={300}>
-                    {graphCards}
-                </CardGrid>}
-            </ContentCollapse>
-        </>
+                {/* Line graph cards */}
+                <ContentCollapse
+                    isOpen={true}
+                    titleKey="Visual"
+                    sxs={{
+                        titleContainer: {
+                            justifyContent: "center",
+                        },
+                    }}
+                >
+                    {graphCards.length === 0 && <Typography
+                        variant="body1"
+                        textAlign="center"
+                        color="text.secondary"
+                        sx={{ marginTop: 4 }}
+                    >{t("NoData")}</Typography>}
+                    {graphCards.length > 0 && <CardGrid minWidth={300}>
+                        {graphCards}
+                    </CardGrid>}
+                </ContentCollapse>
+            </ScrollBox>
+        </PageContainer>
     );
 }

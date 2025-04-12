@@ -1,11 +1,15 @@
-import { endpointGetSchedule, endpointGetSchedules, FormSchema, ScheduleSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsSchedule, FormSchema, ScheduleSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const scheduleSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchSchedule"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function scheduleSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchSchedule"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), endpointGetSchedules, endpointGetSchedule, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc);
+export function scheduleSearchParams() {
+    return toParams(scheduleSearchSchema(), endpointsSchedule, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc);
+}

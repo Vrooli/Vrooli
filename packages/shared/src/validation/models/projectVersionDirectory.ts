@@ -1,5 +1,10 @@
 import * as yup from "yup";
-import { bool, description, id, maxStrErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, name } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
 export const childOrder = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 

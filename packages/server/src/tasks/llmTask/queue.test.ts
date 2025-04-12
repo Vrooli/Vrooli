@@ -1,11 +1,12 @@
 import { MINUTES_1_MS, TaskStatus } from "@local/shared";
-import Bull from "../../__mocks__/bull";
-import { LlmTaskProcessPayload, changeLlmTaskStatus, processLlmTask, setupLlmTaskQueue } from "./queue";
+import { expect } from "chai";
+import Bull from "../../__mocks__/bull.js";
+import { LlmTaskProcessPayload, changeLlmTaskStatus, processLlmTask, setupLlmTaskQueue } from "./queue.js";
 
 describe("processLlmTask", () => {
     let llmTaskQueue;
 
-    beforeAll(async () => {
+    before(async () => {
         llmTaskQueue = new Bull("command");
         await setupLlmTaskQueue();
     });
@@ -44,7 +45,7 @@ describe("processLlmTask", () => {
 
         // Additionally, check if the jobId and timeout options are set correctly
         const options = llmTaskQueue.add.mock.calls[0][1];
-        expect(options).toEqual({ jobId: testTask.taskInfo.taskId, timeout: MINUTES_1_MS });
+        expect(options).to.deep.equal({ jobId: testTask.taskInfo.taskId, timeout: MINUTES_1_MS });
     });
 });
 
@@ -53,7 +54,7 @@ describe("changeLlmTaskStatus", () => {
         Bull.resetMock();
     });
 
-    test("should update a failed task that exists", async () => {
+    it("should update a failed task that exists", async () => {
         // Add a mock job with status "Failed"
         const mockJob = {
             id: "jobId123",
@@ -65,35 +66,35 @@ describe("changeLlmTaskStatus", () => {
 
         const result = await changeLlmTaskStatus("jobId123", "Scheduled", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: true });
         expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "Scheduled" });
     });
 
-    test("should consider it a success when updating to 'Failed' and the task doesn't exist", async () => {
+    it("should consider it a success when updating to 'Failed' and the task doesn't exist", async () => {
         const result = await changeLlmTaskStatus("jobId123", "Failed", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: true });
     });
 
-    test("should consider it a success when updating to 'Completed' and the task doesn't exist", async () => {
+    it("should consider it a success when updating to 'Completed' and the task doesn't exist", async () => {
         const result = await changeLlmTaskStatus("jobId123", "Completed", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: true });
     });
 
-    test("should consider it a success when updating to 'Suggested' and the task doesn't exist", async () => {
+    it("should consider it a success when updating to 'Suggested' and the task doesn't exist", async () => {
         const result = await changeLlmTaskStatus("jobId123", "Suggested", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: true });
     });
 
-    test("should consider it a fail when updating to 'Running' and the task doesn't exist", async () => {
+    it("should consider it a fail when updating to 'Running' and the task doesn't exist", async () => {
         const result = await changeLlmTaskStatus("jobId123", "Running", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: false });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: false });
     });
 
-    test("should update a scheduled task that exists", async () => {
+    it("should update a scheduled task that exists", async () => {
         // Add a mock job with status "Scheduled"
         const mockJob = {
             id: "jobId123",
@@ -104,11 +105,11 @@ describe("changeLlmTaskStatus", () => {
 
         const result = await changeLlmTaskStatus("jobId123", "Running", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: true });
         expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "Running" });
     });
 
-    test("should fail to reschedule a task if not in the correct state", async () => {
+    it("should fail to reschedule a task if not in the correct state", async () => {
         // Add a mock job with status "Completed"
         const mockJob = {
             id: "jobId123",
@@ -119,10 +120,10 @@ describe("changeLlmTaskStatus", () => {
 
         const result = await changeLlmTaskStatus("jobId123", "Scheduled", "userId456");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: false });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: false });
     });
 
-    test("should not allow unauthorized user to change task status", async () => {
+    it("should not allow unauthorized user to change task status", async () => {
         // Add a mock job with status "Scheduled"
         const mockJob = {
             id: "jobId123",
@@ -132,6 +133,6 @@ describe("changeLlmTaskStatus", () => {
 
         const result = await changeLlmTaskStatus("jobId123", "Running", "unauthorizedUserId");
 
-        expect(result).toEqual({ __typename: "Success" as const, success: false });
+        expect(result).to.deep.equal({ __typename: "Success" as const, success: false });
     });
 });

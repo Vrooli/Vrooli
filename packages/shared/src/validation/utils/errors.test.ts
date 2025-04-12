@@ -1,4 +1,5 @@
-import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
+import { expect } from "chai";
+import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
 
 describe("Yup-related functions", () => {
     describe("maxNumErr", () => {
@@ -9,7 +10,7 @@ describe("Yup-related functions", () => {
 
         cases.forEach(({ max, expected }) => {
             it(`should return "${expected}" for max value ${max}`, () => {
-                expect(maxNumErr({ max })).toBe(expected);
+                expect(maxNumErr({ max })).to.equal(expected);
             });
         });
     });
@@ -25,11 +26,13 @@ describe("Yup-related functions", () => {
         cases.forEach(({ max, value, expected, error }) => {
             const testLabel = error ? `throw "${error}"` : `return "${expected}"`;
             it(`should ${testLabel} for value "${value}" with max ${max}`, () => {
-                const action = () => maxStrErr({ max, value });
+                function action() {
+                    return maxStrErr({ max, value });
+                }
                 if (error) {
-                    expect(action).toThrow(error);
+                    expect(action).to.throw(error);
                 } else {
-                    expect(action()).toBe(expected);
+                    expect(action()).to.equal(expected);
                 }
             });
         });
@@ -43,7 +46,7 @@ describe("Yup-related functions", () => {
 
         cases.forEach(({ min, expected }) => {
             it(`should return "${expected}" for min value ${min}`, () => {
-                expect(minNumErr({ min })).toBe(expected);
+                expect(minNumErr({ min })).to.equal(expected);
             });
         });
     });
@@ -59,11 +62,13 @@ describe("Yup-related functions", () => {
         cases.forEach(({ min, value, expected, error }) => {
             const testLabel = error ? `throw "${error}"` : `return "${expected}"`;
             it(`should ${testLabel} for value "${value}" with min ${min}`, () => {
-                const action = () => minStrErr({ min, value });
+                function action() {
+                    return minStrErr({ min, value });
+                }
                 if (error) {
-                    expect(action).toThrow(error);
+                    expect(action).to.throw(error);
                 } else {
-                    expect(action()).toBe(expected);
+                    expect(action()).to.equal(expected);
                 }
             });
         });
@@ -71,7 +76,7 @@ describe("Yup-related functions", () => {
 
     describe("reqErr", () => {
         it("should return \"This field is required\"", () => {
-            expect(reqErr()).toBe("This field is required");
+            expect(reqErr()).to.equal("This field is required");
         });
     });
 });

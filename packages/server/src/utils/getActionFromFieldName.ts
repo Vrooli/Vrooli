@@ -1,4 +1,4 @@
-import { QueryAction } from "./types";
+import { QueryAction } from "./types.js";
 
 /** If field is a relation, finds action type */
 export const getActionFromFieldName = (fieldName: string): QueryAction | null => {

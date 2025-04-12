@@ -75,7 +75,7 @@ info "Setting Kubernetes secrets using .env file: ${ENV_FILE}"
 # we need to deploy the Docker images to Docker Hub, which means these are environment variables in
 # docker-compose, which means they can be found in the image. The best way to keep them secret
 # is using a vault, which we'll do later.
-INCLUDE_ENV=("GOOGLE_ADSENSE_PUBLISHER_ID" "GOOGLE_TRACKING_ID" "LETSENCRYPT_EMAIL" "SERVER_URL" "SITE_EMAIL_ALIAS" "SITE_EMAIL_FROM" "SITE_EMAIL_USERNAME" "SITE_IP" "STRIPE_PUBLISHABLE_KEY" "VAPID_PUBLIC_KEY" "VIRTUAL_HOST" "VIRTUAL_HOST_DOCS")
+INCLUDE_ENV=("GOOGLE_ADSENSE_PUBLISHER_ID" "GOOGLE_TRACKING_ID" "LETSENCRYPT_EMAIL" "API_URL" "SITE_EMAIL_ALIAS" "SITE_EMAIL_FROM" "SITE_EMAIL_USERNAME" "SITE_IP" "STRIPE_PUBLISHABLE_KEY" "VAPID_PUBLIC_KEY" "VIRTUAL_HOST" "VIRTUAL_HOST_DOCS")
 
 # Convert the array to an associative array (i.e., a hash map) for efficient lookups
 declare -A INCLUDE_ENV_MAP
@@ -127,7 +127,7 @@ success "Kubernetes secrets set successfully"
 # Specify non-sensitive environment variables, which will be replaced with their values in the Docker Compose file.
 # DO NOT INCLUDE VARIABLES FOR PASSWORDS OR OTHER SENSITIVE INFORMATION!!!
 # NOTE: Variables used in ports must be included here, because Kompose doesn't support environment variables in ports.
-NON_SENSITIVE_VARS=("CREATE_MOCK_DATA" "DB_PULL" "DB_USER" "GENERATE_SOURCEMAP" "PORT_DB" "PORT_DOCS" "PORT_REDIS" "PORT_SERVER" "PORT_TRANSLATE" "PORT_UI" "PROJECT_DIR" "SERVER_LOCATION")
+NON_SENSITIVE_VARS=("CREATE_MOCK_DATA" "DB_PULL" "DB_USER" "GENERATE_SOURCEMAP" "PORT_DB" "PORT_REDIS" "PORT_API" "PORT_TRANSLATE" "PORT_UI" "PROJECT_DIR" "SERVER_LOCATION")
 
 # Load environment variables from .env file
 set -a
@@ -197,7 +197,7 @@ else
     prompt "Would you like to apply the generated Kubernetes YAML file now? (y/n)"
     read -n1 -r APPLY
     echo
-    if [[ "$APPLY" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    if is_yes "$APPLY"; then
         kubectl apply -f ${OUTPUT_FILE}
         if [ $? -ne 0 ]; then
             error "Failed to apply the generated Kubernetes YAML file"
@@ -214,7 +214,7 @@ fi
 prompt "Would you like to stop Minikube? (y/n)"
 read -n1 -r STOP_MINIKUBE
 echo
-if [[ "$STOP_MINIKUBE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+if is_yes "$STOP_MINIKUBE"; then
     info "Stopping Minikube..."
     minikube stop
     if [ $? -ne 0 ]; then

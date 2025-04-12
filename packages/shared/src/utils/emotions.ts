@@ -1,4 +1,4 @@
-import { exists } from "./exists";
+import { exists } from "./exists.js";
 
 // Reactions that increase the score of the object
 const PositiveReactions = ["👍", "👏", "🎉", "🥳", "😊", "😃", "😄", "😁", "😇", "❤️", "🥰", "💖", "😍", "🚀", "👀", "🔥", "🎊", "🙌", "👌", "👊", "💯", "🤘", "🤙", "🤟", "🤝"];

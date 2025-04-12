@@ -1,9 +1,12 @@
-import { TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
+import { HttpMethod, ServerResponse, TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
 import { useCallback } from "react";
-import { PubSub } from "utils/pubsub";
-import { errorToMessage } from "./errorParser";
-import { fetchData } from "./fetchData";
-import { LazyRequestWithResult, Method, ServerResponse } from "./types";
+import { ELEMENT_IDS } from "../utils/consts.js";
+import { PubSub } from "../utils/pubsub.js";
+import { fetchData } from "./fetchData.js";
+import { ServerResponseParser } from "./responseParser.js";
+import { LazyRequestWithResult } from "./types.js";
+
+const DEFAULT_SPINNER_DELAY_MS = 1000;
 
 // For some reason, these snack message types break when we omit "severity". So we must redefine them here
 type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
@@ -16,7 +19,7 @@ type UntranslatedSnackMessage = {
 type SnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
 type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
-    buttonClicked?: (event?: any) => any;
+    buttonClicked?: (event?: any) => unknown;
     buttonKey?: TranslationKeyCommon;
     buttonVariables?: { [key: string]: string | number };
     data?: any;
@@ -68,15 +71,15 @@ interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
     /** Message displayed on success */
     successMessage?: (data: Output) => SnackPub<TranslationKeyCommon>;
     /** Callback triggered on success */
-    onSuccess?: (data: Output) => any;
+    onSuccess?: (data: Output) => unknown;
     /** Message displayed on error */
     errorMessage?: (response?: ServerResponse) => SnackPub<TranslationKeyError | TranslationKeyCommon>;
     /** If true, display default error snack. Will not display if error message is set */
     showDefaultErrorSnack?: boolean;
     /** Callback triggered on error */
-    onError?: (response: ServerResponse) => any;
+    onError?: (response: ServerResponse) => unknown;
     /** Callback triggered on either success or error */
-    onCompleted?: (response: ServerResponse) => any;
+    onCompleted?: (response: ServerResponse) => unknown;
     /** Milliseconds before showing a spinner. If undefined or null, spinner disabled */
     spinnerDelay?: number | null;
 }
@@ -91,12 +94,14 @@ export async function fetchLazyWrapper<Input extends object | undefined, Output>
     showDefaultErrorSnack = true,
     onError,
     onCompleted,
-    spinnerDelay = 1000,
+    spinnerDelay = DEFAULT_SPINNER_DELAY_MS,
 }: FetchLazyWrapperProps<Input, Output>): Promise<ServerResponse<Output>> {
     // Helper function to handle errors
     function handleError(data?: ServerResponse | undefined) {
         // Stop spinner
-        if (spinnerDelay) PubSub.get().publish("loading", false);
+        if (spinnerDelay) {
+            PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: false } });
+        }
         // Determine if error caused by bad response, or caught error
         const isError: boolean = exists(data) && exists(data.errors);
         // If specific error message is set, display it
@@ -106,22 +111,34 @@ export async function fetchLazyWrapper<Input extends object | undefined, Output>
         // Otherwise, if show default error snack is set, display it
         else if (showDefaultErrorSnack) {
             PubSub.get().publish("snack", {
-                message: errorToMessage(data as ServerResponse, ["en"]),
+                message: ServerResponseParser.errorToMessage(data as ServerResponse, ["en"]),
                 severity: "Error",
                 data,
             });
         }
         // If error callback is set, call it
         if (typeof onError === "function") {
-            onError(isError ? data as ServerResponse : { errors: [{ message: "Unknown error occurred" }] });
+            if (isError) {
+                onError(data as ServerResponse);
+            } else {
+                const error = { trace: "0694", message: "Unknown error occurred" };
+                onError({ errors: [error] });
+            }
         }
         // If completed callback is set, call it
         if (typeof onCompleted === "function") {
-            onCompleted(isError ? data as ServerResponse : { errors: [{ message: "Unknown error occurred" }] });
+            if (isError) {
+                onCompleted(data as ServerResponse);
+            } else {
+                const error = { trace: "0695", message: "Unknown error occurred" };
+                onCompleted({ errors: [error] });
+            }
         }
     }
     // Start loading spinner
-    if (spinnerDelay) PubSub.get().publish("loading", spinnerDelay);
+    if (spinnerDelay) {
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: true, delay: spinnerDelay } });
+    }
     let result: ServerResponse<Output> = {};
     // Convert inputs to FormData if they contain a File
     const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
@@ -168,7 +185,9 @@ export async function fetchLazyWrapper<Input extends object | undefined, Output>
             handleError(error);
         }).finally(() => {
             // Stop spinner
-            if (spinnerDelay) PubSub.get().publish("loading", false);
+            if (spinnerDelay) {
+                PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: false } });
+            }
         });
     return result;
 }
@@ -177,7 +196,7 @@ interface FetchWrapperProps<Input extends object | undefined, Output> extends Om
     // Endpoint to call
     endpoint: string;
     // Method for endpoint
-    method: Method;
+    method: HttpMethod;
 }
 
 export function fetchWrapper<Input extends object | undefined, Output>({

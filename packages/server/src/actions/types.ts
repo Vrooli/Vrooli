@@ -1,25 +1,24 @@
-import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
-import { Request } from "express";
-import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { SessionData, SessionUserToken } from "../types";
-import { EmbeddableType } from "../utils/embeddings/types";
+import { CopyInput, DeleteManyInput, DeleteOneInput, ModelType, SessionUser, VisibilityType } from "@local/shared";
+import { RequestService } from "../auth/request.js";
+import { CountInputBase, PartialApiInfo } from "../builders/types.js";
+import { EmbeddableType } from "../utils/embeddings/types.js";
 
 export type CudAdditionalData = Record<string, any>;
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
-    objectType: `${GqlModelType}`;
-    req: { session: SessionData };
+    objectType: `${ModelType}`;
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
     where?: { [x: string]: any };
     visibility?: VisibilityType;
 }
 
 export type CreateOneHelperProps = {
     additionalData?: CudAdditionalData;
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: PartialApiInfo;
     input: any;
-    objectType: `${GqlModelType}`;
-    req: { session: SessionData };
+    objectType: `${ModelType}`;
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
@@ -28,19 +27,19 @@ export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
 
 export type DeleteManyHelperProps = {
     input: DeleteManyInput;
-    req: { session: SessionData };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type DeleteOneHelperProps = {
     input: DeleteOneInput;
-    req: { session: SessionData };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type CopyHelperProps = {
-    info: GraphQLInfo | PartialGraphQLInfo,
+    info: PartialApiInfo,
     input: CopyInput,
-    objectType: `${GqlModelType}`,
-    req: { session: SessionData },
+    objectType: `${ModelType}`,
+    req: Parameters<typeof RequestService.assertRequestFrom>[0],
 }
 
 export type ReadManyHelperProps<
@@ -53,10 +52,10 @@ export type ReadManyHelperProps<
      * later in one call
      */
     addSupplemental?: boolean;
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: PartialApiInfo;
     input: Input;
-    objectType: `${GqlModelType}`;
-    req: { session: { languages: string[], users?: SessionUserToken[] } };
+    objectType: `${ModelType}`;
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
     visibility?: VisibilityType;
 }
 
@@ -79,10 +78,10 @@ type FindUniqueInput = {
     idRoot?: string | null | undefined;
 }
 export type ReadOneHelperProps = {
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: PartialApiInfo;
     input: FindUniqueInput;
-    objectType: `${GqlModelType}`;
-    req: { session: { languages: string[], users?: SessionUserToken[] } };
+    objectType: `${ModelType}`;
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type RelBuilderHelperProps<
@@ -97,17 +96,17 @@ export type RelBuilderHelperProps<
     isOneToOne: IsOneToOne,
     isRequired: IsRequired,
     linkVersion?: boolean,
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     relationshipName: RelName,
-    userData: SessionUserToken,
+    userData: SessionUser,
 }
 
 export type UpdateOneHelperProps = {
     additionalData?: CudAdditionalData;
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: PartialApiInfo;
     input: any;
-    objectType: GqlModelType | `${GqlModelType}`;
-    req: Request;
+    objectType: ModelType | `${ModelType}`;
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type UpdateManyHelperProps = Omit<UpdateOneHelperProps, "input"> & {

@@ -1,7 +1,8 @@
 import { Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { BaseQueue } from "../base/queue.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type PushSubscription = {
     endpoint: string;
@@ -20,18 +21,18 @@ export type PushPayload = {
 
 let logger: winston.Logger;
 let pushProcess: (job: Bull.Job<PushSubscription & PushPayload>) => Promise<unknown>;
-let pushQueue: Bull.Queue<PushSubscription & PushPayload>;
+export let pushQueue: BaseQueue<PushSubscription & PushPayload>;
 const FOLDER = "push";
 
 // Call this on server startup
 export async function setupPushQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         pushProcess = (await import(getProcessPath(FOLDER))).pushProcess;
 
         // Initialize the Bull queue
-        pushQueue = new Bull<PushSubscription & PushPayload>("push", {
+        pushQueue = new BaseQueue<PushSubscription & PushPayload>(FOLDER, {
             redis: REDIS_URL,
             defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
@@ -51,7 +52,7 @@ export function sendPush(
     payload: PushPayload,
     delay = 0,
 ): Promise<Success> {
-    return addJobToQueue(pushQueue, {
+    return addJobToQueue(pushQueue.getQueue(), {
         ...payload,
         ...subscription,
     }, { delay });

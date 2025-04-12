@@ -1,6 +1,9 @@
-import { InputType, TagShape, TimeFrame } from "@local/shared";
-import { SearchPageTabOption } from "../consts/search";
-import { CodeLanguage } from "../consts/ui";
+/* c8 ignore start */
+import { TimeFrame } from "../api/types.js";
+import { InputType } from "../consts/model.js";
+import { SearchPageTabOption } from "../consts/search.js";
+import { CodeLanguage } from "../consts/ui.js";
+import { TagShape } from "../shape/models/models.js";
 
 /**
  * Non-input form elements
@@ -8,6 +11,10 @@ import { CodeLanguage } from "../consts/ui";
 export enum FormStructureType {
     Divider = "Divider",
     Header = "Header",
+    Image = "Image",
+    QrCode = "QrCode",
+    Tip = "Tip",
+    Video = "Video",
 }
 
 export type FormBuildViewProps = {
@@ -63,7 +70,7 @@ export interface FormElementBase {
     label: string;
 }
 
-export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "body1" | "body2";
 export type FormHeaderType = FormElementBase & {
     type: FormStructureType.Header;
     /** 
@@ -71,12 +78,46 @@ export type FormHeaderType = FormElementBase & {
      * until the next header, page break/divider, or the end of the form.
      */
     isCollapsible?: boolean;
+    isMarkdown?: boolean;
     tag: HeaderTag;
+    color?: "primary" | "secondary" | "default" | string;
 };
 
 export type FormDividerType = FormElementBase & {
     type: FormStructureType.Divider;
 }
+
+export type FormImageType = FormElementBase & {
+    /** URL of the image */
+    url: string;
+    type: FormStructureType.Image;
+}
+
+export type FormQrCodeType = FormElementBase & {
+    /** URL of the QR code */
+    url: string;
+    type: FormStructureType.QrCode;
+}
+
+export type FormTipType = FormElementBase & {
+    /** Icon displayed with the tip. Defaults to "Info" */
+    icon?: "Error" | "Info" | "Warning";
+    isMarkdown?: boolean;
+    /** 
+     * URL, if the tip is a link.
+     * 
+     * NOTE: This may override the icon, chaning it to 
+     * a link or video icon (depending on the URL).
+     */
+    link?: string;
+    type: FormStructureType.Tip;
+};
+
+export type FormVideoType = FormElementBase & {
+    /** URL of the video. Currently only supports YouTube */
+    url: string;
+    type: FormStructureType.Video;
+};
 
 /** Common props required by every form input type */
 export interface FormInputBase extends FormElementBase {
@@ -90,6 +131,8 @@ export interface FormInputBase extends FormElementBase {
 
 /** Checkbox-specific form input props */
 export interface CheckboxFormInputProps {
+    /** Allow users to input custom values */
+    allowCustomValues?: boolean;
     color?: "primary" | "secondary" | "default";
     /** Array of booleans. One for each option in props */
     defaultValue?: boolean[];
@@ -98,6 +141,8 @@ export interface CheckboxFormInputProps {
         label: string;
         value: string;
     }[];
+    /** Maximum number of custom values allowed */
+    maxCustomValues?: number;
     /**
      * The maximum number of checkboxes that can be selected. 
      * If 0 or not set, there is no limit.
@@ -148,7 +193,7 @@ export type DropzoneFormInputProps = {
 /** Type-props pair for Dropzone input components */
 export type DropzoneFormInput = FormInputBase & {
     /** The type of the field */
-    type: InputType.Checkbox;
+    type: InputType.Dropzone;
     /** Type-specific props */
     props: DropzoneFormInputProps;
 }
@@ -290,7 +335,7 @@ export type SelectorFormInputProps<T extends SelectorFormInputOption> = {
     inputAriaLabel?: string;
     isRequired?: boolean,
     label?: string;
-    multiple?: false;
+    multiple?: boolean;
     noneOption?: boolean;
     noneText?: string;
     options: readonly T[];
@@ -391,8 +436,14 @@ export type FormInputType =
     SwitchFormInput |
     TagSelectorFormInput |
     TextFormInput;
-
-export type FormElement = FormHeaderType | FormDividerType | FormInputType;
+export type FormInformationalType =
+    FormHeaderType |
+    FormDividerType |
+    FormImageType |
+    FormQrCodeType |
+    FormTipType |
+    FormVideoType;
+export type FormElement = FormInformationalType | FormInputType;
 
 
 //==============================================================
@@ -540,11 +591,11 @@ export interface FormSchema {
      * can only be one level deep. If this is empty, then all elements
      * will be placed in one container.
      */
-    containers: GridContainer[];
+    containers: readonly GridContainer[];
     /**
      * Defines the shape of every element in the form, including headers, dividers, and inputs
      */
-    elements: FormElement[];
+    elements: readonly FormElement[];
 }
 
 /**

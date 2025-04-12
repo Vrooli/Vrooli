@@ -1,15 +1,16 @@
-import { GqlModelType, MaxObjects, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { findFirstRel } from "../../builders/findFirstRel";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { labelShapeHelper } from "../../utils/shapes";
-import { ScheduleFormat } from "../formats";
-import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
+import { findFirstRel } from "../../builders/findFirstRel.js";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { ScheduleFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
     FocusMode: "focusModes",
@@ -27,13 +28,13 @@ export const ScheduleModel: ScheduleModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 for (const [key, value] of Object.entries(forMapper)) {
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
-                return i18next.t("common:Schedule", { lng: languages[0], count: 1 });
+                return i18next.t("common:Schedule", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 1 });
             },
         },
     }),
@@ -88,13 +89,13 @@ export const ScheduleModel: ScheduleModelLogic = ({
         },
         searchStringQuery: () => ({
             OR: [
-                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: { some: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() } })),
+                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: { some: ModelMap.getLogic(["search"], key as ModelType).search.searchStringQuery() } })),
             ],
         }),
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["PrismaSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType]), ...rest),
+        isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["DbSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType]), ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {
@@ -102,7 +103,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
             // Find owner from the object that has the pull request
             const [onField, onData] = findFirstRel(data, Object.values(forMapper));
             if (!onField || !onData) return {};
-            const onType = uppercaseFirstLetter(onField.slice(0, -1)) as GqlModelType;
+            const onType = uppercaseFirstLetter(onField.slice(0, -1)) as ModelType;
             const canValidate = Array.isArray(onData) && onData.length > 0;
             if (!canValidate) return {};
             return ModelMap.get(onType).validate().owner(onData[0], userId);
@@ -110,14 +111,14 @@ export const ScheduleModel: ScheduleModelLogic = ({
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
+            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType])),
         }),
         visibility: {
             own: function getOwn(data) {
                 return {
                     OR: [
                         ...Object.entries(forMapper).map(([key, value]) => ({
-                            [value]: { some: useVisibility(key as GqlModelType, "Own", data) },
+                            [value]: { some: useVisibility(key as ModelType, "Own", data) },
                         })),
                     ],
                 };
@@ -145,7 +146,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
                             // Custom validation for meetings
                             [value]: key === "Meeting"
                                 ? (ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility as any).attendingOrInvited(data)
-                                : useVisibility(key as GqlModelType, "Public", data),
+                                : useVisibility(key as ModelType, "Public", data),
                         })),
                     ],
                 };

@@ -1,4 +1,4 @@
-import { isObject } from "./objects";
+import { isObject } from "./objects.js";
 
 /**
  * Performs a deep comparison of two objects and returns true if they are the same.

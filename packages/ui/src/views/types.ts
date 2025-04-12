@@ -1,9 +1,7 @@
 import { ChatShape, ListObject, MemberInviteShape } from "@local/shared";
 import { ReactNode } from "react";
-import { ViewProps } from "types";
+import { ViewProps } from "../types.js";
 
-export type AboutViewProps = ViewProps
-export type AwardsViewProps = ViewProps
 export type CalendarViewProps = ViewProps
 export interface ErrorBoundaryProps {
     children: ReactNode;
@@ -19,8 +17,6 @@ export type ParticipantManageViewProps = ViewProps & {
     chat: ChatShape;
     isEditing: boolean;
 }
-export type PrivacyPolicyViewProps = ViewProps
-export type PremiumViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps
 export type SearchViewProps = ViewProps
 export type SearchVersionViewProps = ViewProps
@@ -31,4 +27,3 @@ export type StatsObjectViewProps<T extends ListObject> = ViewProps & {
     object: T | null | undefined;
 }
 export type ReportsViewProps = ViewProps
-export type TermsViewProps = ViewProps

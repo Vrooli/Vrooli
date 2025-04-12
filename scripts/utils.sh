@@ -59,32 +59,32 @@ echo_color() {
 
 # Print header message
 header() {
-    echo_color MAGENTA "$1"
+    echo_color MAGENTA "[HEADER]  $*"
 }
 
 # Print info message
 info() {
-    echo_color CYAN "$1"
+    echo_color CYAN "[INFO]    $*"
 }
 
 # Print success message
 success() {
-    echo_color GREEN "$1"
+    echo_color GREEN "[SUCCESS] $*"
 }
 
 # Print error message
 error() {
-    echo_color RED "$1"
+    echo_color RED "[ERROR]   $*"
 }
 
 # Print warning message
 warning() {
-    echo_color YELLOW "$1"
+    echo_color YELLOW "[WARNING] $*"
 }
 
 # Print input prompt message
 prompt() {
-    echo_color BLUE "$1"
+    echo_color BLUE "[PROMPT]  $*"
 }
 
 # One-line confirmation prompt
@@ -128,7 +128,7 @@ load_env_file() {
     fi
 
     if [ "$environment" = "production" ]; then
-        env_file="$HERE/../.env.prod"
+        env_file="$HERE/../.env-prod"
     fi
 
     if [ ! -f "$env_file" ]; then
@@ -137,4 +137,69 @@ load_env_file() {
     fi
 
     . "$env_file"
+}
+
+is_running_in_ci() {
+    [[ "$CI" == "true" ]]
+}
+
+# ------------------------------------------------------------------
+# Runs a command, prints an error, and exits if the command fails.
+# Usage:
+#   run_step "Friendly step description" "actual_command_here"
+# ------------------------------------------------------------------
+run_step() {
+    local step_description="$1"
+    shift
+    local cmd="$*"
+
+    info "${step_description}..."
+    if ! eval "${cmd}"; then
+        error "Failed: ${step_description}"
+        exit 1
+    fi
+    success "${step_description} - done!"
+}
+
+# ------------------------------------------------------------------
+# Runs a command, prints an error if it fails, but does NOT exit.
+# Usage:
+#   run_step_noncritical "Friendly step description" "actual_command_here"
+# ------------------------------------------------------------------
+run_step_noncritical() {
+    local step_description="$1"
+    shift
+    local cmd="$*"
+
+    info "${step_description}..."
+    if ! eval "${cmd}"; then
+        warning "Non-critical step failed: ${step_description}"
+        # We do not exit here
+        return 1
+    fi
+    success "${step_description} - done!"
+}
+
+# ------------------------------------------------------------------------------
+# is_yes: Returns 0 if the first argument is a recognized "yes" (y/yes), else 1.
+# Usage:
+#     if is_yes "$SOME_VAR"; then
+#         echo "It's a yes!"
+#     else
+#         echo "It's a no!"
+#     fi
+# ------------------------------------------------------------------------------
+is_yes() {
+    # Convert to lowercase. Note that [A-Z] and [a-z] in `tr` are POSIX,
+    # but using '[:upper:]' and '[:lower:]' is typically safer for all locales.
+    ans=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+
+    case "$ans" in
+    y | yes)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
+    esac
 }

@@ -1,8 +1,9 @@
+import { WEEKS_1_S } from "@local/shared";
 import https from "https";
-import { hashString } from "../../auth/codes";
-import { logger } from "../../events/logger";
-import { withRedis } from "../../redisConn";
-import { EmbeddableType } from "./types";
+import { hashString } from "../../auth/codes.js";
+import { logger } from "../../events/logger.js";
+import { withRedis } from "../../redisConn.js";
+import { EmbeddableType } from "./types.js";
 
 // The model used for embedding (instructor-base) requires an instruction 
 // to create embeddings. This acts as a way to fine-tune the model for 
@@ -112,7 +113,7 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
                         // Store fetched embeddings in cache
                         redisClient.set(cacheKey, JSON.stringify(embedding));
                         // Set expiry of 7 days
-                        redisClient.expire(cacheKey, 60 * 60 * 24 * 7);
+                        redisClient.expire(cacheKey, WEEKS_1_S);
                     }
 
                     // Update cached embeddings

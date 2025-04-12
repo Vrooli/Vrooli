@@ -1,6 +1,6 @@
-import { ApiSortBy, FormSchema, endpointGetApi, endpointGetApis } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { ApiSortBy, FormSchema, endpointsApi } from "@local/shared";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
 
 export function apiSearchSchema(): FormSchema {
     return {
@@ -23,6 +23,6 @@ export function apiSearchSchema(): FormSchema {
 }
 
 export function apiSearchParams() {
-    return toParams(apiSearchSchema(), endpointGetApis, endpointGetApi, ApiSortBy, ApiSortBy.ScoreDesc);
+    return toParams(apiSearchSchema(), endpointsApi, ApiSortBy, ApiSortBy.ScoreDesc);
 }
 

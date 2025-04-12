@@ -1,16 +1,19 @@
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { TextInput } from "../TextInput/TextInput";
-import { VersionInputProps } from "../types";
+import { IconCommon } from "../../../icons/Icons.js";
+import { TextInput } from "../TextInput/TextInput.js";
+import { VersionInputProps } from "../types.js";
 
 const COMPONENT_HEIGHT_PX = 56;
+const textInputWithSideButtonStyle = {
+    "& .MuiInputBase-root": {
+        borderRadius: "5px 0 0 5px",
+    },
+} as const;
 
 export function VersionInput({
-    autoFocus = false,
-    fullWidth = true,
     isRequired = false,
     label = "Version",
     name = "versionLabel",
@@ -23,7 +26,6 @@ export function VersionInput({
 
     const [field, meta, helpers] = useField(name);
     const [internalValue, setInternalValue] = useState<string>(field.value);
-    console.log("in version input", field.value, name, internalValue);
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
         setInternalValue(newValue);
@@ -56,26 +58,49 @@ export function VersionInput({
 
     const bumpMinor = useCallback(() => {
         const changedVersion = `${major}.${moderate}.${minor + 1}`;
-        console.log("in version input bump minor", changedVersion);
         setInternalValue(changedVersion);
         helpers.setValue(changedVersion);
     }, [major, moderate, minor, helpers]);
 
-
     /**
      * On blur, update value
      */
-    const handleBlur = useCallback((ev: any) => {
+    const handleBlur = useCallback(function handleBlurCallback(event: React.FocusEvent<HTMLInputElement>) {
         const changedVersion = `${major}.${moderate}.${minor}`;
         helpers.setValue(changedVersion);
-        field.onBlur(ev);
+        field.onBlur(event);
     }, [major, moderate, minor, helpers, field]);
+
+    const bumpMajorIconButtonStyle = useMemo(function bumpMajorIconButtonStyleMemo() {
+        return {
+            borderRadius: "0",
+            background: palette.secondary.main,
+            borderRight: `1px solid ${palette.secondary.contrastText}`,
+            height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
+        } as const;
+    }, [palette.secondary.main, palette.secondary.contrastText]);
+
+    const bumpModerateIconButtonStyle = useMemo(function bumpModerateIconButtonStyleMemo() {
+        return {
+            borderRadius: "0",
+            background: palette.secondary.main,
+            borderRight: `1px solid ${palette.secondary.contrastText}`,
+            height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
+        } as const;
+    }, [palette.secondary.main, palette.secondary.contrastText]);
+
+    const bumpMinorIconButtonStyle = useMemo(function bumpMinorIconButtonStyleMemo() {
+        return {
+            borderRadius: "0 5px 5px 0",
+            background: palette.secondary.main,
+            height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
+        } as const;
+    }, [palette.secondary.main]);
 
     return (
         <Stack direction="row" spacing={0}>
             <TextInput
                 {...props}
-                autoFocus={autoFocus}
                 id="versionLabel"
                 name="versionLabel"
                 isRequired={isRequired}
@@ -86,48 +111,27 @@ export function VersionInput({
                 error={meta.touched && !!meta.error}
                 helperText={meta.touched && meta.error}
                 ref={textFieldRef}
-                sx={{
-                    "& .MuiInputBase-root": {
-                        borderRadius: "5px 0 0 5px",
-                    },
-                }}
+                sx={textInputWithSideButtonStyle}
             />
             <Tooltip placement="top" title="Major bump (increment the first number)">
                 <IconButton
-                    aria-label='major-bump'
                     onClick={bumpMajor}
-                    sx={{
-                        borderRadius: "0",
-                        background: palette.secondary.main,
-                        borderRight: `1px solid ${palette.secondary.contrastText}`,
-                        height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
-                    }}>
-                    <BumpMajorIcon fill="white" />
+                    sx={bumpMajorIconButtonStyle}>
+                    <IconCommon decorative name="BumpMajor" />
                 </IconButton>
             </Tooltip>
             <Tooltip placement="top" title="Moderate bump (increment the middle number)">
                 <IconButton
-                    aria-label='moderate-bump'
                     onClick={bumpModerate}
-                    sx={{
-                        borderRadius: "0",
-                        background: palette.secondary.main,
-                        borderRight: `1px solid ${palette.secondary.contrastText}`,
-                        height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
-                    }}>
-                    <BumpModerateIcon fill="white" />
+                    sx={bumpModerateIconButtonStyle}>
+                    <IconCommon decorative name="BumpModerate" />
                 </IconButton>
             </Tooltip>
             <Tooltip placement="top" title="Minor bump (increment the last number)">
                 <IconButton
-                    aria-label='minor-bump'
                     onClick={bumpMinor}
-                    sx={{
-                        borderRadius: "0 5px 5px 0",
-                        background: palette.secondary.main,
-                        height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
-                    }}>
-                    <BumpMinorIcon fill="white" />
+                    sx={bumpMinorIconButtonStyle}>
+                    <IconCommon decorative name="BumpMinor" />
                 </IconButton>
             </Tooltip>
         </Stack>

@@ -1,25 +1,26 @@
-import { combineQueries } from "./combineQueries";
+import { expect } from "chai";
+import { combineQueries } from "./combineQueries.js";
 
 describe("combineQueries", () => {
     describe("basic queries", () => {
-        test("handles empty queries", () => {
+        it("handles empty queries", () => {
             const queries = [];
             const expected = {};
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("single query", () => {
+        it("single query", () => {
             const queries = [{ isActive: true }];
             const expected = { isActive: true };
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines non-conflicting queries", () => {
+        it("combines non-conflicting queries", () => {
             const queries = [
                 { isDeleted: false },
                 { isPrivate: true },
@@ -29,12 +30,12 @@ describe("combineQueries", () => {
                 isPrivate: true,
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines conflicting boolean conditions under AND", () => {
+        it("combines conflicting boolean conditions under AND", () => {
             const queries = [
                 { isPrivate: true },
                 { isPrivate: false },
@@ -46,12 +47,12 @@ describe("combineQueries", () => {
                 ],
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("merges AND clauses", () => {
+        it("merges AND clauses", () => {
             const queries = [
                 { AND: [{ isActive: true }] },
                 { AND: [{ isVerified: true }] },
@@ -63,12 +64,12 @@ describe("combineQueries", () => {
                 ],
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines conflicting non-boolean conditions under AND", () => {
+        it("combines conflicting non-boolean conditions under AND", () => {
             const queries = [
                 { status: "active" },
                 { status: "inactive" },
@@ -80,14 +81,14 @@ describe("combineQueries", () => {
                 ],
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
         describe("handles mixed logical operators", () => {
             describe("mergeMode 'loose'", () => {
-                test("with one OR clause", () => {
+                it("with one OR clause", () => {
                     const queries = [
                         { AND: [{ isActive: true }] },
                         { OR: [{ id: 1 }, { id: 2 }] },
@@ -98,9 +99,9 @@ describe("combineQueries", () => {
                         OR: [{ id: 1 }, { id: 2 }],
                         NOT: [{ isDeleted: true }],
                     };
-                    expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
                 });
-                test("with multiple OR clauses", () => {
+                it("with multiple OR clauses", () => {
                     const queries = [
                         { AND: [{ isActive: true }] },
                         { OR: [{ id: 1 }, { id: 2 }] },
@@ -116,11 +117,11 @@ describe("combineQueries", () => {
                         ],
                         NOT: [{ isDeleted: true }],
                     };
-                    expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
                 });
             });
             describe("mergeMode 'strict'", () => {
-                test("with one OR clause", () => {
+                it("with one OR clause", () => {
                     const queries = [
                         { AND: [{ isActive: true }] },
                         { OR: [{ id: 1 }, { id: 2 }] },
@@ -131,9 +132,9 @@ describe("combineQueries", () => {
                         OR: [{ id: 1 }, { id: 2 }],
                         NOT: [{ isDeleted: true }],
                     };
-                    expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
                 });
-                test("with multiple OR clauses", () => {
+                it("with multiple OR clauses", () => {
                     const queries = [
                         { AND: [{ isActive: true }] },
                         { OR: [{ id: 1 }, { id: 2 }] },
@@ -148,14 +149,14 @@ describe("combineQueries", () => {
                         ],
                         NOT: [{ isDeleted: true }],
                     };
-                    expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
                 });
             });
         });
 
         describe("OR clauses", () => {
             describe("mergeMode 'loose'", () => {
-                test("2 OR clauses", () => {
+                it("2 OR clauses", () => {
                     const queries = [
                         { OR: [{ id: 1 }, { id: 2 }] },
                         { OR: [{ id: 3 }] },
@@ -167,9 +168,9 @@ describe("combineQueries", () => {
                             { id: 3 },
                         ],
                     };
-                    expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
                 });
-                test("3 OR clauses", () => {
+                it("3 OR clauses", () => {
                     const queries = [
                         { OR: [{ id: 1 }, { id: 2 }] },
                         { OR: [{ id: 3 }] },
@@ -184,11 +185,11 @@ describe("combineQueries", () => {
                             { id: 5 },
                         ],
                     };
-                    expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
                 });
             });
             describe("mergeMode 'strict'", () => {
-                test("2 OR clauses", () => {
+                it("2 OR clauses", () => {
                     const queries = [
                         { OR: [{ id: 1 }, { id: 2 }] },
                         { OR: [{ id: 3 }] },
@@ -199,9 +200,9 @@ describe("combineQueries", () => {
                             { OR: [{ id: 3 }] },
                         ],
                     };
-                    expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
                 });
-                test("3 OR clauses", () => {
+                it("3 OR clauses", () => {
                     const queries = [
                         { OR: [{ id: 1 }, { id: 2 }] },
                         { OR: [{ id: 3 }] },
@@ -214,13 +215,13 @@ describe("combineQueries", () => {
                             { OR: [{ id: 4 }, { id: 5 }] },
                         ],
                     };
-                    expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                    expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
                 });
             });
         });
 
         describe("handles conflicting keys with logical operators", () => {
-            test("mergeMode 'loose'", () => {
+            it("mergeMode 'loose'", () => {
                 const queries = [
                     { isPrivate: true },
                     { OR: [{ id: 1 }, { id: 2 }] },
@@ -238,9 +239,9 @@ describe("combineQueries", () => {
                         { isPrivate: false },
                     ],
                 };
-                expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+                expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
             });
-            test("mergeMode 'strict'", () => {
+            it("mergeMode 'strict'", () => {
                 const queries = [
                     { isPrivate: true },
                     { OR: [{ id: 1 }, { id: 2 }] },
@@ -256,13 +257,13 @@ describe("combineQueries", () => {
                     ],
                 };
                 const result = combineQueries(queries, { mergeMode: "strict" });
-                expect(Object.keys(result)).toEqual(Object.keys(expected));
-                expect(result.AND).toEqual(expect.arrayContaining(expected.AND));
-                expect(expected.AND).toEqual(expect.arrayContaining(result.AND));
+                expect(Object.keys(result)).to.deep.equal(Object.keys(expected));
+                expect(result.AND).to.have.deep.members(expected.AND);
+                expect(expected.AND).to.have.deep.members(result.AND);
             });
         });
 
-        test("combines queries with conflicting range conditions", () => {
+        it("combines queries with conflicting range conditions", () => {
             const queries = [
                 { age: { gt: 18 } },
                 { age: { lt: 30 } },
@@ -295,12 +296,12 @@ describe("combineQueries", () => {
             //     },
             // };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines queries with NOT operator", () => {
+        it("combines queries with NOT operator", () => {
             const queries = [
                 {
                     NOT: {
@@ -332,12 +333,12 @@ describe("combineQueries", () => {
                 ],
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines queries with 'not' field condition", () => {
+        it("combines queries with 'not' field condition", () => {
             const queries = [
                 { content: { not: null } },
                 { content: { not: "Test" } },
@@ -349,14 +350,14 @@ describe("combineQueries", () => {
                 ],
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
     });
 
     describe("nested queries", () => {
-        test("combines nested non-conflicting queries", () => {
+        it("combines nested non-conflicting queries", () => {
             const queries = [
                 { user: { id: 1 } },
                 { user: { isActive: true } },
@@ -368,12 +369,12 @@ describe("combineQueries", () => {
                 },
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines conflicting complex nested queries under AND", () => {
+        it("combines conflicting complex nested queries under AND", () => {
             const queries = [
                 { user: { id: 1, role: "admin" } },
                 { user: { id: 2, role: "user" } },
@@ -387,12 +388,12 @@ describe("combineQueries", () => {
                 },
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines complex nested queries without conflicts", () => {
+        it("combines complex nested queries without conflicts", () => {
             const queries = [
                 { user: { id: 1 } },
                 { user: { OR: [{ isActive: true }, { isVerified: true }] } },
@@ -407,12 +408,12 @@ describe("combineQueries", () => {
                 },
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("combines conflicting nested queries under AND", () => {
+        it("combines conflicting nested queries under AND", () => {
             const queries = [
                 { user: { id: 1 } },
                 { user: { id: 2 } },
@@ -426,14 +427,14 @@ describe("combineQueries", () => {
                 },
             };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
     });
 
     describe("non-object queries", () => {
-        test("handles empty and null queries gracefully - test 1", () => {
+        it("handles empty and null queries gracefully - test 1", () => {
             const queries = [
                 null,
                 undefined,
@@ -441,25 +442,25 @@ describe("combineQueries", () => {
             ];
             const expected = {};
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
 
-        test("handles empty and null queries gracefully - test 2", () => {
+        it("handles empty and null queries gracefully - test 2", () => {
             const queries = [null, { isActive: true }, undefined, { isVerified: false }];
             const expected = { isActive: true, isVerified: false };
             // Same in both merge modes
-            expect(combineQueries(queries)).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
-            expect(combineQueries(queries, { mergeMode: "loose" })).toEqual(expected);
+            expect(combineQueries(queries)).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
+            expect(combineQueries(queries, { mergeMode: "loose" })).to.deep.equal(expected);
         });
     });
 
     // Tests that simulate where we use combineQueries in the codebase
     describe("real-world queries", () => {
         describe("counts.ts", () => {
-            test("counting public teams", () => {
+            it("counting public teams", () => {
                 const customWhere = undefined;
                 const createdQuery = {
                     created_at: {
@@ -486,11 +487,11 @@ describe("combineQueries", () => {
                     },
                     isPrivate: false,
                 };
-                expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
             });
         });
         describe("reads.ts", () => {
-            test("searching own private routine versions with search string 'boop'", () => {
+            it("searching own private routine versions with search string 'boop'", () => {
                 const userId = "user123";
                 const additionalQueries = { root: { isInternal: true } };
                 const createdQuery = undefined;
@@ -549,11 +550,11 @@ describe("combineQueries", () => {
                         },
                     ],
                 };
-                expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
             });
         });
         describe("feed.ts", () => {
-            test("reminders with focus mode", () => {
+            it("reminders with focus mode", () => {
                 const activeFocusModeId = "focusMode123";
                 const userId = "user123";
                 const customWhere = {
@@ -583,7 +584,7 @@ describe("combineQueries", () => {
                         },
                     },
                 };
-                expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+                expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
             });
         });
     });

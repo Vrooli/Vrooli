@@ -1,7 +1,8 @@
 {
     "compilerOptions": {
         "target": "ESNext",
-        "baseUrl": "./src",
+        // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
+        "module": "ESNext",
         "rootDir": "./src",
         "outDir": "./dist",
         "lib": [
@@ -15,28 +16,26 @@
         "strict": true,
         "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
-        // "noUncheckedIndexedAccess": true,
         "moduleResolution": "node",
-        "module": "ESNext",
         "resolveJsonModule": true,
         "incremental": true,
         "isolatedModules": true,
         "jsx": "react-jsx",
         "noImplicitAny": false,
         "noImplicitThis": true,
-        "sourceMap": false,
+        "sourceMap": true,
         "strictNullChecks": true,
         "removeComments": true,
+        "types": [
+            "mocha",
+        ]
     },
     "include": [
         "src",
-        "jest.d.ts"
     ],
     "exclude": [
-        "**/*.spec.ts",
         "**/*.test.ts",
-        "**/__mocks__",
-        "**/coverage",
+        "**/__test",
         "**/node_modules",
         "**/dist",
         "**/.*/",

@@ -1,9 +1,9 @@
-import { MaxObjects, StatsSiteSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsSiteSortBy } from "@local/shared";
 import i18next from "i18next";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { StatsSiteFormat } from "../formats";
-import { StatsSiteModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { StatsSiteFormat } from "../formats.js";
+import { StatsSiteModelLogic } from "./types.js";
 
 const __typename = "StatsSite" as const;
 export const StatsSiteModel: StatsSiteModelLogic = ({
@@ -13,7 +13,7 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
         label: {
             select: () => ({ id: true }),
             get: (_, languages) => i18next.t("common:SiteStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
             }),
         },
     }),

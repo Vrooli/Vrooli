@@ -1,10 +1,11 @@
-import { MaxObjects, StatsCodeSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsCodeSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsCodeFormat } from "../formats";
-import { CodeModelInfo, CodeModelLogic, StatsCodeModelInfo, StatsCodeModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsCodeFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { CodeModelInfo, CodeModelLogic, StatsCodeModelInfo, StatsCodeModelLogic } from "./types.js";
 
 const __typename = "StatsCode" as const;
 export const StatsCodeModel: StatsCodeModelLogic = ({
@@ -14,8 +15,8 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
         label: {
             select: () => ({ id: true, code: { select: ModelMap.get<CodeModelLogic>("Code").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
-                objectName: ModelMap.get<CodeModelLogic>("Code").display().label.get(select.code as CodeModelInfo["PrismaModel"], languages),
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
+                objectName: ModelMap.get<CodeModelLogic>("Code").display().label.get(select.code as CodeModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +38,9 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
             code: "Code",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<CodeModelLogic>("Code").validate().owner(data?.code as CodeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<CodeModelLogic>("Code").validate().owner(data?.code as CodeModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsCodeModelInfo["PrismaSelect"]>([["code", "Code"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsCodeModelInfo["DbSelect"]>([["code", "Code"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

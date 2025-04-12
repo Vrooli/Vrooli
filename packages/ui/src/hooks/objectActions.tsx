@@ -1,23 +1,28 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, ReactInput, ReactionFor, Role, Success, User, endpointGetBookmarks, endpointPostBookmark, endpointPostCopy, endpointPostDeleteMany, endpointPostDeleteOne, endpointPostReact, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
-import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
-import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
-import { ObjectListItemProps } from "components/lists/types";
-import { SessionContext } from "contexts";
+
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { SetLocation, useLocation } from "route";
-import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "utils/actions/bulkObjectActions";
-import { ActionCompletePayloads, ActionStartPayloads, ObjectAction, ObjectActionComplete, getAvailableActions } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYouDot } from "utils/display/listTools";
-import { openObject, openObjectEdit } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { useLazyFetch } from "./useLazyFetch";
+import { fetchLazyWrapper } from "../api/fetchWrapper.js";
+import { BulkDeleteDialog } from "../components/dialogs/BulkDeleteDialog/BulkDeleteDialog.js";
+import { DeleteAccountDialog } from "../components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
+import { DeleteDialog } from "../components/dialogs/DeleteDialog/DeleteDialog.js";
+import { ObjectListItemProps } from "../components/lists/types.js";
+import { SessionContext } from "../contexts/session.js";
+import { useLocation } from "../route/router.js";
+import { type SetLocation } from "../route/types.js";
+import { useBookmarkListsStore } from "../stores/bookmarkListsStore.js";
+import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "../utils/actions/bulkObjectActions.js";
+import { ActionCompletePayloads, ActionStartPayloads, ObjectAction, ObjectActionComplete, getAvailableActions } from "../utils/actions/objectActions.js";
+import { getCurrentUser } from "../utils/authentication/session.js";
+import { getDisplay, getYouDot } from "../utils/display/listTools.js";
+import { openObject, openObjectEdit } from "../utils/navigation/openObject.js";
+import { PubSub } from "../utils/pubsub.js";
+import { useLazyFetch } from "./useLazyFetch.js";
+
+const DEFAULT_BOOKMARK_LIST_LABEL = "Favorites";
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}` | undefined;
+    objectType: `${ModelType}` | undefined;
     onActionComplete: <T extends "Bookmark" | "BookmarkUndo">(action: T, data: ActionCompletePayloads[T]) => unknown;
 };
 
@@ -29,14 +34,13 @@ export function useBookmarker({
     objectType,
     onActionComplete,
 }: UseBookmarkerProps) {
-    const session = useContext(SessionContext);
-    const { bookmarkLists } = useMemo(() => getCurrentUser(session), [session]);
+    const fetchBookmarkLists = useBookmarkListsStore(state => state.fetchBookmarkLists);
 
-    const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
-    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointsBookmark.createOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
-    const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
+    const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointsBookmark.findMany);
 
     const hasBookmarkingSupport = objectType && objectType in BookmarkFor;
 
@@ -44,22 +48,16 @@ export function useBookmarker({
     const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState<boolean>(false);
     const closeBookmarkDialog = useCallback(() => { setIsBookmarkDialogOpen(false); }, []);
 
-    const handleAdd = useCallback(() => {
+    const handleAdd = useCallback(async function handleAddCallback() {
         if (!objectType || !objectId) {
             PubSub.get().publish("snack", { messageKey: "NotFound", severity: "Error" });
             return;
         }
-        let bookmarkListId: string | undefined;
-        if (bookmarkLists && bookmarkLists.length) {
-            // Try to find "Favorites" bookmark list first
-            const favorites = bookmarkLists.find(list => list.label === "Favorites");
-            if (favorites) {
-                bookmarkListId = favorites.id;
-            } else {
-                // Otherwise, just use the first bookmark list
-                bookmarkListId = bookmarkLists[0].id;
-            }
-        }
+        // Find the best bookmark list to add to
+        const allBookmarkLists = await fetchBookmarkLists();
+        const bookmarkListId = allBookmarkLists.length === 1
+            ? allBookmarkLists[0].id
+            : allBookmarkLists.find(list => list.label === DEFAULT_BOOKMARK_LIST_LABEL)?.id;
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
@@ -71,15 +69,14 @@ export function useBookmarker({
                 },
                 list: {
                     __typename: "BookmarkList",
+                    __connect: Boolean(bookmarkListId),
                     id: bookmarkListId ?? uuid(),
-                    // Setting label marks this as a create, 
-                    // which should only be done if there is no bookmarkListId
-                    label: bookmarkListId ? undefined : "Favorites",
+                    label: bookmarkListId ? undefined : DEFAULT_BOOKMARK_LIST_LABEL,
                 },
             }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Bookmark, data); },
         });
-    }, [bookmarkLists, addBookmark, objectType, objectId, onActionComplete]);
+    }, [objectType, objectId, addBookmark, fetchBookmarkLists, onActionComplete]);
 
     const isRemoveProcessingRef = useRef<boolean>(false);
     const handleRemove = useCallback(async () => {
@@ -159,7 +156,7 @@ export function useBulkDeleter({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const closeDeleteDialog = useCallback(() => { setIsDeleteDialogOpen(false); }, []);
 
-    const [deleteMany] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
+    const [deleteMany] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
 
     const doBulkDelete = useCallback((confirmedForDeletion: ListObject[]) => {
         if (!selectedData || !selectedData.length) {
@@ -371,7 +368,7 @@ export function useBulkObjectActions<T extends ListObject = ListObject>({
 type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
-    objectType: `${GqlModelType}` | undefined;
+    objectType: `${ModelType}` | undefined;
     onActionComplete: <T extends "Fork">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
@@ -384,7 +381,7 @@ export function useCopier({
     objectType,
     onActionComplete,
 }: UseCopierProps) {
-    const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointPostCopy);
+    const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointsActions.copy);
 
     const hasCopyingSupport = objectType && objectType in CopyType;
 
@@ -415,6 +412,7 @@ export type ConfirmationLevel = "none" | "minimal" | "full";
 export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Api: "full",
     ApiKey: "full",
+    ApiKeyExternal: "full",
     ApiVersion: "minimal",
     Bookmark: "none",
     BookmarkList: "full",
@@ -432,7 +430,6 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     MemberInvite: "none",
     Meeting: "minimal",
     MeetingInvite: "none",
-    Node: "none",
     Note: "minimal",
     NoteVersion: "minimal",
     Notification: "none",
@@ -469,7 +466,7 @@ export function useDeleter({
     onActionComplete,
 }: {
     object: ListObject | null | undefined;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     onActionComplete: <T extends "Delete">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }) {
     const [, setLocation] = useLocation();
@@ -478,7 +475,7 @@ export function useDeleter({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const closeDeleteDialog = useCallback(() => { setIsDeleteDialogOpen(false); }, []);
 
-    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const doDelete = useCallback(() => {
         if (!object || !objectType) {
             console.error("Missing object or objectType");
@@ -697,18 +694,18 @@ export function useObjectActions({
         isBookmarkDialogOpen,
     } = useBookmarker({
         objectId: object?.root?.id ?? object?.id, // Can only bookmark root objects
-        objectType: objectType?.replace("Version", "") as GqlModelType | undefined,
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
         onActionComplete,
     });
     const { handleCopy } = useCopier({
         objectId: object?.id,
         objectName: getDisplay(object).title,
-        objectType: objectType as GqlModelType | undefined,
+        objectType: objectType as ModelType | undefined,
         onActionComplete,
     });
     const { handleVote } = useVoter({
         objectId: object?.root?.id ?? object?.id, // Can only vote on root objects
-        objectType: objectType?.replace("Version", "") as GqlModelType | undefined,
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
         onActionComplete,
     });
     const {
@@ -718,7 +715,7 @@ export function useObjectActions({
         DeleteDialogComponent,
     } = useDeleter({
         object,
-        objectType: objectType as GqlModelType,
+        objectType: objectType as ModelType,
         onActionComplete,
     });
 
@@ -771,7 +768,7 @@ export function useObjectActions({
                 else openObjectEdit(object, setLocation);
                 break;
             case ObjectAction.FindInPage:
-                PubSub.get().publish("findInPage");
+                PubSub.get().publish("menu", { id: ELEMENT_IDS.FindInPage, isOpen: true });
                 break;
             case ObjectAction.Fork:
                 if (canNavigate && !canNavigate(object)) return;
@@ -816,7 +813,7 @@ export function useObjectActions({
 
 type UseVoterProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}` | undefined;
+    objectType: `${ModelType}` | undefined;
     onActionComplete: <T extends "VoteDown" | "VoteUp">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
@@ -828,7 +825,7 @@ export function useVoter({
     objectType,
     onActionComplete,
 }: UseVoterProps) {
-    const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
+    const [fetch] = useLazyFetch<ReactInput, Success>(endpointsReaction.createOne);
 
     const hasVotingSupport = objectType && objectType in ReactionFor;
 

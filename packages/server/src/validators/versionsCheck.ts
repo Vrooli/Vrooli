@@ -1,12 +1,11 @@
-import { GqlModelType } from "@local/shared";
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { SessionUserToken } from "../types";
+import { ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
 
 function hasInternalField(objectType: string) {
-    return [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
+    return [ModelType.RoutineVersion, ModelType.StandardVersion].includes(objectType as any);
 }
 
 /**
@@ -25,12 +24,12 @@ export async function versionsCheck({
     Delete,
     userData,
 }: {
-    objectType: `${GqlModelType.ApiVersion
-    | GqlModelType.CodeVersion
-    | GqlModelType.NoteVersion
-    | GqlModelType.ProjectVersion
-    | GqlModelType.RoutineVersion
-    | GqlModelType.StandardVersion
+    objectType: `${ModelType.ApiVersion
+    | ModelType.CodeVersion
+    | ModelType.NoteVersion
+    | ModelType.ProjectVersion
+    | ModelType.RoutineVersion
+    | ModelType.StandardVersion
     }`,
     Create: {
         input: {
@@ -49,7 +48,7 @@ export async function versionsCheck({
     Delete: {
         input: string;
     }[],
-    userData: SessionUserToken,
+    userData: Pick<SessionUser, "id">,
 }) {
     // Filter unchanged versions from create and update data
     const create = Create.filter(x => x.input.versionLabel).map(({ input }) => {
@@ -66,18 +65,22 @@ export async function versionsCheck({
         versionLabel: input.versionLabel,
     }));
     // Find unique root ids from create data
-    const createRootIds = create.map(x => x.rootId);
+    const createRootIds = create.map(x => x.rootId).filter(Boolean);
     const uniqueRootIds = [...new Set(createRootIds)];
     // Find unique version ids from update and delete data
-    const updateIds = update.map(x => x.id);
-    const deleteIds = Delete;
+    const updateIds = update.map(x => x.id).filter(Boolean);
+    const deleteIds = Delete.map(x => x.input).filter(Boolean);
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     // Query the database for existing data (by root)
-    const rootType = objectType.replace("Version", "") as GqlModelType;
+    const rootType = objectType.replace("Version", "") as ModelType;
     const dbTable = ModelMap.get(rootType).dbTable;
     let existingRoots: any[];
-    let where: { [key: string]: any } = {};
-    let select: { [key: string]: any } = {};
+    let where: { [key: string]: unknown } = {};
+    let select: { [key: string]: unknown } = {};
+    // If there are not IDs to query, return
+    if (uniqueRootIds.length === 0 && uniqueVersionIds.length === 0) {
+        return;
+    }
     try {
         where = {
             OR: [
@@ -102,23 +105,23 @@ export async function versionsCheck({
                 },
             },
         };
-        existingRoots = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+        existingRoots = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where,
             select,
         });
     } catch (error) {
-        throw new CustomError("0414", "InternalError", userData.languages, { error, where, select, rootType });
+        throw new CustomError("0414", "InternalError", { error, where, select, rootType });
     }
     for (const root of existingRoots) {
         // Check 1
         // Root cannot already be deleted
         if (root.isDeleted) {
-            throw new CustomError("0377", "ErrorUnknown", userData.languages);
+            throw new CustomError("0377", "ErrorUnknown");
         }
         // Updating versions cannot be deleted
         for (const version of root.versions) {
             if (updateIds.includes(version.id) && version.isDeleted) {
-                throw new CustomError("0378", "ErrorUnknown", userData.languages);
+                throw new CustomError("0378", "ErrorUnknown");
             }
         }
         // Check 2
@@ -128,22 +131,24 @@ export async function versionsCheck({
         // New versions cannot have the same label as existing versions
         const createLabels = create.filter(x => x.rootId === root.id).map(x => x.versionLabel);
         if (createLabels.some(x => versionLabels.includes(x))) {
-            throw new CustomError("0379", "ErrorUnknown", userData.languages);
+            throw new CustomError("0379", "ErrorUnknown");
         }
         // Updating versions cannot have the same label as existing versions
         const updateLabels = update.filter(x => versionIds.includes(x.id)).map(x => x.versionLabel);
         // We must filter out updating labels from the existing labels, to support swapping
         const versionLabelsWithoutUpdate = root.versions.filter(x => !deleteIds.includes(x.id) && !updateIds.includes(x.id)).map(x => x.versionLabel);
         if (updateLabels.some(x => versionLabelsWithoutUpdate.includes(x))) {
-            throw new CustomError("0380", "ErrorUnknown", userData.languages);
+            throw new CustomError("0380", "ErrorUnknown");
         }
         // Check 3
         // If the root is not private and not internal (if applicable)
-        if (!root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
-            // Updating versions (which are not private) cannot be marked as complete
+        const isAdmin = userData.id === SEEDED_IDS.User.Admin;
+        if (!isAdmin && !root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
+            // Updating versions (which are not private) cannot be marked as complete, 
+            // UNLESS this action is being performed by an admin
             for (const version of root.versions) {
                 if (updateIds.includes(version.id) && !version.isPrivate && version.isComplete) {
-                    throw new CustomError("0381", "ErrorUnknown", userData.languages);
+                    throw new CustomError("0381", "ErrorUnknown");
                 }
             }
         }

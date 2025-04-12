@@ -1,6 +1,10 @@
 import * as yup from "yup";
-import { id, maxStrErr, opt, req, YupModel, yupObj } from "../utils";
-import { bookmarkValidation } from "./bookmark";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { bookmarkValidation } from "./bookmark.js";
 
 const label = yup.string().trim().removeEmptyString().max(128, maxStrErr);
 

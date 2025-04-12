@@ -1,14 +1,14 @@
-import { CodeVersion, HOURS_1_S } from "@local/shared";
+import { CodeLanguage, CodeVersion, HOURS_1_S } from "@local/shared";
 import { Job } from "bull";
-import { readOneHelper } from "../../actions/reads";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { withRedis } from "../../redisConn";
-import { getAuthenticatedData } from "../../utils/getAuthenticatedData";
-import { permissionsCheck } from "../../validators/permissions";
-import { SandboxRequestPayload } from "./queue";
-import { RunUserCodeOutput, SandboxProcessPayload } from "./types";
-import { WorkerThreadManager } from "./workerThreadManager";
+import { readOneHelper } from "../../actions/reads.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { withRedis } from "../../redisConn.js";
+import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
+import { permissionsCheck } from "../../validators/permissions.js";
+import { SandboxRequestPayload } from "./queue.js";
+import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
+import { RunUserCodeInput, RunUserCodeOutput, SandboxProcessPayload } from "./types.js";
 
 /** How long to cache the code in Redis */
 const CACHE_TTL_SECONDS = HOURS_1_S;
@@ -19,18 +19,23 @@ const codeVersionSelect = {
 } as const;
 
 // Create a new child process manager to run the user code
-const manager = new WorkerThreadManager();
+const manager = new SandboxChildProcessManager();
 
 /**
  * Runs sandboxed user code in a secure environment, 
  * when you already know the code content and validated the user's permissions.
  */
 export async function runUserCode({
-    content,
+    code,
+    codeLanguage,
     input,
-}: Pick<CodeVersion, "content"> & Pick<SandboxProcessPayload, "input">): Promise<RunUserCodeOutput> {
+}: RunUserCodeInput): Promise<RunUserCodeOutput> {
     // Run the user code with the provided input
-    return await manager.runUserCode({ code: content, input });
+    return await manager.runUserCode({
+        code,
+        codeLanguage: codeLanguage as CodeLanguage,
+        input,
+    });
 }
 
 /**
@@ -58,7 +63,7 @@ export async function doSandbox({
                     // Query for all authentication data
                     const authDataById = await getAuthenticatedData({ "CodeVersion": [codeVersionId] }, userData);
                     if (Object.keys(authDataById).length === 0) {
-                        throw new CustomError("0620", "NotFound", userData.languages, { codeVersionId });
+                        throw new CustomError("0620", "NotFound", { codeVersionId });
                     }
                     // Check permissions
                     await permissionsCheck(authDataById, { ["Read"]: [codeVersionId] }, {}, userData);
@@ -80,22 +85,22 @@ export async function doSandbox({
                 const code = codeObject.content || "";
 
                 // Run the user code with the provided input
-                result = await runUserCode({ content: code, input });
+                result = await runUserCode({ codeLanguage: codeObject.codeLanguage, code, input });
             },
             trace: "0645",
         });
 
         if (!result) {
-            throw new CustomError("0622", "InternalError", ["en"], { process: "doSandbox" });
+            throw new CustomError("0622", "InternalError", { process: "doSandbox" });
         }
         return result;
     } catch (error) {
         logger.error("Error importing data", { trace: "0554", error });
-        return { error: "Internal error" };
+        return { __type: "error", error: "Internal error" };
     }
 }
 
-export async function sandboxrocess({ data }: Job<SandboxRequestPayload>) {
+export async function sandboxProcess({ data }: Job<SandboxRequestPayload>) {
     switch (data.__process) {
         case "Sandbox":
             return doSandbox(data);
@@ -103,6 +108,6 @@ export async function sandboxrocess({ data }: Job<SandboxRequestPayload>) {
             logger.info("sandboxProcess test triggered");
             return { __typename: "Success" as const, success: true };
         default:
-            throw new CustomError("0608", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
+            throw new CustomError("0608", "InternalError", { process: (data as { __process?: unknown }).__process });
     }
 }

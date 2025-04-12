@@ -1,6 +1,10 @@
 import * as yup from "yup";
-import { bool, description, id, intPositiveOrZero, language, maxStrErr, name, opt, req, reqArr, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
-import { noteValidation } from "./note";
+import { opt, req, reqArr } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, intPositiveOrZero, language, name, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { noteValidation } from "./note.js";
 
 const text = yup.string().trim().max(65536, maxStrErr);
 

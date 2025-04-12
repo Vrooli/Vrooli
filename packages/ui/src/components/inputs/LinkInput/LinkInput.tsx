@@ -1,19 +1,22 @@
 import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, useTheme } from "@mui/material";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useField } from "formik";
-import { LinkIcon, SearchIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay } from "utils/display/listTools";
-import { LinkInputBaseProps, LinkInputProps } from "../types";
+import { IconCommon } from "../../../icons/Icons.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { LinkInputBaseProps, LinkInputProps } from "../types.js";
 
 const MAX_LINK_TITLE_CHARS = 100;
 
 const linkInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <LinkIcon />
+            <IconCommon
+                decorative
+                name="Link"
+            />
         </InputAdornment>
     ),
 } as const;
@@ -122,7 +125,10 @@ export function LinkInputBase({
                             borderRadius: "0 5px 5px 0",
                             color: palette.secondary.contrastText,
                         }}>
-                        <SearchIcon />
+                        <IconCommon
+                            decorative
+                            name="Search"
+                        />
                     </IconButton>
                 </Stack>
                 {title && (

@@ -1,10 +1,17 @@
-import { Box, Dialog, useTheme } from "@mui/material";
-import { useZIndex } from "hooks/useZIndex";
+import { Box, Dialog, Popover, useTheme } from "@mui/material";
 import { useMemo } from "react";
-import { UpTransition } from "../../transitions/UpTransition/UpTransition";
-import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
+import { Z_INDEX } from "../../../utils/consts.js";
+import { UpTransition } from "../../transitions/UpTransition/UpTransition.js";
+import { LargeDialogProps, MaybeLargeDialogProps } from "../types.js";
 
-const DEFAULT_Z_INDEX_OFFSET = 1000;
+const defaultAnchorOrigin = {
+    vertical: "bottom" as const,
+    horizontal: "right" as const,
+} as const;
+const defaultTransformOrigin = {
+    vertical: "top" as const,
+    horizontal: "right" as const,
+} as const;
 
 export function LargeDialog({
     children,
@@ -13,20 +20,22 @@ export function LargeDialog({
     onClose,
     titleId,
     sxs,
-    zIndexOffset = DEFAULT_Z_INDEX_OFFSET,
+    anchorEl,
+    anchorOrigin,
+    transformOrigin,
 }: LargeDialogProps) {
     const { palette, spacing } = useTheme();
-    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, zIndexOffset);
+    const shadowColor = palette.mode === "dark" ? "230, 230, 230" : "0, 0, 0";
 
     const style = useMemo(function styleMemo() {
         return {
-            zIndex,
+            zIndex: Z_INDEX.Dialog,
             ...sxs?.root,
             "& > .MuiDialog-container": {
                 "& > .MuiPaper-root": {
-                    zIndex,
+                    zIndex: Z_INDEX.Dialog,
                     margin: { xs: 0, sm: 2, md: 4 },
-                    minWidth: { xs: "100vw", sm: "unset" },
+                    minWidth: { xs: "100vw", sm: "50%" },
                     maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
                     height: "100%",
                     overflow: "hidden",
@@ -35,11 +44,22 @@ export function LargeDialog({
                     top: { xs: "auto", sm: undefined },
                     position: { xs: "absolute", sm: "relative" },
                     display: { xs: "block", sm: "inline-block" },
-                    borderRadius: { xs: `${spacing(1)} ${spacing(1)} 0 0`, sm: 2 },
+                    // eslint-disable-next-line no-magic-numbers
+                    borderRadius: { xs: `${spacing(3)} ${spacing(3)} 0 0`, sm: 3 },
                     background: palette.background.default,
                     color: palette.background.textPrimary,
+                    boxShadow: `0px 11px 15px -7px rgba(${shadowColor},0.2),0px 24px 38px 3px rgba(${shadowColor},0.14),0px 9px 46px 8px rgba(${shadowColor},0.12)`,
                     "& > .MuiDialogContent-root": {
                         position: "relative",
+                        tabIndex: 0,
+                        outline: "none",
+                        "&:focus": {
+                            outline: "none",
+                        },
+                        "&:focus-visible": {
+                            outline: `2px solid ${palette.primary.main}`,
+                            outlineOffset: "-2px",
+                        },
                     },
                     "& > .MuiBox-root": {
                         "& > .MuiDialogTitle-root": {
@@ -51,14 +71,30 @@ export function LargeDialog({
                 },
             },
         } as const;
-    }, [palette, spacing, sxs, zIndex]);
+    }, [palette.background.default, palette.background.textPrimary, palette.primary.main, shadowColor, spacing, sxs?.paper, sxs?.root]);
+
+    // If anchorEl is provided, use Popover instead of Dialog
+    if (anchorEl) {
+        return (
+            <Popover
+                id={id}
+                open={isOpen}
+                anchorEl={anchorEl}
+                onClose={onClose}
+                anchorOrigin={anchorOrigin ?? defaultAnchorOrigin}
+                transformOrigin={transformOrigin ?? defaultTransformOrigin}
+                sx={style}
+            >
+                {children}
+            </Popover>
+        );
+    }
 
     return (
         <Dialog
             id={id}
             open={isOpen}
             onClose={onClose}
-            onTransitionExited={handleTransitionExit}
             scroll="paper"
             aria-labelledby={titleId}
             TransitionComponent={UpTransition}
@@ -77,6 +113,15 @@ const notDialogBoxprops = {
     height: "100vh",
     overflowY: "auto",
     overflowX: "hidden",
+    tabIndex: 0,
+    role: "region",
+    "&:focus": {
+        outline: "none",
+    },
+    "&:focus-visible": {
+        outline: "2px solid",
+        outlineOffset: "-2px",
+    },
 } as const;
 
 /** Wraps children in a dialog is display is dialog */

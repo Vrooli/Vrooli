@@ -1,18 +1,23 @@
-import { MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { onlyValidIds } from "../../builders/onlyValidIds";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { getLabels } from "../../getters";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
-import { TeamFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, TeamModelInfo, TeamModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { onlyValidIds } from "../../builders/onlyValid.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { getLabels } from "../../getters/getLabels.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { handlesCheck } from "../../validators/handlesCheck.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { TeamFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, TeamModelInfo, TeamModelLogic, ViewModelLogic } from "./types.js";
 
 type TeamPre = PreShapeEmbeddableTranslatableResult;
 
@@ -33,16 +38,16 @@ export const TeamModel: TeamModelLogic = ({
                 return getEmbeddableString({
                     bio: trans.bio,
                     name: trans.name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
     format: TeamFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, userData }): Promise<TeamPre> => {
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
-                await handlesCheck(__typename, Create, Update, userData.languages);
+            pre: async ({ Create, Update }): Promise<TeamPre> => {
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio"));
+                await handlesCheck(__typename, Create, Update);
                 // Find translations that need text embeddings
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
@@ -95,7 +100,7 @@ export const TeamModel: TeamModelLogic = ({
                 for (const teamId of createdIds) {
                     // Upsert "Admin" role (in case they already included it in the request). 
                     // Trying to connect you as a member again shouldn't throw an error (hopefully)
-                    await prismaInstance.role.upsert({
+                    await DbProvider.get().role.upsert({
                         where: {
                             role_teamId_name_unique: {
                                 name: "Admin",
@@ -163,15 +168,15 @@ export const TeamModel: TeamModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<TeamModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<TeamModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, userData?.languages ?? ["en"], "team.translatedName"),
+                    translatedName: await getLabels(ids, __typename, userData?.languages ?? [DEFAULT_LANGUAGE], "team.translatedName"),
                 };
             },
         },
@@ -205,7 +210,7 @@ export const TeamModel: TeamModelLogic = ({
             // Take out nulls
             const idsToQuery = onlyValidIds(teamIds);
             // Query roles data for each team ID
-            const roles = await prismaInstance.role.findMany({
+            const roles = await DbProvider.get().role.findMany({
                 where: {
                     name,
                     team: { id: { in: idsToQuery } },
@@ -222,7 +227,7 @@ export const TeamModel: TeamModelLogic = ({
          * @returns A list of admin ids and their preferred languages. Useful for sending notifications
          */
         async findAdminInfo(teamId: string, excludedUsers?: string[] | string): Promise<{ id: string, languages: string[] }[]> {
-            const admins = await prismaInstance.member.findMany({
+            const admins = await DbProvider.get().member.findMany({
                 where: {
                     AND: [
                         { teamId },
@@ -301,7 +306,7 @@ export const TeamModel: TeamModelLogic = ({
         }),
         visibility: {
             own: function getOwn(data) {
-                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId)
+                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId);
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {

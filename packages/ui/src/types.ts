@@ -1,3 +1,4 @@
+/* c8 ignore start */
 // Defines common props
 import { AwardCategory, ListObject, OrArray, TranslationKeyCommon } from "@local/shared";
 import { Theme } from "@mui/material";
@@ -16,23 +17,6 @@ export type PartialOrArrayWithType<T> = T extends { __typename: string }[] ?
     T extends { __typename: string } ?
     PartialWithType<T> :
     never;
-export interface SvgProps {
-    className?: string;
-    fill?: string;
-    iconTitle?: string;
-    id?: string;
-    style?: {
-        [key: string]: string | number | null,
-    } & {
-        [key: `&:${string}`]: { [key: string]: string | number | null },
-        [key: `@media ${string}`]: { [key: string]: string | number | null },
-    };
-    onClick?: () => unknown;
-    width?: number | string | null;
-    height?: number | string | null;
-}
-
-export type SvgComponent = (props: SvgProps) => JSX.Element;
 
 export type FormErrors = { [key: string]: string | string[] | null | undefined | FormErrors | FormErrors[] };
 
@@ -105,12 +89,6 @@ declare module "@mui/material/styles" {
 
 /** Makes a value nullable. Mimics the Maybe type in GraphQL. */
 export type Maybe<T> = T | null;
-
-/** Recursively removes the Maybe type from all fields in a type, and makes them required. */
-export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<unknown> ? NonNullable<T[K]> : T[K] };
-
-/** Makes a value lazy or not */
-export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
 
 export type SxType = NonNullable<SystemStyleObject<Theme>> & {
     color?: string;

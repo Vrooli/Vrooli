@@ -1,11 +1,17 @@
 import { Box, FormControl, FormControlProps, FormHelperText, InputAdornment, InputLabel, List, ListItem, OutlinedInput, Popover, TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { useDebounce } from "hooks/useDebounce";
-import { useStableCallback } from "hooks/useStableCallback";
-import { PhoneIcon } from "icons";
 import { CountryCallingCode, CountryCode } from "libphonenumber-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types";
+import { useDebounce } from "../../../hooks/useDebounce.js";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { useStableCallback } from "../../../hooks/useStableCallback.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types.js";
+
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "left",
+} as const;
 
 export function PhoneNumberInputBase({
     autoComplete = "tel",
@@ -29,9 +35,7 @@ export function PhoneNumberInputBase({
     const stableSetError = useStableCallback(setError);
 
     // Country select popover
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const openPopover = (event: React.MouseEvent<HTMLElement>) => { setAnchorEl(event.currentTarget); };
-    const closePopover = () => { setAnchorEl(null); };
+    const [anchorEl, openPopover, closePopover] = usePopover();
 
     // Validate phone number
     useEffect(function validatePhoneNumberEffect() {
@@ -131,7 +135,7 @@ export function PhoneNumberInputBase({
 
     return (
         <>
-            <Box sx={{ width: "-webkit-fill-available" }}>
+            <Box width="-webkit-fill-available">
                 <FormControl fullWidth={fullWidth} variant="outlined" error={!!error} {...props as FormControlProps}>
                     <InputLabel htmlFor={name}>{label ?? "Phone Number"}</InputLabel>
                     <OutlinedInput
@@ -143,7 +147,11 @@ export function PhoneNumberInputBase({
                         autoFocus={autoFocus}
                         startAdornment={
                             <InputAdornment position="start" onClick={openPopover} sx={{ cursor: "pointer" }}>
-                                <PhoneIcon style={{ marginRight: "4px" }} />
+                                <IconCommon
+                                    decorative
+                                    name="Phone"
+                                    style={{ marginRight: "4px" }}
+                                />
                                 <Typography variant="body1" sx={{ marginRight: "4px" }}>{selectedCountry}</Typography>
                             </InputAdornment>
                         }
@@ -168,10 +176,7 @@ export function PhoneNumberInputBase({
                 open={Boolean(anchorEl)}
                 anchorEl={anchorEl}
                 onClose={closePopover}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "left",
-                }}
+                anchorOrigin={anchorOrigin}
             >
                 <TextField
                     margin="normal"
@@ -207,6 +212,15 @@ export function PhoneNumberInput({
 }: PhoneNumberInputProps) {
     const [field, meta, helpers] = useField(name);
 
+    function handleChange(newValue: string) {
+        if (onChange) onChange(newValue);
+        helpers.setValue(newValue);
+    }
+
+    function handleSetError(error: string | undefined) {
+        helpers.setError(error);
+    }
+
     return (
         <PhoneNumberInputBase
             {...props}
@@ -215,13 +229,8 @@ export function PhoneNumberInput({
             error={meta.touched && !!meta.error}
             helperText={meta.touched && meta.error}
             onBlur={field.onBlur}
-            onChange={(newValue) => {
-                if (onChange) onChange(newValue);
-                helpers.setValue(newValue);
-            }}
-            setError={(error) => {
-                helpers.setError(error);
-            }}
+            onChange={handleChange}
+            setError={handleSetError}
         />
     );
 }

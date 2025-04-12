@@ -1,39 +1,40 @@
 import { ListObject } from "@local/shared";
-import { Box, IconButton, Palette, Tooltip, styled, useTheme } from "@mui/material";
-import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SessionContext } from "contexts";
-import { EllipsisIcon } from "icons";
+import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ObjectAction, getActionsDisplayData, getAvailableActions } from "utils/actions/objectActions";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ObjectActionsRowProps } from "../types";
+import { SessionContext } from "../../../contexts/session.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { ObjectAction, getActionsDisplayData, getAvailableActions } from "../../../utils/actions/objectActions.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { ObjectActionDialogs } from "../../dialogs/ObjectActionDialogs/ObjectActionDialogs.js";
+import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { ObjectActionsRowProps } from "../types.js";
 
 const MAX_ACTIONS_BEFORE_OVERFLOW = 5;
-
-function commonIconProps(palette: Palette) {
-    return {
-        width: "30px",
-        height: "30px",
-    };
-}
 
 const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     gap: theme.spacing(1),
-    marginTop: theme.spacing(1),
-    marginBottom: theme.spacing(1),
     alignItems: "center",
     justifyContent: "space-between",
 }));
 
 const ActionIconButton = styled(IconButton)(({ theme }) => ({
-    color: "inherit",
-    width: "48px",
+    color: theme.palette.background.textSecondary,
+    width: "32px",
     height: "100%",
+    padding: 0,
+}));
+
+const ActionIconWithLabelBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    alignItems: "center",
+    cursor: "pointer",
+    color: theme.palette.background.textSecondary,
 }));
 
 /**
@@ -82,25 +83,40 @@ export function ObjectActionsRow<T extends ListObject>({
     const actions = useMemo(() => {
         const displayData = getActionsDisplayData(actionsDisplayed);
         const displayedActions = displayData.map((action, index) => {
-            const { Icon, iconColor, labelKey, value } = action;
-            if (!Icon) return null;
+            const { iconColor, iconInfo, labelKey, value } = action;
+            if (!iconInfo) return null;
 
             function handleClick() {
                 actionData.onActionStart(value);
             }
 
-            return <Tooltip title={labelKey && t(labelKey, { count: 1 })} key={index}>
-                <ActionIconButton onClick={handleClick}>
-                    <Icon {...commonIconProps(palette)} fill={iconColor === "default" ? palette.secondary.main : iconColor} />
-                </ActionIconButton>
-            </Tooltip>;
+            return (
+                <ActionIconWithLabelBox key={index} onClick={handleClick}>
+                    <Icon
+                        fill={iconColor === "default" ? "currentColor" : iconColor}
+                        info={iconInfo}
+                        size={24}
+                    />
+                    <Typography variant="body2">
+                        {labelKey && t(labelKey, { count: 1 })}
+                    </Typography>
+                </ActionIconWithLabelBox>
+            );
         });
         // If there are extra actions, display an ellipsis button
         if (actionsExtra.length > 0) {
             displayedActions.push(
-                <Tooltip title="More" key={displayedActions.length}>
-                    <ActionIconButton onClick={openOverflowMenu}>
-                        <EllipsisIcon {...commonIconProps(palette)} fill={palette.secondary.main} />
+                <Tooltip title={t("More")} key={displayedActions.length}>
+                    <ActionIconButton
+                        aria-label={t("More")}
+                        onClick={openOverflowMenu}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Ellipsis"
+                            size={24}
+                        />
                     </ActionIconButton>
                 </Tooltip>,
             );
