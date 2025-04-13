@@ -30,6 +30,9 @@ jobs:
           node-version: "18.x"
           cache: "yarn"
 
+      - name: Install Bats Testing Framework
+        run: npm install -g bats
+
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
@@ -74,7 +77,7 @@ jobs:
           # Set production version
           VERSION=$(cat package.json | jq -r .version)
           # Run build script for production
-          ./scripts/build.sh -v "$VERSION" -e ".env-prod" -t y
+          ./scripts/build.sh -v "$VERSION" -e ".env-prod" -t n
           # Set output for other jobs to use
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           # Also set env var for this job's remaining steps
