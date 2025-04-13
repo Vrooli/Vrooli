@@ -15,13 +15,16 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Read arguments
 SETUP_ARGS=()
-ENV_FILE=".env-prod"
+ENV_FILE_PROD=".env-prod"
+ENV_FILE_DEV=".env"
+ENV_FILE=${ENV_FILE_PROD}
 # Clean up old builds
 CLEAN_BUILDS=false
 # Number of recent builds to keep
 KEEP_BUILDS=3
 # Skip confirmation prompts
 SKIP_CONFIRMATIONS=false
+
 
 # Read arguments
 while [[ $# -gt 0 ]]; do
@@ -36,12 +39,13 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    -e | --env-file)
-        if [ -z "$2" ] || [[ "$2" == -* ]]; then
-            echo "Error: Option $key requires an argument."
-            exit 1
+    -p | --prod)
+        if is_yes "$2"; then
+            ENV_FILE=${ENV_FILE_PROD}
+        else
+            ENV_FILE=${ENV_FILE_DEV}
         fi
-        ENV_FILE="${2}"
+        SETUP_ARGS+=("$key" "$2") # Also pass this to setup.sh
         shift # past argument
         shift # past value
         ;;
@@ -66,7 +70,7 @@ while [[ $# -gt 0 ]]; do
     -h | --help)
         echo "Usage: $0 [-v VERSION] [-c] [-k KEEP_BUILDS] [-y] [-h]"
         echo "  -v --version:   Version number to use (e.g. \"1.0.0\")"
-        echo "  -e --env-file:  .env file name (e.g. \".env\") (must be in root directory)"
+        echo "  -p --prod:      (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
         echo "  -c --clean:     Clean up old build directories"
         echo "  -k --keep:      Number of recent builds to keep when cleaning (default: 3)"
         echo "  -y --yes:       Automatically answer yes to all confirmation prompts"
@@ -172,16 +176,21 @@ else
 fi
 
 # Copy the environment file to the correct location
+ENV_FILE_DEST="${HERE}/../${ENV_FILE}"
 if [ -f "${BUILD_ZIP}/${ENV_FILE}" ]; then
-    info "Moving ${ENV_FILE} file to ${HERE}/../${ENV_FILE}"
-    cp "${BUILD_ZIP}/${ENV_FILE}" "${HERE}/../${ENV_FILE}"
+    info "Copying ${ENV_FILE} file from build to ${ENV_FILE_DEST}"
+    cp "${BUILD_ZIP}/${ENV_FILE}" "${ENV_FILE_DEST}"
     if [ $? -ne 0 ]; then
-        error "Failed to move ${ENV_FILE} file to ${HERE}/../${ENV_FILE}"
+        error "Failed to copy ${ENV_FILE} file to ${ENV_FILE_DEST}"
         exit 1
     fi
 else
-    error "Could not find ${ENV_FILE} file at ${BUILD_ZIP}/${ENV_FILE}"
-    exit 1
+    if [ -f "${ENV_FILE_DEST}" ]; then
+        warning "Could not find ${ENV_FILE} file at ${BUILD_ZIP}/${ENV_FILE}, but found existing file at ${ENV_FILE_DEST}. Using existing file."
+    else
+        error "Could not find ${ENV_FILE} file at ${BUILD_ZIP}/${ENV_FILE} and no existing file at ${ENV_FILE_DEST}. Deployment cannot continue without environment configuration."
+        exit 1
+    fi
 fi
 
 # Stop docker containers

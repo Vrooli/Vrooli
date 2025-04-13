@@ -87,7 +87,7 @@ jobs:
           # Set version with timestamp
           VERSION=$(cat package.json | jq -r .version)-dev-$(date +%Y%m%d%H%M%S)
           # Run build script with development env file
-          ./scripts/build.sh -v "$VERSION" -e ".env-dev" -t n -u n -d n
+          ./scripts/build.sh -v "$VERSION" -p n -t n -u n -d n
           # Set output for other jobs to use
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           # Also set env var for this job's remaining steps

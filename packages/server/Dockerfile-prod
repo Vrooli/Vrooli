@@ -14,8 +14,12 @@ COPY --chown=node:node packages/shared/package.json packages/shared/
 COPY --chown=node:node packages/server/dist packages/server/dist
 COPY --chown=node:node packages/shared/dist packages/shared/dist
 
-# Install local packages
-RUN yarn install --production
+# Fix for local dependencies in CI/CD environment
+RUN yarn config set enableLocalWorkspaces true && \
+    # Create .yarnrc file to configure yarn to use workspaces
+    echo "workspaces-experimental true" > .yarnrc && \
+    # Install production dependencies
+    yarn install --production
 
 # Install modclean and clean node_modules.
 # Also install prisma for database migrations.

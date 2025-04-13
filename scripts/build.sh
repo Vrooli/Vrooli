@@ -5,19 +5,28 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/utils.sh"
 
 # Read arguments
-ENV_FILE=".env-prod"
+ENV_FILE_PROD=".env-prod"
+ENV_FILE_DEV=".env"
+ENV_FILE=${ENV_FILE_PROD}
+DOCKER_COMPOSE_FILE_PROD="docker-compose-prod.yml"
+DOCKER_COMPOSE_FILE_DEV="docker-compose.yml"
+DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_PROD}
+KUBERNETES_FILE_PROD="k8s-docker-compose-prod-env.yml"
+KUBERNETES_FILE_DEV="k8s-docker-compose-dev-env.yml"
+KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
+ENVIRONMENT=${NODE_ENV:-development}
 TEST="y"
-while getopts "v:d:u:ha:e:t:" opt; do
+while getopts "v:d:u:ha:t:p:" opt; do
     case $opt in
     h)
         echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
-        echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
-        echo "  -d --deploy-vps: Deploy to VPS? (y/N)"
-        echo "  -u --use-kubernetes: Deploy to Kubernetes? This overrides '--deploy-vps'. (y/N)"
-        echo "  -h --help: Show this help message"
-        echo "  -a --api-generate: Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
-        echo "  -e --env-file: .env file name (e.g. \".env\") (must be in root directory)"
-        echo "  -t --test: Runs all tests to ensure code is working before building. Defaults to true. (y/N)"
+        echo "  -v --version:        Version number to use (e.g. \"1.0.0\")"
+        echo "  -d --deploy-vps:     (y/N) Deploy to VPS?"
+        echo "  -u --use-kubernetes: (y/N) Deploy to Kubernetes? This overrides '--deploy-vps'"
+        echo "  -h --help:           Show this help message"
+        echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
+        echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
+        echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
         exit 0
         ;;
     a)
@@ -26,8 +35,18 @@ while getopts "v:d:u:ha:e:t:" opt; do
     d)
         DEPLOY_VPS=$OPTARG
         ;;
-    e)
-        ENV_FILE=$OPTARG
+    p)
+        if is_yes "$OPTARG"; then
+            ENV_FILE=${ENV_FILE_PROD}
+            DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_PROD}
+            KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
+            ENVIRONMENT="production"
+        else
+            ENV_FILE=${ENV_FILE_DEV}
+            DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_DEV}
+            KUBERNETES_FILE=${KUBERNETES_FILE_DEV}
+            ENVIRONMENT="development"
+        fi
         ;;
     t)
         TEST=$OPTARG
@@ -154,7 +173,7 @@ else
     warning "Skipping type checking for UI..."
 fi
 
-# Create local .env file
+# Create local environment file
 TMP_ENV_FILE=".env-tmp"
 touch ${TMP_ENV_FILE}
 # Set environment variables
@@ -254,52 +273,55 @@ if [ ! -f "${KEYSTORE_PATH}" ]; then
     fi
 fi
 
-# Create assetlinks.json file for Google Play Store
-if [ -f "${KEYSTORE_PATH}" ]; then
-    header "Creating dist/.well-known/assetlinks.json file so Google can verify the app with the website..."
-    # Export the PEM file from keystore
-    PEM_PATH="${HERE}/../upload_certificate.pem"
-    keytool -export -rfc -keystore "${KEYSTORE_PATH}" -alias "${KEYSTORE_ALIAS}" -file "${PEM_PATH}" -storepass "${KEYSTORE_PASSWORD}"
-    if [ $? -ne 0 ]; then
-        echo "PEM file could not be generated. The app cannot be uploaded to the Google Play store without it."
-        exit 1
-    fi
-
-    # Extract SHA-256 fingerprint
-    GOOGLE_PLAY_FINGERPRINT=$(keytool -list -keystore "${KEYSTORE_PATH}" -alias "${KEYSTORE_ALIAS}" -storepass "${KEYSTORE_PASSWORD}" -v | grep "SHA256:" | awk '{ print $2 }')
-    if [ $? -ne 0 ]; then
-        echo "SHA-256 fingerprint could not be extracted. The app cannot be uploaded to the Google Play store without it."
-        exit 1
-    else
-        echo "SHA-256 fingerprint extracted successfully: $GOOGLE_PLAY_FINGERPRINT"
-    fi
-
+create_assetlinks_file() {
     # Create assetlinks.json file for Google Play Store
-    if [ -z "${GOOGLE_PLAY_FINGERPRINT}" ]; then
-        error "GOOGLE_PLAY_FINGERPRINT is not set. Not creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)."
-    else
-        info "Creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
-        mkdir -p ${HERE}/../packages/ui/dist/.well-known
-        cd ${HERE}/../packages/ui/dist/.well-known
-        echo "[{" >assetlinks.json
-        echo "    \"relation\": [\"delegate_permission/common.handle_all_urls\"]," >>assetlinks.json
-        echo "    \"target\": {" >>assetlinks.json
-        echo "      \"namespace\": \"android_app\"," >>assetlinks.json
-        echo "      \"package_name\": \"com.vrooli.twa\"," >>assetlinks.json
-        # Check if the GOOGLE_PLAY_DOMAIN_FINGERPRINT variable is set and append it to the array
-        if [ ! -z "${GOOGLE_PLAY_DOMAIN_FINGERPRINT}" ]; then
-            echo "      \"sha256_cert_fingerprints\": [" >>assetlinks.json
-            echo "          \"${GOOGLE_PLAY_FINGERPRINT}\"," >>assetlinks.json
-            echo "          \"${GOOGLE_PLAY_DOMAIN_FINGERPRINT}\"" >>assetlinks.json
-            echo "      ]" >>assetlinks.json
-        else
-            echo "      \"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]" >>assetlinks.json
+    if [ -f "${KEYSTORE_PATH}" ]; then
+        header "Creating dist/.well-known/assetlinks.json file so Google can verify the app with the website..."
+        # Export the PEM file from keystore
+        PEM_PATH="${HERE}/../upload_certificate.pem"
+        keytool -export -rfc -keystore "${KEYSTORE_PATH}" -alias "${KEYSTORE_ALIAS}" -file "${PEM_PATH}" -storepass "${KEYSTORE_PASSWORD}"
+        if [ $? -ne 0 ]; then
+            warning "PEM file could not be generated. The app cannot be uploaded to the Google Play store without it."
+            return 1
         fi
-        echo "    }" >>assetlinks.json
-        echo "}]" >>assetlinks.json
-        cd ${HERE}/..
+
+        # Extract SHA-256 fingerprint
+        GOOGLE_PLAY_FINGERPRINT=$(keytool -list -keystore "${KEYSTORE_PATH}" -alias "${KEYSTORE_ALIAS}" -storepass "${KEYSTORE_PASSWORD}" -v | grep "SHA256:" | awk '{ print $2 }')
+        if [ $? -ne 0 ]; then
+            warning "SHA-256 fingerprint could not be extracted. The app cannot be uploaded to the Google Play store without it."
+            return 1
+        else
+            success "SHA-256 fingerprint extracted successfully: $GOOGLE_PLAY_FINGERPRINT"
+        fi
+
+        # Create assetlinks.json file for Google Play Store
+        if [ -z "${GOOGLE_PLAY_FINGERPRINT}" ]; then
+            warning "GOOGLE_PLAY_FINGERPRINT is not set. Not creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)."
+        else
+            info "Creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
+            mkdir -p ${HERE}/../packages/ui/dist/.well-known
+            cd ${HERE}/../packages/ui/dist/.well-known
+            echo "[{" >assetlinks.json
+            echo "    \"relation\": [\"delegate_permission/common.handle_all_urls\"]," >>assetlinks.json
+            echo "    \"target\": {" >>assetlinks.json
+            echo "      \"namespace\": \"android_app\"," >>assetlinks.json
+            echo "      \"package_name\": \"com.vrooli.twa\"," >>assetlinks.json
+            # Check if the GOOGLE_PLAY_DOMAIN_FINGERPRINT variable is set and append it to the array
+            if [ ! -z "${GOOGLE_PLAY_DOMAIN_FINGERPRINT}" ]; then
+                echo "      \"sha256_cert_fingerprints\": [" >>assetlinks.json
+                echo "          \"${GOOGLE_PLAY_FINGERPRINT}\"," >>assetlinks.json
+                echo "          \"${GOOGLE_PLAY_DOMAIN_FINGERPRINT}\"" >>assetlinks.json
+                echo "      ]" >>assetlinks.json
+            else
+                echo "      \"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]" >>assetlinks.json
+            fi
+            echo "    }" >>assetlinks.json
+            echo "}]" >>assetlinks.json
+            cd ${HERE}/..
+        fi
     fi
-fi
+}
+create_assetlinks_file
 
 # Create ads.txt file for Google AdSense
 if [ -z "${GOOGLE_ADSENSE_PUBLISHER_ID}" ]; then
@@ -332,7 +354,7 @@ fi
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
 if command -v docker-compose &>/dev/null; then
-    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f docker-compose-prod.yml build
+    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build
     if [ $? -ne 0 ]; then
         warning "Failed to build using docker-compose, trying to continue with docker pull..."
     fi
@@ -398,7 +420,7 @@ fi
 if is_yes "$USE_KUBERNETES"; then
     # Update build version in Kubernetes config
     if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
-        K8S_CONFIG_FILE="${HERE}/../k8s-docker-compose-prod-env.yml"
+        K8S_CONFIG_FILE="${HERE}/../${KUBERNETES_FILE}"
         if [ -f "${K8S_CONFIG_FILE}" ]; then
             info "Updating Kubernetes configuration file with version ${VERSION}"
             sed -i "s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION}/g" "${K8S_CONFIG_FILE}"

@@ -14,5 +14,9 @@ COPY --chown=node:node packages/ui/package.json packages/ui/serve.json packages/
 COPY --chown=node:node packages/ui/dist packages/ui/dist
 COPY --chown=node:node scripts/* scripts/
 
+# Configure yarn for workspaces
+RUN yarn config set enableLocalWorkspaces true && \
+    echo "workspaces-experimental true" > .yarnrc
+
 # Set port
 EXPOSE ${VIRTUAL_PORT}
