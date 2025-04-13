@@ -2,7 +2,7 @@
     "name": "@local/ui",
     "author": "Vrooli",
     "license": "AGPL-3.0-only",
-    "version": "1.9.10",
+    "version": "1.9.11",
     "main": "index.ts",
     "type": "module",
     "private": true,

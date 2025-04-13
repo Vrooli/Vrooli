@@ -9,7 +9,7 @@
     "resolutions": {
         "babel-loader": "8.1.0"
     },
-    "version": "1.9.10",
+    "version": "1.9.11",
     "devDependencies": {
         "@types/sinon-chai": "^4.0.0",
         "eslint-plugin-import": "^2.31.0",
