@@ -121,7 +121,7 @@ jobs:
             git fetch && \
             git pull origin development && \
             cp '$BUILD_DIR/.env-dev' .env-dev && \
-            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -e '.env-dev' -p n -y"
+            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -p n -y"
 
           # Verify API health check after deployment
           echo "Waiting 30 seconds for services to start..."

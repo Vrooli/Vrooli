@@ -16,7 +16,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Read arguments
 SETUP_ARGS=()
 ENV_FILE_PROD=".env-prod"
-ENV_FILE_DEV=".env"
+ENV_FILE_DEV=".env-dev"
 ENV_FILE=${ENV_FILE_PROD}
 # Clean up old builds
 CLEAN_BUILDS=false

@@ -6,7 +6,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Read arguments
 ENV_FILE_PROD=".env-prod"
-ENV_FILE_DEV=".env"
+ENV_FILE_DEV=".env-dev"
 ENV_FILE=${ENV_FILE_PROD}
 DOCKER_COMPOSE_FILE_PROD="docker-compose-prod.yml"
 DOCKER_COMPOSE_FILE_DEV="docker-compose.yml"
