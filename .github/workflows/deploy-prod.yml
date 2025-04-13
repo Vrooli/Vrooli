@@ -111,7 +111,7 @@ jobs:
             git fetch && \
             git pull origin main && \
             cp '$BUILD_DIR/.env-prod' .env-prod && \
-            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -e '.env-prod'"
+            ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -e '.env-prod' -p y -y"
 
           # Verify deployment status
           ssh "$VPS_USER@$VPS_HOST" "cd '$DEPLOY_PATH' && docker-compose -f docker-compose-prod.yml ps"

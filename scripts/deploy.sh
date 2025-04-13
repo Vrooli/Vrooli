@@ -20,8 +20,8 @@ ENV_FILE=".env-prod"
 CLEAN_BUILDS=false
 # Number of recent builds to keep
 KEEP_BUILDS=3
-# Skip confirmation when cleaning old builds
-SKIP_CLEAN_CONFIRM=false
+# Skip confirmation prompts
+SKIP_CONFIRMATIONS=false
 
 # Read arguments
 while [[ $# -gt 0 ]]; do
@@ -44,6 +44,7 @@ while [[ $# -gt 0 ]]; do
         ENV_FILE="${2}"
         shift # past argument
         shift # past value
+        ;;
     -c | --clean)
         CLEAN_BUILDS=true
         shift # past argument
@@ -58,17 +59,18 @@ while [[ $# -gt 0 ]]; do
         shift # past value
         ;;
     -y | --yes)
-        SKIP_CLEAN_CONFIRM=true
+        SKIP_CONFIRMATIONS=true
+        SETUP_ARGS+=("$key") # Also pass this to setup.sh
         shift # past argument
         ;;
     -h | --help)
         echo "Usage: $0 [-v VERSION] [-c] [-k KEEP_BUILDS] [-y] [-h]"
-        echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
-        echo "  -e --env-file: .env file name (e.g. \".env\") (must be in root directory)"
-        echo "  -c --clean: Clean up old build directories"
-        echo "  -k --keep: Number of recent builds to keep when cleaning (default: 3)"
-        echo "  -y --yes: Skip confirmation when cleaning build directories"
-        echo "  -h --help: Show this help message"
+        echo "  -v --version:   Version number to use (e.g. \"1.0.0\")"
+        echo "  -e --env-file:  .env file name (e.g. \".env\") (must be in root directory)"
+        echo "  -c --clean:     Clean up old build directories"
+        echo "  -k --keep:      Number of recent builds to keep when cleaning (default: 3)"
+        echo "  -y --yes:       Automatically answer yes to all confirmation prompts"
+        echo "  -h --help:      Show this help message"
         exit 0
         ;;
     *)
@@ -150,7 +152,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" --env-secrets-setup y
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -188,7 +190,7 @@ docker-compose --env-file "${ENV_FILE}" down
 
 info "Getting production secrets..."
 readarray -t secrets <"${HERE}/secrets_list.txt"
-TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" production ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."
+TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" prod ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."
 rm "$TMP_FILE"
 export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:${PORT_DB:-5432}"
 export REDIS_URL="redis://:${REDIS_PASSWORD}@redis:${PORT_REDIS:-6379}"
@@ -237,7 +239,7 @@ cleanup_old_builds() {
     done
     
     # Ask for confirmation unless skipped
-    if [ "$SKIP_CLEAN_CONFIRM" != true ]; then
+    if [ "$SKIP_CONFIRMATIONS" != true ]; then
         prompt "Do you want to proceed with removing these directories? (y/N)"
         read -n 1 -r REPLY
         echo

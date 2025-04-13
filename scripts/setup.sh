@@ -17,21 +17,23 @@ ENVIRONMENT=${NODE_ENV:-development}
 ENV_FILES_SET_UP=""
 USE_KUBERNETES=false
 SETUP_CI_CD=false
+SKIP_CONFIRMATIONS=false
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [-h HELP] [-c CI/CD] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE]
+Usage: $(basename "$0") [-h HELP] [-c CI/CD] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE] [-y SKIP_CONFIRMATIONS]
 
 Sets up NPM, Yarn, global dependencies, and anything else required to get the project up and running.
 
 Options:
   -h, --help:              Show this help message
   -c, --ci-cd:             (y/N) True if you want to configure the system for CI/CD (GitHub Actions)
-  -e, --env-setup:         (y/N) True if you want to create secret files for the environment variables. If not provided, will prompt.
+  -e, --env-secrets-setup: (y/N) True if you want to create secret files for the environment variables. If not provided, will prompt.
   -k, --kubernetes:        (y/N) True if you want to use Kubernetes instead of Docker Compose
   -m, --modules-reinstall: (y/N) If true, will delete all node_modules directories and reinstall
   -p, --prod:              (y/N) If true, will skip steps that are only required for development
   -r, --remote:            (y/N) True if this script is being run on a remote server
+  -y, --yes:               Automatically answer yes to all confirmation prompts
 
 Exit Codes:
   0                     Success
@@ -58,7 +60,7 @@ parse_arguments() {
             shift # past argument
             shift # past value
             ;;
-        -e | --env-setup)
+        -e | --env-secrets-setup)
             if [ -z "$2" ] || [[ "$2" == -* ]]; then
                 echo "Error: Option $key requires an argument."
                 exit $ERROR_USAGE
@@ -93,7 +95,7 @@ parse_arguments() {
                 usage
                 exit $ERROR_USAGE
             fi
-            ENVIRONMENT=    "production"
+            ENVIRONMENT="production"
             shift # past argument
             shift # past value
             ;;
@@ -106,6 +108,11 @@ parse_arguments() {
             ON_REMOTE="${2}"
             shift # past argument
             shift # past value
+            ;;
+        -y | --yes)
+            # Requires no argument
+            SKIP_CONFIRMATIONS=true
+            shift # past argument
             ;;
         *)
             # Unknown option
@@ -478,16 +485,23 @@ setup_docker_internet() {
         error "Docker cannot access the internet. This may be a DNS issue."
         show_docker_daemon
 
-        prompt "Would you like to update /etc/docker/daemon.json to use Google DNS (8.8.8.8)? (y/n): " choice
-        read -n1 -r choice
-        echo
-        if is_yes "$choice"; then
+        if [ "$SKIP_CONFIRMATIONS" = "true" ]; then
             update_docker_daemon
             restart_docker
             info "Docker DNS updated. Retesting Docker internet access..."
             check_docker_internet && success "Docker internet access is now working!" || error "Docker internet access still failing."
         else
-            echo "No changes made."
+            prompt "Would you like to update /etc/docker/daemon.json to use Google DNS (8.8.8.8)? (y/n): " choice
+            read -n1 -r choice
+            echo
+            if is_yes "$choice"; then
+                update_docker_daemon
+                restart_docker
+                info "Docker DNS updated. Retesting Docker internet access..."
+                check_docker_internet && success "Docker internet access is now working!" || error "Docker internet access still failing."
+            else
+                echo "No changes made."
+            fi
         fi
     else
         echo "Docker already has internet access."
@@ -601,27 +615,34 @@ setup_vault() {
     if $USE_KUBERNETES; then
         FLAGS="${FLAGS}-k "
     fi
+    if [ "$SKIP_CONFIRMATIONS" = "true" ]; then
+        FLAGS="${FLAGS}-y "
+    fi
     "${HERE}/vaultSetup.sh" ${FLAGS}
 }
 
 populate_vault() {
     if [ "${ENV_FILES_SET_UP}" = "" ]; then
-        echo "${ENVIRONMENT} detected."
-        if [ "${ENVIRONMENT}" = "development" ]; then
-            prompt "Have you already set up your .env file, and would you like to generate secret files? (Y/n)"
+        if [ "$SKIP_CONFIRMATIONS" = "true" ]; then
+            ENV_FILES_SET_UP="y"
         else
-            prompt "Have you already set up your .env-prod file, and would you like to generate secret files? (Y/n)"
+            echo "${ENVIRONMENT} detected."
+            if [ "${ENVIRONMENT}" = "development" ]; then
+                prompt "Have you already set up your .env file, and would you like to generate secret files? (Y/n)"
+            else
+                prompt "Have you already set up your .env-prod file, and would you like to generate secret files? (Y/n)"
+            fi
+            read -n1 -r ENV_FILES_SET_UP
+            echo
         fi
-        read -n1 -r ENV_FILES_SET_UP
-        echo
     fi
     if is_yes "$ENV_FILES_SET_UP"; then
         if [ "${ENVIRONMENT}" = "development" ]; then
             info "Setting up secrets for development environment..."
-            "${HERE}/setSecrets.sh" -e development
+            "${HERE}/setSecrets.sh" -e dev
         else
             info "Setting up secrets for production environment..."
-            "${HERE}/setSecrets.sh" -e production
+            "${HERE}/setSecrets.sh" -e prod
         fi
     fi
 }
@@ -750,10 +771,6 @@ EOF
     echo "   - DEV_VPS_HOST: Your development server hostname"
     echo "   - DEV_VPS_USER: Your development server username"
     echo "   - DEV_SSH_PRIVATE_KEY: SSH key for development server"
-    echo ""
-    echo "2. To manually deploy:"
-    echo "   - Production: $DEPLOY_DIR/deploy.sh production"
-    echo "   - Development: $DEPLOY_DIR/deploy.sh development"
     echo ""
 }
 

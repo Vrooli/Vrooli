@@ -15,17 +15,19 @@ SECRETS_PATH="/run/secrets/vrooli"
 ENVIRONMENT="dev"
 USE_KUBERNETES=false
 SHUTDOWN_VAULT=false
+SKIP_CONFIRMATIONS=false
 
 # Read arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
     -h | --help)
-        echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE] [-x SHUTDOWN]"
+        echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE] [-x SHUTDOWN] [-y SKIP_CONFIRMATIONS]"
         echo "  -h --help: Show this help message"
         echo "  -k --kubernetes: If set, will use Kubernetes instead of Docker Compose"
         echo "  -p --prod: If set, will skip steps that are only required for development"
         echo "  -x --shutdown: If set, will shut down Vault instead of starting it"
+        echo "  -y --yes: If set, will skip all confirmation prompts and automatically answer 'yes'"
         exit 0
         ;;
     -k | --kubernetes)
@@ -38,6 +40,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     -x | --shutdown)
         SHUTDOWN_VAULT=true
+        shift # past argument
+        ;;
+    -y | --yes)
+        SKIP_CONFIRMATIONS=true
         shift # past argument
         ;;
     esac
@@ -63,6 +69,18 @@ assert_port_is_vault() {
             error "Port ${VAULT_PORT} is in use by another process. Please ensure Vault's port isn't conflicting with other services."
             exit 1
         fi
+    fi
+}
+
+# Wrapper around prompt_confirm to handle automatic confirmations
+auto_confirm() {
+    local message="$1"
+    if [ "$SKIP_CONFIRMATIONS" = "true" ]; then
+        info "Auto-confirming: $message"
+        return 0
+    else
+        prompt_confirm "$message"
+        return $?
     fi
 }
 
@@ -105,7 +123,7 @@ setup_docker_dev() {
 
     # Check if Vault is in development mode and switch if necessary
     if is_vault_sealed_status "true"; then
-        if prompt_confirm "Vault is sealed (production mode). This needs to be shut down to set up a development vault. Continue? (y/N): "; then
+        if auto_confirm "Vault is sealed (production mode). This needs to be shut down to set up a development vault. Continue? (y/N): "; then
             info "Switching to development mode..."
             # Shut down Vault and restart in development mode
             shutdown_docker_prod
@@ -146,7 +164,7 @@ setup_docker_dev() {
 
 shutdown_vault_confirm() {
     warning "Shutting down Vault will delete all data stored in Vault."
-    if prompt_confirm "Are you sure you want to continue? (y/n): "; then
+    if auto_confirm "Are you sure you want to continue? (y/n): "; then
         info "Shutting down Vault..."
     else
         info "Cancelling shutdown."
@@ -196,7 +214,7 @@ setup_docker_prod() {
 
     # Check if Vault is in development mode and switch if necessary
     if is_vault_sealed_status "false"; then
-        if prompt_confirm "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "; then
+        if auto_confirm "Vault is unsealed (development mode). This needs to be shut down to set up a production vault. Continue? (y/N): "; then
             info "Switching to production mode..."
             # Shut down Vault and restart in production mode
             shutdown_docker_dev

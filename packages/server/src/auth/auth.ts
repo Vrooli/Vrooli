@@ -268,7 +268,7 @@ export class AuthService {
             languages: RequestService.parseAcceptLanguage(req),
         };
         // If from unsafe origin, deny access.
-        if (!req.session.fromSafeOrigin) {
+        if (!req.session.fromSafeOrigin && req.originalUrl !== "/healthcheck") {
             const trace = "0451";
             logger.error("Error authenticating request", { trace });
             return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Forbidden);
