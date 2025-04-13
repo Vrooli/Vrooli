@@ -73,7 +73,7 @@ To trigger a manual deployment:
 Or deploy directly from your VPS:
 ```bash
 cd /path/to/your/Vrooli
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 ### Monitoring
@@ -98,7 +98,7 @@ If a deployment causes issues:
 ```bash
 cd /path/to/your/Vrooli
 git checkout <previous-commit-hash>
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 ## Troubleshooting

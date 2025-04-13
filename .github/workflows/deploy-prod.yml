@@ -65,6 +65,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Create .env-prod file from secret
+        run: echo "${{ secrets.ENV_PROD_FILE }}" > .env-prod
+
       - name: Build application
         id: set_version
         run: |
@@ -85,7 +88,7 @@ jobs:
       - name: Deploy to VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_USER: ${{ secrets.VPS_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           # Add VPS host to known_hosts
@@ -93,27 +96,27 @@ jobs:
 
           # Create temp directory for build artifacts
           BUILD_DIR="/var/tmp/${{ env.BUILD_VERSION }}"
-          ssh "$VPS_USERNAME@$VPS_HOST" "mkdir -p '$BUILD_DIR'"
+          ssh "$VPS_USER@$VPS_HOST" "mkdir -p '$BUILD_DIR'"
 
           # Copy build artifacts to VPS
-          scp "/var/tmp/${{ env.BUILD_VERSION }}/build.tar.gz" "$VPS_USERNAME@$VPS_HOST:$BUILD_DIR/"
-          scp "/var/tmp/${{ env.BUILD_VERSION }}/production-docker-images.tar.gz" "$VPS_USERNAME@$VPS_HOST:$BUILD_DIR/"
-          scp "/var/tmp/${{ env.BUILD_VERSION }}/.env-prod" "$VPS_USERNAME@$VPS_HOST:$BUILD_DIR/"
+          scp "/var/tmp/${{ env.BUILD_VERSION }}/build.tar.gz" "$VPS_USER@$VPS_HOST:$BUILD_DIR/"
+          scp "/var/tmp/${{ env.BUILD_VERSION }}/production-docker-images.tar.gz" "$VPS_USER@$VPS_HOST:$BUILD_DIR/"
+          scp "/var/tmp/${{ env.BUILD_VERSION }}/.env-prod" "$VPS_USER@$VPS_HOST:$BUILD_DIR/"
 
           # Update git repo on server and deploy
-          ssh "$VPS_USERNAME@$VPS_HOST" "cd '$DEPLOY_PATH' && \
+          ssh "$VPS_USER@$VPS_HOST" "cd '$DEPLOY_PATH' && \
             git fetch && \
             git pull origin main && \
             cp '$BUILD_DIR/.env-prod' .env-prod && \
             ./scripts/deploy.sh -v '${{ env.BUILD_VERSION }}' -c -y -e '.env-prod'"
 
           # Verify deployment status
-          ssh "$VPS_USERNAME@$VPS_HOST" "cd '$DEPLOY_PATH' && docker-compose -f docker-compose-prod.yml ps"
+          ssh "$VPS_USER@$VPS_HOST" "cd '$DEPLOY_PATH' && docker-compose -f docker-compose-prod.yml ps"
 
           # Wait and verify API health
           echo "Waiting 30 seconds for services to start..."
           sleep 30
-          if ! curl -s -f -o /dev/null "https://${{ secrets.PROD_DOMAIN }}/healthcheck"; then
+          if ! curl -s -f -o /dev/null "https://${{ secrets.API_URL }}/healthcheck"; then
             echo "Deployment verification failed"
             exit 1
           fi

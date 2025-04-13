@@ -66,6 +66,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Create .env-dev file from secret
+        run: echo "${{ secrets.ENV_DEV_FILE }}" > .env-dev
+
       - name: Build application
         id: set_version
         run: |
