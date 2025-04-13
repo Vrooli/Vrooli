@@ -113,7 +113,7 @@ services:
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: jobs
-    image: jobs:dev
+    image: jobs:prod
     restart: always
     environment:
       NODE_ENV: "production"

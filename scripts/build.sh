@@ -331,17 +331,52 @@ fi
 # Build Docker images
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
-docker-compose --env-file "${HERE}/../${ENV_FILE}" -f docker-compose-prod.yml build
+if command -v docker-compose &>/dev/null; then
+    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f docker-compose-prod.yml build
+    if [ $? -ne 0 ]; then
+        warning "Failed to build using docker-compose, trying to continue with docker pull..."
+    fi
+else
+    warning "docker-compose command not found. Skipping docker-compose build step..."
+fi
+
+# Pull necessary images regardless of docker-compose success
 docker pull ankane/pgvector:v0.4.4
 docker pull redis:7.4.0-alpine
 
 # Save and compress Docker images
 info "Saving Docker images..."
-docker save -o production-docker-images.tar ui:prod server:prod ankane/pgvector:v0.4.4 redis:7.4.0-alpine
+
+# Initialize an array to store available images
+AVAILABLE_IMAGES=()
+
+# Check each image individually and add to array if available
+IMAGE_SUFFIX="prod"
+if [ "${NODE_ENV}" = "development" ]; then
+    IMAGE_SUFFIX="dev"
+fi
+for IMAGE in "ui:${IMAGE_SUFFIX}" "server:${IMAGE_SUFFIX}" "jobs:${IMAGE_SUFFIX}" "ankane/pgvector:v0.4.4" "redis:7.4.0-alpine"; do
+    if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+        AVAILABLE_IMAGES+=("$IMAGE")
+        info "Image $IMAGE found and will be saved"
+    else
+        warning "Image $IMAGE not found and will be skipped"
+    fi
+done
+
+# If no images are available, exit with error
+if [ ${#AVAILABLE_IMAGES[@]} -eq 0 ]; then
+    error "No Docker images available to save"
+    exit 1
+fi
+
+# Save available images
+docker save -o production-docker-images.tar "${AVAILABLE_IMAGES[@]}"
 if [ $? -ne 0 ]; then
     error "Failed to save Docker images"
     exit 1
 fi
+
 trap "rm production-docker-images.tar*" EXIT
 run_step "Compressing Docker images..." "gzip -f production-docker-images.tar"
 
