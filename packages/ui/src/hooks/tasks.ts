@@ -1,4 +1,4 @@
-import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, uuid } from "@local/shared";
+import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, noop, uuid } from "@local/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { useActiveChat } from "../stores/activeChatStore.js";
@@ -155,7 +155,7 @@ export function useAutoFill<T = object>({
     task,
 }: UseAutoFillProps<T>) {
     // Should always be associated with the main active chat
-    const { chat, latestMessageId } = useActiveChat();
+    const { chat, latestMessageId } = useActiveChat({ setMessage: noop });
     const model = "gpt-4o-mini"; //TODO
 
     /**

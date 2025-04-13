@@ -1,5 +1,5 @@
 import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, ModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
-import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ServerResponseParser } from "../api/responseParser.js";
 import { FetchInputOptions } from "../api/types.js";
 import { useLocation } from "../route/router.js";
@@ -10,10 +10,16 @@ import { UrlInfo, parseSingleItemUrl } from "../utils/navigation/urlTools.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useFormCacheStore } from "./forms.js";
 import { useLazyFetch } from "./useLazyFetch.js";
+import { useStableObject } from "./useStableObject.js";
 
 type UrlObject = { __typename: ModelType | `${ModelType}`; id?: string };
 
 type FetchInput = FindByIdInput | FindVersionInput | FindByIdOrHandleInput;
+
+/**
+ * Maximum number of retries for fetching an object before giving up
+ */
+const MAX_FETCH_RETRIES = 3;
 
 /**
  * Determines the return type based on whether a transform function is provided.
@@ -56,223 +62,198 @@ interface UseManagedObjectParams<
 }
 
 /**
- * Hook that manages the state of an object, handling data fetching, caching, and state updates.
+ * Hook for parsing and accessing URL parameters relevant to object identification
  */
-export function useManagedObject<
-    PData extends UrlObject,
-    TData extends UrlObject = PartialWithType<PData>,
-    TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
->(params: UseManagedObjectParams<PData, TData, TFunc>): UseManagedObjectReturn<TData, TFunc> {
-    const {
-        endpoint,
-        objectType,
-        disabled = false,
-        displayError = true,
-        isCreate = false,
-        onError,
-        onInvalidUrlParams,
-        overrideObject,
-        transform,
-    } = params;
-
+export function useObjectUrl() {
     const [{ pathname }] = useLocation();
-    const urlParams = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);
+    const urlParams = useMemo(function parseUrlParamsMemo() {
+        return parseSingleItemUrl({ pathname });
+    }, [pathname]);
 
-    // Use refs to avoid unnecessary re-renders
-    const onErrorRef = useRef(onError);
-    const onInvalidUrlParamsRef = useRef(onInvalidUrlParams);
-    const transformRef = useRef(transform);
+    const result = {
+        params: urlParams,
+        id: urlParams.id,
+        handle: urlParams.handle,
+        idRoot: urlParams.idRoot,
+        handleRoot: urlParams.handleRoot,
+        hasIdentifier: Boolean(urlParams.id || urlParams.handle || urlParams.idRoot || urlParams.handleRoot),
+    };
 
-    const getFormCacheData = useFormCacheStore(state => state.getCacheData);
+    return result;
+}
 
-    // Initialize fetch function
-    const [fetchData, fetchResult] = useLazyFetch<FetchInput, PData>({ endpoint });
+/**
+ * Hook for fetching object data from server endpoints
+ */
+export function useObjectData<TData extends UrlObject>(
+    endpoint: string,
+    shouldFetch: boolean,
+    identifier: { id?: string; handle?: string; idRoot?: string; handleRoot?: string },
+    onError: FetchInputOptions["onError"],
+    displayError: boolean,
+) {
+    const [fetchData, fetchResult] = useLazyFetch<FetchInput, TData>({ endpoint });
+    const retryCountRef = useRef(0);
+    const [fetchFailed, setFetchFailed] = useState(false);
+    // Track if initial fetch has been done
+    const initialFetchDoneRef = useRef(false);
 
-    // Initialize object state
-    const {
-        initialObject,
-        hasStoredFormDataConflict,
-        storedFormData,
-    } = initializeObjectState<PData, TData, TFunc>({
-        disabled,
-        getFormCacheData,
-        isCreate,
-        objectType,
-        overrideObject,
-        transform: transformRef.current,
-        urlParams,
-    });
-    const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(initialObject as ObjectReturnType<TData, TFunc>);
+    // Create a stable version of the identifier to prevent infinite loops
+    const stableIdentifier = useMemo(() => ({
+        id: identifier.id,
+        handle: identifier.handle,
+        idRoot: identifier.idRoot,
+        handleRoot: identifier.handleRoot
+    }), [identifier.id, identifier.handle, identifier.idRoot, identifier.handleRoot]);
 
-    useEffect(function promptOnFormConflict() {
-        if (hasStoredFormDataConflict && storedFormData) {
-            promptToUseStoredFormData(() => {
-                setObject(applyDataTransform(storedFormData, transformRef.current) as ObjectReturnType<TData, TFunc>);
-            });
+    // Track the previous identifier to detect real changes
+    const prevIdentifierRef = useRef(stableIdentifier);
+
+    // Check if identifier actually changed (values, not just object reference)
+    const identifierChanged = useMemo(() => {
+        const changed = !isEqual(prevIdentifierRef.current, stableIdentifier);
+        if (changed) {
+            prevIdentifierRef.current = stableIdentifier;
         }
-    }, [hasStoredFormDataConflict, storedFormData, transformRef]);
+        return changed;
+    }, [stableIdentifier]);
 
-    useEffect(function handleFetchData() {
-        if (shouldFetchData({ disabled, overrideObject })) {
-            const fetched = fetchDataUsingUrl(urlParams, fetchData, onErrorRef.current, displayError);
-
-            if (!fetched) {
-                handleInvalidUrlParams({
-                    transform: transformRef.current,
-                    onInvalidUrlParams: onInvalidUrlParamsRef.current,
-                    urlParams,
-                });
-            }
-        }
-    }, [fetchData, objectType, overrideObject, displayError, urlParams, disabled]);
-
-    useEffect(function handleUpdateOnFetchResult() {
-        console.log("in handleUpdateOnFetchResult", fetchResult, objectType);
-        if (disabled || fetchResult.loading) {
-            return;
-        }
-
-        if (overrideObject) {
-            // Prioritize overrideObject over other data sources
-            setObject(applyDataTransform(overrideObject, transformRef.current) as ObjectReturnType<TData, TFunc>);
-            return;
+    const fetchObjectData = useCallback(function fetchObjectDataCallback() {
+        if (!shouldFetch) {
+            console.info("[useObjectData] Fetch skipped: shouldFetch is false");
+            return false;
         }
 
-        if (fetchResult.data) {
-            // If data was fetched, cache it and update the object
-            setCookiePartialData(fetchResult.data, "full");
-            setObject(applyDataTransform(fetchResult.data, transformRef.current) as ObjectReturnType<TData, TFunc>);
-        } else if (ServerResponseParser.hasErrorCode(fetchResult, "Unauthorized")) {
-            // If unauthorized error, clear cache and reset object
-            removeCookiePartialData({ __typename: objectType, ...urlParams });
-            setObject(applyDataTransform({}, transformRef.current) as ObjectReturnType<TData, TFunc>);
+        // Don't retry if we've already hit the maximum number of retries
+        if (retryCountRef.current >= MAX_FETCH_RETRIES) {
+            console.warn(`[useObjectData] Max retry count (${MAX_FETCH_RETRIES}) reached, marking as failed`);
+            setFetchFailed(true);
+            return false;
+        }
+
+        // Determine which identifier to use for fetching
+        let identifierType: string | null = null;
+        let identifierValue: string | null = null;
+        let fetchInput: FetchInput | null = null;
+
+        if (exists(stableIdentifier.handle)) {
+            identifierType = "handle";
+            identifierValue = stableIdentifier.handle;
+            fetchInput = { handle: stableIdentifier.handle };
+        } else if (exists(stableIdentifier.handleRoot)) {
+            identifierType = "handleRoot";
+            identifierValue = stableIdentifier.handleRoot;
+            fetchInput = { handleRoot: stableIdentifier.handleRoot };
+        } else if (exists(stableIdentifier.id)) {
+            identifierType = "id";
+            identifierValue = stableIdentifier.id;
+            fetchInput = { id: stableIdentifier.id };
+        } else if (exists(stableIdentifier.idRoot)) {
+            identifierType = "idRoot";
+            identifierValue = stableIdentifier.idRoot;
+            fetchInput = { idRoot: stableIdentifier.idRoot };
+        }
+
+        if (fetchInput) {
+            console.info(`[useObjectData] Fetching with ${identifierType}=${identifierValue}, attempt ${retryCountRef.current + 1}/${MAX_FETCH_RETRIES}`);
+            fetchData(fetchInput, { onError, displayError });
+            retryCountRef.current++;
+            initialFetchDoneRef.current = true;
+            return true;
         } else {
-            // If no fetched data, attempt to load from cache
-            const cachedData = getCachedData<PData>({ objectType, urlParams });
-            if (cachedData) {
-                setObject(applyDataTransform(cachedData, transformRef.current) as ObjectReturnType<TData, TFunc>);
+            console.warn("[useObjectData] No valid identifier found for fetching");
+            return false;
+        }
+    }, [stableIdentifier, fetchData, onError, displayError, shouldFetch]);
+
+    // Reset state when identifier *values* change (not just object reference)
+    useEffect(function refetchOnIdentifierChange() {
+        if (identifierChanged) {
+            console.info("[useObjectData] Identifier values changed, resetting retry count");
+            retryCountRef.current = 0;
+            setFetchFailed(false);
+            initialFetchDoneRef.current = false;
+        }
+    }, [identifierChanged]);
+
+    // Mark as failed when errors occur
+    useEffect(() => {
+        if (fetchResult.errors && fetchResult.errors.length > 0) {
+            console.error("[useObjectData] Fetch errors:", fetchResult.errors);
+            // If we have errors and hit max retries, mark as failed
+            if (retryCountRef.current >= MAX_FETCH_RETRIES) {
+                console.warn("[useObjectData] Max retries reached with errors, marking as failed");
+                setFetchFailed(true);
             }
         }
-    }, [disabled, fetchResult, objectType, overrideObject, urlParams]);
+    }, [fetchResult.errors]);
 
-    // Determine permissions based on the object
-    const permissions = useMemo(() => (object ? getYou(object) : defaultYou), [object]);
+    // IMPORTANT: Initial fetch if we have an identifier and haven't fetched yet
+    // This ensures the fetch is triggered automatically when the hook is used
+    useEffect(() => {
+        const hasIdentifier = exists(stableIdentifier.id) ||
+            exists(stableIdentifier.handle) ||
+            exists(stableIdentifier.idRoot) ||
+            exists(stableIdentifier.handleRoot);
+
+        if (shouldFetch && !initialFetchDoneRef.current && hasIdentifier) {
+            console.info("[useObjectData] Triggering initial fetch");
+            fetchObjectData();
+        }
+    }, [shouldFetch, stableIdentifier, fetchObjectData]);
 
     return {
-        id: object?.id ?? urlParams.id,
+        data: fetchResult.data,
         isLoading: fetchResult.loading,
-        object,
-        permissions,
-        setObject,
+        errors: fetchResult.errors,
+        fetchObjectData,
+        hasUnauthorizedError: ServerResponseParser.hasErrorCode(fetchResult, "Unauthorized"),
+        fetchFailed,
     };
 }
 
 /**
- * Initializes the object state based on various sources: overrideObject, cache, or defaults.
+ * Hook for managing object caching operations
  */
-export function initializeObjectState<
-    PData extends UrlObject,
-    TData extends UrlObject,
-    TFunc extends (data: Partial<PData>) => TData
->({
-    disabled,
-    getFormCacheData,
-    isCreate,
-    objectType,
-    overrideObject,
-    transform,
-    urlParams,
-}: {
-    disabled: boolean;
-    getFormCacheData: ((objectType: ModelType | `${ModelType}`, id: string) => object | null),
-    isCreate: boolean;
-    objectType: ModelType | `${ModelType}`;
-    overrideObject?: Partial<PData>;
-    transform?: TFunc;
-    urlParams: UrlInfo;
-}): {
-    initialObject: TData;
-    hasStoredFormDataConflict: boolean;
-    storedFormData?: Partial<PData>;
-} {
-    // **Priority 1: overrideObject**
-    if (overrideObject) {
-        return { initialObject: applyDataTransform(overrideObject, transform), hasStoredFormDataConflict: false };
-    }
+export function useObjectCache<TData extends UrlObject>(
+    objectType: ModelType | `${ModelType}`,
+    identifier: { id?: string; handle?: string; idRoot?: string; handleRoot?: string },
+) {
+    // Create a shallow copy of the identifier to ensure we only use the values we need
+    const safeIdentifier = useMemo(() => ({
+        id: identifier.id,
+        handle: identifier.handle,
+        idRoot: identifier.idRoot,
+        handleRoot: identifier.handleRoot
+    }), [identifier.id, identifier.handle, identifier.idRoot, identifier.handleRoot]);
 
-    // **Priority 2: Disabled State**
-    if (disabled) {
-        return { initialObject: applyDataTransform({}, transform), hasStoredFormDataConflict: false };
-    }
+    // Only use the actual specified values when creating the cache object
+    const cacheRefObject = useMemo(() => {
+        const obj: any = { __typename: objectType };
+        if (safeIdentifier.id) obj.id = safeIdentifier.id;
+        if (safeIdentifier.handle) obj.handle = safeIdentifier.handle;
+        if (safeIdentifier.idRoot) obj.idRoot = safeIdentifier.idRoot;
+        if (safeIdentifier.handleRoot) obj.handleRoot = safeIdentifier.handleRoot;
+        return obj;
+    }, [objectType, safeIdentifier]);
 
-    // **Priority 3: Cached Data**
-    const cachedData = getCachedData<PData>({ objectType, urlParams });
-    const transformedData = applyDataTransform(cachedData, transform);
+    const getCachedData = useCallback(() => {
+        return getCookiePartialData<PartialWithType<TData>>(cacheRefObject);
+    }, [cacheRefObject]);
 
-    // **Priority 4: Stored Form Data**
-    const objectId = isCreate ? DUMMY_ID : urlParams.id;
-    const storedFormData = objectId ? getFormCacheData(objectType, objectId) as PData : undefined;
-    if (storedFormData) {
-        if (isCreate) {
-            return { initialObject: applyDataTransform(storedFormData, transform), hasStoredFormDataConflict: false };
-        } else if (!isEqual(storedFormData, transformedData)) {
-            // Indicate that there's a conflict and provide the stored form data
-            return { initialObject: transformedData, hasStoredFormDataConflict: true, storedFormData };
-        }
-    }
+    const setCachedData = useCallback((data: TData) => {
+        setCookiePartialData(data, "full");
+    }, []);
 
-    // **Priority 5: URL Search Params for Creation**
-    if (isCreate) {
-        const searchParams = parseSearchParams();
-        if (Object.keys(searchParams).length) {
-            return {
-                initialObject: applyDataTransform(searchParams as Partial<PData>, transform),
-                hasStoredFormDataConflict: false,
-            };
-        }
-    }
+    const clearCache = useCallback(() => {
+        removeCookiePartialData(cacheRefObject);
+    }, [cacheRefObject]);
 
-    console.log("returning transformed data", transformedData);
-    // **Default: Return transformed cached data or empty object**
-    return { initialObject: transformedData, hasStoredFormDataConflict: false };
+    return { getCachedData, setCachedData, clearCache };
 }
 
 /**
- * Determines whether data fetching should occur.
- */
-export function shouldFetchData({ disabled, overrideObject }: { disabled: boolean; overrideObject?: any }): boolean {
-    console.log("in shouldFetchData", disabled, overrideObject, disabled !== true && (typeof overrideObject !== "object" || overrideObject === null));
-    // Fetch data only if not disabled and no overrideObject is provided.
-    return disabled !== true && (typeof overrideObject !== "object" || overrideObject === null);
-}
-
-/**
- * Handles the scenario where URL parameters are invalid.
- */
-export function handleInvalidUrlParams({
-    transform,
-    onInvalidUrlParams,
-    urlParams,
-}: {
-    transform?: any;
-    onInvalidUrlParams?: (params: ParseSearchParamsResult) => unknown;
-    urlParams: UrlInfo;
-}): void {
-    if (transform) {
-        // If a transform function is provided (e.g., in forms), invalid URL params can be ignored.
-        // This is common in creation forms where the object doesn't exist yet.
-        return;
-    } else if (onInvalidUrlParams) {
-        // If a custom handler is provided, use it.
-        onInvalidUrlParams(urlParams);
-    } else {
-        // Otherwise, display a default error message.
-        PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-    }
-}
-
-/**
- * Applies the transform function to the data if provided, or returns the data as is.
+ * Helper function to apply a transform function to data if provided
  */
 export function applyDataTransform<PData extends UrlObject, TData extends UrlObject>(
     data: Partial<PData> | null | undefined,
@@ -285,55 +266,344 @@ export function applyDataTransform<PData extends UrlObject, TData extends UrlObj
 }
 
 /**
- * Fetches data using identifiers from the URL, if they exist.
+ * Hook for managing form state for an object with conflict detection
  */
-export function fetchDataUsingUrl(
-    params: UrlInfo,
-    fetchData: (input: FetchInput, options?: FetchInputOptions) => unknown,
-    onError?: FetchInputOptions["onError"],
-    displayError?: boolean,
-): boolean {
-    const options = { onError, displayError };
-    console.log("might fetch data", params);
-    if (exists(params.handle)) {
-        fetchData({ handle: params.handle }, options);
-        return true;
-    }
-    if (exists(params.handleRoot)) {
-        fetchData({ handleRoot: params.handleRoot }, options);
-        return true;
-    }
-    if (exists(params.id)) {
-        fetchData({ id: params.id }, options);
-        return true;
-    }
-    if (exists(params.idRoot)) {
-        fetchData({ idRoot: params.idRoot }, options);
-        return true;
-    }
-    return false;
+export function useObjectForm<
+    PData extends UrlObject,
+    TData extends UrlObject = PartialWithType<PData>,
+    TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
+>(
+    objectType: ModelType | `${ModelType}`,
+    urlParams: UrlInfo,
+    isCreate = false,
+    initialData?: Partial<PData>,
+    transform?: TFunc,
+) {
+    console.debug("useObjectForm called with:", { objectType, urlParams, isCreate });
+
+    const getFormCacheData = useFormCacheStore(state => state.getCacheData);
+    const objectId = isCreate ? DUMMY_ID : urlParams.id;
+
+    // Memoize parameters to prevent unnecessary recalculations
+    const paramsMemo = useMemo(() => ({
+        objectType,
+        objectId,
+        isCreate
+    }), [objectType, objectId, isCreate]);
+
+    // Get stored form data if it exists (memoized)
+    const storedFormData = useMemo(() =>
+        paramsMemo.objectId
+            ? getFormCacheData(paramsMemo.objectType, paramsMemo.objectId) as PData
+            : undefined
+        , [paramsMemo, getFormCacheData]);
+
+    // Memoize transform function to prevent unnecessary recalculations
+    const stableTransform = useCallback(transform || ((data: Partial<PData>) => data as unknown as TData),
+        [transform]);
+
+    // Determine initial data with priorities
+    const initialObject = useMemo(() => {
+        // Priority 1: Provided initial data
+        if (initialData) {
+            return applyDataTransform(initialData, stableTransform);
+        }
+
+        // Priority 2: Stored form data for create mode
+        if (isCreate && storedFormData) {
+            return applyDataTransform(storedFormData, stableTransform);
+        }
+
+        // Priority 3: URL search params for creation
+        if (isCreate) {
+            const searchParams = parseSearchParams();
+            if (Object.keys(searchParams).length) {
+                return applyDataTransform(searchParams as Partial<PData>, stableTransform);
+            }
+        }
+
+        // Default: Empty object
+        return applyDataTransform({} as Partial<PData>, stableTransform);
+    }, [initialData, isCreate, storedFormData, stableTransform]);
+
+    const [formData, setFormData] = useState<ObjectReturnType<TData, TFunc>>(
+        initialObject as ObjectReturnType<TData, TFunc>,
+    );
+
+    // Check for data conflict - only log once
+    const hasLoggedConflictRef = useRef(false);
+
+    // Check for data conflict 
+    const hasDataConflict = useMemo(() => {
+        const conflict = !isCreate && storedFormData && initialData && !isEqual(storedFormData, initialData);
+
+        if (conflict && !hasLoggedConflictRef.current) {
+            console.warn(`Data conflict detected for ${objectType}`, {
+                stored: storedFormData,
+                initial: initialData
+            });
+            hasLoggedConflictRef.current = true;
+        }
+
+        return conflict;
+    }, [isCreate, storedFormData, initialData, objectType]);
+
+    // Function to use stored data
+    const useStoredData = useCallback(() => {
+        if (storedFormData) {
+            console.info(`Using stored form data for ${objectType}`);
+            setFormData(applyDataTransform(storedFormData, stableTransform) as ObjectReturnType<TData, TFunc>);
+        }
+    }, [storedFormData, stableTransform, objectType]);
+
+    // Prompt for conflict resolution
+    useEffect(() => {
+        if (hasDataConflict && storedFormData) {
+            console.info(`Showing form data conflict resolution for ${objectType}`);
+            PubSub.get().publish("snack", {
+                autoHideDuration: "persist",
+                messageKey: "FormDataFound",
+                buttonKey: "Yes",
+                buttonClicked: useStoredData,
+                severity: "Warning",
+            });
+        }
+    }, [hasDataConflict, storedFormData, useStoredData, objectType]);
+
+    return {
+        formData,
+        setFormData,
+        hasStoredData: Boolean(storedFormData),
+        hasDataConflict,
+        useStoredData,
+    };
 }
 
-type GetCachedDataProps = {
-    objectType: ModelType | `${ModelType}`;
-    urlParams: UrlInfo;
-};
 /**
- * Retrieves cached data for the object if available.
+ * Hook that manages the state of an object, handling data fetching, caching, and state updates.
+ * Composed using more focused hooks for better maintainability.
  */
-export function getCachedData<PData extends UrlObject>({ objectType, urlParams }: GetCachedDataProps): Partial<PData> | null {
-    return getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
-}
+export function useManagedObject<
+    PData extends UrlObject,
+    TData extends UrlObject = PartialWithType<PData>,
+    TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
+>({
+    endpoint,
+    objectType,
+    disabled = false,
+    displayError = true,
+    isCreate = false,
+    onError,
+    onInvalidUrlParams,
+    overrideObject: unstableOverrideObject,
+    transform,
+}: UseManagedObjectParams<PData, TData, TFunc>): UseManagedObjectReturn<TData, TFunc> {
+    // Get URL parameters
+    const urlInfo = useObjectUrl();
 
-/**
- * Prompts the user to use stored form data.
- */
-export function promptToUseStoredFormData(onConfirm: () => void): void {
-    PubSub.get().publish("snack", {
-        autoHideDuration: "persist",
-        messageKey: "FormDataFound",
-        buttonKey: "Yes",
-        buttonClicked: onConfirm,
-        severity: "Warning",
+    // Create stable callbacks/objects
+    const overrideObject = useStableObject(unstableOverrideObject as any);
+
+    // Initialize data fetching if not disabled and no override object
+    const shouldFetch = !disabled && !overrideObject;
+
+    // Cache some state to prevent excessive dependency churn
+    const stateRef = useRef({
+        hasAlreadyShownFetchFailedError: false,
+        hasAlreadyShownInvalidUrlError: false,
+        hasAttemptedInitialFetch: false
     });
+
+    console.info(`Initializing for ${objectType} with params:`, {
+        disabled,
+        shouldFetch,
+        hasOverride: !!overrideObject,
+        urlInfo: {
+            id: urlInfo.id,
+            handle: urlInfo.handle,
+            idRoot: urlInfo.idRoot,
+            handleRoot: urlInfo.handleRoot,
+            hasIdentifier: urlInfo.hasIdentifier
+        }
+    });
+
+    // Handle caching - use stable identifier reference
+    const stableIdentifier = useMemo(() => ({
+        id: urlInfo.id,
+        handle: urlInfo.handle,
+        idRoot: urlInfo.idRoot,
+        handleRoot: urlInfo.handleRoot
+    }), [urlInfo.id, urlInfo.handle, urlInfo.idRoot, urlInfo.handleRoot]);
+
+    // Reset error state when identifier changes
+    useEffect(() => {
+        stateRef.current = {
+            hasAlreadyShownFetchFailedError: false,
+            hasAlreadyShownInvalidUrlError: false,
+            hasAttemptedInitialFetch: false
+        };
+    }, [stableIdentifier]);
+
+    // Get object data from server
+    const {
+        data: fetchedData,
+        isLoading,
+        hasUnauthorizedError,
+        fetchObjectData,
+        fetchFailed,
+    } = useObjectData<PData>(endpoint, shouldFetch, stableIdentifier, onError, displayError);
+
+    const { getCachedData, setCachedData, clearCache } = useObjectCache<PData>(
+        objectType,
+        stableIdentifier
+    );
+
+    // Get cached data once to avoid recreating it on each render
+    const cachedData = useMemo(() => {
+        const data = getCachedData();
+        if (data) {
+            console.info(`Found cached data for ${objectType}`);
+        }
+        return data;
+    }, [getCachedData, objectType]);
+
+    // Initial data to use (either override or cached)
+    const initialDataToUse = useMemo(() => {
+        if (overrideObject) {
+            console.info(`Using override object for ${objectType}`);
+            return overrideObject;
+        }
+        if (cachedData) {
+            console.info(`Using cached data for ${objectType}`);
+            return cachedData;
+        }
+        console.info(`No initial data available for ${objectType}`);
+        return undefined;
+    }, [overrideObject, cachedData, objectType]);
+
+    // Handle form state with conflict resolution - use stable parameters
+    const stableUrlParams = useMemo(() => urlInfo.params, [urlInfo.params.id]);
+
+    const {
+        formData,
+        setFormData,
+        hasDataConflict,
+    } = useObjectForm<PData, TData, TFunc>(
+        objectType,
+        stableUrlParams,
+        isCreate,
+        initialDataToUse,
+        transform,
+    );
+
+    // Simplified effect for applying data according to priority
+    // We've reorganized to minimize dependencies
+    useEffect(() => {
+        if (disabled) {
+            console.info(`Hook is disabled for ${objectType}, skipping data update`);
+            return;
+        }
+
+        // PRIORITY LOGIC - Apply data from various sources in priority order
+        // All early returns to avoid multiple state updates
+
+        // Priority 1: Override object
+        if (overrideObject) {
+            console.info(`Priority 1: Using override object for ${objectType}`);
+            setFormData(applyDataTransform(overrideObject, transform) as ObjectReturnType<TData, TFunc>);
+            return;
+        }
+
+        // Priority 2: Fetched data
+        if (fetchedData) {
+            console.info(`Priority 2: Using fetched data for ${objectType}`);
+            setCachedData(fetchedData);
+            setFormData(applyDataTransform(fetchedData, transform) as ObjectReturnType<TData, TFunc>);
+            return;
+        }
+
+        // Priority 3: Handle unauthorized errors
+        if (hasUnauthorizedError) {
+            console.warn(`Priority 3: Unauthorized error for ${objectType}, clearing cache`);
+            clearCache();
+            setFormData(applyDataTransform({}, transform) as ObjectReturnType<TData, TFunc>);
+            return;
+        }
+
+        // Priority 4: Handle fetch failures
+        if (fetchFailed) {
+            console.error(`Priority 4: Fetch failed for ${objectType} after max retries`);
+            if (!stateRef.current.hasAlreadyShownFetchFailedError && displayError) {
+                stateRef.current.hasAlreadyShownFetchFailedError = true;
+                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
+            }
+            setFormData(applyDataTransform({}, transform) as ObjectReturnType<TData, TFunc>);
+            return;
+        }
+
+        // Priority 5: Invalid URL with handler
+        if (!isLoading && !urlInfo.hasIdentifier && onInvalidUrlParams) {
+            console.warn(`Priority 5: Invalid URL for ${objectType}, using onInvalidUrlParams`);
+            onInvalidUrlParams(urlInfo.params);
+            return;
+        }
+
+        // Priority 6: Invalid URL without handler
+        if (!isLoading && !urlInfo.hasIdentifier) {
+            console.error(`Priority 6: Invalid URL for ${objectType} with no handler`);
+            if (!stateRef.current.hasAlreadyShownInvalidUrlError && displayError) {
+                stateRef.current.hasAlreadyShownInvalidUrlError = true;
+                PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
+            }
+            return;
+        }
+
+        // Priority 7: Initiate fetch when needed
+        if (shouldFetch && urlInfo.hasIdentifier && !fetchedData && !isLoading && !stateRef.current.hasAttemptedInitialFetch) {
+            console.info(`Priority 7: Initiating first fetch for ${objectType}`);
+            stateRef.current.hasAttemptedInitialFetch = true;
+            fetchObjectData();
+            return;
+        }
+
+        // Priority 8: Still loading
+        if (isLoading) {
+            console.info(`Data is still loading for ${objectType}`);
+        }
+    }, [
+        // Core dependencies that should trigger reevaluation
+        objectType,
+        disabled,
+        overrideObject,
+        fetchedData,
+        hasUnauthorizedError,
+        fetchFailed,
+        isLoading,
+        // Functions and identifiers needed for the effect
+        transform,
+        setFormData,
+        setCachedData,
+        clearCache,
+        fetchObjectData,
+        // URL info but only the essential parts
+        urlInfo.hasIdentifier,
+        // Other flags and handlers
+        shouldFetch,
+        displayError,
+        onInvalidUrlParams,
+    ]);
+
+    // Determine permissions based on the object
+    const permissions = useMemo(() =>
+        formData ? getYou(formData as unknown as PData) : defaultYou,
+        [formData],
+    );
+
+    return {
+        id: formData?.id ?? urlInfo.id,
+        isLoading,
+        object: formData,
+        permissions,
+        setObject: setFormData,
+    };
 }
