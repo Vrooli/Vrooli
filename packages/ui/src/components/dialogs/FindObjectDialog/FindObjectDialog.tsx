@@ -15,7 +15,7 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { findObjectTabParams, searchTypeToParams } from "../../../utils/search/objectToSearch.js";
 import { SearchParams } from "../../../utils/search/schemas/base.js";
 import { PageTabs } from "../../PageTabs/PageTabs.js";
-import { SideActionsButtons } from "../../buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../buttons/SideActionsButtons.js";
 import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
 import { SearchList, SearchListScrollContainer } from "../../lists/SearchList/SearchList.js";
 import { TIDCard } from "../../lists/TIDCard/TIDCard.js";

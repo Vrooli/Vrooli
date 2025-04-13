@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { useFindMany } from "../../hooks/useFindMany.js";

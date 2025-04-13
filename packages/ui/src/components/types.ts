@@ -36,6 +36,7 @@ export interface CommentConnectorProps {
     isOpen: boolean;
     parentType: "User" | "Team";
     onToggle: () => unknown;
+    owner?: any;
 }
 
 export interface CommentThreadProps {

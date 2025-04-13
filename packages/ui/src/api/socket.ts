@@ -1,4 +1,5 @@
 import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventCallbackPayloads, SocketEventPayloads } from "@local/shared";
+import i18next from "i18next";
 import { io } from "socket.io-client";
 import { webSocketUrlBase } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
@@ -38,7 +39,7 @@ export class SocketService {
         console.info("Websocket connected to server");
         PubSub.get().publish("clearSnack", { id: SERVER_CONNECT_MESSAGE_ID });
         if (this.state === SocketState.LostConnection) {
-            PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success" });
+            PubSub.get().publish("snack", { message: i18next.t("ServerReconnected"), severity: "Success" });
         }
         this.state = SocketState.Connected;
     }
@@ -49,18 +50,18 @@ export class SocketService {
         }
         this.state = SocketState.LostConnection;
         console.info("Websocket disconnected from server");
-        PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
+        PubSub.get().publish("snack", { message: i18next.t("ServerDisconnected"), severity: "Error", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
     }
 
     handleReconnectAttempted() {
         console.info("Websocket attempting to reconnect to server");
-        PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
+        PubSub.get().publish("snack", { message: i18next.t("ServerReconnectAttempt"), severity: "Warning", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
     }
 
     handleReconnected() {
         this.state = SocketState.Connected;
         console.info("Websocket reconnected to server");
-        PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: SERVER_CONNECT_MESSAGE_ID });
+        PubSub.get().publish("snack", { message: i18next.t("ServerReconnected"), severity: "Success", id: SERVER_CONNECT_MESSAGE_ID });
     }
 
     /**

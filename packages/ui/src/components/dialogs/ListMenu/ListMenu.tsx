@@ -1,8 +1,9 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Icon } from "../../../icons/Icons.js";
 import { Z_INDEX } from "../../../utils/consts.js";
-import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
+import { HelpButton } from "../../buttons/HelpButton.js";
 import { MenuTitle } from "../MenuTitle/MenuTitle.js";
 import { ListMenuProps } from "../types.js";
 
@@ -38,15 +39,15 @@ export function ListMenu<T>({
         label,
         labelKey,
         value,
-        Icon,
         iconColor,
+        iconInfo,
         helpData,
     }, index) => {
         const itemText = <ListItemText primary={labelKey ? t(labelKey, { count: 1 }) : label} />;
         const fill = !iconColor || ["default", "unset"].includes(iconColor) ? palette.background.textSecondary : iconColor;
-        const itemIcon = Icon ? (
+        const itemIcon = iconInfo ? (
             <ListItemIcon>
-                <Icon fill={fill} />
+                <Icon fill={fill} info={iconInfo} />
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
@@ -56,7 +57,7 @@ export function ListMenu<T>({
         ) : null;
 
         // Handle Tab and Shift+Tab manually
-        function handleKeyDown(event) {
+        function handleKeyDown(event: React.KeyboardEvent) {
             if (event.key === "Tab") {
                 event.preventDefault(); // Stop the default behavior
                 const direction = event.shiftKey ? -1 : 1;

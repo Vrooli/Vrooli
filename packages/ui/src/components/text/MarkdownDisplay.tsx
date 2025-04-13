@@ -1,7 +1,7 @@
 /* eslint-disable import/extensions */
 
 import { endpointsApi, endpointsChat, endpointsCode, endpointsComment, endpointsNote, endpointsProject, endpointsQuestion, endpointsQuiz, endpointsReport, endpointsRoutine, endpointsStandard, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, uuid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, TypographyProps, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -829,13 +829,13 @@ export function MarkdownDisplay({
     isEditable,
     onChange,
     sx,
-    variant, //TODO
+    headingLevelOffset = 0,
 }: {
     content: string | undefined;
     isEditable?: boolean;
     onChange?: (content: string) => unknown;
     sx?: SxType;
-    variant?: TypographyProps["variant"];
+    headingLevelOffset?: number;
 }) {
     const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
@@ -892,17 +892,17 @@ export function MarkdownDisplay({
                         onChange(newContent);
                     },
                 }),
-                h1: { component: Heading, props: { level: 1 } },
-                h2: { component: Heading, props: { level: 2 } },
-                h3: { component: Heading, props: { level: 3 } },
-                h4: { component: Heading, props: { level: 4 } },
-                h5: { component: Heading, props: { level: 5 } },
-                h6: { component: Heading, props: { level: 6 } },
+                h1: { component: Heading, props: { level: Math.max(1, Math.min(6, 1 + headingLevelOffset)) } },
+                h2: { component: Heading, props: { level: Math.max(1, Math.min(6, 2 + headingLevelOffset)) } },
+                h3: { component: Heading, props: { level: Math.max(1, Math.min(6, 3 + headingLevelOffset)) } },
+                h4: { component: Heading, props: { level: Math.max(1, Math.min(6, 4 + headingLevelOffset)) } },
+                h5: { component: Heading, props: { level: Math.max(1, Math.min(6, 5 + headingLevelOffset)) } },
+                h6: { component: Heading, props: { level: Math.max(1, Math.min(6, 6 + headingLevelOffset)) } },
                 p: Paragraph,
                 li: ListItem,
             },
         };
-    }, [content, id, onChange]);
+    }, [content, headingLevelOffset, id, onChange]);
 
     // Preprocess the Markdown content
     const processedContent = processMarkdown(content ?? "");

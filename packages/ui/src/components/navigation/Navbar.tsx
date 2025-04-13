@@ -18,7 +18,7 @@ import { extractImageUrl } from "../../utils/display/imageTools.js";
 import { placeholderColor } from "../../utils/display/listTools.js";
 import { NAV_ACTION_TAGS, getUserActions } from "../../utils/navigation/userActions.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { PopupMenu } from "../buttons/PopupMenu/PopupMenu.js";
+import { PopupMenu } from "../buttons/PopupMenu.js";
 import { Title } from "../text/Title.js";
 import { ContactInfo } from "./ContactInfo.js";
 import { NavbarProps } from "./types.js";
@@ -196,9 +196,9 @@ export function NavListProfileButton() {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true, data: { anchorEl: event.currentTarget } });
     }, []);
 
-    const toLoginPage = useCallback(function toLoginPageCallback(e: React.MouseEvent<HTMLElement>) {
+    const toSignUpPage = useCallback(function toSignUpPageCallback(e: React.MouseEvent<HTMLElement>) {
         e.preventDefault();
-        openLink(setLocation, LINKS.Login);
+        openLink(setLocation, LINKS.Signup);
     }, [setLocation]);
 
     if (checkIfLoggedIn(session) && !isMobile) {
@@ -222,7 +222,7 @@ export function NavListProfileButton() {
         return (
             <EnterButton
                 href={LINKS.Login}
-                onClick={toLoginPage}
+                onClick={toSignUpPage}
                 startIcon={<IconCommon
                     decorative
                     name="LogIn"

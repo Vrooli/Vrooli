@@ -6,10 +6,19 @@ import type { IconName as IconRoutineName } from "./types/routineIcons.js";
 import type { IconName as IconServiceName } from "./types/serviceIcons.js";
 import type { IconName as IconTextName } from "./types/textIcons.js";
 
-const commonSpriteHref = global.commonSpriteHref || "/sprites/common-sprite.svg";
-const routineSpriteHref = global.routineSpriteHref || "/sprites/routine-sprite.svg";
-const serviceSpriteHref = global.serviceSpriteHref || "/sprites/service-sprite.svg";
-const textSpriteHref = global.textSpriteHref || "/sprites/text-sprite.svg";
+// Check for global (for mocha tests) first, then fallback to globalThis (for browser)
+const commonSpriteHref = (typeof global !== "undefined" && global.commonSpriteHref) ||
+    (typeof globalThis !== "undefined" && globalThis.commonSpriteHref) ||
+    "/sprites/common-sprite.svg";
+const routineSpriteHref = (typeof global !== "undefined" && global.routineSpriteHref) ||
+    (typeof globalThis !== "undefined" && globalThis.routineSpriteHref) ||
+    "/sprites/routine-sprite.svg";
+const serviceSpriteHref = (typeof global !== "undefined" && global.serviceSpriteHref) ||
+    (typeof globalThis !== "undefined" && globalThis.serviceSpriteHref) ||
+    "/sprites/service-sprite.svg";
+const textSpriteHref = (typeof global !== "undefined" && global.textSpriteHref) ||
+    (typeof globalThis !== "undefined" && globalThis.textSpriteHref) ||
+    "/sprites/text-sprite.svg";
 
 const DEFAULT_SIZE_PX = 24;
 const DEFAULT_DECORATIVE = true;

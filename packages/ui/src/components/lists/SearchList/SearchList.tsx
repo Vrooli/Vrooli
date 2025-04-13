@@ -10,11 +10,22 @@ import { useLocation } from "../../../route/router.js";
 import { ArgsType } from "../../../types.js";
 import { getDummyListLength } from "../../../utils/consts.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
-import { SearchButtons } from "../../buttons/SearchButtons/SearchButtons.js";
+import { SearchButtons } from "../../buttons/SearchButtons.js";
 import { ListContainer } from "../../containers/ListContainer.js";
 import { BasicSearchBar, PaperSearchBar } from "../../inputs/search/SiteSearchBar.js";
 import { ObjectList } from "../ObjectList/ObjectList.js";
 import { ObjectListActions, SearchListProps } from "../types.js";
+
+/**
+ * Keys used for keyboard navigation in the search list
+ */
+const KEYBOARD_KEYS = {
+    DOWN: "ArrowDown",
+    UP: "ArrowUp",
+    ENTER: "Enter",
+    ESCAPE: "Escape",
+    TAB: "Tab",
+};
 
 export function SearchList<DataType extends ListObject>({
     advancedSearchParams,
@@ -103,6 +114,22 @@ export function SearchList<DataType extends ListObject>({
         openObject(selectedItem as NavigableObject, setLocation);
     }, [allData, canNavigate, handleToggleSelect, isSelecting, onItemClick, setLocation]);
 
+    /**
+     * Handle keyboard navigation from search bar to results list
+     */
+    const onSearchKeyDown = useCallback((event: React.KeyboardEvent) => {
+        if (event.key === KEYBOARD_KEYS.DOWN || (event.key === KEYBOARD_KEYS.TAB && !event.shiftKey)) {
+            // When pressing down arrow or tab from search, focus the first result if available
+            if (allData.length > 0) {
+                event.preventDefault();
+                const firstResultElement = document.querySelector(`#${scrollContainerId}-list [tabindex="0"]`) as HTMLElement;
+                if (firstResultElement) {
+                    firstResultElement.focus();
+                }
+            }
+        }
+    }, [allData.length, scrollContainerId]);
+
     const searchButtonsStyle = useMemo(function searchButtonsStyleMemo() {
         return {
             paddingTop: 2,
@@ -130,6 +157,7 @@ export function SearchList<DataType extends ListObject>({
                         onChange={setSearchString}
                         onFocus={onSearchFocus}
                         onBlur={onSearchBlur}
+                        onKeyDown={onSearchKeyDown}
                     />
                 )}
                 {searchBarVariant !== "basic" && (
@@ -140,6 +168,7 @@ export function SearchList<DataType extends ListObject>({
                         onChange={setSearchString}
                         onFocus={onSearchFocus}
                         onBlur={onSearchBlur}
+                        onKeyDown={onSearchKeyDown}
                     />
                 )}
                 <SearchButtons
@@ -166,6 +195,7 @@ export function SearchList<DataType extends ListObject>({
                 <ObjectList
                     canNavigate={canNavigate}
                     dummyItems={new Array(dummyLength || getDummyListLength(display)).fill(searchType)}
+                    enableKeyboardNavigation={true}
                     handleToggleSelect={handleToggleSelect}
                     hideUpdateButton={hideUpdateButton}
                     isSelecting={isSelecting}

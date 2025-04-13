@@ -1,9 +1,11 @@
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { alpha, Box, IconButton, Stack, useTheme } from "@mui/material";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useTranslation } from "react-i18next";
+import { SessionContext } from "../../../contexts/session.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { ProfilePictureInputAvatar } from "../../../styles.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
@@ -13,6 +15,10 @@ import { ProfilePictureInputProps } from "../types.js";
 // What size image to display
 const BANNER_TARGET_SIZE = 1000;
 const PROFILE_TARGET_SIZE = 100;
+
+// Alpha values for gradient colors
+const GRADIENT_START_ALPHA = 0.6;
+const GRADIENT_END_ALPHA = 0.8;
 
 /**
  * Processes an image file and returns an object URL for it
@@ -65,6 +71,7 @@ export function ProfilePictureInput({
 }: ProfilePictureInputProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
+    const session = useContext(SessionContext);
 
     const [bannerImageUrl, setBannerImageUrl] = useState(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
     const [profileImageUrl, setProfileImageUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));
@@ -72,8 +79,16 @@ export function ProfilePictureInput({
         setBannerImageUrl(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
         setProfileImageUrl(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));
     }, [profile]);
+
     // Colorful placeholder if no image, or white if there is an image (in case there's transparency)
-    const profileColors = useMemo<[string, string]>(() => profileImageUrl ? ["#fff", "#fff"] : placeholderColor(), [profileImageUrl]);
+    const profileColors = useMemo<[string, string]>(() =>
+        profileImageUrl ? ["#fff", "#fff"] : placeholderColor(getCurrentUser(session).id),
+        [profileImageUrl, session]);
+
+    // Get the banner colors - we'll use alpha() to make them duller
+    const [baseColor1, baseColor2] = useMemo(() =>
+        placeholderColor(getCurrentUser(session).id),
+        [session]);
 
     const { getRootProps: getBannerRootProps, getInputProps: getBannerInputProps } = useDropzone({
         accept: ["image/*", ".heic", ".heif"],
@@ -126,8 +141,63 @@ export function ProfilePictureInput({
         if (!profile) return { name: "Edit", type: "Common" } as const;
         if (profile.__typename === "Team") return { name: "Team", type: "Common" } as const;
         if (profile.isBot) return { name: "Bot", type: "Common" } as const;
-        return { name: "User", type: "Common" } as const;
+        return { name: "Profile", type: "Common" } as const;
     }, [profile]);
+
+    // Extract styles as constants to fix linter errors
+    const bannerStyle = useMemo(() => {
+        if (bannerImageUrl) {
+            return {
+                backgroundColor: "#fff",
+                backgroundImage: `url(${bannerImageUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+            };
+        }
+
+        // Use MUI's alpha function to create duller colors - it's basically opacity
+        return {
+            background: `linear-gradient(135deg, ${alpha(baseColor1, GRADIENT_START_ALPHA)} 0%, ${alpha(baseColor2, GRADIENT_END_ALPHA)} 100%)`,
+            color: "white",
+            "& svg": {
+                fill: "white",
+            },
+        };
+    }, [bannerImageUrl, baseColor1, baseColor2]);
+
+    // Define the Banner component's style separately
+    const bannerBoxProps = {
+        width: "100%",
+        height: "200px",
+        borderRadius: 1,
+        boxShadow: 2,
+        sx: bannerStyle,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+    };
+
+    const editButtonStyle = useMemo(() => ({
+        background: palette.secondary.main,
+    }), [palette.secondary.main]);
+
+    const deleteButtonStyle = useMemo(() => ({
+        background: palette.error.main,
+    }), [palette.error.main]);
+
+    const profileBoxStyle = useMemo(() => ({
+        // Left-aligned position for profile image
+        left: "5%",
+        transform: "none",
+    }), []);
+
+    const placeholderTextStyle = useMemo(() => ({
+        fontSize: "14px",
+        fontWeight: "medium",
+        opacity: 0.9,
+        pointerEvents: "none",
+    }), []);
 
     return (
         <Box
@@ -140,17 +210,30 @@ export function ProfilePictureInput({
             <Box {...getBannerRootProps()}>
                 <input name={name ?? "banner"} {...getBannerInputProps()} />
                 <Box
-                    width="100%"
-                    height="200px"
-                    borderRadius={1}
-                    boxShadow={2}
-                    sx={{
-                        backgroundColor: bannerImageUrl ? "#fff" : (palette.mode === "light" ? "#b2b3b3" : "#303030"),
-                        backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                    }}
-                />
+                    {...bannerBoxProps}
+                >
+                    {/* Add a helper icon and text when no banner image is set */}
+                    {!bannerImageUrl && (
+                        <Stack
+                            direction="column"
+                            alignItems="center"
+                            justifyContent="center"
+                            spacing={2}
+                            height="100%"
+                            width="100%"
+                        >
+                            <IconCommon
+                                name="Image"
+                                fill={baseColor2}
+                                opacity={0.7}
+                                size={48}
+                            />
+                            <Box sx={placeholderTextStyle}>
+                                {t("ClickToUploadBanner")}
+                            </Box>
+                        </Stack>
+                    )}
+                </Box>
                 <Stack
                     direction="row"
                     spacing={0.5}
@@ -161,7 +244,7 @@ export function ProfilePictureInput({
                 >
                     <IconButton
                         aria-label={t("Edit")}
-                        sx={{ background: palette.secondary.main }}
+                        sx={editButtonStyle}
                     >
                         <IconCommon
                             decorative
@@ -174,7 +257,7 @@ export function ProfilePictureInput({
                         <IconButton
                             aria-label={t("Delete")}
                             onClick={removeBannerImage}
-                            sx={{ background: palette.error.main }}
+                            sx={deleteButtonStyle}
                         >
                             <IconCommon
                                 fill={palette.secondary.contrastText}
@@ -188,9 +271,8 @@ export function ProfilePictureInput({
             {/* Profile image */}
             <Box
                 position="absolute"
-                left="50%"
-                bottom="-25px"
-                sx={{ transform: "translateX(-50%)" }}
+                bottom="-60px"
+                sx={profileBoxStyle}
                 {...getProfileRootProps()}
             >
                 <input name={name ?? "picture"} {...getProfileInputProps()} />
@@ -214,7 +296,7 @@ export function ProfilePictureInput({
                 >
                     <IconButton
                         aria-label={t("Edit")}
-                        sx={{ background: palette.secondary.main }}
+                        sx={editButtonStyle}
                     >
                         <IconCommon
                             decorative
@@ -227,7 +309,7 @@ export function ProfilePictureInput({
                         <IconButton
                             aria-label={t("Delete")}
                             onClick={removeProfileImage}
-                            sx={{ background: palette.error.main }}
+                            sx={deleteButtonStyle}
                         >
                             <IconCommon
                                 fill={palette.secondary.contrastText}

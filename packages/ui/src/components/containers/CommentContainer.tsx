@@ -1,32 +1,54 @@
 /**
- * Contains new comment input, and list of Reddit-style comments.
+ * CommentContainer - A component that manages comments for various object types.
+ * Displays a comment input and thread list with support for pagination, sorting and filtering.
  */
-import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
-import { Button, Stack, useTheme } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { Comment, CommentCreateInput, CommentThread as ThreadType, endpointsComment, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { Alert, Box, Stack, Typography, useTheme } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
+import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
-import { CommentUpsert } from "../../views/objects/comment/CommentUpsert.js";
-import { SearchButtons } from "../buttons/SearchButtons/SearchButtons.js";
+import { SearchButtons } from "../buttons/SearchButtons.js";
+import { AdvancedInputBase } from "../inputs/AdvancedInput/AdvancedInput.js";
+import { DEFAULT_FEATURES } from "../inputs/AdvancedInput/utils.js";
 import { CommentThread } from "../lists/CommentThread/CommentThread.js";
-import { ContentCollapse } from "./ContentCollapse.js";
 import { CommentContainerProps } from "./types.js";
 
+// Configure comment input features
+const COMMENT_INPUT_FEATURES = {
+    ...DEFAULT_FEATURES,
+    allowFileAttachments: false,
+    allowImageAttachments: false,
+    allowTextAttachments: false,
+    allowContextDropdown: false,
+    allowTools: false,
+    allowVoiceInput: false,
+    allowExpand: true,
+    allowFormatting: true,
+    allowCharacterLimit: true,
+    allowSubmit: true,
+    allowSpellcheck: true,
+};
+
 export function CommentContainer({
-    forceAddCommentOpen,
-    isOpen,
+    forceAddCommentOpen = false,
     language,
     objectId,
     objectType,
     onAddCommentClose,
 }: CommentContainerProps) {
-    const { breakpoints } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const { t } = useTranslation();
 
+    // State for the comment input
+    const [commentText, setCommentText] = useState<string>("");
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+    // State for thread data from API
     const {
         advancedSearchParams,
         advancedSearchSchema,
@@ -38,6 +60,8 @@ export function CommentContainer({
         sortBy,
         sortByOptions,
         timeFrame,
+        // Use the loading state from the API response if available, otherwise default to false
+        isLoading = false,
     } = useFindMany<ThreadType>({
         canSearch: () => uuidValidate(objectId),
         controlsUrl: false,
@@ -48,90 +72,147 @@ export function CommentContainer({
         },
     });
 
-    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(!isMobile);
-    // Show add comment input if on desktop. For mobile, we'll show a button
-    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)); }, [forceAddCommentOpen, isMobile]);
-    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
-    const handleAddCommentClose = useCallback(() => {
-        setIsAddCommentOpen(false);
-        if (onAddCommentClose) onAddCommentClose();
-    }, [onAddCommentClose]);
+    // Fetch for creating new comments
+    const [createCommentMutation, { loading: isCreateLoading }] = useLazyFetch<CommentCreateInput, Comment>(endpointsComment.createOne);
 
-    /**
-     * When new comment is created, add it to the list of comments
-     */
-    const onCommentAdd = useCallback((comment: Comment) => {
-        // Make comment first, so you can see it without having to scroll to the bottom
-        setAllData(curr => [{
-            __typename: "CommentThread",
-            comment,
-            childThreads: [],
-            endCursor: null,
-            totalInThread: 0,
-        }, ...curr]);
-        // Close add comment input
-        if (isMobile) handleAddCommentClose();
-    }, [handleAddCommentClose, isMobile, setAllData]);
+    // Handle changes to comment text
+    const handleCommentChange = useCallback((value: string) => {
+        setCommentText(value);
+    }, []);
 
-    // The add component is always visible on desktop.
-    // If forceAddCommentOpen is true (i.e. parent container wants add comment to be open), 
-    // then we should scroll and focus the add comment input
-    useEffect(() => {
-        if (!forceAddCommentOpen || isMobile) return;
-        scrollIntoFocusedView("markdown-input-add-comment-root");
-    }, [forceAddCommentOpen, isMobile]);
+    // Handle comment submission
+    const handleSubmitComment = useCallback(() => {
+        if (!commentText.trim() || isSubmitting || isCreateLoading) return;
+
+        setIsSubmitting(true);
+
+        const input: CommentCreateInput = {
+            [`${lowercaseFirstLetter(objectType)}Id`]: objectId,
+            translations: [{
+                language,
+                text: commentText,
+            }],
+        };
+
+        fetchLazyWrapper<CommentCreateInput, Comment>({
+            fetch: createCommentMutation,
+            inputs: input,
+            successCondition: (data) => !!data?.id,
+            onSuccess: (newComment) => {
+                // Add the new comment to the thread list
+                setAllData(curr => [{
+                    __typename: "CommentThread",
+                    comment: newComment,
+                    childThreads: [],
+                    endCursor: null,
+                    totalInThread: 0,
+                }, ...curr]);
+
+                // Clear input
+                setCommentText("");
+
+                // If on mobile, notify parent that we've added a comment
+                if (isMobile && onAddCommentClose) {
+                    onAddCommentClose();
+                }
+            },
+            errorMessage: () => ({ messageKey: "CreateCommentFailed", defaultValue: "Failed to create comment" }),
+            onCompleted: () => setIsSubmitting(false),
+        });
+    }, [commentText, createCommentMutation, isMobile, isCreateLoading, isSubmitting, language, objectId, objectType, onAddCommentClose, setAllData]);
+
+    // Determine if there are comments to display
+    const hasComments = useMemo(() => allData.length > 0, [allData.length]);
+
+    // Message to show when no comments exist
+    const emptyStateMessage = useMemo(() => (
+        <Box
+            sx={{
+                py: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                color: palette.text.secondary
+            }}
+        >
+            <IconCommon
+                decorative
+                name="Comment"
+                size={40}
+                fill={palette.divider}
+                style={{ marginBottom: '16px', opacity: 0.7 }}
+            />
+            <Typography variant="body1" fontWeight="medium">
+                {t("NoCommentsYet", { defaultValue: "No comments yet" })}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+                {t("BeTheFirstToComment", { defaultValue: "Be the first to leave a comment" })}
+            </Typography>
+        </Box>
+    ), [palette.divider, palette.text.secondary, t]);
 
     return (
-        <ContentCollapse isOpen={isOpen} title={`Comments (${allData.length})`}>
-            <CommentUpsert
-                display="dialog"
-                isCreate={true}
-                isOpen={isAddCommentOpen}
-                language={language}
-                objectId={objectId}
-                objectType={objectType}
-                onCancel={handleAddCommentClose}
-                onClose={handleAddCommentClose}
-                onCompleted={onCommentAdd}
-                onDeleted={handleAddCommentClose}
-                parent={null} // parent is the thread. This is a top-level comment, so no parent
-            />
+        <Box>
+            {/* Comment input section */}
+            <Box sx={{
+                border: `1px solid ${palette.divider}`,
+                borderRadius: "24px",
+            }}>
+                <AdvancedInputBase
+                    name="commentText"
+                    value={commentText}
+                    onChange={handleCommentChange}
+                    onSubmit={handleSubmitComment}
+                    maxChars={16_256}
+                    placeholder={t("AddComment", { defaultValue: "Add a comment..." })}
+                    features={COMMENT_INPUT_FEATURES}
+                    disabled={isSubmitting || isCreateLoading}
+                />
+            </Box>
+
             <Stack direction="column" spacing={2}>
-                {/* Add comment button */}
-                {!isAddCommentOpen && isMobile && <Button
-                    fullWidth
-                    startIcon={<IconCommon decorative name="Create" />}
-                    onClick={handleAddCommentOpen}
-                    sx={{ marginTop: 2 }}
-                    variant="outlined"
-                >{t("AddComment")}</Button>}
-                {/* Sort & filter */}
-                {allData.length > 0 && <>
-                    <SearchButtons
-                        advancedSearchParams={advancedSearchParams}
-                        advancedSearchSchema={advancedSearchSchema}
-                        controlsUrl={false}
-                        searchType="Comment"
-                        setAdvancedSearchParams={setAdvancedSearchParams}
-                        setSortBy={setSortBy}
-                        setTimeFrame={setTimeFrame}
-                        sortBy={sortBy}
-                        sortByOptions={sortByOptions}
-                        timeFrame={timeFrame}
-                    />
-                    {/* Comments list */}
-                    <Stack direction="column" spacing={2}>
-                        {allData.map((thread, index) => (
-                            <CommentThread
-                                key={index}
-                                canOpen={true}
-                                data={thread}
-                                language={language}
-                            />
-                        ))}
-                    </Stack>
-                </>}
+                {/* Loading state */}
+                {isLoading && (
+                    <Box sx={{ py: 2 }}>
+                        <Alert severity="info">{t("LoadingComments", { defaultValue: "Loading comments..." })}</Alert>
+                    </Box>
+                )}
+
+                {/* Empty state */}
+                {!isLoading && !hasComments && emptyStateMessage}
+
+                {/* Comments with sorting tools */}
+                {hasComments && (
+                    <Box pt={2}>
+                        <SearchButtons
+                            advancedSearchParams={advancedSearchParams}
+                            advancedSearchSchema={advancedSearchSchema}
+                            controlsUrl={false}
+                            searchType="Comment"
+                            setAdvancedSearchParams={setAdvancedSearchParams}
+                            setSortBy={setSortBy}
+                            setTimeFrame={setTimeFrame}
+                            sortBy={sortBy}
+                            sortByOptions={sortByOptions}
+                            timeFrame={timeFrame}
+                        />
+
+                        {/* Comment thread list */}
+                        <Stack direction="column" spacing={3} sx={{ mt: 2 }}>
+                            {allData.map((thread, index) => (
+                                <CommentThread
+                                    key={thread.comment?.id || index}
+                                    canOpen={true}
+                                    data={thread}
+                                    language={language}
+                                />
+                            ))}
+                        </Stack>
+                    </Box>
+                )}
             </Stack>
-        </ContentCollapse>
+        </Box>
     );
 }

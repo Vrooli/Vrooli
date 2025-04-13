@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";

@@ -4,8 +4,8 @@ import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } fro
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../../components/PageTabs/PageTabs.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
-import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink.js";
-import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { ReportsLink } from "../../../components/buttons/ReportsLink.js";
+import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons.js";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { ResourceList } from "../../../components/lists/ResourceList/ResourceList.js";

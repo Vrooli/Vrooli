@@ -30,6 +30,12 @@ function setupDOM() {
     (global as ExtendedGlobal).localStorage = dom.window.localStorage;
     (global as ExtendedGlobal).sessionStorage = dom.window.sessionStorage;
 
+    // Mock sprite imports
+    global.commonSpriteHref = "mocked-common-sprite.svg";
+    global.routineSpriteHref = "mocked-routine-sprite.svg";
+    global.serviceSpriteHref = "mocked-service-sprite.svg";
+    global.textSpriteHref = "mocked-text-sprite.svg";
+
     // Attempt to copy other window properties to global,
     // but skip any that are read-only.
     Object.getOwnPropertyNames(dom.window).forEach((property) => {

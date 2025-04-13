@@ -234,6 +234,7 @@ export interface LargeDialogProps {
     onClose: (_event: unknown, reason: "backdropClick" | "escapeKeyDown") => unknown;
     titleId?: string;
     sxs?: {
+        content?: SxType;
         paper?: SxType;
         root?: SxType;
     };

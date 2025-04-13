@@ -7,11 +7,15 @@ import { SxType } from "../../types.js";
 import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "../inputs/types.js";
 
 export interface CommentContainerProps {
+    /** When true, forces the add comment form to be open, even on mobile */
     forceAddCommentOpen?: boolean;
-    isOpen?: boolean;
+    /** The language used for comments */
     language: string;
+    /** ID of the object being commented on */
     objectId: string;
+    /** Type of object being commented on */
     objectType: CommentFor;
+    /** Optional callback when add comment is closed */
     onAddCommentClose?: () => unknown;
 }
 

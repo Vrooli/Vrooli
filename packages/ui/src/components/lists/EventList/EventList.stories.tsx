@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { CalendarEvent, Meeting, RunRoutine, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
@@ -313,13 +314,17 @@ export function Interactive() {
     const [listState, setListState] = useState<"short" | "long" | "empty">("short");
     const [list, setList] = useState<CalendarEvent[]>(baseMockEvents);
 
-    const handleUpdate = (newList: CalendarEvent[]) => {
+    function handleUpdate(newList: CalendarEvent[]) {
         setList(newList);
-    };
+    }
 
-    const handleCanUpdateClick = () => setCanUpdate(!canUpdate);
-    const handleLoadingClick = () => setLoading(!loading);
-    const handleListLengthClick = () => {
+    function handleCanUpdateClick() {
+        setCanUpdate(!canUpdate);
+    }
+    function handleLoadingClick() {
+        setLoading(!loading);
+    }
+    function handleListLengthClick() {
         // Cycle through states: short -> long -> empty -> short
         const nextState = listState === "short" ? "long" : listState === "long" ? "empty" : "short";
         setListState(nextState);
@@ -328,7 +333,7 @@ export function Interactive() {
                 nextState === "short" ? baseMockEvents :
                     [],
         );
-    };
+    }
 
     return (
         <PageContainer>
@@ -377,7 +382,6 @@ export function Interactive() {
                     loading={loading}
                     list={loading ? [] : list}
                     handleUpdate={handleUpdate}
-                    title="Event List Demo"
                 />
             </ScrollBox>
         </PageContainer>

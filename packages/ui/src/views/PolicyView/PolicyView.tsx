@@ -13,12 +13,7 @@ import { PageTab, useTabs } from "../../hooks/useTabs.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
-import { PolicyTabsInfo, TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
-
-export enum PolicyTabOption {
-    Privacy = "Privacy",
-    Terms = "Terms",
-}
+import { PolicyTabOption, PolicyTabsInfo, TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
 
 function injectBusinessData(markdown: string) {
     const business_fields = Object.keys(convertToDot(BUSINESS_DATA));

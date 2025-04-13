@@ -8,7 +8,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { Z_INDEX } from "../../utils/consts.js";
 import { TabParamBase } from "../../utils/search/objectToSearch.js";
 import { PageTabs } from "../PageTabs/PageTabs.js";
-import { MicrophoneButton } from "../buttons/MicrophoneButton/MicrophoneButton.js";
+import { MicrophoneButton } from "../buttons/MicrophoneButton.js";
 // import emojis from "./data/emojis";
 
 type FallbackEmojiPickerProps = {

@@ -1,5 +1,5 @@
-import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
-import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointsActions, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps, DropResult, Droppable } from "@hello-pangea/dnd";
+import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceListFor, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointsActions, updateArray } from "@local/shared";
 import { Box, Button, IconButton, Tooltip, Typography, styled } from "@mui/material";
 import { useField } from "formik";
 import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -26,10 +26,48 @@ import { ResourceListInputProps } from "../../inputs/types.js";
 import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
 import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
 import { ObjectListActions } from "../../lists/types.js";
-import { ResourceCardProps, ResourceListHorizontalProps, ResourceListProps, ResourceListVerticalProps } from "../types.js";
 
 const CONTENT_SPACING = 1;
 const ICON_SIZE = 20;
+
+export interface ResourceCardProps {
+    data: Resource;
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+    /** 
+     * Hides edit and delete icons when in edit mode, 
+     * making only drag'n'drop and the context menu available.
+     **/
+    isEditing: boolean;
+    onEdit: (data: Resource) => unknown;
+    onDelete: (data: Resource) => unknown;
+}
+
+export type ResourceListProps = {
+    canUpdate?: boolean;
+    handleUpdate?: (updatedList: ResourceListType) => unknown;
+    horizontal?: boolean;
+    id?: string;
+    list: ResourceListType | null | undefined;
+    loading?: boolean;
+    mutate?: boolean;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
+}
+
+export type ResourceListHorizontalProps = ResourceListProps & {
+    handleToggleSelect: (data: Resource) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<Resource>, ...data: unknown[]) => unknown;
+    onClick: (data: Resource) => unknown;
+    onDelete: (data: Resource) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: Resource) => unknown;
+    selectedData: Resource[];
+    toggleEditing: () => unknown;
+}
+
+export type ResourceListVerticalProps = ResourceListHorizontalProps
 
 const CardsBox = styled(Box)(({ theme }) => ({
     alignItems: "flex-start",
@@ -37,7 +75,7 @@ const CardsBox = styled(Box)(({ theme }) => ({
     flexWrap: "wrap",
     gap: theme.spacing(1),
     paddingBottom: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     width: "100%",
 }));
 const CardBox = styled(Box)(({ theme }) => ({
@@ -187,6 +225,7 @@ function ResourceListHorizontal({
     onDelete,
     openAddDialog,
     openUpdateDialog,
+    toggleEditing,
 }: ResourceListHorizontalProps) {
     const { t } = useTranslation();
 
@@ -262,7 +301,7 @@ function ResourceListHorizontal({
                                 ))
                             }
                             {/* Add button */}
-                            {canUpdate ? <Tooltip placement="top" title={t("AddResource")}>
+                            {(isEditing || list?.resources?.length === 0) && <Tooltip placement="top" title={t("AddResource")}>
                                 <CardBox onClick={openAddDialog}>
                                     <IconCommon name="Add" size={ICON_SIZE} />
                                     <Typography
@@ -273,8 +312,14 @@ function ResourceListHorizontal({
                                         {t("AddResource")}
                                     </Typography>
                                 </CardBox>
-                            </Tooltip> : null}
+                            </Tooltip>}
                             {providedDrop.placeholder}
+                            {/* Edit button */}
+                            {canUpdate && <Tooltip title={t("Edit")}>
+                                <IconButton onClick={toggleEditing}>
+                                    <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
+                                </IconButton>
+                            </Tooltip>}
                         </CardsBox>
                     )}
                 </Droppable>
@@ -294,6 +339,7 @@ function ResourceListVertical({
     onClick,
     openAddDialog,
     selectedData,
+    toggleEditing,
 }: ResourceListVerticalProps) {
     const { t } = useTranslation();
     const canNavigate = useCallback(() => !isEditing, [isEditing]);
@@ -325,6 +371,18 @@ function ResourceListVertical({
                     startIcon={<IconCommon name="Add" />}
                     variant="outlined"
                 >{t("AddResource")}</Button>
+            </Box>}
+            {/* Edit button */}
+            {canUpdate && <Box
+                maxWidth="400px"
+                margin="auto"
+                paddingTop={5}
+            >
+                <Button
+                    fullWidth onClick={toggleEditing}
+                    startIcon={<IconCommon name={isEditing ? "Close" : "Edit"} />}
+                    variant="outlined"
+                >{t("Edit")}</Button>
             </Box>}
         </>
     );
@@ -490,20 +548,13 @@ export function ResourceList(props: ResourceListProps) {
         openAddDialog,
         openUpdateDialog,
         selectedData,
+        toggleEditing,
     };
 
     return (
         <Box>
             {upsertDialog}
             {BulkDeleteDialogComponent}
-            {title && <Box display="flex" flexDirection="row" alignItems="center">
-                <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
-                <Tooltip title={t("Edit")}>
-                    <IconButton onClick={toggleEditing}>
-                        <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
-                    </IconButton>
-                </Tooltip>
-            </Box>}
             {
                 horizontal ?
                     <ResourceListHorizontal {...childProps} /> :

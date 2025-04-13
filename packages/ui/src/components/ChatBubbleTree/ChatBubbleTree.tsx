@@ -20,7 +20,7 @@ import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { BranchMap } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker.js";
-import { ReportButton } from "../buttons/ReportButton/ReportButton.js";
+import { ReportButton } from "../buttons/ReportButton.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { ChatBubbleProps } from "../types.js";
 
@@ -57,6 +57,7 @@ type ChatBubbleReactionsProps = {
     isOwn: boolean,
     numSiblings: number,
     messageId: string,
+    messageCreatedAt: string,
     reactions: ReactionSummary[],
     status: ChatMessageStatus,
     onDelete: () => unknown;
@@ -205,6 +206,7 @@ function ChatBubbleReactions({
     isOwn,
     numSiblings,
     messageId,
+    messageCreatedAt,
     reactions,
     status,
     onDelete,
@@ -214,6 +216,22 @@ function ChatBubbleReactions({
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
+
+    const formattedTime = useMemo(() => {
+        if (!messageCreatedAt) return "";
+        try {
+            const date = new Date(messageCreatedAt);
+            // Check if the date is valid before formatting
+            if (isNaN(date.getTime())) {
+                console.error("Invalid date received for message:", messageId, messageCreatedAt);
+                return "";
+            }
+            return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+        } catch (error) {
+            console.error("Error formatting date:", error);
+            return "";
+        }
+    }, [messageCreatedAt, messageId]);
 
     useEffect(function chatStatusLoaderEffect() {
         let timer: NodeJS.Timeout;
@@ -308,63 +326,65 @@ function ChatBubbleReactions({
                     onIndexChange={handleActiveIndexChange}
                 />
                 <Box className="chat-bubble-actions">
-                    <Tooltip title={t("Copy")}>
-                        <IconButton
-                            size="small"
-                            onClick={handleCopy}
-                        >
-                            <IconCommon
-                                decorative
-                                fill="background.textSecondary"
-                                name="Copy"
-                            />
-                        </IconButton>
-                    </Tooltip>
-                    {(isBot && isBotOnlyChat) && <Tooltip title={t("Retry")}>
-                        <IconButton size="small" onClick={handleRegenerateResponse}>
-                            <IconCommon
-                                decorative
-                                fill="background.textSecondary"
-                                name="Refresh"
-                            />
-                        </IconButton>
-                    </Tooltip>}
-                    {isBot && <Tooltip title={t("Reply")}>
-                        <IconButton size="small" onClick={handleReply}>
-                            <IconCommon
-                                decorative
-                                fill="background.textSecondary"
-                                name="Reply"
-                            />
-                        </IconButton>
-                    </Tooltip>}
-                    {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
-                    {isOwn && status === "sent" && (
+                    {/* Conditionally render timestamp and buttons based on isOwn */}
+                    {isOwn ? (
                         <>
-                            <Tooltip title={t("Edit")}>
-                                <IconButton
-                                    onClick={onEdit}
-                                    size="small"
-                                >
-                                    <IconCommon
-                                        decorative
-                                        fill="background.textSecondary"
-                                        name="Edit"
-                                    />
+                            {/* Timestamp first for own messages */}
+                            {formattedTime && (
+                                <Typography variant="caption" color="textSecondary" sx={{ mx: 1, whiteSpace: "nowrap" }}>
+                                    {formattedTime}
+                                </Typography>
+                            )}
+                            {/* Action Buttons for own messages */}
+                            <Tooltip title={t("Copy")}>
+                                <IconButton size="small" onClick={handleCopy}>
+                                    <IconCommon decorative fill="background.textSecondary" name="Copy" />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title={t("Delete")}>
-                                <IconButton
-                                    onClick={onDelete}
-                                    size="small"
-                                >
-                                    <IconCommon
-                                        decorative
-                                        fill="background.textSecondary"
-                                        name="Delete"
-                                    />
+                            {status === "sent" && (
+                                <>
+                                    <Tooltip title={t("Edit")}>
+                                        <IconButton onClick={onEdit} size="small">
+                                            <IconCommon decorative fill="background.textSecondary" name="Edit" />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={t("Delete")}>
+                                        <IconButton onClick={onDelete} size="small">
+                                            <IconCommon decorative fill="background.textSecondary" name="Delete" />
+                                        </IconButton>
+                                    </Tooltip>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            {/* Action Buttons first for other messages */}
+                            <Tooltip title={t("Copy")}>
+                                <IconButton size="small" onClick={handleCopy}>
+                                    <IconCommon decorative fill="background.textSecondary" name="Copy" />
                                 </IconButton>
                             </Tooltip>
+                            {(isBot && isBotOnlyChat) && (
+                                <Tooltip title={t("Retry")}>
+                                    <IconButton size="small" onClick={handleRegenerateResponse}>
+                                        <IconCommon decorative fill="background.textSecondary" name="Refresh" />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                            {isBot && (
+                                <Tooltip title={t("Reply")}>
+                                    <IconButton size="small" onClick={handleReply}>
+                                        <IconCommon decorative fill="background.textSecondary" name="Reply" />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                            {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
+                            {/* Timestamp last for other messages */}
+                            {formattedTime && (
+                                <Typography variant="caption" color="textSecondary" sx={{ ml: 1, whiteSpace: "nowrap" }}>
+                                    {formattedTime}
+                                </Typography>
+                            )}
                         </>
                     )}
                 </Box>
@@ -388,7 +408,7 @@ const ChatBubbleBox = styled(Box, {
     background: !isOwn && messageStatus === "failed"
         ? theme.palette.error.dark
         : isOwn
-            ? theme.palette.mode === "light" ? "#88d17e" : "#1a5413"
+            ? theme.palette.mode === "light" ? "#a5b5bf" : "#21341f"
             : theme.palette.background.paper,
     color: !isOwn && messageStatus === "failed"
         ? theme.palette.error.contrastText
@@ -606,6 +626,7 @@ export function ChatBubble({
                     isOwn={isOwn}
                     numSiblings={numSiblings}
                     messageId={message.id}
+                    messageCreatedAt={message.created_at}
                     reactions={message.reactionSummaries}
                     status={message.status ?? "sent"}
                     onDelete={handleDelete}
@@ -761,6 +782,8 @@ const OuterMessageList = styled(Box)(() => ({
     position: "relative",
     display: "flex",
     flexDirection: "column",
+    margin: "0 auto",
+    maxWidth: "800px",
     overflowX: "hidden",
     overflowY: "auto",
     height: "100%",

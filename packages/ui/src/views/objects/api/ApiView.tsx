@@ -15,15 +15,15 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import yaml from "js-yaml";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
-import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink.js";
-import { ShareButton } from "../../../components/buttons/ShareButton/ShareButton.js";
+import { ReportsLink } from "../../../components/buttons/ReportsLink.js";
+import { ShareButton } from "../../../components/buttons/ShareButton.js";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js";
@@ -50,8 +50,8 @@ import { ApiViewProps } from "./types.js";
  */
 const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
     try {
-        if (!schemaText || typeof schemaText !== 'string') {
-            console.error('Invalid schema text provided');
+        if (!schemaText || typeof schemaText !== "string") {
+            console.error("Invalid schema text provided");
             return null;
         }
 
@@ -59,19 +59,19 @@ const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
         let parsedSchema;
         try {
             // Try parsing as JSON first
-            if (schemaText.trim().startsWith('{')) {
+            if (schemaText.trim().startsWith("{")) {
                 parsedSchema = JSON.parse(schemaText);
             } else {
                 // If not JSON, try parsing as YAML
                 parsedSchema = yaml.load(schemaText);
             }
         } catch (e) {
-            console.error('Error parsing schema as JSON or YAML:', e);
+            console.error("Error parsing schema as JSON or YAML:", e);
             return null;
         }
 
         if (!parsedSchema) {
-            console.error('Failed to parse schema');
+            console.error("Failed to parse schema");
             return null;
         }
 
@@ -84,19 +84,19 @@ const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
             const dereferencedSchema = await $RefParser.dereference(parsedSchema, {
                 continueOnError: true, // Continue even if some references can't be resolved
                 dereference: {
-                    circular: true // Handle circular references
-                }
+                    circular: true, // Handle circular references
+                },
             });
 
             console.log(`Successfully dereferenced ${schemaType} schema`);
             return dereferencedSchema;
         } catch (e) {
-            console.error('Error dereferencing schema references:', e);
+            console.error("Error dereferencing schema references:", e);
             // If dereferencing fails, return the original parsed schema
             return parsedSchema;
         }
     } catch (error) {
-        console.error('Failed to process schema:', error);
+        console.error("Failed to process schema:", error);
         return null;
     }
 };
@@ -105,7 +105,7 @@ const parseOpenAPISchema = async (schemaText: string): Promise<any> => {
  * Identifies the type of API schema (OpenAPI/Swagger, AsyncAPI, etc.)
  */
 const identifySchemaType = (schema: any): string => {
-    if (!schema) return 'Unknown';
+    if (!schema) return "Unknown";
 
     if (schema.openapi) {
         return `OpenAPI ${schema.openapi}`;
@@ -116,7 +116,7 @@ const identifySchemaType = (schema: any): string => {
     } else if (schema.jsonSchema) {
         return `JSON Schema ${schema.jsonSchema}`;
     } else {
-        return 'Generic API Schema';
+        return "Generic API Schema";
     }
 };
 
@@ -147,14 +147,14 @@ const extractEndpoints = (schema: any): Array<{
         Object.entries(schema.paths).forEach(([path, pathObj]: [string, any]) => {
             Object.entries(pathObj).forEach(([method, methodObj]: [string, any]) => {
                 // Only include HTTP methods, not parameters like parameters, servers, etc.
-                if (['get', 'post', 'put', 'delete', 'patch', 'options', 'head'].includes(method.toLowerCase())) {
+                if (["get", "post", "put", "delete", "patch", "options", "head"].includes(method.toLowerCase())) {
                     endpoints.push({
                         path,
                         method: method.toUpperCase(),
-                        summary: methodObj.summary || '',
+                        summary: methodObj.summary || "",
                         description: methodObj.description,
                         parameters: methodObj.parameters,
-                        responses: methodObj.responses
+                        responses: methodObj.responses,
                     });
                 }
             });
@@ -169,16 +169,16 @@ const extractEndpoints = (schema: any): Array<{
             if (channelObj.publish) {
                 endpoints.push({
                     path,
-                    method: 'SUBSCRIBE',
-                    summary: channelObj.publish.summary || '',
+                    method: "SUBSCRIBE",
+                    summary: channelObj.publish.summary || "",
                     description: channelObj.publish.description,
                     parameters: extractAsyncApiParameters(channelObj),
                     responses: {
                         "message": {
                             description: "Received message",
-                            payload: channelObj.publish.message?.payload
-                        }
-                    }
+                            payload: channelObj.publish.message?.payload,
+                        },
+                    },
                 });
             }
 
@@ -186,16 +186,16 @@ const extractEndpoints = (schema: any): Array<{
             if (channelObj.subscribe) {
                 endpoints.push({
                     path,
-                    method: 'PUBLISH',
-                    summary: channelObj.subscribe.summary || '',
+                    method: "PUBLISH",
+                    summary: channelObj.subscribe.summary || "",
                     description: channelObj.subscribe.description,
                     parameters: extractAsyncApiParameters(channelObj),
                     responses: {
                         "message": {
                             description: "Published message",
-                            payload: channelObj.subscribe.message?.payload
-                        }
-                    }
+                            payload: channelObj.subscribe.message?.payload,
+                        },
+                    },
                 });
             }
         });
@@ -215,10 +215,10 @@ const extractAsyncApiParameters = (channelObj: any): any[] => {
         Object.entries(channelObj.parameters).forEach(([name, paramObj]: [string, any]) => {
             parameters.push({
                 name,
-                in: 'path',
+                in: "path",
                 description: paramObj.description,
                 required: true,
-                schema: paramObj.schema
+                schema: paramObj.schema,
             });
         });
     }
@@ -276,7 +276,7 @@ export function ApiView({
             summary,
             schemaText: apiVersion?.schemaText,
             schemaLanguage: apiVersion?.schemaLanguage as CodeLanguage | undefined,
-            callLink: apiVersion?.callLink
+            callLink: apiVersion?.callLink,
         };
     }, [language, apiVersion]);
 
@@ -298,7 +298,7 @@ export function ApiView({
                     setSchemaType(detectedType);
                 }
             } catch (error) {
-                console.error('Error parsing schema:', error);
+                console.error("Error parsing schema:", error);
             }
         };
 
@@ -353,7 +353,7 @@ export function ApiView({
             // Replace path parameters with values from requestParams
             if (endpoint.parameters) {
                 endpoint.parameters.forEach((param: any) => {
-                    if (param.in === 'path' && params[param.name]) {
+                    if (param.in === "path" && params[param.name]) {
                         path = path.replace(`{${param.name}}`, params[param.name]);
                     }
                 });
@@ -365,7 +365,7 @@ export function ApiView({
             const queryParams = new URLSearchParams();
             if (endpoint.parameters) {
                 endpoint.parameters.forEach((param: any) => {
-                    if (param.in === 'query' && params[param.name]) {
+                    if (param.in === "query" && params[param.name]) {
                         queryParams.append(param.name, params[param.name]);
                     }
                 });
@@ -379,21 +379,21 @@ export function ApiView({
             setTimeout(() => {
                 setResponseData({
                     status: 200,
-                    statusText: 'OK',
+                    statusText: "OK",
                     headers: {
-                        'content-type': 'application/json'
+                        "content-type": "application/json",
                     },
                     data: {
                         success: true,
                         message: `Mock response for ${endpoint.method} ${endpoint.path}`,
-                        params: params
-                    }
+                        params,
+                    },
                 });
             }, 1000);
         } catch (error) {
             setResponseData({
                 error: true,
-                message: error instanceof Error ? error.message : 'Unknown error'
+                message: error instanceof Error ? error.message : "Unknown error",
             });
         }
     };
@@ -500,7 +500,7 @@ export function ApiView({
                                             <Typography variant="h4" fontWeight="bold" component="div">
                                                 {name || "ApiView"}
                                             </Typography>
-                                            <Tooltip title={t("MoreOptions")}>
+                                            {actionData.availableActions.length > 0 && <Tooltip title={t("MoreOptions")}>
                                                 <IconButton
                                                     aria-label={t("MoreOptions")}
                                                     size="small"
@@ -512,7 +512,7 @@ export function ApiView({
                                                         name="Ellipsis"
                                                     />
                                                 </IconButton>
-                                            </Tooltip>
+                                            </Tooltip>}
                                         </Stack>
 
                                         <Typography variant="body1" color="textSecondary">
@@ -569,7 +569,7 @@ export function ApiView({
                                                     maxCharacters={200}
                                                     sx={{
                                                         maxWidth: "100%",
-                                                        flexWrap: "wrap"
+                                                        flexWrap: "wrap",
                                                     }}
                                                 />
                                             </Box>
@@ -671,15 +671,15 @@ export function ApiView({
                                             <Box
                                                 key={index}
                                                 sx={{
-                                                    borderBottom: index < parsedEndpoints.length - 1 ? `1px solid ${palette.divider}` : 'none',
-                                                    pb: 2
+                                                    borderBottom: index < parsedEndpoints.length - 1 ? `1px solid ${palette.divider}` : "none",
+                                                    pb: 2,
                                                 }}
                                             >
                                                 <Stack
                                                     direction="row"
                                                     spacing={1}
                                                     onClick={() => setExpandedEndpoint(expandedEndpoint === index ? null : index)}
-                                                    sx={{ cursor: 'pointer', alignItems: 'center' }}
+                                                    sx={{ cursor: "pointer", alignItems: "center" }}
                                                 >
                                                     <Box
                                                         component="span"
@@ -713,7 +713,7 @@ export function ApiView({
                                                         )}
 
                                                         {endpoint.description && (
-                                                            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                                            <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
                                                                 {endpoint.description}
                                                             </Typography>
                                                         )}
@@ -723,8 +723,8 @@ export function ApiView({
                                                                 <Typography variant="subtitle2" sx={{ mt: 1 }}>Parameters:</Typography>
                                                                 {endpoint.parameters.map((param: any, pIndex: number) => (
                                                                     <Typography key={pIndex} variant="body2" sx={{ ml: 2 }}>
-                                                                        <Box component="span" sx={{ fontWeight: 'bold' }}>{param.name}</Box>
-                                                                        {param.required && <Box component="span" sx={{ color: 'error.main' }}> (required)</Box>}
+                                                                        <Box component="span" sx={{ fontWeight: "bold" }}>{param.name}</Box>
+                                                                        {param.required && <Box component="span" sx={{ color: "error.main" }}> (required)</Box>}
                                                                         {param.description && ` - ${param.description}`}
                                                                     </Typography>
                                                                 ))}
@@ -736,7 +736,7 @@ export function ApiView({
                                                                 <Typography variant="subtitle2" sx={{ mt: 1 }}>Responses:</Typography>
                                                                 {Object.entries(endpoint.responses).map(([code, response]: [string, any], rIndex: number) => (
                                                                     <Typography key={rIndex} variant="body2" sx={{ ml: 2 }}>
-                                                                        <Box component="span" sx={{ fontWeight: 'bold' }}>{code}</Box>
+                                                                        <Box component="span" sx={{ fontWeight: "bold" }}>{code}</Box>
                                                                         {response.description && ` - ${response.description}`}
                                                                     </Typography>
                                                                 ))}
@@ -769,7 +769,7 @@ export function ApiView({
                                         <Typography variant="body2" color="text.secondary" align="center">
                                             This could be because:
                                         </Typography>
-                                        <Box component="ul" sx={{ color: 'text.secondary', mt: 0 }}>
+                                        <Box component="ul" sx={{ color: "text.secondary", mt: 0 }}>
                                             <li>The schema format is not recognized (supported: OpenAPI, Swagger, AsyncAPI)</li>
                                             <li>The schema doesn't contain any path or channel definitions</li>
                                             <li>The schema contains syntax errors or invalid references</li>
@@ -792,7 +792,7 @@ export function ApiView({
                                         mt: 3,
                                     }}
                                 >
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                                         <Typography variant="h6">Test Endpoint</Typography>
                                         <IconButton
                                             size="small"
@@ -805,9 +805,9 @@ export function ApiView({
                                         variant="body1"
                                         sx={{
                                             mb: 2,
-                                            fontFamily: 'monospace',
+                                            fontFamily: "monospace",
                                             color: getMethodColor(selectedEndpoint.method, palette.mode),
-                                            fontWeight: 'bold'
+                                            fontWeight: "bold",
                                         }}
                                     >
                                         {selectedEndpoint.method} {selectedEndpoint.path}
@@ -817,21 +817,21 @@ export function ApiView({
                                         e.preventDefault();
                                         executeRequest(selectedEndpoint, requestParams);
                                     }}>
-                                        {selectedEndpoint.parameters?.filter((p: any) => p.in === 'path' || p.in === 'query').map((param: any, index: number) => (
+                                        {selectedEndpoint.parameters?.filter((p: any) => p.in === "path" || p.in === "query").map((param: any, index: number) => (
                                             <TextField
                                                 key={index}
-                                                label={`${param.name}${param.required ? ' *' : ''}`}
+                                                label={`${param.name}${param.required ? " *" : ""}`}
                                                 variant="outlined"
                                                 size="small"
                                                 fullWidth
                                                 margin="dense"
                                                 onChange={(e) => setRequestParams({
                                                     ...requestParams,
-                                                    [param.name]: e.target.value
+                                                    [param.name]: e.target.value,
                                                 })}
                                                 helperText={param.description}
                                                 required={param.required}
-                                                value={requestParams[param.name] || ''}
+                                                value={requestParams[param.name] || ""}
                                             />
                                         ))}
 
@@ -841,7 +841,7 @@ export function ApiView({
                                             sx={{ mt: 2 }}
                                             disabled={responseData?.loading}
                                         >
-                                            {responseData?.loading ? 'Executing...' : 'Execute'}
+                                            {responseData?.loading ? "Executing..." : "Execute"}
                                         </Button>
                                     </form>
 

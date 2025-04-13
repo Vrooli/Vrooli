@@ -196,15 +196,23 @@ export function Interactive() {
     const [listState, setListState] = useState<"short" | "long" | "empty">("short");
     const [list, setList] = useState<ResourceListType>(mockList);
 
-    const handleUpdate = (newList: ResourceListType) => {
+    function handleUpdate(newList: ResourceListType) {
         setList(newList);
-    };
+    }
 
-    const handleHorizontalClick = () => setHorizontal(true);
-    const handleVerticalClick = () => setHorizontal(false);
-    const handleCanUpdateClick = () => setCanUpdate(!canUpdate);
-    const handleLoadingClick = () => setLoading(!loading);
-    const handleListLengthClick = () => {
+    function handleHorizontalClick() {
+        setHorizontal(true);
+    }
+    function handleVerticalClick() {
+        setHorizontal(false);
+    }
+    function handleCanUpdateClick() {
+        setCanUpdate(!canUpdate);
+    }
+    function handleLoadingClick() {
+        setLoading(!loading);
+    }
+    function handleListLengthClick() {
         // Cycle through states: short -> long -> empty -> short
         const nextState = listState === "short" ? "long" : listState === "long" ? "empty" : "short";
         setListState(nextState);
@@ -214,7 +222,7 @@ export function Interactive() {
                 nextState === "short" ? baseMockResources :
                     [],
         });
-    };
+    }
 
     return (
         <PageContainer>
@@ -285,7 +293,6 @@ export function Interactive() {
                         resources: loading ? [] : list.resources,
                     }}
                     handleUpdate={handleUpdate}
-                    title="Resource List Demo"
                     parent={{ __typename: "RoutineVersion", id: "mock-routine" }}
                 />
             </ScrollBox>

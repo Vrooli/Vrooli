@@ -15,7 +15,7 @@ import { keyComboToString } from "../../../utils/display/device.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButton.js";
+import { MicrophoneButton } from "../../buttons/MicrophoneButton.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { FormTip } from "../form/FormTip.js";

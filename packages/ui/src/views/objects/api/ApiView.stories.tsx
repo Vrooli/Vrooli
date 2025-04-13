@@ -1,4 +1,5 @@
-import { Api, ApiVersion, CodeLanguage, DUMMY_ID, Resource, ResourceListFor, ResourceUsedFor, Tag, User, endpointsApiVersion, getObjectUrl, uuid } from "@local/shared";
+/* eslint-disable no-magic-numbers */
+import { Api, ApiVersion, CodeLanguage, Resource, ResourceList, ResourceUsedFor, Tag, User, endpointsApiVersion, getObjectUrl, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiView } from "./ApiView.js";
@@ -37,7 +38,7 @@ const mockApiVersionData: ApiVersion = {
         })) as unknown as Resource[], // Use unknown to bypass type checking until runtime
         translations: [],
         updated_at: new Date().toISOString(),
-    },
+    } as unknown as ResourceList,
     schemaLanguage: CodeLanguage.Yaml,
     schemaText: `openapi: 3.0.0
 info:
@@ -173,8 +174,8 @@ components:
         - text
         - author`,
     versionLabel: `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     root: {
         __typename: "Api" as const,
         id: uuid(),
@@ -192,7 +193,7 @@ components:
     } as unknown as Api,
     translations: [{
         __typename: "ApiVersionTranslation" as const,
-        id: DUMMY_ID,
+        id: uuid(),
         language: "en",
         details: "This is a **detailed** description for the mock API using markdown.\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
         name: `Mock API v${Math.floor(Math.random() * 1000)}`,
@@ -218,7 +219,7 @@ export function Loading() {
     return (
         <ApiView display="page" />
     );
-};
+}
 Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
@@ -239,7 +240,7 @@ export function SignInWithResults() {
     return (
         <ApiView display="page" />
     );
-};
+}
 SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
@@ -258,13 +259,55 @@ export function LoggedOutWithResults() {
     return (
         <ApiView display="page" />
     );
-};
+}
 LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
             http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
+            }),
+        ],
+    },
+    route: {
+        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}`,
+    },
+};
+
+export function Own() {
+    return (
+        <ApiView display="page" />
+    );
+}
+Own.parameters = {
+    session: signedInPremiumWithCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+                // Create a modified version of the mock data with owner permissions
+                const mockWithOwnerPermissions = {
+                    ...mockApiVersionData,
+                    root: {
+                        ...mockApiVersionData.root,
+                        you: {
+                            // Full permissions as the owner
+                            canBookmark: true,
+                            canDelete: true,
+                            canUpdate: true,
+                            canRead: true,
+                            isBookmarked: false,
+                            isOwner: true,
+                            isStarred: false,
+                        }
+                    },
+                    permissions: {
+                        canDelete: true,
+                        canUpdate: true,
+                        canRead: true,
+                    }
+                };
+
+                return HttpResponse.json({ data: mockWithOwnerPermissions });
             }),
         ],
     },

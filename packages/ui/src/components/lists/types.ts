@@ -1,4 +1,4 @@
-import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
+import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, ModelType, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { ReactNode } from "react";
 import { UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
@@ -50,7 +50,46 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     titleOverride?: string;
     toTheRight?: React.ReactNode;
 }
-export type ObjectListItemProps<T extends ListObject> = ObjectListItemBaseProps<T> & ActionsType<T>;
+export type ObjectListItemProps<T extends ListObject = ListObject> = {
+    /** Optional content to display below subtitle */
+    belowSubtitle?: ReactNode;
+    /** Optional content to display below tags */
+    belowTags?: ReactNode;
+    /** If function, will validate if we can navigate to the object */
+    canNavigate?: (item: T) => boolean;
+    /** For ObjectListItemBase, the underlying data to display */
+    data: T | null;
+    /** Data index for keyboard navigation */
+    dataIndex?: number;
+    /** Function to handle opening the context menu upon right click */
+    handleContextMenu: (target: ReactNode, object: ListObject | null) => void;
+    /** Function to toggle item selection when in selection mode */
+    handleToggleSelect: (item: T, event?: UsePressEvent) => void;
+    /** Hide object's update button */
+    hideUpdateButton?: boolean;
+    /** Whether to display the mobile or the desktop version */
+    isMobile: boolean;
+    /** True if ObjectList is in selection mode. Hides actions and allows toggling select */
+    isSelecting: boolean;
+    /** True if the object is selected */
+    isSelected: boolean;
+    /** True if the item is a dummy, i.e. we're just displaying a loading state */
+    loading: boolean;
+    /** Generic callback fired when actions are taken from the context menu */
+    onAction?: (action: keyof ObjectListActions<T>, ...data: any[]) => unknown;
+    /** Callback fired when the object is clicked */
+    onClick?: (item: T) => unknown;
+    /** The type of object which determines which component to use */
+    objectType: `${ModelType}` | "CalendarEvent";
+    /** Optional subtitle override */
+    subtitleOverride?: string;
+    /** Tab index for keyboard navigation */
+    tabIndex?: number;
+    /** Optional title override */
+    titleOverride?: string;
+    /** Optional content to display to the right of the item */
+    toTheRight?: ReactNode;
+};
 
 export type ObjectListActions<T> = {
     Deleted: (id: string) => unknown;
@@ -219,7 +258,6 @@ export interface TagListProps {
      * Maximum characters to display before tags are truncated
      */
     maxCharacters?: number;
-    parentId: string;
     sx?: SxType;
     tags: Partial<Tag>[];
 }

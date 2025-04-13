@@ -4,7 +4,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
@@ -23,42 +23,42 @@ import { SearchViewProps } from "../../views/types.js";
 const scrollContainerId = "main-search-scroll";
 const pageContainerStyle = {
     [`& .${ELEMENT_CLASSES.SearchBar}`]: {
-        marginLeft: 'auto',
-        marginRight: 'auto',
-        maxWidth: '600px',
+        marginLeft: "auto",
+        marginRight: "auto",
+        maxWidth: "600px",
     },
 } as const;
 
 // Styled components for the search header
 const SearchHeader = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     padding: theme.spacing(3, 2),
-    maxWidth: '600px',
-    margin: '0 auto',
-    textAlign: 'center',
+    maxWidth: "600px",
+    margin: "0 auto",
+    textAlign: "center",
 }));
 
 const LogoContainer = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     marginBottom: theme.spacing(3),
-    cursor: 'pointer',
+    cursor: "pointer",
 }));
 
 const LogoName = styled(Typography)(({ theme }) => ({
-    fontSize: '4em',
+    fontSize: "4em",
     fontFamily: "sakbunderan",
     lineHeight: "1.3",
     marginLeft: theme.spacing(1),
 }));
 
 const SearchBarContainer = styled(Box)(({ theme }) => ({
-    width: '100%',
-    maxWidth: '800px',
-    margin: '0 auto',
+    width: "100%",
+    maxWidth: "800px",
+    margin: "0 auto",
 }));
 
 function LogoWithName({ onClick }: { onClick: () => void }) {
@@ -72,7 +72,7 @@ function LogoWithName({ onClick }: { onClick: () => void }) {
             <LogoName variant="h4">{BUSINESS_NAME}</LogoName>
         </LogoContainer>
     );
-};
+}
 
 /**
  * Search page for teams, projects, routines, standards, users, and other main objects
@@ -103,6 +103,18 @@ export function SearchView({
         setHeaderHidden(false);
     }, [searchType]);
 
+    // Focus the search bar automatically when page loads or tab changes
+    useEffect(() => {
+        // Small delay to ensure the DOM is ready
+        const timer = setTimeout(() => {
+            const searchBarInput = document.querySelector(`#${scrollContainerId}-search-bar input`) as HTMLElement;
+            if (searchBarInput) {
+                searchBarInput.focus();
+            }
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [searchType]);
+
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "page",
         searchType,
@@ -127,7 +139,13 @@ export function SearchView({
         else setLocation(addUrl);
     }, [searchType, setLocation, userId]);
 
-    function focusSearch() { scrollIntoFocusedView("search-bar-main-search-page-list"); }
+    function focusSearch() {
+        const searchBarInput = document.querySelector(`#${scrollContainerId}-search-bar input`) as HTMLElement;
+        if (searchBarInput) {
+            scrollIntoFocusedView(scrollContainerId);
+            searchBarInput.focus();
+        }
+    }
 
     const handleLogoClick = useCallback(() => {
         setLocation(LINKS.Home);
@@ -151,47 +169,47 @@ export function SearchView({
             case "Popular":
                 return {
                     primary: "DiscoverAIAgents" as const,
-                    secondary: "SuperchargeWorkflow" as const
+                    secondary: "SuperchargeWorkflow" as const,
                 };
             case "Routine":
                 return {
                     primary: "FindPerfectRoutine" as const,
-                    secondary: "AutomateWorkWithRoutines" as const
+                    secondary: "AutomateWorkWithRoutines" as const,
                 };
             case "Project":
                 return {
                     primary: "ExploreProjects" as const,
-                    secondary: "FindCollaborativeSpaces" as const
+                    secondary: "FindCollaborativeSpaces" as const,
                 };
             case "Team":
                 return {
                     primary: "DiscoverTeams" as const,
-                    secondary: "JoinForcesWithAgents" as const
+                    secondary: "JoinForcesWithAgents" as const,
                 };
             case "User":
                 return {
                     primary: "FindUsersAndAgents" as const,
-                    secondary: "ConnectWithPeople" as const
+                    secondary: "ConnectWithPeople" as const,
                 };
             case "Standard":
                 return {
                     primary: "BrowseStandards" as const,
-                    secondary: "FindDataStructure" as const
+                    secondary: "FindDataStructure" as const,
                 };
             case "Api":
                 return {
                     primary: "ExploreAPIs" as const,
-                    secondary: "ConnectWorkflows" as const
+                    secondary: "ConnectWorkflows" as const,
                 };
             case "Code":
                 return {
                     primary: "DiscoverCodeComponents" as const,
-                    secondary: "FindReusableCode" as const
+                    secondary: "FindReusableCode" as const,
                 };
             default:
                 return {
                     primary: "SearchResources" as const,
-                    secondary: "FindWhatYouNeed" as const
+                    secondary: "FindWhatYouNeed" as const,
                 };
         }
     }, [searchType]);

@@ -4,7 +4,7 @@ import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, IconInfo } from "../../icons/Icons.js";
 import { SxType } from "../../types.js";
 import { fontSizeToPixels } from "../../utils/display/stringTools.js";
-import { HelpButton } from "../buttons/HelpButton/HelpButton.js";
+import { HelpButton } from "../buttons/HelpButton.js";
 import { TitleProps } from "./types.js";
 
 interface OuterBoxProps extends BoxProps {

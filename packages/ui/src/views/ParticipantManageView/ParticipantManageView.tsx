@@ -2,7 +2,7 @@ import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, no
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
 import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { TopBar } from "../../components/navigation/TopBar.js";

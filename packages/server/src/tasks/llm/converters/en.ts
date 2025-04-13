@@ -1,7 +1,7 @@
-import { DeleteType, toBotSettings, uuid, uuidValidate } from "@local/shared";
-import { noEmptyString, validNumber, validUuid } from "../../../builders/noNull";
-import { logger } from "../../../events/logger";
-import { LlmTaskConverters } from "../converter";
+import { BotSettingsConfig, BotSettingsTranslation, DeleteType, uuid, uuidValidate } from "@local/shared";
+import { noEmptyString, toBool, validNumber, validUuid } from "../../../builders/noNull.js";
+import { logger } from "../../../events/logger.js";
+import { LlmTaskConverters } from "../converter.js";
 
 export const convert: LlmTaskConverters = {
     ApiAdd: (data) => ({
@@ -56,9 +56,52 @@ export const convert: LlmTaskConverters = {
         memberInTeamId: validUuid(data.memberInTeamId),
     }),
     BotUpdate: (data, language, existing) => {
-        const settings = toBotSettings(existing, logger);
+        const botSettings = BotSettingsConfig.deserialize(existing, logger);
+        const updatedBotSettingsSchema = {
+            ...botSettings.schema,
+            model: noEmptyString(data.model ?? botSettings.schema.model),
+            maxTokens: validNumber(data.maxTokens ?? botSettings.schema.maxTokens),
+            creativity: BotSettingsConfig.parseCreativity(data.creativity ?? botSettings.schema.creativity),
+            verbosity: BotSettingsConfig.parseVerbosity(data.verbosity ?? botSettings.schema.verbosity),
+            translations: botSettings.schema.translations ?? {},
+        };
+        const updatedTranslations = (updatedBotSettingsSchema.translations ?? {}) as Record<string, BotSettingsTranslation>;
+        if (!updatedTranslations[language]) {
+            updatedTranslations[language] = {};
+        }
+        if (data.bias) {
+            updatedTranslations[language].bias = noEmptyString(data.bias);
+        }
+        if (data.creativity) {
+            updatedTranslations[language].creativity = BotSettingsConfig.parseCreativity(data.creativity);
+        }
+        if (data.verbosity) {
+            updatedTranslations[language].verbosity = BotSettingsConfig.parseVerbosity(data.verbosity);
+        }
+        if (data.domainKnowledge) {
+            updatedTranslations[language].domainKnowledge = noEmptyString(data.domainKnowledge);
+        }
+        if (data.keyPhrases) {
+            updatedTranslations[language].keyPhrases = noEmptyString(data.keyPhrases);
+        }
+        if (data.occupation) {
+            updatedTranslations[language].occupation = noEmptyString(data.occupation);
+        }
+        if (data.persona) {
+            updatedTranslations[language].persona = noEmptyString(data.persona);
+        }
+        if (data.startingMessage) {
+            updatedTranslations[language].startingMessage = noEmptyString(data.startingMessage);
+        }
+        if (data.tone) {
+            updatedTranslations[language].tone = noEmptyString(data.tone);
+        }
+        updatedBotSettingsSchema.translations = updatedTranslations;
+        botSettings.schema = updatedBotSettingsSchema;
+
         return {
             id: data.id + "",
+            isBotDepictingPerson: toBool(data.isBotDepictingPerson ?? existing.isBotDepictingPerson),
             name: noEmptyString(data.name),
             translationsUpdate: noEmptyString(data.bio) ? [{
                 id: uuid(),
@@ -66,32 +109,7 @@ export const convert: LlmTaskConverters = {
                 ...existing.translations?.find(t => t.language === "en"),
                 bio: noEmptyString(data.bio),
             }] : undefined,
-            botSettings: JSON.stringify({
-                ...settings,
-                translations: Object.entries(settings.translations ?? {}).reduce((acc, [key, value]) => {
-                    if (key === language) {
-                        return {
-                            ...acc,
-                            [key]: {
-                                ...value,
-                                occupation: noEmptyString(data.occupation, value.occupation),
-                                persona: noEmptyString(data.persona, value.persona),
-                                startingMessage: noEmptyString(data.startingMessage, value.startingMessage),
-                                tone: noEmptyString(data.tone, value.tone),
-                                keyPhrases: noEmptyString(data.keyPhrases, value.keyPhrases),
-                                domainKnowledge: noEmptyString(data.domainKnowledge, value.domainKnowledge),
-                                bias: noEmptyString(data.bias, value.bias),
-                                creativity: validNumber(data.creativity, value.creativity),
-                                verbosity: validNumber(data.verbosity, value.verbosity),
-                            },
-                        };
-                    }
-                    return {
-                        ...acc,
-                        [key]: value,
-                    };
-                }, {}),
-            }),
+            botSettings: botSettings.serialize("json"),
         };
     },
     DataConverterAdd: (data) => ({

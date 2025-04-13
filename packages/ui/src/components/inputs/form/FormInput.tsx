@@ -7,7 +7,7 @@ import { lazily } from "react-lazily";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
+import { HelpButton } from "../../buttons/HelpButton.js";
 import { FormInputCheckbox } from "./FormInputCheckbox.js";
 import { FormInputInteger } from "./FormInputInteger.js";
 import { FormInputLanguage } from "./FormInputLanguage.js";

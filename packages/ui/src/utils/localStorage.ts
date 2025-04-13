@@ -3,6 +3,20 @@ import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
 
+// Helper to access window in both environments
+const windowObj = typeof global !== 'undefined' && global.window
+    ? global.window
+    : typeof window !== 'undefined'
+        ? window
+        : null;
+
+// Helper to access localStorage in both environments  
+const localStorageObj = typeof global !== 'undefined' && global.localStorage
+    ? global.localStorage
+    : typeof localStorage !== 'undefined'
+        ? localStorage
+        : null;
+
 const KB_1 = 1024;
 // eslint-disable-next-line no-magic-numbers
 const CACHE_LIMIT_128KB = KB_1 * 128;
@@ -54,6 +68,7 @@ type SimpleStoragePayloads = {
     AdvancedInputSettings: {
         enterWillSubmit: boolean;
         showToolbar: boolean;
+        spellcheck: boolean;
     },
 }
 type SimpleStorageType = keyof SimpleStoragePayloads;
@@ -170,7 +185,7 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
     Theme: {
         __type: "functional",
         check: (value) => value === "light" || value === "dark",
-        fallback: window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
+        fallback: windowObj?.matchMedia && windowObj.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
     },
     AdvancedInputSettings: {
         __type: "functional",
@@ -178,11 +193,13 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
             typeof value === "object" &&
             value !== null &&
             typeof (value as { enterWillSubmit?: boolean }).enterWillSubmit === "boolean" &&
-            typeof (value as { showToolbar?: boolean }).showToolbar === "boolean"
+            typeof (value as { showToolbar?: boolean }).showToolbar === "boolean" &&
+            typeof (value as { spellcheck?: boolean }).spellcheck === "boolean"
         ),
         fallback: {
             enterWillSubmit: true,
             showToolbar: false,
+            spellcheck: true,
         },
     },
 };
@@ -196,8 +213,8 @@ export function getLocalStorageKeys({
     suffix = "",
 }: GetLocalStorageKeysProps): string[] {
     const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+    for (let i = 0; i < localStorageObj?.length ?? 0; i++) {
+        const key = localStorageObj?.key(i);
         if (key && key.startsWith(prefix) && key.endsWith(suffix)) {
             keys.push(key);
         }
@@ -224,7 +241,7 @@ export class LocalStorageLruCache<ValueType> {
 
     private loadKeys(): Array<KeyType> {
         try {
-            const keys = localStorage.getItem(this.getNamespacedKey("cacheKeys"));
+            const keys = localStorageObj?.getItem(this.getNamespacedKey("cacheKeys"));
             if (keys) {
                 const parsedKeys = JSON.parse(keys);
                 if (Array.isArray(parsedKeys)) {
@@ -238,7 +255,7 @@ export class LocalStorageLruCache<ValueType> {
     }
 
     private saveKeys(): void {
-        localStorage.setItem(this.getNamespacedKey("cacheKeys"), JSON.stringify(this.cacheKeys));
+        localStorageObj?.setItem(this.getNamespacedKey("cacheKeys"), JSON.stringify(this.cacheKeys));
     }
 
     private getNamespacedKey(key: string): string {
@@ -247,7 +264,7 @@ export class LocalStorageLruCache<ValueType> {
 
     get(key: string): ValueType | undefined {
         try {
-            const serializedValue = localStorage.getItem(this.getNamespacedKey(key));
+            const serializedValue = localStorageObj?.getItem(this.getNamespacedKey(key));
             if (serializedValue) {
                 this.touchKey(key);
                 return JSON.parse(serializedValue);
@@ -266,14 +283,14 @@ export class LocalStorageLruCache<ValueType> {
         }
 
         this.touchKey(key);
-        localStorage.setItem(this.getNamespacedKey(key), serializedValue);
+        localStorageObj?.setItem(this.getNamespacedKey(key), serializedValue);
     }
 
     remove(key: string): void {
         // Remove the key from the cacheKeys array
         this.removeKey(key);
         // Remove the item from localStorage
-        localStorage.removeItem(this.getNamespacedKey(key));
+        localStorageObj?.removeItem(this.getNamespacedKey(key));
         // Save the updated keys to localStorage
         this.saveKeys();
     }
@@ -296,7 +313,7 @@ export class LocalStorageLruCache<ValueType> {
         while (this.cacheKeys.length > this.limit) {
             const oldKey = this.cacheKeys.shift();
             if (oldKey !== undefined) {
-                localStorage.removeItem(this.getNamespacedKey(oldKey));
+                localStorageObj?.removeItem(this.getNamespacedKey(oldKey));
             }
         }
         this.saveKeys();
@@ -318,7 +335,7 @@ export function getStorageItem<T extends SimpleStorageType | string>(
     name: T,
     typeCheck: (value: unknown) => boolean,
 ): (T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown) | undefined {
-    const cookie = localStorage.getItem(name);
+    const cookie = localStorageObj?.getItem(name);
     if (cookie === null) return undefined;
     // Try to parse
     try {
@@ -336,7 +353,7 @@ export function setStorageItem<T extends SimpleStorageType | string>(
     name: T,
     value: T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown,
 ) {
-    localStorage.setItem(name, JSON.stringify(value));
+    localStorageObj?.setItem(name, JSON.stringify(value));
 }
 
 /**
@@ -376,7 +393,7 @@ export function ifAllowed(cookieType: keyof CookiePreferences, callback: () => u
         return callback();
     }
     else {
-        console.warn(`Not allowed to get/set cookie ${cookieType}`, preferences, localStorage.getItem("Preferences"));
+        console.warn(`Not allowed to get/set cookie ${cookieType}`, preferences, localStorageObj?.getItem("Preferences"));
         return fallback;
     }
 }
@@ -426,7 +443,7 @@ export function removeCookie<T extends SimpleStorageType | CacheStorageType>(
     id?: string,
 ) {
     const key = id ? `${name}-${id}` : name;
-    localStorage.removeItem(key);
+    localStorageObj?.removeItem(key);
 }
 
 /** Represents the stored values for a particular form identified by objectType and objectId */

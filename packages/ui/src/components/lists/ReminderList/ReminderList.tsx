@@ -1,5 +1,5 @@
-import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
-import { Count, DUMMY_ID, DeleteManyInput, DeleteType, LINKS, ListObject, Reminder, ResourceUsedFor, endpointsActions, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps, DropResult, Droppable } from "@hello-pangea/dnd";
+import { Count, DUMMY_ID, DeleteManyInput, DeleteType, LINKS, ListObject, MyStuffPageTabOption, Reminder, ReminderList as ReminderListType, ResourceUsedFor, endpointsActions, updateArray } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, styled } from "@mui/material";
 import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,21 +19,59 @@ import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { getResourceUrl } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ReminderCrud, reminderInitialValues } from "../../../views/objects/reminder/ReminderCrud.js";
 import { TextLoading } from "../TextLoading/TextLoading.js";
-import { ObjectListActions, ReminderCardProps, ReminderListHorizontalProps, ReminderListProps } from "../types.js";
+import { ObjectListActions } from "../types.js";
 
 const CONTENT_SPACING = 1;
 const ICON_SIZE = 20;
 
+export interface ReminderCardProps {
+    data: Reminder;
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+    /** 
+     * Hides edit and delete icons when in edit mode, 
+     * making only drag'n'drop and the context menu available.
+     **/
+    isEditing: boolean;
+    onEdit: (data: Reminder) => unknown;
+    onDelete: (data: Reminder) => unknown;
+}
+
+export type ReminderListProps = {
+    canUpdate?: boolean;
+    handleUpdate?: (updatedList: ReminderListType) => unknown;
+    horizontal?: boolean;
+    id?: string;
+    list: ReminderListType | null | undefined;
+    loading?: boolean;
+    mutate?: boolean;
+    parent: { id: string };
+}
+
+export type ReminderListHorizontalProps = ReminderListProps & {
+    handleToggleSelect: (data: Reminder) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => unknown;
+    onClick: (data: Reminder) => unknown;
+    onDelete: (data: Reminder) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: Reminder) => unknown;
+    selectedData: Reminder[];
+    toggleEditing: () => unknown;
+}
+
 const CardsBox = styled(Box)(({ theme }) => ({
-    alignItems: "flex-start",
+    alignItems: "center",
     display: "flex",
     flexWrap: "wrap",
     gap: theme.spacing(1),
     paddingBottom: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     width: "100%",
 }));
 const CardBox = styled(Box)(({ theme }) => ({
@@ -192,8 +230,14 @@ function ReminderListHorizontal({
     onDelete,
     openAddDialog,
     openUpdateDialog,
+    toggleEditing,
 }: ReminderListHorizontalProps) {
     const { t } = useTranslation();
+    const [, setLocation] = useLocation();
+
+    function openReminders() {
+        setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}`);
+    }
 
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
@@ -267,7 +311,7 @@ function ReminderListHorizontal({
                                 ))
                             }
                             {/* Add button */}
-                            {canUpdate ? <Tooltip placement="top" title={t("AddReminder")}>
+                            {(isEditing || list?.reminders?.length === 0) && <Tooltip placement="top" title={t("AddReminder")}>
                                 <CardBox onClick={openAddDialog}>
                                     <IconCommon name="Add" size={ICON_SIZE} />
                                     <Typography
@@ -278,8 +322,19 @@ function ReminderListHorizontal({
                                         {t("AddReminder")}
                                     </Typography>
                                 </CardBox>
-                            </Tooltip> : null}
+                            </Tooltip>}
+                            {!isEditing && <Tooltip title={t("Open")}>
+                                <IconButton onClick={openReminders}>
+                                    <IconCommon name="OpenInNew" fill="secondary.main" size={24} />
+                                </IconButton>
+                            </Tooltip>}
                             {providedDrop.placeholder}
+                            {/* Edit button */}
+                            {canUpdate && <Tooltip title={t("Edit")}>
+                                <IconButton onClick={toggleEditing}>
+                                    <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
+                                </IconButton>
+                            </Tooltip>}
                         </CardsBox>
                     )}
                 </Droppable>
@@ -288,9 +343,15 @@ function ReminderListHorizontal({
     );
 }
 
-export function ReminderList(props: ReminderListProps) {
-    const { canUpdate, handleUpdate, list, mutate, title } = props;
-    const { t } = useTranslation();
+export function ReminderList({
+    canUpdate,
+    handleUpdate,
+    id,
+    list,
+    loading,
+    mutate,
+    parent,
+}: ReminderListProps) {
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const focusModeInfo = useFocusModes(session);
@@ -300,9 +361,6 @@ export function ReminderList(props: ReminderListProps) {
         if (!canUpdate) setIsEditing(false);
     }, [canUpdate]);
 
-    function openSchedule() {
-        setLocation(LINKS.Calendar);
-    }
     function toggleEditing() {
         setIsEditing(e => !e);
     }
@@ -441,37 +499,25 @@ export function ReminderList(props: ReminderListProps) {
         //TODO
     }, []);
 
-    const childProps: ReminderListHorizontalProps = {
-        ...props,
-        handleToggleSelect,
-        isEditing,
-        isSelecting,
-        onAction,
-        onClick,
-        onDelete,
-        openAddDialog,
-        openUpdateDialog,
-        selectedData,
-    };
-
     return (
         <Box>
             {upsertDialog}
             {BulkDeleteDialogComponent}
-            {title && <Box display="flex" flexDirection="row" alignItems="center">
-                <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
-                <Tooltip title={t("Open")}>
-                    <IconButton onClick={openSchedule}>
-                        <IconCommon name="OpenInNew" fill="secondary.main" size={24} />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title={t("Edit")}>
-                    <IconButton onClick={toggleEditing}>
-                        <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
-                    </IconButton>
-                </Tooltip>
-            </Box>}
-            <ReminderListHorizontal {...childProps} />
+            <ReminderListHorizontal
+                canUpdate={canUpdate}
+                handleUpdate={handleUpdate}
+                id={id}
+                isEditing={isEditing}
+                list={list}
+                loading={loading}
+                mutate={mutate}
+                onDelete={onDelete}
+                openAddDialog={openAddDialog}
+                openUpdateDialog={openUpdateDialog}
+                parent={parent}
+                selectedData={selectedData}
+                toggleEditing={toggleEditing}
+            />
         </Box>
     );
 }

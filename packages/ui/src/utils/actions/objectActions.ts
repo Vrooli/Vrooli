@@ -110,7 +110,7 @@ export function getAvailableActions(
     // Check Stats
     //TODO ["Api", "Code", "Project", "Quiz", "Routine", "Standard", "Team", "User"].includes(object.__typename)
     // Can always find in page
-    options.push(ObjectAction.FindInPage);
+    // options.push(ObjectAction.FindInPage);
     // Check Fork
     if (isLoggedIn && canCopy && object.__typename in CopyType) {
         options.push(ObjectAction.Fork);
@@ -133,7 +133,7 @@ export function getAvailableActions(
 /**
  * Maps an ObjectAction to [labelKey, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in ObjectAction]: [TranslationKeyCommon, IconInfo, string, boolean] } = ({
+const allOptionsMap: { [key in ObjectAction]?: [TranslationKeyCommon, IconInfo, string, boolean] } = ({
     [ObjectAction.Bookmark]: ["Bookmark", { name: "BookmarkOutline", type: "Common" }, "#cbae30", false],
     [ObjectAction.BookmarkUndo]: ["BookmarkUndo", { name: "BookmarkFilled", type: "Common" }, "#cbae30", false],
     [ObjectAction.Comment]: ["Comment", { name: "Comment", type: "Common" }, "default", false],
@@ -151,7 +151,9 @@ const allOptionsMap: { [key in ObjectAction]: [TranslationKeyCommon, IconInfo, s
 
 export function getActionsDisplayData(actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "iconColor" | "iconInfo" | "labelKey" | "value">[] {
     return actions.map((action) => {
-        const [labelKey, iconInfo, iconColor, preview] = allOptionsMap[action];
+        const actionData = allOptionsMap[action];
+        if (!actionData) return null;
+        const [labelKey, iconInfo, iconColor, preview] = actionData;
         return { labelKey, iconInfo, iconColor, preview, value: action };
-    });
+    }).filter(Boolean) as Pick<ListMenuItemData<ObjectAction>, "iconColor" | "iconInfo" | "labelKey" | "value">[];
 }

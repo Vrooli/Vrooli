@@ -18,18 +18,47 @@ import { firstString, formatEventTime } from "../../../utils/display/stringTools
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { TextLoading } from "../TextLoading/TextLoading.js";
-import { EventCardProps, EventListHorizontalProps, EventListProps, ObjectListActions } from "../types.js";
+import { ObjectListActions } from "../types.js";
 
 const CONTENT_SPACING = 1;
 const ICON_SIZE = 20;
 
+export interface EventCardProps {
+    data: CalendarEvent;
+    isEditing: boolean;
+    onEdit: (data: CalendarEvent) => unknown;
+    onDelete: (data: CalendarEvent) => unknown;
+}
+
+export type EventListProps = {
+    canUpdate?: boolean;
+    handleUpdate?: (updatedList: CalendarEvent[]) => unknown;
+    id?: string;
+    list: CalendarEvent[] | null | undefined;
+    loading?: boolean;
+    mutate?: boolean;
+}
+
+export type EventListHorizontalProps = EventListProps & {
+    handleToggleSelect: (data: CalendarEvent) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => unknown;
+    onClick: (data: CalendarEvent) => unknown;
+    onDelete: (data: CalendarEvent) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: CalendarEvent) => unknown;
+    selectedData: CalendarEvent[];
+    toggleEditing: () => unknown;
+}
+
 const CardsBox = styled(Box)(({ theme }) => ({
-    alignItems: "flex-start",
+    alignItems: "center",
     display: "flex",
     flexWrap: "wrap",
     gap: theme.spacing(1),
     paddingBottom: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     width: "100%",
 }));
 const CardBox = styled(Box)(({ theme }) => ({
@@ -240,8 +269,14 @@ function EventListHorizontal({
     onDelete,
     openAddDialog,
     openUpdateDialog,
+    toggleEditing,
 }: EventListHorizontalProps) {
     const { t } = useTranslation();
+    const [, setLocation] = useLocation();
+
+    function openSchedule() {
+        setLocation(LINKS.Calendar);
+    }
 
     const isEmpty = !list?.length;
 
@@ -283,7 +318,7 @@ function EventListHorizontal({
                 ))
             }
             {/* Add button */}
-            {canUpdate ? <Tooltip placement="top" title={t("AddEvent")}>
+            {(isEditing || list?.length === 0) && <Tooltip placement="top" title={t("AddEvent")}>
                 <CardBox onClick={openAddDialog}>
                     <IconCommon name="Add" size={ICON_SIZE} />
                     <Typography
@@ -294,24 +329,37 @@ function EventListHorizontal({
                         {t("AddEvent")}
                     </Typography>
                 </CardBox>
-            </Tooltip> : null}
+            </Tooltip>}
+            {!isEditing && <Tooltip title={t("Open")}>
+                <IconButton onClick={openSchedule}>
+                    <IconCommon name="OpenInNew" fill="secondary.main" size={24} />
+                </IconButton>
+            </Tooltip>}
+            {/* Edit button */}
+            {canUpdate && <Tooltip title={t("Edit")}>
+                <IconButton onClick={toggleEditing}>
+                    <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
+                </IconButton>
+            </Tooltip>}
         </CardsBox>
     );
 }
 
-export function EventList(props: EventListProps) {
-    const { canUpdate, handleUpdate, list, mutate, title } = props;
-    const { t } = useTranslation();
-    const [, setLocation] = useLocation();
-
+export function EventList({
+    canUpdate,
+    handleUpdate,
+    id,
+    list,
+    loading,
+    mutate,
+}: EventListProps) {
     const [isEditing, setIsEditing] = useState(false);
+    const [, setLocation] = useLocation();
     useEffect(() => {
         if (!canUpdate) setIsEditing(false);
     }, [canUpdate]);
 
-    function openSchedule() {
-        setLocation(LINKS.Calendar);
-    }
+
     function toggleEditing() {
         setIsEditing(e => !e);
     }
@@ -350,7 +398,7 @@ export function EventList(props: EventListProps) {
     }, [closeAddDialog, handleUpdate, list]);
 
     const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
-    const onDelete = useCallback((item: Resource) => {
+    const onDelete = useCallback((item: CalendarEvent) => {
         return;
         // if (!list) return;
         // if (mutate && item.id) {
@@ -405,8 +453,8 @@ export function EventList(props: EventListProps) {
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<Resource>(list ?? []);
-    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<Resource>({
+    } = useSelectableList<CalendarEvent>(list ?? []);
+    const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<CalendarEvent>({
         allData: list ?? [],
         selectedData,
         setAllData: (data) => {
@@ -446,37 +494,24 @@ export function EventList(props: EventListProps) {
         //TODO
     }, []);
 
-    const childProps: EventListHorizontalProps = {
-        ...props,
-        handleToggleSelect,
-        isEditing,
-        isSelecting,
-        onAction,
-        onClick,
-        onDelete,
-        openAddDialog,
-        openUpdateDialog,
-        selectedData,
-    };
-
     return (
         <Box>
             {upsertDialog}
             {BulkDeleteDialogComponent}
-            {title && <Box display="flex" flexDirection="row" alignItems="center">
-                <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
-                <Tooltip title={t("Open")}>
-                    <IconButton onClick={openSchedule}>
-                        <IconCommon name="OpenInNew" fill="secondary.main" size={24} />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title={t("Edit")}>
-                    <IconButton onClick={toggleEditing}>
-                        <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
-                    </IconButton>
-                </Tooltip>
-            </Box>}
-            <EventListHorizontal {...childProps} />
+            <EventListHorizontal
+                canUpdate={canUpdate}
+                handleUpdate={handleUpdate}
+                id={id}
+                isEditing={isEditing}
+                list={list}
+                loading={loading}
+                mutate={mutate}
+                onDelete={onDelete}
+                openAddDialog={openAddDialog}
+                openUpdateDialog={openUpdateDialog}
+                selectedData={selectedData}
+                toggleEditing={toggleEditing}
+            />
         </Box>
     );
 }

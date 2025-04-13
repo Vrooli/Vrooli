@@ -3,8 +3,8 @@ import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../../api/ai.js";
-import { LoadableButton } from "../../../components/buttons/LoadableButton/LoadableButton.js";
-import { RunPickerMenu } from "../../../components/buttons/RunButton/RunButton.js";
+import { LoadableButton } from "../../../components/buttons/LoadableButton.js";
+import { RunPickerMenu } from "../../../components/buttons/RunButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js";

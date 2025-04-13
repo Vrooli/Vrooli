@@ -16,42 +16,55 @@ export const routineTypes = [
         label: "Basic",
         description: "Has no side effects. Used to collect information, provide instructions, or as a placeholder.",
         iconInfo: { name: "Help", type: "Common" } as const,
-    }, {
+    },
+    {
         type: RoutineType.MultiStep,
         label: "Multi-step",
         description: "A combination of other routines, using a graph to define the order of execution.",
         iconInfo: { name: "Routine", type: "Routine" } as const,
-    }, {
+    },
+    {
         type: RoutineType.Generate,
         label: "Generate",
         description: "Sends inputs to an AI (e.g. GPT-4o) and returns its output.",
         iconInfo: { name: "Magic", type: "Common" } as const,
-    }, {
+    },
+    {
         type: RoutineType.Data,
         label: "Data",
         description: "Contains a single output and nothing else. Useful for providing hard-coded data to other routines, such as a prompt for a \"Generate\" routine.",
         iconInfo: { name: "CaseSensitive", type: "Text" } as const,
-    }, {
+    },
+    {
         type: RoutineType.Action,
         label: "Action",
         description: "Performs specific actions within Vrooli, such as creating, updating, or deleting objects.",
         iconInfo: { name: "Action", type: "Common" } as const,
-    }, {
+    },
+    {
         type: RoutineType.Code,
         label: "Code",
         description: "Runs code to convert inputs to outputs. Useful for converting plaintext to structured data.",
         iconInfo: { name: "Terminal", type: "Common" } as const,
-    }, {
+    },
+    {
         type: RoutineType.Api,
         label: "API",
         description: "Sends inputs to an API and returns its output. Useful for connecting to external services.",
         iconInfo: { name: "Api", type: "Common" } as const,
-    }, {
-        type: RoutineType.SmartContract,
-        label: "Smart Contract",
-        description: "Connects to a smart contract on the blockchain, sending inputs and returning outputs.",
-        iconInfo: { name: "SmartContract", type: "Common" } as const,
     },
+    {
+        type: RoutineType.Web,
+        label: "Web",
+        description: "Searches the web for information.",
+        iconInfo: { name: "Web", type: "Common" } as const,
+    },
+    //{
+    //     type: RoutineType.SmartContract,
+    //     label: "Smart Contract",
+    //     description: "Connects to a smart contract on the blockchain, sending inputs and returning outputs.",
+    //     iconInfo: { name: "SmartContract", type: "Common" } as const,
+    // },
 ];
 export function getRoutineTypeLabel(option: RoutineTypeOption) {
     return option.label;

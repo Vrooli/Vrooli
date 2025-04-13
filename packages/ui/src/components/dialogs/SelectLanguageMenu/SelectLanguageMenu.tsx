@@ -61,6 +61,117 @@ const transformOrigin = {
     horizontal: "center",
 } as const;
 
+// Pre-defined styles
+const popoverSx = {
+    zIndex: Z_INDEX.Popup,
+    "& .MuiPopover-paper": {
+        background: "transparent",
+        border: "none",
+        paddingBottom: 1,
+        zIndex: Z_INDEX.Popup,
+    },
+};
+
+const fixedSizeListStyle = {
+    maxWidth: "100%",
+};
+
+// ListItem component to avoid JSX object creation in render
+function LanguageListItem({
+    index,
+    style,
+    option,
+    isSelected,
+    isCurrent,
+    canDelete,
+    palette,
+    onDelete,
+    handleCurrent,
+    onClose,
+}: {
+    index: number;
+    style: React.CSSProperties;
+    option: [string, string];
+    isSelected: boolean;
+    isCurrent: boolean;
+    canDelete: boolean;
+    palette: any;
+    onDelete: (e: MouseEvent<HTMLButtonElement>, language: string) => void;
+    handleCurrent: (language: string) => void;
+    onClose: () => void;
+}) {
+    const handleItemClick = useCallback(() => {
+        handleCurrent(option[0]);
+        onClose();
+    }, [handleCurrent, onClose, option]);
+
+    const handleDeleteClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+        onDelete(e, option[0]);
+    }, [onDelete, option]);
+
+    const listItemSx = useMemo(() => ({
+        background: isCurrent ? palette.secondary.light : palette.background.default,
+        color: isCurrent ? palette.secondary.contrastText : palette.background.textPrimary,
+        "&:hover": {
+            background: isCurrent ? palette.secondary.light : palette.background.default,
+            filter: "brightness(105%)",
+        },
+    }), [isCurrent, palette]);
+
+    const typographyStyle = useMemo(() => ({
+        display: "block",
+        marginRight: "auto",
+        marginLeft: isSelected ? "8px" : "0",
+    }), [isSelected]);
+
+    return (
+        <ListItem
+            key={index}
+            style={style}
+            disablePadding
+            button
+            onClick={handleItemClick}
+            sx={listItemSx}
+        >
+            {/* Display check mark if selected */}
+            {isSelected && (
+                <IconCommon
+                    decorative
+                    fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary}
+                    name="Complete"
+                />
+            )}
+            <Typography variant="body2" style={typographyStyle}>{option[1]}</Typography>
+            {/* Delete icon */}
+            {canDelete && (
+                <Tooltip title="Delete translation for this language">
+                    <IconButton
+                        size="small"
+                        onClick={handleDeleteClick}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary}
+                            name="Delete"
+                        />
+                    </IconButton>
+                </Tooltip>
+            )}
+            {/* Auto-translate icon TODO add back later*/}
+            {/* {canAutoTranslate && (
+                <Tooltip title="Auto-translate from an existing translation">
+                    <IconButton
+                        size="small"
+                        onClick={(e) => { openTranslateSource(e, option[0]) }}
+                    >
+                        <TranslateIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
+                    </IconButton>
+                </Tooltip>
+            )} */}
+        </ListItem>
+    );
+}
+
 export function SelectLanguageMenu({
     currentLanguage,
     handleDelete,
@@ -77,6 +188,53 @@ export function SelectLanguageMenu({
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
     }, []);
+
+    // Memoized styles that depend on theme or props
+    const stackSx = useMemo(() => ({
+        maxHeight: "min(100vh, 600px)",
+        maxWidth: "100%",
+        overflowX: "auto",
+        overflowY: "hidden",
+        background: palette.background.default,
+        borderRadius: "0 4px 4px",
+        padding: "8px",
+    }), [palette.background.default]);
+
+    const textInputSx = useMemo(() => ({
+        paddingLeft: 1,
+        paddingRight: 1,
+    }), []);
+
+    const languageIconButtonSx = useMemo(() => ({
+        padding: "4px",
+        color: palette.background.textSecondary,
+    }), [palette.background.textSecondary]);
+
+    const dropIconButtonSx = useMemo(() => ({
+        padding: "4px",
+        marginLeft: "-8px",
+        color: palette.background.textSecondary,
+    }), [palette.background.textSecondary]);
+
+    const languageTypographySx = useMemo(() => ({
+        color: palette.background.textSecondary,
+        marginRight: "8px",
+        fontSize: "0.85rem",
+    }), [palette.background.textSecondary]);
+
+    const rootStackSx = useMemo(() => ({
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: "50px",
+        cursor: "pointer",
+        background: "transparent",
+        border: `1px solid ${palette.background.textSecondary}`,
+        transition: "all 0.2s ease-in-out",
+        width: "fit-content",
+        height: "32px",
+        ...(sxs?.root ?? {}),
+    }), [palette.background.textSecondary, sxs?.root]);
 
     // Auto-translates from source to target language
     const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointsTranslate.translate);
@@ -169,11 +327,11 @@ export function SelectLanguageMenu({
     const open = Boolean(anchorEl);
     const onOpen = useCallback((event: MouseEvent<Element>) => {
         setAnchorEl(event.currentTarget);
-        // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
+        // Force parent to save current translation
         if (currentLanguage) handleCurrent(currentLanguage);
     }, [currentLanguage, handleCurrent]);
     const onClose = useCallback(() => {
-        // Chear text field
+        // Clear text field
         setSearchString("");
         setAnchorEl(null);
     }, []);
@@ -195,22 +353,17 @@ export function SelectLanguageMenu({
                 onSelect={handleTranslateSourceSelect}
                 onClose={closeTranslateSource}
             />
-            {/* Language select popover */}
+            {/* Language select popover with disablePortal={false} to ensure it's rendered in a portal */}
             <Popover
                 open={open}
                 anchorEl={anchorEl}
                 onClose={onClose}
                 aria-labelledby={titleId}
-                sx={{
-                    zIndex: Z_INDEX.Popup,
-                    "& .MuiPopover-paper": {
-                        background: "transparent",
-                        border: "none",
-                        paddingBottom: 1,
-                    },
-                }}
+                sx={popoverSx}
                 anchorOrigin={anchorOrigin}
                 transformOrigin={transformOrigin}
+                disablePortal={false}
+                container={document.body}
             >
                 {/* Title */}
                 <MenuTitle
@@ -219,25 +372,13 @@ export function SelectLanguageMenu({
                     onClose={onClose}
                 />
                 {/* Search bar and list of languages */}
-                <Stack direction="column" spacing={2} sx={{
-                    // width: "min(100vw, 400px)",
-                    maxHeight: "min(100vh, 600px)",
-                    maxWidth: "100%",
-                    overflowX: "auto",
-                    overflowY: "hidden",
-                    background: palette.background.default,
-                    borderRadius: "0 4px 4px",
-                    padding: "8px",
-                }}>
+                <Stack direction="column" spacing={2} sx={stackSx}>
                     <TextInput
                         placeholder={t("LanguageEnter")}
-                        autoFocus={true}
+                        // Removing autoFocus to fix accessibility issue
                         value={searchString}
                         onChange={updateSearchString}
-                        sx={{
-                            paddingLeft: 1,
-                            paddingRight: 1,
-                        }}
+                        sx={textInputSx}
                     />
                     {/* TODO Remove this once react-window is updated */}
                     {/* @ts-expect-error Incompatible JSX type definitions */}
@@ -247,9 +388,7 @@ export function SelectLanguageMenu({
                         itemSize={46}
                         itemCount={languageOptions.length}
                         overscanCount={5}
-                        style={{
-                            maxWidth: "100%",
-                        }}
+                        style={fixedSizeListStyle}
                     >
                         {(props) => {
                             const { index, style } = props;
@@ -261,63 +400,20 @@ export function SelectLanguageMenu({
                             // Can auto-translate if the language is not selected, is in auto-translate languages, and one of 
                             // the existing translations is in the auto-translate languages.
                             const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 && autoTranslateLanguages.includes(option[0] as any);
+
                             return (
-                                <ListItem
-                                    key={index}
+                                <LanguageListItem
+                                    index={index}
                                     style={style}
-                                    disablePadding
-                                    button
-                                    onClick={() => { handleCurrent(option[0]); onClose(); }}
-                                    // Darken/lighten selected language (depending on light/dark mode)
-                                    sx={{
-                                        background: isCurrent ? palette.secondary.light : palette.background.default,
-                                        color: isCurrent ? palette.secondary.contrastText : palette.background.textPrimary,
-                                        "&:hover": {
-                                            background: isCurrent ? palette.secondary.light : palette.background.default,
-                                            filter: "brightness(105%)",
-                                        },
-                                    }}
-                                >
-                                    {/* Display check mark if selected */}
-                                    {isSelected && (
-                                        <IconCommon
-                                            decorative
-                                            fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary}
-                                            name="Complete"
-                                        />
-                                    )}
-                                    <Typography variant="body2" style={{
-                                        display: "block",
-                                        marginRight: "auto",
-                                        marginLeft: isSelected ? "8px" : "0",
-                                    }}>{option[1]}</Typography>
-                                    {/* Delete icon */}
-                                    {canDelete && (
-                                        <Tooltip title="Delete translation for this language">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => onDelete(e, option[0])}
-                                            >
-                                                <IconCommon
-                                                    decorative
-                                                    fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary}
-                                                    name="Delete"
-                                                />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )}
-                                    {/* Auto-translate icon TODO add back later*/}
-                                    {/* {canAutoTranslate && (
-                                        <Tooltip title="Auto-translate from an existing translation">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => { openTranslateSource(e, option[0]) }}
-                                            >
-                                                <TranslateIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )} */}
-                                </ListItem>
+                                    option={option}
+                                    isSelected={isSelected}
+                                    isCurrent={isCurrent}
+                                    canDelete={canDelete}
+                                    palette={palette}
+                                    onDelete={onDelete}
+                                    handleCurrent={handleCurrent}
+                                    onClose={onClose}
+                                />
                             );
                         }}
                     </FixedSizeList>
@@ -325,41 +421,27 @@ export function SelectLanguageMenu({
             </Popover>
             {/* Selected language label */}
             <Tooltip title={AllLanguages[currentLanguage] ?? ""} placement="top">
-                <Stack direction="row" spacing={0} onClick={onOpen} sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: "50px",
-                    cursor: "pointer",
-                    background: "#4e7d31",
-                    boxShadow: 2,
-                    "&:hover": {
-                        filter: "brightness(120%)",
-                    },
-                    transition: "all 0.2s ease-in-out",
-                    width: "fit-content",
-                    ...(sxs?.root ?? {}),
-                }}>
-                    <IconButton size="large" sx={{ padding: "4px" }}>
+                <Stack direction="row" spacing={0} onClick={onOpen} sx={rootStackSx}>
+                    <IconButton size="small" sx={languageIconButtonSx}>
                         <IconCommon
                             decorative
-                            fill={"white"}
+                            fill="background.textSecondary"
                             name="Language"
                         />
                     </IconButton>
                     {/* Only show language code when editing to save space. You'll know what language you're reading just by reading */}
-                    {isEditing && <Typography variant="body2" sx={{ color: "white", marginRight: "8px" }}>
+                    {isEditing && <Typography variant="body2" sx={languageTypographySx}>
                         {currentLanguage?.toLocaleUpperCase()}
                     </Typography>}
                     {/* Drop down or drop up icon */}
                     <IconButton
                         aria-label="language-select"
-                        size="large"
-                        sx={{ padding: "4px", marginLeft: "-8px" }}
+                        size="small"
+                        sx={dropIconButtonSx}
                     >
                         <IconCommon
                             decorative
-                            fill={"white"}
+                            fill="background.textSecondary"
                             name={open ? "ArrowDropUp" : "ArrowDropDown"}
                         />
                     </IconButton>

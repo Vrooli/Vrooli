@@ -80,7 +80,7 @@ const SeeAllLinkText = styled(Typography)(({ theme }) => ({
     marginBottom: theme.spacing(1),
 }));
 const CollapseBox = styled(Box)({
-    display: "inline-block",
+    display: "block",
     width: "100%",
 });
 const AccountList = styled(List)({

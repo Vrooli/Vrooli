@@ -2,10 +2,10 @@ import { noop } from "@local/shared";
 import { Box, IconButton, Input, InputAdornment, Paper, TextField, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MicrophoneButton } from "../../../components/buttons/MicrophoneButton/MicrophoneButton.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { ELEMENT_CLASSES } from "../../../utils/consts.js";
+import { MicrophoneButton } from "../../buttons/MicrophoneButton.js";
 
 const DEFAULT_DEBOUNCE_MS = 200;
 
@@ -29,6 +29,10 @@ type SearchBarProps = {
      * Callback when input is focused
      */
     onFocus?: () => void;
+    /**
+     * Callback for handling keyboard events
+     */
+    onKeyDown?: (event: React.KeyboardEvent) => void;
     placeholder?: string;
     value: string;
 }
@@ -46,6 +50,7 @@ export function BasicSearchBar({
     onChange,
     onBlur,
     onFocus,
+    onKeyDown,
     debounce,
 }: SearchBarProps) {
     const { t } = useTranslation();
@@ -128,6 +133,7 @@ export function BasicSearchBar({
                 onChange={handleInputChange}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
+                onKeyDown={onKeyDown}
                 placeholder={placeholder}
                 value={internalValue}
                 variant="outlined"
@@ -142,13 +148,13 @@ const inputStyle = {
     flex: 1,
     // Remove underline
     "&:before": {
-        display: "none"
+        display: "none",
     },
     "&:after": {
-        display: "none"
+        display: "none",
     },
     "&:hover:before": {
-        display: "none"
+        display: "none",
     },
     // Drop down should be as large as the full width of the screen
     "& .MuiAutocomplete-popper": {
@@ -172,6 +178,7 @@ export function PaperSearchBar({
     onChange,
     onBlur,
     onFocus,
+    onKeyDown,
     debounce,
 }: SearchBarProps) {
     const { t } = useTranslation();
@@ -243,6 +250,7 @@ export function PaperSearchBar({
                 onChange={handleInputChange}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
+                onKeyDown={onKeyDown}
                 placeholder={placeholder}
                 inputProps={InputProps}
                 sx={inputStyle}

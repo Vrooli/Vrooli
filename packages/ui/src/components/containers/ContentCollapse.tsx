@@ -2,7 +2,7 @@ import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/mat
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
-import { HelpButton } from "../buttons/HelpButton/HelpButton.js";
+import { HelpButton } from "../buttons/HelpButton.js";
 import { ContentCollapseProps } from "./types.js";
 
 export function ContentCollapse({

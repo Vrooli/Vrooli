@@ -28,23 +28,74 @@ const eventPushState = "pushState";
 const eventReplaceState = "replaceState";
 export const events = [eventPopstate, eventPushState, eventReplaceState];
 
-export default function useLocation(): UseLocationResult {
-    const [loc, setLoc] = useState<Location>(() => ({
+// Storage key for mocked location in Storybook
+const STORYBOOK_MOCK_PATH_KEY = "vrooli_storybook_mock_path";
+
+/**
+ * Mocks the location for Storybook testing
+ * @param mockPath The path to mock (e.g. '/chat')
+ */
+export function mockLocationForStorybook(mockPath: string): void {
+    if (typeof window !== "undefined" && process.env.DEV) {
+        localStorage.setItem(STORYBOOK_MOCK_PATH_KEY, mockPath);
+        // Trigger a popstate event to update any hooks listening for location changes
+        window.dispatchEvent(new Event(eventPopstate));
+    }
+}
+
+/**
+ * Clears any mocked location for Storybook testing
+ */
+export function clearMockedLocationForStorybook(): void {
+    if (typeof window !== "undefined" && process.env.DEV) {
+        localStorage.removeItem(STORYBOOK_MOCK_PATH_KEY);
+        // Trigger a popstate event to update any hooks listening for location changes
+        window.dispatchEvent(new Event(eventPopstate));
+    }
+}
+
+/**
+ * Gets the current location, checking for Storybook mocked path first
+ */
+function getCurrentLocation(): Location {
+    // In development mode and Storybook, check if we have a mocked path
+    if (typeof window !== "undefined" && process.env.DEV) {
+        const mockedPath = localStorage.getItem(STORYBOOK_MOCK_PATH_KEY);
+        if (mockedPath) {
+            // Only override the pathname, keep the other location properties
+            return {
+                href: location.href,
+                pathname: mockedPath,
+                search: location.search,
+            };
+        }
+    }
+
+    // Default to actual location
+    return {
         href: location.href,
         pathname: location.pathname ?? "",
         search: location.search,
-    })); // @see https://reactjs.org/docs/hooks-reference.html#lazy-initial-state
+    };
+}
+
+export default function useLocation(): UseLocationResult {
+    const [loc, setLoc] = useState<Location>(() => getCurrentLocation());
     const prevHref = useRef(location.href);
 
     useEffect(() => {
-        const checkForUpdates = () => {
-            const { href, pathname, search } = location;
+        function checkForUpdates() {
+            const currentLocation = getCurrentLocation();
+            const { href } = currentLocation;
 
             if (prevHref.current !== href) {
                 prevHref.current = href;
-                setLoc({ href, pathname: pathname ?? "", search });
+                setLoc(currentLocation);
+            } else {
+                // Even if the href hasn't changed, the mocked path might have
+                setLoc(currentLocation);
             }
-        };
+        }
 
         events.forEach((e) => addEventListener(e, checkForUpdates));
 
@@ -62,6 +113,14 @@ export default function useLocation(): UseLocationResult {
     // the function reference should stay the same between re-renders, so that
     // it can be passed down as an element prop without any performance concerns.
     const setLocation = useCallback((to: string, { replace = false, searchParams = {} } = {}) => {
+        // If we're in Storybook and have a mocked path, update that instead
+        if (typeof window !== "undefined" && process.env.DEV && localStorage.getItem(STORYBOOK_MOCK_PATH_KEY)) {
+            localStorage.setItem(STORYBOOK_MOCK_PATH_KEY, to.split("?")[0]);
+            // Trigger a location update without affecting actual browser history
+            window.dispatchEvent(new Event(eventPopstate));
+            return;
+        }
+
         // Get last path and search params from sessionStorage
         const lastPath = sessionStorage.getItem("currentPath");
         const lastSearchParams = sessionStorage.getItem("currentSearchParams");
@@ -104,10 +163,10 @@ if (typeof history !== "undefined") {
     for (const type of [eventPushState, eventReplaceState]) {
         const original = history[type as keyof History];
 
-        (history as any)[type as keyof History] = function () {
-            const result = original.apply(this, arguments);
+        (history as any)[type as keyof History] = function monkeyPatchedHistory(...args: any[]) {
+            const result = original.apply(this, args);
             const event: Event & { arguments?: any } = new Event(type);
-            event.arguments = arguments;
+            event.arguments = args;
 
             dispatchEvent(event);
             return result;

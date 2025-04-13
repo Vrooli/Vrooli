@@ -1,10 +1,9 @@
-import { FindByIdInput, FindVersionInput, LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsApiVersion, endpointsChatMessage, endpointsCodeVersion, endpointsComment, endpointsIssue, endpointsNoteVersion, endpointsPost, endpointsProjectVersion, endpointsRoutineVersion, endpointsStandardVersion, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop, uuidValidate } from "@local/shared";
+import { LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsApiVersion, endpointsChatMessage, endpointsCodeVersion, endpointsComment, endpointsIssue, endpointsNoteVersion, endpointsPost, endpointsProjectVersion, endpointsRoutineVersion, endpointsStandardVersion, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop } from "@local/shared";
 import { Box, Button, Typography, styled, useTheme } from "@mui/material";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ServerResponseParser } from "../../api/responseParser.js";
 import { PageContainer } from "../../components/Page/Page.js";
-import { SortButton } from "../../components/buttons/SearchButtons/SearchButtons.js";
+import { SortButton } from "../../components/buttons/SearchButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectActionMenu } from "../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectListItem } from "../../components/lists/ObjectList/ObjectList.js";
@@ -17,18 +16,14 @@ import { useInfiniteScroll } from "../../hooks/gestures.js";
 import { useObjectActions } from "../../hooks/objectActions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { fetchDataUsingUrl } from "../../hooks/useManagedObject.js";
+import { useManagedObject } from "../../hooks/useManagedObject.js";
 import { useObjectContextMenu } from "../../hooks/useObjectContextMenu.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { ArgsType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay, getYou } from "../../utils/display/listTools.js";
-import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "../../utils/localStorage.js";
 import { UrlInfo, parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
-import { PubSub } from "../../utils/pubsub.js";
 import { ReportUpsert } from "../../views/objects/report/ReportUpsert.js";
 
 const scrollContainerId = "reports-search-scroll";
@@ -147,41 +142,12 @@ export function ReportsView() {
         };
     }, [pathname]);
 
-    // Fetch object info
-    const [getData, { data: fetchedData, errors: fetchedErrors, loading: isLoadingObject }] = useLazyFetch<FindByIdInput | FindVersionInput, ListObject>({
-        endpoint: endpointData?.endpoint,
-        method: "GET",
+    // Fetch object info using the useManagedObject hook
+    const { isLoading: isLoadingObject, object } = useManagedObject<ListObject>({
+        endpoint: endpointData?.endpoint || "",
+        objectType: objectType || "Unknown",
+        disabled: !objectType || !endpointData,
     });
-    const [object, setObject] = useState<ListObject | null>(function initializeObjectState() {
-        if (!objectType || Object.keys(urlInfo).length === 0) return null;
-        // Try to find object in cache
-        const storedData = getCookiePartialData<ListObject>({ __typename: objectType, ...urlInfo });
-        return storedData ?? null;
-    });
-    useEffect(function fetchObjectEffect() {
-        // Try to fetch data using URL params
-        const fetched = fetchDataUsingUrl(urlInfo, getData);
-        if (fetched) return;
-        // If fetch failed, display error
-        PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getData, urlInfo]);
-    useEffect(function setObjectEffect() {
-        if (!objectType) return;
-        // If data was queried (i.e. object exists), store it in local state
-        if (fetchedData) setCookiePartialData(fetchedData, "full");
-        // If we didn't receive fetched data, and we received an "Unauthorized" error, 
-        // we should clear the cookie data and set the object to its default value
-        else if (ServerResponseParser.hasErrorCode({ errors: fetchedErrors }, "Unauthorized")) {
-            removeCookiePartialData({ __typename: objectType, ...urlInfo });
-            setObject(null);
-            return;
-        }
-        // If we have fetched data or cached data, set the object   
-        const knownData = fetchedData ?? getCookiePartialData<ListObject>({ __typename: objectType, ...urlInfo });
-        if (knownData && typeof knownData === "object" && uuidValidate(knownData.id)) {
-            setObject(knownData);
-        }
-    }, [fetchedData, fetchedErrors, objectType, urlInfo]);
 
     // Set up other info for the object being reported
     const onAction = useCallback((action: keyof ObjectListActions<ListObject>, ...data: unknown[]) => {
@@ -194,8 +160,7 @@ export function ReportsView() {
                 break;
             }
             case "Updated": {
-                const [updatedItem] = data as ArgsType<ObjectListActions<ListObject>["Updated"]>;
-                setObject(updatedItem);
+                // No need to manually update the object as useManagedObject will handle it
                 break;
             }
         }
@@ -293,7 +258,9 @@ export function ReportsView() {
                     {!isLoadingObject && object && <ObjectListItem
                         canNavigate={canNavigate}
                         data={object}
-                        handleContextMenu={contextData.handleContextMenu}
+                        handleContextMenu={(target: React.ReactNode, obj: ListObject | null) =>
+                            contextData.handleContextMenu(target as unknown as EventTarget, obj)
+                        }
                         handleToggleSelect={noop} // Disable selection
                         hideUpdateButton={false}
                         isMobile={isMobile}

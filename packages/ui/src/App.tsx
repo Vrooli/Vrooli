@@ -293,10 +293,10 @@ https://github.com/Vrooli/Vrooli
         // Detect online/offline status
         const onlineStatusId = "online-status"; // Use same ID for both so both can't be displayed at the same time
         function handleOnline() {
-            PubSub.get().publish("snack", { id: onlineStatusId, messageKey: "NowOnline", severity: "Success" });
+            PubSub.get().publish("snack", { id: onlineStatusId, message: i18next.t("NowOnline"), severity: "Success" });
         }
         function handleOffline() {
-            PubSub.get().publish("snack", { autoHideDuration: "persist", id: onlineStatusId, messageKey: "NoInternet", severity: "Error" });
+            PubSub.get().publish("snack", { autoHideDuration: "persist", id: onlineStatusId, message: i18next.t("NoInternet"), severity: "Error" });
         }
         window.addEventListener("online", handleOnline);
         window.addEventListener("offline", handleOffline);
@@ -310,6 +310,7 @@ https://github.com/Vrooli/Vrooli
             window.removeEventListener("online", handleOnline);
             window.removeEventListener("offline", handleOffline);
         };
+        // Make sure the dependency array here stays empty
     }, []);
 
     useEffect(() => {
@@ -353,7 +354,7 @@ https://github.com/Vrooli/Vrooli
                 if (!isInvalidSession) {
                     PubSub.get().publish("snack", {
                         id: SERVER_CONNECT_MESSAGE_ID,
-                        messageKey: "CannotConnectToServer",
+                        message: i18next.t("CannotConnectToServer"),
                         autoHideDuration: "persist",
                         severity: "Error",
                         buttonKey: "Reload",

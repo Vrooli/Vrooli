@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
-import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
+import { HelpButton } from "../../buttons/HelpButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { RichInputBase } from "../RichInput/RichInput.js";
 import { FormSettingsButtonRow, propButtonStyle } from "./styles.js";

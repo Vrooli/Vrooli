@@ -3,7 +3,7 @@ import { IconButton, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons.js";
 import { CommentContainer } from "../../../components/containers/CommentContainer.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";

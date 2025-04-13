@@ -1,7 +1,7 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointsAuth, LINKS, Session } from "@local/shared";
 import { alpha, Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormHelperText, Link, styled, Typography, useTheme } from "@mui/material";
 import { Field, Formik, FormikHelpers } from "formik";
-import { useCallback, useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
@@ -17,14 +17,14 @@ import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
 import { IconFavicon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { CenteredContentPage, CenteredContentPageWrap } from "../../styles.js";
+import { CenteredContentPage, pagePaddingBottom } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { removeCookie } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { setupPush } from "../../utils/push.js";
 import { SignupViewProps } from "../../views/types.js";
-import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, contentWrapStyle, emailStartAdornment, FormSection, nameStartAdornment, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
+import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, FormSection, nameStartAdornment, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
 
 type FormInput = EmailSignUpInput & {
     agreeToTerms: boolean;
@@ -62,6 +62,10 @@ const StyledSignUpButton = styled(Button)(({ theme }) => ({
         transform: "scale(1.05)",
     },
 }));
+const StyledOuterAuthFormContainer = styled(OuterAuthFormContainer)(({ theme }) => ({
+    marginBottom: 0,
+}));
+
 
 const BREADCRUMB_PATHS = [
     {
@@ -163,7 +167,7 @@ function SignupForm() {
     }, [emailSignUp, palette.mode, redirect, setLocation]);
 
     return (
-        <OuterAuthFormContainer>
+        <StyledOuterAuthFormContainer>
             <AuthContainer>
                 <AuthFormContainer>
                     <Formik
@@ -311,7 +315,7 @@ function SignupForm() {
                     </OAuthSection>
                 </OAuthContainer>
             </AuthContainer>
-        </OuterAuthFormContainer>
+        </StyledOuterAuthFormContainer>
     );
 }
 
@@ -319,6 +323,81 @@ function stopPropagation(event: React.MouseEvent) {
     event.stopPropagation();
 }
 
+/**
+ * Component that cycles through persuasive sentences about Vrooli's features
+ */
+function FeatureCarousel() {
+    const theme = useTheme();
+    const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
+    const [isVisible, setIsVisible] = useState(true);
+
+    // Constants to fix linter errors
+    const ROTATION_INTERVAL_MS = 5000;
+    const FADE_TRANSITION_MS = 400;
+    const TEXT_SHADOW_ALPHA = 0.2;
+
+    // A list of compelling features based on the README and LandingView content
+    const featureMessages = useMemo(() => [
+        "Create and customize autonomous agents to tackle any role in your business",
+        "Build dynamic teams of bots and humans that collaborate toward specific goals",
+        "Create powerful workflows that combine, APIs, code, prompts, and more for any purpose",
+        "Run autonomous or supervised workflows with real-time chat support",
+        "Share and improve prompts and workflows, promoting a collaborative ecosystem",
+        "Engage with multiple bots and humans in the same conversation",
+        "Schedule tasks to run at specific times or when conditions are met",
+        "Build a beautiful and efficient automation system that evolves with your needs",
+    ], []);
+
+    // Change the displayed feature every interval
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // First fade out
+            setIsVisible(false);
+
+            // After fade out, change the text and fade back in
+            setTimeout(() => {
+                setCurrentFeatureIndex(prevIndex =>
+                    prevIndex === featureMessages.length - 1 ? 0 : prevIndex + 1,
+                );
+                setIsVisible(true);
+            }, FADE_TRANSITION_MS);
+
+        }, ROTATION_INTERVAL_MS);
+
+        return () => clearInterval(interval);
+    }, [featureMessages.length, FADE_TRANSITION_MS, ROTATION_INTERVAL_MS]);
+
+    // Styles as static objects to fix linter errors
+    const boxStyle = {
+        mt: 4,
+        textAlign: "center",
+        padding: 3,
+        borderRadius: 2,
+        maxWidth: "700px",
+        margin: "0 auto",
+        marginTop: 4,
+        height: "90px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+    } as const;
+
+    const textStyle = {
+        fontWeight: 400,
+        color: theme.palette.background.textSecondary,
+        textShadow: `0 0 10px ${alpha(theme.palette.primary.main, TEXT_SHADOW_ALPHA)}`,
+        opacity: isVisible ? 1 : 0,
+        transition: `opacity ${FADE_TRANSITION_MS}ms ease-in-out`,
+    } as const;
+
+    return (
+        <Box sx={boxStyle}>
+            <Typography variant="h6" sx={textStyle}>
+                ✨ {featureMessages[currentFeatureIndex]}
+            </Typography>
+        </Box>
+    );
+}
 
 export function SignupView({
     display,
@@ -328,9 +407,17 @@ export function SignupView({
             <TopBar
                 display={display}
             />
-            <CenteredContentPageWrap sx={contentWrapStyle}>
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap={1}
+                overflow="auto"
+                padding={2}
+                paddingBottom={pagePaddingBottom}
+            >
                 <SignupForm />
-            </CenteredContentPageWrap>
+                <FeatureCarousel />
+            </Box>
         </CenteredContentPage>
     );
 }

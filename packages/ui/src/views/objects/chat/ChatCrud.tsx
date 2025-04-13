@@ -6,7 +6,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../../api/responseParser.js";
-import { HelpButton } from "../../../components/buttons/HelpButton/HelpButton.js";
+import { HelpButton } from "../../../components/buttons/HelpButton.js";
 import { ChatBubbleTree } from "../../../components/ChatBubbleTree/ChatBubbleTree.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { ChatMessageInput } from "../../../components/inputs/ChatMessageInput/ChatMessageInput.js";

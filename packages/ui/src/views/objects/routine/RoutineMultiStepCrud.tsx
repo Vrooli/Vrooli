@@ -3,7 +3,7 @@ import { Box, Button, Divider, Grid, IconButton, styled, useTheme } from "@mui/m
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";
 import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid.js";
-import { LoadableButton } from "../../../components/buttons/LoadableButton/LoadableButton.js";
+import { LoadableButton } from "../../../components/buttons/LoadableButton.js";
 import { StatusMessageArray } from "../../../components/buttons/types.js";
 // eslint-disable-next-line import/extensions
 // import Canvas from "diagram-js/lib/core/Canvas";

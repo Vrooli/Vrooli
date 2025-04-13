@@ -65,13 +65,13 @@ export const createCards: CreateInfo[] = [
         iconInfo: { name: "Comment", type: "Common" },
         id: "create-chat-card",
     },
-    {
-        objectType: "Question",
-        description: "CreateQuestionDescription",
-        iconInfo: { name: "Help", type: "Common" },
-        id: "create-question-card",
-        incomplete: true,
-    },
+    // {
+    //     objectType: "Question",
+    //     description: "CreateQuestionDescription",
+    //     iconInfo: { name: "Help", type: "Common" },
+    //     id: "create-question-card",
+    //     incomplete: true,
+    // },
     {
         objectType: "Prompt",
         description: "CreatePromptDescription",
@@ -90,20 +90,20 @@ export const createCards: CreateInfo[] = [
         iconInfo: { name: "Terminal", type: "Common" },
         id: "create-code-card",
     },
-    {
-        objectType: "SmartContract",
-        description: "CreateSmartContractDescription",
-        iconInfo: { name: "SmartContract", type: "Common" },
-        id: "create-smart-contract-card",
-        incomplete: true,
-    },
-    {
-        objectType: "Api",
-        description: "CreateApiDescription",
-        iconInfo: { name: "Api", type: "Common" },
-        id: "create-api-card",
-        incomplete: true,
-    },
+    // {
+    //     objectType: "SmartContract",
+    //     description: "CreateSmartContractDescription",
+    //     iconInfo: { name: "SmartContract", type: "Common" },
+    //     id: "create-smart-contract-card",
+    //     incomplete: true,
+    // },
+    // {
+    //     objectType: "Api",
+    //     description: "CreateApiDescription",
+    //     iconInfo: { name: "Api", type: "Common" },
+    //     id: "create-api-card",
+    //     incomplete: true,
+    // },
 ] as const;
 
 const singleStepRoutineIconInfo: IconInfo = { name: "Action", type: "Common" };

@@ -1,7 +1,6 @@
 import { CalendarPageTabOption, ChatInviteStatus, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { IconInfo } from "../../icons/Icons.js";
-import { PolicyTabOption } from "../../views/PolicyView/PolicyView.js";
 import { apiSearchParams } from "./schemas/api.js";
 import { apiVersionSearchParams } from "./schemas/apiVersion.js";
 import { SearchParams } from "./schemas/base.js";
@@ -191,13 +190,13 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Standard",
         where: () => ({ isInternal: false, variantLatestVersion: StandardType.DataStructure }),
     },
-    {
-        iconInfo: { name: "Api", type: "Common" } as const,
-        key: SearchPageTabOption.Api,
-        titleKey: "Api",
-        searchType: "Api",
-        where: () => ({}),
-    },
+    // {
+    //     iconInfo: { name: "Api", type: "Common" } as const,
+    //     key: SearchPageTabOption.Api,
+    //     titleKey: "Api",
+    //     searchType: "Api",
+    //     where: () => ({}),
+    // },
     {
         iconInfo: { name: "Terminal", type: "Common" } as const,
         key: SearchPageTabOption.DataConverter,
@@ -205,13 +204,13 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Code",
         where: () => ({ codeTypeLatestVersion: CodeType.DataConvert }),
     },
-    {
-        iconInfo: { name: "SmartContract", type: "Common" } as const,
-        key: SearchPageTabOption.SmartContract,
-        titleKey: "SmartContract",
-        searchType: "Code",
-        where: () => ({ codeTypeLatestVersion: CodeType.SmartContract }),
-    },
+    // {
+    //     iconInfo: { name: "SmartContract", type: "Common" } as const,
+    //     key: SearchPageTabOption.SmartContract,
+    //     titleKey: "SmartContract",
+    //     searchType: "Code",
+    //     where: () => ({ codeTypeLatestVersion: CodeType.SmartContract }),
+    // },
 ];
 
 export type SearchVersionViewTabsInfo = {
@@ -669,6 +668,11 @@ export const participantTabParams: TabParamSearchableList<ParticipantTabsInfo, [
         where: ({ chatId }) => ({ notInChatId: chatId }),
     },
 ];
+
+export enum PolicyTabOption {
+    Privacy = "Privacy",
+    Terms = "Terms",
+}
 
 export type PolicyTabsInfo = {
     Key: PolicyTabOption;

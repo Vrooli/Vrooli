@@ -1,21 +1,18 @@
 /* eslint-disable import/extensions */
 import { CodeLanguage, Status, TranslationKeyLangs, isEqual } from "@local/shared";
-import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
-import { StatusButton } from "../../buttons/StatusButton/StatusButton.js";
+import { HelpButton } from "../../buttons/HelpButton.js";
+import { StatusButton } from "../../buttons/StatusButton.js";
 import { SelectorBase } from "../../inputs/Selector/Selector.js";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import React from "react";
 import { SessionContext } from "../../../contexts/session.js";
-import { generateContextLabel } from "../../../hooks/tasks.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
-import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
-import { useActiveChat } from "../../../stores/activeChatStore.js";
+import { Icon, IconCommon, IconInfo, IconText } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
-import { generateContext } from "../../../utils/display/stringTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { CodeInputBaseProps, CodeInputProps } from "../types.js";
 
@@ -433,15 +430,23 @@ const languageDisplayMap: { [x in CodeLanguage]: [TranslationKeyLangs, Translati
 const InfoBar = styled(Box)(({ theme }) => ({
     display: "flex",
     width: "100%",
-    padding: "0.5rem",
-    borderBottom: "1px solid #e0e0e0",
-    background: theme.palette.primary.light,
+    padding: theme.spacing(1),
+    backgroundColor: theme.palette.primary.dark,
     color: theme.palette.primary.contrastText,
     alignItems: "center",
     flexDirection: "row",
-    [theme.breakpoints.down("sm")]: {
-        flexDirection: "column",
-    },
+}));
+
+const LanguageLabel = styled(Typography)(({ theme }) => ({
+    color: theme.palette.primary.contrastText,
+    flexGrow: 1,
+    fontStyle: "italic",
+    marginLeft: theme.spacing(1),
+}));
+
+const InfoBarButton = styled(IconButton)(({ theme }) => ({
+    color: theme.palette.primary.contrastText,
+    backgroundColor: theme.palette.primary.dark,
 }));
 
 const outerStackStyle = {
@@ -460,7 +465,6 @@ const refreshIconStyle = {
     zIndex: 1,
 } as const;
 const statusButtonStyle = {
-    marginRight: "auto",
     height: "fit-content",
 } as const;
 const languageSelectorStyle = {
@@ -469,7 +473,6 @@ const languageSelectorStyle = {
         minWidth: "200px",
     },
 } as const;
-const copyButtonStyle = { marginLeft: "auto" } as const;
 
 const CHANGE_DEBOUNCE_MS = 250;
 const REFRESH_ICON_SHOW_AFTER_MS = 3000;
@@ -494,12 +497,16 @@ export function CodeInputBase({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { chat } = useActiveChat();
+    // const { chat } = useActiveChat();
 
     const availableLanguages = Array.isArray(limitTo) && limitTo.length > 0 ? limitTo : Object.values(CodeLanguage);
 
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
     const commandFunctionsRef = useRef<{ undo: ((view: EditorView) => unknown) | null, redo: ((view: EditorView) => unknown) | null }>({ undo: null, redo: null });
+
+    // Add state for expand/collapse and word wrap
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isWrapped, setIsWrapped] = useState(false);
 
     async function loadCommandFunctions() {
         if (!commandFunctionsRef.current.undo || !commandFunctionsRef.current.redo) {
@@ -635,48 +642,48 @@ export function CodeInputBase({
 
     const id = useMemo(() => `code-container-${name}`, [name]);
 
-    const openAssistantDialog = useCallback(() => {
-        if (disabled) return;
-        const userId = getCurrentUser(session)?.id;
-        if (!userId) return;
-        const chatId = chat?.id;
-        if (!chatId) return;
+    // const openAssistantDialog = useCallback(() => {
+    //     if (disabled) return;
+    //     const userId = getCurrentUser(session)?.id;
+    //     if (!userId) return;
+    //     const chatId = chat?.id;
+    //     if (!chatId) return;
 
-        if (!codeMirrorRef.current || !codeMirrorRef.current.view) {
-            console.error("CodeMirror not found");
-            return;
-        }
-        const codeDoc = codeMirrorRef.current.view.state.doc;
-        const selectionRanges = codeMirrorRef.current.view.state.selection.ranges;
-        // Only use the first selection range, if it exists
-        const selection = selectionRanges.length > 0 ? codeDoc.sliceString(selectionRanges[0].from, selectionRanges[0].to) : "";
-        const fullText = codeDoc.sliceString(0, Number.MAX_SAFE_INTEGER);
-        const contextValue = generateContext(selection, fullText);
+    //     if (!codeMirrorRef.current || !codeMirrorRef.current.view) {
+    //         console.error("CodeMirror not found");
+    //         return;
+    //     }
+    //     const codeDoc = codeMirrorRef.current.view.state.doc;
+    //     const selectionRanges = codeMirrorRef.current.view.state.selection.ranges;
+    //     // Only use the first selection range, if it exists
+    //     const selection = selectionRanges.length > 0 ? codeDoc.sliceString(selectionRanges[0].from, selectionRanges[0].to) : "";
+    //     const fullText = codeDoc.sliceString(0, Number.MAX_SAFE_INTEGER);
+    //     const contextValue = generateContext(selection, fullText);
 
-        // Open the side chat and provide it context
-        //TODO
-        // PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: true, data: { tab: "Chat" } });
-        const context = {
-            id: `code-${name}`,
-            data: contextValue,
-            label: generateContextLabel(contextValue),
-            template: `Code:\n\`\`\`${codeLanguage}\n<DATA>\n\`\`\``,
-            templateVariables: { data: "<DATA>" },
-        };
-        PubSub.get().publish("chatTask", {
-            chatId,
-            contexts: {
-                add: {
-                    behavior: "replace",
-                    connect: {
-                        __type: "contextId",
-                        data: context.id,
-                    },
-                    value: [context],
-                },
-            },
-        });
-    }, [chat?.id, codeLanguage, disabled, name, session]);
+    //     // Open the side chat and provide it context
+    //     //TODO
+    //     // PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: true, data: { tab: "Chat" } });
+    //     const context = {
+    //         id: `code-${name}`,
+    //         data: contextValue,
+    //         label: generateContextLabel(contextValue),
+    //         template: `Code:\n\`\`\`${codeLanguage}\n<DATA>\n\`\`\``,
+    //         templateVariables: { data: "<DATA>" },
+    //     };
+    //     PubSub.get().publish("chatTask", {
+    //         chatId,
+    //         contexts: {
+    //             add: {
+    //                 behavior: "replace",
+    //                 connect: {
+    //                     __type: "contextId",
+    //                     data: context.id,
+    //                 },
+    //                 value: [context],
+    //             },
+    //         },
+    //     });
+    // }, [chat?.id, codeLanguage, disabled, name, session]);
 
     // Handle action buttons
     type Action = {
@@ -693,7 +700,7 @@ export function CodeInputBase({
                 iconInfo: { name: "Magic", type: "Common" },
                 key: "assistant",
                 label: "AI assistant",
-                onClick: () => { openAssistantDialog(); },
+                onClick: () => { /**openAssistantDialog();*/ },
             });
         }
         // Always add undo and redo buttons
@@ -736,7 +743,7 @@ export function CodeInputBase({
             });
         }
         return actionsList;
-    }, [credits, codeLanguage, content, openAssistantDialog, t, updateContent]);
+    }, [credits, codeLanguage, content, t, updateContent]);
 
     const [, helpKey] = useMemo<[TranslationKeyLangs, TranslationKeyLangs]>(() => languageDisplayMap[codeLanguage] ?? ["Json", "JsonHelp"], [codeLanguage]);
 
@@ -764,90 +771,114 @@ export function CodeInputBase({
         return t(labelKey, { ns: "langs" });
     }, [t]);
 
+    // Toggle collapse and wrap functions
+    const toggleCollapse = useCallback(() => setIsCollapsed(prev => !prev), []);
+    const toggleWrap = useCallback(() => setIsWrapped(prev => !prev), []);
+
     return (
         <>
             <Stack direction="column" spacing={0} sx={outerStackStyle}>
                 <InfoBar>
-                    {/* Select or display language */}
-                    {availableLanguages.length > 1 ?
-                        <Grid item xs={12} sm={6}>
-                            <SelectorBase
-                                name="codeLanguage"
-                                value={codeLanguage}
-                                onChange={changeCodeLanguage}
-                                disabled={disabled}
-                                options={availableLanguages}
-                                getOptionLabel={getOptionLabel}
-                                fullWidth
-                                inputAriaLabel="select language"
-                                label={"Language"}
-                                sxs={languageSelectorStyle}
-                            />
-                        </Grid> :
-                        disabled ?
-                            <Tooltip title={t(helpKey, { ns: "langs" })}>
-                                <Typography variant="body1" sx={{ marginLeft: 1, marginRight: "auto" }}>
-                                    {t(languageDisplayMap[codeLanguage][0], { ns: "langs" })}
-                                </Typography>
-                            </Tooltip> :
-                            null
+                    {/* Display language - either as selector or label */}
+                    {availableLanguages.length > 1 && !disabled ?
+                        <SelectorBase
+                            name="codeLanguage"
+                            value={codeLanguage}
+                            onChange={changeCodeLanguage}
+                            disabled={disabled}
+                            options={availableLanguages}
+                            getOptionLabel={getOptionLabel}
+                            fullWidth
+                            inputAriaLabel="select language"
+                            label={"Language"}
+                            sxs={languageSelectorStyle}
+                        /> :
+                        <LanguageLabel variant="body2">
+                            {t(languageDisplayMap[codeLanguage][0], { ns: "langs" })}
+                        </LanguageLabel>
                     }
-                    <Grid item xs={12} sm={availableLanguages.length > 1 ? 6 : 12} sx={{
-                        marginLeft: { xs: 0, sm: "auto" },
-                        ...(availableLanguages.length <= 1 && {
-                            display: "flex",
-                            justifyContent: "flex-end",
-                        }),
-                    }}>
-                        {/* Actions, Help button, Status */}
-                        {!disabled && <Box sx={{
-                            display: "flex",
-                            flexDirection: "row",
-                            justifyContent: "flex-start",
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                        }}>
-                            {actions.map(({ iconInfo, key, label, onClick }) => <Tooltip key={key} title={label}>
-                                <IconButton
-                                    aria-label={label}
-                                    disabled={disabled}
-                                    onClick={onClick}
-                                >
-                                    <Icon
-                                        decorative
-                                        fill={palette.primary.contrastText}
-                                        info={iconInfo}
-                                    />
-                                </IconButton>
-                            </Tooltip>)}
-                            <HelpButton
-                                markdown={t(helpKey, { ns: "langs" })}
-                                sx={{ fill: palette.secondary.contrastText }}
-                            />
-                            {supportsValidation && <StatusButton
-                                status={errors.length === 0 ? Status.Valid : Status.Invalid}
-                                messages={errors.map(e => e.message)}
-                                sx={statusButtonStyle}
-                            />}
-                        </Box>}
+
+                    {/* Right side action buttons */}
+                    <Box display="flex" gap={1}>
+                        {/* Word wrap toggle */}
+                        <Tooltip title={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}>
+                            <InfoBarButton
+                                aria-label={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}
+                                size="small"
+                                onClick={toggleWrap}
+                            >
+                                {isWrapped ?
+                                    <IconText decorative name="List" /> :
+                                    <IconText decorative name="WrapText" />
+                                }
+                            </InfoBarButton>
+                        </Tooltip>
+
                         {/* Copy button */}
-                        {disabled && Boolean(content) && <IconButton
-                            aria-label={t("Copy")}
-                            onClick={handleCopy}
-                            sx={copyButtonStyle}
-                        >
-                            <IconCommon
-                                decorative
-                                fill={palette.primary.contrastText}
-                                name="Copy"
-                            />
-                        </IconButton>}
-                    </Grid>
+                        <Tooltip title={t("Copy")}>
+                            <InfoBarButton
+                                aria-label={t("Copy")}
+                                size="small"
+                                onClick={handleCopy}
+                            >
+                                <IconCommon decorative name="Copy" />
+                            </InfoBarButton>
+                        </Tooltip>
+
+                        {/* Expand/Collapse button */}
+                        <Tooltip title={isCollapsed ? t("Expand") : t("Collapse")}>
+                            <InfoBarButton
+                                aria-label={isCollapsed ? t("Expand") : t("Collapse")}
+                                size="small"
+                                onClick={toggleCollapse}
+                            >
+                                {isCollapsed ?
+                                    <IconCommon decorative name="ExpandMore" /> :
+                                    <IconCommon decorative name="ExpandLess" />
+                                }
+                            </InfoBarButton>
+                        </Tooltip>
+
+                        {/* Show additional actions and help button when editable */}
+                        {!disabled && (
+                            <>
+                                {actions.map(({ iconInfo, key, label, onClick }) => (
+                                    <Tooltip key={key} title={label}>
+                                        <InfoBarButton
+                                            aria-label={label}
+                                            size="small"
+                                            onClick={onClick}
+                                        >
+                                            <Icon
+                                                decorative
+                                                fill={palette.primary.contrastText}
+                                                info={iconInfo}
+                                            />
+                                        </InfoBarButton>
+                                    </Tooltip>
+                                ))}
+                                <HelpButton
+                                    markdown={t(helpKey, { ns: "langs" })}
+                                    sx={{ fill: palette.primary.contrastText }}
+                                />
+                                {supportsValidation && (
+                                    <StatusButton
+                                        status={errors.length === 0 ? Status.Valid : Status.Invalid}
+                                        messages={errors.map(e => e.message)}
+                                        sx={statusButtonStyle}
+                                    />
+                                )}
+                            </>
+                        )}
+                    </Box>
                 </InfoBar>
                 <Box sx={{
                     position: "relative",
-                    height: "400px",
+                    height: isCollapsed ? "0px" : "400px",
+                    maxHeight: isCollapsed ? "0px" : "400px",
                     background: palette.mode === "dark" ? "#282c34" : "#ffffff",
+                    overflow: "hidden",
+                    transition: "max-height 0.3s ease-in-out, height 0.3s ease-in-out",
                 }}>
                     <Suspense fallback={
                         <Typography variant="body1" sx={{
@@ -867,7 +898,10 @@ export function CodeInputBase({
                             extensions={extensions}
                             onChange={updateContent}
                             height={"400px"}
-                            style={lazyCodeMirrorStyle}
+                            style={{
+                                ...lazyCodeMirrorStyle,
+                                whiteSpace: isWrapped ? "pre-wrap" : "pre",
+                            }}
                         />
                     </Suspense>
                     {showRefresh && <IconButton
@@ -882,16 +916,17 @@ export function CodeInputBase({
                         />
                     </IconButton>}
                 </Box>
-                {/* Bottom bar containing arrow buttons to switch to different incomplete/incorrect
-             parts of the JSON, and an input for entering the currently-selected section of JSON */}
-                {/* TODO */}
-                {/* Helper text label TODO */}
-                {/* {
-                    formatMeta.error &&
-                    <Typography variant="body1" sx={{ color: "red" }}>
-                        {formatMeta.error}
+                {/* Display message when collapsed */}
+                {isCollapsed && (
+                    <Typography variant="body2" sx={{
+                        padding: 1,
+                        color: palette.text.secondary,
+                        fontStyle: "italic",
+                        backgroundColor: palette.mode === "dark" ? "#282c34" : "#ffffff",
+                    }}>
+                        {t("CodeEditorCollapsed")}
                     </Typography>
-                } */}
+                )}
             </Stack>
         </>
     );

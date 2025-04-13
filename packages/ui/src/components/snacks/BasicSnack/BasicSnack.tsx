@@ -15,6 +15,7 @@ export enum SnackSeverity {
 
 const DEFAULT_AUTO_HIDE_DURATION_MS = 5000;
 const SWIPE_THRESHOLD_PX = 10;
+const CLEANUP_AFTER_CLOSE_MS = 400;
 
 interface OuterBoxProps extends BoxProps {
     isOpen: boolean;
@@ -114,7 +115,7 @@ export function BasicSnack({
         if (touchPosition && Math.abs(touchPosition) > minSwipeDistance) {
             // Close the snack if swiped far enough
             setOpen(false);
-            setTimeout(() => handleClose(), 400);
+            setTimeout(() => handleClose(), CLEANUP_AFTER_CLOSE_MS);
         } else {
             // Reset if not swiped far enough
             setTouchPosition(null);
@@ -150,7 +151,7 @@ export function BasicSnack({
             // Then start a second timeout to remove from the stack
             timeoutRef.current = setTimeout(() => {
                 handleClose();
-            }, 400);
+            }, CLEANUP_AFTER_CLOSE_MS);
         }, autoHideDuration ?? DEFAULT_AUTO_HIDE_DURATION_MS);
     }, [autoHideDuration, handleClose]);
     // Start close timeout automatically

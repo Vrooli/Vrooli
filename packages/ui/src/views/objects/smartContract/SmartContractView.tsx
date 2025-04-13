@@ -3,8 +3,8 @@ import { Box, Button, Divider, IconButton, Stack, useTheme } from "@mui/material
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton/SearchExistingButton.js";
-import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
+import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons.js";
 import { CommentContainer } from "../../../components/containers/CommentContainer.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { TextCollapse } from "../../../components/containers/TextCollapse.js";

@@ -139,17 +139,24 @@ export const BUSINESS_DATA = {
 };
 
 // Determine origin of API server
-const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
+const windowObj = typeof global !== 'undefined' && global.window
+    ? global.window
+    : typeof window !== 'undefined'
+        ? window
+        : null;
+const host = windowObj?.location?.host ?? "";
+const hostname = windowObj?.location?.hostname ?? "";
+const isLocalhost: boolean = host.includes("localhost") || host.includes("192.168.") || host.includes("127.0.0.1");
 const serverUrlProvided = Boolean(process.env.VITE_API_URL && process.env.VITE_API_URL.length > 0);
 const portServer: string = process.env.VITE_PORT_API ?? "5329";
 export const apiUrlBase: string = isLocalhost ?
-    `http://${window.location.hostname}:${portServer}/api` :
+    `http://${hostname}:${portServer}/api` :
     serverUrlProvided ?
         `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
 export const restBase = `/${SERVER_VERSION}/rest`;
 export const webSocketUrlBase: string = isLocalhost ?
-    `http://${window.location.hostname}:${portServer}` :
+    `http://${hostname}:${portServer}` :
     serverUrlProvided ?
         `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}`;

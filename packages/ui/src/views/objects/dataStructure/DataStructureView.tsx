@@ -3,7 +3,7 @@ import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons.js";
 import { CommentContainer } from "../../../components/containers/CommentContainer.js";
 import { TextCollapse } from "../../../components/containers/TextCollapse.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
@@ -128,9 +128,8 @@ export function DataStructureView({
                     {/* Tags */}
                     {Array.isArray(tags) && tags!.length > 0 && <TagList
                         maxCharacters={30}
-                        existing?.id ?? ""}
-                    tags={tags as any[]}
-                    sx={{ marginTop: 4 }}
+                        tags={tags as any[]}
+                        sx={{ marginTop: 4 }}
                     />}
                     {/* Date and version labels */}
                     <Stack direction="row" spacing={1} mt={2} mb={1}>

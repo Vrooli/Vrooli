@@ -1,103 +1,217 @@
-import { CodeLanguage, DUMMY_ID } from "@local/shared";
-import { Meta, StoryObj } from "@storybook/react";
+/* eslint-disable @typescript-eslint/no-empty-function */
+/* eslint-disable react-perf/jsx-no-new-function-as-prop */
+/* eslint-disable no-magic-numbers */
+import { ApiVersion, CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsApiVersion, getObjectUrl, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
-import { API_URL, signedInNoPremiumNoCreditsSession } from "../../../__test/storybookConsts.js";
-import { SessionContext } from "../../../contexts/session.js";
+import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiUpsert } from "./ApiUpsert.js";
 
-const meta: Meta<typeof ApiUpsert> = {
-    title: "Views/Objects/Api/ApiUpsert",
-    component: ApiUpsert,
-    parameters: {
-        // More on how to position stories at: https://storybook.js.org/docs/react/configure/story-layout
-        layout: 'fullscreen',
-        msw: {
-            handlers: [
-                // Mock API responses for any potential backend calls
-                http.get(`${API_URL}/v2/rest/apis/:id`, () => {
-                    return HttpResponse.json({ data: { api: mockExistingApiData } });
-                }),
-                http.get(`${API_URL}/v2/rest/apiVersions/:id`, () => {
-                    return HttpResponse.json({ data: { apiVersion: mockExistingApiData } });
-                }),
-            ],
-        },
-    },
-    argTypes: {
-        onClose: { action: 'closed' },
-        onCompleted: { action: 'completed' },
-        onCancel: { action: 'cancelled' },
-    },
-    decorators: [
-        (Story, { parameters }) => (
-            <SessionContext.Provider value={parameters.session || signedInNoPremiumNoCreditsSession}>
-                <Story />
-            </SessionContext.Provider>
-        ),
-    ],
-};
-
-export default meta;
-type Story = StoryObj<typeof ApiUpsert>;
-
-// --- Stories ---
-
-export const Create: Story = {
-    args: {
-        display: "dialog",
-        isCreate: true,
-        isOpen: true,
-        // onClose, onCompleted, onCancel are handled by argTypes actions
-    },
-    parameters: {
-        session: signedInNoPremiumNoCreditsSession,
-    },
-};
-
 // Create simplified mock data for API responses
-const mockExistingApiData = {
-    __typename: "ApiVersion",
-    id: "api_version_123",
+const mockApiVersionData: ApiVersion = {
+    __typename: "ApiVersion" as const,
+    id: uuid(),
+    calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "https://api.example.com/v1",
+    documentationLink: "https://docs.example.com/v1",
     directoryListings: [],
     isComplete: true,
     isPrivate: false,
-    schemaLanguage: CodeLanguage.Yaml,
-    schemaText: "openapi: 3.0.0\ninfo:\n  title: Mock API\n  version: 1.0.0\npaths: {}",
-    versionLabel: "1.0.0",
-    root: {
-        __typename: "Api",
-        id: "api_789",
-        isPrivate: false,
-        owner: { __typename: "User", id: "user_abc" },
-        tags: [{ __typename: "Tag", id: "tag_1" }],
+    resourceList: {
+        __typename: "ResourceList" as const,
+        id: uuid(),
+        listFor: {
+            __typename: "ApiVersion" as const,
+            id: uuid(),
+        } as any,
+        created_at: new Date().toISOString(),
+        resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
+            __typename: "Resource" as const,
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            usedFor: ResourceUsedFor.Context,
+            link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
+            list: {} as any, // This will be set by the circular reference below
+            translations: [{
+                __typename: "ResourceTranslation" as const,
+                id: uuid(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                language: "en",
+                name: `Resource ${Math.floor(Math.random() * 1000)}`,
+                description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
+            }],
+        })) as unknown as Resource[], // Use unknown to bypass type checking until runtime
+        translations: [],
+        updated_at: new Date().toISOString(),
     },
+    schemaLanguage: CodeLanguage.Yaml,
+    schemaText: `openapi: 3.0.0
+info:
+  title: Mock API
+  version: ${Math.floor(Math.random() * 1000)}
+paths:
+  /comments:
+    get:
+      summary: List all comments
+      description: Returns a list of comments
+`,
+    versionLabel: `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    root: {
+        __typename: "Api" as const,
+        id: uuid(),
+        isPrivate: false,
+        owner: { __typename: "User" as const, id: uuid() } as User,
+        tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
+            __typename: "Tag" as const,
+            id: uuid(),
+            tag: ["Automation", "AI Agents", "Software Development", "API", "Cloud Computing", "Integration"][Math.floor(Math.random() * 6)],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })) as Tag[],
+        versions: [],
+        views: Math.floor(Math.random() * 100_000),
+    } as any,
     translations: [{
-        __typename: "ApiVersionTranslation",
+        __typename: "ApiVersionTranslation" as const,
         id: DUMMY_ID,
         language: "en",
-        details: "This is a mock API for demonstration.",
-        name: "Mock API v1",
-        summary: "A simple mock API.",
+        details: "This is a **detailed** description for the mock API using markdown.\nLorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        name: `Mock API v${Math.floor(Math.random() * 1000)}`,
+        summary: "A simple mock API for demonstration purposes.",
     }],
 };
 
-// This object needs to be type-compatible with PartialWithType<ApiVersion>
-const mockExistingApiVersion = {
-    __typename: "ApiVersion" as const,
-    id: "api_version_123",
-    // We don't need to include all fields since the MSW handlers will provide complete data
+export default {
+    title: "Views/Objects/Api/ApiUpsert",
+    component: ApiUpsert,
 };
 
-export const Update: Story = {
-    args: {
-        display: "dialog",
-        isCreate: false,
-        isOpen: true,
-        overrideObject: mockExistingApiVersion,
-        // onClose, onCompleted, onCancel are handled by argTypes actions
+// Create a new API
+export function Create() {
+    return (
+        <ApiUpsert display="page" isCreate={true} />
+    );
+}
+Create.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};
+
+// Create a new API in a dialog
+export function CreateDialog() {
+    return (
+        <ApiUpsert
+            display="dialog"
+            isCreate={true}
+            isOpen={true}
+            onClose={() => { }}
+            onCancel={() => { }}
+            onCompleted={() => { }}
+            onDeleted={() => { }}
+        />
+    );
+}
+CreateDialog.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};
+
+// Update an existing API
+export function Update() {
+    return (
+        <ApiUpsert display="page" isCreate={false} />
+    );
+}
+Update.parameters = {
+    session: signedInPremiumWithCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+                return HttpResponse.json({ data: mockApiVersionData });
+            }),
+        ],
     },
-    parameters: {
-        session: signedInNoPremiumNoCreditsSession,
+    route: {
+        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}/edit`,
     },
-}; 
+};
+
+// Update an existing API in a dialog
+export function UpdateDialog() {
+    return (
+        <ApiUpsert
+            display="dialog"
+            isCreate={false}
+            isOpen={true}
+            onClose={() => { }}
+            onCancel={() => { }}
+            onCompleted={() => { }}
+            onDeleted={() => { }}
+        />
+    );
+}
+UpdateDialog.parameters = {
+    session: signedInPremiumWithCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+                return HttpResponse.json({ data: mockApiVersionData });
+            }),
+        ],
+    },
+    route: {
+        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}/edit`,
+    },
+};
+
+// Loading state
+export function Loading() {
+    return (
+        <ApiUpsert display="page" isCreate={false} />
+    );
+}
+Loading.parameters = {
+    session: signedInPremiumWithCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, async () => {
+                // Delay the response to simulate loading
+                await new Promise(resolve => setTimeout(resolve, 120_000));
+                return HttpResponse.json({ data: mockApiVersionData });
+            }),
+        ],
+    },
+    route: {
+        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}/edit`,
+    },
+};
+
+// Non-premium user
+export function NonPremiumUser() {
+    return (
+        <ApiUpsert display="page" isCreate={true} />
+    );
+}
+NonPremiumUser.parameters = {
+    session: signedInNoPremiumNoCreditsSession,
+};
+
+// With Override Object (using dialog display)
+export function WithOverrideObject() {
+    return (
+        <ApiUpsert
+            display="dialog"
+            isCreate={true}
+            isOpen={true}
+            onClose={() => { }}
+            onCancel={() => { }}
+            onCompleted={() => { }}
+            onDeleted={() => { }}
+            overrideObject={mockApiVersionData}
+        />
+    );
+}
+WithOverrideObject.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};

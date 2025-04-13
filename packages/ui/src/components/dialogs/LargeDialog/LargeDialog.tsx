@@ -60,6 +60,7 @@ export function LargeDialog({
                             outline: `2px solid ${palette.primary.main}`,
                             outlineOffset: "-2px",
                         },
+                        ...sxs?.content,
                     },
                     "& > .MuiBox-root": {
                         "& > .MuiDialogTitle-root": {

@@ -6,9 +6,10 @@ import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
 import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
@@ -455,6 +456,18 @@ const versionInputStyle = { marginBottom: 2 } as const;
 const resourceListStyle = { list: { marginBottom: 2 } } as const;
 const apiInfoCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
 const schemaCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
+const inputFeatures = {
+    allowFormatting: false,
+    allowExpand: false,
+    allowFileAttachments: false,
+    allowImageAttachments: false,
+    allowTextAttachments: false,
+    allowTools: false,
+    allowCharacterLimit: true,
+    allowVoiceInput: false,
+    allowSubmit: false,
+    allowSettingsCustomization: false,
+} as const;
 
 function ApiForm({
     disabled,
@@ -611,7 +624,7 @@ function ApiForm({
                             objectType={"Api"}
                             sx={relationshipListStyle}
                         />
-                        <FormSection sx={formSectionStyle}>
+                        <FormSection variant="transparent" sx={formSectionStyle}>
                             <TranslatedTextInput
                                 fullWidth
                                 isRequired={true}
@@ -620,22 +633,17 @@ function ApiForm({
                                 name="name"
                                 placeholder={t("NamePlaceholder")}
                             />
-                            <TranslatedRichInput
-                                isRequired={false}
+                            <TranslatedAdvancedInput
+                                features={inputFeatures}
                                 language={language}
                                 name="summary"
                                 maxChars={1024}
-                                minRows={4}
-                                maxRows={8}
-                                placeholder={t("Summary")}
+                                title={t("Summary")}
                             />
                             <TranslatedRichInput
-                                isRequired={false}
                                 language={language}
                                 name="details"
                                 maxChars={8192}
-                                minRows={4}
-                                maxRows={8}
                                 placeholder={t("Details")}
                             />
                             <LanguageInput

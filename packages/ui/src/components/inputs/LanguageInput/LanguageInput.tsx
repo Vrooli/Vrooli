@@ -69,7 +69,7 @@ export function LanguageInput({
             {/* Display how many translations there are, besides currently selected */}
             {
                 languages.length > 1 && (
-                    <Typography variant="body1" sx={{
+                    <Typography variant="body1" color="text.secondary" sx={{
                         display: "flex",
                         alignItems: "center",
                     }}>

@@ -4,7 +4,7 @@ import { Field } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
 import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { TopBar } from "../../components/navigation/TopBar.js";

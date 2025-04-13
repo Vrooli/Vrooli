@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CalendarEvent, Meeting, RunRoutine, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
+import { Reminder, ReminderList as ReminderListType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";
@@ -21,270 +21,160 @@ const meta = {
 
 export default meta;
 
-// Mock data for meetings and routines
-const mockMeetingId = uuid();
-const mockMeetingTranslationId = uuid();
-const mockMeeting: Meeting = {
-    __typename: "Meeting",
-    id: mockMeetingId,
+// Mock data for reminders
+const mockReminderListId = uuid();
+const mockReminderList: ReminderListType = {
+    __typename: "ReminderList",
+    id: mockReminderListId,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    translations: [{
-        __typename: "MeetingTranslation",
-        id: mockMeetingTranslationId,
-        language: "en",
-        name: "Team Sync",
-        description: "Weekly team sync meeting",
-    }],
-    schedules: [],
-    participants: [],
-    invites: [],
-    you: {
-        __typename: "MeetingYou",
-        canDelete: true,
-        canUpdate: true,
-        isInvited: true,
-        isParticipant: true,
-    },
+    reminders: [],
 };
 
-const mockRunRoutineId = uuid();
-const mockRunRoutineTranslationId = uuid();
-const mockRunRoutine: RunRoutine = {
-    __typename: "RunRoutine",
-    id: mockRunRoutineId,
-    translations: [{
-        __typename: "RunRoutineTranslation",
-        id: mockRunRoutineTranslationId,
-        language: "en",
-        name: "Weekly Review",
-        description: "Weekly project review session",
-    }],
-    schedules: [],
-    you: {
-        __typename: "RunRoutineYou",
-        canDelete: true,
-        canRead: true,
-        canUpdate: true,
-    },
-};
-
-// Mock data for the story
-const mockScheduleId = uuid();
-const mockRecurrenceId = uuid();
-const mockSchedule2Id = uuid();
-const mockRecurrence2Id = uuid();
-const mockSchedule3Id = uuid();
-const mockRecurrence3Id = uuid();
-const baseMockSchedules: Schedule[] = [
+// Create mock reminders
+const baseMockReminders: Reminder[] = [
     {
-        __typename: "Schedule",
-        id: mockScheduleId,
-        startTime: new Date("2024-03-20T10:00:00Z"),
-        endTime: new Date("2024-03-20T11:00:00Z"),
-        timezone: "UTC",
-        exceptions: [],
-        focusModes: [],
-        labels: [],
-        meetings: [mockMeeting],
-        recurrences: [{
-            __typename: "ScheduleRecurrence",
-            id: mockRecurrenceId,
-            recurrenceType: ScheduleRecurrenceType.Weekly,
-            interval: 1,
-            duration: 3600000, // 1 hour in milliseconds
-            dayOfWeek: 3, // Wednesday
-            schedule: { __typename: "Schedule", id: mockScheduleId } as Schedule,
-        }],
-        runProjects: [],
-        runRoutines: [],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Complete weekly report",
+        description: "Finalize and submit the weekly progress report",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+        isComplete: false,
+        index: 0,
+        reminderItems: [],
+        reminderList: mockReminderList,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     },
     {
-        __typename: "Schedule",
-        id: mockSchedule2Id,
-        startTime: new Date("2024-03-21T00:00:00Z"),
-        endTime: new Date("2024-03-21T23:59:59Z"),
-        timezone: "UTC",
-        exceptions: [],
-        focusModes: [],
-        labels: [],
-        meetings: [mockMeeting],
-        recurrences: [{
-            __typename: "ScheduleRecurrence",
-            id: mockRecurrence2Id,
-            recurrenceType: ScheduleRecurrenceType.Monthly,
-            interval: 1,
-            duration: 86400000, // 24 hours in milliseconds
-            dayOfMonth: 21,
-            schedule: { __typename: "Schedule", id: mockSchedule2Id } as Schedule,
-        }],
-        runProjects: [],
-        runRoutines: [],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Meeting preparation",
+        description: "Prepare slides for the upcoming team meeting",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 2)),
+        isComplete: false,
+        index: 1,
+        reminderItems: [],
+        reminderList: mockReminderList,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     },
     {
-        __typename: "Schedule",
-        id: mockSchedule3Id,
-        startTime: new Date("2024-03-22T15:00:00Z"),
-        endTime: new Date("2024-03-22T16:00:00Z"),
-        timezone: "UTC",
-        exceptions: [],
-        focusModes: [],
-        labels: [],
-        meetings: [],
-        recurrences: [{
-            __typename: "ScheduleRecurrence",
-            id: mockRecurrence3Id,
-            recurrenceType: ScheduleRecurrenceType.Weekly,
-            interval: 1,
-            duration: 3600000, // 1 hour in milliseconds
-            dayOfWeek: 5, // Friday
-            schedule: { __typename: "Schedule", id: mockSchedule3Id } as Schedule,
-        }],
-        runProjects: [],
-        runRoutines: [mockRunRoutine],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Review pull requests",
+        description: "Review pending pull requests from the team",
+        dueDate: new Date(new Date().setHours(new Date().getHours() + 4)),
+        isComplete: true,
+        index: 2,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    },
+    {
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Project planning",
+        description: "Plan the next sprint objectives and tasks",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
+        isComplete: false,
+        index: 3,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    },
+    {
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Client follow-up",
+        description: "Send follow-up emails to clients",
+        dueDate: new Date(new Date().setHours(new Date().getHours() + 2)),
+        isComplete: false,
+        index: 4,
+        reminderItems: [],
+        reminderList: mockReminderList,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     },
 ];
 
-const mockEvent1Id = uuid();
-const mockEvent2Id = uuid();
-const mockEvent3Id = uuid();
-const mockEvent4Id = uuid();
-const mockEvent5Id = uuid();
-const mockEvent6Id = uuid();
-const mockEvent7Id = uuid();
-
-// Helper to create a date relative to now
-function getRelativeDate(minutes: number): Date {
-    const date = new Date();
-    date.setMinutes(date.getMinutes() + minutes);
-    return date;
-}
-
-const baseMockEvents: CalendarEvent[] = [
+// Extended mock reminders for the "long list" option
+const extendedMockReminders: Reminder[] = [
+    ...baseMockReminders,
     {
-        __typename: "CalendarEvent",
-        id: mockEvent1Id,
-        title: "Past Meeting",
-        start: getRelativeDate(-30), // 30 minutes ago
-        end: getRelativeDate(-15), // 15 minutes ago
-        allDay: false,
-        schedule: baseMockSchedules[0],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Code review",
+        description: "Review code changes for the new feature",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 4)),
+        isComplete: false,
+        index: 5,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     },
     {
-        __typename: "CalendarEvent",
-        id: mockEvent2Id,
-        title: "Current Meeting",
-        start: getRelativeDate(-5), // Started 5 minutes ago
-        end: getRelativeDate(25), // Ends in 25 minutes
-        allDay: false,
-        schedule: baseMockSchedules[0],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Documentation update",
+        description: "Update documentation for the recent API changes",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
+        isComplete: false,
+        index: 6,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     },
     {
-        __typename: "CalendarEvent",
-        id: mockEvent3Id,
-        title: "Upcoming Meeting",
-        start: getRelativeDate(60), // 1 hour from now
-        end: getRelativeDate(120), // 2 hours from now
-        allDay: false,
-        schedule: baseMockSchedules[0],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Team feedback session",
+        description: "Conduct feedback session with team members",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
+        isComplete: false,
+        index: 7,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     },
     {
-        __typename: "CalendarEvent",
-        id: mockEvent4Id,
-        title: "Tomorrow's Review",
-        start: getRelativeDate(30 * 24), // 30 hours from now
-        end: getRelativeDate(31 * 24), // 31 hours from now
-        allDay: false,
-        schedule: baseMockSchedules[1],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "Quarterly planning",
+        description: "Prepare quarterly objectives and key results",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
+        isComplete: false,
+        index: 8,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     },
     {
-        __typename: "CalendarEvent",
-        id: mockEvent5Id,
-        title: "Weekly Planning",
-        start: getRelativeDate(4 * 24 * 60), // 4 days from now
-        end: getRelativeDate((4 * 24 * 60) + 60), // 4 days + 1 hour from now
-        allDay: false,
-        schedule: baseMockSchedules[2],
-    },
-    {
-        __typename: "CalendarEvent",
-        id: mockEvent6Id,
-        title: "Monthly Review",
-        start: getRelativeDate(30 * 24 * 60), // ~1 month from now
-        end: getRelativeDate((30 * 24 * 60) + 120), // ~1 month + 2 hours from now
-        allDay: false,
-        schedule: baseMockSchedules[1],
-    },
-    {
-        __typename: "CalendarEvent",
-        id: mockEvent7Id,
-        title: "Annual Planning",
-        start: getRelativeDate(365 * 24 * 60), // ~1 year from now
-        end: getRelativeDate((365 * 24 * 60) + 240), // ~1 year + 4 hours from now
-        allDay: false,
-        schedule: baseMockSchedules[2],
+        __typename: "Reminder",
+        id: uuid(),
+        name: "System maintenance",
+        description: "Schedule and perform routine system maintenance",
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
+        isComplete: false,
+        index: 9,
+        reminderItems: [],
+        reminderList: mockReminderList,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     },
 ];
 
-// Update the extended mock events to use the new base events
-const extendedMockEvents: CalendarEvent[] = Array.from({ length: 3 }).flatMap((_, i) =>
-    baseMockEvents.map((event, j) => {
-        // Add weeks to the dates
-        const start = new Date(event.start);
-        start.setDate(start.getDate() + i * 7);
-        const end = new Date(event.end);
-        end.setDate(end.getDate() + i * 7);
-
-        // Create new meeting or runRoutine for this event
-        const newMeeting: Meeting = event.schedule.meetings[0] ? {
-            ...event.schedule.meetings[0],
-            id: `meeting-${i * baseMockEvents.length + j + 1}`,
-            translations: [{
-                ...event.schedule.meetings[0].translations[0],
-                id: `meeting-${i * baseMockEvents.length + j + 1}-en`,
-            }],
-        } : undefined;
-
-        const newRunRoutine: RunRoutine = event.schedule.runRoutines[0] ? {
-            ...event.schedule.runRoutines[0],
-            id: `run-routine-${i * baseMockEvents.length + j + 1}`,
-            translations: [{
-                ...event.schedule.runRoutines[0].translations[0],
-                id: `run-routine-${i * baseMockEvents.length + j + 1}-en`,
-            }],
-        } : undefined;
-
-        // Create a new schedule for this event
-        const newSchedule: Schedule = {
-            ...event.schedule,
-            id: `schedule-${i * baseMockEvents.length + j + 1}`,
-            startTime: start,
-            endTime: end,
-            meetings: newMeeting ? [newMeeting] : [],
-            runRoutines: newRunRoutine ? [newRunRoutine] : [],
-            recurrences: event.schedule.recurrences.map(rec => ({
-                ...rec,
-                id: `recurrence-${i * baseMockEvents.length + j + 1}`,
-                schedule: { __typename: "Schedule", id: `schedule-${i * baseMockEvents.length + j + 1}` } as Schedule,
-            })),
-        };
-
-        return {
-            ...event,
-            id: `${i * baseMockEvents.length + j + 1}`,
-            title: `${event.title} ${i + 1}`,
-            start,
-            end,
-            schedule: newSchedule,
-        };
-    }),
-);
+// Update the mock reminder list with reminders
+const mockReminderListWithItems: ReminderListType = {
+    ...mockReminderList,
+    reminders: baseMockReminders,
+};
 
 const controlsContainerStyle = {
     marginBottom: 4,
@@ -312,10 +202,10 @@ export function Interactive() {
     const [canUpdate, setCanUpdate] = useState(true);
     const [loading, setLoading] = useState(false);
     const [listState, setListState] = useState<"short" | "long" | "empty">("short");
-    const [list, setList] = useState<CalendarEvent[]>(baseMockEvents);
+    const [reminderListData, setReminderListData] = useState<ReminderListType>(mockReminderListWithItems);
 
-    function handleUpdate(newList: CalendarEvent[]) {
-        setList(newList);
+    function handleUpdate(updatedList: ReminderListType) {
+        setReminderListData(updatedList);
     }
 
     function handleCanUpdateClick() {
@@ -330,11 +220,15 @@ export function Interactive() {
         // Cycle through states: short -> long -> empty -> short
         const nextState = listState === "short" ? "long" : listState === "long" ? "empty" : "short";
         setListState(nextState);
-        setList(
-            nextState === "long" ? extendedMockEvents :
-                nextState === "short" ? baseMockEvents :
+
+        const updatedReminderList = {
+            ...mockReminderList,
+            reminders: nextState === "long" ? extendedMockReminders :
+                nextState === "short" ? baseMockReminders :
                     [],
-        );
+        };
+
+        setReminderListData(updatedReminderList);
     }
 
     return (
@@ -382,9 +276,9 @@ export function Interactive() {
                 <ReminderList
                     canUpdate={canUpdate}
                     loading={loading}
-                    list={loading ? [] : list}
+                    list={loading ? null : reminderListData}
                     handleUpdate={handleUpdate}
-                    title="Event List Demo"
+                    parent={{ id: "test" }}
                 />
             </ScrollBox>
         </PageContainer>

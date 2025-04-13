@@ -4,7 +4,7 @@ import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
 import { RichInput } from "../../../components/inputs/RichInput/RichInput.js";

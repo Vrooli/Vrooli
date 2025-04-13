@@ -5,7 +5,7 @@ import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { EllipsisActionButton } from "../../../components/buttons/EllipsisActionButton/EllipsisActionButton.js";
+import { EllipsisActionButton } from "../../../components/buttons/EllipsisActionButton.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";

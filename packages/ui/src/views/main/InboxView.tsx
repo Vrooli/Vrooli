@@ -3,7 +3,7 @@ import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";

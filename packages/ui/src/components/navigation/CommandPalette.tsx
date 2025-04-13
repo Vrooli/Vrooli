@@ -1,6 +1,6 @@
 import { ActionOption, ListObject, AutocompleteOption as SearchResult, ShortcutOption, VisibilityType, getObjectUrl } from "@local/shared";
-import { Box, DialogContent, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
-import { useCallback, useContext, useMemo, useRef } from "react";
+import { Box, ButtonBase, DialogContent, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
+import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
 import { useInfiniteScroll } from "../../hooks/gestures.js";
@@ -20,8 +20,11 @@ import { BasicSearchBar } from "../inputs/search/SiteSearchBar.js";
 const titleId = "command-palette-dialog-title";
 const scrollContainerId = "command-palette-search";
 const searchBarId = `${scrollContainerId}-search-bar`;
-const listId = `${scrollContainerId}-list`;
+const actionsListId = `${scrollContainerId}-actions-list`;
+const shortcutsListId = `${scrollContainerId}-shortcuts-list`;
+const searchListId = `${scrollContainerId}-search-list`;
 const autoFocusDelayMs = 100;
+const defaultItemsToShow = 5;
 const dialogStyle = {
     root: {
         zIndex: Z_INDEX.CommandPalette,
@@ -33,6 +36,57 @@ const dialogStyle = {
 const where = {
     visibility: VisibilityType.OwnOrPublic,
 } as const;
+
+/**
+ * Renders a section of search results with a title and optional "show more" button
+ */
+type ResultSectionProps = {
+    title: string;
+    items: SearchResult[];
+    onSelect: (item: SearchResult) => void;
+    id: string;
+};
+
+function ResultsSection({ title, items, onSelect, id }: ResultSectionProps) {
+    const [showAll, setShowAll] = useState(false);
+    const { t } = useTranslation();
+
+    function toggleShowAll() {
+        setShowAll(!showAll);
+    }
+
+    // Only show first 5 items unless "show all" is clicked
+    const displayItems = showAll ? items : items.slice(0, defaultItemsToShow);
+    const hasMore = items.length > defaultItemsToShow;
+
+    if (items.length === 0) return null;
+
+    return (
+        <Box mb={2}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} px={2}>
+                <Typography variant="subtitle1" fontWeight="bold">{title}</Typography>
+                {hasMore && (
+                    <ButtonBase onClick={toggleShowAll}>
+                        <Typography variant="body2" color="primary">
+                            {showAll ? t("ShowLess") : t("ShowAll")}
+                        </Typography>
+                    </ButtonBase>
+                )}
+            </Box>
+            <List id={id} dense>
+                {displayItems.map(item => (
+                    <ListItemButton key={item.key} onClick={() => onSelect(item)}>
+                        <ListItemIcon>
+                            {getAutocompleteOptionIcon(item.__typename, "currentColor")}
+                        </ListItemIcon>
+                        <ListItemText primary={item.label} />
+                    </ListItemButton>
+                ))}
+            </List>
+            <Divider />
+        </Box>
+    );
+}
 
 /**
  * Fancy search dialog for shortcuts, actions, public search, and private search.
@@ -141,8 +195,8 @@ export function CommandPalette() {
         onEvent,
     });
 
-    // Combine all results
-    const searchResults: SearchResult[] = useMemo(() => {
+    // Get filtered results by category
+    const { filteredActions, filteredShortcuts, searchResultsData } = useMemo(() => {
         const filterString = normalizeText(findManyData.searchString).trim().toLowerCase();
         // Create unique keys for each option
         const keySet = new Set<string>();
@@ -169,14 +223,11 @@ export function CommandPalette() {
             .filter(shortcut => shortcut.keywords.some(keyword => keyword.includes(filterString)))
             .map(addKey);
 
-        const fetchedData = listToAutocomplete(findManyData.allData, getUserLanguages(session))
+        // Get search results
+        const searchResultsData = listToAutocomplete(findManyData.allData, getUserLanguages(session))
             .map(addKey);
 
-        // Combine all results
-        const combinedOptions = [...filteredActions, ...filteredShortcuts, ...fetchedData] as SearchResult[];
-
-        // Return the results
-        return combinedOptions;
+        return { filteredActions, filteredShortcuts, searchResultsData };
     }, [actionsItems, findManyData.allData, findManyData.searchString, session, shortcutsItems]);
 
     /**
@@ -208,6 +259,8 @@ export function CommandPalette() {
         } as const;
     }, [palette]);
 
+    const noResultsFound = filteredActions.length === 0 && filteredShortcuts.length === 0 && searchResultsData.length === 0;
+
     return (
         <LargeDialog
             id="command-palette-dialog"
@@ -222,27 +275,32 @@ export function CommandPalette() {
                 placeholder={t("CommandPalettePlaceholder")}
                 value={findManyData.searchString}
             />
-            <DialogContent sx={searchBarBoxStyle}>
-                {searchResults.length === 0 ? (
+            <DialogContent id={scrollContainerId} sx={searchBarBoxStyle}>
+                {noResultsFound ? (
                     <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-                        <Typography variant="body1" color="text.secondary">No Results</Typography>
+                        <Typography variant="body1" color="text.secondary">{t("NoResults")}</Typography>
                     </Box>
                 ) : (
-                    <List id={listId}>
-                        {searchResults.map(result => {
-                            function handleClick() {
-                                onInputSelect(result);
-                            }
-                            return (
-                                <ListItemButton key={result.key} onClick={handleClick}>
-                                    <ListItemIcon>
-                                        {getAutocompleteOptionIcon(result.__typename, "currentColor")}
-                                    </ListItemIcon>
-                                    <ListItemText primary={result.label} />
-                                </ListItemButton>
-                            );
-                        })}
-                    </List>
+                    <>
+                        <ResultsSection
+                            title={t("Action", { count: filteredActions.length })}
+                            items={filteredActions}
+                            onSelect={onInputSelect}
+                            id={actionsListId}
+                        />
+                        <ResultsSection
+                            title={t("Shortcut_one", { count: filteredShortcuts.length })}
+                            items={filteredShortcuts}
+                            onSelect={onInputSelect}
+                            id={shortcutsListId}
+                        />
+                        <ResultsSection
+                            title={t("SearchResult_other", { count: searchResultsData.length })}
+                            items={searchResultsData}
+                            onSelect={onInputSelect}
+                            id={searchListId}
+                        />
+                    </>
                 )}
             </DialogContent>
         </LargeDialog>

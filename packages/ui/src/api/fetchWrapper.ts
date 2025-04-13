@@ -1,4 +1,5 @@
 import { HttpMethod, ServerResponse, TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
+import i18next from "i18next";
 import { useCallback } from "react";
 import { ELEMENT_IDS } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
@@ -225,11 +226,11 @@ export function useSubmitHelper<Input extends object | undefined, Output>({
 }: UseSubmitHelperProps<Input, Output>) {
     return useCallback(function useSubmitHelperCallback() {
         if (disabled === true) {
-            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
+            PubSub.get().publish("snack", { message: i18next.t("Unauthorized"), severity: "Error" });
             return;
         }
         if (!isCreate && (Array.isArray(existing) ? existing.length === 0 : !exists(existing))) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
+            PubSub.get().publish("snack", { message: i18next.t("CouldNotReadObject"), severity: "Error" });
             return;
         }
         fetchLazyWrapper<Input, Output>(props);

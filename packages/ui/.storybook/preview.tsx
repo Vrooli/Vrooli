@@ -22,6 +22,7 @@ import { SnackStack } from '../src/components/snacks/SnackStack/SnackStack.js';
 import { SessionContext } from "../src/contexts/session.js";
 import { useHotkeys } from '../src/hooks/useHotkeys.js';
 import i18n from '../src/i18n';
+import { clearMockedLocationForStorybook, mockLocationForStorybook } from '../src/route/useLocation.js';
 import { ELEMENT_IDS, Z_INDEX } from '../src/utils/consts.js';
 import { DEFAULT_THEME, themes } from '../src/utils/display/theme';
 import { PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
@@ -232,7 +233,6 @@ const preview: Preview = {
                     ? sessionOverrides.users.map(user => ({ ...user, theme: themeMode }))
                     : baseSession.users.map(user => ({ ...user, theme: themeMode })),
             };
-            // const [theme, setTheme] = useState<Theme>(themes[themeMode]);
             const theme = createTheme({
                 ...themes[themeMode],
                 typography: {
@@ -240,6 +240,12 @@ const preview: Preview = {
                 },
                 isLeftHanded: isLeftHandedMapping[context.globals.isLeftHanded] || false,
             });
+            const routeOverrides = context.parameters.route || {};
+            if (routeOverrides.path) {
+                mockLocationForStorybook(routeOverrides.path);
+            } else {
+                clearMockedLocationForStorybook();
+            }
 
             useCssVariables();
 

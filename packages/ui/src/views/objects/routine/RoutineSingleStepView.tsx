@@ -3,8 +3,8 @@ import { Box, Divider, IconButton, Stack, Typography, styled, useTheme } from "@
 import { Formik, useFormikContext } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RunButton } from "../../../components/buttons/RunButton/RunButton.js";
-import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { RunButton } from "../../../components/buttons/RunButton.js";
+import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons.js";
 import { CommentContainer } from "../../../components/containers/CommentContainer.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { TextCollapse } from "../../../components/containers/TextCollapse.js";

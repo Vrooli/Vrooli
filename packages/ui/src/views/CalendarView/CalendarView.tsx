@@ -1,11 +1,12 @@
 import { calculateOccurrences, CalendarEvent, Schedule, ScheduleFor } from "@local/shared";
-import { Box, BoxProps, Checkbox, Dialog, DialogContent, DialogTitle, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
+import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, Components, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
-import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
+import { LargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { useIsBottomNavVisible } from "../../components/navigation/BottomNav.js";
 import { APP_BAR_HEIGHT_PX, Navbar } from "../../components/navigation/Navbar.js";
 import { FullPageSpinner } from "../../components/Spinners.js";
@@ -272,10 +273,18 @@ const searchInputAdornment = (
     </InputAdornment>
 );
 const searchInputProps = { startAdornment: searchInputAdornment };
-const filterDialogPaperSx = { p: 2 };
 const filterDialogDividerSx = { my: 1 };
-const filterTriggerPaperSx = { p: 2 };
-const resultsPaperSx = { maxHeight: 300, overflow: "auto" };
+const filterSectionPaperSx = {
+    p: 2,
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    overflowY: "auto",
+};
+const resultsListSx = {
+    flexGrow: 1,
+};
 const noResultsTextProps = { color: "text.secondary" };
 const triggerViewBoxSx = {
     display: "flex",
@@ -285,7 +294,7 @@ const triggerViewBoxSx = {
     height: "100%",
     p: 3,
 };
-const triggerViewIconProps = { name: "History", size: 64, fill: "text.secondary" };
+const triggerViewIconProps = { name: "History" as const, size: 64, fill: "text.secondary" };
 const triggerViewTitleSx = { mt: 2 };
 const triggerViewDescSx = { mt: 1, textAlign: "center", maxWidth: 600 };
 
@@ -298,9 +307,10 @@ interface FilterDialogProps {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     selectedTypes: ScheduleFor[];
-    setSelectedTypes: (updater: (prev: ScheduleFor[]) => ScheduleFor[]) => void; // Correct type
+    setSelectedTypes: (updater: (prev: ScheduleFor[]) => ScheduleFor[]) => void;
     filteredEvents: CalendarEvent[];
     activeTab: CalendarTabs;
+    onAddNew: () => void;
 }
 
 function FilterDialog({
@@ -312,7 +322,9 @@ function FilterDialog({
     setSelectedTypes,
     filteredEvents,
     activeTab,
+    onAddNew,
 }: FilterDialogProps) {
+    const dialogId = "filter-dialog";
     const { t } = useTranslation();
 
     const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,18 +351,26 @@ function FilterDialog({
     }, [setSelectedTypes]);
 
     return (
-        <Dialog
-            open={isOpen}
+        <LargeDialog
+            isOpen={isOpen}
             onClose={onClose}
-            fullWidth
-            maxWidth="sm"
+            id={dialogId}
+            sxs={{
+                paper: {
+                    width: "min(100%, 800px)",
+                },
+                content: {
+                    height: "100%",
+                },
+            }}
+            titleId={`${dialogId}-title`}
         >
-            {/* Cast key to string as temporary workaround for i18n type issue */}
-            <DialogTitle>{t("Filter" as string)}</DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ display: "flex", flexDirection: "column" }}>
                 <TextField
                     fullWidth
-                    placeholder={t("Search" as string)}
+                    placeholder={activeTab === CalendarTabs.CALENDAR
+                        ? t("FindScheduledEvents", { defaultValue: "Find scheduled events..." })
+                        : t("FindTriggeredEvents", { defaultValue: "Find triggered events..." })}
                     value={searchQuery}
                     onChange={handleSearchChange}
                     margin="normal"
@@ -358,25 +378,25 @@ function FilterDialog({
                     InputProps={searchInputProps}
                 />
 
-                <Box display="flex" mt={2}>
+                <Box display="flex" mt={2} gap={2} sx={{ flexGrow: 1, alignItems: "stretch", overflow: "hidden" }}>
                     <Box width="50%" pr={1}>
-                        {/* Cast key to string as temporary workaround for i18n type issue */}
                         <Typography variant="subtitle1" gutterBottom>
-                            {t("Option" as string, { count: 2 })}
+                            {t("Option", { count: 2, defaultValue: "Options" })}
                         </Typography>
 
                         {activeTab === CalendarTabs.CALENDAR && (
-                            <Paper elevation={1} sx={filterDialogPaperSx}>
+                            <Paper elevation={1} sx={filterSectionPaperSx}>
                                 <FormGroup>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
+                                                color="secondary"
                                                 checked={selectedTypes.length === SCHEDULE_TYPES.length}
                                                 indeterminate={selectedTypes.length > 0 && selectedTypes.length < SCHEDULE_TYPES.length}
                                                 onChange={handleSelectAll}
                                             />
                                         }
-                                        label={t("All" as string)}
+                                        label={t("All", { defaultValue: "All" })}
                                     />
                                     <Divider sx={filterDialogDividerSx} />
                                     {SCHEDULE_TYPES.map((type) => (
@@ -384,11 +404,12 @@ function FilterDialog({
                                             key={type}
                                             control={
                                                 <Checkbox
+                                                    color="secondary"
                                                     checked={selectedTypes.includes(type)}
-                                                    onChange={handleTypeChange(type)} // Use memoized handler
+                                                    onChange={handleTypeChange(type)}
                                                 />
                                             }
-                                            label={t(type as string)} // Cast key
+                                            label={t(type, { defaultValue: type })}
                                         />
                                     ))}
                                 </FormGroup>
@@ -396,21 +417,20 @@ function FilterDialog({
                         )}
 
                         {activeTab === CalendarTabs.TRIGGER && (
-                            <Paper elevation={1} sx={filterTriggerPaperSx}>
+                            <Paper elevation={1} sx={filterSectionPaperSx}>
                                 <Typography variant="body2" color="text.secondary">
-                                    {t("ComingSoon" as string)} {/* Cast key */}
+                                    {t("ComingSoon", { defaultValue: "Coming Soon" })}
                                 </Typography>
                             </Paper>
                         )}
                     </Box>
 
                     <Box width="50%" pl={1}>
-                        {/* Cast key to string; Note: count interpolation might need specific type handling */}
                         <Typography variant="subtitle1" gutterBottom>
-                            {t("Result" as string, { count: filteredEvents.length })} ({filteredEvents.length})
+                            {t("Result", { count: filteredEvents.length, defaultValue: "Results" })} ({filteredEvents.length})
                         </Typography>
-                        <Paper elevation={1} sx={resultsPaperSx}>
-                            <List dense>
+                        <Paper elevation={1} sx={filterSectionPaperSx}>
+                            <List dense sx={resultsListSx}>
                                 {filteredEvents.length > 0 ? (
                                     filteredEvents.map((event) => (
                                         <ListItem key={event.id}>
@@ -422,10 +442,21 @@ function FilterDialog({
                                     ))
                                 ) : (
                                     <ListItem>
-                                        <ListItemText
-                                            primary={t("NoResults" as string)} // Cast key
-                                            primaryTypographyProps={noResultsTextProps}
-                                        />
+                                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", textAlign: "center", p: 2 }}>
+                                            <ListItemText
+                                                primary={t("NoResults", { defaultValue: "No results found" })}
+                                                primaryTypographyProps={noResultsTextProps}
+                                            />
+                                            <Button
+                                                variant="outlined"
+                                                color="secondary"
+                                                onClick={onAddNew}
+                                                startIcon={<IconCommon name="Add" />}
+                                                sx={{ mt: 2 }}
+                                            >
+                                                {t("AddEvent", { defaultValue: "Add Event" })}
+                                            </Button>
+                                        </Box>
                                     </ListItem>
                                 )}
                             </List>
@@ -433,7 +464,7 @@ function FilterDialog({
                     </Box>
                 </Box>
             </DialogContent>
-        </Dialog>
+        </LargeDialog>
     );
 }
 
@@ -446,12 +477,11 @@ function TriggerView() {
     return (
         <Box sx={triggerViewBoxSx}>
             <IconCommon {...triggerViewIconProps} />
-            {/* Cast key to string as temporary workaround for i18n type issue */}
             <Typography variant="h5" sx={triggerViewTitleSx}>
-                {t("ComingSoon" as string)}
+                {t("ComingSoon", { defaultValue: "Coming Soon" })}
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={triggerViewDescSx}>
-                {t("TriggerDescription" as string)}
+                {t("TriggerDescription", { defaultValue: "Trigger functionality is coming soon!" })}
             </Typography>
         </Box>
     );
@@ -470,11 +500,12 @@ export function CalendarView({
     initialTab = CalendarTabs.CALENDAR,
 }: CalendarViewProps & CalendarViewOwnProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { palette, typography } = useTheme();
     const isBottomNavVisible = useIsBottomNavVisible();
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
+    const { palette: themePalette } = useTheme();
 
     // Active tab state
     const [activeTab, setActiveTab] = useHistoryState("calendar-tab", initialTab);
@@ -596,15 +627,19 @@ export function CalendarView({
                         title = getDisplay(schedule, getUserLanguages(session)).title || "Untitled";
                     } catch (displayError) {
                         console.error("Error getting display title:", displayError);
-                        // Try to extract title from available data
-                        if (schedule.meetings?.[0]?.translations?.[0]?.title) {
+                        // Try to extract title/name from available data
+                        if (schedule.meetings?.[0]?.name) {
+                            title = schedule.meetings[0].name;
+                        } else if (schedule.meetings?.[0]?.translations?.[0]?.title) {
                             title = schedule.meetings[0].translations[0].title;
+                        } else if (schedule.meetings?.[0]?.translations?.[0]?.name) {
+                            title = schedule.meetings[0].translations[0].name;
                         } else if (schedule.focusModes?.[0]?.name) {
                             title = schedule.focusModes[0].name;
-                        } else if (schedule.runProjects?.[0]?.translations?.[0]?.title) {
-                            title = schedule.runProjects[0].translations[0].title;
-                        } else if (schedule.runRoutines?.[0]?.translations?.[0]?.title) {
-                            title = schedule.runRoutines[0].translations[0].title;
+                        } else if (schedule.runProjects?.[0]?.name) {
+                            title = schedule.runProjects[0].name;
+                        } else if (schedule.runRoutines?.[0]?.name) {
+                            title = schedule.runRoutines[0].name;
                         }
                     }
 
@@ -648,8 +683,8 @@ export function CalendarView({
                 event.title.toLowerCase().includes(searchQuery.toLowerCase());
 
             // Filter by selected types
-            const scheduleType = event.schedule?.scheduleFor as ScheduleFor;
-            const matchesType = selectedTypes.includes(scheduleType);
+            const scheduleType = event.schedule?.scheduleFor as ScheduleFor | undefined;
+            const matchesType = scheduleType ? selectedTypes.includes(scheduleType) : true;
 
             return matchesSearch && matchesType;
         });
@@ -737,13 +772,59 @@ export function CalendarView({
         return { style };
     }, [selectedDateTime, view, palette.secondary]);
 
+    // Event styling based on type
+    const eventPropGetter = useCallback((event: CalendarEvent) => {
+        const scheduleType = event.schedule?.scheduleFor as ScheduleFor | undefined;
+        let backgroundColor = palette.primary.main; // Default color
+        let color = palette.primary.contrastText; // Default text color
+
+        // Assign colors based on schedule type
+        switch (scheduleType) {
+            case ScheduleFor.FocusMode:
+                backgroundColor = palette.success.light;
+                color = palette.success.contrastText;
+                break;
+            case ScheduleFor.Meeting:
+                backgroundColor = palette.info.light;
+                color = palette.info.contrastText;
+                break;
+            case ScheduleFor.RunProject:
+                backgroundColor = palette.warning.light;
+                color = palette.warning.contrastText;
+                break;
+            case ScheduleFor.RunRoutine:
+                backgroundColor = palette.secondary.light;
+                color = palette.secondary.contrastText;
+                break;
+            // Add more cases if needed
+            default:
+                // Use default colors
+                break;
+        }
+
+        const style: React.CSSProperties = {
+            backgroundColor,
+            color,
+            borderRadius: "5px",
+            opacity: 0.8,
+            border: "0px",
+            display: "block",
+            fontSize: typography.caption.fontSize, // Use caption size
+            lineHeight: typography.caption.lineHeight, // Use caption line height
+            padding: "2px 4px", // Add some padding
+        };
+        return {
+            style,
+        };
+    }, [palette.primary.main, palette.primary.contrastText, palette.success.light, palette.success.contrastText, palette.info.light, palette.info.contrastText, palette.warning.light, palette.warning.contrastText, palette.secondary.light, palette.secondary.contrastText, typography.caption.fontSize, typography.caption.lineHeight]);
+
     const calendarComponents = useMemo(function calendarComponentsMemo() {
         return {
-            toolbar: (props: CalendarToolbarProps) => <CustomToolbar {...props} onSelectDate={handleSelectDate} />,
+            toolbar: (props: CalendarToolbarProps<CalendarEvent, object>) => <CustomToolbar {...props} onSelectDate={handleSelectDate} />,
             month: {
                 header: (props: CalendarHeaderProps) => <DayColumnHeader isBottomNavVisible={isBottomNavVisible} {...props} />,
             },
-        };
+        } satisfies Components<CalendarEvent, object>;
     }, [handleSelectDate, isBottomNavVisible]);
 
     const calendarStyle = useMemo(function calendarStyleMemo() {
@@ -777,15 +858,20 @@ export function CalendarView({
         return defaultSchedule;
     }, [editingSchedule, selectedDateTime, view]);
 
+    // Function to handle closing filter and opening add dialog
+    const handleAddNewEvent = useCallback(() => {
+        closeFilterDialog();
+        handleAddSchedule();
+    }, [closeFilterDialog, handleAddSchedule]);
+
     if (!localizer) return <FullPageSpinner />;
     return (
         <Box sx={outerBoxStyle}>
-            {/* Cast key to string as temporary workaround for i18n type issue */}
-            <Navbar keepVisible title={t("Schedule" as string, { count: 1 })} />
+            <Navbar keepVisible title={t("Schedule", { count: 1, defaultValue: "Schedule" })} />
             <FlexContainer isBottomNavVisible={isBottomNavVisible}>
                 <ScheduleUpsert
                     canSetScheduleFor={true}
-                    defaultScheduleFor={activeTab === CalendarTabs.CALENDAR ? ScheduleFor.Meeting : undefined}
+                    defaultScheduleFor={activeTab === CalendarTabs.CALENDAR ? ScheduleFor.Meeting : ScheduleFor.Meeting}
                     display="dialog"
                     isCreate={editingSchedule === null}
                     isMutate={true}
@@ -799,38 +885,38 @@ export function CalendarView({
 
                 <FilterDialog
                     isOpen={isFilterDialogOpen}
-                    onClose={closeFilterDialog} // Use memoized callback
+                    onClose={closeFilterDialog}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     selectedTypes={selectedTypes}
                     setSelectedTypes={setSelectedTypes}
                     filteredEvents={filteredEvents}
+                    key={activeTab}
+                    onAddNew={handleAddNewEvent}
                     activeTab={activeTab}
                 />
 
-                {/* View tabs */}
                 <Tabs
                     value={activeTab}
-                    onChange={handleTabChange} // Use memoized callback
+                    onChange={handleTabChange}
                     variant="fullWidth"
                 >
                     <Tab
-                        label={t("Calendar" as string)} // Cast key
+                        label={t("Calendar", { defaultValue: "Calendar" })}
                         value={CalendarTabs.CALENDAR}
                         icon={<IconCommon name="Schedule" />}
                         iconPosition="start"
                     />
                     <Tab
-                        label={t("Trigger" as string)} // Cast key
+                        label={t("Trigger", { defaultValue: "Trigger" })}
                         value={CalendarTabs.TRIGGER}
                         icon={<IconCommon name="History" />}
                         iconPosition="start"
                     />
                 </Tabs>
 
-                {activeTab === CalendarTabs.CALENDAR ? (
-                    // Calendar view
-                    <Calendar
+                {activeTab === CalendarTabs.CALENDAR && (
+                    <Calendar<CalendarEvent, object>
                         localizer={localizer}
                         longPressThreshold={20}
                         events={filteredEvents}
@@ -842,27 +928,29 @@ export function CalendarView({
                         endAccessor="end"
                         components={calendarComponents}
                         dayPropGetter={dayPropGetter}
+                        eventPropGetter={eventPropGetter}
                         selectable={true}
                         slotPropGetter={slotPropGetter}
                         style={calendarStyle}
                         view={view}
                         views={views}
                     />
-                ) : (
-                    // Trigger view
+                )}
+
+                {activeTab === CalendarTabs.TRIGGER && (
                     <TriggerView />
                 )}
             </FlexContainer>
             <SideActionsButtons display={display}>
                 <IconButton
-                    aria-label={t("CreateEvent" as string)} // Cast key
-                    onClick={handleAddSchedule} // Use memoized callback
+                    aria-label={t("CreateEvent", { defaultValue: "Create Event" })}
+                    onClick={handleAddSchedule}
                 >
                     <IconCommon name="Add" />
                 </IconButton>
                 <IconButton
-                    aria-label={t("Filter" as string)} // Cast key
-                    onClick={openFilterDialog} // Use memoized callback
+                    aria-label={t("Filter", { defaultValue: "Filter" })}
+                    onClick={openFilterDialog}
                 >
                     <IconCommon name="Filter" />
                 </IconButton>

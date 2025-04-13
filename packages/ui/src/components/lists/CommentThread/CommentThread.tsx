@@ -1,35 +1,50 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointsActions, getTranslation, updateArray } from "@local/shared";
-import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, NavigableObject, ReactionFor, ReportFor, Success, endpointsActions, getObjectUrl, getTranslation, updateArray } from "@local/shared";
+import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { Link, useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
-import { getYou, placeholderColor } from "../../../utils/display/listTools.js";
-import { displayDate } from "../../../utils/display/stringTools.js";
+import { getDisplay, getYou, placeholderColor } from "../../../utils/display/listTools.js";
+import { displayDate, fontSizeToPixels } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
-import { ObjectType } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { CommentUpsert } from "../../../views/objects/comment/CommentUpsert.js";
 import { BookmarkButton } from "../../buttons/BookmarkButton.js";
-import { ReportButton } from "../../buttons/ReportButton/ReportButton.js";
-import { ShareButton } from "../../buttons/ShareButton/ShareButton.js";
+import { ReportButton } from "../../buttons/ReportButton.js";
+import { ShareButton } from "../../buttons/ShareButton.js";
 import { VoteButton } from "../../buttons/VoteButton.js";
 import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
-import { OwnerLabel } from "../../text/OwnerLabel.js";
 import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types.js";
+
+const AdornmentBox = styled(Box)(() => ({
+    width: fontSizeToPixels("0.85rem") * Number("1.5"),
+    height: fontSizeToPixels("0.85rem") * Number("1.5"),
+}));
+
+const UserNameDisplay = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    cursor: "pointer",
+    "&:hover": { textDecoration: "underline" },
+}));
 
 /**
  * Collapsible, vertical line for indicating a comment level. Top of line 
- * if the profile image of the comment.
+ * is the profile image of the comment.
  */
 export function CommentConnector({
     isOpen,
     parentType,
     onToggle,
+    owner,
 }: CommentConnectorProps) {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
 
     // Random color for profile image (since we don't display custom image yet)
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -43,24 +58,39 @@ export function CommentConnector({
         }
     }, [parentType]);
 
+    // Get profile URL if owner exists
+    const profileUrl = useMemo(() => {
+        return owner ? getObjectUrl(owner as NavigableObject) : "";
+    }, [owner]);
+
+    // Navigate to profile
+    const handleProfileClick = useCallback((e: React.MouseEvent) => {
+        if (profileUrl) {
+            e.stopPropagation(); // Prevent toggle from firing
+            setLocation(profileUrl);
+        }
+    }, [profileUrl, setLocation]);
+
     // Profile image
     const profileImage = useMemo(() => (
         <Avatar
             src="/broken-image.jpg" //TODO
             sx={{
                 backgroundColor: profileColors[0],
-                width: "48px",
-                height: "48px",
-                minWidth: "48px",
-                minHeight: "48px",
+                width: "36px",
+                height: "36px",
+                minWidth: "36px",
+                minHeight: "36px",
+                cursor: profileUrl ? "pointer" : "default",
             }}
+            onClick={profileUrl ? handleProfileClick : undefined}
         >
             <Icon
                 fill={profileColors[1]}
                 info={profileIconInfo}
             />
         </Avatar>
-    ), [profileColors, profileIconInfo]);
+    ), [profileColors, profileIconInfo, profileUrl, handleProfileClick]);
 
     // If open, profile image on top of collapsible line
     if (isOpen) {
@@ -71,40 +101,48 @@ export function CommentConnector({
                 {/* Collapsible, vertical line */}
                 {
                     isOpen && <Box
-                        width="5px"
+                        position="relative"
+                        width="20px"
                         height="100%"
-                        borderRadius='100px'
-                        bgcolor={profileColors[0]}
                         sx={{
                             marginLeft: "auto",
                             marginRight: "auto",
                             marginTop: 1,
                             marginBottom: 1,
                             cursor: "pointer",
-                            "&:hover": {
-                                brightness: palette.mode === "light" ? 1.05 : 0.95,
-                            },
                         }}
                         onClick={onToggle}
-                    />
+                    >
+                        <Box
+                            position="absolute"
+                            width="2px"
+                            height="100%"
+                            borderRadius='100px'
+                            bgcolor={profileColors[0]}
+                            sx={{
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                "&:hover": {
+                                    opacity: 0.8,
+                                },
+                            }}
+                        />
+                    </Box>
                 }
             </Stack>
         );
     }
-    // If closed, OpenIcon to the left of profile image
+    // If closed, only show the OpenThread icon
     return (
-        <Stack direction="row">
-            <IconButton
-                onClick={onToggle}
-                sx={{
-                    width: "48px",
-                    height: "48px",
-                }}
-            >
-                <IconCommon name="OpenThread" fill={profileColors[0]} />
-            </IconButton>
-            {profileImage}
-        </Stack>
+        <IconButton
+            onClick={onToggle}
+            sx={{
+                width: "36px",
+                height: "36px",
+            }}
+        >
+            <IconCommon name="OpenThread" fill={profileColors[0]} />
+        </IconButton>
     );
 }
 
@@ -119,6 +157,7 @@ export function CommentThreadItem({
 }: CommentThreadItemProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
 
     const { objectId, objectType } = useMemo(() => ({
         objectId: object?.id,
@@ -132,6 +171,28 @@ export function CommentThreadItem({
         const { text } = getTranslation(data, languages, true);
         return { canDelete, canUpdate, canReply, canReport, canBookmark, canReact, displayText: text };
     }, [data, session]);
+
+    // Get user display data similar to ChatBubble
+    const { name, handle, adornments } = useMemo(() => {
+        const { title, adornments } = getDisplay(data?.owner as any);
+        return {
+            name: title,
+            handle: data?.owner?.handle,
+            adornments,
+        };
+    }, [data?.owner]);
+
+    // Get profile URL
+    const profileUrl = useMemo(() => {
+        return data?.owner ? getObjectUrl(data.owner as NavigableObject) : "";
+    }, [data?.owner]);
+
+    // Navigate to profile
+    const handleProfileClick = useCallback(() => {
+        if (profileUrl) {
+            setLocation(profileUrl);
+        }
+    }, [profileUrl, setLocation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
@@ -179,6 +240,8 @@ export function CommentThreadItem({
         handleCommentRemove(commentToUpdate);
     }, [commentToUpdate, handleCommentRemove, handleUpsertCommentClose]);
 
+    const isCurrentUser = data?.owner?.id && data.owner.id === getCurrentUser(session).id;
+
     return (
         <>
             <ListItem
@@ -199,54 +262,85 @@ export function CommentThreadItem({
                     }}
                 >
                     {/* Username and time posted */}
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} justifyContent="space-between">
                         {/* Username and role */}
-                        {
-                            <Stack direction="row" spacing={1} sx={{
-                                overflow: "auto",
-                            }}>
-                                {objectType && <OwnerLabel
-                                    objectType={objectType as unknown as ObjectType}
-                                    owner={data?.owner}
-                                    sxs={{
-                                        label: {
-                                            color: palette.background.textPrimary,
-                                            fontWeight: "bold",
-                                        },
-                                    }} />}
-                                {canUpdate && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
-                                    primary={"(Can Edit)"}
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
-                                    }}
-                                />}
-                                {data?.owner?.id && data.owner.id === getCurrentUser(session).id && <ListItemText
-                                    primary={"(You)"}
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
-                                    }}
-                                />}
-                            </Stack>
-                        }
+                        {profileUrl ? (
+                            <Link to={profileUrl}>
+                                <UserNameDisplay>
+                                    <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                                        {name}
+                                    </Typography>
+
+                                    {adornments?.map(({ Adornment, key }) => (
+                                        <AdornmentBox key={key}>
+                                            {Adornment}
+                                        </AdornmentBox>
+                                    ))}
+
+                                    {handle && (
+                                        <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
+                                            @{handle}
+                                        </Typography>
+                                    )}
+
+                                    {isCurrentUser && (
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
+                                                ml: 0.5
+                                            }}
+                                        >
+                                            (You)
+                                        </Typography>
+                                    )}
+                                </UserNameDisplay>
+                            </Link>
+                        ) : (
+                            <UserNameDisplay>
+                                <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                                    {name}
+                                </Typography>
+
+                                {adornments?.map(({ Adornment, key }) => (
+                                    <AdornmentBox key={key}>
+                                        {Adornment}
+                                    </AdornmentBox>
+                                ))}
+
+                                {handle && (
+                                    <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
+                                        @{handle}
+                                    </Typography>
+                                )}
+
+                                {isCurrentUser && (
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
+                                            ml: 0.5
+                                        }}
+                                    >
+                                        (You)
+                                    </Typography>
+                                )}
+                            </UserNameDisplay>
+                        )}
                         {/* Time posted */}
-                        <ListItemText
-                            primary={displayDate(data?.created_at, false)}
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                            }}
-                        />
+                        <Typography
+                            variant="caption"
+                            color="background.textSecondary"
+                        >
+                            {displayDate(data?.created_at, false)}
+                        </Typography>
                     </Stack>
                     {/* Text */}
                     {isOpen && (loading ? <TextLoading /> : <ListItemText
                         primary={displayText}
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
-                    {isOpen && <Stack direction="row" spacing={1}>
+                    {isOpen && <Stack direction="row" spacing={1} alignItems="center">
                         <VoteButton
                             disabled={!canReact}
                             emoji={reaction}
@@ -273,6 +367,13 @@ export function CommentThreadItem({
                             forId={data?.id ?? ""}
                             reportFor={objectType as any as ReportFor}
                         />}
+                        {canUpdate && <Tooltip title="Edit" placement='top'>
+                            <IconButton
+                                onClick={() => handleUpsertCommentOpen(data as Comment)}
+                            >
+                                <IconCommon name="Edit" fill="background.textSecondary" />
+                            </IconButton>
+                        </Tooltip>}
                         {canDelete && <Tooltip title="Delete" placement='top'>
                             <IconButton
                                 onClick={handleDelete}
@@ -307,7 +408,7 @@ export function CommentThreadItem({
 
 /**
  * Comment and its list of child comments (which can have their own children and so on). 
- * Each level  contains a list of comment items, then a "Show more" text button.
+ * Each level contains a list of comment items, then a "Show more" text button.
  * To the left of this is a CommentConnector item, which is a collapsible line.
  */
 export function CommentThread({
@@ -371,6 +472,7 @@ export function CommentThread({
                 isOpen={isOpen}
                 parentType={data.comment.owner?.__typename ?? "User"}
                 onToggle={() => setIsOpen(!isOpen)}
+                owner={data.comment.owner}
             />
             {/* Comment and child comments */}
             <Stack direction="column" spacing={1} width="100%">

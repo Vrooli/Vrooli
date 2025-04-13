@@ -1,8 +1,9 @@
 /**
- * Dialog for sharing an object
+ * Dialog for sharing an object with multiple options: link sharing, QR code,
+ * and direct object export.
  */
 import { getObjectUrl } from "@local/shared";
-import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from "@mui/material";
+import { Box, Divider, Fade, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip, Typography, useTheme, Zoom } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
@@ -88,9 +89,10 @@ export function ShareObjectDialog({
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : "Check out this object on Vrooli", [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
+    const fullUrl = useMemo(() => `${window.location.origin}${url}`, [url]);
 
     function copyLink() {
-        navigator.clipboard.writeText(`${window.location.origin}${url}`);
+        navigator.clipboard.writeText(fullUrl);
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     }
 
@@ -135,6 +137,7 @@ export function ShareObjectDialog({
     function toggleQrCode() {
         setIsQrCodeVisible(!isQrCodeVisible);
     }
+
     async function downloadQrCode() {
         const qrCode = document.getElementById("qr-code-box")?.firstChild as SVGSVGElement;
         if (!qrCode || !object) return;
@@ -170,14 +173,21 @@ export function ShareObjectDialog({
         img.src = svgUrl;
     }
 
-
     return (
         <LargeDialog
             id="share-object-dialog"
             isOpen={open}
             onClose={onClose}
             titleId={titleId}
-            sxs={{ paper: { width: "min(500px, 100vw - 64px)" } }}
+            sxs={{
+                paper: {
+                    width: "min(500px, 100vw - 64px)",
+                    borderRadius: 2,
+                    maxHeight: "calc(100vh - 64px)",
+                    display: "flex",
+                    flexDirection: "column"
+                }
+            }}
         >
             <TopBar
                 display="dialog"
@@ -185,120 +195,188 @@ export function ShareObjectDialog({
                 title={t("Share")}
                 titleId={titleId}
             />
-            <List>
-                <ListItem
-                    button
-                    onClick={() => { }}
-                >
-                    <ListItemIcon>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="Email"
-                        />
-                    </ListItemIcon>
-                    <ListItemText primary={"Message..."} />
-                </ListItem>
-                <ListItem
-                    button
-                    onClick={copyLink}
-                >
-                    <ListItemIcon>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="Link"
-                        />
-                    </ListItemIcon>
-                    <ListItemText primary={"Copy link"} />
-                </ListItem>
-                <ListItem
-                    button
-                    onClick={shareLink}
-                >
-                    <ListItemIcon>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="Share"
-                        />
-                    </ListItemIcon>
-                    <ListItemText primary={"Share link"} />
-                </ListItem>
-                <ListItem
-                    button
-                    onClick={copyObject}
-                >
-                    <ListItemIcon>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="Object"
-                        />
-                    </ListItemIcon>
-                    <ListItemText primary={"Copy object"} />
-                </ListItem>
-                <ListItem
-                    button
-                    onClick={shareObject}
-                >
-                    <ListItemIcon>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="Download"
-                        />
-                    </ListItemIcon>
-                    <ListItemText primary={"Share object"} />
-                </ListItem>
-                <ListItem
-                    button
-                    onClick={toggleQrCode}
-                >
-                    <ListItemIcon>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="QrCode"
-                        />
-                    </ListItemIcon>
-                    <ListItemText primary={"QR code"} />
-                </ListItem>
-            </List>
-            {isQrCodeVisible && <Stack
-                direction="column"
-                sx={{ justifyContent: "center", alignItems: "center" }}>
-                <Box
-                    id="qr-code-box"
-                    sx={{
-                        display: "flex",
-                        width: "min(250px, 100%)",
-                        background: "white",
-                        borderRadius: 1,
-                        padding: 0.5,
-                    }}>
-                    <QRCode
-                        size={200}
-                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                        value={`${window.location.origin}${url}`}
-                    />
-                </Box>
-                <List>
-                    <ListItem
-                        button
-                        onClick={downloadQrCode}
-                    >
-                        <ListItemIcon>
-                            <IconCommon
-                                decorative
-                                fill={palette.background.textPrimary}
-                                name="Download"
+
+            <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
+                {object && (
+                    <Box sx={{ p: 2, pb: 0 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: "medium", mb: 1 }}>
+                            {getDisplay(object).title}
+                        </Typography>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                                mb: 1,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                            }}
+                        >
+                            {fullUrl}
+                        </Typography>
+                    </Box>
+                )}
+
+                <List sx={{ pt: 0 }}>
+                    <Divider sx={{ my: 1 }} />
+                    <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
+                        {t("Share")}
+                    </Typography>
+
+                    <ListItem disablePadding>
+                        <ListItemButton onClick={copyLink} sx={{ py: 1.5 }}>
+                            <ListItemIcon>
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="Link"
+                                />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={"Copy link"}
+                                secondary={"Copy URL to clipboard"}
+                                primaryTypographyProps={{ fontWeight: "medium" }}
                             />
-                        </ListItemIcon>
-                        <ListItemText primary={"Download QR code"} />
+                        </ListItemButton>
+                    </ListItem>
+
+                    <ListItem disablePadding>
+                        <ListItemButton onClick={shareLink} sx={{ py: 1.5 }}>
+                            <ListItemIcon>
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="Share"
+                                />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={"Share link"}
+                                secondary={"Share via platform options"}
+                                primaryTypographyProps={{ fontWeight: "medium" }}
+                            />
+                        </ListItemButton>
+                    </ListItem>
+
+                    <Divider sx={{ my: 1 }} />
+                    <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
+                        {t("Advanced")}
+                    </Typography>
+
+                    <ListItem disablePadding>
+                        <ListItemButton onClick={copyObject} sx={{ py: 1.5 }}>
+                            <ListItemIcon>
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="Object"
+                                />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={"Copy object"}
+                                secondary={"Copy JSON data to clipboard"}
+                                primaryTypographyProps={{ fontWeight: "medium" }}
+                            />
+                        </ListItemButton>
+                    </ListItem>
+
+                    <ListItem disablePadding>
+                        <ListItemButton onClick={shareObject} sx={{ py: 1.5 }}>
+                            <ListItemIcon>
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="Download"
+                                />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={"Share object"}
+                                secondary={"Share object as a file"}
+                                primaryTypographyProps={{ fontWeight: "medium" }}
+                            />
+                        </ListItemButton>
+                    </ListItem>
+
+                    <ListItem disablePadding>
+                        <ListItemButton onClick={toggleQrCode} sx={{ py: 1.5 }}>
+                            <ListItemIcon>
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="QrCode"
+                                />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={"QR code"}
+                                secondary={isQrCodeVisible ? "Hide QR code" : "Show QR code"}
+                                primaryTypographyProps={{ fontWeight: "medium" }}
+                            />
+                        </ListItemButton>
                     </ListItem>
                 </List>
-            </Stack>}
+
+                {isQrCodeVisible && (
+                    <Fade in={isQrCodeVisible} timeout={300}>
+                        <Stack
+                            direction="column"
+                            spacing={2}
+                            sx={{
+                                justifyContent: "center",
+                                alignItems: "center",
+                                p: 3,
+                                pt: 1
+                            }}>
+                            <Paper
+                                elevation={2}
+                                id="qr-code-box"
+                                sx={{
+                                    display: "flex",
+                                    width: "min(280px, 100%)",
+                                    background: "white",
+                                    borderRadius: 2,
+                                    p: 2,
+                                    boxShadow: 3,
+                                }}>
+                                <QRCode
+                                    size={240}
+                                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                    value={fullUrl}
+                                />
+                            </Paper>
+
+                            <Tooltip title={"Download QR code"}>
+                                <Zoom in={isQrCodeVisible} style={{ transitionDelay: '150ms' }}>
+                                    <Box
+                                        onClick={downloadQrCode}
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                            bgcolor: 'action.selected',
+                                            borderRadius: 4,
+                                            px: 2,
+                                            py: 1,
+                                            cursor: 'pointer',
+                                            '&:hover': {
+                                                bgcolor: 'action.hover',
+                                            }
+                                        }}
+                                    >
+                                        <IconCommon
+                                            decorative
+                                            fill={palette.background.textPrimary}
+                                            name="Download"
+                                            size={20}
+                                        />
+                                        <Typography variant="button">
+                                            {"Download"}
+                                        </Typography>
+                                    </Box>
+                                </Zoom>
+                            </Tooltip>
+                        </Stack>
+                    </Fade>
+                )}
+            </Box>
         </LargeDialog>
     );
 }

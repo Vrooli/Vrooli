@@ -4,7 +4,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
-import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -16,8 +16,8 @@ import { setCookiePartialData } from "../../../utils/localStorage.js";
 import { getObjectEditUrl } from "../../../utils/navigation/openObject.js";
 import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
 import { BookmarkButton } from "../../buttons/BookmarkButton.js";
-import { CommentsButton } from "../../buttons/CommentsButton/CommentsButton.js";
-import { ReportsButton } from "../../buttons/ReportsButton/ReportsButton.js";
+import { CommentsButton } from "../../buttons/CommentsButton.js";
+import { ReportsButton } from "../../buttons/ReportsButton.js";
 import { VoteButton } from "../../buttons/VoteButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { CompletionBarProps } from "../../types.js";
@@ -574,7 +574,6 @@ export function ObjectListItemBase<T extends ListObject>({
                         </Tooltip>}
                         {showTags &&
                             <TagList
-                                parentId={data?.id ?? ""}
                                 tags={(data as any).tags}
                             />}
                         {belowTags}

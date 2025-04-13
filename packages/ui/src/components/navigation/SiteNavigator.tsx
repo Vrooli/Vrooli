@@ -14,7 +14,7 @@ import { extractImageUrl } from "../../utils/display/imageTools.js";
 import { placeholderColor } from "../../utils/display/listTools.js";
 import { NAV_ACTION_TAGS, getUserActions } from "../../utils/navigation/userActions.js";
 import { MenuPayloads, PubSub } from "../../utils/pubsub.js";
-import { PageContainer } from "../Page/Page.js";
+import { useIsBottomNavVisible } from "./BottomNav.js";
 
 /** Threshold for showing low credit balance */
 // eslint-disable-next-line no-magic-numbers
@@ -40,7 +40,9 @@ const StyledToolbar = styled(Box)(({ theme }) => ({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+    // eslint-disable-next-line no-magic-numbers
     paddingTop: theme.spacing(1.5),
+    // eslint-disable-next-line no-magic-numbers
     paddingLeft: theme.spacing(3),
     paddingRight: theme.spacing(1),
 }));
@@ -53,10 +55,12 @@ const FooterContainer = styled(Box)(({ theme }) => ({
     bottom: 0,
     display: "flex",
     justifyContent: "space-between",
-    marginTop: "auto",
     padding: "16px",
     position: "absolute",
     width: "100%",
+    backgroundColor: theme.palette.background.paper,
+    left: 0,
+    zIndex: 1,
 }));
 const CreditStack = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -86,6 +90,11 @@ const PremiumTypography = styled(Typography)({
 const CreditTypography = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     fontSize: "0.75rem",
+}));
+
+const StyledListItem = styled(ListItem)(({ theme }) => ({
+    paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(0.5),
 }));
 
 const projects = [
@@ -118,20 +127,72 @@ function NavItem({
     }, [onClick, link]);
 
     return (
-        <ListItem button onClick={handleClick}>
+        <StyledListItem button onClick={handleClick}>
             <ListItemIcon>
                 <Icon decorative info={iconInfo} />
             </ListItemIcon>
             <ListItemText primary={label} />
-        </ListItem>
+        </StyledListItem>
     );
+}
+
+const boxContainerStyles = {
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    position: "relative",
+};
+
+const scrollBoxStyles = {
+    flexGrow: 1,
+    overflow: "auto",
+};
+
+/**
+ * Hook to get scrollbox styles with proper padding based on footer visibility
+ */
+function useScrollBoxStyles(showFooter: boolean) {
+    return useMemo(() => ({
+        ...scrollBoxStyles,
+        pb: showFooter ? "70px" : 0,
+    }), [showFooter]);
+}
+
+/**
+ * Gets the appropriate color for the credit display based on balance
+ */
+function getCreditDisplayColor(
+    theme: any,
+    creditsAsBigInt: bigint | null,
+    showLowCreditBalance: boolean,
+) {
+    if (!creditsAsBigInt || creditsAsBigInt <= BigInt(0)) {
+        return theme.palette.error.main;
+    }
+
+    if (showLowCreditBalance) {
+        return theme.palette.warning.main;
+    }
+
+    return theme.palette.background.textSecondary;
+}
+
+/**
+ * Hook to get credit typography styles based on balance
+ */
+function useCreditTypographyStyles(creditsAsBigInt: bigint | null, showLowCreditBalance: boolean) {
+    const theme = useTheme();
+
+    return useMemo(() => ({
+        color: getCreditDisplayColor(theme, creditsAsBigInt, showLowCreditBalance),
+    }), [theme, creditsAsBigInt, showLowCreditBalance]);
 }
 
 export function SiteNavigator() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     // Handler for navigation items
@@ -141,7 +202,7 @@ export function SiteNavigator() {
 
     // Get navigation actions as list items
     const navItems = useMemo(() => {
-        const actions = getUserActions({ session, exclude: [NAV_ACTION_TAGS.Inbox, NAV_ACTION_TAGS.Pricing, NAV_ACTION_TAGS.LogIn, NAV_ACTION_TAGS.About] });
+        const actions = getUserActions({ session, exclude: [NAV_ACTION_TAGS.Inbox] });
         return actions.map((action, index) => (
             <NavItem
                 key={index}
@@ -157,17 +218,18 @@ export function SiteNavigator() {
     const { credits, hasPremium } = user;
     const isLoggedIn = checkIfLoggedIn(session);
 
-    const { creditsAsDollars, showLowCreditBalance } = useMemo(() => {
+    const { creditsAsDollars, showLowCreditBalance, creditsAsBigInt } = useMemo(() => {
         let creditsAsDollars = "0";
         let showLowCreditBalance = false;
+        let creditsAsBigInt: bigint | null = null;
         try {
-            const creditsAsBigInt = credits ? BigInt(credits) : BigInt(0);
+            creditsAsBigInt = credits ? BigInt(credits) : BigInt(0);
             creditsAsDollars = (Number(creditsAsBigInt / API_CREDITS_MULTIPLIER) / 100).toFixed(2);
             showLowCreditBalance = creditsAsBigInt < LOW_CREDIT_THRESHOLD;
         } catch (error) {
             console.error("Error calculating credits", error);
         }
-        return { creditsAsDollars, showLowCreditBalance };
+        return { creditsAsDollars, showLowCreditBalance, creditsAsBigInt };
     }, [credits]);
 
     const handleOpenSearch = useCallback(function handleOpenSearchCallback() {
@@ -206,8 +268,7 @@ export function SiteNavigator() {
     }, []);
 
     // Always show footer on mobile, or when user has premium or low credit balance
-    const showFooter = isMobile || (isLoggedIn && (!hasPremium || showLowCreditBalance));
-    const profileColors = placeholderColor(user.id);
+    const showFooter = isMobile || isLoggedIn;
 
     function toLogin() {
         setLocation(LINKS.Login);
@@ -221,9 +282,23 @@ export function SiteNavigator() {
         return selected ? projectItemStyles.selected : projectItemStyles.default;
     }
 
+    // Only show nav items when BottomNav is hidden
+    const isNavItemsVisible = !useIsBottomNavVisible();
+
+    // Get scroll box styles with padding
+    const combinedScrollBoxStyles = useScrollBoxStyles(showFooter);
+
+    // Get credit typography styles
+    const creditTypographyStyles = useCreditTypographyStyles(creditsAsBigInt, showLowCreditBalance);
+
     return (
-        <PageContainer contentType="text" size="fullSize">
-            <ScrollBox>
+        <Box
+            bgcolor="background.paper"
+            height="100vh"
+            overflow="hidden"
+            position="relative"
+        >
+            <Box sx={boxContainerStyles}>
                 {/* Header */}
                 <StyledToolbar>
                     <IconButton
@@ -253,90 +328,91 @@ export function SiteNavigator() {
                     </Box>
                 </StyledToolbar>
 
-                {/* Navigation List */}
-                <StyledList>
-                    {/* Only show nav items on desktop */}
-                    {!isMobile && navItems}
-
-                    {/* Projects Section */}
-                    <ListItem
-                        aria-label={t("Project", { count: 2 })}
-                        button
-                        onClick={handleProjectsClick}
-                    >
-                        <ListItemIcon>
-                            <IconCommon
-                                decorative
-                                fill="background.textSecondary"
-                                name="Project"
-                            />
-                        </ListItemIcon>
-                        <ListItemText primary={t("Project", { count: 2 })} />
-                        {
-                            projectsOpen
-                                ? <IconCommon
+                {/* Content area with scrolling */}
+                <ScrollBox sx={combinedScrollBoxStyles}>
+                    {/* Navigation List */}
+                    <StyledList>
+                        {isNavItemsVisible && navItems}
+                        {/* Projects Section */}
+                        <StyledListItem
+                            aria-label={t("Project", { count: 2 })}
+                            button
+                            onClick={handleProjectsClick}
+                        >
+                            <ListItemIcon>
+                                <IconCommon
                                     decorative
                                     fill="background.textSecondary"
-                                    name="ExpandLess"
+                                    name="Project"
                                 />
-                                : <IconCommon
-                                    decorative
-                                    fill="background.textSecondary"
-                                    name="ExpandMore" />
-                        }
-                    </ListItem>
-                    <Collapse in={projectsOpen} timeout="auto" unmountOnExit>
-                        <List component="div" disablePadding>
-                            {projects.map((project, index) => (
-                                <ListItem
-                                    button
-                                    key={index}
-                                    selected={project.selected}
-                                    sx={getProjectItemStyle(project.selected || false)}
-                                >
-                                    <ListItemText primary={project.text} />
-                                </ListItem>
-                            ))}
-                            {/* Add and See More buttons for Projects */}
-                            <ListItem
-                                aria-label={t("AddProject")}
-                                button onClick={handleAddProject}
-                                sx={addProjectStyles}
-                            >
-                                <ListItemIcon>
-                                    <IconCommon
+                            </ListItemIcon>
+                            <ListItemText primary={t("Project", { count: 2 })} />
+                            {
+                                projectsOpen
+                                    ? <IconCommon
                                         decorative
                                         fill="background.textSecondary"
-                                        name="Plus"
+                                        name="ExpandLess"
                                     />
-                                </ListItemIcon>
-                                <ListItemText primary={t("AddProject")} />
-                            </ListItem>
-                            <ListItem
-                                aria-label={t("SeeAll")}
-                                button
-                                onClick={handleSeeMoreProjects}
-                                sx={addProjectStyles}
-                            >
-                                <ListItemText primary={t("SeeAll")} />
-                            </ListItem>
-                        </List>
-                    </Collapse>
+                                    : <IconCommon
+                                        decorative
+                                        fill="background.textSecondary"
+                                        name="ExpandMore" />
+                            }
+                        </StyledListItem>
+                        <Collapse in={projectsOpen} timeout="auto" unmountOnExit>
+                            <List component="div" disablePadding>
+                                {projects.map((project, index) => (
+                                    <StyledListItem
+                                        button
+                                        key={index}
+                                        selected={project.selected}
+                                        sx={getProjectItemStyle(project.selected || false)}
+                                    >
+                                        <ListItemText primary={project.text} />
+                                    </StyledListItem>
+                                ))}
+                                {/* Add and See More buttons for Projects */}
+                                <StyledListItem
+                                    aria-label={t("AddProject")}
+                                    button onClick={handleAddProject}
+                                    sx={addProjectStyles}
+                                >
+                                    <ListItemIcon>
+                                        <IconCommon
+                                            decorative
+                                            fill="background.textSecondary"
+                                            name="Plus"
+                                        />
+                                    </ListItemIcon>
+                                    <ListItemText primary={t("AddProject")} />
+                                </StyledListItem>
+                                <StyledListItem
+                                    aria-label={t("SeeAll")}
+                                    button
+                                    onClick={handleSeeMoreProjects}
+                                    sx={addProjectStyles}
+                                >
+                                    <ListItemText primary={t("SeeAll")} />
+                                </StyledListItem>
+                            </List>
+                        </Collapse>
 
-                    {/* Yesterday Section */}
-                    <Divider sx={dividerStyles} />
-                    <ListItem>
-                        <ListItemText primary="Yesterday" sx={yesterdayLabelStyles} />
-                    </ListItem>
-                    {yesterdayItems.map((item, index) => (
-                        <ListItem button key={index}>
-                            <ListItemText
-                                primary={item}
-                                primaryTypographyProps={yesterdayItemStyles}
-                            />
-                        </ListItem>
-                    ))}
-                </StyledList>
+                        {/* Yesterday Section */}
+                        <Divider sx={dividerStyles} />
+                        <StyledListItem>
+                            <ListItemText primary="Yesterday" sx={yesterdayLabelStyles} />
+                        </StyledListItem>
+                        {yesterdayItems.map((item, index) => (
+                            <StyledListItem button key={index}>
+                                <ListItemText
+                                    primary={item}
+                                    primaryTypographyProps={yesterdayItemStyles}
+                                />
+                            </StyledListItem>
+                        ))}
+                    </StyledList>
+                </ScrollBox>
                 {showFooter && (
                     <FooterContainer>
                         <Box display="flex" gap={1}>
@@ -346,7 +422,7 @@ export function SiteNavigator() {
                                     isBot={false}
                                     src={isLoggedIn ? extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX) : undefined}
                                     onClick={openUserMenu}
-                                    profileColors={profileColors}
+                                    profileColors={placeholderColor(user.id)}
                                 >
                                     <IconCommon
                                         decorative
@@ -368,7 +444,10 @@ export function SiteNavigator() {
                                         </PremiumTypography>
                                     </PremiumBox>
                                 )}
-                                <CreditTypography variant="body2">
+                                <CreditTypography
+                                    variant="body2"
+                                    sx={creditTypographyStyles}
+                                >
                                     {t("Credit", { count: 2 })}: ${creditsAsDollars}
                                 </CreditTypography>
                             </CreditStack>
@@ -387,8 +466,8 @@ export function SiteNavigator() {
                         )}
                     </FooterContainer>
                 )}
-            </ScrollBox>
-        </PageContainer>
+            </Box>
+        </Box>
     );
 }
 
