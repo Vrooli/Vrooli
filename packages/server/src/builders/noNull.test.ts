@@ -1,3 +1,4 @@
+/* eslint-disable func-style */
 import { uuid } from "@local/shared";
 import { expect } from "chai";
 import { noEmptyString, noNull, validNumber, validUuid } from "./noNull.js";

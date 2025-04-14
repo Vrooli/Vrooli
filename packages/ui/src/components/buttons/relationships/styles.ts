@@ -3,24 +3,26 @@ import { ProfileAvatar } from "../../../styles.js";
 
 export function commonIconProps() {
     return {
-        width: "32px",
-        height: "32px",
+        width: "24px",
+        height: "24px",
         fill: "white",
     } as const;
 }
 
 export const RelationshipAvatar = styled(ProfileAvatar)(() => ({
-    width: 32,
-    height: 32,
+    width: 24,
+    height: 24,
     fontSize: 12,
 }));
 
 /** Chip shown for relationship item when not editing */
 export const RelationshipChip = styled(Chip)<ChipProps>(({ icon, onClick, theme }) => ({
-    background: theme.palette.primary.light,
+    background: `${theme.palette.primary.light}CC`,
+    // eslint-disable-next-line no-magic-numbers
+    borderRadius: theme.spacing(4),
     color: theme.palette.primary.contrastText,
     fill: theme.palette.primary.contrastText,
-    height: "48px",
+    height: "36px",
     paddingLeft: icon ? theme.spacing(1) : 0,
     pointerEvents: typeof onClick === "function" ? "auto" : "none",
     cursor: typeof onClick === "function" ? "pointer" : "default",
