@@ -1,266 +1,546 @@
 import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"; // Added SSE transport
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ListResourcesRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import express from 'express'; // Added express
-import http from 'http'; // Keep for graceful shutdown? Or remove if express handles it. Let's remove for now.
+import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import express from 'express';
+import type * as http from 'http'; // Import type for ServerResponse
 
-// Define server info and capabilities as per the guide
+// --- Constants ---
 const serverInfo = { name: "vrooli-mcp-server", version: "0.1.0" } as const;
 const protocolVersion = "2025-04-15" as const; // Keep for reference, maybe used later
 const jsonRpcVersion = "2.0" as const; // Keep for reference
 const SSE_PORT = 3100;
 const SSE_MESSAGE_PATH = '/mcp'; // Define a path for MCP messages
 
-// --- Mode Selection ---
-const args = process.argv.slice(2);
-let mode: 'stdio' | 'sse' = 'sse'; // Default to sse
+// --- SSE State (Module Scope) ---
+// Map to store transport instances keyed by their response object
+const transports = new Map<http.ServerResponse, SSEServerTransport>();
+// Keep track of active connections for graceful shutdown and metrics
+const connections = new Set<http.ServerResponse>();
 
-// Removed RpcMethod and RpcReadyMessage as handshake is handled by SDK transport now
+type Mode = 'stdio' | 'sse';
 
-args.forEach(arg => {
-    if (arg.startsWith('--mode=')) {
-        const value = arg.split('=')[1];
-        if (value === 'sse' || value === 'stdio') {
-            mode = value;
-        } else {
-            // Keep warning for invalid mode, but default is now set above
-            console.warn(`Invalid mode specified: ${value}. Defaulting to '${mode}'.`);
-        }
-    }
-});
+/**
+ * Tool annotations providing metadata about a tool's behavior.
+ */
+interface ToolAnnotations {
+    /** Human-readable title for the tool */
+    title?: string;
+    /** If true, indicates the tool does not modify its environment */
+    readOnlyHint?: boolean;
+    /** If true, the tool may perform destructive updates */
+    destructiveHint?: boolean;
+    /** If true, calling the tool repeatedly with the same arguments has no additional effect */
+    idempotentHint?: boolean;
+    /** If true, the tool may interact with an "open world" of external entities */
+    openWorldHint?: boolean;
+}
 
-console.log(`Starting server in ${mode.toUpperCase()} mode...`);
+/**
+ * Interface representing a Tool in the MCP protocol.
+ */
+interface Tool {
+    /** Unique identifier for the tool */
+    name: string;
+    /** Human-readable description */
+    description?: string;
+    /** JSON Schema for the tool's parameters */
+    inputSchema: {
+        type: string;
+        properties: Record<string, any>;
+        required?: string[];
+    };
+    /** Optional hints about tool behavior */
+    annotations?: ToolAnnotations;
+}
 
-// --- Server Implementation ---
-
-// Instantiate McpServer common to both modes if applicable
-// Capabilities might differ slightly, or be adjusted within the mode blocks
-// For now, define common base capabilities
-const commonCapabilities = {
-    resources: {}, // Example common capability
-    // Add other capabilities shared between modes
+// --- Fake Winston Logger ---
+/**
+ * A simple logger mimicking the Winston interface for basic logging needs.
+ * Logs messages to the console.
+ */
+function createLogger() {
+    function log(level: string, message: string, ...meta: any[]) {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`, ...meta);
+    };
+    return {
+        info: (message: string, ...meta: any[]) => log('info', message, ...meta),
+        warn: (message: string, ...meta: any[]) => log('warn', message, ...meta),
+        error: (message: string, ...meta: any[]) => log('error', message, ...meta),
+        debug: (message: string, ...meta: any[]) => log('debug', message, ...meta), // Added debug for completeness
+    };
 };
 
-const mcpServer = new McpServer({
-    name: serverInfo.name,
-    version: serverInfo.version,
-}, {
-    capabilities: commonCapabilities, // Use common capabilities
-    // Potentially add serverInfo here if needed by the constructor signature
-    // serverInfo: serverInfo,
-});
+type Logger = ReturnType<typeof createLogger>;
 
-// Example request handler (can be common if logic is identical)
-console.log("[MCP Server] Setting up ListResourcesRequest handler...");
-mcpServer.setRequestHandler(ListResourcesRequestSchema, async (request) => {
-    console.log("[MCP Server] Received ListResourcesRequest:", request);
-    // Logic might differ based on mode, but let's keep it simple for now
-    const resourceUriPrefix = mode === 'sse' ? 'sse-resource' : 'stdio-resource';
-    const resources = [
+// --- Health Check Logic ---
+/**
+ * Returns health information specific to the SSE mode.
+ * @returns An object containing SSE health metrics.
+ */
+function getSseHealthInfo() {
+    return {
+        status: 'ok', // Basic status
+        activeConnections: connections.size,
+        // Add other SSE-specific metrics here in the future
+    };
+}
+
+/**
+ * Fetches tool information and returns mock tool data.
+ * @param logger - The logger instance for logging operations.
+ * @returns A Promise resolving to an array of mock tools.
+ */
+async function fetchToolInformation(logger: Logger): Promise<Tool[]> {
+    logger.info("Fetching tool information...");
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const tools: Tool[] = [
         {
-            uri: `example://${resourceUriPrefix}-${Date.now()}`, // Dynamic URI
-            name: `Example ${mode.toUpperCase()} Resource`
+            name: "web_search",
+            description: "Search the web for information",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    query: { type: "string" }
+                },
+                required: ["query"]
+            },
+            annotations: {
+                title: "Web Search",
+                readOnlyHint: true,
+                openWorldHint: true
+            }
+        },
+        {
+            name: "calculate_sum",
+            description: "Add two numbers together",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    a: { type: "number" },
+                    b: { type: "number" }
+                },
+                required: ["a", "b"]
+            },
+            annotations: {
+                title: "Calculate Sum",
+                readOnlyHint: true,
+                openWorldHint: false
+            }
+        },
+        {
+            name: "create_file",
+            description: "Create a new file with the given content",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    path: { type: "string" },
+                    content: { type: "string" }
+                },
+                required: ["path", "content"]
+            },
+            annotations: {
+                title: "Create File",
+                readOnlyHint: false,
+                destructiveHint: false,
+                idempotentHint: false,
+                openWorldHint: false
+            }
+        },
+        {
+            name: "delete_file",
+            description: "Delete a file from the filesystem",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    path: { type: "string" }
+                },
+                required: ["path"]
+            },
+            annotations: {
+                title: "Delete File",
+                readOnlyHint: false,
+                destructiveHint: true,
+                idempotentHint: true,
+                openWorldHint: false
+            }
         }
     ];
-    console.log(`[MCP Server] Responding with ${mode.toUpperCase()} resources:`, resources);
-    return { resources };
-});
-console.log("[MCP Server] ListResourcesRequest handler set.");
+
+    logger.info(`Fetched ${tools.length} tools.`);
+    return tools;
+}
+
+// --- Mode Selection Function ---
+/**
+ * Parses command line arguments to determine the server mode.
+ * @param logger - The logger instance.
+ * @returns The selected mode ('stdio' or 'sse').
+ */
+function getModeFromArgs(logger: Logger): Mode {
+    const args = process.argv.slice(2);
+    let mode: Mode = 'sse'; // Default to sse
+
+    args.forEach(arg => {
+        if (arg.startsWith('--mode=')) {
+            const value = arg.split('=')[1];
+            if (value === 'sse' || value === 'stdio') {
+                mode = value;
+            } else {
+                logger.warn(`Invalid mode specified: ${value}. Defaulting to '${mode}'.`);
+            }
+        }
+    });
+    logger.info(`Server mode selected: ${mode.toUpperCase()}`);
+    return mode;
+};
+
+// --- Common Server Setup ---
+/**
+ * Creates and configures the common MCP Server instance.
+ * @param logger - The logger instance.
+ * @param mode - The current operating mode.
+ * @returns The configured McpServer instance.
+ */
+function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
+    const commonCapabilities = {
+        resources: {}, // Example common capability
+        tools: {}, // Add tools capability
+        // Add other capabilities shared between modes
+    };
+
+    logger.info(`Initializing McpServer: ${serverInfo.name} v${serverInfo.version}`);
+    const mcpServer = new McpServer({
+        name: serverInfo.name,
+        version: serverInfo.version,
+    }, {
+        capabilities: commonCapabilities,
+        // Potentially add serverInfo here if needed by the constructor signature
+        // serverInfo: serverInfo,
+    });
+
+    // Setup common request handlers
+    logger.info("Setting up ListResourcesRequest handler...");
+    mcpServer.setRequestHandler(ListResourcesRequestSchema, async (request) => {
+        logger.info("Received ListResourcesRequest:", request);
+        const resourceUriPrefix = mode === 'sse' ? 'sse-resource' : 'stdio-resource';
+        const resources = [
+            {
+                uri: `example://${resourceUriPrefix}-${Date.now()}`, // Dynamic URI
+                name: `Example ${mode.toUpperCase()} Resource`
+            }
+        ];
+        logger.info(`Responding with ${mode.toUpperCase()} resources:`, resources);
+        return { resources };
+    });
+    logger.info("ListResourcesRequest handler set.");
+
+    // Set up the ListToolsRequest handler
+    logger.info("Setting up ListToolsRequest handler...");
+    mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+        logger.info("Received ListToolsRequest");
+        const tools = await fetchToolInformation(logger);
+        logger.info(`Responding with ${tools.length} tools`);
+        return { tools };
+    });
+    logger.info("ListToolsRequest handler set.");
+
+    // Set up the CallToolRequest handler
+    logger.info("Setting up CallToolRequest handler...");
+    mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+        const { name, arguments: args } = request.params;
+        logger.info(`Received CallToolRequest for tool: ${name}`, args);
+
+        // Handle tool calls based on the tool name
+        switch (name) {
+            case "calculate_sum":
+                const { a, b } = args as { a: number, b: number };
+                const sum = a + b;
+                logger.info(`Calculated sum: ${sum}`);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: String(sum)
+                        }
+                    ]
+                };
+            // Other tool implementations would go here
+            default:
+                logger.error(`Tool not implemented: ${name}`);
+                return {
+                    isError: true,
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error: Tool '${name}' not implemented`
+                        }
+                    ]
+                };
+        }
+    });
+    logger.info("CallToolRequest handler set.");
+
+    return mcpServer;
+};
 
 
-if (mode === 'sse') {
-    // ============================
-    //      SSE Mode (Express)
-    // ============================
-    console.log(`Initializing ${serverInfo.name} v${serverInfo.version} for SSE on port ${SSE_PORT}...`);
+// --- SSE Mode Setup ---
+/**
+ * Sets up and runs the server in SSE mode using Express.
+ * @param mcpServer - The McpServer instance.
+ * @param logger - The logger instance.
+ */
+function setupSse(mcpServer: McpServer, logger: Logger): void {
+    logger.info(`Initializing SSE mode on port ${SSE_PORT}...`);
 
     const app = express();
 
-    // Map to store transport instances keyed by their response object
-    const transports = new Map<http.ServerResponse, SSEServerTransport>();
+    // --- Health Check Endpoint (SSE specific) ---
+    app.get('/health', (req, res) => {
+        const healthInfo = getSseHealthInfo();
+        logger.info(`Health check requested: ${JSON.stringify(healthInfo)}`);
+        res.json(healthInfo);
+    });
 
-    // Keep track of active connections for graceful shutdown
-    const connections = new Set<http.ServerResponse>();
-
+    // --- SSE Connection Handling ---
     app.get('/sse', (req, res) => {
-        console.log("[SSE] SSE connection requested.");
+        logger.info("SSE connection requested.");
 
-        // Let SSEServerTransport handle setting the appropriate headers.
-        // We just need to keep the connection open and add it to our tracking.
-
-        // Store the response object for tracking and potential broadcast later
+        // Store the response object for tracking
         connections.add(res);
-        console.log(`[SSE] Client connected. Total clients: ${connections.size}`);
+        logger.info(`Client connected. Total clients: ${connections.size}`);
 
-        // Start sending heartbeats (SSE comments) to keep the connection alive
+        // Setup heartbeat
         const heartbeatInterval = setInterval(() => {
-            if (connections.has(res)) { // Check if connection is still active
+            if (connections.has(res)) {
                 try {
                     res.write(': heartbeat\n\n');
-                    // console.log('[SSE] Sent heartbeat comment'); // Optional: uncomment for debugging
+                    // logger.debug('Sent heartbeat comment'); // Optional: uncomment for debugging
                 } catch (error) {
-                    console.error('[SSE] Error sending heartbeat:', error);
-                    // Error likely means connection is already closed, clean up
+                    logger.error('Error sending heartbeat:', error);
                     clearInterval(heartbeatInterval);
                     connections.delete(res);
                     const transport = transports.get(res);
                     if (transport) {
                         transports.delete(res);
-                        // transport.disconnect(); // or mcpServer.disconnect(transport)
+                        // Consider transport.disconnect() or mcpServer.disconnect(transport);
                     }
                 }
             } else {
-                // Connection is no longer in the set, stop the heartbeat
                 clearInterval(heartbeatInterval);
-                console.log('[SSE] Heartbeat stopped for disconnected client.');
+                logger.debug('Heartbeat stopped for disconnected client.');
             }
-        }, 30000); // Send heartbeat every 30 seconds
+        }, 30000);
 
-        // Create and connect the SSE transport for this specific connection
-        // Pass the response object directly to the transport
+        // Create and connect the SSE transport for this connection
         const newTransport = new SSEServerTransport(SSE_MESSAGE_PATH, res);
-        transports.set(res, newTransport); // Store the transport associated with this response
+        transports.set(res, newTransport);
+
         mcpServer.connect(newTransport)
             .then(() => {
-                console.log(`[SSE] McpServer connected to transport for a client.`);
-                // Handshake ($/server/ready) is typically sent automatically by SSEServerTransport upon connection.
+                logger.info(`McpServer connected to transport for a client.`);
+                // Handshake ($/server/ready) is sent automatically by SSEServerTransport
             })
             .catch(error => {
-                console.error(`[SSE] Error connecting McpServer to transport for a client:`, error);
-                res.end(); // Close the connection if transport fails
+                logger.error(`Error connecting McpServer to transport for a client:`, error);
+                if (!res.writableEnded) {
+                    res.end();
+                }
                 connections.delete(res);
+                transports.delete(res); // Clean up transport map as well
             });
 
         req.on('close', () => {
-            console.log(`[SSE] Client disconnected.`);
-            clearInterval(heartbeatInterval); // Stop heartbeat on close
+            logger.info(`Client disconnected.`);
+            clearInterval(heartbeatInterval);
             connections.delete(res);
-            // Consider if the transport needs explicit disconnection/cleanup here
-            // sseTransport?.disconnect(); // Or similar method if available
             const closedTransport = transports.get(res);
             if (closedTransport) {
-                console.log("[SSE] Cleaning up transport for closed connection.");
-                // closedTransport.disconnect(); // Call disconnect if available on the transport
-                // mcpServer.disconnect(closedTransport); // Or disconnect from the server side if needed
-                transports.delete(res); // Remove from map
+                logger.info("Cleaning up transport for closed connection.");
+                // Consider closedTransport.disconnect() or mcpServer.disconnect(closedTransport);
+                transports.delete(res);
             }
-            console.log(`[SSE] Client connection closed. Total clients: ${connections.size}`);
+            logger.info(`Client connection closed. Total clients: ${connections.size}`);
         });
 
         res.on('error', (error) => {
-            console.error(`[SSE] Error on response stream for a client:`, error);
-            clearInterval(heartbeatInterval); // Stop heartbeat on error
+            logger.error(`Error on response stream for a client:`, error);
+            clearInterval(heartbeatInterval);
             connections.delete(res);
             const errorTransport = transports.get(res);
             if (errorTransport) {
-                console.log("[SSE] Cleaning up transport due to stream error.");
-                // errorTransport.disconnect(); // Call disconnect if available
-                // mcpServer.disconnect(errorTransport);
-                transports.delete(res); // Remove from map
+                logger.info("Cleaning up transport due to stream error.");
+                // Consider errorTransport.disconnect() or mcpServer.disconnect(errorTransport);
+                transports.delete(res);
             }
-            console.log(`[SSE] Removed client due to stream error. Total clients: ${connections.size}`);
+            logger.info(`Removed client due to stream error. Total clients: ${connections.size}`);
         });
     });
 
     // Route to handle incoming MCP messages POSTed from the client
+    // Re-adding the POST handler, but WITHOUT express.json() middleware
+    // as the SSEServerTransport likely handles parsing the raw request.
     app.post(SSE_MESSAGE_PATH, (req, res) => {
-        console.log(`[SSE] Received POST on ${SSE_MESSAGE_PATH}`);
-        // Determine the correct transport. This is complex with multiple clients.
-        // Option 1: If the SDK's handlePostMessage intelligently routes based on req/headers.
-        // We assume this for now, but it needs verification based on SDK behavior.
-        // Find *any* active transport to handle the message (assuming SDK routes it). This is likely incorrect.
-        const [anyTransport] = transports.values(); // simplistic, likely wrong
+        logger.info(`Received POST on ${SSE_MESSAGE_PATH}`);
+        // Find *any* active transport instance to call the method.
+        // This part relies on the SDK's design of handlePostMessage.
+        // If it requires instance-specific context not available here,
+        // this approach might need refinement based on SDK docs.
+        const [anyTransport] = transports.values(); // Assuming handlePostMessage can route or is static-like
         if (anyTransport) {
-            // Let the SDK transport handle the incoming message
-            anyTransport.handlePostMessage(req, res);
-            console.log(`[SSE] Handed POST request to an SSEServerTransport.`);
-            // TODO: Verify how handlePostMessage identifies the correct client SSE stream.
-            // The current approach of grabbing the first transport is a placeholder.
+            try {
+                // Pass raw request and response to the handler.
+                anyTransport.handlePostMessage(req, res);
+                logger.info(`Handed POST request to an SSEServerTransport instance.`);
+            } catch (error) {
+                logger.error(`Error handling POST request in SSEServerTransport:`, error);
+                // Attempt to send a JSON-RPC error response if possible
+                if (!res.headersSent) {
+                    res.status(500).json({ // Assuming JSON response is acceptable for errors
+                        jsonrpc: jsonRpcVersion,
+                        error: { code: -32000, message: "Internal server error handling POST" },
+                        id: null // Cannot safely get ID without parsing body
+                    });
+                } else if (!res.writableEnded) {
+                    res.end(); // End the stream if headers were sent but an error occurred
+                }
+            }
         } else {
-            console.error(`[SSE] Received POST on ${SSE_MESSAGE_PATH} but no active SSE transports found or routing unclear.`);
-            res.status(503).json({
+            logger.error(`Received POST on ${SSE_MESSAGE_PATH} but no active SSE transports found.`);
+            res.status(503).json({ // Service Unavailable
                 jsonrpc: jsonRpcVersion,
                 error: {
                     code: -32000,
-                    message: "Server not ready or transport not initialized"
+                    message: "Server not ready or no active transports"
                 },
-                id: req.body?.id || null
+                id: null // Cannot safely get ID without parsing body
             });
         }
     });
 
-    // Optional: Handle other routes or serve static files if needed
+    // Optional: Root path handler
     app.get('/', (req, res) => {
         res.send(`${serverInfo.name} v${serverInfo.version} is running. Use /sse for MCP connection.`);
     });
 
     const httpServer = app.listen(SSE_PORT, () => {
-        console.log(`[SSE] ${serverInfo.name} listening on http://localhost:${SSE_PORT}`);
-        console.log(`[SSE] SSE endpoint available at http://localhost:${SSE_PORT}/sse`);
-        console.log(`[SSE] MCP message endpoint at http://localhost:${SSE_PORT}${SSE_MESSAGE_PATH}`);
+        logger.info(`${serverInfo.name} listening on http://localhost:${SSE_PORT}`);
+        logger.info(`SSE endpoint available at http://localhost:${SSE_PORT}/sse`);
+        logger.info(`MCP message endpoint at http://localhost:${SSE_PORT}${SSE_MESSAGE_PATH}`);
     });
 
     httpServer.on('error', (error) => {
-        console.error("[SSE] HTTP server error:", error);
+        logger.error("HTTP server error:", error);
+        process.exit(1); // Exit if the server fails to start
     });
 
     // Graceful shutdown for SSE mode
-    process.on('SIGINT', () => {
-        console.log('[SSE] Gracefully shutting down...');
+    const shutdown = () => {
+        logger.info('Gracefully shutting down SSE server...');
         connections.forEach(res => {
-            console.log('[SSE] Closing client connection.');
-            res.end(); // End active SSE connections
+            logger.info('Closing client connection.');
+            if (!res.writableEnded) {
+                res.end();
+            }
         });
-        httpServer.close(() => {
-            console.log('[SSE] HTTP Server closed.');
-            // Optionally disconnect the McpServer if needed
-            // mcpServer.disconnect();
-            console.log('[SSE] Shutdown complete.');
-            process.exit(0);
+        connections.clear(); // Clear the set after closing
+        transports.clear(); // Clear transports map
+
+        httpServer.close((err) => {
+            if (err) {
+                logger.error('Error closing HTTP Server:', err);
+            } else {
+                logger.info('HTTP Server closed.');
+            }
+            // Optionally disconnect the McpServer if needed, though transports are cleared
+            // mcpServer.disconnect(); // Consider if McpServer needs global disconnect
+            logger.info('Shutdown complete.');
+            process.exit(err ? 1 : 0);
         });
-        // Set a timeout for forceful shutdown if graceful shutdown takes too long
+
+        // Force shutdown after a timeout
         setTimeout(() => {
-            console.error('[SSE] Could not close connections gracefully, forcing shutdown.');
+            logger.error('Could not close connections gracefully, forcing shutdown.');
             process.exit(1);
         }, 5000); // 5 seconds timeout
-    });
+    };
 
-} else {
-    // ============================
-    //     STDIO Mode (SDK)
-    // ============================
-    console.log(`Initializing ${serverInfo.name} v${serverInfo.version} for STDIO...`);
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown); // Handle SIGTERM as well
+};
+
+// --- STDIO Mode Setup ---
+/**
+ * Sets up and runs the server in STDIO mode.
+ * @param mcpServer - The McpServer instance.
+ * @param logger - The logger instance.
+ */
+async function setupStdio(mcpServer: McpServer, logger: Logger): Promise<void> {
+    logger.info(`Initializing STDIO mode...`);
 
     // STDIO mode capabilities might differ, adjust mcpServer capabilities if needed
     // mcpServer.setCapabilities({ ... }); // If dynamic capability setting is supported
 
-    // Connect transport
-    async function connectStdio() {
-        console.log("[STDIO] Preparing server transport...");
-        const transport = new StdioServerTransport();
-        console.log("[STDIO] StdioServerTransport created.");
+    logger.info("Preparing StdioServerTransport...");
+    const transport = new StdioServerTransport();
+    logger.info("StdioServerTransport created.");
 
-        console.log("[STDIO] Attempting to connect server transport...");
-        try {
-            // Use the existing mcpServer instance
-            await mcpServer.connect(transport);
-            console.log("[STDIO] Server transport connected successfully.");
-            console.log("[STDIO] Server is running. Waiting for requests via stdin/stdout...");
-        } catch (error) {
-            console.error("[STDIO] Failed to connect server transport:", error);
-            process.exit(1); // Exit if connection fails
-        }
+    logger.info("Attempting to connect server transport...");
+    try {
+        await mcpServer.connect(transport);
+        logger.info("Server transport connected successfully.");
+        logger.info("Server is running. Waiting for requests via stdin/stdout...");
+    } catch (error) {
+        logger.error("Failed to connect server transport:", error);
+        process.exit(1); // Exit if connection fails
     }
 
-    connectStdio();
-
     // Graceful shutdown for STDIO mode
-    process.on('SIGINT', () => {
-        console.log('[STDIO] Received SIGINT.Shutting down...');
+    const shutdown = () => {
+        logger.info('Received termination signal. Shutting down STDIO server...');
         // The SDK might handle cleanup, or you might need specific disconnection logic
-        // mcpServer.disconnect(); // Example disconnect call if available/needed
-        console.log('[STDIO] Exiting.');
+        // mcpServer.disconnect(transport); // Disconnect specific transport if needed
+        // Or global disconnect: mcpServer.disconnect();
+        logger.info('Exiting.');
         process.exit(0);
-    });
-}
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown); // Handle SIGTERM as well
+};
+
+// --- Main Function ---
+/**
+ * Main entry point for the server application.
+ */
+async function main(): Promise<void> {
+    const logger = createLogger();
+    try {
+        const mode = getModeFromArgs(logger);
+        const mcpServer = createAndConfigureMcpServer(logger, mode);
+
+        if (mode === 'sse') {
+            setupSse(mcpServer, logger); // This function now handles its own lifecycle and exit
+        } else {
+            await setupStdio(mcpServer, logger); // This function now handles its own lifecycle and exit
+        }
+        // Keep the process alive implicitly by the running server (SSE) or waiting transport (STDIO)
+    } catch (error) {
+        logger.error("An unexpected error occurred during server setup:", error);
+        process.exit(1);
+    }
+};
+
+// --- Execution ---
+// Use a self-invoking async function or top-level await if supported
+(async () => {
+    await main();
+})().catch(error => {
+    // Catch any unhandled promise rejections from main() itself, though errors inside should be caught
+    console.error("Unhandled error during server startup:", error); // Use console directly as logger might not be initialized
+    process.exit(1);
+});
