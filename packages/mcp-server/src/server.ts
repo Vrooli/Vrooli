@@ -12,12 +12,6 @@ import { ToolRegistry } from './tools/registry.js';
 import { TransportManager } from './transports/transport-manager.js';
 import { Logger } from './types.js';
 
-// Interface for the structure we expect in req.body for the message endpoint
-interface McpMessageRequestBody {
-    message: object; // Define more strictly based on ClientToServerMessageSchema if possible
-    connectionId: string; // Assuming client sends this back
-}
-
 /**
  * Main MCP Server application class that orchestrates all components
  */
@@ -61,7 +55,7 @@ export class McpServerApp {
         this.logger.info("Setting up ListToolsRequest handler...");
         this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
             this.logger.info("Received ListToolsRequest");
-            const tools = this.toolRegistry.getDefinitions();
+            const tools = this.toolRegistry.getBuiltInDefinitions();
             this.logger.info(`Responding with ${tools.length} tools`);
             return { tools } as ServerResult;
         });
@@ -80,12 +74,14 @@ export class McpServerApp {
      * @param toolId The ID of the tool
      * @returns The Server instance or null if the tool doesn't exist.
      */
-    private getOrCreateDynamicServer(toolId: string): McpServer | null {
+    private async getOrCreateDynamicServer(toolId: string): Promise<McpServer | null> {
         if (this.dynamicServers.has(toolId)) {
             return this.dynamicServers.get(toolId)!;
         }
 
-        const toolDefinition = this.toolRegistry.getDefinitions().find(t => t.name === toolId);
+        // Await the promise to get the array of definitions
+        const dynamicDefinitions = await this.toolRegistry.getDynamicDefinitions();
+        const toolDefinition = dynamicDefinitions.find(t => t.name === toolId);
         const toolHandler = this.toolRegistry.getHandler(toolId); // Need a way to get the handler function
 
         if (!toolDefinition || !toolHandler) {
@@ -178,11 +174,11 @@ export class McpServerApp {
         // --- Dynamic Tool Routes ---
 
         // 1. SSE Connection Endpoint for a specific tool
-        app.get('/mcp/tool/:tool_id/sse', (req, res) => {
+        app.get('/mcp/tool/:tool_id/sse', async (req, res) => {
             const toolId = req.params.tool_id;
             this.logger.info(`Dynamic SSE connection request for tool: ${toolId}`);
 
-            const serverInstance = this.getOrCreateDynamicServer(toolId);
+            const serverInstance = await this.getOrCreateDynamicServer(toolId);
             if (!serverInstance) {
                 return res.status(404).json({ error: `Tool '${toolId}' not found or cannot be served dynamically.` });
             }

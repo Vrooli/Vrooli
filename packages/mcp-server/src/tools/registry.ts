@@ -1,7 +1,5 @@
+import { calculateSum, fetchResource, fetchTool } from '../tools.js';
 import { Logger, Tool, ToolResponse } from '../types.js';
-import { calculateSum } from './calculate-sum.js';
-import { fetchResource } from './fetch-resource.js';
-import { fetchTool } from './fetch-tool.js';
 
 type ToolHandler = (args: any, logger: Logger) => ToolResponse;
 
@@ -10,37 +8,20 @@ type ToolHandler = (args: any, logger: Logger) => ToolResponse;
  */
 export class ToolRegistry {
     private tools: Map<string, ToolHandler> = new Map();
-    private toolDefinitions: Tool[] = [];
+    private builtInDefinitions: Tool[] = [];
     private logger: Logger;
 
     constructor(logger: Logger) {
         this.logger = logger;
         this.registerBuiltInTools();
+        this.registerKnownHandlers();
     }
 
     /**
      * Register built-in tools
      */
     private registerBuiltInTools(): void {
-        this.register('calculate_sum', calculateSum, {
-            name: 'calculate_sum',
-            description: 'Add two numbers together',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    a: { type: 'number' },
-                    b: { type: 'number' }
-                },
-                required: ['a', 'b']
-            },
-            annotations: {
-                title: 'Calculate Sum',
-                readOnlyHint: true,
-                openWorldHint: false
-            }
-        });
-
-        this.register('fetch_resource', fetchResource, {
+        this.registerBuiltInTool('fetch_resource', fetchResource, {
             name: 'fetch_resource',
             description: 'Fetch a resource by name or search string',
             inputSchema: {
@@ -60,7 +41,7 @@ export class ToolRegistry {
             }
         });
 
-        this.register('fetch_tool', fetchTool, {
+        this.registerBuiltInTool('fetch_tool', fetchTool, {
             name: 'fetch_tool',
             description: 'Fetch/search for available MCP tools',
             inputSchema: {
@@ -82,23 +63,61 @@ export class ToolRegistry {
     }
 
     /**
-     * Register a new tool
+     * Register handlers for known tools that might be fetched dynamically later.
+     * This ensures the execute function can find the handler.
+     */
+    private registerKnownHandlers(): void {
+        this.logger.info(`Registering known handler: calculate_sum`);
+        this.tools.set('calculate_sum', calculateSum);
+    }
+
+    /**
+     * Register a new built-in tool (definition and handler)
      * @param name Tool name
      * @param handler Tool handler function
      * @param definition Tool definition
      */
-    register(name: string, handler: ToolHandler, definition: Tool): void {
-        this.logger.info(`Registering tool: ${name}`);
+    registerBuiltInTool(name: string, handler: ToolHandler, definition: Tool): void {
+        this.logger.info(`Registering built-in tool: ${name}`);
         this.tools.set(name, handler);
-        this.toolDefinitions.push(definition);
+        this.builtInDefinitions.push(definition);
     }
 
     /**
-     * Get all tool definitions
-     * @returns Array of tool definitions
+     * Get built-in tool definitions
+     * @returns Array of built-in tool definitions
      */
-    getDefinitions(): Tool[] {
-        return this.toolDefinitions;
+    getBuiltInDefinitions(): Tool[] {
+        return this.builtInDefinitions;
+    }
+
+    /**
+     * Get dynamic tool definitions (simulates fetching from a source like a DB)
+     * @returns Promise resolving to an array of dynamic tool definitions
+     */
+    async getDynamicDefinitions(): Promise<Tool[]> {
+        this.logger.info('Simulating fetch of dynamic tool definitions...');
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        return [
+            {
+                name: 'calculate_sum',
+                description: 'Add two numbers together',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        a: { type: 'number' },
+                        b: { type: 'number' }
+                    },
+                    required: ['a', 'b']
+                },
+                annotations: {
+                    title: 'Calculate Sum',
+                    readOnlyHint: true,
+                    openWorldHint: false
+                },
+            }
+        ];
     }
 
     /**
@@ -121,20 +140,21 @@ export class ToolRegistry {
 
         const handler = this.tools.get(name);
         if (!handler) {
-            this.logger.error(`Tool not implemented: ${name}`);
+            this.logger.error(`Tool handler not found or not registered: ${name}`);
             return {
                 isError: true,
                 content: [
                     {
                         type: 'text',
-                        text: `Error: Tool '${name}' not implemented`
+                        text: `Error: Tool handler for '${name}' not found. It might be a dynamic tool whose handler hasn't been registered.`
                     }
                 ]
             };
         }
 
         try {
-            return handler(args, this.logger);
+            const result = await handler(args, this.logger);
+            return result;
         } catch (error) {
             this.logger.error(`Error executing tool ${name}:`, error);
             return {

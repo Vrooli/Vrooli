@@ -101,9 +101,7 @@ export class TransportManager {
         if (firstTransport) {
             try {
                 firstTransport.handlePostMessage(req, res);
-                this.logger.info(`Handed POST request to an SSEServerTransport instance.`, {
-                    firstTransport: firstTransport,
-                });
+                this.logger.info(`Handed POST request to an SSEServerTransport instance.`);
             } catch (error) {
                 this.logger.error(`Error handling POST request in SSEServerTransport:`, error);
                 this.sendJsonRpcError(res, -32000, 'Internal server error handling POST');
