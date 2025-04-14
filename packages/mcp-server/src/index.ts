@@ -5,13 +5,27 @@ import * as http from 'http';
 import { URL } from 'url'; // Import URL for parsing
 
 // Define server info and capabilities as per the guide
-const serverInfo = { name: "VrooliMCP", version: "0.1.0" };
-const protocolVersion = "2025-03-26";
+const serverInfo = { name: "vrooli-mcp-server", version: "0.1.0" } as const;
+const protocolVersion = "2025-04-15" as const;
+const jsonRpcVersion = "2.0" as const;
 const SSE_PORT = 3100;
 
 // --- Mode Selection ---
 const args = process.argv.slice(2);
 let mode: 'stdio' | 'sse' = 'sse';
+
+const RpcMethod = {
+    Ready: "$/server/ready",
+    Heartbeat: "$/heartbeat",
+}
+
+type RpcReadyMessage = {
+    jsonrpc: typeof jsonRpcVersion,
+    method: typeof RpcMethod.Ready,
+    params: {
+        serverInfo: typeof serverInfo,
+    }
+}
 
 args.forEach(arg => {
     if (arg.startsWith('--mode=')) {
@@ -62,13 +76,11 @@ if (mode === 'sse') {
             clients.set(clientId, res);
             console.log(`[SSE] Client ${clientId} connected.`);
 
-            const handshakeMessage = {
-                jsonrpc: "2.0",
-                method: "$/server/ready",
+            const handshakeMessage: RpcReadyMessage = {
+                jsonrpc: jsonRpcVersion,
+                method: RpcMethod.Ready,
                 params: {
-                    capabilities: capabilities,
                     serverInfo: serverInfo,
-                    protocolVersion: protocolVersion
                 }
             };
             const sseFormattedHandshake = `data: ${JSON.stringify(handshakeMessage)}\n\n`;
@@ -77,8 +89,15 @@ if (mode === 'sse') {
 
             const heartbeatInterval = setInterval(() => {
                 if (clients.has(clientId)) {
-                    const heartbeatEvent = `data: {"event": "heartbeat"}\n\n`;
+                    // Send a valid JSON-RPC notification as a heartbeat
+                    const heartbeatMessage = {
+                        jsonrpc: jsonRpcVersion,
+                        method: RpcMethod.Heartbeat,
+                    };
+                    const heartbeatEvent = `data: ${JSON.stringify(heartbeatMessage)}\\n\\n`;
                     try {
+                        // Optional: Log the heartbeat being sent for debugging
+                        // console.log(`[SSE] Sending heartbeat to ${clientId}:`, heartbeatMessage);
                         res.write(heartbeatEvent);
                     } catch (error) {
                         console.error(`[SSE] Error sending heartbeat to ${clientId}:`, error);
@@ -122,16 +141,17 @@ if (mode === 'sse') {
                             jsonrpc: "2.0",
                             id: requestData.id,
                             result: {
-                                protocolVersion: protocolVersion,
-                                capabilities: { // Echo client capabilities for now
-                                    tools: { listChanged: true },
-                                    resources: { listChanged: true },
-                                    prompts: { listChanged: true },
-                                    logging: true,
-                                    streaming: true
-                                },
+                                // protocolVersion: protocolVersion,
+                                // capabilities: { // Echo client capabilities for now
+                                //     tools: { listChanged: true },
+                                //     resources: { listChanged: true },
+                                //     prompts: { listChanged: true },
+                                //     logging: true,
+                                //     streaming: true
+                                // },
                                 serverInfo: serverInfo,
-                                offerings: [] // TODO: Populate offerings
+                                tools: [],
+                                // offerings: [] // TODO: Populate offerings
                             }
                         };
 
