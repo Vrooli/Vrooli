@@ -2,6 +2,12 @@
     "mcpServers": {
         "vrooli-mcp-server": {
             "url": "http://161.35.96.7:3100/mcp/sse"
+        },
+        "vrooli-calculate-sum": {
+            "url": "http://161.35.96.7:3100/mcp/tool/calculate_sum/sse"
+        },
+        "vrooli-fetch-resource": {
+            "url": "http://161.35.96.7:3100/mcp/tool/fetch_resource/sse"
         }
     }
 }

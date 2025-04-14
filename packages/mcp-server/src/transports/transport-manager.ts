@@ -64,7 +64,9 @@ export class TransportManager {
 
         try {
             await this.mcpServer.connect(newTransport);
-            this.logger.info(`McpServer connected to transport for a client.`);
+            this.logger.info(`McpServer connected to transport for a client.`, {
+                endpoint: newTransport["_endpoint"],
+            });
             // Handshake is sent automatically by SSEServerTransport
         } catch (error) {
             this.logger.error(`Error connecting McpServer to transport for a client:`, error);
@@ -99,7 +101,9 @@ export class TransportManager {
         if (firstTransport) {
             try {
                 firstTransport.handlePostMessage(req, res);
-                this.logger.info(`Handed POST request to an SSEServerTransport instance.`);
+                this.logger.info(`Handed POST request to an SSEServerTransport instance.`, {
+                    firstTransport: firstTransport,
+                });
             } catch (error) {
                 this.logger.error(`Error handling POST request in SSEServerTransport:`, error);
                 this.sendJsonRpcError(res, -32000, 'Internal server error handling POST');

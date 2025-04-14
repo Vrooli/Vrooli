@@ -1,6 +1,7 @@
 import { Logger, Tool, ToolResponse } from '../types.js';
 import { calculateSum } from './calculate-sum.js';
 import { fetchResource } from './fetch-resource.js';
+import { fetchTool } from './fetch-tool.js';
 
 type ToolHandler = (args: any, logger: Logger) => ToolResponse;
 
@@ -58,6 +59,26 @@ export class ToolRegistry {
                 openWorldHint: false
             }
         });
+
+        this.register('fetch_tool', fetchTool, {
+            name: 'fetch_tool',
+            description: 'Fetch/search for available MCP tools',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'Search string for MCP tools'
+                    }
+                },
+                required: ['query']
+            },
+            annotations: {
+                title: 'Fetch Tool',
+                readOnlyHint: true,
+                openWorldHint: false
+            }
+        });
     }
 
     /**
@@ -78,6 +99,15 @@ export class ToolRegistry {
      */
     getDefinitions(): Tool[] {
         return this.toolDefinitions;
+    }
+
+    /**
+     * Get the handler function for a specific tool.
+     * @param name The name of the tool.
+     * @returns The handler function or undefined if not found.
+     */
+    getHandler(name: string): ToolHandler | undefined {
+        return this.tools.get(name);
     }
 
     /**
