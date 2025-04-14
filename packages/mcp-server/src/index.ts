@@ -4,6 +4,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import express from 'express';
 import type * as http from 'http'; // Import type for ServerResponse
+import { createLogger } from './logger.js';
+import { calculateSum, fetchResource, getToolDefinitions } from './tools.js';
+import { Logger } from './types.js';
 
 // --- Constants ---
 const serverInfo = { name: "vrooli-mcp-server", version: "0.1.0" } as const;
@@ -20,60 +23,6 @@ const connections = new Set<http.ServerResponse>();
 
 type Mode = 'stdio' | 'sse';
 
-/**
- * Tool annotations providing metadata about a tool's behavior.
- */
-interface ToolAnnotations {
-    /** Human-readable title for the tool */
-    title?: string;
-    /** If true, indicates the tool does not modify its environment */
-    readOnlyHint?: boolean;
-    /** If true, the tool may perform destructive updates */
-    destructiveHint?: boolean;
-    /** If true, calling the tool repeatedly with the same arguments has no additional effect */
-    idempotentHint?: boolean;
-    /** If true, the tool may interact with an "open world" of external entities */
-    openWorldHint?: boolean;
-}
-
-/**
- * Interface representing a Tool in the MCP protocol.
- */
-interface Tool {
-    /** Unique identifier for the tool */
-    name: string;
-    /** Human-readable description */
-    description?: string;
-    /** JSON Schema for the tool's parameters */
-    inputSchema: {
-        type: string;
-        properties: Record<string, any>;
-        required?: string[];
-    };
-    /** Optional hints about tool behavior */
-    annotations?: ToolAnnotations;
-}
-
-// --- Fake Winston Logger ---
-/**
- * A simple logger mimicking the Winston interface for basic logging needs.
- * Logs messages to the console.
- */
-function createLogger() {
-    function log(level: string, message: string, ...meta: any[]) {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`, ...meta);
-    };
-    return {
-        info: (message: string, ...meta: any[]) => log('info', message, ...meta),
-        warn: (message: string, ...meta: any[]) => log('warn', message, ...meta),
-        error: (message: string, ...meta: any[]) => log('error', message, ...meta),
-        debug: (message: string, ...meta: any[]) => log('debug', message, ...meta), // Added debug for completeness
-    };
-};
-
-type Logger = ReturnType<typeof createLogger>;
-
 // --- Health Check Logic ---
 /**
  * Returns health information specific to the SSE mode.
@@ -85,94 +34,6 @@ function getSseHealthInfo() {
         activeConnections: connections.size,
         // Add other SSE-specific metrics here in the future
     };
-}
-
-/**
- * Fetches tool information and returns mock tool data.
- * @param logger - The logger instance for logging operations.
- * @returns A Promise resolving to an array of mock tools.
- */
-async function fetchToolInformation(logger: Logger): Promise<Tool[]> {
-    logger.info("Fetching tool information...");
-
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const tools: Tool[] = [
-        {
-            name: "web_search",
-            description: "Search the web for information",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    query: { type: "string" }
-                },
-                required: ["query"]
-            },
-            annotations: {
-                title: "Web Search",
-                readOnlyHint: true,
-                openWorldHint: true
-            }
-        },
-        {
-            name: "calculate_sum",
-            description: "Add two numbers together",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    a: { type: "number" },
-                    b: { type: "number" }
-                },
-                required: ["a", "b"]
-            },
-            annotations: {
-                title: "Calculate Sum",
-                readOnlyHint: true,
-                openWorldHint: false
-            }
-        },
-        {
-            name: "create_file",
-            description: "Create a new file with the given content",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    path: { type: "string" },
-                    content: { type: "string" }
-                },
-                required: ["path", "content"]
-            },
-            annotations: {
-                title: "Create File",
-                readOnlyHint: false,
-                destructiveHint: false,
-                idempotentHint: false,
-                openWorldHint: false
-            }
-        },
-        {
-            name: "delete_file",
-            description: "Delete a file from the filesystem",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    path: { type: "string" }
-                },
-                required: ["path"]
-            },
-            annotations: {
-                title: "Delete File",
-                readOnlyHint: false,
-                destructiveHint: true,
-                idempotentHint: true,
-                openWorldHint: false
-            }
-        }
-    ];
-
-    logger.info(`Fetched ${tools.length} tools.`);
-    return tools;
 }
 
 // --- Mode Selection Function ---
@@ -218,37 +79,13 @@ function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
         version: serverInfo.version,
     }, {
         capabilities: commonCapabilities,
-        // Potentially add serverInfo here if needed by the constructor signature
-        // serverInfo: serverInfo,
     });
 
     // Set up the ListToolsRequest handler
     logger.info("Setting up ListToolsRequest handler...");
     mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         logger.info("Received ListToolsRequest");
-        const tools = await fetchToolInformation(logger);
-
-        // Add our custom resource fetcher tool
-        tools.push({
-            name: "fetch_resource",
-            description: "Fetch a resource by name or search string",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    query: {
-                        type: "string",
-                        description: "Resource name or search string to find the resource"
-                    }
-                },
-                required: ["query"]
-            },
-            annotations: {
-                title: "Fetch Resource",
-                readOnlyHint: true,
-                openWorldHint: false
-            }
-        });
-
+        const tools = getToolDefinitions(logger);
         logger.info(`Responding with ${tools.length} tools`);
         return { tools };
     });
@@ -260,64 +97,18 @@ function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
         const { name, arguments: args } = request.params;
         logger.info(`Received CallToolRequest for tool: ${name}`, args);
 
+        let result;
         // Handle tool calls based on the tool name
         switch (name) {
             case "calculate_sum":
-                const { a, b } = args as { a: number, b: number };
-                const sum = a + b;
-                logger.info(`Calculated sum: ${sum}`);
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: String(sum)
-                        }
-                    ]
-                };
+                result = calculateSum(args as { a: number, b: number }, logger);
+                break;
             case "fetch_resource":
-                const { query } = args as { query: string };
-                logger.info(`Fetching resource with query: ${query}`);
-
-                // Simple resource matching logic
-                let resourceContent = "";
-                let resourceName = "";
-
-                // Mock resources (you could replace this with actual resource fetching logic)
-                if (query.toLowerCase().includes("greeting") || query.toLowerCase().includes("hello")) {
-                    resourceName = "Greeting";
-                    resourceContent = "Hello, world!";
-                } else if (query.toLowerCase().includes("readme") || query.toLowerCase().includes("documentation")) {
-                    resourceName = "README Document";
-                    resourceContent = "# Project README\n\nWelcome to the Vrooli MCP Server project.\n\nThis is a mock README document served through MCP.";
-                } else if (query.toLowerCase().includes("status") || query.toLowerCase().includes("system")) {
-                    resourceName = "System Status";
-                    const statusData = {
-                        status: "operational",
-                        uptime: "3 days, 4 hours",
-                        memory: {
-                            used: "1.2 GB",
-                            available: "4.8 GB"
-                        }
-                    };
-                    resourceContent = JSON.stringify(statusData, null, 2);
-                } else {
-                    resourceName = "Resource Not Found";
-                    resourceContent = `No resource found matching query: "${query}"`;
-                }
-
-                logger.info(`Returning resource: ${resourceName}`);
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: `Resource: ${resourceName}\n\n${resourceContent}`
-                        }
-                    ]
-                };
-            // Other tool implementations would go here
+                result = fetchResource(args as { query: string }, logger);
+                break;
             default:
                 logger.error(`Tool not implemented: ${name}`);
-                return {
+                result = {
                     isError: true,
                     content: [
                         {
@@ -326,7 +117,11 @@ function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
                         }
                     ]
                 };
+                break;
         }
+
+        // Return the result in the format expected by the MCP SDK
+        return result;
     });
     logger.info("CallToolRequest handler set.");
 
@@ -365,7 +160,6 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
             if (connections.has(res)) {
                 try {
                     res.write(': heartbeat\n\n');
-                    // logger.debug('Sent heartbeat comment'); // Optional: uncomment for debugging
                 } catch (error) {
                     logger.error('Error sending heartbeat:', error);
                     clearInterval(heartbeatInterval);
@@ -373,7 +167,6 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
                     const transport = transports.get(res);
                     if (transport) {
                         transports.delete(res);
-                        // Consider transport.disconnect() or mcpServer.disconnect(transport);
                     }
                 }
             } else {
@@ -407,7 +200,6 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
             const closedTransport = transports.get(res);
             if (closedTransport) {
                 logger.info("Cleaning up transport for closed connection.");
-                // Consider closedTransport.disconnect() or mcpServer.disconnect(closedTransport);
                 transports.delete(res);
             }
             logger.info(`Client connection closed. Total clients: ${connections.size}`);
@@ -420,7 +212,6 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
             const errorTransport = transports.get(res);
             if (errorTransport) {
                 logger.info("Cleaning up transport due to stream error.");
-                // Consider errorTransport.disconnect() or mcpServer.disconnect(errorTransport);
                 transports.delete(res);
             }
             logger.info(`Removed client due to stream error. Total clients: ${connections.size}`);
@@ -428,15 +219,10 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
     });
 
     // Route to handle incoming MCP messages POSTed from the client
-    // Re-adding the POST handler, but WITHOUT express.json() middleware
-    // as the SSEServerTransport likely handles parsing the raw request.
     app.post(SSE_MESSAGE_PATH, (req, res) => {
         logger.info(`Received POST on ${SSE_MESSAGE_PATH}`);
         // Find *any* active transport instance to call the method.
-        // This part relies on the SDK's design of handlePostMessage.
-        // If it requires instance-specific context not available here,
-        // this approach might need refinement based on SDK docs.
-        const [anyTransport] = transports.values(); // Assuming handlePostMessage can route or is static-like
+        const [anyTransport] = transports.values();
         if (anyTransport) {
             try {
                 // Pass raw request and response to the handler.
@@ -444,26 +230,25 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
                 logger.info(`Handed POST request to an SSEServerTransport instance.`);
             } catch (error) {
                 logger.error(`Error handling POST request in SSEServerTransport:`, error);
-                // Attempt to send a JSON-RPC error response if possible
                 if (!res.headersSent) {
-                    res.status(500).json({ // Assuming JSON response is acceptable for errors
+                    res.status(500).json({
                         jsonrpc: jsonRpcVersion,
                         error: { code: -32000, message: "Internal server error handling POST" },
-                        id: null // Cannot safely get ID without parsing body
+                        id: null
                     });
                 } else if (!res.writableEnded) {
-                    res.end(); // End the stream if headers were sent but an error occurred
+                    res.end();
                 }
             }
         } else {
             logger.error(`Received POST on ${SSE_MESSAGE_PATH} but no active SSE transports found.`);
-            res.status(503).json({ // Service Unavailable
+            res.status(503).json({
                 jsonrpc: jsonRpcVersion,
                 error: {
                     code: -32000,
                     message: "Server not ready or no active transports"
                 },
-                id: null // Cannot safely get ID without parsing body
+                id: null
             });
         }
     });
@@ -502,8 +287,6 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
             } else {
                 logger.info('HTTP Server closed.');
             }
-            // Optionally disconnect the McpServer if needed, though transports are cleared
-            // mcpServer.disconnect(); // Consider if McpServer needs global disconnect
             logger.info('Shutdown complete.');
             process.exit(err ? 1 : 0);
         });
@@ -528,9 +311,6 @@ function setupSse(mcpServer: McpServer, logger: Logger): void {
 async function setupStdio(mcpServer: McpServer, logger: Logger): Promise<void> {
     logger.info(`Initializing STDIO mode...`);
 
-    // STDIO mode capabilities might differ, adjust mcpServer capabilities if needed
-    // mcpServer.setCapabilities({ ... }); // If dynamic capability setting is supported
-
     logger.info("Preparing StdioServerTransport...");
     const transport = new StdioServerTransport();
     logger.info("StdioServerTransport created.");
@@ -548,9 +328,6 @@ async function setupStdio(mcpServer: McpServer, logger: Logger): Promise<void> {
     // Graceful shutdown for STDIO mode
     const shutdown = () => {
         logger.info('Received termination signal. Shutting down STDIO server...');
-        // The SDK might handle cleanup, or you might need specific disconnection logic
-        // mcpServer.disconnect(transport); // Disconnect specific transport if needed
-        // Or global disconnect: mcpServer.disconnect();
         logger.info('Exiting.');
         process.exit(0);
     };
