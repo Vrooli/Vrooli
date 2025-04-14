@@ -1,7 +1,7 @@
 import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import express from 'express';
 import type * as http from 'http'; // Import type for ServerResponse
 
@@ -208,8 +208,7 @@ function getModeFromArgs(logger: Logger): Mode {
  */
 function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
     const commonCapabilities = {
-        resources: {}, // Example common capability
-        tools: {}, // Add tools capability
+        tools: {}, // Intentially starts empty
         // Add other capabilities shared between modes
     };
 
@@ -223,27 +222,33 @@ function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
         // serverInfo: serverInfo,
     });
 
-    // Setup common request handlers
-    logger.info("Setting up ListResourcesRequest handler...");
-    mcpServer.setRequestHandler(ListResourcesRequestSchema, async (request) => {
-        logger.info("Received ListResourcesRequest:", request);
-        const resourceUriPrefix = mode === 'sse' ? 'sse-resource' : 'stdio-resource';
-        const resources = [
-            {
-                uri: `example://${resourceUriPrefix}-${Date.now()}`, // Dynamic URI
-                name: `Example ${mode.toUpperCase()} Resource`
-            }
-        ];
-        logger.info(`Responding with ${mode.toUpperCase()} resources:`, resources);
-        return { resources };
-    });
-    logger.info("ListResourcesRequest handler set.");
-
     // Set up the ListToolsRequest handler
     logger.info("Setting up ListToolsRequest handler...");
     mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         logger.info("Received ListToolsRequest");
         const tools = await fetchToolInformation(logger);
+
+        // Add our custom resource fetcher tool
+        tools.push({
+            name: "fetch_resource",
+            description: "Fetch a resource by name or search string",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description: "Resource name or search string to find the resource"
+                    }
+                },
+                required: ["query"]
+            },
+            annotations: {
+                title: "Fetch Resource",
+                readOnlyHint: true,
+                openWorldHint: false
+            }
+        });
+
         logger.info(`Responding with ${tools.length} tools`);
         return { tools };
     });
@@ -266,6 +271,46 @@ function createAndConfigureMcpServer(logger: Logger, mode: Mode): McpServer {
                         {
                             type: "text",
                             text: String(sum)
+                        }
+                    ]
+                };
+            case "fetch_resource":
+                const { query } = args as { query: string };
+                logger.info(`Fetching resource with query: ${query}`);
+
+                // Simple resource matching logic
+                let resourceContent = "";
+                let resourceName = "";
+
+                // Mock resources (you could replace this with actual resource fetching logic)
+                if (query.toLowerCase().includes("greeting") || query.toLowerCase().includes("hello")) {
+                    resourceName = "Greeting";
+                    resourceContent = "Hello, world!";
+                } else if (query.toLowerCase().includes("readme") || query.toLowerCase().includes("documentation")) {
+                    resourceName = "README Document";
+                    resourceContent = "# Project README\n\nWelcome to the Vrooli MCP Server project.\n\nThis is a mock README document served through MCP.";
+                } else if (query.toLowerCase().includes("status") || query.toLowerCase().includes("system")) {
+                    resourceName = "System Status";
+                    const statusData = {
+                        status: "operational",
+                        uptime: "3 days, 4 hours",
+                        memory: {
+                            used: "1.2 GB",
+                            available: "4.8 GB"
+                        }
+                    };
+                    resourceContent = JSON.stringify(statusData, null, 2);
+                } else {
+                    resourceName = "Resource Not Found";
+                    resourceContent = `No resource found matching query: "${query}"`;
+                }
+
+                logger.info(`Returning resource: ${resourceName}`);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Resource: ${resourceName}\n\n${resourceContent}`
                         }
                     ]
                 };
