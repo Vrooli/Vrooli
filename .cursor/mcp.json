@@ -1,0 +1,7 @@
+{
+    "mcpServers": {
+        "vrooli-mcp-server": {
+            "url": "http://161.35.96.7:3100/sse"
+        }
+    }
+}
