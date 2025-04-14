@@ -47,7 +47,7 @@
         "js-yaml": "^4.1.0",
         "katex": "^0.16.11",
         "libphonenumber-js": "^1.10.57",
-        "markdown-to-jsx": "7.2.1",
+        "markdown-to-jsx": "7.4.0",
         "react": "^18.2.0",
         "react-big-calendar": "^1.16.0",
         "react-dom": "^18.2.0",
