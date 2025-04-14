@@ -1,6 +1,6 @@
 import { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
 import type * as http from 'http';
 import { ServerConfig } from './config/index.js';
@@ -44,7 +44,7 @@ export class McpServerApp {
             this.logger.info("Received ListToolsRequest");
             const tools = this.toolRegistry.getDefinitions();
             this.logger.info(`Responding with ${tools.length} tools`);
-            return { tools };
+            return { tools } as ServerResult;
         });
 
         // Call tool request handler
@@ -52,12 +52,7 @@ export class McpServerApp {
         this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             this.logger.info(`Received CallToolRequest for tool: ${name}`);
-            const result = await this.toolRegistry.execute(name, args);
-
-            // Format response according to MCP SDK expectations
-            return {
-                result: result
-            };
+            return this.toolRegistry.execute(name, args) as Promise<ServerResult>;
         });
     }
 
@@ -94,14 +89,14 @@ export class McpServerApp {
         );
 
         // Health check endpoint
-        app.get('/health', (req, res) => {
+        app.get('/mcp/health', (req, res) => {
             const healthInfo = this.transportManager!.getHealthInfo();
             this.logger.info(`Health check requested: ${JSON.stringify(healthInfo)}`);
             res.json(healthInfo);
         });
 
         // SSE endpoint
-        app.get('/sse', (req, res) => {
+        app.get('/mcp/sse', (req, res) => {
             this.transportManager!.handleSseConnection(req, res);
         });
 
@@ -110,17 +105,13 @@ export class McpServerApp {
             this.transportManager!.handlePostMessage(req, res);
         });
 
-        // Root path
-        app.get('/', (req, res) => {
-            res.send(`${this.config.serverInfo.name} v${this.config.serverInfo.version} is running. Use /sse for MCP connection.`);
-        });
-
         // Start HTTP server
         return new Promise((resolve, reject) => {
             this.httpServer = app.listen(this.config.port, () => {
                 this.logger.info(`${this.config.serverInfo.name} listening on http://localhost:${this.config.port}`);
-                this.logger.info(`SSE endpoint available at http://localhost:${this.config.port}/sse`);
-                this.logger.info(`MCP message endpoint at http://localhost:${this.config.port}${this.config.messagePath}`);
+                this.logger.info(`MCP Health endpoint available at http://localhost:${this.config.port}/mcp/health`);
+                this.logger.info(`MCP SSE endpoint available at http://localhost:${this.config.port}/mcp/sse`);
+                this.logger.info(`MCP Message endpoint at http://localhost:${this.config.port}${this.config.messagePath}`);
                 resolve();
             });
 

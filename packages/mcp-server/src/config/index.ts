@@ -15,7 +15,7 @@ export interface ServerConfig {
 const DEFAULT_CONFIG: ServerConfig = {
     mode: 'sse',
     port: 3100,
-    messagePath: '/mcp',
+    messagePath: '/mcp/messages',
     heartbeatInterval: 30000,
     serverInfo: {
         name: 'vrooli-mcp-server',
