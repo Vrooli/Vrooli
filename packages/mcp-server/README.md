@@ -4,21 +4,20 @@ A Model Context Protocol (MCP) server for the Vrooli project that provides tools
 
 ## What is MCP?
 
-Model Context Protocol (MCP) is an open protocol developed by Anthropic that standardizes how applications provide context to LLMs. Think of MCP like a USB-C port for AI applications - a standardized way to connect AI models to different data sources and tools.
+Model Context Protocol (MCP) is an open protocol, originally developed by Anthropic and now community-maintained, that standardizes how applications provide context to LLMs. Think of MCP like a USB-C port for AI applications - a standardized way to connect AI models to different data sources and tools.
 
-## Features
+## Features (Example)
 
-- **Project Information**: Get basic or detailed information about the Vrooli project
-- **Search Functionality**: Search for routines, users, and teams in the project
-- **Project Documentation**: Access project README and other documentation
-- **File Structure**: Get a hierarchical view of the project file structure
+*(Update this section with actual implemented tools/resources)*
+
+- **Example Resource**: Provides a basic example resource.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 16+
-- Yarn
+- Node.js 18+ (or version supporting top-level await)
+- npm (comes with Node.js)
 
 ### Installation
 
@@ -30,96 +29,98 @@ npm install
 
 ### Running the Server
 
-```bash
-# Development mode with auto-reload
-npm run dev
+This server can run in two modes:
 
-# Production mode
-npm start
+-   **SSE (Server-Sent Events) Mode (Default):** Runs an HTTP server on port 3100, communicating via SSE. This is typically used for remote connections (e.g., connecting from Cursor manually).
+-   **STDIO Mode:** Uses standard input/output for communication, typically launched and managed by a local client application using the MCP SDK.
+
+You can select the mode using the `--mode` flag. If no flag is provided, it defaults to **SSE mode**.
+
+```bash
+# Run in SSE mode (default)
+npx ts-node src/index.ts
+# OR explicitly:
+npx ts-node src/index.ts --mode=sse
+
+# Run in STDIO mode
+npx ts-node src/index.ts --mode=stdio
 ```
 
-The server will start on port 3100 by default. You can change this by setting the `MCP_SERVER_PORT` environment variable.
+When running in SSE mode, the server will listen on `http://localhost:3100`.
 
 ## Connecting to the Server
 
-### In Cursor IDE
+### In Cursor IDE (SSE Mode)
 
-1. Open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P)
-2. Type "Connect to MCP Server" and select it
-3. Enter `ws://localhost:3100` as the server URL
-4. The Vrooli MCP Server should now be available to the LLM in Cursor
+1.  Ensure the server is running in SSE mode (`npx ts-node src/index.ts --mode=sse`).
+2.  Open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P).
+3.  Type "Connect to MCP Server" and select it.
+4.  Enter `http://localhost:3100/sse` as the server URL (use `http`, not `ws`).
+5.  The Vrooli MCP Server should now be available to the LLM in Cursor.
 
-## Available Tools
+### STDIO Mode
 
-- `project_info`: Get information about the Vrooli project
-- `search_routines`: Search for routines, users, and teams in the project
+Connections in STDIO mode are typically handled automatically by the client application that launches the server process. Manual connection is usually not required.
 
-## Available Resources
+## Available Tools & Resources
 
-- `project_readme`: The README file for the Vrooli project
-- `project_structure`: The directory structure of the Vrooli project
+*(Update this section based on implementation)*
+
+Currently, the server provides basic example resources/tools depending on the mode.
+
+-   **SSE Mode:** The `initialize` response currently sends an empty `offerings` array. Tools/resources need to be added to the POST `/` handler.
+-   **STDIO Mode:** Includes an example resource (`example://resource-stdio`).
 
 ## Development
 
 ### Running Tests
 
+*(Assumes test setup exists)*
+
 ```bash
 npm test
 ```
 
-### Adding New Tools
+### Adding New Tools (Example for STDIO Mode)
 
-To add a new tool, create a new file in the `src/tools` directory and export an object with the following structure:
+To add a new tool (example structure, adapt as needed), you might create a definition and register it within the `index.ts` file inside the `if (mode === 'stdio')` block, potentially adjusting the `sdkCapabilities` and using the SDK's methods if available, or by populating the `offerings` array in the `initialize` response for SSE mode.
 
-```javascript
-export const myTool = {
-  id: 'my_tool',
-  name: 'My Tool',
-  description: 'Description of my tool',
-  parameters: {
-    type: 'object',
-    properties: {
-      // Parameter definitions
-    }
-  },
-  handler: async (params) => {
-    // Tool implementation
-    return result;
-  }
+```typescript
+// Example Tool Definition (Conceptual)
+const myToolDefinition = {
+  // MCP Tool Schema fields
+  // ...
 };
+
+// Registration might involve:
+// 1. Adding to offerings in initialize response (SSE)
+// 2. Using an SDK method like server.addTool() (STDIO, if available)
 ```
 
-Then register it in `src/index.js` by adding it to the `tools` array.
+### Adding New Resources (Example for STDIO Mode)
 
-### Adding New Resources
+Similar to tools, resource definitions follow the MCP specification. Register them in the appropriate mode's logic (`offerings` array for SSE, potentially using SDK methods for STDIO).
 
-To add a new resource, create a new file in the `src/resources` directory and export an object with the following structure:
-
-```javascript
-export const myResource = {
-  id: 'my_resource',
-  name: 'My Resource',
-  description: 'Description of my resource',
-  resource_type: 'text',
-  parameters: {
-    type: 'object',
-    properties: {
-      // Parameter definitions (optional)
-    }
-  },
-  handler: async (params) => {
-    // Resource implementation
-    return {
-      content: 'Resource content',
-      metadata: {
-        // Resource metadata
-      }
-    };
-  }
+```typescript
+// Example Resource Definition (Conceptual)
+const myResourceDefinition = {
+  // MCP Resource Schema fields
+  uri: "vrooli://my-resource",
+  name: "My Vrooli Resource",
+  // ...
 };
+
+// Handler for reading the resource
+mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  if (request.params.uri === myResourceDefinition.uri) {
+    // Logic to fetch and return resource content
+    return { contents: [{ uri: request.params.uri, text: "Resource content" }] };
+  }
+  // Handle other resource URIs or throw error
+});
 ```
 
-Then register it in `src/index.js` by adding it to the `resources` array.
+Refer to the [MCP Specification](https://spec.modelcontextprotocol.io/) for details on tool and resource schemas.
 
 ## License
 
