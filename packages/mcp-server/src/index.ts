@@ -93,6 +93,30 @@ if (mode === 'sse') {
         connections.add(res);
         console.log(`[SSE] Client connected. Total clients: ${connections.size}`);
 
+        // Start sending heartbeats (SSE comments) to keep the connection alive
+        const heartbeatInterval = setInterval(() => {
+            if (connections.has(res)) { // Check if connection is still active
+                try {
+                    res.write(': heartbeat\n\n');
+                    // console.log('[SSE] Sent heartbeat comment'); // Optional: uncomment for debugging
+                } catch (error) {
+                    console.error('[SSE] Error sending heartbeat:', error);
+                    // Error likely means connection is already closed, clean up
+                    clearInterval(heartbeatInterval);
+                    connections.delete(res);
+                    const transport = transports.get(res);
+                    if (transport) {
+                        transports.delete(res);
+                        // transport.disconnect(); // or mcpServer.disconnect(transport)
+                    }
+                }
+            } else {
+                // Connection is no longer in the set, stop the heartbeat
+                clearInterval(heartbeatInterval);
+                console.log('[SSE] Heartbeat stopped for disconnected client.');
+            }
+        }, 30000); // Send heartbeat every 30 seconds
+
         // Create and connect the SSE transport for this specific connection
         // Pass the response object directly to the transport
         const newTransport = new SSEServerTransport(SSE_MESSAGE_PATH, res);
@@ -108,13 +132,9 @@ if (mode === 'sse') {
                 connections.delete(res);
             });
 
-        // Heartbeat mechanism (optional, SDK might handle keep-alive)
-        // If needed, implement a clean heartbeat like before, ensuring it uses the SDK's transport if possible or sends valid JSON-RPC pings.
-        // const heartbeatInterval = setInterval(() => { ... }, 30000);
-
         req.on('close', () => {
             console.log(`[SSE] Client disconnected.`);
-            // clearInterval(heartbeatInterval); // Clear heartbeat if implemented
+            clearInterval(heartbeatInterval); // Stop heartbeat on close
             connections.delete(res);
             // Consider if the transport needs explicit disconnection/cleanup here
             // sseTransport?.disconnect(); // Or similar method if available
@@ -130,7 +150,7 @@ if (mode === 'sse') {
 
         res.on('error', (error) => {
             console.error(`[SSE] Error on response stream for a client:`, error);
-            // clearInterval(heartbeatInterval); // Clear heartbeat if implemented
+            clearInterval(heartbeatInterval); // Stop heartbeat on error
             connections.delete(res);
             const errorTransport = transports.get(res);
             if (errorTransport) {
@@ -159,7 +179,14 @@ if (mode === 'sse') {
             // The current approach of grabbing the first transport is a placeholder.
         } else {
             console.error(`[SSE] Received POST on ${SSE_MESSAGE_PATH} but no active SSE transports found or routing unclear.`);
-            res.status(503).json({ jsonrpc: "2.0", error: { code: -32000, message: "Server not ready or transport not initialized" }, id: req.body?.id || null });
+            res.status(503).json({
+                jsonrpc: jsonRpcVersion,
+                error: {
+                    code: -32000,
+                    message: "Server not ready or transport not initialized"
+                },
+                id: req.body?.id || null
+            });
         }
     });
 
