@@ -78,28 +78,46 @@ is_proxy_location_valid() {
 }
 
 get_proxy_location() {
-    # If location is already valid, return early
+    # Check if the initial PROXY_LOCATION (passed via -n or the script default) is valid
     if is_proxy_location_valid; then
+        info "Using provided or default proxy location: $PROXY_LOCATION"
         return 0
     fi
 
-    # Prompt user for location
+    # Prompt user for location if the initial one wasn't valid
     while true; do
-        prompt "Enter path to proxy container directory (defaults to $DEFAULT_PROXY_LOCATION):"
+        prompt "Enter path to proxy container directory (or press Enter for default: $DEFAULT_PROXY_LOCATION):"
         read -r input_location
-        PROXY_LOCATION=${input_location:-$DEFAULT_PROXY_LOCATION}
 
-        # If location is valid, return
-        if is_proxy_location_valid; then
-            return 0
+        local target_location # Variable to hold the location to check
+        if [ -z "$input_location" ]; then
+            # User pressed Enter, use the default
+            target_location="$DEFAULT_PROXY_LOCATION"
+            info "Selected default location: $target_location"
+        else
+            # User provided input
+            target_location="$input_location"
+            info "Checking provided location: $target_location"
         fi
 
-        # Otherwise, prompt user to try again
-        error "Location invalid."
-        prompt "Do you want to try again? Say no to clone and set up proxy containers (y/N):"
-        read -r try_again
-        if [[ "$try_again" =~ ^(no|n)$ ]]; then
+        # Check if the target location is a valid directory
+        if [ -d "$target_location" ]; then
+            # It's a valid directory, set PROXY_LOCATION and return success
+            PROXY_LOCATION="$target_location"
+            success "Using existing directory: $PROXY_LOCATION"
             return 0
+        else
+            # The location (either provided or default attempt) is not a valid directory
+            error "Location '$target_location' is not a valid directory."
+            prompt "Do you want to specify a different path? Say no to clone into the default location '$DEFAULT_PROXY_LOCATION' (y/N):"
+            read -r try_again
+            if [[ "$try_again" =~ ^[Nn][Oo]?$ ]]; then # Match n, N, no, No
+                # User chose not to provide a valid path, signal to use default and clone
+                # We don't set PROXY_LOCATION here; main will set it based on return code 1
+                info "Opted to clone into default location: $DEFAULT_PROXY_LOCATION"
+                return 1
+            fi
+            # If user says 'y' or anything else, loop continues to ask for path again
         fi
     done
 }
@@ -195,10 +213,18 @@ main() {
 
     # Get proxy location
     get_proxy_location
-    if ! is_proxy_location_valid; then
-        error "Proxy location not found or is invalid."
-        exit $ERROR_PROXY_LOCATION_NOT_FOUND
+    local get_loc_ret=$?
+
+    # If return code is 1, user opted to use default location (needs cloning)
+    if [ $get_loc_ret -eq 1 ]; then
+        info "Using default proxy location for cloning: $DEFAULT_PROXY_LOCATION"
+        PROXY_LOCATION="$DEFAULT_PROXY_LOCATION"
+    elif [ $get_loc_ret -ne 0 ]; then
+        # Handle potential unexpected error from get_proxy_location if needed
+        error "Failed to determine proxy location."
+        exit $ERROR_PROXY_LOCATION_NOT_FOUND # Or another appropriate error code
     fi
+    # If get_loc_ret was 0, PROXY_LOCATION is already set to a user-provided valid directory
 
     # Clone and set up proxy repo if necessary
     setup_proxy_repo

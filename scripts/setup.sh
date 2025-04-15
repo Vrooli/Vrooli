@@ -191,7 +191,7 @@ setup_local_server() {
     header "Installing mailx"
     # TODO - Not working for some reason
     # info "Select option 2 (Internet Site) then enter \"http://mirrors.kernel.org/ubuntu\" when prompted."
-    #sudo apt-get install -y mailutils
+    #sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mailutils
 
     # Check if .env and .env-prod exist. If not, create them using .env-example.
     if [ ! -f "${HERE}/../.env" ]; then
@@ -210,7 +210,7 @@ setup_local_server() {
     if ! command -v keytool &>/dev/null; then
         header "Installing JDK for keytool"
         sudo apt update
-        sudo apt install -y default-jdk
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y default-jdk
         success "JDK installed. keytool should now be available."
     else
         info "keytool is already installed"
@@ -294,7 +294,7 @@ setup_node() {
 
 setup_json_parser() {
     header "Installing jq for JSON parsing"
-    sudo apt-get install -y jq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 }
 
 setup_kubernetes() {
@@ -508,6 +508,11 @@ setup_docker_internet() {
     fi
 }
 
+setup_docker_resource_limits() {
+    header "Setting up Docker resource limits"
+    sudo ./setupDockerQuota.sh
+}
+
 setup_development_environment() {
     header "Installing global dependencies"
     installedPackages=$(yarn global list)
@@ -568,7 +573,7 @@ setup_development_environment() {
     "${HERE}/shared.sh"
 
     # Install AWS CLI, for uploading to S3 bucket. This is used for Kubernetes deployments.
-    sudo apt-get install awscli
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y awscli
 }
 
 setup_production_environment() {
@@ -606,7 +611,11 @@ setup_vault() {
     VAULT_LIST="/etc/apt/sources.list.d/hashicorp.list"
     echo "deb [signed-by=$VAULT_KEYRING] https://apt.releases.hashicorp.com $DISTRO_CODENAME main" | sudo tee "$VAULT_LIST"
     # Update APT and install Vault
-    sudo apt update && sudo apt install -y vault
+    info "Running apt update..."
+    sudo apt update
+    info "Finished apt update. Installing vault..."
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y vault
+    info "Finished installing vault."
     # Setup vault based on environment
     FLAGS=""
     if [ "${ENVIRONMENT}" = "production" ]; then
@@ -657,7 +666,7 @@ setup_ci_cd() {
     fi
     
     info "Installing basic tools for CI/CD deployment..."
-    apt install -y curl git rsync
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y curl git rsync
 
     # Create deployment directory
     header "Creating deployment directory"
@@ -815,6 +824,7 @@ main() {
     setup_docker_compose
     setup_docker_network
     setup_docker_internet
+    setup_docker_resource_limits
 
     if [ "${ENVIRONMENT}" = "development" ]; then
         setup_development_environment

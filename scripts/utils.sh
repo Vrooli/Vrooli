@@ -107,6 +107,14 @@ exit_with_error() {
     exit "$code"
 }
 
+# Continue with error message and code
+continue_with_error() {
+    local message="$1"
+    local code="${2:-1}" # Default to exit code 1 if not provided
+    error "$message"
+    return "$code"
+}
+
 # Only run a function if the script is executed (not sourced)
 run_if_executed() {
     local callback="$1"
