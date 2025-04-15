@@ -5,9 +5,14 @@ import { Logger, ToolResponse } from './types.js';
  */
 enum ResourceType {
     Note = "Note",
-    Reminder = "Reminder",
     Routine = "Routine",
-    User = "User"
+}
+
+type Note = {
+    id: string;
+    content: string;
+    name: string;
+    description?: string;
 }
 
 type Routine = {
@@ -15,6 +20,7 @@ type Routine = {
     content: string;
     name: string;
     description?: string;
+    mcpUrl?: string; // Added MCP URL field
 }
 
 /**
@@ -22,14 +28,18 @@ type Routine = {
  * The outer map uses ResourceType as keys.
  * The inner map uses the resource name (string) as keys and content (string) as values.
  */
-const resourceStore = new Map<ResourceType, Map<string, unknown>>([
-    [ResourceType.Note, new Map<string, string>([
-        ["Meeting Notes - Project Alpha", "Discussed roadmap milestones. Action items assigned."],
-        ["Brainstorming Ideas", "- Integrate new AI model\n- Refactor UI components"]
-    ])],
-    [ResourceType.Reminder, new Map<string, string>([
-        ["Reminder: Submit Report", "Submit the quarterly report by EOD Friday."],
-        ["Reminder: Call John", "Call John Doe regarding the project update tomorrow at 10 AM."]
+const resourceStore = new Map<ResourceType, Map<string, Note | Routine>>([
+    [ResourceType.Note, new Map<string, Note>([
+        ["68479a52-8553-43c0-913c-0958960f9084", {
+            id: "68479a52-8553-43c0-913c-0958960f9084",
+            content: "Discussed roadmap milestones. Action items assigned.",
+            name: "Meeting Notes - Project Alpha"
+        }],
+        ["d5897f8f-f9ba-48c9-8280-437c8bb274ef", {
+            id: "d5897f8f-f9ba-48c9-8280-437c8bb274ef",
+            content: "- Integrate new AI model\n- Refactor UI components",
+            name: "Brainstorming Ideas"
+        }]
     ])],
     [ResourceType.Routine, new Map<string, Routine>([
         ["c9dd779d-ebf2-4e65-8429-4eef5c40aa4a", {
@@ -44,20 +54,18 @@ const resourceStore = new Map<ResourceType, Map<string, unknown>>([
             name: "Weekly Review"
         }]
     ])],
-    [ResourceType.User, new Map<string, string>([
-        ["John Doe", "john.doe@example.com"]
-    ])]
 ]);
 
 /**
- * Finds an existing Routine by name.
+ * Finds existing Routines by id or name.
  *
  * @param args - The arguments for the tool, containing the search query.
  * @param logger - The logger instance for logging operations.
  * @returns Routines that match the search query.
  */
-export async function findRoutine(args: { id?: string, query?: string }, logger: Logger): Promise<Routine[]> {
+export async function findRoutines(args: { id?: string, query?: string }, logger: Logger): Promise<Routine[]> {
     const { id, query } = args;
+    const baseMcpUrl = 'http://161.35.96.7:3100'; // Base URL for constructing tool URLs
 
     const safeId = typeof id === 'string' ? id : "";
     const safeQuery = typeof query === 'string' ? query : "";
@@ -74,7 +82,41 @@ export async function findRoutine(args: { id?: string, query?: string }, logger:
             routine.content.toLowerCase().includes(normalizedQuery);
     });
 
-    return foundRoutines;
+    // Add the mcpUrl to each found routine
+    const routinesWithUrl = foundRoutines.map(routine => ({
+        ...routine,
+        mcpUrl: `${baseMcpUrl}/mcp/tool/${routine.id}/sse`
+    }));
+
+    return routinesWithUrl;
+}
+
+/**
+ * Finds existing Notes by id or name.
+ *
+ * @param args - The arguments for the tool, containing the search query.
+ * @param logger - The logger instance for logging operations.
+ * @returns Notes that match the search query.
+ */
+export async function findNotes(args: { id?: string, query?: string }, logger: Logger): Promise<Note[]> {
+    const { id, query } = args;
+
+    const safeId = typeof id === 'string' ? id : "";
+    const safeQuery = typeof query === 'string' ? query : "";
+    const normalizedQuery = safeQuery.toLowerCase().trim();
+
+    logger.info(`Searching for tools with id: "${safeId}" or query: "${normalizedQuery}"`);
+
+    // Search resource store for matching routines
+    const foundNotes = (Array.from(resourceStore.get(ResourceType.Note)?.values() || []) as Note[]).filter((note) => {
+        if (safeId.length > 0) {
+            return note.id === safeId;
+        }
+        return note.name.toLowerCase().includes(normalizedQuery) ||
+            note.content.toLowerCase().includes(normalizedQuery);
+    });
+
+    return foundNotes;
 }
 
 /**
@@ -100,16 +142,16 @@ export async function runRoutine(args: RunRoutineParams, logger: Logger): Promis
     logger.info(`Running routine: "${id}" with replacement: "${replacement}"`);
 
     // Find the routine
-    const routine = await findRoutine({ id }, logger);
+    const routines = await findRoutines({ id }, logger);
 
-    if (routine.length === 0) {
+    if (routines.length === 0) {
         logger.warn(`No routine found matching id: "${id}"`);
         return {
             content: [{ type: "text", text: `No routine found matching id: "${id}".` }]
         };
     }
 
-    const { content } = routine[0];
+    const { content } = routines[0];
 
     const result = content.replace('{arg}', replacement);
 
@@ -123,9 +165,11 @@ export async function runRoutine(args: RunRoutineParams, logger: Logger): Promis
 /**
  * Interface for the arguments accepted by the fetch_resource tool.
  */
-interface FindResourceParams {
-    /** The exact name of the resource to fetch. */
-    name: string;
+interface FindResourcesParams {
+    /** The ID of the resource to fetch. */
+    id?: string;
+    /** The name or search query to find resources by, if not using an ID. */
+    query?: string;
     /** The type of resource to fetch (notes or reminders). */
     resource_type: ResourceType;
 }
@@ -138,70 +182,40 @@ interface FindResourceParams {
  * @param logger - The logger instance for logging operations.
  * @returns A ToolResponse object containing the found resource or an error message.
  */
-export async function findResource(args: FindResourceParams, logger: Logger): Promise<ToolResponse> {
-    const { name, resource_type } = args;
+export async function findResources(args: FindResourcesParams, logger: Logger): Promise<ToolResponse> {
+    const { id, query, resource_type } = args;
 
-    logger.info(`Attempting to fetch resource of type "${resource_type}" with name: "${name}"`);
+    logger.info(`Attempting to fetch resource of type "${resource_type}" with id: "${id}" or query: "${query}"`);
 
-    // Validate resource type
-    if (!Object.values(ResourceType).includes(resource_type)) {
-        logger.warn(`Invalid resource_type specified: "${resource_type}"`);
+    let resources: Note[] | Routine[] = [];
+    if (resource_type === ResourceType.Routine) {
+        resources = await findRoutines({ id, query }, logger);
+    } else if (resource_type === ResourceType.Note) {
+        resources = await findNotes({ id, query }, logger);
+    }
+
+    if (resources.length === 0) {
+        const errorMessage = id
+            ? `Resource not found with id "${id}" for type "${resource_type}".`
+            : query
+                ? `Resource not found with query "${query}" for type "${resource_type}".`
+                : `No resources found for type "${resource_type}".`;
+        logger.info(errorMessage);
         return {
             content: [
                 {
                     type: "text",
-                    text: `Error: Invalid resource_type "${resource_type}". Allowed types are "notes" or "reminders".`
+                    text: errorMessage
                 }
             ]
         };
     }
 
-    // Validate name
-    if (!name || typeof name !== 'string' || name.trim() === "") {
-        logger.warn(`Fetch resource called with empty or invalid name for type "${resource_type}".`);
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `Please provide a non-empty name for resource type "${resource_type}".`
-                }
-            ]
-        };
-    }
-
-    const typeStore = resourceStore.get(resource_type);
-    if (!typeStore) {
-        // This case should ideally not happen if validation is correct, but good for robustness
-        logger.error(`Internal error: No store found for valid resource type "${resource_type}".`);
-        return { content: [{ type: "text", text: `Internal error fetching resource type "${resource_type}".` }] };
-    }
-
-    const resourceContent = typeStore.get(name);
-
-    if (resourceContent !== undefined) {
-        logger.info(`Successfully fetched resource: "${name}" (Type: ${resource_type})`);
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `Resource Type: ${resource_type}
-Name: ${name}
-
-${resourceContent}`
-                }
-            ]
-        };
-    } else {
-        logger.info(`Resource not found: "${name}" (Type: ${resource_type})`);
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `Resource not found with name "${name}" for type "${resource_type}".`
-                }
-            ]
-        };
-    }
+    logger.info(`Successfully found resources for type "${resource_type}". Id: "${id}", Query: "${query}". Returning details.`);
+    const responseText = JSON.stringify(resources, null, 2);
+    return {
+        content: [{ type: "text", text: responseText }]
+    };
 }
 
 /**
@@ -257,12 +271,16 @@ export async function addResource(args: AddResourceArgs, logger: Logger): Promis
     let typeStore = resourceStore.get(resource_type);
     if (!typeStore) {
         logger.warn(`Creating new store for resource type "${resource_type}" as it did not exist.`);
-        typeStore = new Map<string, string>();
+        typeStore = new Map<string, Note | Routine>();
         resourceStore.set(resource_type, typeStore);
     }
 
     // Add or update the resource
-    typeStore.set(name, content);
+    typeStore.set(name, {
+        id: crypto.randomUUID(),
+        name,
+        content,
+    });
 
     logger.info(`Successfully added/updated resource: "${name}" (Type: ${resource_type})`);
     return {
@@ -369,7 +387,11 @@ export async function updateResource(args: UpdateResourceParams, logger: Logger)
     }
 
     // Update the resource
-    typeStore.set(name, content);
+    typeStore.set(name, {
+        id: crypto.randomUUID(),
+        name,
+        content,
+    });
 
     logger.info(`Successfully updated resource: "${name}" (Type: ${resource_type})`);
     return {

@@ -4,8 +4,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from '@mo
 import express from 'express';
 import type * as http from 'http';
 import { ServerConfig } from './config/index.js';
-import { findRoutine, runRoutine } from './tools.js';
-import { McpRoutineToolName, McpToolName, ToolRegistry } from './tools/registry.js';
+import { McpRoutineToolName, McpToolName, ToolRegistry } from './registry.js';
+import { findRoutines, runRoutine } from './tools.js';
 import { TransportManager } from './transports/transport-manager.js';
 import { Logger } from './types.js';
 
@@ -77,7 +77,7 @@ export class McpServerApp {
         }
 
         // Await the promise to get the array of definitions
-        const matchingRoutines = await findRoutine({ id: toolId }, this.logger);
+        const matchingRoutines = await findRoutines({ id: toolId }, this.logger);
         if (matchingRoutines.length === 0) {
             this.logger.error(`Attempted to create dynamic server for non-existent routine: ${toolId}`);
             return null;

@@ -1,5 +1,5 @@
-import { addResource, deleteResource, findResource, runRoutine, updateResource } from '../tools.js';
-import { Logger, Tool, ToolResponse } from '../types.js';
+import { addResource, deleteResource, findResources, runRoutine, updateResource } from './tools.js';
+import { Logger, Tool, ToolResponse } from './types.js';
 
 type ToolHandler = (args: any, logger: Logger) => Promise<ToolResponse>;
 
@@ -9,7 +9,7 @@ export enum McpToolName {
     /** Delete a note, reminder, routine, user, etc. */
     DeleteResources = 'delete_resource',
     /** Find notes, reminders, routines, users, etc. */
-    FindResource = 'find_resource',
+    FindResources = 'find_resources',
     /** Run a routine (dynamic tool) */
     RunRoutine = 'run_routine',
     /** Update a note, reminder, routine, user, etc. */
@@ -25,7 +25,7 @@ export enum McpRoutineToolName {
 
 const toolDefinitions: Map<McpToolName, Tool> = new Map([
     [McpToolName.AddResource, {
-        name: 'add_resource',
+        name: McpToolName.AddResource,
         description: 'Add or update a resource',
         inputSchema: {
             type: 'object',
@@ -37,7 +37,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
                 resource_type: {
                     type: 'string',
                     description: 'The type of the resource.',
-                    enum: ['Note', 'Reminder', 'Routine', 'User']
+                    enum: ['Note', 'Routine']
                 },
                 content: {
                     type: 'string',
@@ -53,7 +53,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
         }
     }],
     [McpToolName.DeleteResources, {
-        name: 'delete_resource',
+        name: McpToolName.DeleteResources,
         description: 'Delete a resource',
         inputSchema: {
             type: 'object',
@@ -65,7 +65,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
                 resource_type: {
                     type: 'string',
                     description: 'The type of the resource to delete.',
-                    enum: ['Note', 'Reminder', 'Routine', 'User']
+                    enum: ['Note', 'Routine']
                 }
             },
             required: ['name', 'resource_type']
@@ -76,23 +76,27 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
             openWorldHint: false
         }
     }],
-    [McpToolName.FindResource, {
-        name: 'find_resource',
+    [McpToolName.FindResources, {
+        name: McpToolName.FindResources,
         description: 'Search for a resource by its exact name and type.',
         inputSchema: {
             type: 'object',
             properties: {
-                name: {
+                id: {
                     type: 'string',
-                    description: 'The exact name of the resource to fetch.'
+                    description: 'The ID of the resource to fetch, if not using a name.'
+                },
+                query: {
+                    type: 'string',
+                    description: 'The name or search query to find resources by, if not using an ID.'
                 },
                 resource_type: {
                     type: 'string',
                     description: 'The type of resource to fetch.',
-                    enum: ['Note', 'Reminder', 'Routine', 'User']
+                    enum: ['Note', 'Routine']
                 }
             },
-            required: ['name', 'resource_type']
+            required: ['resource_type']
         },
         annotations: {
             title: 'Find Resource',
@@ -101,7 +105,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
         }
     }],
     [McpToolName.RunRoutine, {
-        name: 'run_routine',
+        name: McpToolName.RunRoutine,
         description: 'Run a routine',
         inputSchema: {
             type: 'object',
@@ -120,7 +124,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
         }
     }],
     [McpToolName.UpdateResource, {
-        name: 'update_resource',
+        name: McpToolName.UpdateResource,
         description: 'Update a resource',
         inputSchema: {
             type: 'object',
@@ -159,7 +163,7 @@ export class ToolRegistry {
     private registerTools(): void {
         this.registerBuiltInTool(McpToolName.AddResource, addResource);
         this.registerBuiltInTool(McpToolName.DeleteResources, deleteResource);
-        this.registerBuiltInTool(McpToolName.FindResource, findResource);
+        this.registerBuiltInTool(McpToolName.FindResources, findResources);
         this.registerBuiltInTool(McpToolName.RunRoutine, runRoutine);
         this.registerBuiltInTool(McpToolName.UpdateResource, updateResource);
     }
