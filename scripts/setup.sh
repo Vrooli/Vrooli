@@ -510,7 +510,7 @@ setup_docker_internet() {
 
 setup_docker_resource_limits() {
     header "Setting up Docker resource limits"
-    sudo ./setupDockerQuota.sh
+    "${HERE}/setupDockerQuota.sh"
 }
 
 setup_development_environment() {
