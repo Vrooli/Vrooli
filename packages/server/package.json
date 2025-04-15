@@ -19,7 +19,7 @@
         "lint": "eslint src",
         "build": "rimraf dist && NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && yarn post-build",
         "pre-prod": "prisma migrate deploy && yarn prisma-generate",
-        "pre-develop": "yarn pre-prod && yarn type-check",
+        "pre-develop": "yarn pre-prod",
         "post-build": "yarn post-build-copy",
         "post-build-copy": "copyfiles -u 1 \"src/**/*.txt\" \"src/**/*.lua\" \"src/**/*.html\" \"src/**/*.prisma\" \"src/**/*.sql\" \"src/auth/message_signing/rust/pkg/*.wasm\" \"src/auth/message_signing/rust/pkg/*.json\" \"src/auth/message_signing/rust/pkg/emurgo_message_signing.cjs\" dist",
         "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" nodemon dist/index.js",

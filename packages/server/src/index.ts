@@ -12,7 +12,7 @@ import { logger } from "./events/logger.js";
 import { initializeRedis } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { setupHealthCheck } from "./services/health.js";
-import { setupMCP } from "./services/mcp/__original.js";
+import { setupMCP } from "./services/mcp/index.js";
 import { setupStripe } from "./services/stripe.js";
 import { io, sessionSockets, userSockets } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
@@ -76,7 +76,7 @@ async function main() {
     }));
 
     // For parsing application/json. 
-    app.use((req, res, next) => {
+    app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
         // Exclude on stripe webhook endpoint
         if (req.originalUrl === "/webhooks/stripe") {
             next();
