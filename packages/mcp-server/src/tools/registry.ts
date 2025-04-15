@@ -1,120 +1,177 @@
-import { addResource, calculateSum, fetchResource, fetchTool } from '../tools.js';
+import { addResource, deleteResource, findResource, runRoutine, updateResource } from '../tools.js';
 import { Logger, Tool, ToolResponse } from '../types.js';
 
-type ToolHandler = (args: any, logger: Logger) => ToolResponse;
+type ToolHandler = (args: any, logger: Logger) => Promise<ToolResponse>;
+
+export enum McpToolName {
+    /** Create a note, reminder, routine, user, etc. */
+    AddResource = 'add_resource',
+    /** Delete a note, reminder, routine, user, etc. */
+    DeleteResources = 'delete_resource',
+    /** Find notes, reminders, routines, users, etc. */
+    FindResource = 'find_resource',
+    /** Run a routine (dynamic tool) */
+    RunRoutine = 'run_routine',
+    /** Update a note, reminder, routine, user, etc. */
+    UpdateResource = 'update_resource',
+}
+
+export enum McpRoutineToolName {
+    /** Start a routine */
+    StartRoutine = 'start_routine',
+    /** Stop a routine */
+    StopRoutine = 'stop_routine',
+}
+
+const toolDefinitions: Map<McpToolName, Tool> = new Map([
+    [McpToolName.AddResource, {
+        name: 'add_resource',
+        description: 'Add or update a resource',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    description: 'The name of the resource to add or update.'
+                },
+                resource_type: {
+                    type: 'string',
+                    description: 'The type of the resource.',
+                    enum: ['Note', 'Reminder', 'Routine', 'User']
+                },
+                content: {
+                    type: 'string',
+                    description: 'The content of the resource.'
+                }
+            },
+            required: ['name', 'resource_type', 'content']
+        },
+        annotations: {
+            title: 'Add Resource',
+            readOnlyHint: false,
+            openWorldHint: false
+        }
+    }],
+    [McpToolName.DeleteResources, {
+        name: 'delete_resource',
+        description: 'Delete a resource',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    description: 'The ID of the resource to delete.'
+                },
+                resource_type: {
+                    type: 'string',
+                    description: 'The type of the resource to delete.',
+                    enum: ['Note', 'Reminder', 'Routine', 'User']
+                }
+            },
+            required: ['name', 'resource_type']
+        },
+        annotations: {
+            title: 'Delete Resource',
+            readOnlyHint: false,
+            openWorldHint: false
+        }
+    }],
+    [McpToolName.FindResource, {
+        name: 'find_resource',
+        description: 'Search for a resource by its exact name and type.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    description: 'The exact name of the resource to fetch.'
+                },
+                resource_type: {
+                    type: 'string',
+                    description: 'The type of resource to fetch.',
+                    enum: ['Note', 'Reminder', 'Routine', 'User']
+                }
+            },
+            required: ['name', 'resource_type']
+        },
+        annotations: {
+            title: 'Find Resource',
+            readOnlyHint: true,
+            openWorldHint: false
+        }
+    }],
+    [McpToolName.RunRoutine, {
+        name: 'run_routine',
+        description: 'Run a routine',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    description: 'The name of the routine to run.'
+                }
+            },
+            required: ['name']
+        },
+        annotations: {
+            title: 'Run Routine',
+            readOnlyHint: false,
+            openWorldHint: false
+        }
+    }],
+    [McpToolName.UpdateResource, {
+        name: 'update_resource',
+        description: 'Update a resource',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    description: 'The name of the resource to update.'
+                },
+
+            },
+            required: ['name']
+        },
+        annotations: {
+            title: 'Update Resource',
+            readOnlyHint: false,
+            openWorldHint: false
+        }
+    }],
+]);
 
 /**
- * Registry for managing MCP tools
+ * Registry for managing MCP tools.
  */
 export class ToolRegistry {
-    private tools: Map<string, ToolHandler> = new Map();
-    private builtInDefinitions: Tool[] = [];
+    private toolbox: Map<McpToolName, ToolHandler> = new Map();
     private logger: Logger;
 
     constructor(logger: Logger) {
         this.logger = logger;
-        this.registerBuiltInTools();
-        this.registerKnownHandlers();
+        this.registerTools();
     }
 
     /**
      * Register built-in tools
      */
-    private registerBuiltInTools(): void {
-        this.registerBuiltInTool('fetch_resource', fetchResource, {
-            name: 'fetch_resource',
-            description: 'Fetch a resource (note or reminder) by its exact name and type.',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    name: {
-                        type: 'string',
-                        description: 'The exact name of the resource to fetch.'
-                    },
-                    resource_type: {
-                        type: 'string',
-                        description: 'The type of resource to fetch.',
-                        enum: ['notes', 'reminders']
-                    }
-                },
-                required: ['name', 'resource_type']
-            },
-            annotations: {
-                title: 'Fetch Resource',
-                readOnlyHint: true,
-                openWorldHint: false
-            }
-        });
-
-        this.registerBuiltInTool('add_resource', addResource, {
-            name: 'add_resource',
-            description: 'Add or update a resource (note or reminder).',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    name: {
-                        type: 'string',
-                        description: 'The name of the resource to add or update.'
-                    },
-                    resource_type: {
-                        type: 'string',
-                        description: 'The type of the resource.',
-                        enum: ['notes', 'reminders']
-                    },
-                    content: {
-                        type: 'string',
-                        description: 'The content of the resource.'
-                    }
-                },
-                required: ['name', 'resource_type', 'content']
-            },
-            annotations: {
-                title: 'Add Resource',
-                readOnlyHint: false,
-                openWorldHint: false
-            }
-        });
-
-        this.registerBuiltInTool('fetch_tool', fetchTool, {
-            name: 'fetch_tool',
-            description: 'Fetch/search for available MCP tools',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    query: {
-                        type: 'string',
-                        description: 'Search string for MCP tools'
-                    }
-                },
-                required: ['query']
-            },
-            annotations: {
-                title: 'Fetch Tool',
-                readOnlyHint: true,
-                openWorldHint: false
-            }
-        });
-    }
-
-    /**
-     * Register handlers for known tools that might be fetched dynamically later.
-     * This ensures the execute function can find the handler.
-     */
-    private registerKnownHandlers(): void {
-        this.logger.info(`Registering known handler: calculate_sum`);
-        this.tools.set('calculate_sum', calculateSum);
+    private registerTools(): void {
+        this.registerBuiltInTool(McpToolName.AddResource, addResource);
+        this.registerBuiltInTool(McpToolName.DeleteResources, deleteResource);
+        this.registerBuiltInTool(McpToolName.FindResource, findResource);
+        this.registerBuiltInTool(McpToolName.RunRoutine, runRoutine);
+        this.registerBuiltInTool(McpToolName.UpdateResource, updateResource);
     }
 
     /**
      * Register a new built-in tool (definition and handler)
      * @param name Tool name
      * @param handler Tool handler function
-     * @param definition Tool definition
      */
-    registerBuiltInTool(name: string, handler: ToolHandler, definition: Tool): void {
+    registerBuiltInTool(name: McpToolName, handler: ToolHandler): void {
         this.logger.info(`Registering built-in tool: ${name}`);
-        this.tools.set(name, handler);
-        this.builtInDefinitions.push(definition);
+        this.toolbox.set(name, handler);
     }
 
     /**
@@ -122,36 +179,7 @@ export class ToolRegistry {
      * @returns Array of built-in tool definitions
      */
     getBuiltInDefinitions(): Tool[] {
-        return this.builtInDefinitions;
-    }
-
-    /**
-     * Get dynamic tool definitions (simulates fetching from a source like a DB)
-     * @returns Promise resolving to an array of dynamic tool definitions
-     */
-    async getDynamicDefinitions(): Promise<Tool[]> {
-        this.logger.info('Simulating fetch of dynamic tool definitions...');
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        return [
-            {
-                name: 'calculate_sum',
-                description: 'Add two numbers together',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        a: { type: 'number' },
-                        b: { type: 'number' }
-                    },
-                    required: ['a', 'b']
-                },
-                annotations: {
-                    title: 'Calculate Sum',
-                    readOnlyHint: true,
-                    openWorldHint: false
-                },
-            }
-        ];
+        return Array.from(toolDefinitions.values());
     }
 
     /**
@@ -159,8 +187,8 @@ export class ToolRegistry {
      * @param name The name of the tool.
      * @returns The handler function or undefined if not found.
      */
-    getHandler(name: string): ToolHandler | undefined {
-        return this.tools.get(name);
+    getBuiltInTool(name: McpToolName): ToolHandler | undefined {
+        return this.toolbox.get(name);
     }
 
     /**
@@ -169,10 +197,10 @@ export class ToolRegistry {
      * @param args Tool arguments
      * @returns Tool execution response
      */
-    async execute(name: string, args: any): Promise<ToolResponse> {
+    async execute(name: McpToolName, args: any): Promise<ToolResponse> {
         this.logger.info(`Executing tool: ${name}`);
 
-        const handler = this.tools.get(name);
+        const handler = this.toolbox.get(name);
         if (!handler) {
             this.logger.error(`Tool handler not found or not registered: ${name}`);
             return {

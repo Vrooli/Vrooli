@@ -3,8 +3,11 @@
         "vrooli-mcp-server": {
             "url": "http://161.35.96.7:3100/mcp/sse"
         },
-        "vrooli-calculate-sum": {
-            "url": "http://161.35.96.7:3100/mcp/tool/calculate_sum/sse"
+        "daily-standup": {
+            "url": "http://161.35.96.7:3100/mcp/tool/c9dd779d-ebf2-4e65-8429-4eef5c40aa4a/sse"
+        },
+        "weekly-review": {
+            "url": "http://161.35.96.7:3100/mcp/tool/25020e82-ecfb-4ca3-afc9-f3a88ba77e76/sse"
         }
     }
 }

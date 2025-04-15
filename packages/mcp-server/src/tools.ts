@@ -3,135 +3,118 @@ import { Logger, ToolResponse } from './types.js';
 /**
  * Defines the allowed resource types.
  */
-type ResourceType = "notes" | "reminders";
+enum ResourceType {
+    Note = "Note",
+    Reminder = "Reminder",
+    Routine = "Routine",
+    User = "User"
+}
+
+type Routine = {
+    id: string;
+    content: string;
+    name: string;
+    description?: string;
+}
 
 /**
  * Centralized store for resources (notes and reminders).
  * The outer map uses ResourceType as keys.
  * The inner map uses the resource name (string) as keys and content (string) as values.
  */
-const resourceStore: Map<ResourceType, Map<string, string>> = new Map([
-    ["notes", new Map<string, string>([
+const resourceStore = new Map<ResourceType, Map<string, unknown>>([
+    [ResourceType.Note, new Map<string, string>([
         ["Meeting Notes - Project Alpha", "Discussed roadmap milestones. Action items assigned."],
         ["Brainstorming Ideas", "- Integrate new AI model\n- Refactor UI components"]
     ])],
-    ["reminders", new Map<string, string>([
+    [ResourceType.Reminder, new Map<string, string>([
         ["Reminder: Submit Report", "Submit the quarterly report by EOD Friday."],
         ["Reminder: Call John", "Call John Doe regarding the project update tomorrow at 10 AM."]
+    ])],
+    [ResourceType.Routine, new Map<string, Routine>([
+        ["c9dd779d-ebf2-4e65-8429-4eef5c40aa4a", {
+            id: "c9dd779d-ebf2-4e65-8429-4eef5c40aa4a",
+            content: "Daily standup meeting with {arg}.",
+            name: "Daily Standup",
+            description: "Perform a daily standup meeting with the team."
+        }],
+        ["25020e82-ecfb-4ca3-afc9-f3a88ba77e76", {
+            id: "25020e82-ecfb-4ca3-afc9-f3a88ba77e76",
+            content: "Weekly review of the {arg} status.",
+            name: "Weekly Review"
+        }]
+    ])],
+    [ResourceType.User, new Map<string, string>([
+        ["John Doe", "john.doe@example.com"]
     ])]
 ]);
 
 /**
- * Mock data for available MCP tools.
- * In a real implementation, this might come from a database or service discovery.
- */
-const availableTools = [
-    {
-        name: "mcp_vrooli_mcp_server_calculate_sum",
-        description: "Add two numbers together",
-        endpoint: "http://localhost:8080/api/tools/calculate_sum" // Example endpoint
-    },
-    {
-        name: "mcp_vrooli_mcp_server_fetch_resource",
-        description: "Fetch a resource by name and type (notes or reminders)",
-        endpoint: "http://localhost:8080/api/tools/fetch_resource" // Example endpoint
-    },
-    {
-        name: "mcp_vrooli_mcp_server_add_resource",
-        description: "Add or update a resource (note or reminder)",
-        endpoint: "http://localhost:8080/api/tools/add_resource" // Example endpoint
-    },
-    {
-        name: "mcp_vrooli_mcp_server_fetch_tool",
-        description: "Fetch/search for available MCP tools",
-        endpoint: "http://localhost:8080/api/tools/fetch_tool" // Example endpoint for the tool itself
-    },
-    {
-        name: "external_weather_tool",
-        description: "Get the current weather for a location",
-        endpoint: "http://weather-service.example.com/api/get_weather"
-    },
-    {
-        name: "image_generation_tool",
-        description: "Generate an image based on a text prompt",
-        endpoint: "http://image-gen.example.com/api/generate"
-    }
-];
-
-/**
- * Implementation of the fetch_tool tool. Searches for available MCP tools based on a query.
+ * Finds an existing Routine by name.
  *
  * @param args - The arguments for the tool, containing the search query.
  * @param logger - The logger instance for logging operations.
- * @returns A ToolResponse object containing a list of matching tools or a message if none found.
+ * @returns Routines that match the search query.
  */
-export function fetchTool(args: { query: string }, logger: Logger): ToolResponse {
-    const { query } = args;
+export async function findRoutine(args: { id?: string, query?: string }, logger: Logger): Promise<Routine[]> {
+    const { id, query } = args;
 
-    // Validate query
-    if (!query || typeof query !== 'string' || query.trim() === "") {
-        logger.warn("Fetch tool called with empty or invalid query.");
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: "Please provide a non-empty search query to find tools."
-                }
-            ]
-        };
-    }
+    const safeId = typeof id === 'string' ? id : "";
+    const safeQuery = typeof query === 'string' ? query : "";
+    const normalizedQuery = safeQuery.toLowerCase().trim();
 
-    const normalizedQuery = query.toLowerCase().trim();
-    logger.info(`Searching for tools with query: "${normalizedQuery}"`);
+    logger.info(`Searching for tools with id: "${safeId}" or query: "${normalizedQuery}"`);
 
-    const foundTools = availableTools.filter(tool =>
-        tool.name.toLowerCase().includes(normalizedQuery) ||
-        tool.description.toLowerCase().includes(normalizedQuery)
-    );
+    // Search resource store for matching routines
+    const foundRoutines = (Array.from(resourceStore.get(ResourceType.Routine)?.values() || []) as Routine[]).filter((routine) => {
+        if (safeId.length > 0) {
+            return routine.id === safeId;
+        }
+        return routine.name.toLowerCase().includes(normalizedQuery) ||
+            routine.content.toLowerCase().includes(normalizedQuery);
+    });
 
-    let responseText = "";
-    if (foundTools.length > 0) {
-        logger.info(`Found ${foundTools.length} tools matching query "${query}".`);
-        responseText = `Found the following tools matching "${query}":\n\n`;
-        foundTools.forEach((tool, index) => {
-            responseText += `Name: ${tool.name}\nDescription: ${tool.description}\nEndpoint: ${tool.endpoint}`;
-            if (index < foundTools.length - 1) {
-                responseText += '\n\n---\n\n';
-            }
-        });
-    } else {
-        logger.info(`No tools found matching query: "${query}"`);
-        responseText = `No tools found matching query: "${query}"`;
-    }
-
-    return {
-        content: [
-            {
-                type: "text",
-                text: responseText
-            }
-        ]
-    };
+    return foundRoutines;
 }
 
 /**
- * Implementation of the calculate_sum tool.
- * @param args - The arguments for the tool
- * @param logger - The logger instance for logging operations
- * @returns The result of the calculation
+ * Interface for the arguments accepted by the run_routine tool.
  */
-export function calculateSum(args: { a: number, b: number }, logger: Logger): ToolResponse {
-    const { a, b } = args;
-    const sum = a + b;
+interface RunRoutineParams {
+    /** The ID of the routine to run. */
+    id: string;
+    /** A string argument to pass to the routine. */
+    replacement: string;
+}
 
-    logger.info(`Calculated sum: ${sum}`);
+/**
+ * Performs a mock run routine.
+ * 
+ * @param args - The arguments for the tool, containing the routine name and replacement string.
+ * @param logger - The logger instance for logging operations.
+ * @returns A ToolResponse object containing the result of the routine.
+ */
+export async function runRoutine(args: RunRoutineParams, logger: Logger): Promise<ToolResponse> {
+    const { id, replacement } = args;
+
+    logger.info(`Running routine: "${id}" with replacement: "${replacement}"`);
+
+    // Find the routine
+    const routine = await findRoutine({ id }, logger);
+
+    if (routine.length === 0) {
+        logger.warn(`No routine found matching id: "${id}"`);
+        return {
+            content: [{ type: "text", text: `No routine found matching id: "${id}".` }]
+        };
+    }
+
+    const { content } = routine[0];
+
+    const result = content.replace('{arg}', replacement);
+
     return {
-        content: [
-            {
-                type: "text",
-                text: String(sum)
-            }
-        ]
+        content: [{ type: "text", text: result }]
     };
 }
 
@@ -140,7 +123,7 @@ export function calculateSum(args: { a: number, b: number }, logger: Logger): To
 /**
  * Interface for the arguments accepted by the fetch_resource tool.
  */
-interface FetchResourceArgs {
+interface FindResourceParams {
     /** The exact name of the resource to fetch. */
     name: string;
     /** The type of resource to fetch (notes or reminders). */
@@ -148,20 +131,20 @@ interface FetchResourceArgs {
 }
 
 /**
- * Implementation of the fetch_resource tool.
+ * Implementation of the find_resource tool.
  * Fetches resources like notes or reminders by exact name and type from the resourceStore.
  *
  * @param args - The arguments for the tool, including name and resource_type.
  * @param logger - The logger instance for logging operations.
  * @returns A ToolResponse object containing the found resource or an error message.
  */
-export function fetchResource(args: FetchResourceArgs, logger: Logger): ToolResponse {
+export async function findResource(args: FindResourceParams, logger: Logger): Promise<ToolResponse> {
     const { name, resource_type } = args;
 
     logger.info(`Attempting to fetch resource of type "${resource_type}" with name: "${name}"`);
 
     // Validate resource type
-    if (resource_type !== "notes" && resource_type !== "reminders") {
+    if (!Object.values(ResourceType).includes(resource_type)) {
         logger.warn(`Invalid resource_type specified: "${resource_type}"`);
         return {
             content: [
@@ -241,13 +224,13 @@ interface AddResourceArgs {
  * @param logger - The logger instance for logging operations.
  * @returns A ToolResponse object confirming the addition/update or reporting an error.
  */
-export function addResource(args: AddResourceArgs, logger: Logger): ToolResponse {
+export async function addResource(args: AddResourceArgs, logger: Logger): Promise<ToolResponse> {
     const { name, resource_type, content } = args;
 
     logger.info(`Attempting to add/update resource "${name}" of type "${resource_type}"`);
 
     // Validate resource type
-    if (resource_type !== "notes" && resource_type !== "reminders") {
+    if (!Object.values(ResourceType).includes(resource_type)) {
         logger.warn(`Invalid resource_type specified: "${resource_type}"`);
         return {
             content: [{ type: "text", text: `Error: Invalid resource_type "${resource_type}". Allowed types are "notes" or "reminders".` }]
@@ -290,4 +273,111 @@ export function addResource(args: AddResourceArgs, logger: Logger): ToolResponse
             }
         ]
     };
-} 
+}
+
+/**
+ * Interface for the arguments accepted by the delete_resource tool.
+ */
+interface DeleteResourceParams {
+    /** The name of the resource to delete. */
+    resource_type: ResourceType;
+    /** The name of the resource to delete. */
+    name: string;
+}
+
+/**
+ * Implementation of the delete_resource tool.
+ * Deletes a resource (note or reminder) from the resourceStore.
+ *
+ * @param args - The arguments for the tool, including resource_type.
+ * @param logger - The logger instance for logging operations.
+ * @returns A ToolResponse object confirming the deletion or reporting an error.
+ */
+export async function deleteResource(args: DeleteResourceParams, logger: Logger): Promise<ToolResponse> {
+    const { resource_type, name } = args;
+
+    logger.info(`Attempting to delete resource of type "${resource_type}"`);
+
+    // Validate resource type
+    if (!Object.values(ResourceType).includes(resource_type)) {
+        logger.warn(`Invalid resource_type specified: "${resource_type}"`);
+        return {
+            content: [{ type: "text", text: `Error: Invalid resource_type "${resource_type}". Allowed types are "notes" or "reminders".` }]
+        };
+    }
+
+    // Get the specific store for the type
+    let typeStore = resourceStore.get(resource_type);
+    if (!typeStore) {
+        logger.warn(`No store found for resource type "${resource_type}".`);
+        return { content: [{ type: "text", text: `No store found for resource type "${resource_type}".` }] };
+    }
+
+    // Delete the resource
+    typeStore.delete(name);
+
+    logger.info(`Successfully deleted resource: "${name}" (Type: ${resource_type})`);
+    return {
+        content: [
+            {
+                type: "text",
+                text: `Successfully deleted resource "${name}" of type "${resource_type}".`
+            }
+        ]
+    };
+}
+
+/**
+ * Interface for the arguments accepted by the update_resource tool.
+ */
+interface UpdateResourceParams {
+    /** The name of the resource to update. */
+    name: string;
+    /** The type of the resource (notes or reminders). */
+    resource_type: ResourceType;
+    /** The new content of the resource. */
+    content: string;
+}
+
+
+/**
+ * Implementation of the update_resource tool.
+ * Updates the content of a resource (note or reminder) in the resourceStore.
+ *
+ * @param args - The arguments for the tool, including name, resource_type, and content.
+ * @param logger - The logger instance for logging operations.
+ * @returns A ToolResponse object confirming the update or reporting an error.
+ */
+export async function updateResource(args: UpdateResourceParams, logger: Logger): Promise<ToolResponse> {
+    const { name, resource_type, content } = args;
+
+    logger.info(`Attempting to update resource "${name}" of type "${resource_type}"`);
+
+    // Validate resource type
+    if (!Object.values(ResourceType).includes(resource_type)) {
+        logger.warn(`Invalid resource_type specified: "${resource_type}"`);
+        return {
+            content: [{ type: "text", text: `Error: Invalid resource_type "${resource_type}". Allowed types are "notes" or "reminders".` }]
+        };
+    }
+
+    // Get the specific store for the type
+    let typeStore = resourceStore.get(resource_type);
+    if (!typeStore) {
+        logger.warn(`No store found for resource type "${resource_type}".`);
+        return { content: [{ type: "text", text: `No store found for resource type "${resource_type}".` }] };
+    }
+
+    // Update the resource
+    typeStore.set(name, content);
+
+    logger.info(`Successfully updated resource: "${name}" (Type: ${resource_type})`);
+    return {
+        content: [
+            {
+                type: "text",
+                text: `Successfully updated resource "${name}" of type "${resource_type}".`
+            }
+        ]
+    };
+}

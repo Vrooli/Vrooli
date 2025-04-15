@@ -1,14 +1,11 @@
 import { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-    CallToolRequestSchema,
-    ListToolsRequestSchema, // Needed for parsing incoming messages
-    ServerResult
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
 import type * as http from 'http';
 import { ServerConfig } from './config/index.js';
-import { ToolRegistry } from './tools/registry.js';
+import { findRoutine, runRoutine } from './tools.js';
+import { McpRoutineToolName, McpToolName, ToolRegistry } from './tools/registry.js';
 import { TransportManager } from './transports/transport-manager.js';
 import { Logger } from './types.js';
 
@@ -65,7 +62,7 @@ export class McpServerApp {
         this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             this.logger.info(`Received CallToolRequest for tool: ${name}`);
-            return this.toolRegistry.execute(name, args) as Promise<ServerResult>;
+            return this.toolRegistry.execute(name as McpToolName, args) as Promise<ServerResult>;
         });
     }
 
@@ -80,14 +77,46 @@ export class McpServerApp {
         }
 
         // Await the promise to get the array of definitions
-        const dynamicDefinitions = await this.toolRegistry.getDynamicDefinitions();
-        const toolDefinition = dynamicDefinitions.find(t => t.name === toolId);
-        const toolHandler = this.toolRegistry.getHandler(toolId); // Need a way to get the handler function
-
-        if (!toolDefinition || !toolHandler) {
-            this.logger.error(`Attempted to create dynamic server for non-existent tool: ${toolId}`);
+        const matchingRoutines = await findRoutine({ id: toolId }, this.logger);
+        if (matchingRoutines.length === 0) {
+            this.logger.error(`Attempted to create dynamic server for non-existent routine: ${toolId}`);
             return null;
         }
+
+        const routine = matchingRoutines[0];
+        const tools = [
+            {
+                name: McpRoutineToolName.StartRoutine,
+                description: routine.description || routine.name || "No description",
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        arg: { type: 'string' }
+                    },
+                    required: ['arg']
+                },
+                annotations: {
+                    title: routine.name || routine.id,
+                    readOnlyHint: true,
+                    openWorldHint: false
+                }
+            },
+            {
+                name: McpRoutineToolName.StopRoutine,
+                description: "Stop the routine (if running)",
+                inputSchema: {
+                    type: 'object',
+                    properties: {},
+                    required: []
+                },
+                annotations: {
+                    title: "Stop",
+                    readOnlyHint: true,
+                    openWorldHint: false
+                }
+            }
+        ];
+        const toolHandler = this.toolRegistry.getBuiltInTool(McpToolName.RunRoutine);
 
         this.logger.info(`Creating new dynamic server instance for tool: ${toolId}`);
 
@@ -100,20 +129,20 @@ export class McpServerApp {
 
         // Register ListTools handler - returns ONLY this tool
         dynamicServer.setRequestHandler(ListToolsRequestSchema, async () => {
-            this.logger.info(`Dynamic Server [${toolId}]: Received ListToolsRequest`);
-            return { tools: [toolDefinition] } as ServerResult;
+            this.logger.info(`Dynamic Server [${toolId}]: Received ListToolsRequest`, { tools });
+            return { tools } as ServerResult;
         });
 
         // Register CallTool handler - executes ONLY this tool
         dynamicServer.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
-            this.logger.info(`Dynamic Server [${toolId}]: Received CallToolRequest for tool: ${name}`);
-            if (name === toolId) {
+            this.logger.info(`Dynamic Server [${toolId}]: Received CallToolRequest for tool: ${name} with args: ${JSON.stringify(args)}`);
+
+            if (name === McpRoutineToolName.StartRoutine) {
                 // Execute using the specific handler fetched from the registry
                 // We pass the *dynamicServer's* logger if the handler accepts it
                 try {
-                    // Assuming toolHandler needs args and logger
-                    const result = await Promise.resolve(toolHandler(args, this.logger)); // Use main logger or dedicated?
+                    const result = await Promise.resolve(runRoutine({ id: routine.id, replacement: (args as { arg: string }).arg || '' }, this.logger));
                     return result as ServerResult;
                 } catch (error) {
                     this.logger.error(`Dynamic Server [${toolId}]: Error executing tool ${name}:`, error);
@@ -122,6 +151,12 @@ export class McpServerApp {
                         content: [{ type: 'text', text: `Error executing tool '${name}': ${(error as Error).message}` }]
                     } as ServerResult;
                 }
+            } else if (name === McpRoutineToolName.StopRoutine) {
+                this.logger.info(`Dynamic Server [${toolId}]: Stopping routine`);
+                return {
+                    isError: false,
+                    content: [{ type: 'text', text: `Routine '${toolId}' stopped` }]
+                } as ServerResult;
             } else {
                 this.logger.warn(`Dynamic Server [${toolId}]: Denied execution request for tool '${name}'`);
                 return {
