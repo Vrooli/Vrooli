@@ -22,11 +22,14 @@ FROM node:22-alpine AS stage1
 ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
-# Copy entire working directory contents from stage 2, and install yarn packages
+# Copy entire working directory contents from stage 0
 COPY --from=stage0 ${PROJECT_DIR} ./
 
+# Install project dependencies
+RUN yarn install --network-timeout 600000
+
 # Install global packages
-RUN yarn global add vite@5.4.7
+RUN yarn global add vite@5.4.7 --network-timeout 600000
 
 # Stage 2. Copy files from stage 1
 FROM node:22-alpine AS stage2

@@ -32,7 +32,6 @@ services:
       - proxy
       - app
     volumes:
-      - ./node_modules:${PROJECT_DIR:-/srv/app}/node_modules
       - ./packages/ui:${PROJECT_DIR:-/srv/app}/packages/ui:z
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"

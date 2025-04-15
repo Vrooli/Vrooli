@@ -23,7 +23,7 @@ RUN yarn config set enableLocalWorkspaces true && \
 
 # Install modclean and clean node_modules.
 # Also install prisma for database migrations.
-RUN yarn global add modclean prisma@6.1.0
+RUN yarn global add modclean prisma@6.1.0 --network-timeout 600000
 RUN modclean --run
 
 # Stage 1: Copy required files
