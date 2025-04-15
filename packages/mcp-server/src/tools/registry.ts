@@ -1,4 +1,4 @@
-import { calculateSum, fetchResource, fetchTool } from '../tools.js';
+import { addResource, calculateSum, fetchResource, fetchTool } from '../tools.js';
 import { Logger, Tool, ToolResponse } from '../types.js';
 
 type ToolHandler = (args: any, logger: Logger) => ToolResponse;
@@ -23,20 +23,54 @@ export class ToolRegistry {
     private registerBuiltInTools(): void {
         this.registerBuiltInTool('fetch_resource', fetchResource, {
             name: 'fetch_resource',
-            description: 'Fetch a resource by name or search string',
+            description: 'Fetch a resource (note or reminder) by its exact name and type.',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    query: {
+                    name: {
                         type: 'string',
-                        description: 'Resource name or search string to find the resource'
+                        description: 'The exact name of the resource to fetch.'
+                    },
+                    resource_type: {
+                        type: 'string',
+                        description: 'The type of resource to fetch.',
+                        enum: ['notes', 'reminders']
                     }
                 },
-                required: ['query']
+                required: ['name', 'resource_type']
             },
             annotations: {
                 title: 'Fetch Resource',
                 readOnlyHint: true,
+                openWorldHint: false
+            }
+        });
+
+        this.registerBuiltInTool('add_resource', addResource, {
+            name: 'add_resource',
+            description: 'Add or update a resource (note or reminder).',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string',
+                        description: 'The name of the resource to add or update.'
+                    },
+                    resource_type: {
+                        type: 'string',
+                        description: 'The type of the resource.',
+                        enum: ['notes', 'reminders']
+                    },
+                    content: {
+                        type: 'string',
+                        description: 'The content of the resource.'
+                    }
+                },
+                required: ['name', 'resource_type', 'content']
+            },
+            annotations: {
+                title: 'Add Resource',
+                readOnlyHint: false,
                 openWorldHint: false
             }
         });
