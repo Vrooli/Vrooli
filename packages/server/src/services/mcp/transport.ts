@@ -1,7 +1,8 @@
-import { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import type * as http from 'http';
-import { Logger } from '../types.js';
+import { HttpStatus } from "@local/shared";
+import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import type * as http from "http";
+import { Logger } from "./types.js";
 
 /**
  * Manages all transport connections for the MCP server
@@ -21,7 +22,7 @@ export class TransportManager {
         options: {
             heartbeatInterval: number,
             messagePath: string
-        }
+        },
     ) {
         this.mcpServer = mcpServer;
         this.logger = logger;
@@ -35,7 +36,7 @@ export class TransportManager {
      * @param res HTTP response object
      */
     async handleSseConnection(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-        this.logger.info('SSE connection requested.');
+        this.logger.info("SSE connection requested.");
 
         // Store the response object for tracking
         this.connections.add(res);
@@ -45,14 +46,14 @@ export class TransportManager {
         const heartbeatInterval = setInterval(() => {
             if (this.connections.has(res)) {
                 try {
-                    res.write(': heartbeat\n\n');
+                    res.write(": heartbeat\n\n");
                 } catch (error) {
-                    this.logger.error('Error sending heartbeat:', error);
+                    this.logger.error("Error sending heartbeat:", error);
                     this.cleanupConnection(res);
                 }
             } else {
                 clearInterval(heartbeatInterval);
-                this.logger.debug('Heartbeat stopped for disconnected client.');
+                this.logger.debug("Heartbeat stopped for disconnected client.");
             }
         }, this.heartbeatIntervalMs);
 
@@ -64,24 +65,24 @@ export class TransportManager {
 
         try {
             await this.mcpServer.connect(newTransport);
-            this.logger.info(`McpServer connected to transport for a client.`, {
+            this.logger.info("McpServer connected to transport for a client.", {
                 endpoint: newTransport["_endpoint"],
             });
             // Handshake is sent automatically by SSEServerTransport
         } catch (error) {
-            this.logger.error(`Error connecting McpServer to transport for a client:`, error);
+            this.logger.error("Error connecting McpServer to transport for a client:", error);
             this.cleanupConnection(res);
         }
 
         // Set up connection cleanup on close and error
-        req.on('close', () => {
-            this.logger.info(`Client disconnected.`);
+        req.on("close", () => {
+            this.logger.info("Client disconnected.");
             this.cleanupConnection(res);
             this.logger.info(`Client connection closed. Total clients: ${this.connections.size}`);
         });
 
-        res.on('error', (error) => {
-            this.logger.error(`Error on response stream for a client:`, error);
+        res.on("error", (error) => {
+            this.logger.error("Error on response stream for a client:", error);
             this.cleanupConnection(res);
             this.logger.info(`Removed client due to stream error. Total clients: ${this.connections.size}`);
         });
@@ -101,14 +102,14 @@ export class TransportManager {
         if (firstTransport) {
             try {
                 firstTransport.handlePostMessage(req, res);
-                this.logger.info(`Handed POST request to an SSEServerTransport instance.`);
+                this.logger.info("Handed POST request to an SSEServerTransport instance.");
             } catch (error) {
-                this.logger.error(`Error handling POST request in SSEServerTransport:`, error);
-                this.sendJsonRpcError(res, -32000, 'Internal server error handling POST');
+                this.logger.error("Error handling POST request in SSEServerTransport:", error);
+                this.sendJsonRpcError(res, -32000, "Internal server error handling POST");
             }
         } else {
             this.logger.error(`Received POST on ${this.messagePath} but no active SSE transports found.`);
-            this.sendJsonRpcError(res, -32000, 'Server not ready or no active transports', 503);
+            this.sendJsonRpcError(res, -32000, "Server not ready or no active transports", 503);
         }
     }
 
@@ -137,7 +138,7 @@ export class TransportManager {
      */
     getHealthInfo(): Record<string, any> {
         return {
-            status: 'ok',
+            status: "ok",
             activeConnections: this.connections.size,
         };
     }
@@ -146,7 +147,7 @@ export class TransportManager {
      * Closes all connections for clean shutdown
      */
     async shutdown(): Promise<void> {
-        this.logger.info('Closing all connections...');
+        this.logger.info("Closing all connections...");
 
         // Clear all heartbeat intervals
         for (const interval of this.heartbeatIntervals.values()) {
@@ -164,7 +165,7 @@ export class TransportManager {
         this.connections.clear();
         this.transports.clear();
 
-        this.logger.info('All connections closed.');
+        this.logger.info("All connections closed.");
     }
 
     /**
@@ -174,15 +175,15 @@ export class TransportManager {
         res: http.ServerResponse,
         code: number,
         message: string,
-        statusCode = 500
+        statusCode = HttpStatus.InternalServerError,
     ): void {
         if (!res.headersSent) {
             res.statusCode = statusCode;
-            res.setHeader('Content-Type', 'application/json');
+            res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({
-                jsonrpc: '2.0',
+                jsonrpc: "2.0",
                 error: { code, message },
-                id: null
+                id: null,
             }));
         } else if (!res.writableEnded) {
             res.end();

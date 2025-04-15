@@ -1,4 +1,4 @@
-import { DAYS_1_S, GB_1_BYTES, HttpStatus, MCPEndpoint, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
+import { DAYS_1_S, GB_1_BYTES, HttpStatus, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
 import { exec as execCb } from "child_process";
 import { Express } from "express";
 import i18next from "i18next";
@@ -20,6 +20,7 @@ import { pushQueue } from "../tasks/push/queue.js";
 import { runQueue } from "../tasks/run/queue.js";
 import { sandboxQueue } from "../tasks/sandbox/queue.js";
 import { smsQueue } from "../tasks/sms/queue.js";
+import { McpToolName } from "./mcp/registry.js";
 
 const exec = promisify(execCb);
 
@@ -475,7 +476,7 @@ export class HealthService {
     private async checkMcp(): Promise<ServiceHealth> {
         try {
             // Build MCP endpoint URL
-            const listToolsUrl = `${MCP_SITE_WIDE_URL}${MCPEndpoint.ListTools}`;
+            const listToolsUrl = `${MCP_SITE_WIDE_URL}${McpToolName.FindResources}`;
 
             const response = await fetch(listToolsUrl);
 

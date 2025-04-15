@@ -12,7 +12,7 @@ import { logger } from "./events/logger.js";
 import { initializeRedis } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { setupHealthCheck } from "./services/health.js";
-import { setupMCP } from "./services/mcp.js";
+import { setupMCP } from "./services/mcp/__original.js";
 import { setupStripe } from "./services/stripe.js";
 import { io, sessionSockets, userSockets } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";

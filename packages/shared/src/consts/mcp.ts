@@ -1,9 +1,3 @@
-export enum MCPEndpoint {
-    Execute = "/execute",
-    ListTools = "/tools",
-    SearchTools = "/search",
-    RegisterTool = "/register",
-}
 
 export interface MCPTool {
     /** Unique identifier used to look up the tool. */

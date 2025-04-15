@@ -33,6 +33,7 @@
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@local/shared": "*",
         "@mistralai/mistralai": "^0.2.0",
+        "@modelcontextprotocol/sdk": "^1.9.0",
         "@prisma/client": "6.1.0",
         "bcrypt": "^5.0.1",
         "bull": "^4.11.4",
