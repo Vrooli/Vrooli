@@ -1,61 +1,82 @@
-# Stage 0. Copy required files
-FROM node:18-alpine3.20 AS stage0 
-
-# Set working directory
-ARG PROJECT_DIR
-ARG VIRTUAL_PORT
+# Stage 0: Base Node environment
+FROM node:18-alpine3.20 AS base
+ARG PROJECT_DIR=/srv/app
 WORKDIR ${PROJECT_DIR}
 
-# Copy main package.json, as well as packages this container will use. Doing this first helps with caching (I think).
-COPY --chown=node:node package.json yarn.lock ./
-COPY --chown=node:node packages/server/package.json packages/server/
-COPY --chown=node:node packages/shared/package.json packages/shared/
+# Stage 1: Install all dependencies
+FROM base AS deps
+# Copy root package config
+COPY package.json yarn.lock ./
+# Copy workspace package configs that server depends on
+COPY packages/server/package.json ./packages/server/
+COPY packages/shared/package.json ./packages/shared/
+# Add other workspace package.json files if server depends on them
 
-# Copy all files from packages/server/src, and every directory's src in packages/shared
-COPY --chown=node:node packages/server/src packages/server/
-COPY --chown=node:node packages/shared/src packages/shared/
-
-# Copy packages/ui/public, which is needed to store sitemap files that we create for user-generated pages
-COPY --chown=node:node packages/ui/public packages/ui/public
-
-# Copy required script files
-COPY --chown=node:node scripts/* scripts/
-
-# Assign working directory to node
-RUN chown -R node:node .
-
-# Stage 1. Copy files from stage 0, and install yarn packages
-FROM node:18-alpine3.20 AS stage1
-
-# Set working directory
-ARG PROJECT_DIR
-WORKDIR ${PROJECT_DIR}
-
-# Copy entire working directory contents from stage 2, and install yarn packages
-COPY --from=stage0 ${PROJECT_DIR} ./
-
-# Install local packages
+# Install all dependencies (including devDependencies needed for build)
 RUN yarn install --frozen-lockfile --network-timeout 600000
 
-# Install global packages
-RUN yarn global add typescript@5.4.5 nodemon@3.0.2 prisma@6.1.0 --network-timeout 600000
-
-# Stage 2. Copy files from stage 1, and install required unix tools
-FROM node:18-alpine3.20 AS stage2
-
-# Set working directory
+# Stage 2: Build the application
+FROM base AS builder
 ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
+# Copy source code
+COPY . .
+# Copy installed node_modules from deps stage
+COPY --from=deps ${PROJECT_DIR}/node_modules ./node_modules
 
-# Copy entire working directory contents from stage 3
-COPY --from=stage1 ${PROJECT_DIR} ./
+# Build shared package (assuming yarn build is the command)
+# Adjust if shared package build command is different
+RUN yarn workspace @local/shared run build
 
-# Copy global yarn packages from stage 3
-COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
+# Build server package (assuming yarn build is the command)
+# This should also trigger prisma generate if configured in package.json postinstall/build
+RUN yarn workspace @local/server run build
 
-# Update and install unix packages
+# --- Optional: Prune dev dependencies ---
+# If the final image size is critical, we can prune dev dependencies here.
+# RUN yarn workspaces focus --all --production
+
+# Stage 3: Final production image
+FROM node:18-alpine3.20 AS final
+ENV NODE_ENV=production
+ARG PROJECT_DIR=/srv/app
+ARG VIRTUAL_PORT=5329 # Default port, can be overridden
+WORKDIR ${PROJECT_DIR}
+
+# Install necessary OS packages (Prisma needs openssl)
 RUN apk update && \
-    apk add --no-cache netcat-openbsd
+    apk add --no-cache openssl netcat-openbsd && \
+    rm -rf /var/cache/apk/*
 
-# Set port
+# Copy necessary package files for runtime
+COPY --chown=node:node package.json ./
+COPY --chown=node:node packages/server/package.json ./packages/server/
+COPY --chown=node:node packages/shared/package.json ./packages/shared/
+
+# --- Option A: Copy pruned node_modules from builder (if pruning step was added) ---
+# COPY --from=builder --chown=node:node ${PROJECT_DIR}/node_modules ./node_modules
+
+# --- Option B: Reinstall only production dependencies ---
+# This is often cleaner and ensures only prod deps are present
+RUN yarn install --production --frozen-lockfile --network-timeout 600000
+
+# Copy built application code from the builder stage
+COPY --from=builder --chown=node:node ${PROJECT_DIR}/packages/server/dist ./packages/server/dist
+COPY --from=builder --chown=node:node ${PROJECT_DIR}/packages/shared/dist ./packages/shared/dist
+
+# Copy runtime scripts
+COPY --from=builder --chown=node:node ${PROJECT_DIR}/scripts ./scripts
+
+# Install global dependencies needed for runtime/development
+RUN yarn global add typescript@5.4.5 nodemon@3.0.2 prisma@6.1.0 @swc/cli@^0.1.63 @swc/core@^1.3.104 copyfiles@^2.4.1 --network-timeout 600000
+
+# Copy Prisma schema if it's not included in the server dist
+# Adjust path if schema.prisma is located elsewhere or included in build output
+# COPY --from=builder --chown=node:node ${PROJECT_DIR}/packages/server/prisma ./packages/server/prisma <- REMOVED: Assuming build output in dist includes necessary client files
+
+# Expose port
 EXPOSE ${VIRTUAL_PORT} 9229
+
+# Define the command to run the application
+# Adjust the path to the server entrypoint if necessary
+CMD ["node", "packages/server/dist/index.js"]

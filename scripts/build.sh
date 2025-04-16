@@ -374,7 +374,7 @@ AVAILABLE_IMAGES=()
 
 # Check each image individually and add to array if available
 IMAGE_SUFFIX="prod"
-if [ "${NODE_ENV}" = "development" ]; then
+if [ "${ENVIRONMENT}" = "development" ]; then
     IMAGE_SUFFIX="dev"
 fi
 for IMAGE in "ui:${IMAGE_SUFFIX}" "server:${IMAGE_SUFFIX}" "jobs:${IMAGE_SUFFIX}" "ankane/pgvector:v0.4.4" "redis:7.4.0-alpine"; do

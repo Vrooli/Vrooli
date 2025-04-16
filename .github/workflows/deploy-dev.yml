@@ -152,7 +152,7 @@ jobs:
             exit 1
           fi
           echo "Deployment verified successfully"
-        shell: /usr/bin/bash
+        shell: /usr/bin/bash {0}
 
   notify:
     needs: [deploy]
