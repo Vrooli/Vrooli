@@ -1,4 +1,5 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { useTheme } from "@mui/material";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { AdvancedInputMarkdownProps, AdvancedInputStylingAction, MarkdownUtils, advancedInputTextareaClassName } from "./utils.js";
 
 const LINE_HEIGHT = 1.5;
@@ -11,25 +12,6 @@ const containerStyle = {
     overflow: "hidden",
     margin: 0,
     padding: 0,
-} as const;
-const textareaStyle = {
-    background: "inherit",
-    border: "none",
-    color: "inherit",
-    width: "100%",
-    padding: 0,
-    margin: 0,
-    fontFamily: "inherit",
-    fontSize: `${PIXELS_PER_EM}px`,
-    lineHeight: `${LINE_HEIGHT * PIXELS_PER_EM}px`,
-    resize: "none",
-    outline: "none",
-    boxSizing: "border-box",
-    display: "block",
-    overflowY: "auto",
-    "::placeholder": {
-        color: "rgba(128, 128, 128, 0.7)",
-    },
 } as const;
 
 /** TextInput for entering markdown text */
@@ -52,9 +34,33 @@ export const AdvancedInputMarkdown = forwardRef<HTMLTextAreaElement, AdvancedInp
     value,
     mergedFeatures,
 }, ref) => {
+    const theme = useTheme();
     console.log("rendering RichInputMarkdown", maxRows, minRows, value.length);
     // Internal ref for the textarea
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+    const textareaStyle = useMemo(() => {
+        return {
+            background: "inherit",
+            border: "none",
+            color: "inherit",
+            width: "100%",
+            padding: 0,
+            margin: 0,
+            fontFamily: "inherit",
+            fontSize: `${PIXELS_PER_EM}px`,
+            lineHeight: `${LINE_HEIGHT * PIXELS_PER_EM}px`,
+            resize: "none",
+            outline: "none",
+            boxSizing: "border-box",
+            display: "block",
+            overflowY: "auto",
+            "::placeholder": {
+                color: "rgba(128, 128, 128, 0.7)",
+                fontSize: `${theme.typography.caption.fontSize}px`,
+            },
+        } as const;
+    }, [theme.typography.caption.fontSize]);
 
     // Connect the external ref to our internal ref
     useImperativeHandle(ref, () => ({

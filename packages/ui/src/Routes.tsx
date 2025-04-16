@@ -117,10 +117,10 @@ export function Routes(props: { sessionChecked: boolean }) {
                 >
                     <AboutView />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Api}/add`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Api}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <ApiUpsert display="page" isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Api}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.Api}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <ApiUpsert display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/:rootId/:versionId?`} excludePageContainer {...props}>
@@ -241,19 +241,19 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.DataConverter}/add`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.DataConverter}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <DataConverterUpsert display="page" isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.DataConverter}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.DataConverter}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <DataConverterUpsert display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.DataConverter}/:rootId/:versionId?`} {...props}>
                     <DataConverterView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.DataStructure}/add`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.DataStructure}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <DataStructureUpsert display="page" isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.DataStructure}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                <NavRoute path={`${LINKS.DataStructure}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
                     <DataStructureUpsert display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.DataStructure}/:rootId/:versionId?`} {...props}>

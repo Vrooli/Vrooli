@@ -6,7 +6,7 @@ ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Install global packages
-RUN yarn global add serve
+RUN yarn global add serve --network-timeout 600000
 
 # Copy required files
 COPY --chown=node:node package.json yarn.lock ./

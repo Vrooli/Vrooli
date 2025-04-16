@@ -7,9 +7,9 @@ import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js"
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
+import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
-import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { DirectoryList } from "../../../components/lists/DirectoryList/DirectoryList.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
@@ -225,7 +225,6 @@ function ProjectForm({
                     <RelationshipList
                         isEditing={!disabled}
                         objectType={"Project"}
-                        sx={{ marginBottom: 4 }}
                     />
                     <FormSection sx={formSectionStyle}>
                         <LanguageInput
@@ -235,17 +234,20 @@ function ProjectForm({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                        <TranslatedTextInput
-                            fullWidth
-                            label={t("Name")}
+                        <TranslatedAdvancedInput
+                            features={nameInputFeatures}
+                            isRequired={true}
                             language={language}
                             name="name"
+                            title={t("Name")}
+                            placeholder={t("NamePlaceholder")}
                         />
-                        <TranslatedRichInput
+                        <TranslatedAdvancedInput
+                            features={detailsInputFeatures}
+                            isRequired={false}
                             language={language}
-                            maxChars={2048}
-                            minRows={4}
                             name="description"
+                            title={t("Description")}
                             placeholder={t("DescriptionPlaceholder")}
                         />
                     </FormSection>

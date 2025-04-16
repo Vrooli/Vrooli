@@ -1,7 +1,6 @@
 import { ModelType, OwnerShape, Session } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, styled } from "@mui/material";
 import { useMemo } from "react";
-import { formSection, noSelect } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS, RelationshipButtonType } from "../../../utils/consts.js";
 import { FocusModeButton } from "../../buttons/relationships/FocusModeButton.js";
@@ -39,6 +38,18 @@ const buttonTypeMap: Record<RelationshipButtonType, (ModelType | `${ModelType}`)
     Participants: ["Chat"],
 };
 
+const OuterBox = styled(Box)(({ theme }) => ({
+    alignItems: "center",
+    background: theme.palette.background.paper,
+    borderRadius: theme.spacing(3),
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    justifyContent: "flex-start",
+    overflowX: "auto",
+    padding: theme.spacing(2),
+}));
+
 /**
  * Horizontal button list for assigning owner, project, and parent 
  * to objects
@@ -47,8 +58,6 @@ export function RelationshipList({
     limitTo,
     ...props
 }: RelationshipListProps) {
-    const theme = useTheme();
-
     const visibleButtons = useMemo(() => {
         return Object.values(RelationshipButtonType).filter(buttonType => {
             if (limitTo && !limitTo.includes(buttonType)) {
@@ -64,26 +73,11 @@ export function RelationshipList({
         });
     }, [limitTo, props.objectType]);
 
-    const outerStyle = useMemo(function outerStyleMemo() {
-        return {
-            ...noSelect,
-            ...formSection(theme),
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            gap: 1,
-            overflowX: "auto",
-            background: theme.palette.background.paper,
-            ...props.sx,
-        } as const;
-    }, [theme, props.sx]);
-
     if (!visibleButtons.length) {
         return null;
     }
     return (
-        <Box id={ELEMENT_IDS.RelationshipList} sx={outerStyle}>
+        <OuterBox id={ELEMENT_IDS.RelationshipList}>
             {visibleButtons.includes(RelationshipButtonType.IsPrivate) && <IsPrivateButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.IsComplete) && <IsCompleteButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Owner) && <OwnerButton {...props} />}
@@ -91,6 +85,6 @@ export function RelationshipList({
             {visibleButtons.includes(RelationshipButtonType.QuestionFor) && <QuestionForButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Members) && <MembersButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Participants) && <ParticipantsButton {...props} />}
-        </Box>
+        </OuterBox>
     );
 }

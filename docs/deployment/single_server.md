@@ -137,7 +137,7 @@ The deployment process is the same for both production and development environme
    # -r y: Run on remote server
    # -p y: Use production environment
    # -k n: Do not use Kubernetes (use Docker Compose instead)
-   ./scripts/setup.sh -r y -p y -k n
+   ./scripts/setup.sh --remote y --prod y --kubernetes n
    ```
 
    ```bash
@@ -145,14 +145,14 @@ The deployment process is the same for both production and development environme
    # -r y: Run on remote server
    # -p n: Use development environment
    # -k n: Do not use Kubernetes (use Docker Compose instead)
-   ./scripts/setup.sh -r y -p n -k n
+   ./scripts/setup.sh --remote y --prod n --kubernetes n
    ```
 
 5. Run the appropriate deployment script:
    For production:
    ```bash
    # -c: Clean up old builds (prevents build directory accumulation)
-   ./scripts/deploy.sh -c
+   ./scripts/deploy.sh --clean
    ```
    
    For development:

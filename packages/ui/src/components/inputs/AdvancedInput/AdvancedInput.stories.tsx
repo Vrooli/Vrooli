@@ -1,3 +1,4 @@
+/* eslint-disable react-perf/jsx-no-new-object-as-prop */
 import { Box, Button, Divider, FormControlLabel, Switch, Typography } from "@mui/material";
 import { action } from "@storybook/addon-actions";
 import { Meta } from "@storybook/react";
@@ -357,7 +358,7 @@ export function Default() {
     const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [message, setMessage] = useState("");
     const [tools, setTools] = useState<Tool[]>([]);
-    const [maxChars, setMaxChars] = useState<number | undefined>(undefined);
+    const [features, setFeatures] = useState<AdvancedInputFeatures>(DEFAULT_FEATURES);
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
 
@@ -471,35 +472,35 @@ export function Default() {
     function setNoTools() {
         setTools([]);
         setContextData([]);
-        setMaxChars(undefined);
+        setFeatures(prev => ({ ...prev, maxChars: undefined }));
         action("setNoTools")();
     }
 
     function setSomeTools() {
         setTools(mockSomeTools);
         setContextData([]);
-        setMaxChars(undefined);
+        setFeatures(prev => ({ ...prev, maxChars: undefined }));
         action("setSomeTools")();
     }
 
     function setManyTools() {
         setTools(mockManyTools);
         setContextData([]);
-        setMaxChars(undefined);
+        setFeatures(prev => ({ ...prev, maxChars: undefined }));
         action("setManyTools")();
     }
 
     function setWithContextItems() {
         setTools([]);
         setContextData(mockContextData);
-        setMaxChars(undefined);
+        setFeatures(prev => ({ ...prev, maxChars: undefined }));
         action("setWithContextItems")();
     }
 
     function setWithMaxChars() {
         setTools([]);
         setContextData([]);
-        setMaxChars(100);
+        setFeatures(prev => ({ ...prev, maxChars: 100 }));
         action("setWithMaxChars")();
     }
 
@@ -517,7 +518,7 @@ export function Default() {
         onMessageChange("");
         setContextData([]);
         setTools([]);
-        setMaxChars(undefined);
+        setFeatures(prev => ({ ...prev, maxChars: undefined }));
         setPlaceholder("Enter your message here...");
         setHelperText(undefined);
         action("clearAll")();
@@ -548,7 +549,7 @@ export function Default() {
                 name="message"
                 tools={tools}
                 contextData={contextData}
-                maxChars={maxChars}
+                features={features}
                 placeholder={placeholder}
                 helperText={helperText}
                 onChange={onMessageChange}
@@ -568,9 +569,10 @@ export function FormikExample() {
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
     const [title, setTitle] = useState<string | undefined>("Feedback Form");
-    const [features] = useState<AdvancedInputFeatures>({
+    const [features, setFeatures] = useState<AdvancedInputFeatures>({
         ...DEFAULT_FEATURES,
         allowTools: false,
+        maxChars: undefined,
     });
 
     return (
@@ -670,26 +672,31 @@ export function FormikExample() {
                 // Configuration handlers
                 function setNoTools() {
                     setValues({ message: values.message });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setNoTools")();
                 }
 
                 function setSomeTools() {
                     setValues({ message: values.message });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setSomeTools")();
                 }
 
                 function setManyTools() {
                     setValues({ message: values.message });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setManyTools")();
                 }
 
                 function setWithContextItems() {
                     setValues({ message: values.message });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setWithContextItems")();
                 }
 
                 function setWithMaxChars() {
                     setValues({ message: values.message });
+                    setFeatures(prev => ({ ...prev, maxChars: 100 }));
                     action("setWithMaxChars")();
                 }
 
@@ -710,6 +717,7 @@ export function FormikExample() {
 
                 function clearAll() {
                     setValues({ message: "" });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     setPlaceholder("Enter your message here...");
                     setHelperText(undefined);
                     action("clearAll")();
@@ -768,9 +776,10 @@ export function TranslatedExample() {
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
     const [title, setTitle] = useState<string | undefined>("Translated Feedback");
-    const [features] = useState<AdvancedInputFeatures>({
+    const [features, setFeatures] = useState<AdvancedInputFeatures>({
         ...DEFAULT_FEATURES,
         allowTools: false,
+        maxChars: undefined,
     });
 
     return (
@@ -872,26 +881,31 @@ export function TranslatedExample() {
                 // Configuration handlers
                 function setNoTools() {
                     setValues({ translations: values.translations });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setNoTools")();
                 }
 
                 function setSomeTools() {
                     setValues({ translations: values.translations });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setSomeTools")();
                 }
 
                 function setManyTools() {
                     setValues({ translations: values.translations });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setManyTools")();
                 }
 
                 function setWithContextItems() {
                     setValues({ translations: values.translations });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     action("setWithContextItems")();
                 }
 
                 function setWithMaxChars() {
                     setValues({ translations: values.translations });
+                    setFeatures(prev => ({ ...prev, maxChars: 100 }));
                     action("setWithMaxChars")();
                 }
 
@@ -917,6 +931,7 @@ export function TranslatedExample() {
                             { ...values.translations[1], message: "" },
                         ],
                     });
+                    setFeatures(prev => ({ ...prev, maxChars: undefined }));
                     setPlaceholder("Enter your message here...");
                     setHelperText(undefined);
                     action("clearAll")();
@@ -998,8 +1013,8 @@ export function Features() {
     const [message, setMessage] = useState("");
     const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [tools, setTools] = useState<Tool[]>(mockSomeTools);
-    // Feature toggles state - start with all features enabled
-    const [features, setFeatures] = useState<AdvancedInputFeatures>({ ...DEFAULT_FEATURES });
+    // Feature toggles state - start with all features enabled, including maxChars
+    const [features, setFeatures] = useState<AdvancedInputFeatures>({ ...DEFAULT_FEATURES, maxChars: 100 });
 
     // Handle feature toggle
     function handleFeatureToggle(featureKey: keyof AdvancedInputFeatures) {
@@ -1031,7 +1046,7 @@ export function Features() {
 
     // Reset features to default
     function resetFeatures() {
-        setFeatures({ ...DEFAULT_FEATURES });
+        setFeatures({ ...DEFAULT_FEATURES, maxChars: 100 });
     }
 
     // Set minimal features (just text entry and submit)
@@ -1048,6 +1063,8 @@ export function Features() {
             allowSubmit: true,
             allowSpellcheck: true,
             allowSettingsCustomization: false,
+            allowContextDropdown: false,
+            maxChars: 100,
         });
     }
 
@@ -1065,6 +1082,8 @@ export function Features() {
             allowSubmit: false,
             allowSpellcheck: true,
             allowSettingsCustomization: false,
+            allowContextDropdown: false,
+            maxChars: 1000,
         });
     }
 
@@ -1073,6 +1092,7 @@ export function Features() {
         setFeatures({
             ...DEFAULT_FEATURES,
             allowTools: true,
+            maxChars: 4000,
         });
     }
 
@@ -1308,7 +1328,6 @@ export function Features() {
                 tools={tools}
                 contextData={contextData}
                 features={features}
-                maxChars={100}
                 placeholder="Enter your message here..."
                 onChange={onMessageChange}
                 onToolsChange={onToolsChange}

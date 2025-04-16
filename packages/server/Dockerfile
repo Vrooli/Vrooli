@@ -35,10 +35,10 @@ WORKDIR ${PROJECT_DIR}
 COPY --from=stage0 ${PROJECT_DIR} ./
 
 # Install local packages
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile --network-timeout 600000
 
 # Install global packages
-RUN yarn global add typescript@5.4.5 nodemon@3.0.2 prisma@6.1.0
+RUN yarn global add typescript@5.4.5 nodemon@3.0.2 prisma@6.1.0 --network-timeout 600000
 
 # Stage 2. Copy files from stage 1, and install required unix tools
 FROM node:18-alpine3.20 AS stage2

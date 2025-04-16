@@ -1,4 +1,4 @@
-import { CommentFor, FindByIdInput, FormBuilder, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RoutineVersionConfig, RunProject, RunRoutine, RunStatus, Tag, TagShape, UrlTools, base36ToUuid, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate } from "@local/shared";
+import { CommentFor, FindByIdInput, FormBuilder, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RoutineVersionConfig, RunRoutine, RunStatus, Tag, TagShape, UrlTools, base36ToUuid, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate } from "@local/shared";
 import { Box, Divider, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Formik, useFormikContext } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -19,7 +19,7 @@ import { StatsCompact } from "../../../components/text/StatsCompact.js";
 import { VersionDisplay } from "../../../components/text/VersionDisplay.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
-import { useSocketRun, useUpsertRunRoutine } from "../../../hooks/runs.js";
+import { useUpsertRunRoutine } from "../../../hooks/runs.js";
 import { useErrorPopover } from "../../../hooks/useErrorPopover.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
@@ -110,15 +110,15 @@ function RoutineSingleStepTypeView({
     const getFormValues = useCallback(function getFormValuesCallback() {
         return values;
     }, [values]);
-    const {
-        handleRunSubroutine,
-        isGeneratingOutputs,
-    } = useSocketRun({
-        getFormValues,
-        handleRunUpdate: onRunChange as (run: RunRoutine | RunProject) => unknown,
-        run,
-        runnableObject: existing as RoutineVersion,
-    });
+    // const {
+    //     handleRunSubroutine,
+    //     isGeneratingOutputs,
+    // } = useSocketRun({
+    //     getFormValues,
+    //     handleRunUpdate: onRunChange as (run: RunRoutine | RunProject) => unknown,
+    //     run,
+    //     runnableObject: existing as RoutineVersion,
+    // });
 
     const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting: setSubmitting });
     const hasFormErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
@@ -198,14 +198,14 @@ function RoutineSingleStepTypeView({
                 objectName: getDisplay(existing).title,
                 onSuccess: function handleSuccess(data) {
                     setRun(data);
-                    handleRunSubroutine();
+                    // handleRunSubroutine();
                 },
             });
         } else {
             // We have a run, proceed to run the subroutine
-            handleRunSubroutine();
+            // handleRunSubroutine();
         }
-    }, [createRun, existing, handleRunSubroutine, run]);
+    }, [createRun, existing, run]);
     const handleClearRun = useCallback(function handleClearRunCallback() {
         setRun(null);
         resetForm();
@@ -215,7 +215,7 @@ function RoutineSingleStepTypeView({
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
         if (!existing) return null;
 
-        const isLoading = isCreatingRunRoutine || isUpdatingRunRoutine || isGetRoutineLoading || isLoadingGetRun || isGeneratingOutputs || isSubmitting || isValidating;
+        const isLoading = isCreatingRunRoutine || isUpdatingRunRoutine || isGetRoutineLoading || isLoadingGetRun || isSubmitting || isValidating; // || isGeneratingOutputs
         const isLoggedIn = uuidValidate(getCurrentUser(session).id);
         const isDeleted = existing.isDeleted ?? existing.root?.isDeleted ?? false;
         const canRun = existing.you?.canRun ?? false;
@@ -231,7 +231,7 @@ function RoutineSingleStepTypeView({
             isCompleteStepDisabled: isLoading || !isLoggedIn || isDeleted || !canRun || hasFormErrors,
             isPartOfMultiStepRoutine: false,
             isRunStepDisabled: isLoading || !isLoggedIn || isDeleted || !canRun || hasFormErrors,
-            isRunningStep: isGeneratingOutputs,
+            isRunningStep: false, // isGeneratingOutputs,
             onCallDataActionChange: noop, // Only used in edit mode
             onCallDataApiChange: noop, // Only used in edit mode
             onCallDataCodeChange: noop, // Only used in edit mode
@@ -262,7 +262,7 @@ function RoutineSingleStepTypeView({
             default:
                 return null;
         }
-    }, [config, existing, handleClearRun, handleCompleteStep, handleRunStep, hasFormErrors, isCreatingRunRoutine, isGeneratingOutputs, isGetRoutineLoading, isLoadingGetRun, isSubmitting, isUpdatingRunRoutine, isValidating, onRunChange, run, session]);
+    }, [config, existing, handleClearRun, handleCompleteStep, handleRunStep, hasFormErrors, isCreatingRunRoutine, isGetRoutineLoading, isLoadingGetRun, isSubmitting, isUpdatingRunRoutine, isValidating, onRunChange, run, session]);
 
     return (
         <>

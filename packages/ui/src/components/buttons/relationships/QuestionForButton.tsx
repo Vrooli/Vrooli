@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
-import { getDisplay, placeholderColor } from "../../../utils/display/listTools.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { RelationshipItemQuestionForObject } from "../../lists/types.js";
@@ -46,7 +46,6 @@ export function QuestionForButton({
 }: QuestionForButtonProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const profileColors = useMemo(() => placeholderColor(), []);
 
     const [field, , helpers] = useField("forObject");
 
@@ -93,7 +92,7 @@ export function QuestionForButton({
         }
         const questionForName = getDisplay(forObject).title ?? null;
         const imageUrl = extractImageUrl(forObject.profileImage, forObject.updated_at, TARGET_IMAGE_SIZE);
-        const isBot = isOfType(forObject, "User") && (forObject as Partial<User>).isBot === true;
+        const isBot = isOfType(forObject, "Profile") && (forObject as Partial<User>).isBot === true;
         const label = questionForName ? `For: ${questionForName}` : "Question";
         const truncatedLabel = label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;
         const iconInfo = questionForTypeIconInfos[forObject.__typename.replace("Version", "")];
@@ -105,11 +104,10 @@ export function QuestionForButton({
             avatarProps: {
                 children: iconInfo ? <Icon info={iconInfo} /> : <IconCommon name="Article" />,
                 isBot,
-                profileColors,
                 src: imageUrl,
             },
         };
-    }, [field?.value, t, isEditing, profileColors]);
+    }, [field?.value, t, isEditing]);
 
     const Avatar = useMemo(() => {
         return avatarProps ? <RelationshipAvatar {...avatarProps} /> : undefined;

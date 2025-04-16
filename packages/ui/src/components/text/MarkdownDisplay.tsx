@@ -912,11 +912,11 @@ export function MarkdownDisplay({
             fontFamily: typography.fontFamily,
             fontSize: typography.fontSize + 2,
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
-            color: palette.background.textPrimary,
+            color: "inherit",
             display: "block",
             ...sx,
         } as const;
-    }, [palette.background.textPrimary, sx, typography.fontSize, typography.fontFamily]);
+    }, [sx, typography.fontSize, typography.fontFamily]);
 
     return (
         <Markdown id={id} options={options} style={markdownStyle}>

@@ -16,6 +16,7 @@ import { getTranslationData, handleTranslationChange } from "../../../utils/disp
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton.js";
+import { MicrophoneButtonProps } from "../../buttons/types.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { FormTip } from "../form/FormTip.js";
@@ -132,7 +133,7 @@ const Outer = styled("div")(({ theme }) => ({
     position: "relative",
     // Ensure it can receive clicks even if children cover parts of it
     // (though padding usually handles this)
-    // cursor: "text", // Optional: hint that the area is for text input
+    cursor: "text", // Optional: hint that the area is for text input
 }));
 
 // List of selectors for interactive elements that shouldn't trigger input focus
@@ -847,12 +848,12 @@ async function getFilesFromEvent(event: any): Promise<(File | DataTransferItem)[
 export function AdvancedInputBase({
     tools = [],
     contextData = [],
-    maxChars,
     value,
     disabled = false,
     error = false,
     features = DEFAULT_FEATURES,
     helperText,
+    isRequired = false,
     name,
     onBlur,
     onChange,
@@ -890,6 +891,21 @@ export function AdvancedInputBase({
     const handleToggleExpand = useCallback(() => {
         setIsExpanded(prev => !prev);
     }, []);
+
+    // Determine min/max rows based on features or defaults
+    const minRows = useMemo(() => {
+        if (isExpanded) {
+            return mergedFeatures.minRowsExpanded ?? MIN_ROWS_EXPANDED;
+        }
+        return mergedFeatures.minRowsCollapsed ?? MIN_ROWS_COLLAPSED;
+    }, [isExpanded, mergedFeatures.minRowsExpanded, mergedFeatures.minRowsCollapsed]);
+
+    const maxRows = useMemo(() => {
+        if (isExpanded) {
+            return mergedFeatures.maxRowsExpanded ?? MAX_ROWS_EXPANDED;
+        }
+        return mergedFeatures.maxRowsCollapsed ?? MAX_ROWS_COLLAPSED;
+    }, [isExpanded, mergedFeatures.maxRowsExpanded, mergedFeatures.maxRowsCollapsed]);
 
     // Use the useUndoRedo hook for managing input value
     const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
@@ -1168,17 +1184,17 @@ export function AdvancedInputBase({
         gap: theme.spacing(1),
     }), [isToolsExpanded, theme]);
 
-    const charsProgress = maxChars ? Math.min(100, Math.ceil(((internalValue?.length ?? 0) / maxChars) * 100)) : 0;
-    const charsOverLimit = maxChars ? Math.max(0, (internalValue?.length ?? 0) - maxChars) : 0;
+    const charsProgress = mergedFeatures.maxChars ? Math.min(100, Math.ceil(((internalValue?.length ?? 0) / mergedFeatures.maxChars) * 100)) : 0;
+    const charsOverLimit = mergedFeatures.maxChars ? Math.max(0, (internalValue?.length ?? 0) - mergedFeatures.maxChars) : 0;
 
     const progressStyle = useMemo(() => {
-        let progressStyle = { color: theme.palette.success.main };
+        let style = { color: theme.palette.success.main };
         if (charsOverLimit > 0) {
-            progressStyle = { color: theme.palette.error.main };
+            style = { color: theme.palette.error.main };
         } else if (charsProgress >= 80) {
-            progressStyle = { color: theme.palette.warning.main };
+            style = { color: theme.palette.warning.main };
         }
-        return progressStyle;
+        return style;
     }, [charsOverLimit, charsProgress, theme.palette.error.main, theme.palette.success.main, theme.palette.warning.main]);
 
     const toggleMarkdown = useCallback(() => {
@@ -1273,8 +1289,8 @@ export function AdvancedInputBase({
         disabled,
         enterWillSubmit,
         error,
-        maxRows: isExpanded ? MAX_ROWS_EXPANDED : MAX_ROWS_COLLAPSED,
-        minRows: isExpanded ? MIN_ROWS_EXPANDED : MIN_ROWS_COLLAPSED,
+        maxRows,
+        minRows,
         name,
         onActiveStatesChange: handleActiveStatesChange,
         onBlur,
@@ -1284,7 +1300,11 @@ export function AdvancedInputBase({
         setHandleAction: setChildHandleAction,
         tabIndex,
         toggleMarkdown,
-    }), [disabled, enterWillSubmit, error, isExpanded, name, handleActiveStatesChange, onBlur, onFocus, onSubmit, placeholder, setChildHandleAction, tabIndex, toggleMarkdown]);
+    }), [
+        disabled, enterWillSubmit, error, maxRows, minRows, name, // Add maxRows and minRows to dependency array
+        handleActiveStatesChange, onBlur, onFocus, onSubmit, placeholder, setChildHandleAction,
+        tabIndex, toggleMarkdown,
+    ]);
 
     // Only the frequently changing props
     const dynamicViewProps = useMemo(() => ({
@@ -1448,17 +1468,20 @@ export function AdvancedInputBase({
         handleSubmit();
     }, [handleSubmit]);
 
+    // Define the stop propagation handler outside the component
+    const stopPropagationHandler = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
+
     // Create a wrapper for the MicrophoneButton
     function MicrophoneButtonWithStopPropagation({ onTranscriptChange, ...props }: MicrophoneButtonProps) {
         // Create a wrapper for the onTranscriptChange function
-        const handleTranscriptChangeWithStopPropagation = useCallback((transcript) => {
+        const handleTranscriptChangeWithStopPropagation = useCallback((transcript: string) => {
             // Don't need to stop propagation here as this is a callback function
             onTranscriptChange(transcript);
         }, [onTranscriptChange]);
 
         // Create a component that stops propagation for any clicks
         return (
-            <Box onClick={(e) => e.stopPropagation()}>
+            <Box onClick={stopPropagationHandler}> {/* Use the memoized handler */}
                 <MicrophoneButton
                     onTranscriptChange={handleTranscriptChangeWithStopPropagation}
                     {...props}
@@ -1565,7 +1588,7 @@ export function AdvancedInputBase({
                 <Box sx={titleStyles}>
                     <Typography variant="subtitle1" fontWeight="medium" color="text.secondary">
                         {title}
-                    </Typography>
+                        {isRequired && <Typography component="span" variant="subtitle1" color="error" paddingLeft="4px">*</Typography>}                    </Typography>
                 </Box>
             )}
             {/* Input Area */}
@@ -1658,7 +1681,11 @@ export function AdvancedInputBase({
                                     sx={verticalMiddleStyle}
                                 >
                                     <CircularProgress
-                                        aria-label={maxChars ? `Character count progress: ${internalValue.length} of ${maxChars} characters used` : "Character count progress"}
+                                        aria-label={
+                                            mergedFeatures.maxChars
+                                                ? `Character count progress: ${internalValue.length} of ${mergedFeatures.maxChars} characters used`
+                                                : "Character count progress"
+                                        }
                                         size={34}
                                         sx={progressStyle}
                                         value={charsProgress}
@@ -1776,6 +1803,7 @@ export function AdvancedInputBase({
 export function AdvancedInput({
     name,
     features,
+    isRequired,
     ...props
 }: AdvancedInputProps) {
     const [field, meta, helpers] = useField(name);
@@ -1794,6 +1822,7 @@ export function AdvancedInput({
             helperText={meta.touched && meta.error ? String(meta.error) : undefined}
             onBlur={field.onBlur}
             onChange={handleChange}
+            isRequired={isRequired}
         />
     );
 }
@@ -1802,6 +1831,7 @@ export function TranslatedAdvancedInput({
     language,
     name,
     features,
+    isRequired,
     ...props
 }: TranslatedAdvancedInputProps) {
     const [field, meta, helpers] = useField("translations");
@@ -1837,6 +1867,7 @@ export function TranslatedAdvancedInput({
             helperText={fieldTouched && fieldError ? String(fieldError) : undefined}
             onBlur={handleBlur}
             onChange={handleChange}
+            isRequired={isRequired}
         />
     );
 }

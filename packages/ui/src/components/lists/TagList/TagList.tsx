@@ -1,15 +1,34 @@
-import { Box, Chip, Stack, useTheme } from "@mui/material";
-import { useCallback, useMemo, useState } from "react";
+import { Box, Chip, Stack, styled, useTheme } from "@mui/material";
+import { SyntheticEvent, useCallback, useMemo, useState } from "react";
 import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { TagListProps } from "../types.js";
 
+const DEFAULT_MAX_CHARACTERS = 50;
+
+const OuterBox = styled(Box)(({ theme }) => ({
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: theme.spacing(1),
+}));
+const TagChip = styled(Chip)(({ theme }) => ({
+    borderRadius: theme.spacing(2),
+    transition: "all 0.2s ease",
+    backgroundColor: theme.palette.primary.light,
+    color: theme.palette.primary.contrastText,
+    cursor: "pointer",
+    "&:hover": {
+        boxShadow: theme.shadows[1],
+        backgroundColor: theme.palette.primary.main,
+    },
+}));
+
 export function TagList({
-    maxCharacters = 50,
-    sx,
+    maxCharacters = DEFAULT_MAX_CHARACTERS,
     tags,
 }: TagListProps) {
-    const { palette, spacing } = useTheme();
+    const { palette } = useTheme();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const [displayedTags, hiddenTags] = useMemo(() => {
@@ -30,8 +49,8 @@ export function TagList({
         return [visibleTags, hiddenTagsList];
     }, [maxCharacters, tags]);
 
-    const handleMoreClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        setAnchorEl(event.currentTarget);
+    const handleMoreClick = useCallback((event: SyntheticEvent) => {
+        setAnchorEl(event.currentTarget as HTMLElement);
     }, []);
 
     const handleClose = useCallback(() => {
@@ -40,32 +59,12 @@ export function TagList({
 
     return (
         <>
-            <Box
-                sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 0.75,
-                    alignItems: 'center',
-                    ...sx,
-                }}
-            >
+            <OuterBox>
                 {displayedTags.map((tag) => (
-                    <ListItemChip
-                        color="Purple"
+                    <TagChip
                         key={tag.tag}
                         label={tag.tag}
                         size="small"
-                        sx={{
-                            borderRadius: '16px',
-                            transition: 'all 0.2s ease',
-                            backgroundColor: palette.primary.light,
-                            color: palette.primary.contrastText,
-                            '&:hover': {
-                                transform: 'translateY(-2px)',
-                                boxShadow: 1,
-                                backgroundColor: palette.primary.main,
-                            },
-                        }}
                     />
                 ))}
 
@@ -73,30 +72,29 @@ export function TagList({
                     <Chip
                         label={`+${hiddenTags.length}`}
                         size="small"
-                        onClick={(e) => handleMoreClick(e as any)}
+                        onClick={handleMoreClick}
                         sx={{
                             backgroundColor: palette.secondary.light,
                             color: palette.secondary.contrastText,
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            borderRadius: '16px',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                            borderRadius: "16px",
+                            transition: "all 0.2s ease",
+                            "&:hover": {
                                 backgroundColor: palette.secondary.main,
-                                transform: 'translateY(-2px)',
+                                transform: "translateY(-2px)",
                                 boxShadow: 1,
                             },
                         }}
                     />
                 )}
-            </Box>
-
+            </OuterBox>
             <PopoverWithArrow
                 anchorEl={anchorEl}
                 handleClose={handleClose}
                 title="All Tags"
             >
-                <Box sx={{ p: 2, maxWidth: '300px' }}>
+                <Box p={2} maxWidth="300px">
                     <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                         {tags.map((tag) => (
                             <ListItemChip
@@ -107,7 +105,7 @@ export function TagList({
                                 sx={{
                                     backgroundColor: palette.primary.light,
                                     color: palette.primary.contrastText,
-                                    '&:hover': {
+                                    "&:hover": {
                                         backgroundColor: palette.primary.main,
                                     },
                                 }}

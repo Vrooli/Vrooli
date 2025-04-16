@@ -1,5 +1,5 @@
 import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointsApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
-import { Button, Divider, InputAdornment, Stack } from "@mui/material";
+import { Box, Button, Divider, Grid, InputAdornment, Typography } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,18 +7,19 @@ import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
-import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
+import { detailsInputFeatures, nameInputFeatures, summaryInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { TagSelector } from "../../../components/inputs/TagSelector/TagSelector.js";
-import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
+import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceListInput } from "../../../components/lists/ResourceList/ResourceList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
+import { PageContainer } from "../../../components/Page/Page.js";
+import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
@@ -27,7 +28,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { FormContainer, FormSection } from "../../../styles.js";
+import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
@@ -448,26 +449,11 @@ const callLinkInputProps = {
     ),
 } as const;
 const codeLimitTo = [CodeLanguage.Json, CodeLanguage.Graphql, CodeLanguage.Yaml] as const;
-const relationshipListStyle = { marginBottom: 2 } as const;
-const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
-const basicInfoCollapseStyle = { root: { width: "100%" }, titleContainer: { marginBottom: 1 } } as const;
+const formSectionTitleStyle = { marginBottom: 1 } as const;
 const tagSelectorStyle = { marginBottom: 2 } as const;
-const versionInputStyle = { marginBottom: 2 } as const;
 const resourceListStyle = { list: { marginBottom: 2 } } as const;
-const apiInfoCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
 const schemaCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
-const inputFeatures = {
-    allowFormatting: false,
-    allowExpand: false,
-    allowFileAttachments: false,
-    allowImageAttachments: false,
-    allowTextAttachments: false,
-    allowTools: false,
-    allowCharacterLimit: true,
-    allowVoiceInput: false,
-    allowSubmit: false,
-    allowSettingsCustomization: false,
-} as const;
+const dividerStyle = { display: { xs: "flex", md: "none" } } as const;
 
 function ApiForm({
     disabled,
@@ -615,117 +601,122 @@ function ApiForm({
             />
             <BaseForm
                 display={display}
+                maxWidth={1200}
                 isLoading={isLoading}
             >
                 <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={basicInfoCollapseStyle}>
-                        <RelationshipList
-                            isEditing={true}
-                            objectType={"Api"}
-                            sx={relationshipListStyle}
-                        />
-                        <FormSection variant="transparent" sx={formSectionStyle}>
-                            <TranslatedTextInput
-                                fullWidth
-                                isRequired={true}
-                                label={t("Name")}
-                                language={language}
-                                name="name"
-                                placeholder={t("NamePlaceholder")}
-                            />
-                            <TranslatedAdvancedInput
-                                features={inputFeatures}
-                                language={language}
-                                name="summary"
-                                maxChars={1024}
-                                title={t("Summary")}
-                            />
-                            <TranslatedRichInput
-                                language={language}
-                                name="details"
-                                maxChars={8192}
-                                placeholder={t("Details")}
-                            />
-                            <LanguageInput
-                                currentLanguage={language}
-                                flexDirection="row-reverse"
-                                handleAdd={handleAddLanguage}
-                                handleDelete={handleDeleteLanguage}
-                                handleCurrent={setLanguage}
-                                languages={languages}
-                            />
-                        </FormSection>
-                        <TagSelector name="root.tags" sx={tagSelectorStyle} />
-                        <VersionInput
-                            fullWidth
-                            versions={versions}
-                            sx={versionInputStyle}
-                        />
-                        <ResourceListInput
-                            horizontal
-                            isCreate={true}
-                            parent={resourceListParent}
-                            sxs={resourceListStyle}
-                        />
-                    </ContentCollapse>
-                    <Divider />
-                    <ContentCollapse title="Api info" titleVariant="h4" isOpen={true} sxs={apiInfoCollapseStyle}>
-                        <FormSection>
-                            <Field
-                                fullWidth
-                                name="callLink"
-                                label={"Endpoint URL"}
-                                placeholder={"https://example.com"}
-                                as={TextInput}
-                                InputProps={callLinkInputProps}
-                            />
-                            {/* Selector for documentation URL or text */}
-                            <ContentCollapse
-                                title="Schema"
-                                titleVariant="h4"
-                                helpText={"Enter your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema.\n\nAlternatively, you can enter a link to fetch the schema from."}
-                                isOpen={true}
-                                sxs={schemaCollapseStyle}
-                            >
-                                <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                                    <Button
-                                        fullWidth
-                                        color="secondary"
-                                        onClick={toggleHasDocUrlTrue}
-                                        variant="outlined"
-                                    >{hasDocUrl === true ? "Enter text" : "Use link"}</Button>
-                                    <Button
-                                        fullWidth
-                                        color="secondary"
-                                        onClick={showExample}
-                                        variant="outlined"
-                                        startIcon={<IconCommon name="Help" />}
-                                    >Show example</Button>
-                                </Stack >
-                            </ContentCollapse>
-                            {
-                                hasDocUrl === true && (
-                                    <Field
-                                        fullWidth
-                                        name="documentationLink"
-                                        label={"Schema URL (Optional)"}
-                                        helperText={"The full URL to the schema"}
-                                        as={TextInput}
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                            <Box width="100%" padding={2}>
+                                <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
+                                <Box display="flex" flexDirection="column" gap={4}>
+                                    <RelationshipList
+                                        isEditing={true}
+                                        objectType={"Api"}
                                     />
-                                )
-                            }
-                            {
-                                hasDocUrl === false && (
-                                    <CodeInput
-                                        codeLanguageField="schemaLanguage"
-                                        disabled={false}
-                                        limitTo={codeLimitTo}
-                                        name="schemaText"
+                                    <TranslatedAdvancedInput
+                                        features={nameInputFeatures}
+                                        isRequired={true}
+                                        language={language}
+                                        name="name"
+                                        title={t("Name")}
+                                        placeholder={"Weather Data API..."}
                                     />
-                                )
-                            }
-                        </FormSection>
-                    </ContentCollapse>
+                                    <TranslatedAdvancedInput
+                                        features={summaryInputFeatures}
+                                        isRequired={false}
+                                        language={language}
+                                        name="summary"
+                                        title={t("Summary")}
+                                        placeholder={"Provides up-to-date weather forecasts for locations worldwide..."}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        features={detailsInputFeatures}
+                                        isRequired={false}
+                                        language={language}
+                                        name="details"
+                                        title={t("Details")}
+                                        placeholder={"Detailed weather information including current conditions, hourly forecasts, and daily summaries. Supports JSON and XML formats..."}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                    <TagSelector name="root.tags" sx={tagSelectorStyle} />
+                                    <VersionInput
+                                        fullWidth
+                                        versions={versions}
+                                    />
+                                    <ResourceListInput
+                                        horizontal
+                                        isCreate={true}
+                                        parent={resourceListParent}
+                                        sxs={resourceListStyle}
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <Divider sx={dividerStyle} />
+                            <Box width="100%" padding={2}>
+                                <Typography variant="h4" sx={formSectionTitleStyle}>API info</Typography>
+                                <Field
+                                    fullWidth
+                                    name="callLink"
+                                    label={"Endpoint URL"}
+                                    placeholder={"https://example.com"}
+                                    as={TextInput}
+                                    InputProps={callLinkInputProps}
+                                />
+                                <Box width="100%" marginTop={2} color="text.secondary">
+                                    <Typography variant="h5" color="text.primary" sx={schemaCollapseStyle.titleContainer}>Schema</Typography>
+                                    <MarkdownDisplay
+                                        content={"Enter your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema.\nAlternatively, you can enter a link to fetch the schema from."}
+                                    />
+                                    <Box display="flex" flexDirection="row" gap={1} marginBottom={2}>
+                                        <Button
+                                            fullWidth
+                                            color="secondary"
+                                            onClick={toggleHasDocUrlTrue}
+                                            variant="outlined"
+                                        >{hasDocUrl === true ? "Enter text" : "Use link"}</Button>
+                                        <Button
+                                            fullWidth
+                                            color="secondary"
+                                            onClick={showExample}
+                                            variant="outlined"
+                                            startIcon={<IconCommon name="Help" />}
+                                        >Show example</Button>
+                                    </Box>
+                                </Box>
+                                {
+                                    hasDocUrl === true && (
+                                        <Field
+                                            fullWidth
+                                            name="documentationLink"
+                                            label={"Schema URL (Optional)"}
+                                            helperText={"The full URL to the schema"}
+                                            as={TextInput}
+                                        />
+                                    )
+                                }
+                                {
+                                    hasDocUrl === false && (
+                                        <CodeInput
+                                            codeLanguageField="schemaLanguage"
+                                            disabled={false}
+                                            limitTo={codeLimitTo}
+                                            name="schemaText"
+                                        />
+                                    )
+                                }
+                            </Box>
+                        </Grid>
+                    </Grid>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons
@@ -772,24 +763,28 @@ export function ApiUpsert({
     }, [existing]);
 
     return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={existing}
-            onSubmit={noopSubmit}
-            validate={validateValues}
-        >
-            {(formik) => <ApiForm
-                disabled={!(isCreate || permissions.canUpdate)}
-                display={display}
-                existing={existing}
-                handleUpdate={setExisting}
-                isCreate={isCreate}
-                isReadLoading={isReadLoading}
-                isOpen={isOpen}
-                versions={versions}
-                {...props}
-                {...formik}
-            />}
-        </Formik>
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={existing}
+                    onSubmit={noopSubmit}
+                    validate={validateValues}
+                >
+                    {(formik) => <ApiForm
+                        disabled={!(isCreate || permissions.canUpdate)}
+                        display={display}
+                        existing={existing}
+                        handleUpdate={setExisting}
+                        isCreate={isCreate}
+                        isReadLoading={isReadLoading}
+                        isOpen={isOpen}
+                        versions={versions}
+                        {...props}
+                        {...formik}
+                    />}
+                </Formik>
+            </ScrollBox>
+        </PageContainer>
     );
 }

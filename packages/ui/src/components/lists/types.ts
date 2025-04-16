@@ -171,7 +171,6 @@ export interface RelationshipListProps {
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-    sx?: SxType;
 }
 
 export interface RoleListProps {
@@ -258,7 +257,6 @@ export interface TagListProps {
      * Maximum characters to display before tags are truncated
      */
     maxCharacters?: number;
-    sx?: SxType;
     tags: Partial<Tag>[];
 }
 

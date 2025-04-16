@@ -38,7 +38,7 @@ export function IsCompleteButton({
                     startIcon={iconInfo && <Icon
                         fill={iconColor}
                         info={iconInfo}
-                        size={32}
+                        size={24}
                     />}
                     variant="outlined"
                 >
@@ -53,7 +53,7 @@ export function IsCompleteButton({
             icon={iconInfo && <Icon
                 fill={iconColor}
                 info={iconInfo}
-                size={32}
+                size={24}
             />}
             label={label}
         />

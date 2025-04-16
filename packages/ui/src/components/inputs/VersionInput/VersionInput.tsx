@@ -1,21 +1,31 @@
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@local/shared";
-import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { IconButton, InputAdornment, Tooltip, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { VersionInputProps } from "../types.js";
 
-const COMPONENT_HEIGHT_PX = 56;
 const textInputWithSideButtonStyle = {
     "& .MuiInputBase-root": {
-        borderRadius: "5px 0 0 5px",
+        backgroundColor: "transparent",
+    },
+    "& .MuiOutlinedInput-notchedOutline": {
+        border: "none",
     },
 } as const;
 
+const Outer = styled("div")(({ theme }) => ({
+    backgroundColor: theme.palette.background.paper,
+    borderRadius: theme.spacing(3),
+    position: "relative",
+    display: "flex",
+    alignItems: "stretch",
+    overflow: "overlay",
+}));
+
 export function VersionInput({
     isRequired = false,
-    label = "Version",
     name = "versionLabel",
     versions,
     ...props
@@ -76,7 +86,8 @@ export function VersionInput({
             borderRadius: "0",
             background: palette.secondary.main,
             borderRight: `1px solid ${palette.secondary.contrastText}`,
-            height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
+            height: "100%",
+            alignSelf: "stretch",
         } as const;
     }, [palette.secondary.main, palette.secondary.contrastText]);
 
@@ -85,26 +96,43 @@ export function VersionInput({
             borderRadius: "0",
             background: palette.secondary.main,
             borderRight: `1px solid ${palette.secondary.contrastText}`,
-            height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
+            height: "100%",
+            alignSelf: "stretch",
         } as const;
     }, [palette.secondary.main, palette.secondary.contrastText]);
 
     const bumpMinorIconButtonStyle = useMemo(function bumpMinorIconButtonStyleMemo() {
         return {
-            borderRadius: "0 5px 5px 0",
+            borderRadius: "0",
             background: palette.secondary.main,
-            height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
+            height: "100%",
+            alignSelf: "stretch",
         } as const;
     }, [palette.secondary.main]);
 
+    // Memoize InputProps to fix linter warning
+    const textInputProps = useMemo(() => ({
+        ...props.InputProps,
+        startAdornment: (
+            <InputAdornment position="start">
+                v
+            </InputAdornment>
+        ),
+    }), [props.InputProps]);
+
+    // Style for the button container
+    const buttonContainerStyle = useMemo(() => ({
+        display: "flex",
+        alignSelf: "stretch",
+    }), []);
+
     return (
-        <Stack direction="row" spacing={0}>
+        <Outer>
             <TextInput
                 {...props}
                 id="versionLabel"
                 name="versionLabel"
                 isRequired={isRequired}
-                label={label}
                 value={internalValue}
                 onBlur={handleBlur}
                 onChange={handleChange}
@@ -112,28 +140,33 @@ export function VersionInput({
                 helperText={meta.touched && meta.error}
                 ref={textFieldRef}
                 sx={textInputWithSideButtonStyle}
+                InputProps={textInputProps}
+                variant="outlined"
             />
-            <Tooltip placement="top" title="Major bump (increment the first number)">
-                <IconButton
-                    onClick={bumpMajor}
-                    sx={bumpMajorIconButtonStyle}>
-                    <IconCommon decorative name="BumpMajor" />
-                </IconButton>
-            </Tooltip>
-            <Tooltip placement="top" title="Moderate bump (increment the middle number)">
-                <IconButton
-                    onClick={bumpModerate}
-                    sx={bumpModerateIconButtonStyle}>
-                    <IconCommon decorative name="BumpModerate" />
-                </IconButton>
-            </Tooltip>
-            <Tooltip placement="top" title="Minor bump (increment the last number)">
-                <IconButton
-                    onClick={bumpMinor}
-                    sx={bumpMinorIconButtonStyle}>
-                    <IconCommon decorative name="BumpMinor" />
-                </IconButton>
-            </Tooltip>
-        </Stack>
+            {/* Wrap buttons in a stretching container */}
+            <div style={buttonContainerStyle}>{/* Use memoized style */}
+                <Tooltip placement="top" title="Major bump (increment the first number)">
+                    <IconButton
+                        onClick={bumpMajor}
+                        sx={bumpMajorIconButtonStyle}>
+                        <IconCommon decorative name="BumpMajor" />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip placement="top" title="Moderate bump (increment the middle number)">
+                    <IconButton
+                        onClick={bumpModerate}
+                        sx={bumpModerateIconButtonStyle}>
+                        <IconCommon decorative name="BumpModerate" />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip placement="top" title="Minor bump (increment the last number)">
+                    <IconButton
+                        onClick={bumpMinor}
+                        sx={bumpMinorIconButtonStyle}>
+                        <IconCommon decorative name="BumpMinor" />
+                    </IconButton>
+                </Tooltip>
+            </div>
+        </Outer>
     );
 }

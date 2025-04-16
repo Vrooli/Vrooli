@@ -5,7 +5,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
-import { placeholderColor } from "../../../utils/display/listTools.js";
 import { ParticipantManageView } from "../../../views/ParticipantManageView/ParticipantManageView.js";
 import { ParticipantManageViewProps } from "../../../views/types.js";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "./styles.js";
@@ -46,11 +45,10 @@ export function ParticipantsButton({
                     key={participant.id}
                     isBot={isBot}
                     src={imageUrl}
-                    profileColors={placeholderColor(participant.user?.id)}
                 >
                     {!imageUrl && <IconCommon
                         decorative
-                        name={isBot ? "Bot" : "User"}
+                        name={isBot ? "Bot" : "Profile"}
                     />}
                 </RelationshipAvatar>
             );

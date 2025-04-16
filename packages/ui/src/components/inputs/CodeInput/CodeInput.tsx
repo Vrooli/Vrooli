@@ -16,6 +16,8 @@ import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { CodeInputBaseProps, CodeInputProps } from "../types.js";
 
+const ICON_SIZE_PX = 20;
+
 // Stub types for code splitting
 type Extension = {
     extension: Extension;
@@ -72,7 +74,6 @@ async function loadDecorations() {
     const underlineMarkVariable = Decoration.mark({ class: "variable-decoration" });
     const underlineMarkOptional = Decoration.mark({ class: "optional-decoration" });
     const underlineMarkWildcard = Decoration.mark({ class: "wildcard-decoration" });
-    const underlineMarkError = Decoration.mark({ class: "error-decoration" });
 
     function underlineVariables(doc) {
         const decorations: Range<typeof underlineMarkVariable>[] = [];
@@ -467,12 +468,6 @@ const refreshIconStyle = {
 const statusButtonStyle = {
     height: "fit-content",
 } as const;
-const languageSelectorStyle = {
-    root: {
-        width: "fit-content",
-        minWidth: "200px",
-    },
-} as const;
 
 const CHANGE_DEBOUNCE_MS = 250;
 const REFRESH_ICON_SHOW_AFTER_MS = 3000;
@@ -790,8 +785,7 @@ export function CodeInputBase({
                             getOptionLabel={getOptionLabel}
                             fullWidth
                             inputAriaLabel="select language"
-                            label={"Language"}
-                            sxs={languageSelectorStyle}
+                            sxs={{ root: { width: "fit-content" } }}
                         /> :
                         <LanguageLabel variant="body2">
                             {t(languageDisplayMap[codeLanguage][0], { ns: "langs" })}
@@ -799,7 +793,7 @@ export function CodeInputBase({
                     }
 
                     {/* Right side action buttons */}
-                    <Box display="flex" gap={1}>
+                    <Box display="flex" gap={0}>
                         {/* Word wrap toggle */}
                         <Tooltip title={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}>
                             <InfoBarButton
@@ -808,8 +802,8 @@ export function CodeInputBase({
                                 onClick={toggleWrap}
                             >
                                 {isWrapped ?
-                                    <IconText decorative name="List" /> :
-                                    <IconText decorative name="WrapText" />
+                                    <IconText decorative name="List" size={ICON_SIZE_PX} /> :
+                                    <IconText decorative name="WrapText" size={ICON_SIZE_PX} />
                                 }
                             </InfoBarButton>
                         </Tooltip>
@@ -821,7 +815,7 @@ export function CodeInputBase({
                                 size="small"
                                 onClick={handleCopy}
                             >
-                                <IconCommon decorative name="Copy" />
+                                <IconCommon decorative name="Copy" size={ICON_SIZE_PX} />
                             </InfoBarButton>
                         </Tooltip>
 
@@ -833,8 +827,8 @@ export function CodeInputBase({
                                 onClick={toggleCollapse}
                             >
                                 {isCollapsed ?
-                                    <IconCommon decorative name="ExpandMore" /> :
-                                    <IconCommon decorative name="ExpandLess" />
+                                    <IconCommon decorative name="ExpandMore" size={ICON_SIZE_PX} /> :
+                                    <IconCommon decorative name="ExpandLess" size={ICON_SIZE_PX} />
                                 }
                             </InfoBarButton>
                         </Tooltip>
@@ -853,6 +847,7 @@ export function CodeInputBase({
                                                 decorative
                                                 fill={palette.primary.contrastText}
                                                 info={iconInfo}
+                                                size={ICON_SIZE_PX}
                                             />
                                         </InfoBarButton>
                                     </Tooltip>

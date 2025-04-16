@@ -1748,17 +1748,17 @@
     kuler "^2.0.0"
 
 "@emnapi/core@^1.4.0":
-  version "1.4.3"
-  resolved "https://registry.yarnpkg.com/@emnapi/core/-/core-1.4.3.tgz#9ac52d2d5aea958f67e52c40a065f51de59b77d6"
-  integrity sha512-4m62DuCE07lw01soJwPiBGC0nAww0Q+RY70VZ+n49yDIO13yyinhbWCeNnaob0lakDtWQzSdtNWzJeOJt2ma+g==
+  version "1.4.2"
+  resolved "https://registry.yarnpkg.com/@emnapi/core/-/core-1.4.2.tgz#d808ac04ee07a6b9726baaa25a939951dc04b5b1"
+  integrity sha512-PpFbCpLQNMYT+pL8Ku+kHFASAJ0+6shCpl9QC0/kUr+AajX2wRyCaDk8WbMnueX6qmyw7tJoCsBEdb3OU+CGzA==
   dependencies:
     "@emnapi/wasi-threads" "1.0.2"
     tslib "^2.4.0"
 
 "@emnapi/runtime@^1.4.0":
-  version "1.4.3"
-  resolved "https://registry.yarnpkg.com/@emnapi/runtime/-/runtime-1.4.3.tgz#c0564665c80dc81c448adac23f9dfbed6c838f7d"
-  integrity sha512-pBPWdu6MLKROBX05wSNKcNb++m5Er+KQ9QkB+WVM+pW2Kx9hoSrVTnu3BdkI5eBLZoKu/J6mW/B6i6bJB2ytXQ==
+  version "1.4.2"
+  resolved "https://registry.yarnpkg.com/@emnapi/runtime/-/runtime-1.4.2.tgz#53022012c971bf18545886309790e5a3ad9b5145"
+  integrity sha512-+b+3BJl18a0LKeHvy5eLOwPkiaz10C2MUUYKQ25itZS50TlP5FuDh2Q5EiFlB++vAuCS6HnrihqVlbdcRYyp9w==
   dependencies:
     tslib "^2.4.0"
 
@@ -11313,9 +11313,9 @@ property-expr@^2.0.5:
   integrity sha512-SVtmxhRE/CGkn3eZY1T6pC8Nln6Fr/lu1mKSgRud0eC73whjGfoAogbn78LkD8aFL0zz3bAFerKSnOl7NlErBA==
 
 protobufjs@^7.2.5, protobufjs@^7.3.2:
-  version "7.5.0"
-  resolved "https://registry.yarnpkg.com/protobufjs/-/protobufjs-7.5.0.tgz#a317ad80713e9db43c8e55afa8636a9aa76bb630"
-  integrity sha512-Z2E/kOY1QjoMlCytmexzYfDm/w5fKAiRwpSzGtdnXW1zC88Z2yXazHHrOtwCzn+7wSxyE8PYM4rvVcMphF9sOA==
+  version "7.4.0"
+  resolved "https://registry.yarnpkg.com/protobufjs/-/protobufjs-7.4.0.tgz#7efe324ce9b3b61c82aae5de810d287bc08a248a"
+  integrity sha512-mRUWCc3KUU4w1jU8sGxICXH/gNS94DvI1gxqDvBzhj1JpcsimQkYiOJfwsPUykUI5ZaspFbSgmBLER8IrQ3tqw==
   dependencies:
     "@protobufjs/aspromise" "^1.1.2"
     "@protobufjs/base64" "^1.1.2"

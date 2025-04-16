@@ -9,7 +9,6 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
-import { placeholderColor } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
@@ -41,7 +40,6 @@ export function OwnerButton({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
-    const profileColors = useMemo(() => placeholderColor(), []);
 
     const [versionField, , versionHelpers] = useField("owner");
     const [rootField, , rootHelpers] = useField("root.owner");
@@ -116,14 +114,13 @@ export function OwnerButton({
             avatarProps: {
                 children: <IconCommon
                     decorative
-                    name={isTeam ? "Team" : "User"}
+                    name={isTeam ? "Team" : "Profile"}
                 />,
                 isBot,
-                profileColors,
                 src: imageUrl,
             },
         };
-    }, [isEditing, languages, profileColors, rootField?.value, session, t, versionField?.value]);
+    }, [isEditing, languages, rootField?.value, session, t, versionField?.value]);
 
     const Avatar = useMemo(function avatarMemo() {
         return avatarProps ? <RelationshipAvatar {...avatarProps} /> : undefined;

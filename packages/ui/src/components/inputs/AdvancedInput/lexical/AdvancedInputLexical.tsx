@@ -233,6 +233,7 @@ const LoadingPlaceholderBox = styled(Box)(({ theme }) => ({
     pointerEvents: "none",
     top: 0,
     left: 0,
+    fontSize: theme.typography.caption.fontSize,
 }));
 
 /** TextInput for entering WYSIWYG text */
