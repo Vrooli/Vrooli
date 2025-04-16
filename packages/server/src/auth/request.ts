@@ -271,7 +271,7 @@ export class RequestService {
     } {
         const { session } = req;
         // Determine if user data is found in the request
-        let userData = SessionService.getUser(req);
+        const userData = SessionService.getUser(req);
         // Determine if api token is supplied
         const hasApiToken = typeof session?.apiToken === "string" && session?.apiToken?.length > 0;
         // Determine permissions
@@ -293,14 +293,14 @@ export class RequestService {
         } else if (session.fromSafeOrigin === true) {
             permissions = {
                 [ApiKeyPermission.ReadPublic]: true,
-            }
+            };
         }
 
         return {
             hasApiToken,
             isVerifiedUser,
             permissions,
-            userData
+            userData,
         };
     }
 
@@ -319,7 +319,7 @@ export class RequestService {
             hasApiToken,
             isVerifiedUser,
             permissions,
-            userData
+            userData,
         } = RequestService.getRequestPermissions(req);
 
         // Check isUser condition

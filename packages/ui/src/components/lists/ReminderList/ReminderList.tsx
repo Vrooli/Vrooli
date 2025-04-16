@@ -311,7 +311,7 @@ function ReminderListHorizontal({
                                 ))
                             }
                             {/* Add button */}
-                            {(isEditing || list?.reminders?.length === 0) && <Tooltip placement="top" title={t("AddReminder")}>
+                            {canUpdate && <Tooltip placement="top" title={t("AddReminder")}>
                                 <CardBox onClick={openAddDialog}>
                                     <IconCommon name="Add" size={ICON_SIZE} />
                                     <Typography

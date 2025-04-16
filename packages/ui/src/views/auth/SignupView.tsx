@@ -47,6 +47,7 @@ const agreementTextStyle = {
 const StyledSignUpButton = styled(Button)(({ theme }) => ({
     ...formSubmit,
     background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
+    borderRadius: theme.spacing(2),
     fontSize: "1.1rem",
     padding: "12px",
     textTransform: "none",

@@ -1,9 +1,11 @@
 import { Notification, NotificationSearchInput, NotificationSearchResult, endpointsNotification } from "@local/shared";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";
 import { SocketService } from "../api/socket.js";
+import { SessionContext } from "../contexts/session.js";
+import { checkIfLoggedIn } from "../utils/authentication/session.js";
 
 interface NotificationsState {
     notifications: Notification[];
@@ -15,6 +17,8 @@ interface NotificationsState {
     setNotifications: (notifications: Notification[] | ((prev: Notification[]) => Notification[])) => void;
     /** Add a new notification to the list */
     addNotification: (notification: Notification) => void;
+    /** Clear all notifications and reset state */
+    clearNotifications: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>()((set, get) => ({
@@ -63,34 +67,63 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
             notifications: [notification, ...state.notifications],
         }));
     },
+    clearNotifications: () => {
+        set({ notifications: [], isLoading: false, error: null });
+    },
 }));
 
 export function useNotifications() {
     const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
     const fetchNotifications = useNotificationsStore(state => state.fetchNotifications);
     const addNotification = useNotificationsStore(state => state.addNotification);
+    const clearNotificationsStore = useNotificationsStore(state => state.clearNotifications);
+    const storeNotifications = useNotificationsStore(state => state.notifications);
+
+    const session = useContext(SessionContext);
+    const isLoggedIn = checkIfLoggedIn(session);
 
     useEffect(function fetchExistingNotificationsEffect() {
+        if (!isLoggedIn) {
+            setLocalNotifications([]);
+            if (storeNotifications.length > 0) {
+                clearNotificationsStore();
+            }
+            return;
+        }
+
         const abortController = new AbortController();
         async function loadNotifications() {
-            const notifications = await fetchNotifications(abortController.signal);
-            setLocalNotifications(notifications);
+            if (storeNotifications.length === 0) {
+                const fetchedNotifications = await fetchNotifications(abortController.signal);
+                if (!abortController.signal.aborted && checkIfLoggedIn(session)) {
+                    setLocalNotifications(fetchedNotifications);
+                }
+            } else {
+                setLocalNotifications(storeNotifications);
+            }
         }
         loadNotifications();
         return () => {
             abortController.abort();
         };
-    }, [fetchNotifications]);
+    }, [isLoggedIn, fetchNotifications, clearNotificationsStore, session, storeNotifications]);
 
     useEffect(function listenForNotificationsEffect() {
+        if (!isLoggedIn) {
+            return;
+        }
+
         const cleanupNotification = SocketService.get().onEvent("notification", (data) => {
-            addNotification(data);
-            setLocalNotifications(prev => [data, ...prev]);
+            if (checkIfLoggedIn(session)) {
+                addNotification(data);
+                setLocalNotifications(prev => [data, ...prev]);
+            }
         });
+
         return () => {
             cleanupNotification();
         };
-    }, [addNotification]);
+    }, [isLoggedIn, addNotification, session]);
 
     return localNotifications;
 }

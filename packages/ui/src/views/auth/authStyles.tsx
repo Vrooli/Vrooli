@@ -123,6 +123,14 @@ export const AuthFormContainer = styled(Box)(({ theme }) => ({
         borderRight: "none",
         borderBottom: `1px solid ${theme.palette.divider}`,
     },
+    // Override browser default autofill styles
+    "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus, & input:-webkit-autofill:active": {
+        transition: "background-color 5000s ease-in-out 0s", // Hack to delay browser background styling
+        boxShadow: `0 0 0 30px ${theme.palette.background.paper} inset !important`, // Use box-shadow to mimic background
+        "-webkit-text-fill-color": `${theme.palette.text.primary} !important`, // Ensure text color matches theme
+        caretColor: theme.palette.text.primary, // Match cursor color
+        borderRadius: "inherit", // Inherit border radius from the input element
+    },
 }));
 
 export const OAuthContainer = styled(Box)(({ theme }) => ({

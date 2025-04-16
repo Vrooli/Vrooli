@@ -72,7 +72,7 @@ export function LargeDialog({
                 },
             },
         } as const;
-    }, [palette.background.default, palette.background.textPrimary, palette.primary.main, shadowColor, spacing, sxs?.paper, sxs?.root]);
+    }, [palette.background.default, palette.background.textPrimary, palette.primary.main, shadowColor, spacing, sxs?.content, sxs?.paper, sxs?.root]);
 
     // If anchorEl is provided, use Popover instead of Dialog
     if (anchorEl) {

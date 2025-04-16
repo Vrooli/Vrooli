@@ -301,7 +301,7 @@ function ResourceListHorizontal({
                                 ))
                             }
                             {/* Add button */}
-                            {(isEditing || list?.resources?.length === 0) && <Tooltip placement="top" title={t("AddResource")}>
+                            {canUpdate && <Tooltip placement="top" title={t("AddResource")}>
                                 <CardBox onClick={openAddDialog}>
                                     <IconCommon name="Add" size={ICON_SIZE} />
                                     <Typography
