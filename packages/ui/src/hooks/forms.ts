@@ -275,7 +275,7 @@ export function useUpsertActions<T extends TType>({
         }
 
         onAction?.(action, item);
-    }, [onAction, display, isCreate, objectType, setLocation, onCompleted, publishSnack, onCancel, onDeleted]);
+    }, [onAction, display, isCreate, clearCache, objectType, disableCache, setLocation, publishSnack, onCompleted, onCancel, onDeleted]);
 
     const mockObject = useMemo(function mockObjectMemo() {
         return asMockObject(objectType as ModelType, objectId ?? DUMMY_ID, rootObjectId) as unknown as T;

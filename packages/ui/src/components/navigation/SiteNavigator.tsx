@@ -188,6 +188,8 @@ function useCreditTypographyStyles(creditsAsBigInt: bigint | null, showLowCredit
     }), [theme, creditsAsBigInt, showLowCreditBalance]);
 }
 
+const buyCreditsButtonStyles = { borderRadius: 3 };
+
 export function SiteNavigator() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -375,7 +377,8 @@ export function SiteNavigator() {
                                 {/* Add and See More buttons for Projects */}
                                 <StyledListItem
                                     aria-label={t("AddProject")}
-                                    button onClick={handleAddProject}
+                                    button
+                                    onClick={handleAddProject}
                                     sx={addProjectStyles}
                                 >
                                     <ListItemIcon>
@@ -460,7 +463,12 @@ export function SiteNavigator() {
                         )}
                         {/* Show "Buy Credits" button when logged in and low credit balance */}
                         {isLoggedIn && showLowCreditBalance && (
-                            <Button variant="outlined" onClick={toBuyCredits}>
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={toBuyCredits}
+                                sx={buyCreditsButtonStyles}
+                            >
                                 {t("BuyCredits")}
                             </Button>
                         )}

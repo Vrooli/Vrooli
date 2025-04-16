@@ -177,7 +177,7 @@ const MonospaceHandleTypography = styled(MonospaceTypography)(({ theme }) => ({
 export function UserMenu() {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -218,6 +218,11 @@ export function UserMenu() {
     useEffect(() => {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen });
     }, [breakpoints, isOpen]);
+
+    // Add this effect to close the menu on location change
+    useEffect(() => {
+        close();
+    }, [location, close]);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
     const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);

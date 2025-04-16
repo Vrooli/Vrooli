@@ -20,7 +20,7 @@ export function BottomActionsGrid({
             padding: 0,
             marginLeft: display === "page" ? "auto" : 0,
             marginRight: display === "page" ? "auto" : 0,
-            maxWidth: "min(700px, 100%)",
+            maxWidth: display === "page" ? "min(700px, 100%)" : "100%",
             zIndex: 10,
             position: "absolute",
             // Displayed directly above BottomNav (pages only), which is only visible on mobile

@@ -93,6 +93,7 @@ function useReminderFormStyles(palette: Palette) {
             marginBottom: 1,
         },
         stepPaper: {
+            background: palette.background.paper,
             marginBottom: 2,
             padding: 1.5,
         },
@@ -162,26 +163,15 @@ const ReminderStep = memo(({
     const { t } = useTranslation();
     const typographySx = useCompactTypographySx(reminderItem.isComplete);
 
-    // --- Local state for name input to avoid re-renders on every keystroke --- 
     const [localName, setLocalName] = useState(reminderItem.name);
     // Sync local state if the prop changes from outside (e.g., initial load, drag/drop)
     useEffect(() => {
         setLocalName(reminderItem.name);
     }, [reminderItem.name]);
 
-    const handleLocalNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLocalNameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setLocalName(event.target.value);
-    };
-
-    const handleLocalNameBlur = () => {
-        // Update Formik state only on blur if the name has changed
-        if (localName !== reminderItem.name) {
-            onUpdateField(index, "name", localName);
-        }
-        // Trigger the general step blur handler
-        handleItemBlur();
-    };
-    // --- End local state --- 
+    }, []);
 
     // Stable handler for stopping propagation
     const handleCheckboxClick = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
@@ -191,6 +181,15 @@ const ReminderStep = memo(({
     // Adjusted handleItemBlur to not rely on local state directly for the check
     const handleItemBlur = useCallback(() => onBlur(reminderItem.id, !!localName), [onBlur, reminderItem.id, localName]);
     const handleCompactItemClick = useCallback(() => onCompactClick(reminderItem.id), [onCompactClick, reminderItem.id]);
+
+    const handleLocalNameBlur = useCallback(() => {
+        // Update Formik state only on blur if the name has changed
+        if (localName !== reminderItem.name) {
+            onUpdateField(index, "name", localName);
+        }
+        // Trigger the general step blur handler
+        handleItemBlur();
+    }, [index, localName, onUpdateField, reminderItem.name, handleItemBlur]);
 
     return (
         <Stack direction="row" spacing={1} alignItems="center">
