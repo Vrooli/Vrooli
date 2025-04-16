@@ -354,7 +354,7 @@ fi
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
 if command -v docker-compose &>/dev/null; then
-    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build
+    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build --no-cache
     if [ $? -ne 0 ]; then
         warning "Failed to build using docker-compose, trying to continue with docker pull..."
     fi
