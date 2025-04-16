@@ -127,7 +127,7 @@ main() {
     fi
 
     if ! echo "$domain_ips" | grep -q "^$site_ip$"; then
-        exit_with_error "SITE_IP does not point to the server associated with $domain" $ERROR_INVALID_SITE_IP
+        continue_with_error "SITE_IP does not point to the server associated with $domain. Check DNS settings." $ERROR_INVALID_SITE_IP
     fi
 
     current_ips="$(get_current_ip)"
