@@ -107,21 +107,42 @@ jobs:
           # Add VPS host to known_hosts
           ssh-keyscan -H "$DEV_VPS_HOST" >> ~/.ssh/known_hosts
 
-          # Create temp directory for build artifacts
-          BUILD_DIR="/var/tmp/${{ env.BUILD_VERSION }}"
-          ssh "$DEV_VPS_USER@$DEV_VPS_HOST" "mkdir -p '$BUILD_DIR'"
+          # --- Start of SSH/SCP block ---
+          {
+            # Create temp directory for build artifacts
+            BUILD_DIR="/var/tmp/${{ env.BUILD_VERSION }}"
+            ssh "$DEV_VPS_USER@$DEV_VPS_HOST" "mkdir -p '$BUILD_DIR'"
 
-          # Copy build artifacts to VPS
-          scp "/var/tmp/${{ env.BUILD_VERSION }}/build.tar.gz" "$DEV_VPS_USER@$DEV_VPS_HOST:$BUILD_DIR/"
-          scp "/var/tmp/${{ env.BUILD_VERSION }}/production-docker-images.tar.gz" "$DEV_VPS_USER@$DEV_VPS_HOST:$BUILD_DIR/"
-          scp "/var/tmp/${{ env.BUILD_VERSION }}/.env-dev" "$DEV_VPS_USER@$DEV_VPS_HOST:$BUILD_DIR/"
+            # Copy build artifacts to VPS
+            scp "/var/tmp/${{ env.BUILD_VERSION }}/build.tar.gz" "$DEV_VPS_USER@$DEV_VPS_HOST:$BUILD_DIR/"
+            scp "/var/tmp/${{ env.BUILD_VERSION }}/production-docker-images.tar.gz" "$DEV_VPS_USER@$DEV_VPS_HOST:$BUILD_DIR/"
+            scp "/var/tmp/${{ env.BUILD_VERSION }}/.env-dev" "$DEV_VPS_USER@$DEV_VPS_HOST:$BUILD_DIR/"
 
-          # Update git repo on server and deploy
-          ssh "$DEV_VPS_USER@$DEV_VPS_HOST" "cd '$DEPLOY_PATH' && \
-            git fetch && \
-            git pull origin development && \
-            cp '$BUILD_DIR/.env-dev' .env-dev && \
-            ./scripts/deploy.sh --version '${{ env.BUILD_VERSION }}' --clean -y --prod n --yes"
+            # Update git repo on server and deploy
+            ssh "$DEV_VPS_USER@$DEV_VPS_HOST" "cd '$DEPLOY_PATH' && \\
+              git fetch && \\
+              git pull origin development && \\
+              cp '$BUILD_DIR/.env-dev' .env-dev && \\
+              ./scripts/deploy.sh --version '${{ env.BUILD_VERSION }}' --clean -y --prod n --yes"
+          }
+          # --- End of SSH/SCP block ---
+
+          # Check exit code of the block above
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 255 ]; then
+            echo "-----------------------------------------------------------------------"
+            echo "SSH connection failed with Permission Denied (exit code 255)."
+            echo "This likely means the remote VPS ($DEV_VPS_HOST as user $DEV_VPS_USER)"
+            echo "is not configured to accept the SSH key provided by this GitHub Action."
+            echo "Please verify the SSH setup:"
+            echo " 1. The correct public key is in ~/.ssh/authorized_keys on the VPS."
+            echo " 2. The correct private key is stored in the DEV_SSH_PRIVATE_KEY secret."
+            echo "-----------------------------------------------------------------------"
+            exit 1 # Exit with failure
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "Deployment script failed with exit code $EXIT_CODE."
+            exit $EXIT_CODE # Exit with the original failure code
+          fi
 
           # Verify API health check after deployment
           echo "Waiting 30 seconds for services to start..."
