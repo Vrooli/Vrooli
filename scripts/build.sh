@@ -83,7 +83,7 @@ check_var() {
         error "Variable ${1} is not set. Exiting..."
         exit 1
     else
-        info "Variable ${1} is set to ${!1}"
+        info "Variable ${1} is set to ${!1:0:5}..."
     fi
 }
 check_var PORT_API
