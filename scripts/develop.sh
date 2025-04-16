@@ -134,6 +134,6 @@ else
     fi
 
     # Start the development environment
-    info "Starting development environment using Docker Compose..."
+    info "Starting development environment using Docker Compose and ${ENV_FILE}..."
     docker-compose --env-file "${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" up $BUILD $FORCE_RECREATE -d
 fi

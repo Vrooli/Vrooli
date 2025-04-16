@@ -125,3 +125,37 @@ Clearly prompt the user:
 > _"Would you like me to review and update our task list, or should I start working on a backlog item?"_  
 
 Wait for user's input.
+
+---
+
+## **Research**
+
+**Keywords:**
+_"research," "investigate," "explore topic," "find info on," "deep dive"_
+
+Perform in-depth research on a specified topic to understand how it can be implemented within the *Vrooli* project:
+
+1.  **Define Scope:**
+    *   Clarify the research topic and its specific goals in relation to the project's architecture, features, or requirements.
+    *   Ask clarifying questions if the topic or its connection to the project is unclear.
+
+2.  **Information Gathering (Web Search):**
+    *   Utilize web search capabilities to gather comprehensive information.
+    *   Prioritize official documentation, specifications, setup guides, tutorials, and reputable technical articles.
+    *   Look for examples, best practices, and potential pitfalls related to the topic.
+
+3.  **Analyze and Synthesize:**
+    *   Extract key concepts, implementation steps, required dependencies, and configuration details.
+    *   Analyze how the researched technology or concept could integrate with the existing *Vrooli* codebase (`/src`). Consider potential conflicts or necessary adaptations.
+    *   Evaluate the feasibility, benefits, and drawbacks of implementation.
+
+4.  **Document Findings:**
+    *   Summarize the research findings clearly and concisely.
+    *   Include direct links to the most important sources (official docs, key guides).
+    *   Outline potential implementation strategies or next steps for integrating the researched element into the project.
+    *   Store detailed findings or lengthy notes in a new file within `/docs/scratch/` for temporary reference.
+
+5.  **Present Results:**
+    *   Present the summarized findings, key links, and proposed integration points or next steps to the user.
+
+```

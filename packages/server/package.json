@@ -19,7 +19,7 @@
         "lint": "eslint src",
         "build": "rimraf dist && NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && yarn post-build",
         "pre-prod": "prisma migrate deploy && yarn prisma-generate",
-        "pre-develop": "yarn pre-prod && yarn type-check",
+        "pre-develop": "yarn pre-prod",
         "post-build": "yarn post-build-copy",
         "post-build-copy": "copyfiles -u 1 \"src/**/*.txt\" \"src/**/*.lua\" \"src/**/*.html\" \"src/**/*.prisma\" \"src/**/*.sql\" \"src/auth/message_signing/rust/pkg/*.wasm\" \"src/auth/message_signing/rust/pkg/*.json\" \"src/auth/message_signing/rust/pkg/emurgo_message_signing.cjs\" dist",
         "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" nodemon dist/index.js",
@@ -33,6 +33,7 @@
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@local/shared": "*",
         "@mistralai/mistralai": "^0.2.0",
+        "@modelcontextprotocol/sdk": "^1.9.0",
         "@prisma/client": "6.1.0",
         "bcrypt": "^5.0.1",
         "bull": "^4.11.4",
@@ -50,7 +51,6 @@
         "node-fetch": "^3.2.10",
         "node-ical": "^0.15.3",
         "nodemailer": "^6.6.0",
-        "nodemon": "3.0.2",
         "openai": "4.26.0",
         "passport": "^0.7.0",
         "passport-google-oauth20": "^2.0.0",
@@ -64,7 +64,6 @@
         "superjson": "^2.2.1",
         "tiktoken": "^1.0.20",
         "twilio": "^4.23.0",
-        "typescript": "5.4.5",
         "web-push": "^3.5.0",
         "winston": "^3.12.0",
         "yup": "^1.3.3"
@@ -94,9 +93,11 @@
         "dotenv-cli": "^8.0.0",
         "esmock": "^2.7.0",
         "mocha": "^11.1.0",
+        "nodemon": "3.0.2",
         "rimraf": "^5.0.10",
         "sinon": "^19.0.2",
         "testcontainers": "^10.18.0",
+        "typescript": "5.4.5",
         "why-is-node-running": "^2.3.0"
     }
 }

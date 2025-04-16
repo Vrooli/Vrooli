@@ -7,7 +7,8 @@ HERE=$(dirname $0)
 
 VAULT_PORT=8200
 # Get the PID of the process running at the port, which is hopefully Vault
-VAULT_PID=$(lsof -ti :$VAULT_PORT)
+# Use timeout to prevent lsof from hanging indefinitely
+VAULT_PID=$(timeout 5s lsof -ti :$VAULT_PORT || true)
 # Base path for secrets taken from the vault
 SECRETS_PATH="/run/secrets/vrooli"
 
@@ -47,6 +48,7 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         ;;
     esac
+    shift # Always shift to the next argument regardless of match
 done
 
 # Set env file based on the environment
