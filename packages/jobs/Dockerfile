@@ -33,7 +33,7 @@ WORKDIR ${PROJECT_DIR}
 COPY --from=stage0 ${PROJECT_DIR} ./
 
 # Install local packages
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 # Install global packages
 RUN yarn global add typescript@5.3.3 nodemon@3.0.2 prisma@6.1.0

@@ -51,7 +51,6 @@
         "node-fetch": "^3.2.10",
         "node-ical": "^0.15.3",
         "nodemailer": "^6.6.0",
-        "nodemon": "3.0.2",
         "openai": "4.26.0",
         "passport": "^0.7.0",
         "passport-google-oauth20": "^2.0.0",
@@ -65,7 +64,6 @@
         "superjson": "^2.2.1",
         "tiktoken": "^1.0.20",
         "twilio": "^4.23.0",
-        "typescript": "5.4.5",
         "web-push": "^3.5.0",
         "winston": "^3.12.0"
     },
@@ -94,9 +92,11 @@
         "dotenv-cli": "^8.0.0",
         "esmock": "^2.7.0",
         "mocha": "^11.1.0",
+        "nodemon": "3.0.2",
         "rimraf": "^5.0.10",
         "sinon": "^19.0.2",
         "testcontainers": "^10.18.0",
+        "typescript": "5.4.5",
         "why-is-node-running": "^2.3.0"
     }
 }
