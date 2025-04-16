@@ -30,6 +30,15 @@ function withoutInvalidChars(str: string) {
     return str.replace(/[,;]/g, "");
 }
 
+// Style for the outer container, mimicking AdvancedInput
+const Outer = styled("div")(({ theme }) => ({
+    backgroundColor: theme.palette.background.paper,
+    borderRadius: theme.spacing(3),
+    padding: theme.spacing(1),
+    position: "relative",
+    cursor: "text",
+}));
+
 /** Custom Popper component to add scroll handling */
 function PopperComponent({
     onScrollBottom,
@@ -73,7 +82,25 @@ const TagChip = styled(Chip)(({ theme }) => ({
     color: "white",
 }));
 
-const inputTextStyle = { paddingRight: 0, minWidth: "250px" } as const;
+// Define the styled TextInput component
+const StyledTextInput = styled(TextInput)(({ theme }) => ({
+    "& .MuiInputBase-root": {
+        padding: 0, // Apply padding 0 to the root of the input
+        paddingLeft: theme.spacing(1),
+        paddingRight: theme.spacing(1),
+        backgroundColor: "transparent", // Ensure background is transparent
+    },
+    "& .MuiOutlinedInput-notchedOutline": {
+        border: "none", // Remove the default outline/border
+    },
+    minWidth: "250px",
+    // Apply caption styles to the placeholder
+    "& .MuiInputBase-input::placeholder": {
+        ...theme.typography.caption,
+        // Optionally adjust opacity if needed, MUI default is often less than 1
+        opacity: 0.6,
+    },
+}));
 
 export function TagSelectorBase({
     disabled,
@@ -204,6 +231,12 @@ export function TagSelectorBase({
         } as Tag["you"];
     }, [tagsRef]);
 
+    const handleAutocompleteChange = useCallback((_event: React.SyntheticEvent, newValue: TagOption[]) => {
+        // Ensure newValue is always an array, even if cleared
+        const newTags = Array.isArray(newValue) ? newValue : [];
+        handleTagsUpdate(newTags as (TagShape | Tag)[]);
+    }, [handleTagsUpdate]);
+
     const popperComponentRender = useCallback(function popperComponentRender(props: PopperProps) {
         return <PopperComponent {...props} onScrollBottom={loadMoreTags} />;
     }, [loadMoreTags]);
@@ -282,46 +315,53 @@ export function TagSelectorBase({
         } as const;
 
         return (
-            <TextInput
+            <StyledTextInput // Use the new styled component
                 value={inputValue}
                 onChange={onChange}
                 isRequired={isRequired}
-                label={t("Tag", { count: 2 })}
                 placeholder={placeholder ?? t("TagSelectorPlaceholder")}
                 InputProps={inputProps}
                 inputProps={params.inputProps}
                 onKeyDown={onKeyDown}
                 fullWidth
-                sx={inputTextStyle}
+                // Remove the sx prop for inputTextStyle as minWidth is handled by StyledTextInput
+                // sx={inputTextStyle}
+                // Remove the default variant which adds the border
+                variant="outlined" // Keep outlined for structure but border is removed via StyledTextInput
             />
         );
     }, [inputValue, isRequired, loading, onChange, onKeyDown, placeholder, t]);
 
     return (
-        <Autocomplete
-            id="tags-input"
-            disabled={disabled}
-            disablePortal
-            fullWidth
-            multiple
-            // Allow all options through the filter - we perform custom filtering
-            filterOptions={filterOptions}
-            freeSolo={true}
-            isOptionEqualToValue={isOptionEqualToValue}
-            options={autocompleteOptions}
-            getOptionLabel={getOptionLabel}
-            inputValue={inputValue}
-            noOptionsText={t("NoSuggestions")}
-            limitTags={CHIP_LIST_LIMIT}
-            loading={loading}
-            value={tags}
-            defaultValue={tags}
-            PopperComponent={popperComponentRender}
-            renderTags={renderTags}
-            renderOption={renderOption}
-            renderInput={renderInput}
-            sx={sx}
-        />
+        // Wrap the Autocomplete with the styled Outer component
+        <Outer sx={sx}>
+            <Autocomplete
+                id="tags-input"
+                disabled={disabled}
+                disablePortal
+                fullWidth
+                multiple
+                // Allow all options through the filter - we perform custom filtering
+                filterOptions={filterOptions}
+                freeSolo={true}
+                isOptionEqualToValue={isOptionEqualToValue}
+                options={autocompleteOptions}
+                getOptionLabel={getOptionLabel}
+                inputValue={inputValue}
+                noOptionsText={t("NoSuggestions")}
+                limitTags={CHIP_LIST_LIMIT}
+                loading={loading}
+                value={tags}
+                defaultValue={tags}
+                PopperComponent={popperComponentRender}
+                renderTags={renderTags}
+                renderOption={renderOption}
+                renderInput={renderInput}
+                onChange={handleAutocompleteChange}
+            // Remove sx from Autocomplete itself as it's now on the Outer wrapper
+            // sx={sx}
+            />
+        </Outer>
     );
 }
 

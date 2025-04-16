@@ -46,6 +46,7 @@ Remove legacy input components (RichInput, RichInputBase, ChatMessageInput, etc.
 - [ ] Ensure AdvancedInput fully supports all features of legacy components
 - [ ] Migrate all instances of legacy components to AdvancedInput
 - [ ] Remove deprecated components: RichInput, RichInputBase, ChatMessageInput, RichInputLexical, RichInputMarkdown, RichInputTagDropdown
+- [ ] Look into removing TextInput and TranslatedTextInput components
 - [ ] Remove associated hooks including useTagDropdown
 - [ ] Update documentation to reflect new input component architecture
 

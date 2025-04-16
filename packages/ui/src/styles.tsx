@@ -251,4 +251,3 @@ export const CenteredContentPage = styled(Box)(() => ({
     flexDirection: "column",
     overflow: "hidden",
 }));
-

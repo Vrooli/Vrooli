@@ -9,7 +9,6 @@ import { SelectorBaseProps, SelectorProps } from "../types.js";
 export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,
     autoFocus = false,
-    color,
     options,
     error,
     getDisplayIcon,
@@ -25,7 +24,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     name,
     noneOption = false,
     noneText,
-    label = "Select",
+    label,
     disabled = false,
     sxs,
     tabIndex,
@@ -120,18 +119,18 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     const selectStyle = useMemo(function selectStyle() {
         return {
             ...sxs?.root,
-            color: color ?? palette.background.textPrimary,
+            borderRadius: "12px",
+            color: "inherit",
             "& .MuiSelect-select": {
-                paddingTop: "12px",
-                paddingBottom: "12px",
+                padding: "8px",
                 display: "flex",
                 alignItems: "center",
             },
             "& .MuiSelect-icon": {
-                color: color ?? palette.background.textPrimary,
+                color: "inherit",
             },
             "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: color ?? palette.background.textPrimary,
+                borderColor: "inherit",
             },
             "& .MuiPaper-root": {
                 zIndex: 9999,
@@ -140,12 +139,11 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 ...sxs?.fieldset,
             },
             "& svg": {
-                marginRight: "8px",
                 display: "flex",
                 alignItems: "center",
             },
         };
-    }, [sxs, color, palette.background.textPrimary]);
+    }, [sxs]);
 
     return (
         <FormControl
@@ -156,7 +154,6 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
             <InputLabel
                 id={inputAriaLabel}
                 shrink={shrinkLabel}
-                sx={{ color: color ?? palette.background.textPrimary }}
             >
                 {label}
             </InputLabel>
@@ -196,7 +193,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                         >
                             <IconCommon
                                 decorative
-                                fill={color ?? palette.background.textPrimary}
+                                fill="inherit"
                                 name="Add"
                                 style={{ marginRight: "8px" }}
                             />

@@ -45,9 +45,11 @@ export const RelationshipChip = styled(Chip)<ChipProps>(({ icon, onClick, theme 
 
 /** Button shown for relationship item when editing */
 export const RelationshipButton = styled(Button)(({ theme }) => ({
-    height: "48px",
-    minWidth: "fit-content",
-    color: theme.palette.primary.light,
     borderColor: theme.palette.primary.light,
+    // eslint-disable-next-line no-magic-numbers
+    borderRadius: theme.spacing(4),
+    color: theme.palette.primary.light,
+    height: "36px",
+    minWidth: "fit-content",
 }));
 

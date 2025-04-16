@@ -1,19 +1,19 @@
 import { CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
-import { Button, Divider, useTheme } from "@mui/material";
+import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
+import { PageContainer } from "../../../components/Page/Page.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
-import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
+import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { TagSelector } from "../../../components/inputs/TagSelector/TagSelector.js";
-import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceListInput } from "../../../components/lists/ResourceList/ResourceList.js";
@@ -26,7 +26,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { FormContainer, FormSection } from "../../../styles.js";
+import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
@@ -154,10 +154,11 @@ contract HelloWorld {
 `.trim();
 
 const codeLimitTo = [CodeLanguage.Solidity, CodeLanguage.Haskell] as const;
-const relationshipListStyle = { marginBottom: 2 } as const;
-const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
 const resourceListStyle = { list: { marginBottom: 2 } } as const;
 const exampleButtonStyle = { marginLeft: "auto" } as const;
+const formSectionTitleStyle = { marginBottom: 1 } as const;
+const tagSelectorStyle = { marginBottom: 2 } as const;
+const dividerStyle = { display: { xs: "flex", md: "none" } } as const;
 
 function SmartContractForm({
     disabled,
@@ -293,83 +294,78 @@ function SmartContractForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
+                maxWidth={1200}
             >
                 <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <RelationshipList
-                            isEditing={true}
-                            objectType={"Code"}
-                            sx={relationshipListStyle}
-                        />
-                        <ResourceListInput
-                            horizontal
-                            isCreate={true}
-                            parent={resourceListParent}
-                            sxs={resourceListStyle}
-                        />
-                        <FormSection sx={formSectionStyle}>
-                            <TranslatedTextInput
-                                fullWidth
-                                label={t("Name")}
-                                language={language}
-                                name="name"
-                                placeholder={t("NamePlaceholder")}
-                            />
-                            <TranslatedRichInput
-                                language={language}
-                                name="description"
-                                maxChars={2048}
-                                minRows={4}
-                                maxRows={8}
-                                placeholder={t("DescriptionPlaceholder")}
-                            />
-                            <LanguageInput
-                                currentLanguage={language}
-                                flexDirection="row-reverse"
-                                handleAdd={handleAddLanguage}
-                                handleDelete={handleDeleteLanguage}
-                                handleCurrent={setLanguage}
-                                languages={languages}
-                            />
-                        </FormSection>
-                        <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
-                        <VersionInput
-                            fullWidth
-                            versions={versions}
-                            sx={{ marginBottom: 2 }}
-                        />
-                    </ContentCollapse>
-                    <Divider />
-                    <ContentCollapse
-                        title="Contract"
-                        titleVariant="h4"
-                        isOpen={true}
-                        toTheRight={
-                            <>
-                                <Button
-                                    variant="outlined"
-                                    onClick={showExample}
-                                    startIcon={<IconCommon name="Help" />}
-                                    sx={exampleButtonStyle}
-                                >
-                                    Show example
-                                </Button>
-                                {/* <IconButton
-                                onClick={toggleFullscreen}
-                                sx={{ marginLeft: 2 }}
-                            >
-                                {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                            </IconButton> */}
-                            </>
-                        }
-                        sxs={{ titleContainer: { marginBottom: 1 } }}
-                    >
-                        <CodeInput
-                            disabled={false}
-                            limitTo={codeLimitTo}
-                            name="content"
-                        />
-                    </ContentCollapse>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                            <Box width="100%" padding={2}>
+                                <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
+                                <Box display="flex" flexDirection="column" gap={4}>
+                                    <RelationshipList
+                                        isEditing={true}
+                                        objectType={"Code"}
+                                    />
+                                    <ResourceListInput
+                                        horizontal
+                                        isCreate={true}
+                                        parent={resourceListParent}
+                                        sxs={resourceListStyle}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        features={nameInputFeatures}
+                                        isRequired={true}
+                                        language={language}
+                                        name="name"
+                                        title={t("Name")}
+                                        placeholder={"ERC20 Token Contract..."}
+                                    />
+                                    <TranslatedAdvancedInput
+                                        features={detailsInputFeatures}
+                                        isRequired={false}
+                                        language={language}
+                                        name="description"
+                                        title={t("Description")}
+                                        placeholder={"Standard implementation of an ERC20 token with minting and burning capabilities..."}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                    <TagSelector name="root.tags" />
+                                    <VersionInput
+                                        fullWidth
+                                        versions={versions}
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <Divider sx={dividerStyle} />
+                            <Box width="100%" padding={2}>
+                                <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>
+                                    <Typography variant="h4">Contract</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={showExample}
+                                        startIcon={<IconCommon name="Help" />}
+                                        sx={exampleButtonStyle}
+                                    >
+                                        Show example
+                                    </Button>
+                                </Box>
+                                <CodeInput
+                                    disabled={false}
+                                    limitTo={codeLimitTo}
+                                    name="content"
+                                />
+                            </Box>
+                        </Grid>
+                    </Grid>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons
@@ -417,24 +413,28 @@ export function SmartContractUpsert({
     }, [existing]);
 
     return (
-        <Formik
-            enableReinitialize={true}
-            initialValues={existing}
-            onSubmit={noopSubmit}
-            validate={validateValues}
-        >
-            {(formik) => <SmartContractForm
-                disabled={!(isCreate || permissions.canUpdate)}
-                display={display}
-                existing={existing}
-                handleUpdate={setExisting}
-                isCreate={isCreate}
-                isReadLoading={isReadLoading}
-                isOpen={isOpen}
-                versions={versions}
-                {...props}
-                {...formik}
-            />}
-        </Formik>
+        <PageContainer size="fullSize">
+            <ScrollBox>
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={existing}
+                    onSubmit={noopSubmit}
+                    validate={validateValues}
+                >
+                    {(formik) => <SmartContractForm
+                        disabled={!(isCreate || permissions.canUpdate)}
+                        display={display}
+                        existing={existing}
+                        handleUpdate={setExisting}
+                        isCreate={isCreate}
+                        isReadLoading={isReadLoading}
+                        isOpen={isOpen}
+                        versions={versions}
+                        {...props}
+                        {...formik}
+                    />}
+                </Formik>
+            </ScrollBox>
+        </PageContainer>
     );
 }

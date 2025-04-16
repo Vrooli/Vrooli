@@ -80,30 +80,52 @@ export type ContextItem = {
  */
 export interface AdvancedInputFeatures {
     // Input formatting features
-    allowFormatting?: boolean; // Controls the formatting toolbar visibility
+    /** Controls the formatting toolbar visibility */
+    allowFormatting?: boolean;
 
     // Size and expansion features
-    allowExpand?: boolean; // Allow expanding/collapsing the input
+    /** Allow expanding/collapsing the input */
+    allowExpand?: boolean;
+    /** Minimum rows when collapsed (overrides default) */
+    minRowsCollapsed?: number;
+    /** Maximum rows when collapsed (overrides default) */
+    maxRowsCollapsed?: number;
+    /** Minimum rows when expanded (overrides default) */
+    minRowsExpanded?: number;
+    /** Maximum rows when expanded (overrides default) */
+    maxRowsExpanded?: number;
 
     // Attachments and context
-    allowFileAttachments?: boolean; // Allow file attachments
-    allowImageAttachments?: boolean; // Allow image attachments
-    allowTextAttachments?: boolean; // Allow text snippet attachments
-    allowContextDropdown?: boolean; // Allow @ and / context triggers
+    /** Allow file attachments */
+    allowFileAttachments?: boolean;
+    /** Allow image attachments */
+    allowImageAttachments?: boolean;
+    /** Allow text snippet attachments */
+    allowTextAttachments?: boolean;
+    /** Allow @ and / context triggers */
+    allowContextDropdown?: boolean;
 
     // Tool integration
-    allowTools?: boolean; // Allow using tools 
+    /** Allow using tools in the input */
+    allowTools?: boolean;
 
     // Submission features
-    allowCharacterLimit?: boolean; // Show character limit and progress
-    allowVoiceInput?: boolean; // Allow voice input
-    allowSubmit?: boolean; // Show submit button
+    /** Show character limit and progress */
+    allowCharacterLimit?: boolean;
+    /** Allow voice input */
+    allowVoiceInput?: boolean;
+    /** Show submit button */
+    allowSubmit?: boolean;
+    /** Maximum number of characters allowed */
+    maxChars?: number;
 
     // Editor behaviors
-    allowSpellcheck?: boolean; // Enable spellchecking in the editor
+    /** Enable spellchecking in the editor */
+    allowSpellcheck?: boolean;
 
     // Settings
-    allowSettingsCustomization?: boolean; // Allow access to settings
+    /** Allow access to settings */
+    allowSettingsCustomization?: boolean;
 }
 
 /**
@@ -122,6 +144,11 @@ export const DEFAULT_FEATURES: AdvancedInputFeatures = {
     allowSubmit: true,
     allowSpellcheck: true,
     allowSettingsCustomization: true,
+    maxChars: undefined, // Default to no character limit
+    minRowsCollapsed: undefined,
+    maxRowsCollapsed: undefined,
+    minRowsExpanded: undefined,
+    maxRowsExpanded: undefined,
 };
 
 export type AdvancedInputBaseProps = {
@@ -130,7 +157,7 @@ export type AdvancedInputBaseProps = {
     error?: boolean;
     features?: AdvancedInputFeatures; // New prop for configuring component features
     helperText?: string;
-    maxChars?: number;
+    isRequired?: boolean;
     name: string;
     placeholder?: string;
     title?: string; // Optional title to display above the input area
