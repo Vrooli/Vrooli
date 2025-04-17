@@ -36,59 +36,52 @@ ENVIRONMENT=${NODE_ENV:-development}
 TEST="y"
 API_GENERATE="n"
 SKIP_CONFIRMATIONS="n"
-while getopts "v:d:u:ha:t:p:" opt; do
-    case $opt in
-    h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
-        echo "  -v --version:        Version number to use (e.g. \"1.0.0\")"
-        echo "  -d --deploy-vps:     (y/N) Deploy to VPS?"
-        echo "  -u --use-kubernetes: (y/N) Deploy to Kubernetes? This overrides '--deploy-vps'"
-        echo "  -h --help:           Show this help message"
-        echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
-        echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
-        echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
-        echo "  -y --yes:            (y/N) Skip all confirmations. Defaults to false."
-        exit 0
-        ;;
-    a)
-        API_GENERATE=$OPTARG
-        ;;
-    d)
-        DEPLOY_VPS=$OPTARG
-        ;;
-    p)
-        if is_yes "$OPTARG"; then
-            ENV_FILE=${ENV_FILE_PROD}
-            DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_PROD}
-            KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
-            ENVIRONMENT="production"
-        else
-            ENV_FILE=${ENV_FILE_DEV}
-            DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_DEV}
-            KUBERNETES_FILE=${KUBERNETES_FILE_DEV}
-            ENVIRONMENT="development"
-        fi
-        ;;
-    t)
-        TEST=$OPTARG
-        ;;
-    u)
-        USE_KUBERNETES=$OPTARG
-        ;;
-    v)
-        VERSION=$OPTARG
-        ;;
-    y)
-        SKIP_CONFIRMATIONS="y"
-        ;;
-    \?)
-        echo "Invalid option: -$OPTARG" >&2
-        exit 1
-        ;;
-    :)
-        echo "Option -$OPTARG requires an argument." >&2
-        exit 1
-        ;;
+
+## Parse both short and long options
+PARSED_OPTS=$(getopt -o v:d:u:ha:t:p:y -l version:,deploy-vps:,use-kubernetes:,help,api-generate:,test:,prod:,yes -- "$@")
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to parse options" >&2
+    exit 1
+fi
+eval set -- "$PARSED_OPTS"
+while true; do
+    case "$1" in
+        -v|--version)
+            VERSION="$2"; shift 2;;
+        -d|--deploy-vps)
+            DEPLOY_VPS="$2"; shift 2;;
+        -u|--use-kubernetes)
+            USE_KUBERNETES="$2"; shift 2;;
+        -a|--api-generate)
+            API_GENERATE="$2"; shift 2;;
+        -t|--test)
+            TEST="$2"; shift 2;;
+        -p|--prod)
+            if is_yes "$2"; then
+                ENV_FILE=${ENV_FILE_PROD}; DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_PROD}; KUBERNETES_FILE=${KUBERNETES_FILE_PROD}; ENVIRONMENT="production"
+            else
+                ENV_FILE=${ENV_FILE_DEV}; DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_DEV}; KUBERNETES_FILE=${KUBERNETES_FILE_DEV}; ENVIRONMENT="development"
+            fi
+            shift 2;;
+        -y|--yes)
+            SKIP_CONFIRMATIONS="y"; shift;;
+        -h|--help)
+            # Display help
+            echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
+            echo "  -v --version:        Version number to use (e.g. \"1.0.0\")"
+            echo "  -d --deploy-vps:     (y/N) Deploy to VPS?"
+            echo "  -u --use-kubernetes: (y/N) Deploy to Kubernetes? This overrides '--deploy-vps'"
+            echo "  -h --help:           Show this help message"
+            echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
+            echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
+            echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
+            echo "  -y --yes:            (y/N) Skip all confirmations. Defaults to false."
+            exit 0
+            ;;
+        --)
+            shift; break;;
+        *)
+            echo "Error: Unknown option $1" >&2; exit 1;;
     esac
 done
 
