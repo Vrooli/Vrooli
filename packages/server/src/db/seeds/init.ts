@@ -88,13 +88,9 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                 create: [{
                     name: "Work",
                     description: "This is an auto-generated focus mode. You can edit or delete it.",
-                    reminderList: { create: {} },
-                    resourceList: { create: {} },
                 }, {
                     name: "Study",
                     description: "This is an auto-generated focus mode. You can edit or delete it.",
-                    reminderList: { create: {} },
-                    resourceList: { create: {} },
                 }],
             },
             awards: {
@@ -153,13 +149,9 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                 create: [{
                     name: "Work",
                     description: "This is an auto-generated focus mode. You can edit or delete it.",
-                    reminderList: { create: {} },
-                    resourceList: { create: {} },
                 }, {
                     name: "Study",
                     description: "This is an auto-generated focus mode. You can edit or delete it.",
-                    reminderList: { create: {} },
-                    resourceList: { create: {} },
                 }],
             },
             awards: {

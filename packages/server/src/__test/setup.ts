@@ -98,23 +98,23 @@ before(async function setup() {
 function setupLlmServiceMocks() {
     // Mock OpenAI service
     sinon.stub(OpenAIService.prototype, "generateResponse").resolves({
+        attempts: 1,
         message: "Mocked OpenAI response",
         cost: 0.001,
-        tokenUsage: { input: 10, output: 20 }
     });
 
     // Mock Anthropic service
     sinon.stub(AnthropicService.prototype, "generateResponse").resolves({
+        attempts: 1,
         message: "Mocked Anthropic response",
         cost: 0.001,
-        tokenUsage: { input: 10, output: 20 }
     });
 
     // Mock Mistral service
     sinon.stub(MistralService.prototype, "generateResponse").resolves({
+        attempts: 1,
         message: "Mocked Mistral response",
         cost: 0.001,
-        tokenUsage: { input: 10, output: 20 }
     });
 
     // Ensure all methods that might make network requests are properly mocked

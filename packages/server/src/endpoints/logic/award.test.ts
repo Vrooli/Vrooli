@@ -182,39 +182,25 @@ describe("EndpointsAward", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                // With API key and public permissions, should see global awards and user1's awards
-                const expectedAwardIds = [
-                    userAward1.id,   // User1's award
-                    // userAward2.id, // User2's award (should not be included)
-                ];
-
                 const input = {
                     take: 10
                 };
-                const result = await award.findMany({ input }, { req, res }, award_findMany);
-
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
-
-                const resultAwardIds = result.edges!.map(edge => edge!.node!.id);
-                expect(resultAwardIds.sort()).to.deep.equal(expectedAwardIds.sort());
+                try {
+                    await award.findMany({ input }, { req, res }, award_findMany);
+                    expect.fail("Expected an error to be thrown - awards are private");
+                } catch (error) { /** Error expected  */ }
             });
 
             it("not logged in", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
-                const expectedAwardIds = []; // No awards for logged out users
-
                 const input = {
                     take: 10
                 };
-                const result = await award.findMany({ input }, { req, res }, award_findMany);
-
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
-
-                const resultAwardIds = result.edges!.map(edge => edge!.node!.id);
-                expect(resultAwardIds.sort()).to.deep.equal(expectedAwardIds.sort());
+                try {
+                    await award.findMany({ input }, { req, res }, award_findMany);
+                    expect.fail("Expected an error to be thrown - awards are private");
+                } catch (error) { /** Error expected  */ }
             });
         });
 

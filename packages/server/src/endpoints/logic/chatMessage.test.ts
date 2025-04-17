@@ -24,53 +24,53 @@ const privateChatId = uuid(); // Private chat with only user2
 // Test chat messages
 const user1Message1 = {
     id: uuid(),
-    chatId: chatId,
+    chatId,
     userId: user1Id,
     translations: [
         {
             id: uuid(),
             language: "en",
-            text: "Hello, this is User 1's first message"
-        }
+            text: "Hello, this is User 1's first message",
+        },
     ],
     versionIndex: 0,
     created_at: new Date("2023-03-01"),
     updated_at: new Date("2023-03-01"),
-    parent: null
+    parent: null,
 };
 
 const botMessage1 = {
     id: uuid(),
-    chatId: chatId,
+    chatId,
     userId: botId,
     translations: [
         {
             id: uuid(),
             language: "en",
-            text: "Hello User 1, this is the bot's response"
-        }
+            text: "Hello User 1, this is the bot's response",
+        },
     ],
     versionIndex: 0,
     created_at: new Date("2023-03-01T00:01:00"),
     updated_at: new Date("2023-03-01T00:01:00"),
-    parentId: user1Message1.id
+    parentId: user1Message1.id,
 };
 
 const user2Message1 = {
     id: uuid(),
-    chatId: chatId,
+    chatId,
     userId: user2Id,
     translations: [
         {
             id: uuid(),
             language: "en",
-            text: "This is User 2 joining the conversation"
-        }
+            text: "This is User 2 joining the conversation",
+        },
     ],
     versionIndex: 0,
     created_at: new Date("2023-03-02"),
     updated_at: new Date("2023-03-02"),
-    parentId: botMessage1.id
+    parentId: botMessage1.id,
 };
 
 // Message in public chat
@@ -82,13 +82,13 @@ const publicChatMessage = {
         {
             id: uuid(),
             language: "en",
-            text: "This is a message in a public chat"
-        }
+            text: "This is a message in a public chat",
+        },
     ],
     versionIndex: 0,
     created_at: new Date("2023-03-03"),
     updated_at: new Date("2023-03-03"),
-    parent: null
+    parent: null,
 };
 
 // Message in private chat (only user2 is a participant)
@@ -100,13 +100,13 @@ const privateChatMessage = {
         {
             id: uuid(),
             language: "en",
-            text: "This is a message in a private chat"
-        }
+            text: "This is a message in a private chat",
+        },
     ],
     versionIndex: 0,
     created_at: new Date("2023-03-04"),
     updated_at: new Date("2023-03-04"),
-    parent: null
+    parent: null,
 };
 
 // Array of all message IDs for easier testing
@@ -115,7 +115,7 @@ const allMessageIds = [
     botMessage1.id,
     user2Message1.id,
     publicChatMessage.id,
-    privateChatMessage.id
+    privateChatMessage.id,
 ];
 
 // Array of all chat IDs for easier testing
@@ -136,8 +136,8 @@ describe("EndpointsChatMessage", () => {
         // Create test users
         await DbProvider.get().user.deleteMany({
             where: {
-                id: { in: [user1Id, user2Id, user3Id, botId] }
-            }
+                id: { in: [user1Id, user2Id, user3Id, botId] },
+            },
         });
 
         await DbProvider.get().user.create({
@@ -152,10 +152,10 @@ describe("EndpointsChatMessage", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
 
         await DbProvider.get().user.create({
@@ -170,10 +170,10 @@ describe("EndpointsChatMessage", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
 
         await DbProvider.get().user.create({
@@ -188,10 +188,10 @@ describe("EndpointsChatMessage", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
 
         await DbProvider.get().user.create({
@@ -202,21 +202,21 @@ describe("EndpointsChatMessage", () => {
                 status: "Unlocked",
                 isBot: true,
                 isBotDepictingPerson: false,
-                isPrivate: false
-            }
+                isPrivate: false,
+            },
         });
 
         // Delete any existing test chats and messages
         await DbProvider.get().chat_message.deleteMany({
             where: {
-                id: { in: allMessageIds }
-            }
+                id: { in: allMessageIds },
+            },
         });
 
         await DbProvider.get().chat.deleteMany({
             where: {
-                id: { in: allChatIds }
-            }
+                id: { in: allChatIds },
+            },
         });
 
         // Create regular test chat (with user1, user2 and bot)
@@ -230,26 +230,26 @@ describe("EndpointsChatMessage", () => {
                         id: uuid(),
                         language: "en",
                         name: "Test Chat",
-                        description: "A chat for testing"
-                    }
+                        description: "A chat for testing",
+                    },
                 },
                 participants: {
                     create: [
                         {
                             id: uuid(),
-                            user: { connect: { id: user1Id } }
+                            user: { connect: { id: user1Id } },
                         },
                         {
                             id: uuid(),
-                            user: { connect: { id: user2Id } }
+                            user: { connect: { id: user2Id } },
                         },
                         {
                             id: uuid(),
-                            user: { connect: { id: botId } }
-                        }
-                    ]
-                }
-            }
+                            user: { connect: { id: botId } },
+                        },
+                    ],
+                },
+            },
         });
 
         // Create public chat (openToAnyoneWithInvite = true)
@@ -263,18 +263,18 @@ describe("EndpointsChatMessage", () => {
                         id: uuid(),
                         language: "en",
                         name: "Public Chat",
-                        description: "A chat open to anyone with invite"
-                    }
+                        description: "A chat open to anyone with invite",
+                    },
                 },
                 participants: {
                     create: [
                         {
                             id: uuid(),
-                            user: { connect: { id: user2Id } }
-                        }
-                    ]
-                }
-            }
+                            user: { connect: { id: user2Id } },
+                        },
+                    ],
+                },
+            },
         });
 
         // Create private chat (only user2 is a participant)
@@ -288,18 +288,18 @@ describe("EndpointsChatMessage", () => {
                         id: uuid(),
                         language: "en",
                         name: "Private Chat",
-                        description: "A private chat only for user2"
-                    }
+                        description: "A private chat only for user2",
+                    },
                 },
                 participants: {
                     create: [
                         {
                             id: uuid(),
-                            user: { connect: { id: user2Id } }
-                        }
-                    ]
-                }
-            }
+                            user: { connect: { id: user2Id } },
+                        },
+                    ],
+                },
+            },
         });
 
         // Create test messages
@@ -313,12 +313,12 @@ describe("EndpointsChatMessage", () => {
                     create: user1Message1.translations.map(t => ({
                         id: t.id,
                         language: t.language,
-                        text: t.text
-                    }))
+                        text: t.text,
+                    })),
                 },
                 created_at: user1Message1.created_at,
-                updated_at: user1Message1.updated_at
-            }
+                updated_at: user1Message1.updated_at,
+            },
         });
 
         await DbProvider.get().chat_message.create({
@@ -332,12 +332,12 @@ describe("EndpointsChatMessage", () => {
                     create: botMessage1.translations.map(t => ({
                         id: t.id,
                         language: t.language,
-                        text: t.text
-                    }))
+                        text: t.text,
+                    })),
                 },
                 created_at: botMessage1.created_at,
-                updated_at: botMessage1.updated_at
-            }
+                updated_at: botMessage1.updated_at,
+            },
         });
 
         await DbProvider.get().chat_message.create({
@@ -351,12 +351,12 @@ describe("EndpointsChatMessage", () => {
                     create: user2Message1.translations.map(t => ({
                         id: t.id,
                         language: t.language,
-                        text: t.text
-                    }))
+                        text: t.text,
+                    })),
                 },
                 created_at: user2Message1.created_at,
-                updated_at: user2Message1.updated_at
-            }
+                updated_at: user2Message1.updated_at,
+            },
         });
 
         // Create message in public chat
@@ -370,12 +370,12 @@ describe("EndpointsChatMessage", () => {
                     create: publicChatMessage.translations.map(t => ({
                         id: t.id,
                         language: t.language,
-                        text: t.text
-                    }))
+                        text: t.text,
+                    })),
                 },
                 created_at: publicChatMessage.created_at,
-                updated_at: publicChatMessage.updated_at
-            }
+                updated_at: publicChatMessage.updated_at,
+            },
         });
 
         // Create message in private chat
@@ -389,12 +389,12 @@ describe("EndpointsChatMessage", () => {
                     create: privateChatMessage.translations.map(t => ({
                         id: t.id,
                         language: t.language,
-                        text: t.text
-                    }))
+                        text: t.text,
+                    })),
                 },
                 created_at: privateChatMessage.created_at,
-                updated_at: privateChatMessage.updated_at
-            }
+                updated_at: privateChatMessage.updated_at,
+            },
         });
     });
 
@@ -404,22 +404,22 @@ describe("EndpointsChatMessage", () => {
         // Clean up test messages
         await DbProvider.get().chat_message.deleteMany({
             where: {
-                id: { in: allMessageIds }
-            }
+                id: { in: allMessageIds },
+            },
         });
 
         // Clean up test chats
         await DbProvider.get().chat.deleteMany({
             where: {
-                id: { in: allChatIds }
-            }
+                id: { in: allChatIds },
+            },
         });
 
         // Clean up test users
         await DbProvider.get().user.deleteMany({
             where: {
-                id: { in: [user1Id, user2Id, user3Id, botId] }
-            }
+                id: { in: [user1Id, user2Id, user3Id, botId] },
+            },
         });
 
         loggerErrorStub.restore();
@@ -433,7 +433,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
-                    id: user1Message1.id
+                    id: user1Message1.id,
                 };
 
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -450,7 +450,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
                 const input: FindByIdInput = {
-                    id: user1Message1.id
+                    id: user1Message1.id,
                 };
 
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -466,7 +466,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
-                    id: uuid() // Non-existent ID
+                    id: uuid(), // Non-existent ID
                 };
 
                 try {
@@ -481,7 +481,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: FindByIdInput = {
-                    id: user1Message1.id
+                    id: user1Message1.id,
                 };
 
                 try {
@@ -502,7 +502,7 @@ describe("EndpointsChatMessage", () => {
 
                 // Using a null uuid as chatId to get all messages from all accessible chats
                 const input = {
-                    chatId: "00000000-0000-0000-0000-000000000000"
+                    chatId: "00000000-0000-0000-0000-000000000000",
                 };
 
                 // Based on test failures, it seems the chatId filter is strictly enforced,
@@ -521,7 +521,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("user2 can access messages from all chats they participate in", async () => {
@@ -530,7 +530,7 @@ describe("EndpointsChatMessage", () => {
 
                 // Using a null uuid as chatId to get all messages from all accessible chats
                 const input = {
-                    chatId: "00000000-0000-0000-0000-000000000000"
+                    chatId: "00000000-0000-0000-0000-000000000000",
                 };
 
                 // Based on test failures, it seems the chatId filter is strictly enforced,
@@ -550,7 +550,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("user3 can only access messages from public chats", async () => {
@@ -559,7 +559,7 @@ describe("EndpointsChatMessage", () => {
 
                 // Using a null uuid as chatId to get all messages from all accessible chats
                 const input = {
-                    chatId: "00000000-0000-0000-0000-000000000000"
+                    chatId: "00000000-0000-0000-0000-000000000000",
                 };
 
                 // Based on test failures, it seems the chatId filter is strictly enforced,
@@ -575,7 +575,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("cannot access private chat if not a participant", async () => {
@@ -583,7 +583,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    chatId: privateChatId
+                    chatId: privateChatId,
                 };
 
                 // User1 is not a participant in the private chat, and it's not public, so should get empty results
@@ -597,7 +597,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("can access public chat even if not a participant", async () => {
@@ -605,12 +605,12 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    chatId: publicChatId
+                    chatId: publicChatId,
                 };
 
                 // User3 is not a participant in the public chat but can access it because openToAnyoneWithInvite=true
                 const expectedMessageIds = [
-                    publicChatMessage.id  // In publicChatId where openToAnyoneWithInvite=true
+                    publicChatMessage.id,  // In publicChatId where openToAnyoneWithInvite=true
                 ];
 
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
@@ -620,7 +620,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("API key with public permissions can access messages in chats the user is part of", async () => {
@@ -630,7 +630,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
                 const input = {
-                    chatId: chatId
+                    chatId,
                 };
 
                 // Based on test failures, it seems API keys with public permissions cannot access chat messages
@@ -647,19 +647,19 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("not logged in user gets empty results even for public chats", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input = {
-                    chatId: publicChatId  // Using publicChatId to verify logged-out users can't access even public chats
+                    chatId: publicChatId,  // Using publicChatId to verify logged-out users can't access even public chats
                 };
 
                 // Based on test failures, it seems logged-out users CAN access messages in public chats
                 const expectedMessageIds = [
-                    publicChatMessage.id  // In publicChatId which has openToAnyoneWithInvite=true
+                    publicChatMessage.id,  // In publicChatId which has openToAnyoneWithInvite=true
                 ];
 
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
@@ -669,7 +669,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
         });
 
@@ -680,13 +680,13 @@ describe("EndpointsChatMessage", () => {
 
                 const input = {
                     take: 10,
-                    chatId: chatId
+                    chatId,
                 };
 
                 const expectedMessageIds = [
                     user1Message1.id,
                     botMessage1.id,
-                    user2Message1.id
+                    user2Message1.id,
                 ];
 
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
@@ -696,7 +696,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("filters by chatId", async () => {
@@ -704,11 +704,11 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    chatId: publicChatId
+                    chatId: publicChatId,
                 };
 
                 const expectedMessageIds = [
-                    publicChatMessage.id
+                    publicChatMessage.id,
                 ];
 
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
@@ -718,7 +718,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
 
             it("filters by userId", async () => {
@@ -726,8 +726,8 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    chatId: chatId,
-                    userId: user1Id
+                    chatId,
+                    userId: user1Id,
                 };
 
                 const expectedMessageIds = [
@@ -742,7 +742,7 @@ describe("EndpointsChatMessage", () => {
 
                 const resultMessageIds = result.edges!.map(edge => edge!.node!.id);
                 expect(resultMessageIds.sort()).to.deep.equal(expectedMessageIds.sort(),
-                    `Expected: ${expectedMessageIds.join(', ')}\nReceived: ${resultMessageIds.join(', ')}`);
+                    `Expected: ${expectedMessageIds.join(", ")}\nReceived: ${resultMessageIds.join(", ")}`);
             });
         });
 
@@ -752,11 +752,11 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    chatId: chatId,
+                    chatId,
                     updatedTimeFrame: {
                         after: new Date("invalid-date"),
-                        before: new Date("invalid-date")
-                    }
+                        before: new Date("invalid-date"),
+                    },
                 };
 
                 try {

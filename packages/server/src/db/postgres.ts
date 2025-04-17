@@ -10,8 +10,8 @@ export class PostgresDriver implements DatabaseService {
     private prisma: InstanceType<typeof PrismaClient>;
 
     constructor() {
-        // Prisma automatically picks up the DATABASE_URL from your .env
-        // e.g., DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
+        // Prisma automatically picks up the DB_URL from your .env
+        // e.g., DB_URL="postgresql://user:password@localhost:5432/mydb"
         // If you need custom configuration, pass it into the PrismaClient constructor
         this.prisma = new PrismaClient({
             log: debug ? ["info", "warn", "error"] : undefined,

@@ -11,6 +11,7 @@ const objectType = "Award";
 export const award: EndpointsAward = {
     findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
         return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
     },
 };

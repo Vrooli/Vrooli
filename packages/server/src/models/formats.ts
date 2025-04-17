@@ -1249,6 +1249,7 @@ export const ReminderListFormat: Formatter<ReminderListModelInfo> = {
         __typename: "ReminderList",
         focusMode: "FocusMode",
         reminders: "Reminder",
+        user: "User",
     },
     countFields: {},
 };

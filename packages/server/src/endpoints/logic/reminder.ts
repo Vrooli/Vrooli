@@ -1,4 +1,4 @@
-import { FindByIdInput, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSearchResult, ReminderUpdateInput } from "@local/shared";
+import { FindByIdInput, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSearchResult, ReminderUpdateInput, VisibilityType } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -16,18 +16,22 @@ const objectType = "Reminder";
 export const reminder: EndpointsReminder = {
     findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
         return readOneHelper({ info, input, objectType, req });
     },
     findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
+        RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
+        return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
     },
     createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return createOneHelper({ info, input, objectType, req });
     },
     updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return updateOneHelper({ info, input, objectType, req });
     },
 };

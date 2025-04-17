@@ -108,7 +108,8 @@ export async function shapeHelper<
     // Loop through relation types, and convert all to a Prisma-shaped array
     for (const t of relTypes) {
         // If not in data, skip
-        const curr = data[`${relation}${t}` as string];
+        const key = `${relation}${t}` as string;
+        const curr = data[key];
         if (!curr) continue;
         // Shape the data
         const currShaped = shapeRelationshipData(curr, [], false);

@@ -4,7 +4,7 @@ import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ReminderListFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from "./types.js";
+import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({
@@ -24,6 +24,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
                 id: data.id,
                 focusMode: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest }),
                 reminders: await shapeHelper({ relation: "reminders", relTypes: ["Create"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest }),
+                user: { connect: { id: rest.userData.id } },
             }),
             update: async ({ data, ...rest }) => ({
                 focusMode: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest }),
@@ -38,16 +39,16 @@ export const ReminderListModel: ReminderListModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            focusMode: "FocusMode",
+            user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["DbModel"], userId),
+        owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["DbModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
             own: function getOwn(data) {
                 return {
-                    focusMode: useVisibility("FocusMode", "Own", data),
+                    user: useVisibility("User", "Own", data),
                 };
             },
             // Always private, so it's the same as "own"
