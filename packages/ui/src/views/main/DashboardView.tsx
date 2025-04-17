@@ -1,10 +1,10 @@
-import { CalendarEvent, DAYS_30_MS, DUMMY_ID, FocusMode, HomeResult, LlmModel, Reminder, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid } from "@local/shared";
-import { Box, Checkbox, FormControlLabel, FormGroup, InputAdornment, ListItemIcon, Menu, MenuItem, Switch, TextField, Typography, styled } from "@mui/material";
+import { CalendarEvent, ChatParticipantShape, DAYS_30_MS, DUMMY_ID, FocusMode, HomeResult, Reminder, ReminderList as ReminderListShape, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid, uuidToBase36 } from "@local/shared";
+import { Box, IconButton, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../api/ai.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
-import { MenuTitle } from "../../components/dialogs/MenuTitle/MenuTitle.js";
+import { ChatSettingsMenu, IntegrationSettings, ModelConfig, ShareSettings } from "../../components/ChatSettingsMenu/ChatSettingsMenu.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { EventList } from "../../components/lists/EventList/EventList.js";
 import { ReminderList } from "../../components/lists/ReminderList/ReminderList.js";
@@ -23,6 +23,7 @@ import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
+import { VALYXA_INFO } from "../objects/chat/ChatCrud.js";
 import { DashboardViewProps } from "./types.js";
 
 const MAX_EVENTS_SHOWN = 10;
@@ -52,259 +53,11 @@ const resourceListFallback = {
     translations: [],
 } as unknown as ResourceListType;
 
-const ModelTitleBox = styled(Box)(({ theme }) => ({
-    display: "flex",
-    alignItems: "center",
-    cursor: "pointer",
-    color: theme.palette.background.textSecondary,
-}));
-const modelMenuAnchorOrigin = {
-    vertical: "bottom",
-    horizontal: "left",
-} as const;
-const modelMenuTransformOrigin = {
-    vertical: "top",
-    horizontal: "left",
-} as const;
 const greetingStyle = { mb: 2 } as const;
-const modelMenuPaperProps = {
-    style: {
-        maxHeight: 400,
-        width: "650px",
-    },
-} as const;
-const searchBoxStyle = { p: 2 } as const;
-const noResultsStyle = { p: 2, textAlign: "center" } as const;
-const searchInputProps = {
-    startAdornment: (
-        <InputAdornment position="start">
-            <IconCommon
-                name="Search"
-                size={20}
-            />
-        </InputAdornment>
-    ),
-} as const;
-const menuListStyle = {
-    "& .MuiMenu-list": {
-        padding: 0, // Remove default padding
-    },
-} as const;
-
-function ModelTitleComponent() {
-    const { t } = useTranslation();
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const searchInputRef = useRef<HTMLInputElement>(null);
-    const open = Boolean(anchorEl);
-
-    const availableModels = useMemo(() => {
-        const config = getExistingAIConfig()?.service?.config;
-        return config ? getAvailableModels(config) : [];
-    }, []);
-
-    const [selectedModel, setSelectedModel] = useState<LlmModel | null>(
-        availableModels.length > 0 ? availableModels[0] : null,
-    );
-
-    // Handlers to open and close the menu
-    const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setSearchQuery("");
-        setAnchorEl(event.currentTarget);
-    }, []);
-    /**
-     * Close the model selection menu. This handles both click-away and escape key.
-     */
-    const handleClose = useCallback((_event?: React.SyntheticEvent, _reason?: string) => {
-        setAnchorEl(null);
-    }, []);
-    // Toggle menu on title click
-    const handleTitleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        open ? handleClose() : handleOpen(event);
-    }, [open, handleOpen, handleClose]);
-
-    const handleModelSelect = useCallback((model: LlmModel) => {
-        setSelectedModel(model);
-        handleClose();
-    }, [handleClose]);
-
-    const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(event.target.value);
-    }, []);
-
-    // Focus the search input when the menu opens
-    useEffect(() => {
-        if (open && searchInputRef.current) {
-            setTimeout(() => {
-                searchInputRef.current?.focus();
-            }, 100);
-        }
-    }, [open]);
-
-    const filteredModels = useMemo(() => {
-        if (!searchQuery) return availableModels;
-        const query = searchQuery.toLowerCase();
-        return availableModels.filter(model =>
-            t(model.name, { ns: "service" }).toLowerCase().includes(query) ||
-            (model.description && t(model.description, { ns: "service", defaultValue: "" }).toLowerCase().includes(query)),
-        );
-    }, [availableModels, searchQuery, t]);
-
-    const modelHelpText = "Select an AI model to use for your conversations. Different models have different capabilities, strengths, and pricing.";
-
-    // State for tool configuration panel
-    const [toolSettings, setToolSettings] = useState<{ siteActions: boolean; webSearch: boolean; fileRetrieval: boolean; }>({
-        siteActions: true,
-        webSearch: true,
-        fileRetrieval: true,
-    });
-    const handleToggleTool = useCallback((toolName: keyof typeof toolSettings) => {
-        setToolSettings(prev => ({
-            ...prev,
-            [toolName]: !prev[toolName],
-        }));
-    }, []);
-    const [requireConfirmation, setRequireConfirmation] = useState<boolean>(false);
-
-    return (
-        <ModelTitleBox
-            onClick={handleTitleClick}
-        >
-            <Typography variant="body1" color="inherit" component="div">
-                {selectedModel ?
-                    t(selectedModel.name, { ns: "service" }) :
-                    t("SelectModel")
-                }
-            </Typography>
-            <IconCommon
-                fill="background.textSecondary"
-                name="ChevronRight"
-            />
-            <Menu
-                id="model-selection-menu"
-                anchorEl={anchorEl}
-                open={open}
-                onClose={handleClose}
-                anchorOrigin={modelMenuAnchorOrigin}
-                transformOrigin={modelMenuTransformOrigin}
-                PaperProps={modelMenuPaperProps}
-                disableAutoFocusItem
-                sx={menuListStyle}
-            >
-                <MenuTitle
-                    title={t("SelectModel")}
-                    onClose={handleClose}
-                    help={modelHelpText}
-                />
-                <Box sx={searchBoxStyle}>
-                    <TextField
-                        fullWidth
-                        placeholder="Search models"
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        variant="outlined"
-                        size="small"
-                        InputProps={searchInputProps}
-                        inputRef={searchInputRef}
-                    />
-                </Box>
-                <Box sx={{ display: "flex" }}>
-                    <Box sx={{ flex: 1, maxHeight: 300, overflowY: "auto" }}>
-                        {filteredModels.length === 0 ? (
-                            <Box sx={noResultsStyle}>
-                                <Typography variant="body2" color="textSecondary">
-                                    No models found
-                                </Typography>
-                            </Box>
-                        ) : (
-                            filteredModels.map((model) => {
-                                function handleClick() {
-                                    handleModelSelect(model);
-                                }
-                                return (
-                                    <MenuItem
-                                        key={model.value}
-                                        onClick={handleClick}
-                                        selected={selectedModel?.value === model.value}
-                                    >
-                                        <ListItemIcon>
-                                            {selectedModel?.value === model.value && (
-                                                <IconCommon
-                                                    fill="background.textPrimary"
-                                                    name="Complete"
-                                                    size={20}
-                                                />
-                                            )}
-                                        </ListItemIcon>
-                                        <Box>
-                                            <Typography variant="body1">
-                                                {t(model.name, { ns: "service" })}
-                                            </Typography>
-                                            <Typography variant="caption" color="textSecondary">
-                                                {t(model.description || "", { ns: "service", defaultValue: "" })}
-                                            </Typography>
-                                        </Box>
-                                    </MenuItem>
-                                );
-                            })
-                        )}
-                    </Box>
-                    <Box sx={{ width: 300, borderLeft: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Tool Configuration
-                        </Typography>
-                        <FormGroup>
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={toolSettings.siteActions}
-                                        onChange={() => handleToggleTool("siteActions")}
-                                        size="small"
-                                    />
-                                }
-                                label="Site Actions"
-                            />
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={toolSettings.webSearch}
-                                        onChange={() => handleToggleTool("webSearch")}
-                                        size="small"
-                                    />
-                                }
-                                label="Web Search"
-                            />
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={toolSettings.fileRetrieval}
-                                        onChange={() => handleToggleTool("fileRetrieval")}
-                                        size="small"
-                                    />
-                                }
-                                label="File Retrieval"
-                            />
-                        </FormGroup>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={requireConfirmation}
-                                    onChange={(e) => setRequireConfirmation(e.target.checked)}
-                                    size="small"
-                                />
-                            }
-                            label={requireConfirmation ? "Require User Confirmation" : "Manual Tool Use"}
-                            sx={{ mt: 2 }}
-                        />
-                    </Box>
-                </Box>
-            </Menu>
-        </ModelTitleBox>
-    );
-}
 
 const NOON_HOUR = 12;
 const EVENING_HOUR = 18;
+
 /** Helper function to get the appropriate time of day greeting key */
 function getTimeOfDayGreeting() {
     const hour = new Date().getHours();
@@ -319,7 +72,6 @@ export function DashboardView({
 }: DashboardViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const languages = useMemo(() => getUserLanguages(session), [session]);
     const isLeftHanded = useIsLeftHanded();
 
     const [refetch, { data: feedData, loading: isFeedLoading }] = useLazyFetch<Record<string, never>, HomeResult>(endpointsFeed.home);
@@ -338,6 +90,77 @@ export function DashboardView({
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const feedSchedulesRef = useRef<Schedule[]>([]);
+
+    // State for the ChatSettingsMenu
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    // Get available models for default config
+    const availableModels = useMemo(() => {
+        const config = getExistingAIConfig()?.service?.config;
+        return config ? getAvailableModels(config) : [];
+    }, []);
+
+    // Default model config state
+    const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>(() => {
+        const firstModel = availableModels.length > 0 ? availableModels[0] : null;
+        if (!firstModel) return [];
+        return [{
+            model: firstModel,
+            toolSettings: { siteActions: true, webSearch: true, fileRetrieval: true },
+            requireConfirmation: false,
+        }];
+    });
+
+    // Participants for dashboard context (e.g., just Valyxa)
+    const [participants, setParticipants] = useState<ChatParticipantShape[]>([
+        {
+            __typename: "ChatParticipant",
+            id: uuid(),
+            user: { ...VALYXA_INFO, __typename: "User" },
+            // chat property is usually added by the backend or context
+        } as ChatParticipantShape // Type assertion needed as 'chat' is missing
+    ]);
+
+    // Default share settings for dashboard
+    const [shareSettings, setShareSettings] = useState<ShareSettings>({ enabled: false });
+
+    // Default integration settings for dashboard
+    const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>({ projects: [] });
+
+    // Placeholder chat object for the menu props
+    const settingsChat = useMemo(() => ({
+        __typename: "Chat" as const,
+        id: DUMMY_ID,
+        translations: [{
+            __typename: "ChatTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            name: "Dashboard Settings",
+            description: "Configure default model settings for new chats.",
+        }]
+    }), [session]);
+
+    // Update local state when model config changes
+    const handleModelConfigChange = useCallback((newConfigs: ModelConfig[]) => {
+        // TODO: Persist these settings (e.g., to user profile or local storage)
+        setModelConfigs(newConfigs);
+        console.log("Dashboard model config updated:", newConfigs);
+    }, []);
+
+    // Placeholder callbacks (remain the same)
+    const handleAddParticipant = useCallback((id: string) => { console.log("Dashboard: Add participant:", id); }, []);
+    const handleRemoveParticipant = useCallback((id: string) => { console.log("Dashboard: Remove participant:", id); }, []);
+    const handleUpdateDetails = useCallback((data: { name: string; description?: string }) => { console.log("Dashboard: Update details:", data); }, []);
+    const handleToggleShare = useCallback((enabled: boolean) => {
+        // Generate invite link when enabled, clear on disable
+        const link = enabled ? `${window.location.origin}/chat/${uuidToBase36(settingsChat.id)}` : undefined;
+        setShareSettings({ enabled, link });
+    }, [settingsChat.id]);
+    const handleIntegrationSettingsChange = useCallback((newSettings: IntegrationSettings) => {
+        // TODO: Persist integration settings
+        setIntegrationSettings(newSettings);
+        console.log("Dashboard integration settings updated:", newSettings);
+    }, []);
 
     useEffect(function parseFeedData() {
         const feedResources = feedData?.resources;
@@ -407,6 +230,7 @@ export function DashboardView({
 
     const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
     useEffect(() => {
+        const languages = getUserLanguages(session);
         let isCancelled = false;
 
         async function fetchUpcomingEvents() {
@@ -442,7 +266,7 @@ export function DashboardView({
         return () => {
             isCancelled = true; // Cleanup function to avoid setting state on unmounted component
         };
-    }, [languages, schedules]);
+    }, [schedules, session]);
 
     const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
     const {
@@ -458,7 +282,7 @@ export function DashboardView({
     } = useActiveChat({ setMessage });
     const messageInput = useMessageInput({
         id: MESSAGE_LIST_ID,
-        languages,
+        languages: getUserLanguages(session),
         message,
         postMessage: messageActions.postMessage,
         putMessage: messageActions.putMessage,
@@ -474,7 +298,10 @@ export function DashboardView({
             <ScrollBox>
                 <NavbarInner>
                     <SiteNavigatorButton />
-                    <ModelTitleComponent />
+                    {/* Button to open settings menu */}
+                    <IconButton onClick={() => setIsSettingsOpen(true)} aria-label={t("Settings")}>
+                        <IconCommon name="Settings" />
+                    </IconButton>
                     <NavListBox isLeftHanded={isLeftHanded}>
                         <NavListNewChatButton handleNewChat={resetActiveChat} />
                         <NavListInboxButton />
@@ -510,11 +337,11 @@ export function DashboardView({
                             {
                                 ...focusModeInfo.active.focusMode,
                                 __typename: "FocusMode" as const,
-                                resourceList: undefined, // Avoid circular reference
+                                resourceList: undefined,
                             } as FocusMode
                             : activeFocusModeFallback
                         }
-                        sxs={resourceListStyle}
+                        sx={resourceListStyle}
                     />
                     <EventList
                         id={ELEMENT_IDS.DashboardEventList}
@@ -523,16 +350,22 @@ export function DashboardView({
                         handleUpdate={setUpcomingEvents}
                         loading={isFeedLoading}
                         mutate={true}
-                        title={t("Schedule", { count: 1 })}
                     />
                     <ReminderList
                         id={ELEMENT_IDS.DashboardReminderList}
-                        list={reminders}
+                        list={{
+                            __typename: "ReminderList",
+                            id: DUMMY_ID,
+                            reminders: reminders,
+                            listFor: activeFocusModeFallback,
+                            created_at: Date.now(),
+                            updated_at: Date.now(),
+                        } as ReminderListShape}
                         canUpdate={true}
-                        handleUpdate={setReminders}
+                        handleUpdate={(updatedList: ReminderListShape) => setReminders(updatedList.reminders)}
                         loading={isFeedLoading}
                         mutate={true}
-                        title={t("Reminder", { count: 2 })}
+                        parent={{ id: DUMMY_ID }}
                     />
                 </Box>}
                 {hasMessages && <ChatBubbleTree
@@ -564,6 +397,23 @@ export function DashboardView({
                 stopReplyingToMessage={messageInput.stopReplyingToMessage}
                 submitMessage={messageInput.submitMessage}
                 taskInfo={taskInfo}
+            />
+
+            {/* Render the settings menu dialog */}
+            <ChatSettingsMenu
+                open={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                chat={settingsChat}
+                participants={participants}
+                modelConfigs={modelConfigs}
+                shareSettings={shareSettings}
+                integrationSettings={integrationSettings}
+                onModelConfigChange={handleModelConfigChange}
+                onAddParticipant={handleAddParticipant}
+                onRemoveParticipant={handleRemoveParticipant}
+                onUpdateDetails={handleUpdateDetails}
+                onToggleShare={handleToggleShare}
+                onIntegrationSettingsChange={handleIntegrationSettingsChange}
             />
         </DashboardBox>
     );
