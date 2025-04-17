@@ -1,6 +1,6 @@
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import { DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
-import { Box, Button, Checkbox, Divider, Grid, IconButton, Palette, Paper, Stack, styled, Typography, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, Divider, Grid, IconButton, InputBase, Palette, Paper, Stack, styled, Typography, useTheme } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,8 +11,6 @@ import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeD
 import { AdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { DateInput } from "../../../components/inputs/DateInput/DateInput.js";
-import { RichInput } from "../../../components/inputs/RichInput/RichInput.js";
-import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
@@ -84,7 +82,9 @@ function transformReminderValues(values: ReminderShape, existing: ReminderShape,
 
 const AddStepButton = styled(Button)(({ theme }) => ({
     alignSelf: "center",
-    marginTop: theme.spacing(1),
+    backgroundColor: theme.palette.background.paper,
+    borderRadius: 0,
+    color: theme.palette.background.textSecondary,
 }));
 
 function useReminderFormStyles(palette: Palette) {
@@ -94,8 +94,10 @@ function useReminderFormStyles(palette: Palette) {
         },
         stepPaper: {
             background: palette.background.paper,
-            marginBottom: 2,
+            borderBottom: `1px solid ${palette.divider}`,
+            borderRadius: 0,
             padding: 1.5,
+            position: "relative",
         },
         dragHandle: {
             cursor: "grab",
@@ -105,10 +107,15 @@ function useReminderFormStyles(palette: Palette) {
             color: palette.text.secondary,
         },
         deleteIconButton: {
-            margin: "auto",
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 1,
         },
         dividerStyle: {
-            display: { xs: "flex", md: "none" },
+            display: { xs: "flex", lg: "none" },
+            marginBottom: { xs: 2, lg: 0 },
+            marginTop: { xs: 2, lg: 0 },
         },
     }), [palette]);
 }
@@ -119,7 +126,6 @@ const dialogSx = {
         width: "min(100%, 1200px)",
     },
 };
-const checkboxSx = { padding: 0 };
 const compactClickSx = { cursor: "pointer" };
 
 // Define stable sx for Typography outside, or use useMemo if theme-dependent
@@ -139,9 +145,7 @@ interface ReminderStepProps {
     index: number;
     isEditing: boolean;
     styles: ReturnType<typeof useReminderFormStyles>;
-    onFocus: (id: string) => void;
-    onBlur: (id: string, nameExists: boolean) => void;
-    onCompactClick: (id: string) => void;
+    onFocus: (index: number) => void;
     onDelete: () => void;
     onUpdateField: (index: number, field: keyof ReminderItemShape, value: any) => void;
     dragHandleProps: any;
@@ -154,14 +158,15 @@ const ReminderStep = memo(({
     isEditing,
     styles,
     onFocus,
-    onBlur,
-    onCompactClick,
     onDelete,
     onUpdateField,
     dragHandleProps,
 }: ReminderStepProps) => {
     const { t } = useTranslation();
     const typographySx = useCompactTypographySx(reminderItem.isComplete);
+
+    // Create a ref for the DateInput
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
     const [localName, setLocalName] = useState(reminderItem.name);
     // Sync local state if the prop changes from outside (e.g., initial load, drag/drop)
@@ -173,130 +178,191 @@ const ReminderStep = memo(({
         setLocalName(event.target.value);
     }, []);
 
-    // Stable handler for stopping propagation
-    const handleCheckboxClick = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
-
     // We need stable handlers for focus/blur that know the item ID and name status
-    const handleItemFocus = useCallback(() => onFocus(reminderItem.id), [onFocus, reminderItem.id]);
-    // Adjusted handleItemBlur to not rely on local state directly for the check
-    const handleItemBlur = useCallback(() => onBlur(reminderItem.id, !!localName), [onBlur, reminderItem.id, localName]);
-    const handleCompactItemClick = useCallback(() => onCompactClick(reminderItem.id), [onCompactClick, reminderItem.id]);
+    const handleItemFocus = useCallback(() => onFocus(index), [onFocus, index]);
 
     const handleLocalNameBlur = useCallback(() => {
         // Update Formik state only on blur if the name has changed
         if (localName !== reminderItem.name) {
             onUpdateField(index, "name", localName);
         }
-        // Trigger the general step blur handler
-        handleItemBlur();
-    }, [index, localName, onUpdateField, reminderItem.name, handleItemBlur]);
+    }, [index, localName, onUpdateField, reminderItem.name]);
+
+    // Handler to clear the date
+    const handleClearDate = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        onUpdateField(index, "dueDate", null);
+    }, [index, onUpdateField]);
+
+    // Handler for date change
+    const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            onUpdateField(index, "dueDate", new Date(e.target.value).toISOString());
+        }
+    }, [index, onUpdateField]);
+
+    // Click handler just activates the input
+    const handleDateClick = useCallback(() => {
+        if (dateInputRef.current) {
+            dateInputRef.current.showPicker();
+        }
+    }, []);
 
     return (
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ position: 'relative' }}>
             {/* Drag Handle always visible */}
             <Box {...dragHandleProps} sx={styles.dragHandle}>
                 <IconCommon name="Drag" />
             </Box>
 
-            {/* Conditionally Render Compact or Full View */}
-            {isEditing ? (
-                // Full Edit View
-                <Stack
-                    flexGrow={1}
-                    spacing={1.5}
-                    onFocus={handleItemFocus}
-                    // onBlur is handled by individual inputs now, particularly the name input
-                    tabIndex={-1}
-                >
-                    {/* Top row: Checkbox and Name Input */}
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <Field
-                            name={`reminderItems[${index}].isComplete`}
-                            type="checkbox"
-                            as={Checkbox}
-                            size="small"
-                            color="primary"
-                            sx={checkboxSx}
-                        />
-                        <TextInput
-                            fullWidth
-                            isRequired={true}
-                            name={`reminderItems[${index}].name`}
-                            label={t("Name")}
-                            placeholder={t("NamePlaceholder")}
-                            variant="standard"
-                            size="small"
-                            value={localName}
-                            onChange={handleLocalNameChange}
-                            onBlur={handleLocalNameBlur}
-                        />
-                    </Stack>
-
-                    {/* Description Input */}
-                    <Field
-                        isRequired={false}
-                        maxChars={2048}
-                        maxRows={4}
-                        minRows={1}
-                        name={`reminderItems[${index}].description`}
-                        label={t("Description")}
-                        placeholder={t("DescriptionPlaceholder")}
-                        as={RichInput}
-                        onFocus={handleItemFocus}
-                        onBlur={handleItemBlur}
-                    />
-
-                    {/* Due Date Input */}
-                    <Field
-                        isRequired={false}
-                        name={`reminderItems[${index}].dueDate`}
-                        label={t("DueDate")}
-                        type="datetime-local"
-                        as={DateInput}
-                        onFocus={handleItemFocus}
-                        onBlur={handleItemBlur}
-                    />
-                </Stack>
-            ) : (
-                // Compact View (name exists AND not editing)
+            <Stack
+                flexGrow={1}
+                spacing={1.5}
+                onFocus={handleItemFocus}
+                // onBlur is handled by individual inputs now, particularly the name input
+                tabIndex={-1}
+            >
+                {/* Top row: Checkbox, Name Input, Date, and Delete Button */}
                 <Stack
                     direction="row"
-                    flexGrow={1}
                     spacing={1}
                     alignItems="center"
-                    onClick={handleCompactItemClick}
-                    sx={compactClickSx}
                 >
                     <Field
                         name={`reminderItems[${index}].isComplete`}
                         type="checkbox"
                         as={Checkbox}
                         size="small"
-                        color="primary"
-                        sx={checkboxSx}
-                        onClick={handleCheckboxClick}
+                        color="secondary"
                     />
-                    <Typography sx={typographySx}>
-                        {reminderItem.name}
-                    </Typography>
-                    {/* Optional: Display Due Date compactly */}
-                    {reminderItem.dueDate && (
-                        <Typography variant="caption" color="text.secondary">
-                            {new Date(reminderItem.dueDate).toLocaleDateString()}
-                        </Typography>
-                    )}
-                </Stack>
-            )}
+                    <InputBase
+                        fullWidth
+                        required={true}
+                        name={`reminderItems[${index}].name`}
+                        placeholder={t("NamePlaceholder")}
+                        value={localName}
+                        onChange={handleLocalNameChange}
+                        onBlur={handleLocalNameBlur}
+                        sx={{
+                            fontSize: 'inherit',
+                            '& .MuiInputBase-input': {
+                                padding: 0,
+                                height: 'auto',
+                            },
+                            '&.Mui-focused': {
+                            },
+                            '&:before': { borderBottom: 'none' },
+                            '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
+                            '&:after': { borderBottom: 'none' },
+                        }}
+                    />
 
-            {/* Delete Button always visible */}
-            <IconButton
-                edge="end"
-                size="small"
-                onClick={onDelete}
-                sx={styles.deleteIconButton}
-            >
-                <IconCommon name="Delete" fill="error.main" />
-            </IconButton>
+                    {/* Date and Delete controls */}
+                    <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                    >
+                        {/* Conditionally render Due Date display/trigger only in editing mode */}
+                        {(isEditing || reminderItem.dueDate) && (
+                            <>
+                                {/* Wrapper to position both the text and input */}
+                                <Box sx={{ position: 'relative', width: "max-content" }}>
+                                    {/* The visible clickable text */}
+                                    <Typography
+                                        variant="caption"
+                                        onClick={handleDateClick}
+                                        sx={{
+                                            cursor: "pointer",
+                                            color: "text.secondary",
+                                            lineHeight: 'normal',
+                                            borderBottom: '1px dashed',
+                                            borderColor: 'text.secondary',
+                                            padding: '2px 4px',
+                                            position: 'relative',
+                                            zIndex: 1, // Keep text above input
+                                        }}
+                                    >
+                                        {reminderItem.dueDate
+                                            ? new Date(reminderItem.dueDate).toLocaleDateString()
+                                            : t("DateAdd")
+                                        }
+                                    </Typography>
+
+                                    {/* Native date input positioned directly on top of the text */}
+                                    <input
+                                        ref={dateInputRef}
+                                        type="datetime-local"
+                                        value={reminderItem.dueDate
+                                            ? new Date(reminderItem.dueDate)
+                                                .toISOString()
+                                                .substring(0, new Date(reminderItem.dueDate).toISOString().lastIndexOf(':'))
+                                            : ''}
+                                        onChange={handleDateChange}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            opacity: 0, // Invisible but clickable
+                                            cursor: 'pointer',
+                                        }}
+                                    />
+                                </Box>
+
+                                {/* Clear Date Button */}
+                                {reminderItem.dueDate && (
+                                    <IconButton
+                                        edge="end"
+                                        size="small"
+                                        onClick={handleClearDate}
+                                        sx={{ padding: '2px', marginLeft: '2px' }}
+                                    >
+                                        <IconCommon name="Close" size={14} fill="text.secondary" />
+                                    </IconButton>
+                                )}
+                            </>
+                        )}
+                        <IconButton
+                            edge="end"
+                            size="small"
+                            onClick={onDelete}
+                            sx={{ padding: '2px' }}
+                        >
+                            <IconCommon name="Delete" fill="error.main" />
+                        </IconButton>
+                    </Stack>
+                </Stack>
+
+                {/* Description Input: Show if editing OR description exists */}
+                {(isEditing || reminderItem.description) && (
+                    <Field
+                        name={`reminderItems[${index}].description`}
+                        isRequired={false}
+                        placeholder={t("DescriptionPlaceholder")}
+                        maxRows={4}
+                        minRows={1}
+                        multiline
+                        fullWidth
+                        as={InputBase}
+                        onFocus={handleItemFocus}
+                        sx={{
+                            fontSize: 'inherit',
+                            padding: '4px 0 5px',
+                            '& .MuiInputBase-input': {
+                                padding: 0,
+                                height: 'auto',
+                                lineHeight: 1.43,
+                            },
+                            '&.Mui-focused': {},
+                            '&:before': { borderBottom: 'none' },
+                            '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
+                            '&:after': { borderBottom: 'none' },
+                        }}
+                    />
+                )}
+            </Stack>
         </Stack>
     );
 });
@@ -324,7 +390,7 @@ function ReminderForm({
     const styles = useReminderFormStyles(palette);
 
     // State to track the ID of the step currently being edited
-    const [editingStepId, setEditingStepId] = useState<string | null>(null);
+    const [focusedStepIndex, setFocusedStepIndex] = useState<number | null>(null);
 
     const { handleCancel, handleCreated, handleCompleted, handleDeleted } = useUpsertActions<Reminder>({
         display,
@@ -459,64 +525,30 @@ function ReminderForm({
     }, [reminderItemsField.value, reminderItemsHelpers]);
 
     // --- Stable Handlers to pass down --- 
-    const handleStepFocus = useCallback((id: string) => {
-        setEditingStepId(id);
+    const handleStepFocusByIndex = useCallback((index: number) => {
+        setFocusedStepIndex(index);
     }, []);
-
-    // Refined blur handler: Use setTimeout
-    const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const handleStepBlur = useCallback((id: string, nameExists: boolean) => {
-        if (blurTimeoutRef.current) {
-            clearTimeout(blurTimeoutRef.current);
-        }
-        blurTimeoutRef.current = setTimeout(() => {
-            // Check if the blurred item is still the one being edited
-            // If another item gained focus, editingStepId would change via handleStepFocus
-            setEditingStepId(currentEditingId => {
-                if (currentEditingId === id && nameExists) {
-                    return null; // Collapse if name exists and focus truly left
-                }
-                return currentEditingId; // Otherwise keep current state
-            });
-        }, STEP_BLUR_DELAY_MS); // Use constant
-    }, []);
-
-    const handleCompactClick = useCallback((id: string) => {
-        setEditingStepId(id);
-        // Optionally, find the input and focus it programmatically here
-    }, []);
-
-    // Clean up timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (blurTimeoutRef.current) {
-                clearTimeout(blurTimeoutRef.current);
-            }
-        };
-    }, []);
-    // --- End Stable Handlers --- 
-
-    // Create stable delete handlers for each step
-    const stepDeleteHandlers = useMemo(() => {
-        return reminderItemsField.value.map((_, i) => () => handleDeleteStep(i));
-    }, [reminderItemsField.value, handleDeleteStep]);
 
     function handleAddStep() {
         const newId = uuid();
-        const newIndex = reminderItemsField.value.length;
+        // Use default array for safety when accessing length or spreading
+        const currentItems = reminderItemsField.value ?? [];
+        const newIndex = currentItems.length;
         reminderItemsHelpers.setValue([
-            ...reminderItemsField.value,
+            ...currentItems,
             {
+                __typename: "ReminderItem" as const, // Add __typename
                 id: newId,
                 index: newIndex,
                 isComplete: false,
                 name: "",
                 description: "",
                 dueDate: null,
+                reminder: { id: values.id, __typename: "Reminder" as const },
             },
         ]);
         // Automatically set the new step to editing mode
-        setEditingStepId(newId);
+        setFocusedStepIndex(newIndex);
     }
 
     function onDragEnd(result: DropResult) {
@@ -566,8 +598,8 @@ function ReminderForm({
                     <Box width="100%" padding={2}>
                         <Grid container spacing={2}>
                             <Grid item xs={12} lg={6}>
-                                <Typography variant="h4" sx={styles.sectionTitle}>Basic info</Typography>
-                                <Box display="flex" flexDirection="column" gap={4}>
+                                <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
+                                    <Typography variant="h4" sx={styles.sectionTitle}>Basic info</Typography>
                                     <RelationshipList
                                         isEditing={true}
                                         objectType={"Reminder"}
@@ -596,49 +628,50 @@ function ReminderForm({
                             </Grid>
                             <Grid item xs={12} lg={6}>
                                 <Divider sx={styles.dividerStyle} />
-                                <Typography variant="h4" sx={styles.sectionTitle}>Steps to complete</Typography>
-                                <Box>
-                                    <Droppable droppableId="reminderItems">
-                                        {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.droppableProps}>
-                                                {
-                                                    (reminderItemsField.value ?? []).map((reminderItem, i) => (
-                                                        <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
-                                                            {(providedDraggable) => (
-                                                                <Paper
-                                                                    ref={providedDraggable.innerRef}
-                                                                    {...providedDraggable.draggableProps}
-                                                                    sx={styles.stepPaper}
-                                                                    elevation={2}
-                                                                >
-                                                                    <ReminderStep
-                                                                        reminderItem={reminderItem}
-                                                                        index={i}
-                                                                        isEditing={!reminderItem.name || editingStepId === reminderItem.id}
-                                                                        styles={styles}
-                                                                        onFocus={handleStepFocus}
-                                                                        onBlur={handleStepBlur}
-                                                                        onCompactClick={handleCompactClick}
-                                                                        onDelete={stepDeleteHandlers[i]}
-                                                                        onUpdateField={handleUpdateStepField}
-                                                                        dragHandleProps={providedDraggable.dragHandleProps}
-                                                                    />
-                                                                </Paper>
-                                                            )}
-                                                        </Draggable>
-                                                    ))
-                                                }
-                                                {provided.placeholder}
-                                            </div>
-                                        )}
-                                    </Droppable>
-                                    <AddStepButton
-                                        startIcon={<IconCommon name="Add" />}
-                                        onClick={handleAddStep}
-                                        variant="outlined"
-                                    >
-                                        {t("StepAdd")}
-                                    </AddStepButton>
+                                <Box display="flex" flexDirection="column" gap={4} justifyContent="flex-start" maxWidth="600px" margin="auto">
+                                    <Typography variant="h4" sx={styles.sectionTitle}>Steps to complete</Typography>
+                                    <Box borderRadius="24px" overflow="overlay">
+                                        <Droppable droppableId="reminderItems">
+                                            {(provided) => (
+                                                <div ref={provided.innerRef} {...provided.droppableProps}>
+                                                    {
+                                                        (reminderItemsField.value ?? []).map((reminderItem, i) => (
+                                                            <Draggable key={reminderItem.id} draggableId={String(reminderItem.id)} index={i}>
+                                                                {(providedDraggable) => (
+                                                                    <Paper
+                                                                        ref={providedDraggable.innerRef}
+                                                                        {...providedDraggable.draggableProps}
+                                                                        sx={styles.stepPaper}
+                                                                        elevation={2}
+                                                                    >
+                                                                        <ReminderStep
+                                                                            reminderItem={reminderItem}
+                                                                            index={i}
+                                                                            isEditing={focusedStepIndex === i}
+                                                                            styles={styles}
+                                                                            onFocus={handleStepFocusByIndex}
+                                                                            onDelete={() => handleDeleteStep(i)}
+                                                                            onUpdateField={handleUpdateStepField}
+                                                                            dragHandleProps={providedDraggable.dragHandleProps}
+                                                                        />
+                                                                    </Paper>
+                                                                )}
+                                                            </Draggable>
+                                                        ))
+                                                    }
+                                                    {provided.placeholder}
+                                                </div>
+                                            )}
+                                        </Droppable>
+                                        <AddStepButton
+                                            fullWidth
+                                            startIcon={<IconCommon name="Add" />}
+                                            onClick={handleAddStep}
+                                            variant="contained"
+                                        >
+                                            {t("StepAdd")}
+                                        </AddStepButton>
+                                    </Box>
                                 </Box>
                             </Grid>
                         </Grid>

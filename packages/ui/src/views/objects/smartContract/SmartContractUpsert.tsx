@@ -158,7 +158,7 @@ const resourceListStyle = { list: { marginBottom: 2 } } as const;
 const exampleButtonStyle = { marginLeft: "auto" } as const;
 const formSectionTitleStyle = { marginBottom: 1 } as const;
 const tagSelectorStyle = { marginBottom: 2 } as const;
-const dividerStyle = { display: { xs: "flex", md: "none" } } as const;
+const dividerStyle = { display: { xs: "flex", lg: "none" } } as const;
 
 function SmartContractForm({
     disabled,
@@ -298,7 +298,7 @@ function SmartContractForm({
             >
                 <FormContainer>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid item xs={12} lg={6}>
                             <Box width="100%" padding={2}>
                                 <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
                                 <Box display="flex" flexDirection="column" gap={4}>
@@ -344,7 +344,7 @@ function SmartContractForm({
                                 </Box>
                             </Box>
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid item xs={12} lg={6}>
                             <Divider sx={dividerStyle} />
                             <Box width="100%" padding={2}>
                                 <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>

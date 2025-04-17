@@ -1,15 +1,16 @@
 import { DUMMY_ID, endpointsReport, getObjectSlug, getObjectUrlBase, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
-import { Field, Formik, useField } from "formik";
+import { Box } from "@mui/material";
+import { Formik, useField } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
+import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { RichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { Selector } from "../../../components/inputs/Selector/Selector.js";
-import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
@@ -17,7 +18,7 @@ import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { FormContainer, FormSection } from "../../../styles.js";
+import { FormContainer } from "../../../styles.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ReportFormProps, ReportUpsertProps } from "./types.js";
@@ -61,6 +62,23 @@ export function transformReportValues(values: ReportShape, existing: ReportShape
 
 function getReasonLabel(reason: string) {
     return ReportReasons[reason] || "";
+}
+
+function getDetailsPlaceholder(reason: string) {
+    switch (reason) {
+        case ReportOptions.Inappropriate:
+            return "This content contains inappropriate material such as explicit language, offensive imagery...";
+        case ReportOptions.PII:
+            return "This content includes personally identifiable information like phone numbers, addresses, email addresses...";
+        case ReportOptions.Scam:
+            return "This appears to be a scam because it requests personal information, contains suspicious links...";
+        case ReportOptions.Spam:
+            return "This content appears to be spam because it contains irrelevant advertisements, repetitive messaging...";
+        case ReportOptions.Other:
+            return "Please explain the issue with this content in detail...";
+        default:
+            return "Please provide additional details about this report...";
+    }
 }
 
 function ReportForm({
@@ -141,8 +159,8 @@ function ReportForm({
                 display={display}
                 isLoading={isLoading}
             >
-                <FormContainer>
-                    <FormSection variant="transparent">
+                <FormContainer p={2}>
+                    <Box display="flex" flexDirection="column" gap={4}>
                         <Selector
                             name="reason"
                             disabled={isLoading}
@@ -151,20 +169,23 @@ function ReportForm({
                             fullWidth
                             label={t("Reason")}
                         />
-                        {reasonField.value === ReportOptions.Other && <Field
-                            fullWidth
-                            name="otherReason"
-                            label={t("ReasonCustom")}
-                            helperText={t("ReasonCustomHelp")}
-                            as={TextInput}
-                        />}
-                        <RichInput
+                        {reasonField.value === ReportOptions.Other && (
+                            <TranslatedAdvancedInput
+                                features={nameInputFeatures}
+                                isRequired={true}
+                                language={language}
+                                name="otherReason"
+                                title={t("ReasonCustom")}
+                                placeholder={"Incorrect information, outdated content..."}
+                            />
+                        )}
+                        <TranslatedAdvancedInput
+                            features={detailsInputFeatures}
                             isRequired={false}
-                            maxChars={8192}
-                            maxRows={10}
-                            minRows={4}
+                            language={language}
                             name="details"
-                            placeholder={t("Details")}
+                            title={t("Details")}
+                            placeholder={getDetailsPlaceholder(reasonField.value)}
                         />
                         <LanguageInput
                             currentLanguage={language}
@@ -173,7 +194,7 @@ function ReportForm({
                             handleCurrent={setLanguage}
                             languages={languages}
                         />
-                    </FormSection>
+                    </Box>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons
