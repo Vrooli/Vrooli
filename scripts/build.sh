@@ -35,6 +35,7 @@ KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
 ENVIRONMENT=${NODE_ENV:-development}
 TEST="y"
 API_GENERATE="n"
+SKIP_CONFIRMATIONS="n"
 while getopts "v:d:u:ha:t:p:" opt; do
     case $opt in
     h)
@@ -46,6 +47,7 @@ while getopts "v:d:u:ha:t:p:" opt; do
         echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
         echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
         echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
+        echo "  -y --yes:            (y/N) Skip all confirmations. Defaults to false."
         exit 0
         ;;
     a)
@@ -75,6 +77,9 @@ while getopts "v:d:u:ha:t:p:" opt; do
         ;;
     v)
         VERSION=$OPTARG
+        ;;
+    y)
+        SKIP_CONFIRMATIONS="y"
         ;;
     \?)
         echo "Invalid option: -$OPTARG" >&2
@@ -270,9 +275,14 @@ KEYSTORE_PASSWORD="${GOOGLE_PLAY_KEYSTORE_PASSWORD}"
 
 # Check if keystore file exists
 if [ ! -f "${KEYSTORE_PATH}" ]; then
-    prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
-    read -n1 -r REPLY
-    echo
+    if is_yes "$SKIP_CONFIRMATIONS"; then
+        info "Keystore file not found. This is needed to upload the app the Google Play store. Creating keystore file..."
+        REPLY="y"
+    else
+        prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
+        read -n1 -r REPLY
+        echo
+    fi
     if is_yes "$REPLY"; then
         # Generate the keystore file
         header "Generating keystore file..."
@@ -285,8 +295,13 @@ if [ ! -f "${KEYSTORE_PATH}" ]; then
         info "5. State or Province: The state or province where your organization is located. Example: New York"
         info "6. Country Code: The two-letter ISO code for the country of your organization. Example: US"
         info "This information helps to identify the holder of the key."
-        prompt "Press any key to continue..."
-        read -n1 -r -s
+        if is_yes "$SKIP_CONFIRMATIONS"; then
+            info "Skipping confirmation..."
+            REPLY="y"
+        else
+            prompt "Press any key to continue..."
+            read -n1 -r -s
+        fi
 
         run_step "Generating keystore file for Google Play Store" "keytool -genkey -v -keystore \"${KEYSTORE_PATH}\" -alias \"${KEYSTORE_ALIAS}\" -keyalg RSA -keysize 2048 -validity 10000 -storepass \"${KEYSTORE_PASSWORD}\""
     fi
@@ -472,8 +487,13 @@ if is_yes "$USE_KUBERNETES"; then
     # Add ui build to S3
     S3_BUCKET="vrooli-bucket"
     S3_PATH="builds/v${VERSION}/"
-    prompt "Going to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}. Press any key to continue..."
-    read -n1 -r -s
+    if is_yes "$SKIP_CONFIRMATIONS"; then
+        info "Skipping confirmation..."
+        REPLY="y"
+    else
+        prompt "Going to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}. Press any key to continue..."
+        read -n1 -r -s
+    fi
     AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} aws s3 cp build.tar.gz s3://${S3_BUCKET}/${S3_PATH}build.tar.gz
     if [ $? -ne 0 ]; then
         error "Failed to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}"
@@ -484,8 +504,13 @@ elif is_yes "$DEPLOY_VPS"; then
     # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="/var/tmp/${VERSION}/"
-    prompt "Going to copy build to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
-    read -n1 -r -s
+    if is_yes "$SKIP_CONFIRMATIONS"; then
+        info "Skipping confirmation..."
+        REPLY="y"
+    else
+        prompt "Going to copy build to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
+        read -n1 -r -s
+    fi
     # Ensure that target directory exists
     ssh -i ~/.ssh/id_rsa_${SITE_IP} root@${SITE_IP} "mkdir -p ${BUILD_DIR}"
     # Copy everything
