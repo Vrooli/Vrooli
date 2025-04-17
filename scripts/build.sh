@@ -35,10 +35,11 @@ KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
 ENVIRONMENT=${NODE_ENV:-development}
 TEST="y"
 API_GENERATE="n"
+GOOGLE_PLAY_KEYS_GENERATE="y"
 SKIP_CONFIRMATIONS="n"
 
 ## Parse both short and long options
-PARSED_OPTS=$(getopt -o v:d:u:ha:t:p:y -l version:,deploy-vps:,use-kubernetes:,help,api-generate:,test:,prod:,yes -- "$@")
+PARSED_OPTS=$(getopt -o v:d:u:ha:t:p:g:y -l version:,deploy-vps:,use-kubernetes:,help,api-generate:,test:,prod:,yes,google-play-keys-generate -- "$@")
 if [ $? -ne 0 ]; then
     echo "Error: Failed to parse options" >&2
     exit 1
@@ -54,6 +55,8 @@ while true; do
             USE_KUBERNETES="$2"; shift 2;;
         -a|--api-generate)
             API_GENERATE="$2"; shift 2;;
+        -g|--google-play-keys-generate)
+            GOOGLE_PLAY_KEYS_GENERATE="$2"; shift 2;;
         -t|--test)
             TEST="$2"; shift 2;;
         -p|--prod)
@@ -73,6 +76,7 @@ while true; do
             echo "  -u --use-kubernetes: (y/N) Deploy to Kubernetes? This overrides '--deploy-vps'"
             echo "  -h --help:           Show this help message"
             echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
+            echo "  -g --google-play-keys-generate: (y/N) Generate Google Play Store keystore and assetlinks. Defaults to true."
             echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
             echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
             echo "  -y --yes:            (y/N) Skip all confirmations. Defaults to false."
@@ -266,37 +270,39 @@ KEYSTORE_PATH="${HERE}/../upload-keystore.jks"
 KEYSTORE_ALIAS="upload"
 KEYSTORE_PASSWORD="${GOOGLE_PLAY_KEYSTORE_PASSWORD}"
 
-# Check if keystore file exists
-if [ ! -f "${KEYSTORE_PATH}" ]; then
-    if is_yes "$SKIP_CONFIRMATIONS"; then
-        info "Keystore file not found. This is needed to upload the app the Google Play store. Creating keystore file..."
-        REPLY="y"
-    else
-        prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
-        read -n1 -r REPLY
-        echo
-    fi
-    if is_yes "$REPLY"; then
-        # Generate the keystore file
-        header "Generating keystore file..."
-        info "Before we begin, you'll need to provide some information for the keystore certificate:"
-        info "This information should be accurate, but it does not have to match exactly with the information you used to register your Google Play account."
-        info "1. First and Last Name: Your full legal name. Example: John Doe"
-        info "2. Organizational Unit: The department within your organization managing the key. Example: IT"
-        info "3. Organization: The legal name of your company or organization. Example: Vrooli"
-        info "4. City or Locality: The city where your organization is based. Example: New York City"
-        info "5. State or Province: The state or province where your organization is located. Example: New York"
-        info "6. Country Code: The two-letter ISO code for the country of your organization. Example: US"
-        info "This information helps to identify the holder of the key."
+if is_yes "$GOOGLE_PLAY_KEYS_GENERATE"; then
+    # Check if keystore file exists
+    if [ ! -f "${KEYSTORE_PATH}" ]; then
         if is_yes "$SKIP_CONFIRMATIONS"; then
-            info "Skipping confirmation..."
+            info "Keystore file not found. This is needed to upload the app the Google Play store. Creating keystore file..."
             REPLY="y"
         else
-            prompt "Press any key to continue..."
-            read -n1 -r -s
+            prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
+            read -n1 -r REPLY
+            echo
         fi
+        if is_yes "$REPLY"; then
+            # Generate the keystore file
+            header "Generating keystore file..."
+            info "Before we begin, you'll need to provide some information for the keystore certificate:"
+            info "This information should be accurate, but it does not have to match exactly with the information you used to register your Google Play account."
+            info "1. First and Last Name: Your full legal name. Example: John Doe"
+            info "2. Organizational Unit: The department within your organization managing the key. Example: IT"
+            info "3. Organization: The legal name of your company or organization. Example: Vrooli"
+            info "4. City or Locality: The city where your organization is based. Example: New York City"
+            info "5. State or Province: The state or province where your organization is located. Example: New York"
+            info "6. Country Code: The two-letter ISO code for the country of your organization. Example: US"
+            info "This information helps to identify the holder of the key."
+            if is_yes "$SKIP_CONFIRMATIONS"; then
+                info "Skipping confirmation..."
+                REPLY="y"
+            else
+                prompt "Press any key to continue..."
+                read -n1 -r -s
+            fi
 
-        run_step "Generating keystore file for Google Play Store" "keytool -genkey -v -keystore \"${KEYSTORE_PATH}\" -alias \"${KEYSTORE_ALIAS}\" -keyalg RSA -keysize 2048 -validity 10000 -storepass \"${KEYSTORE_PASSWORD}\""
+            run_step "Generating keystore file for Google Play Store" "keytool -genkey -v -keystore \"${KEYSTORE_PATH}\" -alias \"${KEYSTORE_ALIAS}\" -keyalg RSA -keysize 2048 -validity 10000 -storepass \"${KEYSTORE_PASSWORD}\""
+        fi
     fi
 fi
 
@@ -348,7 +354,9 @@ create_assetlinks_file() {
         fi
     fi
 }
-create_assetlinks_file
+if is_yes "$GOOGLE_PLAY_KEYS_GENERATE"; then
+    create_assetlinks_file
+fi
 
 # Create ads.txt file for Google AdSense
 if [ -z "${GOOGLE_ADSENSE_PUBLISHER_ID}" ]; then
