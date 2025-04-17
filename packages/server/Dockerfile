@@ -55,13 +55,8 @@ COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/server/package.json ./packages/server/
 COPY --chown=node:node packages/shared/package.json ./packages/shared/
 
-# --- Option A: Copy pruned node_modules from builder (if pruning step was added) ---
-# COPY --from=builder --chown=node:node ${PROJECT_DIR}/node_modules ./node_modules
-
-# --- Option B: Reinstall only production dependencies ---
-# This is often cleaner and ensures only prod deps are present
-# Ensure yarn.lock and necessary workspace package.json files are present before install
-RUN yarn install --production --frozen-lockfile --network-timeout 600000
+# Use node_modules from builder to preserve workspace links
+COPY --from=builder --chown=node:node ${PROJECT_DIR}/node_modules ./node_modules
 
 # Copy built application code from the builder stage
 COPY --from=builder --chown=node:node ${PROJECT_DIR}/packages/server/dist ./packages/server/dist
