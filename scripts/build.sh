@@ -195,7 +195,7 @@ fi
 TMP_ENV_FILE=".env-tmp"
 touch ${TMP_ENV_FILE}
 # Set environment variables
-echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>${TMP_ENV_FILE}
+echo "VITE_SERVER_LOCATION=${SERVER_LOCATION:-remote}" >>${TMP_ENV_FILE}
 echo "VITE_PORT_API=${PORT_API}" >>${TMP_ENV_FILE}
 echo "VITE_API_URL=${API_URL}" >>${TMP_ENV_FILE}
 echo "VITE_SITE_IP=${SITE_IP}" >>${TMP_ENV_FILE}
