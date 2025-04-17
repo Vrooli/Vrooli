@@ -11,6 +11,7 @@ import { useLocation } from "../route/router.js";
 import { LayoutComponentId, LayoutPositionId, useLayoutStore } from "../stores/layoutStore.js";
 import { ELEMENT_IDS, Z_INDEX } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
+import { ChatCrud } from "../views/objects/chat/ChatCrud.js";
 import { SiteNavigator } from "./navigation/SiteNavigator.js";
 
 // Drawer sizes and limits
@@ -60,8 +61,8 @@ function PortalComponent({ id, Story, target }: ComponentProps) {
                 return <SiteNavigator />;
             case "primary":
                 return Story ? <Story /> : <Routes sessionChecked={session !== undefined} />;
-            // case "secondary":
-            //     return <ChatHistoryComponent />;
+            case "secondary":
+                return <ChatCrud display="partial" isCreate={false} />;
             default:
                 return <Box>Unknown component</Box>;
         }

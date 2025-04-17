@@ -1,10 +1,11 @@
 /* c8 ignore start */
 // Defines common props
-import { AwardCategory, ListObject, OrArray, TranslationKeyCommon } from "@local/shared";
+import { AITaskInfo, AwardCategory, ListObject, OrArray, TranslationKeyCommon } from "@local/shared";
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
+import { type IconInfo } from "./icons/Icons.js";
 
 /** 
  * An object which at least includes its type.
@@ -179,4 +180,27 @@ export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrAr
 export interface Dimensions {
     width: number;
     height: number;
+}
+
+export enum AITaskDisplayState {
+    /** Tssk not provided to LLM */
+    Disabled = "disabled",
+    /** Tssk provided to LLM with other enabled tasks */
+    Enabled = "enabled",
+    /** LLM instructed to use this task only */
+    Exclusive = "exclusive",
+}
+export type AITaskDisplay = AITaskInfo & {
+    /**
+    * What to render on the button/chip in the input toolbar.
+    * We’ll reuse `AITaskInfo.label` as the default, but this allows
+    * us to override it if needed.
+    */
+    displayName: string;
+    /** Which icon to show next to the tool name in the toolbar */
+    iconInfo: IconInfo;
+    /** UI state for the tool picker: disabled, enabled, or exclusive */
+    state: AITaskDisplayState;
+    /** Arguments to pass to the tool */
+    arguments: Record<string, any>;
 }
