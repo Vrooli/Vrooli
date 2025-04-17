@@ -35,7 +35,6 @@ export const AdvancedInputMarkdown = forwardRef<HTMLTextAreaElement, AdvancedInp
     mergedFeatures,
 }, ref) => {
     const theme = useTheme();
-    console.log("rendering RichInputMarkdown", maxRows, minRows, value.length);
     // Internal ref for the textarea
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
 

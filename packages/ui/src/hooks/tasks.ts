@@ -1,7 +1,9 @@
 import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, noop, uuid } from "@local/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
+import type { IconInfo } from "../icons/Icons.js";
 import { useActiveChat } from "../stores/activeChatStore.js";
+import { AITaskDisplay, AITaskDisplayState } from "../types.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
 import { getCookieTasksForChat, setCookieTasksForChat } from "../utils/localStorage.js";
 import { ChatTaskPub, ContextConnect, PubSub } from "../utils/pubsub.js";
@@ -333,12 +335,31 @@ type UseChatTasksProps = {
     chatId: ChatTaskPub["chatId"] | null | undefined;
 }
 
+/**
+ * Map server-driven AITaskInfo to the new UI AITaskDisplay type.
+ */
+function mapTaskToTool(task: AITaskInfo): AITaskDisplay {
+    let iconInfo: IconInfo;
+    if (task.task === LlmTask.RunRoutineStart) {
+        iconInfo = { name: "Routine", type: "Routine" } as const;
+    } else {
+        iconInfo = { name: "Play", type: "Common" } as const;
+    }
+    return {
+        ...task,
+        displayName: task.label,
+        iconInfo,
+        state: AITaskDisplayState.Enabled,
+        arguments: {},
+    };
+}
+
 export type UseChatTaskReturn = {
-    activeTask: AITaskInfo;
+    activeTask: AITaskDisplay;
     contexts: { [taskId: string]: TaskContextInfo[] };
-    inactiveTasks: AITaskInfo[];
+    inactiveTasks: AITaskDisplay[];
     unselectTask: () => unknown;
-    selectTask: (task: AITaskInfo) => unknown;
+    selectTask: (task: AITaskDisplay) => unknown;
 }
 
 export const DEFAULT_ACTIVE_TASK_ID = "task-00000000-0000-0000-0000-000000000000";
@@ -662,10 +683,10 @@ export function useChatTasks({
     }, [chatId, handleActiveTaskChange, handleContextsChange, handleInactiveTasksChange]);
 
     return {
-        activeTask,
+        activeTask: mapTaskToTool(activeTask),
         contexts,
-        inactiveTasks,
+        inactiveTasks: inactiveTasks.map(mapTaskToTool),
         unselectTask,
-        selectTask,
+        selectTask: (tool: AITaskDisplay) => selectTask(tool as AITaskInfo),
     };
 }

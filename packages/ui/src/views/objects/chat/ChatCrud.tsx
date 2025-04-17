@@ -29,8 +29,11 @@ import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
+import { useActiveChatStore } from "../../../stores/activeChatStore.js";
+import { useLayoutStore } from "../../../stores/layoutStore.js";
 import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { getCookiePartialData, setCookieMatchingChat } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -130,7 +133,8 @@ const InviteCheckboxField = styled(Field)(({ theme }) => ({
     },
 }));
 
-const ChatTreeContainer = styled(Box)(() => ({
+const ChatTreeContainer = styled(Box)(({ theme }) => ({
+    background: theme.palette.background.default,
     position: "relative",
     display: "flex",
     flexDirection: "column",
@@ -166,6 +170,8 @@ function ChatForm({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isLeftHanded = useIsLeftHanded();
+    const resetActiveChatFromStore = useActiveChatStore((state) => state.resetActiveChat);
+    const { swapMainAndRight } = useLayoutStore();
 
     const {
         fetch,
@@ -259,7 +265,7 @@ function ChatForm({
     });
     const { messageStream } = useSocketChat({
         addMessages: messageTree.addMessages,
-        chat: existing,
+        chat: values,
         editMessage: messageTree.editMessage,
         participants,
         removeMessages: messageTree.removeMessages,
@@ -356,6 +362,7 @@ function ChatForm({
 
     const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
         return {
+            height: "100%",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -384,6 +391,18 @@ function ChatForm({
             ),
         };
     }, [copyLink, t]);
+
+    // Define sx prop for the partial header container
+    const partialHeaderSx = useMemo(() => ({ display: "flex", justifyContent: "flex-end", p: 1 }), []);
+
+    // Define memoized handlers for close and swap actions
+    const handleCloseDrawer = useCallback(() => {
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.RightDrawer, isOpen: false });
+    }, []);
+
+    const handleSwapView = useCallback(() => {
+        swapMainAndRight();
+    }, [swapMainAndRight]);
 
     const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
         return (
@@ -462,48 +481,60 @@ function ChatForm({
                 sxs={dialogStyle}
             >
                 <Box sx={outerBoxStyle}>
-                    <NavbarInner>
-                        <SiteNavigatorButton />
-                        <EditableTitle
-                            handleDelete={handleDelete}
-                            isDeletable={!(values.id === DUMMY_ID || disabled)}
-                            isEditable={!disabled}
-                            language={language}
-                            onClose={onSubmit}
-                            onSubmit={onSubmit}
-                            titleField="name"
-                            subtitleField="description"
-                            variant="header"
-                            sxs={editableTitleStyle}
-                            DialogContentForm={titleDialogContentForm}
-                        />
-                        <NavListBox isLeftHanded={isLeftHanded}>
-                            <NavListNewChatButton handleNewChat={resetActiveChat} />
-                            <NavListInboxButton />
-                            <NavListProfileButton />
-                        </NavListBox>
-                        {existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
-                            display="flex"
-                            flexDirection="row"
-                            justifyContent="space-around"
-                            alignItems="center"
-                            maxWidth="min(100vw, 1000px)"
-                            margin="auto"
-                        >
-                            <Button
-                                color="primary"
-                                onClick={newChat}
-                                variant="contained"
-                                sx={addChatButtonStyle}
-                                startIcon={<IconCommon
-                                    decorative
-                                    name="Add"
-                                />}
+                    {display === "partial" ? (
+                        <Box sx={partialHeaderSx}>
+                            {/* Swap Button */}
+                            <IconButton onClick={handleSwapView} sx={{ mr: 1 }}>
+                                <IconCommon name="MoveLeftRight" />
+                            </IconButton>
+                            {/* Close Button */}
+                            <IconButton onClick={handleCloseDrawer}>
+                                <IconCommon name="Close" />
+                            </IconButton>
+                        </Box>
+                    ) : (
+                        <NavbarInner>
+                            <SiteNavigatorButton />
+                            <EditableTitle
+                                handleDelete={handleDelete}
+                                isDeletable={!(values.id === DUMMY_ID || disabled)}
+                                isEditable={!disabled}
+                                language={language}
+                                onClose={onSubmit}
+                                onSubmit={onSubmit}
+                                titleField="name"
+                                subtitleField="description"
+                                variant="header"
+                                DialogContentForm={titleDialogContentForm}
+                            />
+                            <NavListBox isLeftHanded={isLeftHanded}>
+                                <NavListNewChatButton handleNewChat={() => resetActiveChatFromStore(session, t)} />
+                                <NavListInboxButton />
+                                <NavListProfileButton />
+                            </NavListBox>
+                            {existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
+                                display="flex"
+                                flexDirection="row"
+                                justifyContent="space-around"
+                                alignItems="center"
+                                maxWidth="min(100vw, 1000px)"
+                                margin="auto"
                             >
-                                {t("NewChat")}
-                            </Button>
-                        </Box>}
-                    </NavbarInner>
+                                <Button
+                                    color="primary"
+                                    onClick={newChat}
+                                    variant="contained"
+                                    sx={addChatButtonStyle}
+                                    startIcon={<IconCommon
+                                        decorative
+                                        name="Add"
+                                    />}
+                                >
+                                    {t("NewChat")}
+                                </Button>
+                            </Box>}
+                        </NavbarInner>
+                    )}
                     <ChatTreeContainer>
                         <ChatBubbleTree
                             branches={messageTree.branches}
@@ -552,22 +583,38 @@ export function ChatCrud({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
+    // Ref to hold stable onError callback for useManagedObject
+    const onLoadErrorRef = useRef<(errors: any[]) => void>(() => { });
+    // Stable transform function to avoid unnecessary re-renders
+    const stableTransform = useCallback(
+        (data: Partial<Chat>) =>
+            chatInitialValues(session, t, getUserLanguages(session)[0], data),
+        [session, t]
+    );
+
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Chat, ChatShape>({
         ...endpointsChat.findOne,
-        onError: function onLoadError(errors) {
-            // If the chat doesn't exist, switch to create mode
-            if (ServerResponseParser.hasErrorCode({ errors }, "NotFound")) {
-                if (display === "page") setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
-                setExisting(chatInitialValues(session, t, getUserLanguages(session)[0]));
-            }
-        },
+        // Call the latest onLoadErrorRef callback
+        onError: (errors) => onLoadErrorRef.current(errors),
         disabled: display === "dialog" && isOpen !== true,
         displayError: display === "page" || isOpen === true,
         isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
-        transform: (data) => chatInitialValues(session, t, getUserLanguages(session)[0], data),
+        transform: stableTransform,
     });
+
+    // Initialize onError ref so that the callback is stable but can reference setExisting
+    useEffect(() => {
+        onLoadErrorRef.current = (errors) => {
+            if (ServerResponseParser.hasErrorCode({ errors }, "NotFound")) {
+                if (display === "page") {
+                    setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
+                }
+                setExisting(chatInitialValues(session, t, getUserLanguages(session)[0]));
+            }
+        };
+    }, [display, setLocation, setExisting, session, t]);
 
     async function validateValues(values: ChatShape) {
         return await validateFormValues(values, existing, isCreate, transformChatValues, chatValidation);

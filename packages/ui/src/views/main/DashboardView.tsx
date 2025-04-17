@@ -1,5 +1,5 @@
 import { CalendarEvent, DAYS_30_MS, DUMMY_ID, FocusMode, HomeResult, LlmModel, Reminder, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid } from "@local/shared";
-import { Box, InputAdornment, ListItemIcon, Menu, MenuItem, TextField, Typography, styled } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, FormGroup, InputAdornment, ListItemIcon, Menu, MenuItem, Switch, TextField, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../api/ai.js";
@@ -70,7 +70,7 @@ const greetingStyle = { mb: 2 } as const;
 const modelMenuPaperProps = {
     style: {
         maxHeight: 400,
-        width: "350px",
+        width: "650px",
     },
 } as const;
 const searchBoxStyle = { p: 2 } as const;
@@ -107,14 +107,21 @@ function ModelTitleComponent() {
         availableModels.length > 0 ? availableModels[0] : null,
     );
 
-    const handleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
+    // Handlers to open and close the menu
+    const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setSearchQuery("");
+        setAnchorEl(event.currentTarget);
     }, []);
-
-    const handleClose = useCallback(() => {
+    /**
+     * Close the model selection menu. This handles both click-away and escape key.
+     */
+    const handleClose = useCallback((_event?: React.SyntheticEvent, _reason?: string) => {
         setAnchorEl(null);
     }, []);
+    // Toggle menu on title click
+    const handleTitleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        open ? handleClose() : handleOpen(event);
+    }, [open, handleOpen, handleClose]);
 
     const handleModelSelect = useCallback((model: LlmModel) => {
         setSelectedModel(model);
@@ -145,9 +152,23 @@ function ModelTitleComponent() {
 
     const modelHelpText = "Select an AI model to use for your conversations. Different models have different capabilities, strengths, and pricing.";
 
+    // State for tool configuration panel
+    const [toolSettings, setToolSettings] = useState<{ siteActions: boolean; webSearch: boolean; fileRetrieval: boolean; }>({
+        siteActions: true,
+        webSearch: true,
+        fileRetrieval: true,
+    });
+    const handleToggleTool = useCallback((toolName: keyof typeof toolSettings) => {
+        setToolSettings(prev => ({
+            ...prev,
+            [toolName]: !prev[toolName],
+        }));
+    }, []);
+    const [requireConfirmation, setRequireConfirmation] = useState<boolean>(false);
+
     return (
         <ModelTitleBox
-            onClick={handleClick}
+            onClick={handleTitleClick}
         >
             <Typography variant="body1" color="inherit" component="div">
                 {selectedModel ?
@@ -187,44 +208,96 @@ function ModelTitleComponent() {
                         inputRef={searchInputRef}
                     />
                 </Box>
-                {filteredModels.length === 0 ? (
-                    <Box sx={noResultsStyle}>
-                        <Typography variant="body2" color="textSecondary">
-                            No models found
-                        </Typography>
+                <Box sx={{ display: "flex" }}>
+                    <Box sx={{ flex: 1, maxHeight: 300, overflowY: "auto" }}>
+                        {filteredModels.length === 0 ? (
+                            <Box sx={noResultsStyle}>
+                                <Typography variant="body2" color="textSecondary">
+                                    No models found
+                                </Typography>
+                            </Box>
+                        ) : (
+                            filteredModels.map((model) => {
+                                function handleClick() {
+                                    handleModelSelect(model);
+                                }
+                                return (
+                                    <MenuItem
+                                        key={model.value}
+                                        onClick={handleClick}
+                                        selected={selectedModel?.value === model.value}
+                                    >
+                                        <ListItemIcon>
+                                            {selectedModel?.value === model.value && (
+                                                <IconCommon
+                                                    fill="background.textPrimary"
+                                                    name="Complete"
+                                                    size={20}
+                                                />
+                                            )}
+                                        </ListItemIcon>
+                                        <Box>
+                                            <Typography variant="body1">
+                                                {t(model.name, { ns: "service" })}
+                                            </Typography>
+                                            <Typography variant="caption" color="textSecondary">
+                                                {t(model.description || "", { ns: "service", defaultValue: "" })}
+                                            </Typography>
+                                        </Box>
+                                    </MenuItem>
+                                );
+                            })
+                        )}
                     </Box>
-                ) : (
-                    filteredModels.map((model) => {
-                        function handleClick() {
-                            handleModelSelect(model);
-                        }
-                        return (
-                            <MenuItem
-                                key={model.value}
-                                onClick={handleClick}
-                                selected={selectedModel?.value === model.value}
-                            >
-                                <ListItemIcon>
-                                    {selectedModel?.value === model.value && (
-                                        <IconCommon
-                                            fill="background.textPrimary"
-                                            name="Complete"
-                                            size={20}
-                                        />
-                                    )}
-                                </ListItemIcon>
-                                <Box>
-                                    <Typography variant="body1">
-                                        {t(model.name, { ns: "service" })}
-                                    </Typography>
-                                    <Typography variant="caption" color="textSecondary">
-                                        {t(model.description || "", { ns: "service", defaultValue: "" })}
-                                    </Typography>
-                                </Box>
-                            </MenuItem>
-                        );
-                    })
-                )}
+                    <Box sx={{ width: 300, borderLeft: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            Tool Configuration
+                        </Typography>
+                        <FormGroup>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={toolSettings.siteActions}
+                                        onChange={() => handleToggleTool("siteActions")}
+                                        size="small"
+                                    />
+                                }
+                                label="Site Actions"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={toolSettings.webSearch}
+                                        onChange={() => handleToggleTool("webSearch")}
+                                        size="small"
+                                    />
+                                }
+                                label="Web Search"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={toolSettings.fileRetrieval}
+                                        onChange={() => handleToggleTool("fileRetrieval")}
+                                        size="small"
+                                    />
+                                }
+                                label="File Retrieval"
+                            />
+                        </FormGroup>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={requireConfirmation}
+                                    onChange={(e) => setRequireConfirmation(e.target.checked)}
+                                    size="small"
+                                />
+                            }
+                            label={requireConfirmation ? "Require User Confirmation" : "Manual Tool Use"}
+                            sx={{ mt: 2 }}
+                        />
+                    </Box>
+                </Box>
             </Menu>
         </ModelTitleBox>
     );

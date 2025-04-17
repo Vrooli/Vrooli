@@ -30,7 +30,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     tabIndex,
     value,
 }: SelectorBaseProps<T>) {
-    const { palette, typography } = useTheme();
+    const { palette, typography, spacing } = useTheme();
     const { t } = useTranslation();
 
     const getOptionStyle = useCallback((label: string) => {
@@ -119,8 +119,9 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     const selectStyle = useMemo(function selectStyle() {
         return {
             ...sxs?.root,
-            borderRadius: "12px",
-            color: "inherit",
+            borderRadius: spacing(3),
+            color: palette.background.textPrimary,
+            backgroundColor: palette.background.paper,
             "& .MuiSelect-select": {
                 padding: "8px",
                 display: "flex",
@@ -130,26 +131,33 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 color: "inherit",
             },
             "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: "inherit",
+                border: "none",
             },
             "& .MuiPaper-root": {
                 zIndex: 9999,
             },
             "& fieldset": {
                 ...sxs?.fieldset,
+                border: "none",
             },
             "& svg": {
                 display: "flex",
                 alignItems: "center",
             },
         };
-    }, [sxs]);
+    }, [sxs, spacing, palette.background.paper, palette.background.textPrimary]);
 
     return (
         <FormControl
             variant="outlined"
             error={error}
-            sx={{ width: fullWidth ? "-webkit-fill-available" : "" }}
+            sx={{
+                width: fullWidth ? "-webkit-fill-available" : "",
+                // Adjust label position when not shrunk to align with internal padding
+                "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
+                    transform: "translate(14px, 8px) scale(1)",
+                },
+            }}
         >
             <InputLabel
                 id={inputAriaLabel}

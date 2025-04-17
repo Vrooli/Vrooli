@@ -22,7 +22,7 @@ export function BottomActionsGrid({
             marginRight: display === "page" ? "auto" : 0,
             maxWidth: display === "page" ? "min(700px, 100%)" : "100%",
             zIndex: 10,
-            position: "absolute",
+            position: "sticky", //"absolute",
             // Displayed directly above BottomNav (pages only), which is only visible on mobile
             bottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : 0, md: 0 },
             left: 0,

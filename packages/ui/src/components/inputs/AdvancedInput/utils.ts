@@ -1,6 +1,7 @@
 /* eslint-disable no-magic-numbers */
 import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
 import { IconInfo } from "../../../icons/Icons.js";
+import { AITaskDisplay } from "../../../types.js";
 
 export const advancedInputTextareaClassName = "advanced-input-field";
 
@@ -49,23 +50,6 @@ export type ExternalApp = {
     connected: boolean;
 }
 
-export enum ToolState {
-    /** Tool not provided to LLM */
-    Disabled = "disabled",
-    /** Tool provided to LLM with other enabled tools */
-    Enabled = "enabled",
-    /** LLM instructed to use this tool only */
-    Exclusive = "exclusive",
-}
-export type Tool = {
-    displayName: string;
-    iconInfo: IconInfo;
-    type: string;
-    name: string;
-    state: ToolState;
-    arguments: Record<string, any>;
-}
-
 //TODO should migrate to TaskContextInfo, and update TaskContextInfo to include things like type
 export type ContextItem = {
     id: string;
@@ -105,9 +89,9 @@ export interface AdvancedInputFeatures {
     /** Allow @ and / context triggers */
     allowContextDropdown?: boolean;
 
-    // Tool integration
-    /** Allow using tools in the input */
-    allowTools?: boolean;
+    // Task (a.k.a. tool) integration
+    /** Allow using tasks in the input */
+    allowTasks?: boolean;
 
     // Submission features
     /** Show character limit and progress */
@@ -138,7 +122,7 @@ export const DEFAULT_FEATURES: AdvancedInputFeatures = {
     allowImageAttachments: true,
     allowTextAttachments: true,
     allowContextDropdown: true,
-    allowTools: true,
+    allowTasks: true,
     allowCharacterLimit: true,
     allowVoiceInput: true,
     allowSubmit: true,
@@ -160,13 +144,13 @@ export type AdvancedInputBaseProps = {
     isRequired?: boolean;
     name: string;
     placeholder?: string;
+    tasks?: AITaskDisplay[];
     title?: string; // Optional title to display above the input area
-    tools?: Tool[];
     value: string;
     onBlur?: (event: any) => unknown;
     onChange: (value: string) => unknown;
     onFocus?: (event: any) => unknown;
-    onToolsChange?: (updatedTools: Tool[]) => unknown;
+    onTasksChange?: (updatedTasks: AITaskDisplay[]) => unknown;
     onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
     onSubmit?: (value: string) => unknown;
     tabIndex?: number;

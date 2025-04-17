@@ -411,7 +411,9 @@ export function useManagedObject<
     const stateRef = useRef({
         hasAlreadyShownFetchFailedError: false,
         hasAlreadyShownInvalidUrlError: false,
-        hasAttemptedInitialFetch: false
+        hasAttemptedInitialFetch: false,
+        // Ensure we only reset formData once on fetch failure
+        hasAlreadyResolvedFetchFailed: false
     });
 
     console.info(`Initializing for ${objectType} with params:`, {
@@ -440,7 +442,8 @@ export function useManagedObject<
         stateRef.current = {
             hasAlreadyShownFetchFailedError: false,
             hasAlreadyShownInvalidUrlError: false,
-            hasAttemptedInitialFetch: false
+            hasAttemptedInitialFetch: false,
+            hasAlreadyResolvedFetchFailed: false
         };
     }, [stableIdentifier]);
 
@@ -533,11 +536,16 @@ export function useManagedObject<
         // Priority 4: Handle fetch failures
         if (fetchFailed) {
             console.error(`Priority 4: Fetch failed for ${objectType} after max retries`);
+            // Show error only once
             if (!stateRef.current.hasAlreadyShownFetchFailedError && displayError) {
                 stateRef.current.hasAlreadyShownFetchFailedError = true;
                 PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             }
-            setFormData(applyDataTransform({}, transform) as ObjectReturnType<TData, TFunc>);
+            // Only reset formData on first failure to avoid infinite loop
+            if (!stateRef.current.hasAlreadyResolvedFetchFailed) {
+                stateRef.current.hasAlreadyResolvedFetchFailed = true;
+                setFormData(applyDataTransform({}, transform) as ObjectReturnType<TData, TFunc>);
+            }
             return;
         }
 

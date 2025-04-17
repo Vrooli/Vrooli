@@ -24,7 +24,7 @@ const COMMENT_INPUT_FEATURES = {
     allowImageAttachments: false,
     allowTextAttachments: false,
     allowContextDropdown: false,
-    allowTools: false,
+    allowTasks: false,
     allowVoiceInput: false,
     allowExpand: true,
     allowFormatting: true,

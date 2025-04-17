@@ -10,6 +10,7 @@ import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
 import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
+import { AITaskDisplay, AITaskDisplayState } from "../../../types.js";
 import { randomString } from "../../../utils/codes.js";
 import { keyComboToString } from "../../../utils/display/device.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
@@ -24,7 +25,7 @@ import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
 import { ContextDropdown, ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputFeatures, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, Tool, ToolState, TranslatedAdvancedInputProps, advancedInputTextareaClassName } from "./utils.js";
+import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputFeatures, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, TranslatedAdvancedInputProps, advancedInputTextareaClassName } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [
@@ -155,7 +156,7 @@ const NON_FOCUSABLE_SELECTORS = [
     "[aria-haspopup=\"true\"]", // Elements with popups/dropdowns
     // Context elements
     ".context-item",
-    ".tool-item",
+    ".task-item",
     // File dropzone elements
     ".dropzone",
     // Specific elements we know about
@@ -182,14 +183,14 @@ const ShowHideIconButton = styled(StyledIconButton)(() => ({
 const toolChipIconButtonStyle = { padding: 0, paddingRight: 0.5 } as const;
 
 
-type ToolChipProps = Tool & {
+type TaskChipProps = AITaskDisplay & {
     index: number;
     onRemoveTool: () => unknown;
     onToggleTool: () => unknown;
     onToggleToolExclusive: () => unknown;
 }
 
-function ToolChip({
+function TaskChip({
     displayName,
     iconInfo,
     index,
@@ -198,7 +199,7 @@ function ToolChip({
     onToggleTool,
     onToggleToolExclusive,
     state,
-}: ToolChipProps) {
+}: TaskChipProps) {
     const { palette } = useTheme();
 
     const [isHovered, setIsHovered] = useState(false);
@@ -221,26 +222,26 @@ function ToolChip({
         onToggleTool();
     }, [onToggleTool]);
 
-    const chipVariant = state === ToolState.Disabled ? "outlined" : "filled";
+    const chipVariant = state === AITaskDisplayState.Disabled ? "outlined" : "filled";
     const chipStyle = useMemo(() => {
         let backgroundColor: string;
         let color: string;
         let border: string;
 
         switch (state) {
-            case ToolState.Disabled: {
+            case AITaskDisplayState.Disabled: {
                 backgroundColor = "transparent";
                 color = palette.background.textSecondary;
                 border = `1px solid ${palette.divider}`;
                 break;
             }
-            case ToolState.Enabled: {
+            case AITaskDisplayState.Enabled: {
                 backgroundColor = palette.secondary.light,
                     color = palette.secondary.contrastText,
                     border = "none";
                 break;
             }
-            case ToolState.Exclusive: {
+            case AITaskDisplayState.Exclusive: {
                 backgroundColor = palette.secondary.main;
                 color = palette.secondary.contrastText;
                 border = "none";
@@ -262,7 +263,7 @@ function ToolChip({
 
     const chipIcon = useMemo(() => {
         if (isHovered) {
-            if (state !== ToolState.Exclusive) {
+            if (state !== AITaskDisplayState.Exclusive) {
                 return (
                     <IconButton
                         size="small"
@@ -296,7 +297,7 @@ function ToolChip({
 
     return (
         <Chip
-            data-type="tool" // Keep this for the selector
+            data-type="task" // Keep this for the selector
             key={`${name}-${index}`}
             icon={chipIcon}
             label={displayName}
@@ -310,70 +311,70 @@ function ToolChip({
     );
 }
 
-export function useToolActions(tools: Tool[], onToolsChange?: (updatedTools: Tool[]) => unknown) {
-    const handleToggleTool = useCallback(
+export function useTaskActions(tasks: AITaskDisplay[], onTasksChange?: (updatedTools: AITaskDisplay[]) => unknown) {
+    const handleToggleTask = useCallback(
         (index: number) => {
-            if (!onToolsChange) return;
-            const updated = [...tools];
+            if (!onTasksChange) return;
+            const updated = [...tasks];
             const currentState = updated[index].state;
-            let newState: ToolState;
-            if (currentState === ToolState.Disabled) {
-                newState = ToolState.Enabled;
-            } else if (currentState === ToolState.Enabled) {
-                newState = ToolState.Disabled;
+            let newState: AITaskDisplayState;
+            if (currentState === AITaskDisplayState.Disabled) {
+                newState = AITaskDisplayState.Enabled;
+            } else if (currentState === AITaskDisplayState.Enabled) {
+                newState = AITaskDisplayState.Disabled;
             } else {
                 // Exclusive -> Enabled
-                newState = ToolState.Enabled;
+                newState = AITaskDisplayState.Enabled;
             }
             updated[index] = { ...updated[index], state: newState };
-            onToolsChange(updated);
+            onTasksChange(updated);
         },
-        [tools, onToolsChange],
+        [tasks, onTasksChange],
     );
 
-    const handleToggleToolExclusive = useCallback(
+    const handleToggleTaskExclusive = useCallback(
         (index: number) => {
-            if (!onToolsChange) return;
-            let updated = [...tools];
-            // If the tool is already exclusive, set it to enabled
-            const currentState = tools[index].state;
-            if (currentState === ToolState.Exclusive) {
-                updated = tools.map((tool, i) => {
+            if (!onTasksChange) return;
+            let updated = [...tasks];
+            // If the task is already exclusive, set it to enabled
+            const currentState = tasks[index].state;
+            if (currentState === AITaskDisplayState.Exclusive) {
+                updated = tasks.map((task, i) => {
                     if (i === index) {
-                        return { ...tool, state: ToolState.Enabled };
+                        return { ...task, state: AITaskDisplayState.Enabled };
                     } else {
-                        return tool;
+                        return task;
                     }
                 });
             }
-            // Otherwise, set the tool to exclusive and any existing exclusives to enabled
+            // Otherwise, set the task to exclusive and any existing exclusives to enabled
             else {
-                updated = tools.map((tool, i) => {
+                updated = tasks.map((task, i) => {
                     if (i === index) {
-                        return { ...tool, state: ToolState.Exclusive };
-                    } else if (tool.state === ToolState.Exclusive) {
-                        return { ...tool, state: ToolState.Enabled };
+                        return { ...task, state: AITaskDisplayState.Exclusive };
+                    } else if (task.state === AITaskDisplayState.Exclusive) {
+                        return { ...task, state: AITaskDisplayState.Enabled };
                     } else {
-                        return tool;
+                        return task;
                     }
                 });
             }
-            onToolsChange(updated);
+            onTasksChange(updated);
         },
-        [tools, onToolsChange],
+        [tasks, onTasksChange],
     );
 
-    const handleRemoveTool = useCallback(
+    const handleRemoveTask = useCallback(
         (index: number) => {
-            if (!onToolsChange) return;
-            const updated = [...tools];
+            if (!onTasksChange) return;
+            const updated = [...tasks];
             updated.splice(index, 1);
-            onToolsChange(updated);
+            onTasksChange(updated);
         },
-        [tools, onToolsChange],
+        [tasks, onTasksChange],
     );
 
-    return { handleToggleTool, handleToggleToolExclusive, handleRemoveTool };
+    return { handleToggleTask, handleToggleTaskExclusive, handleRemoveTask };
 }
 
 /** Prevents input from losing focus when the toolbar is pressed */
@@ -844,9 +845,27 @@ async function getFilesFromEvent(event: any): Promise<(File | DataTransferItem)[
     return [...files, ...textFiles];
 }
 
+// Prevents click events from bubbling up and causing input focus
+const stopPropagationHandler = (e: React.MouseEvent) => {
+    e.stopPropagation();
+};
+
+// Wraps MicrophoneButton to stop propagation on click and maintain a stable component identity
+const MicrophoneButtonWithStopPropagation: React.FC<MicrophoneButtonProps> = React.memo(({ onTranscriptChange, ...props }) => {
+    const handleTranscriptChangeWithStopPropagation = useCallback((transcript: string) => {
+        onTranscriptChange(transcript);
+    }, [onTranscriptChange]);
+
+    return (
+        <Box onClick={stopPropagationHandler}>
+            <MicrophoneButton onTranscriptChange={handleTranscriptChangeWithStopPropagation} {...props} />
+        </Box>
+    );
+});
+
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function AdvancedInputBase({
-    tools = [],
+    tasks = [],
     contextData = [],
     value,
     disabled = false,
@@ -858,7 +877,7 @@ export function AdvancedInputBase({
     onBlur,
     onChange,
     onFocus,
-    onToolsChange,
+    onTasksChange,
     onContextDataChange,
     onSubmit,
     placeholder,
@@ -1038,32 +1057,32 @@ export function AdvancedInputBase({
     const toggleToolsExpanded = useCallback(() => {
         setIsToolsExpanded((prev) => !prev);
     }, []);
-    const { dimensions: toolsContainerDimensions, ref: toolsContainerRef } = useDimensions();
+    const { dimensions: tasksContainerDimensions, ref: tasksContainerRef } = useDimensions();
     const showAllToolsButtonRef = useRef(false);
     const [showEllipsisBeforeLastTool, setShowEllipsisBeforeLastTool] = useState(false);
     const showEllipsisBeforeLastToolRef = useRef(false);
-    const [toolsInFirstRow, setToolsInFirstRow] = useState(0);
-    const toolsInFirstRowRef = useRef(0);
+    const [tasksInFirstRow, setToolsInFirstRow] = useState(0);
+    const tasksInFirstRowRef = useRef(0);
     const checkOverflow = useCallback(function checkIfToolsOverflowCallback() {
-        if (toolsContainerRef.current) {
+        if (tasksContainerRef.current) {
             // Get an array of children elements
-            const childrenArray = Array.from(toolsContainerRef.current.children);
+            const childrenArray = Array.from(tasksContainerRef.current.children);
             if (childrenArray.length === 0) return;
 
             // Determine the top offset of the first row
             const firstRowTop = (childrenArray[0] as HTMLElement).offsetTop;
             // Count all children that share the same offsetTop as the first child
             const firstRowItems = childrenArray.filter(child => (child as HTMLElement).offsetTop === firstRowTop);
-            const firstRowToolItems = firstRowItems.filter(child => (child as HTMLElement).getAttribute("data-type") === "tool");
+            const firstRowToolItems = firstRowItems.filter(child => (child as HTMLElement).getAttribute("data-type") === "task");
 
             // Check how much space if left in the container
-            const containerRect = toolsContainerRef.current.getBoundingClientRect();
+            const containerRect = tasksContainerRef.current.getBoundingClientRect();
             let maxRight = 0;
             firstRowItems.forEach((child, index) => {
                 // Make sure we're not adding the ellipsis before the last item.
-                if (child.getAttribute("data-id") === "show-all-tools-button" && index !== firstRowItems.length - 1) {
+                if (child.getAttribute("data-id") === "show-all-tasks-button" && index !== firstRowItems.length - 1) {
                     maxRight = Number.MAX_SAFE_INTEGER;
-                } else if (child.getAttribute("data-type") === "tool") {
+                } else if (child.getAttribute("data-type") === "task") {
                     const childRect = child.getBoundingClientRect();
                     maxRight = Math.max(maxRight, childRect.right);
                 }
@@ -1074,24 +1093,24 @@ export function AdvancedInputBase({
             const shouldAddEllipsisBefore = Math.abs(remWidth) < 40;
             // console.log({ maxRight, remWidth, shouldAddEllipsisBefore }); // Keep for debugging if needed
 
-            if (firstRowToolItems.length !== toolsInFirstRowRef.current) {
+            if (firstRowToolItems.length !== tasksInFirstRowRef.current) {
                 setToolsInFirstRow(firstRowToolItems.length);
-                toolsInFirstRowRef.current = firstRowToolItems.length;
+                tasksInFirstRowRef.current = firstRowToolItems.length;
             }
             if (shouldAddEllipsisBefore !== showEllipsisBeforeLastToolRef.current) {
                 setShowEllipsisBeforeLastTool(shouldAddEllipsisBefore);
                 showEllipsisBeforeLastToolRef.current = shouldAddEllipsisBefore;
             }
-            if (firstRowToolItems.length < tools.length !== showAllToolsButtonRef.current) {
-                showAllToolsButtonRef.current = firstRowToolItems.length < tools.length;
+            if (firstRowToolItems.length < tasks.length !== showAllToolsButtonRef.current) {
+                showAllToolsButtonRef.current = firstRowToolItems.length < tasks.length;
             }
         }
-    }, [tools.length, toolsContainerRef]);
+    }, [tasks.length, tasksContainerRef]);
     useEffect(function checkOverflowOnResizeEffect() {
         checkOverflow();
-    }, [checkOverflow, tools, toolsContainerDimensions]);
+    }, [checkOverflow, tasks, tasksContainerDimensions]);
 
-    const { handleToggleTool, handleToggleToolExclusive, handleRemoveTool } = useToolActions(tools, onToolsChange);
+    const { handleToggleTask, handleToggleTaskExclusive, handleRemoveTask } = useTaskActions(tasks, onTasksChange);
 
     // Memoized sorted context items (files/images come before text)
     const sortedContextData = useMemo(() => {
@@ -1147,7 +1166,7 @@ export function AdvancedInputBase({
         setIsFindRoutineDialogOpen(false);
     }, []);
     const handleAddRoutine = useCallback(() => {
-        console.log("Add new tool...");
+        console.log("Add new task...");
         handleCloseFindRoutineDialog();
     }, [handleCloseFindRoutineDialog]);
 
@@ -1161,20 +1180,19 @@ export function AdvancedInputBase({
     );
 
     const handleTranscriptChange = useCallback((recognizedText: string) => {
-        // Append recognized text to whatever is currently typed
-        if (!internalValue.trim()) {
-            changeInternalValue(recognizedText);
-        } else {
-            changeInternalValue(`${internalValue} ${recognizedText}`);
-        }
-    }, [internalValue, changeInternalValue]);
+        // Append recognized text to the current value using functional update for stability
+        changeInternalValue((prev) => {
+            const trimmed = prev.trim();
+            return trimmed ? `${prev} ${recognizedText}` : recognizedText;
+        });
+    }, [changeInternalValue]);
 
     const handleSubmit = useCallback(() => {
         onSubmit?.(internalValue);
     }, [internalValue, onSubmit]);
 
     const imgStyle = useMemo(() => previewImageStyle(theme), [theme]);
-    const toolsContainerStyles = useMemo(() => ({
+    const tasksContainerStyles = useMemo(() => ({
         display: "flex",
         flexWrap: "wrap" as const,
         alignItems: "center",
@@ -1184,8 +1202,8 @@ export function AdvancedInputBase({
         gap: theme.spacing(1),
     }), [isToolsExpanded, theme]);
 
-    const charsProgress = mergedFeatures.maxChars ? Math.min(100, Math.ceil(((internalValue?.length ?? 0) / mergedFeatures.maxChars) * 100)) : 0;
-    const charsOverLimit = mergedFeatures.maxChars ? Math.max(0, (internalValue?.length ?? 0) - mergedFeatures.maxChars) : 0;
+    const charsProgress = mergedFeatures.maxChars ? Math.min(100, Math.ceil(((internalValue ?? "").length / mergedFeatures.maxChars) * 100)) : 0;
+    const charsOverLimit = mergedFeatures.maxChars ? Math.max(0, ((internalValue ?? "").length) - mergedFeatures.maxChars) : 0;
 
     const progressStyle = useMemo(() => {
         let style = { color: theme.palette.success.main };
@@ -1454,7 +1472,7 @@ export function AdvancedInputBase({
         handleToggleExpand();
     }, [handleToggleExpand]);
 
-    // Add this handler for the tools expand toggle
+    // Add this handler for the tasks expand toggle
     const toggleToolsExpandedWithStopPropagation = useCallback((event: MouseEvent<HTMLElement>) => {
         // Stop propagation to prevent focusing the input
         event.stopPropagation();
@@ -1467,28 +1485,6 @@ export function AdvancedInputBase({
         event.stopPropagation();
         handleSubmit();
     }, [handleSubmit]);
-
-    // Define the stop propagation handler outside the component
-    const stopPropagationHandler = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
-
-    // Create a wrapper for the MicrophoneButton
-    function MicrophoneButtonWithStopPropagation({ onTranscriptChange, ...props }: MicrophoneButtonProps) {
-        // Create a wrapper for the onTranscriptChange function
-        const handleTranscriptChangeWithStopPropagation = useCallback((transcript: string) => {
-            // Don't need to stop propagation here as this is a callback function
-            onTranscriptChange(transcript);
-        }, [onTranscriptChange]);
-
-        // Create a component that stops propagation for any clicks
-        return (
-            <Box onClick={stopPropagationHandler}> {/* Use the memoized handler */}
-                <MicrophoneButton
-                    onTranscriptChange={handleTranscriptChangeWithStopPropagation}
-                    {...props}
-                />
-            </Box>
-        );
-    }
 
     return (
         // Add the click handler to the Outer component
@@ -1506,7 +1502,7 @@ export function AdvancedInputBase({
                     </Typography>
                 </Box>
             )}
-            <Collapse in={mergedFeatures.allowTools && tools.some((tool) => tool.state === ToolState.Exclusive)} unmountOnExit>
+            <Collapse in={mergedFeatures.allowTasks && tasks.some((task) => task.state === AITaskDisplayState.Exclusive)} unmountOnExit>
                 <Box height={400} >
                     {/* <Formik
                         initialValues={formikRef.current?.initialValues ?? EMPTY_OBJECT}
@@ -1605,8 +1601,8 @@ export function AdvancedInputBase({
 
             {/* Bottom Section */}
             <Box sx={bottomRowStyles}>
-                {mergedFeatures.allowTools && (
-                    <Box ref={toolsContainerRef} sx={toolsContainerStyles}>
+                {mergedFeatures.allowTasks && (
+                    <Box ref={tasksContainerRef} sx={tasksContainerStyles}>
                         {(mergedFeatures.allowFileAttachments ||
                             mergedFeatures.allowImageAttachments ||
                             mergedFeatures.allowTextAttachments) && (
@@ -1618,37 +1614,37 @@ export function AdvancedInputBase({
                                     />
                                 </StyledIconButton>
                             )}
-                        {tools.map((tool, index) => {
+                        {tasks.map((task, index) => {
                             function onToggleTool() {
-                                handleToggleTool(index);
+                                handleToggleTask(index);
                             }
                             function onRemoveTool() {
-                                handleRemoveTool(index);
+                                handleRemoveTask(index);
                             }
                             function onToggleToolExclusive() {
-                                handleToggleToolExclusive(index);
+                                handleToggleTaskExclusive(index);
                             }
 
-                            const canAddShowButton = toolsInFirstRow < tools.length && !isToolsExpanded && ((index === toolsInFirstRow && !showEllipsisBeforeLastTool) || (index === toolsInFirstRow - 1 && showEllipsisBeforeLastTool));
-                            const canAddHideButton = toolsInFirstRow < tools.length && isToolsExpanded && index === tools.length - 1;
+                            const canAddShowButton = tasksInFirstRow < tasks.length && !isToolsExpanded && ((index === tasksInFirstRow && !showEllipsisBeforeLastTool) || (index === tasksInFirstRow - 1 && showEllipsisBeforeLastTool));
+                            const canAddHideButton = tasksInFirstRow < tasks.length && isToolsExpanded && index === tasks.length - 1;
 
                             return (
-                                <React.Fragment key={`${tool.name}-${index}`}>
-                                    {canAddShowButton && <ShowHideIconButton data-id="show-all-tools-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
+                                <React.Fragment key={`${task.displayName || task.label}-${index}`}>
+                                    {canAddShowButton && <ShowHideIconButton data-id="show-all-tasks-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
                                         <IconCommon
                                             decorative
                                             fill="background.textSecondary"
                                             name="Ellipsis"
                                         />
                                     </ShowHideIconButton>}
-                                    <ToolChip
-                                        {...tool}
+                                    <TaskChip
+                                        {...task}
                                         index={index}
                                         onRemoveTool={onRemoveTool}
                                         onToggleToolExclusive={onToggleToolExclusive}
                                         onToggleTool={onToggleTool}
                                     />
-                                    {canAddHideButton && <ShowHideIconButton data-id="hide-all-tools-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
+                                    {canAddHideButton && <ShowHideIconButton data-id="hide-all-tasks-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
                                         <IconCommon
                                             decorative
                                             fill="background.textSecondary"
@@ -1683,7 +1679,7 @@ export function AdvancedInputBase({
                                     <CircularProgress
                                         aria-label={
                                             mergedFeatures.maxChars
-                                                ? `Character count progress: ${internalValue.length} of ${mergedFeatures.maxChars} characters used`
+                                                ? `Character count progress: ${(internalValue ?? "").length} of ${mergedFeatures.maxChars} characters used`
                                                 : "Character count progress"
                                         }
                                         size={34}
@@ -1706,12 +1702,12 @@ export function AdvancedInputBase({
                                         </Typography>}
                                         {mergedFeatures.allowSubmit && charsOverLimit <= 0 && <StyledIconButton
                                             bgColor="transparent"
-                                            disabled={!internalValue.trim() || charsOverLimit > 0}
+                                            disabled={!(internalValue ?? "").trim() || charsOverLimit > 0}
                                             onClick={handleSubmitWithStopPropagation}
                                         >
                                             <IconCommon
                                                 decorative
-                                                fill={!internalValue.trim()
+                                                fill={!(internalValue ?? "").trim()
                                                     ? "background.textSecondary"
                                                     : "background.textPrimary"
                                                 }
@@ -1729,13 +1725,13 @@ export function AdvancedInputBase({
                                         ? theme.palette.background.textPrimary
                                         : theme.palette.primary.main
                                     }
-                                    disabled={!internalValue.trim()}
+                                    disabled={!(internalValue ?? "").trim()}
                                     onClick={handleSubmitWithStopPropagation}
                                     sx={verticalMiddleStyle}
                                 >
                                     <IconCommon
                                         decorative
-                                        fill={!internalValue.trim()
+                                        fill={!(internalValue ?? "").trim()
                                             ? "background.textSecondary"
                                             : theme.palette.mode === "dark"
                                                 ? "background.default"
@@ -1758,9 +1754,9 @@ export function AdvancedInputBase({
                         anchorEl={anchorPlus}
                         onClose={handleClosePlusMenu}
                         onAttachFile={mergedFeatures.allowFileAttachments ? handleAttachFile : undefined}
-                        onConnectExternalApp={mergedFeatures.allowTools ? handleConnectExternalApp : undefined}
+                        onConnectExternalApp={mergedFeatures.allowTasks ? handleConnectExternalApp : undefined}
                         onTakePhoto={mergedFeatures.allowImageAttachments ? handleTakePhoto : undefined}
-                        onAddRoutine={mergedFeatures.allowTools ? handleOpenFindRoutineDialog : undefined}
+                        onAddRoutine={mergedFeatures.allowTasks ? handleOpenFindRoutineDialog : undefined}
                     />
                 )}
             {mergedFeatures.allowSettingsCustomization && (
@@ -1776,7 +1772,7 @@ export function AdvancedInputBase({
                     spellcheck={spellcheck}
                 />
             )}
-            {mergedFeatures.allowTools && (
+            {mergedFeatures.allowTasks && (
                 <FindObjectDialog
                     find="List"
                     isOpen={isFindRoutineDialogOpen}

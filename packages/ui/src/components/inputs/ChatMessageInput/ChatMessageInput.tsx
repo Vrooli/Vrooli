@@ -15,6 +15,8 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { displayDate } from "../../../utils/display/stringTools.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
+import { chatInputFeatures } from "../AdvancedInput/styles.js";
+import { ContextItem } from "../AdvancedInput/utils.js";
 
 const DEFAULT_TYPING_INDICATOR_MAX_CHARS = 40;
 const NUM_TYPING_INDICATOR_ELLIPSIS_DOTS = 3;
@@ -458,16 +460,16 @@ function EditingMessageDisplay({
 }
 
 type OuterProps = {
+    display: ViewDisplayType;
     isMobile: boolean;
 }
-const Outer = styled(Box)<OuterProps>(({ isMobile }) => ({
+const Outer = styled(Box)<OuterProps>(({ display, isMobile }) => ({
     width: "100%",
     maxWidth: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
     margin: "auto",
     "& .advanced-input": {
-        // Remove rounded bottom corners on mobile
-        borderBottomLeftRadius: isMobile ? 0 : undefined,
-        borderBottomRightRadius: isMobile ? 0 : undefined,
+        // Remove rounded bottom corners on mobile or in dialogs
+        borderRadius: isMobile || display !== "page" ? 0 : undefined,
     },
 }));
 
@@ -504,6 +506,13 @@ export function ChatMessageInput({
     submitMessage,
     taskInfo,
 }: ChatMessageInputProps) {
+    // Derive context items for the active task to display in the input
+    const contextItems: ContextItem[] = (taskInfo.contexts[taskInfo.activeTask.taskId] ?? []).map(c => ({
+        id: c.id,
+        type: "text",
+        label: c.label,
+    }));
+
     const isMobile = useWindowSize(({ width }) => width <= MAX_CHAT_INPUT_WIDTH);
 
     const handleSubmit = useCallback(function handleAddMessageCallback(message: string) {
@@ -512,7 +521,7 @@ export function ChatMessageInput({
     }, [disabled, isLoading, submitMessage]);
 
     return (
-        <Outer isMobile={isMobile}>
+        <Outer display={display} isMobile={isMobile}>
             <ChatIndicator
                 participantsTyping={participantsTyping}
             />
@@ -528,14 +537,13 @@ export function ChatMessageInput({
             />}
             {messageBeingEdited && <EditingMessageDisplay onCancelEdit={stopEditingMessage} />}
             <AdvancedInputBase
-                contextData={[]}
+                contextData={contextItems}
                 disabled={disabled}
-                maxChars={1500}
+                features={chatInputFeatures}
                 onChange={setMessage}
                 onSubmit={handleSubmit}
                 name="newMessage"
                 placeholder={placeholder}
-                // taskInfo={taskInfo}
                 tools={[]}
                 value={message}
             />

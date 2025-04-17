@@ -1,4 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
+import { LlmTask, TaskStatus } from "@local/shared";
 import { Box, Button, Divider, FormControlLabel, Switch, Typography } from "@mui/material";
 import { action } from "@storybook/addon-actions";
 import { Meta } from "@storybook/react";
@@ -6,9 +7,10 @@ import userEvent from "@testing-library/user-event";
 import { Form, Formik } from "formik";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
+import { AITaskDisplay, AITaskDisplayState } from "../../../types.js";
 import { PageContainer } from "../../Page/Page.js";
 import { AdvancedInput, AdvancedInputBase, TranslatedAdvancedInput } from "./AdvancedInput.js";
-import { AdvancedInputFeatures, ContextItem, DEFAULT_FEATURES, Tool, ToolState, advancedInputTextareaClassName } from "./utils.js";
+import { AdvancedInputFeatures, ContextItem, DEFAULT_FEATURES, advancedInputTextareaClassName } from "./utils.js";
 
 const outerBoxStyle = {
     display: "flex",
@@ -116,30 +118,38 @@ Third line to demonstrate scrolling
 Fourth line of content
 Fifth line to make it longer`;
 
-const mockSomeTools: Tool[] = [
+const mockSomeTasks: AITaskDisplay[] = [
     {
-        state: ToolState.Enabled,
+        label: "Find routine",
+        lastUpdated: new Date().toISOString(),
+        properties: {},
+        task: LlmTask.Start,
+        taskId: "task-findRoutine",
+        status: TaskStatus.Running,
         displayName: "Find routine",
         iconInfo: { name: "Search", type: "Common" },
-        type: "find",
-        name: "findRoutine",
+        state: AITaskDisplayState.Enabled,
         arguments: {},
     },
     {
-        state: ToolState.Disabled,
+        label: "Publish inventory",
+        lastUpdated: new Date().toISOString(),
+        properties: {},
+        task: LlmTask.Start,
+        taskId: "task-publishInventory",
+        status: TaskStatus.Scheduled,
         displayName: "Publish inventory",
         iconInfo: { name: "Upload", type: "Common" },
-        type: "routine",
-        name: "publishInventory",
+        state: AITaskDisplayState.Disabled,
         arguments: {},
     },
 ];
-const mockManyTools: Tool[] = [
-    ...mockSomeTools,
-    ...mockSomeTools,
-    ...mockSomeTools,
-    ...mockSomeTools,
-    ...mockSomeTools,
+const mockManyTasks: AITaskDisplay[] = [
+    ...mockSomeTasks,
+    ...mockSomeTasks,
+    ...mockSomeTasks,
+    ...mockSomeTasks,
+    ...mockSomeTasks,
 ];
 
 const mockContextData: ContextItem[] = [
@@ -217,9 +227,9 @@ interface SimulationButtonsProps {
     onSetMultiLine: () => void;
     onImageDrop: () => Promise<void>;
     onFileDrop: () => Promise<void>;
-    onSetNoTools: () => void;
-    onSetSomeTools: () => void;
-    onSetManyTools: () => void;
+    onSetNoTasks: () => void;
+    onSetSomeTasks: () => void;
+    onSetManyTasks: () => void;
     onSetContextItems: () => void;
     onSetMaxChars: () => void;
     onTogglePlaceholder: () => void;
@@ -236,9 +246,9 @@ function SimulationButtons({
     onSetMultiLine,
     onImageDrop,
     onFileDrop,
-    onSetNoTools,
-    onSetSomeTools,
-    onSetManyTools,
+    onSetNoTasks,
+    onSetSomeTasks,
+    onSetManyTasks,
     onSetContextItems,
     onSetMaxChars,
     onTogglePlaceholder,
@@ -252,14 +262,14 @@ function SimulationButtons({
             <Box sx={sectionStyle}>
                 <Typography variant="h6" color="textSecondary" minWidth={120}>Config</Typography>
                 <Box sx={buttonsContainerStyle}>
-                    <Button onClick={onSetNoTools} variant="outlined" size="small">
+                    <Button onClick={onSetNoTasks} variant="outlined" size="small">
                         Basic Input
                     </Button>
-                    <Button onClick={onSetSomeTools} variant="outlined" size="small">
-                        Some Tools
+                    <Button onClick={onSetSomeTasks} variant="outlined" size="small">
+                        Some Tasks
                     </Button>
-                    <Button onClick={onSetManyTools} variant="outlined" size="small">
-                        Many Tools
+                    <Button onClick={onSetManyTasks} variant="outlined" size="small">
+                        Many Tasks
                     </Button>
                     <Button onClick={onSetContextItems} variant="outlined" size="small">
                         Context Items
@@ -357,7 +367,7 @@ export default {
 export function Default() {
     const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [message, setMessage] = useState("");
-    const [tools, setTools] = useState<Tool[]>([]);
+    const [tasks, setTasks] = useState<AITaskDisplay[]>([]);
     const [features, setFeatures] = useState<AdvancedInputFeatures>(DEFAULT_FEATURES);
     const [placeholder, setPlaceholder] = useState<string | undefined>("Enter your message here...");
     const [helperText, setHelperText] = useState<string | undefined>(undefined);
@@ -377,9 +387,9 @@ export function Default() {
         setMessage("");
     }
 
-    function onToolsChange(updated: Tool[]) {
-        setTools(updated);
-        action("onToolsChange")(updated);
+    function onTasksChange(updated: AITaskDisplay[]) {
+        setTasks(updated);
+        action("onTasksChange")(updated);
     }
 
     // Simulation handlers
@@ -469,36 +479,36 @@ export function Default() {
     }
 
     // Configuration handlers
-    function setNoTools() {
-        setTools([]);
+    function setNoTasks() {
+        setTasks([]);
         setContextData([]);
         setFeatures(prev => ({ ...prev, maxChars: undefined }));
-        action("setNoTools")();
+        action("setNoTasks")();
     }
 
-    function setSomeTools() {
-        setTools(mockSomeTools);
+    function setSomeTasks() {
+        setTasks(mockSomeTasks);
         setContextData([]);
         setFeatures(prev => ({ ...prev, maxChars: undefined }));
-        action("setSomeTools")();
+        action("setSomeTasks")();
     }
 
-    function setManyTools() {
-        setTools(mockManyTools);
+    function setManyTasks() {
+        setTasks(mockManyTasks);
         setContextData([]);
         setFeatures(prev => ({ ...prev, maxChars: undefined }));
-        action("setManyTools")();
+        action("setManyTasks")();
     }
 
     function setWithContextItems() {
-        setTools([]);
+        setTasks([]);
         setContextData(mockContextData);
         setFeatures(prev => ({ ...prev, maxChars: undefined }));
         action("setWithContextItems")();
     }
 
     function setWithMaxChars() {
-        setTools([]);
+        setTasks([]);
         setContextData([]);
         setFeatures(prev => ({ ...prev, maxChars: 100 }));
         action("setWithMaxChars")();
@@ -517,7 +527,7 @@ export function Default() {
     function clearAll() {
         onMessageChange("");
         setContextData([]);
-        setTools([]);
+        setTasks([]);
         setFeatures(prev => ({ ...prev, maxChars: undefined }));
         setPlaceholder("Enter your message here...");
         setHelperText(undefined);
@@ -533,9 +543,9 @@ export function Default() {
                 onSetMultiLine={simulateSetMultiLine}
                 onImageDrop={simulateImageDrop}
                 onFileDrop={simulateFileDrop}
-                onSetNoTools={setNoTools}
-                onSetSomeTools={setSomeTools}
-                onSetManyTools={setManyTools}
+                onSetNoTasks={setNoTasks}
+                onSetSomeTasks={setSomeTasks}
+                onSetManyTasks={setManyTasks}
                 onSetContextItems={setWithContextItems}
                 onSetMaxChars={setWithMaxChars}
                 onTogglePlaceholder={togglePlaceholder}
@@ -547,13 +557,13 @@ export function Default() {
             <ValueDisplay value={message} />
             <AdvancedInputBase
                 name="message"
-                tools={tools}
+                tasks={tasks}
                 contextData={contextData}
                 features={features}
                 placeholder={placeholder}
                 helperText={helperText}
                 onChange={onMessageChange}
-                onToolsChange={onToolsChange}
+                onTasksChange={onTasksChange}
                 onContextDataChange={onContextDataChange}
                 onSubmit={onSubmit}
                 value={message}
@@ -571,7 +581,7 @@ export function FormikExample() {
     const [title, setTitle] = useState<string | undefined>("Feedback Form");
     const [features, setFeatures] = useState<AdvancedInputFeatures>({
         ...DEFAULT_FEATURES,
-        allowTools: false,
+        allowTasks: false,
         maxChars: undefined,
     });
 
@@ -670,22 +680,22 @@ export function FormikExample() {
                 }
 
                 // Configuration handlers
-                function setNoTools() {
+                function setNoTasks() {
                     setValues({ message: values.message });
                     setFeatures(prev => ({ ...prev, maxChars: undefined }));
-                    action("setNoTools")();
+                    action("setNoTasks")();
                 }
 
-                function setSomeTools() {
+                function setSomeTasks() {
                     setValues({ message: values.message });
                     setFeatures(prev => ({ ...prev, maxChars: undefined }));
-                    action("setSomeTools")();
+                    action("setSomeTasks")();
                 }
 
-                function setManyTools() {
+                function setManyTasks() {
                     setValues({ message: values.message });
                     setFeatures(prev => ({ ...prev, maxChars: undefined }));
-                    action("setManyTools")();
+                    action("setManyTasks")();
                 }
 
                 function setWithContextItems() {
@@ -732,9 +742,9 @@ export function FormikExample() {
                             onSetMultiLine={simulateSetMultiLine}
                             onImageDrop={simulateImageDrop}
                             onFileDrop={simulateFileDrop}
-                            onSetNoTools={setNoTools}
-                            onSetSomeTools={setSomeTools}
-                            onSetManyTools={setManyTools}
+                            onSetNoTasks={setNoTasks}
+                            onSetSomeTasks={setSomeTasks}
+                            onSetManyTasks={setManyTasks}
                             onSetContextItems={setWithContextItems}
                             onSetMaxChars={setWithMaxChars}
                             onTogglePlaceholder={togglePlaceholder}
@@ -751,7 +761,7 @@ export function FormikExample() {
                         <ValueDisplay value={values.message} />
                         <AdvancedInput
                             name="message"
-                            tools={mockSomeTools}
+                            tasks={mockSomeTasks}
                             contextData={mockContextData}
                             placeholder={placeholder}
                             title={title}
@@ -778,7 +788,7 @@ export function TranslatedExample() {
     const [title, setTitle] = useState<string | undefined>("Translated Feedback");
     const [features, setFeatures] = useState<AdvancedInputFeatures>({
         ...DEFAULT_FEATURES,
-        allowTools: false,
+        allowTasks: false,
         maxChars: undefined,
     });
 
@@ -879,22 +889,22 @@ export function TranslatedExample() {
                 }
 
                 // Configuration handlers
-                function setNoTools() {
+                function setNoTasks() {
                     setValues({ translations: values.translations });
                     setFeatures(prev => ({ ...prev, maxChars: undefined }));
-                    action("setNoTools")();
+                    action("setNoTasks")();
                 }
 
-                function setSomeTools() {
+                function setSomeTasks() {
                     setValues({ translations: values.translations });
                     setFeatures(prev => ({ ...prev, maxChars: undefined }));
-                    action("setSomeTools")();
+                    action("setSomeTasks")();
                 }
 
-                function setManyTools() {
+                function setManyTasks() {
                     setValues({ translations: values.translations });
                     setFeatures(prev => ({ ...prev, maxChars: undefined }));
-                    action("setManyTools")();
+                    action("setManyTasks")();
                 }
 
                 function setWithContextItems() {
@@ -946,9 +956,9 @@ export function TranslatedExample() {
                             onSetMultiLine={simulateSetMultiLine}
                             onImageDrop={simulateImageDrop}
                             onFileDrop={simulateFileDrop}
-                            onSetNoTools={setNoTools}
-                            onSetSomeTools={setSomeTools}
-                            onSetManyTools={setManyTools}
+                            onSetNoTasks={setNoTasks}
+                            onSetSomeTasks={setSomeTasks}
+                            onSetManyTasks={setManyTasks}
                             onSetContextItems={setWithContextItems}
                             onSetMaxChars={setWithMaxChars}
                             onTogglePlaceholder={togglePlaceholder}
@@ -970,7 +980,7 @@ export function TranslatedExample() {
                             <TranslatedAdvancedInput
                                 name="message"
                                 language="en"
-                                tools={mockSomeTools}
+                                tasks={mockSomeTasks}
                                 contextData={mockContextData}
                                 placeholder={placeholder}
                                 title={title}
@@ -986,7 +996,7 @@ export function TranslatedExample() {
                             <TranslatedAdvancedInput
                                 name="message"
                                 language="es"
-                                tools={mockSomeTools}
+                                tasks={mockSomeTasks}
                                 contextData={mockContextData}
                                 placeholder={placeholder}
                                 title={title ? `${title} (Español)` : undefined}
@@ -1012,7 +1022,7 @@ export function Features() {
     // State for message and component props
     const [message, setMessage] = useState("");
     const [contextData, setContextData] = useState<ContextItem[]>([]);
-    const [tools, setTools] = useState<Tool[]>(mockSomeTools);
+    const [tasks, setTasks] = useState<AITaskDisplay[]>(mockSomeTasks);
     // Feature toggles state - start with all features enabled, including maxChars
     const [features, setFeatures] = useState<AdvancedInputFeatures>({ ...DEFAULT_FEATURES, maxChars: 100 });
 
@@ -1034,9 +1044,9 @@ export function Features() {
         setMessage("");
     }
 
-    function onToolsChange(updated: Tool[]) {
-        setTools(updated);
-        action("onToolsChange")(updated);
+    function onTasksChange(updated: AITaskDisplay[]) {
+        setTasks(updated);
+        action("onTasksChange")(updated);
     }
 
     function onContextDataChange(updated: ContextItem[]) {
@@ -1057,7 +1067,7 @@ export function Features() {
             allowFileAttachments: false,
             allowImageAttachments: false,
             allowTextAttachments: false,
-            allowTools: false,
+            allowTasks: false,
             allowCharacterLimit: true,
             allowVoiceInput: false,
             allowSubmit: true,
@@ -1076,7 +1086,7 @@ export function Features() {
             allowFileAttachments: false,
             allowImageAttachments: false,
             allowTextAttachments: false,
-            allowTools: false,
+            allowTasks: false,
             allowCharacterLimit: true,
             allowVoiceInput: false,
             allowSubmit: false,
@@ -1091,7 +1101,7 @@ export function Features() {
     function setChatFeatures() {
         setFeatures({
             ...DEFAULT_FEATURES,
-            allowTools: true,
+            allowTasks: true,
             maxChars: 4000,
         });
     }
@@ -1229,19 +1239,19 @@ export function Features() {
                         </Box>
                     </Box>
 
-                    {/* Tool integration */}
+                    {/* Task integration */}
                     <Box sx={featureGroupStyle}>
-                        <Typography sx={featureGroupTitleStyle}>Tools</Typography>
+                        <Typography sx={featureGroupTitleStyle}>Tasks</Typography>
                         <FormControlLabel
                             control={
                                 <Switch
-                                    checked={features.allowTools}
-                                    onChange={handleFeatureToggleCb("allowTools")}
+                                    checked={features.allowTasks}
+                                    onChange={handleFeatureToggleCb("allowTasks")}
                                     color="primary"
                                     size="small"
                                 />
                             }
-                            label="Allow Tools"
+                            label="Allow Tasks"
                         />
                     </Box>
 
@@ -1325,12 +1335,12 @@ export function Features() {
 
             <AdvancedInputBase
                 name="message"
-                tools={tools}
+                tasks={tasks}
                 contextData={contextData}
                 features={features}
                 placeholder="Enter your message here..."
                 onChange={onMessageChange}
-                onToolsChange={onToolsChange}
+                onTasksChange={onTasksChange}
                 onContextDataChange={onContextDataChange}
                 onSubmit={onSubmit}
                 value={message}
@@ -1375,7 +1385,7 @@ export function MinimalProps() {
 
             <Typography variant="body2" color="textSecondary" sx={minimalDescriptionStyle}>
                 This example demonstrates using AdvancedInput with only the required props,
-                omitting optional props like tools and contextData.
+                omitting optional props like tasks and contextData.
             </Typography>
 
             <ValueDisplay value={message} />
@@ -1439,7 +1449,7 @@ export function WithTitle() {
                 placeholder="Type here..."
                 features={{
                     ...DEFAULT_FEATURES,
-                    allowTools: false,
+                    allowTasks: false,
                 }}
             />
         </>

@@ -1,4 +1,4 @@
-import { Box, Dialog, Popover, useTheme } from "@mui/material";
+import { Box, Dialog, Popover, styled, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { UpTransition } from "../../transitions/UpTransition/UpTransition.js";
@@ -110,10 +110,12 @@ function fallbackOnClose() {
     console.warn("onClose not passed to MaybeLargeDialog");
 }
 
-const notDialogBoxprops = {
+const NotDialogBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.background.default,
     height: "100vh",
     overflowY: "auto",
     overflowX: "hidden",
+    position: "relative",
     tabIndex: 0,
     role: "region",
     "&:focus": {
@@ -123,7 +125,7 @@ const notDialogBoxprops = {
         outline: "2px solid",
         outlineOffset: "-2px",
     },
-} as const;
+}));
 
 /** Wraps children in a dialog is display is dialog */
 export function MaybeLargeDialog({
@@ -142,8 +144,8 @@ export function MaybeLargeDialog({
             {children}
         </LargeDialog>
     ) : (
-        <Box sx={notDialogBoxprops}>
+        <NotDialogBox>
             {children}
-        </Box>
+        </NotDialogBox>
     );
 }

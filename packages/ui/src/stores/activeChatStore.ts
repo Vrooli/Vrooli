@@ -15,10 +15,14 @@ import { getCookieMatchingChat, setCookieMatchingChat } from "../utils/localStor
 import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "../views/objects/chat/ChatCrud.js";
 
 interface ActiveChatState {
-    /** 
-     * The active chat, or null if there isn't one yet.
+    /**
+     * The ID of the active chat, or null if there isn't one yet.
      */
-    chat: ChatShape | null;
+    activeChatId: string | null;
+    /**
+     * A map of chat IDs to their corresponding ChatShape objects.
+     */
+    chats: Record<string, ChatShape>;
     /**
      * Indicates that the chat is a bot-only chat. 
      * 
@@ -82,7 +86,8 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
     const hasTriedCreatingNewChat = { current: false };
 
     return {
-        chat: null,
+        activeChatId: null,
+        chats: {},
         isBotOnlyChat: false,
         isLoading: false,
         latestMessageId: null,
@@ -121,7 +126,11 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
                 const data = response.data;
                 if (data) {
                     set({
-                        chat: { ...data, messages: [] },
+                        activeChatId: data.id,
+                        chats: {
+                            ...get().chats,
+                            [data.id]: { ...data, messages: [] },
+                        },
                         participants: data.participants || [],
                         usersTyping: [],
                     });
@@ -139,12 +148,16 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
         setActiveChat: (chat, session) => {
             if (chat && chat.participants) {
                 set({
-                    chat,
+                    activeChatId: chat.id,
+                    chats: {
+                        ...get().chats,
+                        [chat.id]: chat,
+                    },
                     participants: chat.participants,
                 });
             } else {
                 set({
-                    chat: null,
+                    activeChatId: null,
                     participants: [],
                 });
             }
@@ -203,7 +216,11 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
                         }
                     } else if (response.data) {
                         set({
-                            chat: { ...response.data, messages: [] },
+                            activeChatId: response.data.id,
+                            chats: {
+                                ...get().chats,
+                                [response.data.id]: { ...response.data, messages: [] },
+                            },
                             participants: response.data.participants || [],
                             isLoading: false,
                         });
@@ -250,9 +267,13 @@ export function useActiveChat({
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const store = useActiveChatStore();
-    const messageTree = useMessageTree(store.chat?.id);
-    const taskInfo = useChatTasks({ chatId: store.chat?.id });
-    const isBotOnlyChat = session !== null && session !== undefined && store.calculateIsBotOnlyChat(store.chat, session);
+    // Derive activeChatId and chat object from the store
+    const activeChatId = store.activeChatId;
+    const chat = activeChatId ? store.chats[activeChatId] : null;
+
+    const messageTree = useMessageTree(chat?.id);
+    const taskInfo = useChatTasks({ chatId: chat?.id });
+    const isBotOnlyChat = session !== null && session !== undefined && store.calculateIsBotOnlyChat(chat, session);
 
     // Add a ref to track if initialization has been attempted
     const hasInitialized = useRef(false);
@@ -260,7 +281,7 @@ export function useActiveChat({
     // Listen for socket events and update the store
     const { messageStream } = useSocketChat({
         addMessages: messageTree.addMessages,
-        chat: store.chat,
+        chat,
         editMessage: messageTree.editMessage,
         participants: store.participants,
         removeMessages: messageTree.removeMessages,
@@ -275,7 +296,7 @@ export function useActiveChat({
     const messageActions = useMessageActions({
         activeTask: taskInfo.activeTask,
         addMessages: messageTree.addMessages,
-        chat: store.chat,
+        chat,
         contexts: taskInfo.contexts[taskInfo.activeTask.taskId] || [],
         editMessage: messageTree.editMessage,
         isBotOnlyChat,
@@ -306,7 +327,9 @@ export function useActiveChat({
     }, [session, t]);
 
     return {
-        chat: store.chat,
+        chat,
+        activeChatId,
+        chats: store.chats,
         isBotOnlyChat,
         isLoading: store.isLoading,
         latestMessageId: store.latestMessageId,
