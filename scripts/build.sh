@@ -1,4 +1,22 @@
 #!/bin/bash
+# Add debug flags and print environment and docker tool versions
+set -o errexit
+set -o nounset
+set -o pipefail
+set -x
+
+# Debug: print PATH and tool locations
+echo "--- Debug: Environment PATH ---"
+echo "$PATH"
+echo "--- Debug: Docker version ---"
+docker --version || true
+echo "--- Debug: Which docker-compose ---"
+which docker-compose || true
+echo "--- Debug: docker-compose version ---"
+docker-compose --version 2>&1 || true
+echo "--- Debug: docker compose plugin version ---"
+docker compose version 2>&1 || true
+
 # NOTE: Run outside of Docker container
 # Prepares project for deployment via Docker Compose or Kubernetes
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
