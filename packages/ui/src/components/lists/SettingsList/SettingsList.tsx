@@ -26,6 +26,9 @@ const StyledList = styled(List, {
 })<StyledListProps>(({ theme, viewSize }) => ({
     paddingTop: viewSize === "full" ? theme.spacing(1) : 0,
     paddingBottom: viewSize === "full" ? 1 : 0,
+    flex: 1,
+    overflowY: "auto",
+    minHeight: 0,
 }));
 
 interface StyledListItemProps extends ListItemProps {
@@ -59,15 +62,16 @@ const SettingsListBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "viewSize",
 })<SettingsListBoxProps>(({ theme, viewSize }) => ({
     width: viewSize === "full" ? "min(100%, 200px)" : "40px",
-    height: "fit-content",
     marginLeft: 0,
     marginRight: theme.spacing(1),
-    // eslint-disable-next-line no-magic-numbers
-    marginTop: theme.spacing(4),
-    marginBottom: pagePaddingBottom,
+    paddingBottom: pagePaddingBottom,
     background: theme.palette.background.paper,
     boxShadow: theme.spacing(2),
-    borderRadius: viewSize === "full" ? theme.spacing(2) : theme.spacing(1),
+    borderRadius: 0,
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    minHeight: 0,
 }));
 
 const listItemTextStyle = { marginLeft: 2 } as const;

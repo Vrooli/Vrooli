@@ -81,7 +81,8 @@ const BREADCRUMB_PATHS = [
 
 function SignupForm() {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const theme = useTheme();
+    const { palette } = theme;
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointsAuth.emailSignup);
@@ -167,6 +168,15 @@ function SignupForm() {
         });
     }, [emailSignUp, palette.mode, redirect, setLocation]);
 
+    const inputFieldStyle = {
+        '& .MuiOutlinedInput-root': {
+            backgroundColor: 'transparent',
+            '& fieldset': { border: `1px solid ${palette.divider}` },
+            '&:hover fieldset': { border: `1px solid ${palette.divider}` },
+            "&.Mui-focused fieldset": { border: `1px solid ${palette.divider}` },
+        },
+    } as const;
+
     return (
         <StyledOuterAuthFormContainer>
             <AuthContainer>
@@ -191,6 +201,7 @@ function SignupForm() {
                                         placeholder={t("NamePlaceholder")}
                                         as={TextInput}
                                         InputProps={nameStartAdornment}
+                                        sx={inputFieldStyle}
                                     />
                                     <Field
                                         fullWidth
@@ -200,6 +211,7 @@ function SignupForm() {
                                         placeholder={t("EmailPlaceholder")}
                                         as={TextInput}
                                         InputProps={emailStartAdornment}
+                                        sx={inputFieldStyle}
                                         helperText={formik.touched.email && formik.errors.email}
                                         error={formik.touched.email && Boolean(formik.errors.email)}
                                     />

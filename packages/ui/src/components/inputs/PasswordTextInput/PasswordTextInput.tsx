@@ -105,7 +105,7 @@ export function PasswordTextInput({
                 label={label ?? t("Password")}
                 placeholder={t("PasswordPlaceholder")}
                 sx={{
-                    borderRadius: autoComplete === "new-password" && field.value.length > 0 ? "4px 4px 0 0" : "4px",
+                    borderRadius: "24px",
                 }}
             />
             {
