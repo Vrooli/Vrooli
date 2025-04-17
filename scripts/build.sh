@@ -1,4 +1,22 @@
 #!/bin/bash
+# Add debug flags and print environment and docker tool versions
+set -o errexit
+set -o nounset
+set -o pipefail
+set -x
+
+# Debug: print PATH and tool locations
+echo "--- Debug: Environment PATH ---"
+echo "$PATH"
+echo "--- Debug: Docker version ---"
+docker --version || true
+echo "--- Debug: Which docker-compose ---"
+which docker-compose || true
+echo "--- Debug: docker-compose version ---"
+docker-compose --version 2>&1 || true
+echo "--- Debug: docker compose plugin version ---"
+docker compose version 2>&1 || true
+
 # NOTE: Run outside of Docker container
 # Prepares project for deployment via Docker Compose or Kubernetes
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -16,55 +34,58 @@ KUBERNETES_FILE_DEV="k8s-docker-compose-dev-env.yml"
 KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
 ENVIRONMENT=${NODE_ENV:-development}
 TEST="y"
-while getopts "v:d:u:ha:t:p:" opt; do
-    case $opt in
-    h)
-        echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
-        echo "  -v --version:        Version number to use (e.g. \"1.0.0\")"
-        echo "  -d --deploy-vps:     (y/N) Deploy to VPS?"
-        echo "  -u --use-kubernetes: (y/N) Deploy to Kubernetes? This overrides '--deploy-vps'"
-        echo "  -h --help:           Show this help message"
-        echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
-        echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
-        echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
-        exit 0
-        ;;
-    a)
-        API_GENERATE=$OPTARG
-        ;;
-    d)
-        DEPLOY_VPS=$OPTARG
-        ;;
-    p)
-        if is_yes "$OPTARG"; then
-            ENV_FILE=${ENV_FILE_PROD}
-            DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_PROD}
-            KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
-            ENVIRONMENT="production"
-        else
-            ENV_FILE=${ENV_FILE_DEV}
-            DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_DEV}
-            KUBERNETES_FILE=${KUBERNETES_FILE_DEV}
-            ENVIRONMENT="development"
-        fi
-        ;;
-    t)
-        TEST=$OPTARG
-        ;;
-    u)
-        USE_KUBERNETES=$OPTARG
-        ;;
-    v)
-        VERSION=$OPTARG
-        ;;
-    \?)
-        echo "Invalid option: -$OPTARG" >&2
-        exit 1
-        ;;
-    :)
-        echo "Option -$OPTARG requires an argument." >&2
-        exit 1
-        ;;
+API_GENERATE="n"
+GOOGLE_PLAY_KEYS_GENERATE="y"
+SKIP_CONFIRMATIONS="n"
+
+## Parse both short and long options
+PARSED_OPTS=$(getopt -o v:d:u:ha:t:p:g:y -l version:,deploy-vps:,use-kubernetes:,help,api-generate:,test:,prod:,yes,google-play-keys-generate -- "$@")
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to parse options" >&2
+    exit 1
+fi
+eval set -- "$PARSED_OPTS"
+while true; do
+    case "$1" in
+        -v|--version)
+            VERSION="$2"; shift 2;;
+        -d|--deploy-vps)
+            DEPLOY_VPS="$2"; shift 2;;
+        -u|--use-kubernetes)
+            USE_KUBERNETES="$2"; shift 2;;
+        -a|--api-generate)
+            API_GENERATE="$2"; shift 2;;
+        -g|--google-play-keys-generate)
+            GOOGLE_PLAY_KEYS_GENERATE="$2"; shift 2;;
+        -t|--test)
+            TEST="$2"; shift 2;;
+        -p|--prod)
+            if is_yes "$2"; then
+                ENV_FILE=${ENV_FILE_PROD}; DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_PROD}; KUBERNETES_FILE=${KUBERNETES_FILE_PROD}; ENVIRONMENT="production"
+            else
+                ENV_FILE=${ENV_FILE_DEV}; DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE_DEV}; KUBERNETES_FILE=${KUBERNETES_FILE_DEV}; ENVIRONMENT="development"
+            fi
+            shift 2;;
+        -y|--yes)
+            SKIP_CONFIRMATIONS="y"; shift;;
+        -h|--help)
+            # Display help
+            echo "Usage: $0 [-v VERSION] [-d DEPLOY_VPS_VPS] [-u USE_KUBERNETES] [-h] [-a API_GENERATE] [-e ENV_FILE]"
+            echo "  -v --version:        Version number to use (e.g. \"1.0.0\")"
+            echo "  -d --deploy-vps:     (y/N) Deploy to VPS?"
+            echo "  -u --use-kubernetes: (y/N) Deploy to Kubernetes? This overrides '--deploy-vps'"
+            echo "  -h --help:           Show this help message"
+            echo "  -a --api-generate:   Generate computed API information (GraphQL query/mutation selectors and OpenAPI schema)"
+            echo "  -g --google-play-keys-generate: (y/N) Generate Google Play Store keystore and assetlinks. Defaults to true."
+            echo "  -p --prod:           (y/N) If true, will use production environment variables and docker-compose-prod.yml file"
+            echo "  -t --test:           (y/N) Runs all tests to ensure code is working before building. Defaults to true."
+            echo "  -y --yes:            (y/N) Skip all confirmations. Defaults to false."
+            exit 0
+            ;;
+        --)
+            shift; break;;
+        *)
+            echo "Error: Unknown option $1" >&2; exit 1;;
     esac
 done
 
@@ -83,7 +104,7 @@ check_var() {
         error "Variable ${1} is not set. Exiting..."
         exit 1
     else
-        info "Variable ${1} is set to ${!1}"
+        info "Variable ${1} is set to ${!1:0:5}..."
     fi
 }
 check_var PORT_API
@@ -177,7 +198,7 @@ fi
 TMP_ENV_FILE=".env-tmp"
 touch ${TMP_ENV_FILE}
 # Set environment variables
-echo "VITE_SERVER_LOCATION=${SERVER_LOCATION}" >>${TMP_ENV_FILE}
+echo "VITE_SERVER_LOCATION=${SERVER_LOCATION:-remote}" >>${TMP_ENV_FILE}
 echo "VITE_PORT_API=${PORT_API}" >>${TMP_ENV_FILE}
 echo "VITE_API_URL=${API_URL}" >>${TMP_ENV_FILE}
 echo "VITE_SITE_IP=${SITE_IP}" >>${TMP_ENV_FILE}
@@ -185,8 +206,8 @@ echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>${TMP_ENV_FILE}
 echo "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >>${TMP_ENV_FILE}
 echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>${TMP_ENV_FILE}
 echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>${TMP_ENV_FILE}
-# Set trap to remove ${TMP_ENV_FILE} file on exit
-trap "rm ${HERE}/../packages/ui/${TMP_ENV_FILE}" EXIT
+# Set trap to remove ${TMP_ENV_FILE} file on exit (ignore missing)
+trap "rm -f ${HERE}/../packages/ui/${TMP_ENV_FILE}" EXIT
 
 # Generate API information
 if is_yes "$API_GENERATE"; then
@@ -249,27 +270,39 @@ KEYSTORE_PATH="${HERE}/../upload-keystore.jks"
 KEYSTORE_ALIAS="upload"
 KEYSTORE_PASSWORD="${GOOGLE_PLAY_KEYSTORE_PASSWORD}"
 
-# Check if keystore file exists
-if [ ! -f "${KEYSTORE_PATH}" ]; then
-    prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
-    read -n1 -r REPLY
-    echo
-    if is_yes "$REPLY"; then
-        # Generate the keystore file
-        header "Generating keystore file..."
-        info "Before we begin, you'll need to provide some information for the keystore certificate:"
-        info "This information should be accurate, but it does not have to match exactly with the information you used to register your Google Play account."
-        info "1. First and Last Name: Your full legal name. Example: John Doe"
-        info "2. Organizational Unit: The department within your organization managing the key. Example: IT"
-        info "3. Organization: The legal name of your company or organization. Example: Vrooli"
-        info "4. City or Locality: The city where your organization is based. Example: New York City"
-        info "5. State or Province: The state or province where your organization is located. Example: New York"
-        info "6. Country Code: The two-letter ISO code for the country of your organization. Example: US"
-        info "This information helps to identify the holder of the key."
-        prompt "Press any key to continue..."
-        read -n1 -r -s
+if is_yes "$GOOGLE_PLAY_KEYS_GENERATE"; then
+    # Check if keystore file exists
+    if [ ! -f "${KEYSTORE_PATH}" ]; then
+        if is_yes "$SKIP_CONFIRMATIONS"; then
+            info "Keystore file not found. This is needed to upload the app the Google Play store. Creating keystore file..."
+            REPLY="y"
+        else
+            prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
+            read -n1 -r REPLY
+            echo
+        fi
+        if is_yes "$REPLY"; then
+            # Generate the keystore file
+            header "Generating keystore file..."
+            info "Before we begin, you'll need to provide some information for the keystore certificate:"
+            info "This information should be accurate, but it does not have to match exactly with the information you used to register your Google Play account."
+            info "1. First and Last Name: Your full legal name. Example: John Doe"
+            info "2. Organizational Unit: The department within your organization managing the key. Example: IT"
+            info "3. Organization: The legal name of your company or organization. Example: Vrooli"
+            info "4. City or Locality: The city where your organization is based. Example: New York City"
+            info "5. State or Province: The state or province where your organization is located. Example: New York"
+            info "6. Country Code: The two-letter ISO code for the country of your organization. Example: US"
+            info "This information helps to identify the holder of the key."
+            if is_yes "$SKIP_CONFIRMATIONS"; then
+                info "Skipping confirmation..."
+                REPLY="y"
+            else
+                prompt "Press any key to continue..."
+                read -n1 -r -s
+            fi
 
-        run_step "Generating keystore file for Google Play Store" "keytool -genkey -v -keystore \"${KEYSTORE_PATH}\" -alias \"${KEYSTORE_ALIAS}\" -keyalg RSA -keysize 2048 -validity 10000 -storepass \"${KEYSTORE_PASSWORD}\""
+            run_step "Generating keystore file for Google Play Store" "keytool -genkey -v -keystore \"${KEYSTORE_PATH}\" -alias \"${KEYSTORE_ALIAS}\" -keyalg RSA -keysize 2048 -validity 10000 -storepass \"${KEYSTORE_PASSWORD}\""
+        fi
     fi
 fi
 
@@ -321,7 +354,9 @@ create_assetlinks_file() {
         fi
     fi
 }
-create_assetlinks_file
+if is_yes "$GOOGLE_PLAY_KEYS_GENERATE"; then
+    create_assetlinks_file
+fi
 
 # Create ads.txt file for Google AdSense
 if [ -z "${GOOGLE_ADSENSE_PUBLISHER_ID}" ]; then
@@ -338,7 +373,8 @@ fi
 info "Removing sitemap information from dist folder..."
 cd ${HERE}/../packages/ui/dist
 rm -f sitemap.xml sitemaps/*.xml.gz sitemaps/*.xml
-rmdir sitemaps
+# Remove sitemaps dir if it exists, but don't fail if it's missing
+rmdir sitemaps || true
 cd ../..
 
 # Compress build TODO should probably compress builds for server and shared too, as well as all node_modules folders
@@ -353,13 +389,16 @@ fi
 # Build Docker images
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
-if command -v docker-compose &>/dev/null; then
-    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build
-    if [ $? -ne 0 ]; then
-        warning "Failed to build using docker-compose, trying to continue with docker pull..."
-    fi
+
+# Prefer Docker Compose plugin if available, else fallback to docker-compose
+if command -v docker compose >/dev/null 2>&1; then
+    echo "Using Docker Compose plugin to build images"
+    docker compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build --no-cache --progress=plain
+elif command -v docker-compose >/dev/null 2>&1; then
+    echo "Using legacy docker-compose to build images"
+    docker-compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build --no-cache
 else
-    warning "docker-compose command not found. Skipping docker-compose build step..."
+    error "Neither docker compose plugin nor docker-compose binary is available. Cannot build Docker images."
 fi
 
 # Pull necessary images regardless of docker-compose success
@@ -450,8 +489,13 @@ if is_yes "$USE_KUBERNETES"; then
     # Add ui build to S3
     S3_BUCKET="vrooli-bucket"
     S3_PATH="builds/v${VERSION}/"
-    prompt "Going to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}. Press any key to continue..."
-    read -n1 -r -s
+    if is_yes "$SKIP_CONFIRMATIONS"; then
+        info "Skipping confirmation..."
+        REPLY="y"
+    else
+        prompt "Going to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}. Press any key to continue..."
+        read -n1 -r -s
+    fi
     AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} aws s3 cp build.tar.gz s3://${S3_BUCKET}/${S3_PATH}build.tar.gz
     if [ $? -ne 0 ]; then
         error "Failed to upload build.tar.gz to s3://${S3_BUCKET}/${S3_PATH}"
@@ -462,8 +506,13 @@ elif is_yes "$DEPLOY_VPS"; then
     # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="/var/tmp/${VERSION}/"
-    prompt "Going to copy build to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
-    read -n1 -r -s
+    if is_yes "$SKIP_CONFIRMATIONS"; then
+        info "Skipping confirmation..."
+        REPLY="y"
+    else
+        prompt "Going to copy build to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
+        read -n1 -r -s
+    fi
     # Ensure that target directory exists
     ssh -i ~/.ssh/id_rsa_${SITE_IP} root@${SITE_IP} "mkdir -p ${BUILD_DIR}"
     # Copy everything

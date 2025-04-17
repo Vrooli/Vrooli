@@ -11,6 +11,8 @@ COPY package.json yarn.lock ./
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared/package.json ./packages/shared/
 # Add other workspace package.json files if server depends on them
+# Copy shared package source code for workspace resolution
+COPY packages/shared ./packages/shared/
 
 # Install all dependencies (including devDependencies needed for build)
 RUN yarn install --frozen-lockfile --network-timeout 600000
@@ -49,16 +51,12 @@ RUN apk update && \
     rm -rf /var/cache/apk/*
 
 # Copy necessary package files for runtime
-COPY --chown=node:node package.json ./
+COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/server/package.json ./packages/server/
 COPY --chown=node:node packages/shared/package.json ./packages/shared/
 
-# --- Option A: Copy pruned node_modules from builder (if pruning step was added) ---
-# COPY --from=builder --chown=node:node ${PROJECT_DIR}/node_modules ./node_modules
-
-# --- Option B: Reinstall only production dependencies ---
-# This is often cleaner and ensures only prod deps are present
-RUN yarn install --production --frozen-lockfile --network-timeout 600000
+# Use node_modules from builder to preserve workspace links
+COPY --from=builder --chown=node:node ${PROJECT_DIR}/node_modules ./node_modules
 
 # Copy built application code from the builder stage
 COPY --from=builder --chown=node:node ${PROJECT_DIR}/packages/server/dist ./packages/server/dist

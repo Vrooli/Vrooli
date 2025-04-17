@@ -95,7 +95,11 @@ parse_arguments() {
                 usage
                 exit $ERROR_USAGE
             fi
-            ENVIRONMENT="production"
+            if is_yes "$2"; then
+                ENVIRONMENT="production"
+            else
+                ENVIRONMENT="development"
+            fi
             shift # past argument
             shift # past value
             ;;
