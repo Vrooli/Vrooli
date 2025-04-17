@@ -371,13 +371,16 @@ fi
 # Build Docker images
 cd ${HERE}/..
 info "Building (and Pulling) Docker images..."
-if command -v docker-compose &>/dev/null; then
+
+# Prefer Docker Compose plugin if available, else fallback to docker-compose
+if command -v docker compose >/dev/null 2>&1; then
+    echo "Using Docker Compose plugin to build images"
+    docker compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build --no-cache --progress=plain
+elif command -v docker-compose >/dev/null 2>&1; then
+    echo "Using legacy docker-compose to build images"
     docker-compose --env-file "${HERE}/../${ENV_FILE}" -f "${DOCKER_COMPOSE_FILE}" build --no-cache
-    if [ $? -ne 0 ]; then
-        warning "Failed to build using docker-compose, trying to continue with docker pull..."
-    fi
 else
-    warning "docker-compose command not found. Skipping docker-compose build step..."
+    error "Neither docker compose plugin nor docker-compose binary is available. Cannot build Docker images."
 fi
 
 # Pull necessary images regardless of docker-compose success
