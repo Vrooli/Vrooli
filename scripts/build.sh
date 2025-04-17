@@ -206,8 +206,8 @@ echo "VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" >>${TMP_ENV_FILE}
 echo "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >>${TMP_ENV_FILE}
 echo "VITE_GOOGLE_ADSENSE_PUBLISHER_ID=${GOOGLE_ADSENSE_PUBLISHER_ID}" >>${TMP_ENV_FILE}
 echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>${TMP_ENV_FILE}
-# Set trap to remove ${TMP_ENV_FILE} file on exit
-trap "rm ${HERE}/../packages/ui/${TMP_ENV_FILE}" EXIT
+# Set trap to remove ${TMP_ENV_FILE} file on exit (ignore missing)
+trap "rm -f ${HERE}/../packages/ui/${TMP_ENV_FILE}" EXIT
 
 # Generate API information
 if is_yes "$API_GENERATE"; then
@@ -373,7 +373,8 @@ fi
 info "Removing sitemap information from dist folder..."
 cd ${HERE}/../packages/ui/dist
 rm -f sitemap.xml sitemaps/*.xml.gz sitemaps/*.xml
-rmdir sitemaps
+# Remove sitemaps dir if it exists, but don't fail if it's missing
+rmdir sitemaps || true
 cd ../..
 
 # Compress build TODO should probably compress builds for server and shared too, as well as all node_modules folders
