@@ -34,6 +34,7 @@ KUBERNETES_FILE_DEV="k8s-docker-compose-dev-env.yml"
 KUBERNETES_FILE=${KUBERNETES_FILE_PROD}
 ENVIRONMENT=${NODE_ENV:-development}
 TEST="y"
+API_GENERATE="n"
 while getopts "v:d:u:ha:t:p:" opt; do
     case $opt in
     h)
