@@ -15,8 +15,6 @@ describe("fetchAndMapPlaceholder", () => {
     const teamId = uuid();
 
     before(async function before() {
-        this.timeout(10_000);
-
         // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().user.create({
@@ -43,8 +41,6 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
     });
 
@@ -129,8 +125,6 @@ describe("replacePlaceholdersInMap", () => {
     const noteId = uuid();
 
     before(async function before() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().user.create({
             data: {
@@ -163,8 +157,6 @@ describe("replacePlaceholdersInMap", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().note.deleteMany();
     });
@@ -259,8 +251,6 @@ describe("replacePlaceholdersInInputsById", () => {
     const teamId = uuid();
 
     before(async function before() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().user.create({
             data: {
@@ -286,8 +276,6 @@ describe("replacePlaceholdersInInputsById", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
     });
 
@@ -371,8 +359,6 @@ describe("replacePlaceholdersInInputsByType", () => {
     const teamId = uuid();
 
     before(async function before() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().user.create({
             data: {
@@ -398,8 +384,6 @@ describe("replacePlaceholdersInInputsByType", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
     });
 
@@ -513,8 +497,6 @@ describe("convertPlaceholders", () => {
     const teamId = uuid();
 
     before(async function before() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().user.create({
             data: {
@@ -549,8 +531,6 @@ describe("convertPlaceholders", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
     });
 

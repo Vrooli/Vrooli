@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { statsTeam_findMany } from "../generated/statsTeam_findMany.js"; // Assuming this generated type exists
 import { statsTeam } from "./statsTeam.js";
 
@@ -107,54 +108,44 @@ describe("EndpointsStatsTeam", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(20_000); // Increased timeout for more complex setup
-
-        // Clean previous test data
-        await DbProvider.get().stats_team.deleteMany({
-            where: { teamId: { in: [testTeamId1, testTeamId2, testTeamId3] } }
-        });
-        // Need to delete members before teams due to relation
-        await DbProvider.get().member.deleteMany({
-            where: { teamId: { in: [testTeamId1, testTeamId2, testTeamId3] } }
-        });
-        await DbProvider.get().team.deleteMany({
-            where: { id: { in: [testTeamId1, testTeamId2, testTeamId3] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id, user3Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_team.deleteMany({});
+        await DbProvider.get().member.deleteMany({});
+        await DbProvider.get().team.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         // Create test users
         await DbProvider.get().user.create({
-            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         await DbProvider.get().user.create({
-            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         await DbProvider.get().user.create({
-            data: { id: user3Id, name: "Test User 3", handle: "test-user-3", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user3Id, name: "Test User 3", handle: "test-user-3", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
 
         // Create test teams (ensure all required fields are present)
         // Placeholder: Add actual required fields for team creation (like permissions)
         await DbProvider.get().team.createMany({
             data: [
-                { ...teamData1, permissions: JSON.stringify({}), /* name: "Public Team 1", handle: "public-team-1" */ }, // Removed name/handle, added permissions
-                { ...teamData2, permissions: JSON.stringify({}), /* name: "Private Team 2", handle: "private-team-2" */ }, // Removed name/handle, added permissions
-                { ...teamData3, permissions: JSON.stringify({}), /* name: "Private Team 3", handle: "private-team-3" */ }  // Removed name/handle, added permissions
-            ]
+                { ...teamData1, permissions: JSON.stringify({}) /* name: "Public Team 1", handle: "public-team-1" */ }, // Removed name/handle, added permissions
+                { ...teamData2, permissions: JSON.stringify({}) /* name: "Private Team 2", handle: "private-team-2" */ }, // Removed name/handle, added permissions
+                { ...teamData3, permissions: JSON.stringify({}) /* name: "Private Team 3", handle: "private-team-3" */ },  // Removed name/handle, added permissions
+            ],
         });
 
         // Create memberships (ensure all required fields are present)
         await DbProvider.get().member.createMany({
             data: [
                 // User 1 in Public Team 1 and Private Team 2
-                { id: uuid(), teamId: testTeamId1, userId: user1Id, permissions: JSON.stringify({}), /*, role: Prisma.MemberRole.Member */ }, // Added permissions
-                { id: uuid(), teamId: testTeamId2, userId: user1Id, permissions: JSON.stringify({}), /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
+                { id: uuid(), teamId: testTeamId1, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
+                { id: uuid(), teamId: testTeamId2, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
                 // User 2 in Public Team 1 and Private Team 3
-                { id: uuid(), teamId: testTeamId1, userId: user2Id, permissions: JSON.stringify({}), /*, role: Prisma.MemberRole.Member */ }, // Added permissions
-                { id: uuid(), teamId: testTeamId3, userId: user2Id, permissions: JSON.stringify({}), /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
-            ]
+                { id: uuid(), teamId: testTeamId1, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
+                { id: uuid(), teamId: testTeamId3, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
+            ],
         });
 
         // Create fresh test stats data
@@ -162,27 +153,18 @@ describe("EndpointsStatsTeam", () => {
             data: [
                 statsTeamData1, // Public team
                 statsTeamData2, // Private team 2 (user1)
-                statsTeamData3  // Private team 3 (user2)
-            ]
+                statsTeamData3,  // Private team 3 (user2)
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(20_000);
-
-        // Clean up test data (order matters due to relations)
-        await DbProvider.get().stats_team.deleteMany({
-            where: { teamId: { in: [testTeamId1, testTeamId2, testTeamId3] } }
-        });
-        await DbProvider.get().member.deleteMany({
-            where: { teamId: { in: [testTeamId1, testTeamId2, testTeamId3] } }
-        });
-        await DbProvider.get().team.deleteMany({
-            where: { id: { in: [testTeamId1, testTeamId2, testTeamId3] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id, user3Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_team.deleteMany({});
+        await DbProvider.get().member.deleteMany({});
+        await DbProvider.get().team.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -196,7 +178,7 @@ describe("EndpointsStatsTeam", () => {
 
                 const input: StatsTeamSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
@@ -217,7 +199,7 @@ describe("EndpointsStatsTeam", () => {
 
                 const input: StatsTeamSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
@@ -272,8 +254,8 @@ describe("EndpointsStatsTeam", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
@@ -293,7 +275,7 @@ describe("EndpointsStatsTeam", () => {
 
                 const input: StatsTeamSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
@@ -312,7 +294,7 @@ describe("EndpointsStatsTeam", () => {
 
                 const input: StatsTeamSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 // Assuming readManyHelper allows public access for teams
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
@@ -334,7 +316,7 @@ describe("EndpointsStatsTeam", () => {
 
                 const input: StatsTeamSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") }
+                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") },
                 };
 
                 try {
@@ -366,7 +348,7 @@ describe("EndpointsStatsTeam", () => {
                 // Search for team 3 by name
                 const input: StatsTeamSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Team 3" // Name of team user1 is not in
+                    searchString: "Private Team 3", // Name of team user1 is not in
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 

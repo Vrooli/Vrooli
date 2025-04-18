@@ -52,7 +52,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
         yup: resourceListValidation,
     },
     search: {
-        defaultSort: ResourceListSortBy.IndexAsc,
+        defaultSort: ResourceListSortBy.DateUpdatedDesc,
         sortBy: ResourceListSortBy,
         searchFields: {
             apiVersionId: true,

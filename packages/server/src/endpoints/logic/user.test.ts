@@ -9,6 +9,7 @@ import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { PrismaCreate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { user_findOne } from "../generated/user_findOne.js";
 import { user } from "./user.js";
 
@@ -22,7 +23,7 @@ const validUser1 = {
     isPrivate: false,
     auths: [{
         provider: "Password",
-        hashed_password: "dummy-hash"
+        hashed_password: "dummy-hash",
     }],
 };
 const validUser2 = {
@@ -41,13 +42,10 @@ describe("EndpointsUser", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().user.deleteMany({});
 
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { not: SEEDED_IDS.User.Admin }
-            }
-        });
         await cudHelper({
             info: { id: true },
             inputData: [
@@ -60,21 +58,17 @@ describe("EndpointsUser", () => {
                     action: "Create",
                     input: validUser2 as PrismaCreate,
                     objectType: "User",
-                }
+                },
             ],
             userData: { id: SEEDED_IDS.User.Admin } as SessionUser,
-            adminFlags: { disableAllChecks: true }
-        })
+            adminFlags: { disableAllChecks: true },
+        });
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { not: SEEDED_IDS.User.Admin }
-            }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -107,15 +101,15 @@ describe("EndpointsUser", () => {
                 expect(result).to.have.property("name", validUser1.name);
                 expect(result).to.have.property("handle", validUser1.handle);
             });
-        })
+        });
 
         describe("invalid", () => {
             testEndpointRequiresAuth(user.profile, {}, user_findOne);
 
             const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
             testEndpointRequiresApiKeyPrivatePermissions(testUser, user.profile, {}, user_findOne);
-        })
-    })
+        });
+    });
 
     describe("findOne", () => {
         describe("valid", () => {
@@ -136,7 +130,7 @@ describe("EndpointsUser", () => {
                 // First update the user to be private
                 await DbProvider.get().user.update({
                     where: { id: validUser1.id },
-                    data: { isPrivate: true }
+                    data: { isPrivate: true },
                 });
 
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
@@ -153,7 +147,7 @@ describe("EndpointsUser", () => {
                 // Ensure user2 is public
                 await DbProvider.get().user.update({
                     where: { id: validUser2.id },
-                    data: { isPrivate: false }
+                    data: { isPrivate: false },
                 });
 
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
@@ -194,14 +188,14 @@ describe("EndpointsUser", () => {
                 expect(result).to.have.property("name", validUser2.name);
                 expect(result).to.have.property("handle", validUser2.handle);
             });
-        })
+        });
 
         describe("invalid", () => {
             it("private profile", async () => {
                 // Make user2 private
                 await DbProvider.get().user.update({
                     where: { id: validUser2.id },
-                    data: { isPrivate: true }
+                    data: { isPrivate: true },
                 });
 
                 // Attempt to access user2's profile from user1's account
@@ -215,8 +209,8 @@ describe("EndpointsUser", () => {
                     expect.fail("Expected an error to be thrown");
                 } catch (error) { /* empty */ }
             });
-        })
-    })
+        });
+    });
 
     describe("findMany", () => {
         describe("valid", () => {
@@ -293,8 +287,8 @@ describe("EndpointsUser", () => {
                     isPrivate: false,
                     botSettings: JSON.stringify({
                         model: "gpt-3.5-turbo",
-                        systemPrompt: "You are a helpful assistant."
-                    })
+                        systemPrompt: "You are a helpful assistant.",
+                    }),
                 };
 
                 const input = botData;
@@ -309,7 +303,7 @@ describe("EndpointsUser", () => {
 
                 // Verify bot was created in database
                 const createdBot = await DbProvider.get().user.findUnique({
-                    where: { id: botData.id }
+                    where: { id: botData.id },
                 });
                 expect(createdBot).to.not.be.null;
                 expect(createdBot).to.have.property("botSettings", botData.botSettings);
@@ -330,8 +324,8 @@ describe("EndpointsUser", () => {
                     isPrivate: true,
                     botSettings: JSON.stringify({
                         model: "gpt-4",
-                        systemPrompt: "You are a specialized bot created via API."
-                    })
+                        systemPrompt: "You are a specialized bot created via API.",
+                    }),
                 };
 
                 const input = botData;
@@ -343,7 +337,7 @@ describe("EndpointsUser", () => {
                 expect(result).to.have.property("isBot", true);
                 // isPrivate is not returned by the endpoint, so we'll query the database directly
                 const createdBot = await DbProvider.get().user.findUnique({
-                    where: { id: botData.id }
+                    where: { id: botData.id },
                 });
                 expect(createdBot).to.not.be.null;
                 expect(createdBot).to.have.property("isPrivate", botData.isPrivate);
@@ -363,8 +357,8 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
-                    })
+                        model: "gpt-3.5-turbo",
+                    }),
                 };
 
                 try {
@@ -385,8 +379,8 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
-                    })
+                        model: "gpt-3.5-turbo",
+                    }),
                 };
 
                 try {
@@ -407,8 +401,8 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
-                    })
+                        model: "gpt-3.5-turbo",
+                    }),
                 };
 
                 try {
@@ -429,10 +423,10 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
+                        model: "gpt-3.5-turbo",
                     }),
                     status: "HardLocked", // User-specific field that shouldn't be allowed
-                    notificationSettings: JSON.stringify({ disable: true }) // User-specific field
+                    notificationSettings: JSON.stringify({ disable: true }), // User-specific field
                 };
 
                 try {
@@ -449,8 +443,8 @@ describe("EndpointsUser", () => {
                     isBot: true,
                     isBotDepictingPerson: false,
                     isPrivate: false,
-                    botSettings: "{}"
-                }
+                    botSettings: "{}",
+                },
             }, user_findOne);
 
             const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
@@ -465,13 +459,13 @@ describe("EndpointsUser", () => {
                         isBot: true,
                         isBotDepictingPerson: false,
                         isPrivate: false,
-                        botSettings: "{}"
-                    }
+                        botSettings: "{}",
+                    },
                 },
-                user_findOne
+                user_findOne,
             );
         });
-    })
+    });
 
     describe("botUpdateOne", () => {
         describe("valid", () => {
@@ -490,8 +484,8 @@ describe("EndpointsUser", () => {
                     isPrivate: false,
                     botSettings: JSON.stringify({
                         model: "gpt-3.5-turbo",
-                        systemPrompt: "Initial prompt"
-                    })
+                        systemPrompt: "Initial prompt",
+                    }),
                 };
 
                 // Create the bot
@@ -504,8 +498,8 @@ describe("EndpointsUser", () => {
                     isPrivate: true,
                     botSettings: JSON.stringify({
                         model: "gpt-4",
-                        systemPrompt: "Updated prompt"
-                    })
+                        systemPrompt: "Updated prompt",
+                    }),
                 };
 
                 const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_findOne);
@@ -516,7 +510,7 @@ describe("EndpointsUser", () => {
 
                 // Verify bot was updated in database
                 const updatedBot = await DbProvider.get().user.findUnique({
-                    where: { id: botId }
+                    where: { id: botId },
                 });
                 expect(updatedBot).to.not.be.null;
                 expect(updatedBot).to.have.property("name", updateInput.name);
@@ -539,8 +533,8 @@ describe("EndpointsUser", () => {
                     isPrivate: false,
                     botSettings: JSON.stringify({
                         model: "gpt-3.5-turbo",
-                        systemPrompt: "Initial API prompt"
-                    })
+                        systemPrompt: "Initial API prompt",
+                    }),
                 };
 
                 // Create the bot
@@ -556,8 +550,8 @@ describe("EndpointsUser", () => {
                     name: "API Updated Bot",
                     botSettings: JSON.stringify({
                         model: "gpt-4",
-                        systemPrompt: "Updated via API"
-                    })
+                        systemPrompt: "Updated via API",
+                    }),
                 };
 
                 const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_findOne);
@@ -568,13 +562,13 @@ describe("EndpointsUser", () => {
 
                 // Verify bot was updated in database
                 const updatedBot = await DbProvider.get().user.findUnique({
-                    where: { id: botId }
+                    where: { id: botId },
                 });
                 expect(updatedBot).to.not.be.null;
                 expect(updatedBot).to.have.property("name", updateInput.name);
                 expect(updatedBot).to.have.property("botSettings", updateInput.botSettings);
             });
-        })
+        });
 
         describe("invalid", () => {
             it("updating a different user's bot", async () => {
@@ -591,8 +585,8 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
-                    })
+                        model: "gpt-3.5-turbo",
+                    }),
                 };
 
                 // Create the bot
@@ -642,8 +636,8 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
-                    })
+                        model: "gpt-3.5-turbo",
+                    }),
                 };
 
                 // Create the bot
@@ -675,8 +669,8 @@ describe("EndpointsUser", () => {
                     isBotDepictingPerson: false,
                     isPrivate: false,
                     botSettings: JSON.stringify({
-                        model: "gpt-3.5-turbo"
-                    })
+                        model: "gpt-3.5-turbo",
+                    }),
                 };
 
                 // Create the bot
@@ -687,7 +681,7 @@ describe("EndpointsUser", () => {
                     id: botId,
                     name: "Updated Bot",
                     status: "HardLocked", // User-specific field
-                    notificationSettings: JSON.stringify({ disable: true }) // User-specific field
+                    notificationSettings: JSON.stringify({ disable: true }), // User-specific field
                 };
 
                 try {
@@ -699,8 +693,8 @@ describe("EndpointsUser", () => {
             testEndpointRequiresAuth(user.botUpdateOne, {
                 input: {
                     id: uuid(),
-                    name: "Test Bot Update"
-                }
+                    name: "Test Bot Update",
+                },
             }, user_findOne);
 
             const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
@@ -710,13 +704,13 @@ describe("EndpointsUser", () => {
                 {
                     input: {
                         id: uuid(),
-                        name: "Test Bot Update"
-                    }
+                        name: "Test Bot Update",
+                    },
                 },
-                user_findOne
+                user_findOne,
             );
-        })
-    })
+        });
+    });
 
     describe("profileUpdate", () => {
         describe("valid", () => {
@@ -726,7 +720,7 @@ describe("EndpointsUser", () => {
 
                 const input = {
                     id: testUser.id,
-                    name: "Updated Name"
+                    name: "Updated Name",
                 };
                 const result = await user.profileUpdate({ input }, { req, res }, user_findOne);
 
@@ -735,7 +729,7 @@ describe("EndpointsUser", () => {
 
                 const updatedUser = await DbProvider.get().user.findUnique({
                     where: { id: testUser.id },
-                    select: { id: true, name: true }
+                    select: { id: true, name: true },
                 });
                 expect(updatedUser).to.not.be.null;
                 expect(updatedUser?.name).to.equal(input.name);
@@ -750,8 +744,8 @@ describe("EndpointsUser", () => {
                     translationsCreate: [{
                         id: uuid(),
                         language: "es",
-                        bio: "Biografía de prueba"
-                    }]
+                        bio: "Biografía de prueba",
+                    }],
                 };
                 const result = await user.profileUpdate({ input }, { req, res }, user_findOne);
 
@@ -760,7 +754,7 @@ describe("EndpointsUser", () => {
 
                 const updatedUser = await DbProvider.get().user.findUnique({
                     where: { id: testUser.id },
-                    include: { translations: true }
+                    include: { translations: true },
                 });
                 expect(updatedUser).to.not.be.null;
                 expect(updatedUser?.translations).to.be.an("array").that.is.not.empty;
@@ -778,14 +772,14 @@ describe("EndpointsUser", () => {
 
                 const input = {
                     id: testUser.id,
-                    name: "Updated Name"
+                    name: "Updated Name",
                 };
                 const result = await user.profileUpdate({ input }, { req, res }, user_findOne);
 
                 expect(result).to.have.property("id", testUser.id);
                 expect(result).to.have.property("name", input.name);
             });
-        })
+        });
 
         describe("invalid", () => {
             it("updating a different user", async () => {
@@ -794,13 +788,13 @@ describe("EndpointsUser", () => {
 
                 const input = {
                     id: validUser2.id,
-                    name: "Updated Name"
+                    name: "Updated Name",
                 };
                 try {
                     await user.profileUpdate({ input }, { req, res }, user_findOne);
                     expect.fail("Expected an error to be thrown");
                 } catch (error) { /* empty */ }
-            })
+            });
 
             it("updating admin user", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
@@ -808,7 +802,7 @@ describe("EndpointsUser", () => {
 
                 const input = {
                     id: SEEDED_IDS.User.Admin,
-                    name: "Updated Name"
+                    name: "Updated Name",
                 };
                 try {
                     await user.profileUpdate({ input }, { req, res }, user_findOne);
@@ -821,18 +815,18 @@ describe("EndpointsUser", () => {
 
                 const input = {
                     id: uuid(),
-                    name: "Updated Name"
+                    name: "Updated Name",
                 };
                 try {
                     await user.profileUpdate({ input }, { req, res }, user_findOne);
                     expect.fail("Expected an error to be thrown");
                 } catch (error) { /* empty */ }
-            })
+            });
 
             testEndpointRequiresAuth(user.profileUpdate, { input: { id: validUser1.id, name: "Updated Name" } }, user_findOne);
 
             const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
             testEndpointRequiresApiKeyWritePermissions(testUser, user.profileUpdate, { input: { id: validUser1.id, name: "Updated Name" } }, user_findOne);
-        })
+        });
     });
 }); 

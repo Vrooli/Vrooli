@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { statsApi_findMany } from "../generated/statsApi_findMany.js";
 import { statsApi } from "./statsApi.js";
 
@@ -27,7 +28,7 @@ const statsApiData1 = {
     periodEnd: new Date("2023-01-31"),
     periodType: PeriodType.Monthly,
     calls: 100,
-    routineVersions: 5
+    routineVersions: 5,
 };
 
 const statsApiData2 = {
@@ -37,7 +38,7 @@ const statsApiData2 = {
     periodEnd: new Date("2023-02-28"),
     periodType: PeriodType.Monthly,
     calls: 200,
-    routineVersions: 10
+    routineVersions: 10,
 };
 
 // Stats for private APIs
@@ -48,7 +49,7 @@ const privateApiStats1 = {
     periodEnd: new Date("2023-03-31"),
     periodType: PeriodType.Monthly,
     calls: 50,
-    routineVersions: 3
+    routineVersions: 3,
 };
 
 const privateApiStats2 = {
@@ -58,7 +59,7 @@ const privateApiStats2 = {
     periodEnd: new Date("2023-03-31"),
     periodType: PeriodType.Monthly,
     calls: 75,
-    routineVersions: 4
+    routineVersions: 4,
 };
 
 describe("EndpointsStatsApi", () => {
@@ -71,15 +72,13 @@ describe("EndpointsStatsApi", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().user.deleteMany({});
+        await DbProvider.get().stats_api.deleteMany({});
+        await DbProvider.get().api.deleteMany({});
 
         // Create test users
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id] }
-            }
-        });
-
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -92,10 +91,10 @@ describe("EndpointsStatsApi", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
         await DbProvider.get().user.create({
             data: {
@@ -109,17 +108,17 @@ describe("EndpointsStatsApi", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
 
         // Create test APIs
         await DbProvider.get().api.deleteMany({
             where: {
-                id: { in: [testApiId1, testApiId2, privateApiId1, privateApiId2] }
-            }
+                id: { in: [testApiId1, testApiId2, privateApiId1, privateApiId2] },
+            },
         });
 
         await DbProvider.get().api.create({
@@ -138,14 +137,14 @@ describe("EndpointsStatsApi", () => {
                                         id: uuid(),
                                         language: "en",
                                         name: "Test API 1",
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        })
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            },
+        });
         await DbProvider.get().api.create({
             data: {
                 id: testApiId2,
@@ -162,14 +161,14 @@ describe("EndpointsStatsApi", () => {
                                         id: uuid(),
                                         language: "en",
                                         name: "Test API 2",
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        })
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            },
+        });
         await DbProvider.get().api.create({
             data: {
                 id: privateApiId1,
@@ -187,14 +186,14 @@ describe("EndpointsStatsApi", () => {
                                         id: uuid(),
                                         language: "en",
                                         name: "Private API 1",
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        })
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            },
+        });
         await DbProvider.get().api.create({
             data: {
                 id: privateApiId2,
@@ -212,20 +211,20 @@ describe("EndpointsStatsApi", () => {
                                         id: uuid(),
                                         language: "en",
                                         name: "Private API 2",
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        })
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            },
+        });
 
         // Delete any existing test stats data
         await DbProvider.get().stats_api.deleteMany({
             where: {
-                id: { in: [statsApiData1.id, statsApiData2.id, privateApiStats1.id, privateApiStats2.id] }
-            }
+                id: { in: [statsApiData1.id, statsApiData2.id, privateApiStats1.id, privateApiStats2.id] },
+            },
         });
 
         // Create fresh test stats data directly with DbProvider
@@ -234,32 +233,17 @@ describe("EndpointsStatsApi", () => {
                 statsApiData1,
                 statsApiData2,
                 privateApiStats1,
-                privateApiStats2
-            ]
+                privateApiStats2,
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
-        // Clean up test data
-        await DbProvider.get().stats_api.deleteMany({
-            where: {
-                id: { in: [statsApiData1.id, statsApiData2.id, privateApiStats1.id, privateApiStats2.id] }
-            }
-        });
-
-        await DbProvider.get().api.deleteMany({
-            where: {
-                id: { in: [testApiId1, testApiId2, privateApiId1, privateApiId2] }
-            }
-        });
-
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id] }
-            }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().user.deleteMany({});
+        await DbProvider.get().stats_api.deleteMany({});
+        await DbProvider.get().api.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -274,7 +258,7 @@ describe("EndpointsStatsApi", () => {
                 // Need to include the required periodType
                 const input = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsApi.findMany({ input }, { req, res }, statsApi_findMany);
 
@@ -307,8 +291,8 @@ describe("EndpointsStatsApi", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const result = await statsApi.findMany({ input }, { req, res }, statsApi_findMany);
 
@@ -326,7 +310,7 @@ describe("EndpointsStatsApi", () => {
 
                 const input = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsApi.findMany({ input }, { req, res }, statsApi_findMany);
 
@@ -340,7 +324,7 @@ describe("EndpointsStatsApi", () => {
 
                 const input = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsApi.findMany({ input }, { req, res }, statsApi_findMany);
 
@@ -353,12 +337,12 @@ describe("EndpointsStatsApi", () => {
                 // Create a session for user1 who owns privateApiId1
                 const testUser = {
                     ...loggedInUserNoPremiumData,
-                    id: user1Id
+                    id: user1Id,
                 };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsApi.findMany({ input }, { req, res }, statsApi_findMany);
 
@@ -385,8 +369,8 @@ describe("EndpointsStatsApi", () => {
                     periodTimeFrame: {
                         // Invalid date objects that will cause errors
                         after: new Date("invalid-date"),
-                        before: new Date("invalid-date")
-                    }
+                        before: new Date("invalid-date"),
+                    },
                 };
 
                 try {
@@ -402,7 +386,7 @@ describe("EndpointsStatsApi", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
-                    periodType: "InvalidPeriod" as StatPeriodType
+                    periodType: "InvalidPeriod" as StatPeriodType,
                 };
 
                 try {
@@ -417,14 +401,14 @@ describe("EndpointsStatsApi", () => {
                 // Create a session for user1 who does NOT own privateApiId2
                 const testUser = {
                     ...loggedInUserNoPremiumData,
-                    id: user1Id
+                    id: user1Id,
                 };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Try to specifically query the other user's private API stats by name
                 const input = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private API 2" // This should match the name of user2's private API
+                    searchString: "Private API 2", // This should match the name of user2's private API
                 };
 
                 const result = await statsApi.findMany({ input }, { req, res }, statsApi_findMany);

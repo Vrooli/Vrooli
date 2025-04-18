@@ -1,4 +1,5 @@
 import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@local/shared";
+import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
@@ -58,7 +59,9 @@ export const TagModel: TagModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as TagPre;
                 return {
+                    id: data.id,
                     createdBy: data.anonymous ? { disconnect: true } : undefined,
+                    tag: noNull(data.tag),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.tag], data, ...rest }),
                 };
             },

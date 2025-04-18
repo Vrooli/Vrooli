@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { statsRoutine_findMany } from "../generated/statsRoutine_findMany.js"; // Assuming this generated type exists
 import { statsRoutine } from "./statsRoutine.js";
 
@@ -108,18 +109,11 @@ describe("EndpointsStatsRoutine", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(15_000); // Increased timeout for potentially more setup
-
-        // Clean previous test data
-        await DbProvider.get().stats_routine.deleteMany({
-            where: { routineId: { in: [testRoutineId1, testRoutineId2, privateRoutineId1, privateRoutineId2] } }
-        });
-        await DbProvider.get().routine.deleteMany({
-            where: { id: { in: [testRoutineId1, testRoutineId2, privateRoutineId1, privateRoutineId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_routine.deleteMany({});
+        await DbProvider.get().routine.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         // Create test users individually
         await DbProvider.get().user.create({
@@ -129,8 +123,8 @@ describe("EndpointsStatsRoutine", () => {
                 handle: "test-user-1",
                 status: "Unlocked",
                 isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] }
-            }
+                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            },
         });
         await DbProvider.get().user.create({
             data: {
@@ -139,8 +133,8 @@ describe("EndpointsStatsRoutine", () => {
                 handle: "test-user-2",
                 status: "Unlocked",
                 isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] }
-            }
+                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            },
         });
 
         // Create test routines (ensure all required fields are present)
@@ -150,11 +144,11 @@ describe("EndpointsStatsRoutine", () => {
                 { ...routineData1, permissions: JSON.stringify({}) },
                 { ...routineData2, permissions: JSON.stringify({}) },
                 { ...privateRoutineData1, permissions: JSON.stringify({}) },
-                { ...privateRoutineData2, permissions: JSON.stringify({}) }
+                { ...privateRoutineData2, permissions: JSON.stringify({}) },
             ].map(r => ({ // Adjust ownership fields
                 ...r,
-                ownedByUserId: r.ownedByUserId ?? undefined
-            }))
+                ownedByUserId: r.ownedByUserId ?? undefined,
+            })),
         });
 
         // Create fresh test stats data
@@ -163,24 +157,17 @@ describe("EndpointsStatsRoutine", () => {
                 statsRoutineData1,
                 statsRoutineData2,
                 privateRoutineStats1,
-                privateRoutineStats2
-            ]
+                privateRoutineStats2,
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(15_000);
-
-        // Clean up test data
-        await DbProvider.get().stats_routine.deleteMany({
-            where: { routineId: { in: [testRoutineId1, testRoutineId2, privateRoutineId1, privateRoutineId2] } }
-        });
-        await DbProvider.get().routine.deleteMany({
-            where: { id: { in: [testRoutineId1, testRoutineId2, privateRoutineId1, privateRoutineId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_routine.deleteMany({});
+        await DbProvider.get().routine.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -194,7 +181,7 @@ describe("EndpointsStatsRoutine", () => {
 
                 const input: StatsRoutineSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 // Assuming statsRoutine_findMany exists and is typed correctly
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
@@ -234,8 +221,8 @@ describe("EndpointsStatsRoutine", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
@@ -255,7 +242,7 @@ describe("EndpointsStatsRoutine", () => {
 
                 const input: StatsRoutineSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
@@ -275,7 +262,7 @@ describe("EndpointsStatsRoutine", () => {
 
                 const input: StatsRoutineSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
 
                 // The implementation doesn't assert ReadPublic, so readManyHelper's default behavior for unauthenticated users applies.
@@ -306,8 +293,8 @@ describe("EndpointsStatsRoutine", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("invalid-date"), // Invalid date
-                        before: new Date("invalid-date")
-                    }
+                        before: new Date("invalid-date"),
+                    },
                 };
 
                 try {
@@ -324,7 +311,7 @@ describe("EndpointsStatsRoutine", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { // Use 'any' to bypass TypeScript type checking for the test
-                    periodType: "InvalidPeriodType" as any
+                    periodType: "InvalidPeriodType" as any,
                 };
 
                 try {
@@ -345,7 +332,7 @@ describe("EndpointsStatsRoutine", () => {
                 // Try to specifically query user2's private routine stats by name
                 const input: StatsRoutineSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Routine 2" // Name of user2's private routine
+                    searchString: "Private Routine 2", // Name of user2's private routine
                 };
 
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);

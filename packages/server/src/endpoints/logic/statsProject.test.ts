@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { statsProject_findMany } from "../generated/statsProject_findMany.js"; // Assuming this generated type exists
 import { statsProject } from "./statsProject.js";
 
@@ -141,40 +142,33 @@ describe("EndpointsStatsProject", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(15_000);
-
-        // Clean previous test data
-        await DbProvider.get().stats_project.deleteMany({
-            where: { projectId: { in: [testProjectId1, testProjectId2, privateProjectId1, privateProjectId2] } }
-        });
-        await DbProvider.get().project.deleteMany({
-            where: { id: { in: [testProjectId1, testProjectId2, privateProjectId1, privateProjectId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_project.deleteMany({});
+        await DbProvider.get().project.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         // Create test users individually
         await DbProvider.get().user.create({
-            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         await DbProvider.get().user.create({
-            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
 
         // Create test projects (ensure all required fields are present)
         // Placeholder: Assuming projects need a name, permissions and potentially versions
         await DbProvider.get().project.createMany({
             data: [
-                { ...projectData1, permissions: JSON.stringify({}), /* versions: { create: [...] } */ },
-                { ...projectData2, permissions: JSON.stringify({}), /* versions: { create: [...] } */ },
-                { ...privateProjectData1, permissions: JSON.stringify({}), /* versions: { create: [...] } */ },
-                { ...privateProjectData2, permissions: JSON.stringify({}), /* versions: { create: [...] } */ }
+                { ...projectData1, permissions: JSON.stringify({}) /* versions: { create: [...] } */ },
+                { ...projectData2, permissions: JSON.stringify({}) /* versions: { create: [...] } */ },
+                { ...privateProjectData1, permissions: JSON.stringify({}) /* versions: { create: [...] } */ },
+                { ...privateProjectData2, permissions: JSON.stringify({}) /* versions: { create: [...] } */ },
             ].map(p => ({ // Adjust ownership fields based on actual model
                 ...p,
                 ownedByUserId: p.ownedByUserId ?? undefined,
                 // ownedByTeamId: p.ownedByTeamId ?? undefined,
-            }))
+            })),
         });
 
         // Create fresh test stats data
@@ -183,24 +177,17 @@ describe("EndpointsStatsProject", () => {
                 statsProjectData1,
                 statsProjectData2,
                 privateProjectStats1,
-                privateProjectStats2
-            ]
+                privateProjectStats2,
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(15_000);
-
-        // Clean up test data
-        await DbProvider.get().stats_project.deleteMany({
-            where: { projectId: { in: [testProjectId1, testProjectId2, privateProjectId1, privateProjectId2] } }
-        });
-        await DbProvider.get().project.deleteMany({
-            where: { id: { in: [testProjectId1, testProjectId2, privateProjectId1, privateProjectId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_project.deleteMany({});
+        await DbProvider.get().project.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -214,7 +201,7 @@ describe("EndpointsStatsProject", () => {
 
                 const input: StatsProjectSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
@@ -253,8 +240,8 @@ describe("EndpointsStatsProject", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
@@ -274,7 +261,7 @@ describe("EndpointsStatsProject", () => {
 
                 const input: StatsProjectSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
@@ -293,7 +280,7 @@ describe("EndpointsStatsProject", () => {
 
                 const input: StatsProjectSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 // Assuming readManyHelper allows public access for projects when not logged in
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
@@ -316,7 +303,7 @@ describe("EndpointsStatsProject", () => {
 
                 const input: StatsProjectSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") }
+                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") },
                 };
 
                 try {
@@ -348,7 +335,7 @@ describe("EndpointsStatsProject", () => {
                 // Search for User 2's private project
                 const input: StatsProjectSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Project 2"
+                    searchString: "Private Project 2",
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 

@@ -1465,6 +1465,7 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         suggestedNextByRoutineVersion: "RoutineVersion",
     },
     joinMap: {
+        subroutineLinks: "subroutine",
         suggestedNextByRoutineVersion: "toRoutineVersion",
     },
     countFields: {

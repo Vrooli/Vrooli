@@ -25,8 +25,6 @@ describe("AuthTokensService", () => {
     });
 
     beforeEach(async function before() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany({});
         await DbProvider.get().user_auth.deleteMany({});
         await DbProvider.get().session.deleteMany({});
@@ -48,8 +46,6 @@ describe("AuthTokensService", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany({});
         await DbProvider.get().user_auth.deleteMany({});
         await DbProvider.get().session.deleteMany({});
@@ -74,8 +70,6 @@ describe("AuthTokensService", () => {
         let publicKey: string;
 
         beforeEach(async function setupAuthTests() {
-            this.timeout(10_000);
-
             const keys = generateKeyPairSync("rsa", {
                 modulusLength: 2048,
                 publicKeyEncoding: {
@@ -264,7 +258,6 @@ describe("AuthTokensService", () => {
         });
 
         it("token has expired completely (beyond refresh window)", async function testExpiredToken() {
-            this.timeout(10000);
             // Create a token with a very old expiration
             const oldTime = Date.now() - DAYS_30_MS * 2;
             const expStub = sinon.stub(JsonWebToken, "createExpirationTime").returns(Math.floor(oldTime / SECONDS_1_MS));
@@ -350,8 +343,6 @@ describe("AuthTokensService", () => {
         let publicKey: string;
 
         beforeEach(function setupAuthTests() {
-            this.timeout(10000);
-
             instance = JsonWebToken.get();
             const { privateKey: privKey, publicKey: pubKey } = generateKeyPairSync("rsa", {
                 modulusLength: 2048,
@@ -405,7 +396,6 @@ describe("AuthTokensService", () => {
             });
 
             it("token has expired completely (beyond refresh window)", async function testExpiredToken() {
-                this.timeout(10000);
                 // Create a token with a very old expiration
                 const oldTime = Date.now() - DAYS_30_MS * 2;
                 const expStub = sinon.stub(JsonWebToken, "createExpirationTime").returns(Math.floor(oldTime / SECONDS_1_MS));
@@ -435,8 +425,6 @@ describe("AuthTokensService", () => {
         });
 
         it("returns existing token and payload if token is valid and unexpired", async function testValidUnexpiredToken() {
-            this.timeout(10000);
-
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -454,8 +442,6 @@ describe("AuthTokensService", () => {
         });
 
         it("handles token with complex user data structure correctly", async function testComplexUserData() {
-            this.timeout(10000);
-
             const sessionId = uuid();
             const lastRefreshAt = new Date();
             const userId = uuid();
@@ -501,8 +487,6 @@ describe("AuthTokensService", () => {
         });
 
         it("applies additionalData correctly when provided", async function testAdditionalData() {
-            this.timeout(10000);
-
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -533,8 +517,6 @@ describe("AuthTokensService", () => {
         });
 
         it("uses modifyPayload callback correctly when provided", async function testModifyPayload() {
-            this.timeout(10000);
-
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -561,8 +543,6 @@ describe("AuthTokensService", () => {
         });
 
         it("refreshes the token if access token expired and can be refreshed", async function testTokenRefresh() {
-            this.timeout(10000); // Set higher timeout for this specific test
-
             const sessionId = uuid();
             const lastRefreshAt = new Date();
 
@@ -680,8 +660,6 @@ describe("AuthTokensService", () => {
         let res: Response;
 
         beforeEach(function setupApiTokenTests() {
-            this.timeout(10_000);
-
             instance = JsonWebToken.get();
             const { privateKey: privKey, publicKey: pubKey } = generateKeyPairSync("rsa", {
                 modulusLength: 2048,
@@ -766,8 +744,6 @@ describe("AuthTokensService", () => {
         let res: Response;
 
         beforeEach(function setupSessionTokenTests() {
-            this.timeout(10_000);
-
             instance = JsonWebToken.get();
             const { privateKey: privKey, publicKey: pubKey } = generateKeyPairSync("rsa", {
                 modulusLength: 2048,

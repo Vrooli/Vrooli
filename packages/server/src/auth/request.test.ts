@@ -18,8 +18,6 @@ describe("RequestService", () => {
     let redisClient: RedisClientType | null = null;
 
     before(async function before() {
-        this.timeout(5_000);
-
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
 

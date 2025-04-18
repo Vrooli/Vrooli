@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { RecursivePartial } from "../../types.ts";
 import { statsUser_findMany } from "../generated/statsUser_findMany.js"; // Assuming this generated type exists
 import { statsUser } from "./statsUser.js";
@@ -17,7 +18,6 @@ const user2Id = uuid();
 const publicUserId = uuid(); // A public user (not a bot)
 const user1BotId = uuid(); // A bot owned by user1
 const publicBotId = uuid(); // A public bot not owned by user1
-const privateBotId = uuid(); // A private bot not owned by user1
 
 // Sample User data structure
 const userData1 = {
@@ -55,13 +55,6 @@ const publicBotData = {
     isBot: true,
     name: "Public Bot",
     invitedByUserId: user2Id,
-};
-
-const privateBotData = {
-    id: privateBotId,
-    isPrivate: true,
-    isBot: true,
-    name: "Private Bot",
 };
 
 // Adjust fields based on actual StatsUser model
@@ -226,17 +219,17 @@ const statsPublicBotData = {
 };
 
 const allStattedObjectIds = [userData1, userData2, publicUserData, user1BotData, publicBotData];
-const extractStattedObjectInfoFromStats = async (result: RecursivePartial<StatsUserSearchResult>) => {
+async function extractStattedObjectInfoFromStats(result: RecursivePartial<StatsUserSearchResult>) {
     const resultsStatIds = result.edges!.map(edge => edge!.node!.id) as string[];
     const withStattedIds = await DbProvider.get().stats_user.findMany({
         where: { id: { in: resultsStatIds } },
-        select: { userId: true }
+        select: { userId: true },
     });
     const resultStattedIds = withStattedIds.map(stat => stat[Object.keys(stat)[0]]);
     const resultStattedNames = allStattedObjectIds.filter(user => resultStattedIds.includes(user.id)).map(user => user.name);
 
     return { resultStattedIds, resultStattedNames };
-};
+}
 
 describe("EndpointsStatsUser", () => {
     let loggerErrorStub: sinon.SinonStub;
@@ -248,25 +241,20 @@ describe("EndpointsStatsUser", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(15_000);
-
-        // Clean previous test data
-        await DbProvider.get().stats_user.deleteMany({
-            where: { userId: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_user.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         // Create test users
         await DbProvider.get().user.create({
-            data: { ...userData1, handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { ...userData1, handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         await DbProvider.get().user.create({
-            data: { ...userData2, handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { ...userData2, handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         await DbProvider.get().user.create({
-            data: { ...publicUserData, handle: "public-user", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { ...publicUserData, handle: "public-user", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         // Create the bot owned by user1
         await DbProvider.get().user.create({
@@ -275,8 +263,8 @@ describe("EndpointsStatsUser", () => {
                 handle: "user1-bot",
                 status: "Unlocked",
                 isBotDepictingPerson: false,
-                invitedByUserId: user1Id
-            }
+                invitedByUserId: user1Id,
+            },
         });
         // Create the public bot not owned by user1
         await DbProvider.get().user.create({
@@ -285,8 +273,8 @@ describe("EndpointsStatsUser", () => {
                 handle: "public-bot",
                 status: "Unlocked",
                 isBotDepictingPerson: false,
-                invitedByUserId: user2Id
-            }
+                invitedByUserId: user2Id,
+            },
         });
 
         // Create fresh test stats data
@@ -296,21 +284,16 @@ describe("EndpointsStatsUser", () => {
                 statsUserData2,
                 statsPublicUserData,
                 statsUser1BotData,
-                statsPublicBotData
-            ]
+                statsPublicBotData,
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(15_000);
-
-        // Clean up test data
-        await DbProvider.get().stats_user.deleteMany({
-            where: { userId: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id, publicUserId, user1BotId, publicBotId] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_user.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -324,7 +307,7 @@ describe("EndpointsStatsUser", () => {
 
                 const input: StatsUserSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const expectedStattedIds = [
                     user1Id, // Own (Public)
@@ -350,8 +333,8 @@ describe("EndpointsStatsUser", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const expectedStatIds = [
                     statsUserData1.id,
@@ -376,7 +359,7 @@ describe("EndpointsStatsUser", () => {
 
                 const input: StatsUserSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const expectedStattedIds = [
                     user1Id, // Own (Public)
@@ -397,7 +380,7 @@ describe("EndpointsStatsUser", () => {
 
                 const input: StatsUserSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const expectedStattedIds = [
                     user1Id, // Own (Public)
@@ -423,7 +406,7 @@ describe("EndpointsStatsUser", () => {
 
                 const input: StatsUserSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") }
+                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") },
                 };
 
                 try {

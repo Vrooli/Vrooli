@@ -1,10 +1,11 @@
-import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser, uuidValidate } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { AnyObjectSchema } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
 import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
 import { PreMap } from "../models/types.js";
 import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps.js";
@@ -164,6 +165,13 @@ async function buildOperations(
         const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as ModelType, true, "cudHelper loop");
         const deletingIds = Delete.map(({ input }) => input);
 
+        // Calculate select object once per type, default if empty
+        let select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
+        if (!select || Object.keys(select).length === 0) {
+            logger.warning(`[buildOperations] Empty select for ${objectType}. Defaulting to { id: true }.`, { trace: "0800" });
+            select = { id: true };
+        }
+
         // Create operations
         for (const { index } of Create) {
             const { input } = inputData[index];
@@ -179,10 +187,9 @@ async function buildOperations(
                     data: input,
                     idsCreateToConnect: maps.idsCreateToConnect,
                     preMap: maps.preMap,
-                    userData
+                    userData,
                 })
                 : input;
-            const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
             const createOperation = (DbProvider.get()[dbTable] as PrismaDelegate).create({
                 data,
@@ -195,35 +202,31 @@ async function buildOperations(
         for (const { index } of Update) {
             const { input } = inputData[index];
 
-            // Check if the input has an ID and if the input is not empty
-            if (!input || typeof input !== "object" || !(input as object)[idField]) {
-                console.error(`[buildOperations] Missing required ID for update operation: ${JSON.stringify({ objectType, input, idField })}`);
-                continue; // Skip this update operation
-            }
-
             const data = mutate.shape.update
                 ? await mutate.shape.update({
                     additionalData,
                     data: input,
                     idsCreateToConnect: maps.idsCreateToConnect,
                     preMap: maps.preMap,
-                    userData
+                    userData,
                 })
                 : input;
 
             // Verify that the shape function returned a valid update object
             if (!data || Object.keys(data).length === 0) {
-                console.warn(`[buildOperations] Empty data after shape.update for ${objectType}:`, {
-                    id: (input as PrismaUpdate)[idField],
-                    originalInput: input,
-                });
+                logger.warning(`[buildOperations] Empty data after shape.update for ${objectType}`, { trace: "0801" });
                 continue; // Skip this update operation if data is empty
             }
 
-            const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
+            // Verify that the "where" object is valid
+            const where = { id: typeof input === "string" ? input : input.id };
+            if (typeof where.id !== "string" || !uuidValidate(where.id)) {
+                logger.error(`[buildOperations] Invalid where object for update operation: ${JSON.stringify({ objectType, input, where })}`, { trace: "0802" });
+                throw new CustomError("0802", "InternalError", { objectType });
+            }
 
             const updateOperation = (DbProvider.get()[dbTable] as PrismaDelegate).update({
-                where: { [idField]: (input as PrismaUpdate)[idField] },
+                where,
                 data,
                 select,
             }) as PrismaPromise<object>;

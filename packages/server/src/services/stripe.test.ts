@@ -196,8 +196,8 @@ describe("handlerResult", () => {
         handlerResult(status, mockRes, undefined, undefined, additionalArgs);
 
         expect(loggerErrorStub.calledOnce).to.be.true;
-        expect(loggerErrorStub.firstCall.args[1]).to.have.property('0');
-        expect(loggerErrorStub.firstCall.args[1]['0']).to.equal(additionalArgs);
+        expect(loggerErrorStub.firstCall.args[1]).to.have.property("0");
+        expect(loggerErrorStub.firstCall.args[1]["0"]).to.equal(additionalArgs);
     });
 });
 
@@ -205,14 +205,12 @@ describe("Redis Price Operations", () => {
     const originalEnv = process.env.NODE_ENV;
     let sandbox: sinon.SinonSandbox;
 
-    beforeEach(async function () {
-        this.timeout(10_000);
+    beforeEach(async function beforeEach() {
         sandbox = sinon.createSandbox();
         process.env.NODE_ENV = "test";
     });
 
-    afterEach(async function () {
-        this.timeout(10_000);
+    afterEach(async function afterEach() {
         sandbox.restore();
         await closeRedis();
     });
@@ -221,8 +219,8 @@ describe("Redis Price Operations", () => {
         process.env.NODE_ENV = originalEnv; // Restore the original NODE_ENV
     });
 
-    describe(`Redis price storage and retrieval`, () => {
-        beforeEach(async function () {
+    describe("Redis price storage and retrieval", () => {
+        beforeEach(async function beforeEach() {
             // Ensure we have a clean Redis environment for each test
             await withRedis({
                 process: async (redisClient) => {
@@ -239,7 +237,6 @@ describe("Redis Price Operations", () => {
         });
 
         it("correctly stores and fetches the price for a given payment type", async function () {
-            this.timeout(10_000);
             const paymentType = PaymentType.PremiumMonthly;
             const price = 999;
 
@@ -254,7 +251,6 @@ describe("Redis Price Operations", () => {
         });
 
         it("returns null for a price that was not stored", async function () {
-            this.timeout(10_000);
             const paymentType = "NonExistentType" as unknown as PaymentType;
 
             // Attempt to fetch a price for a payment type that hasn't been stored
@@ -265,7 +261,6 @@ describe("Redis Price Operations", () => {
         });
 
         it("returns null when the stored price is not a number", async function () {
-            this.timeout(10_000);
             const paymentType = PaymentType.PremiumMonthly;
 
             // Use withRedis to manually set an invalid value in Redis
@@ -286,7 +281,6 @@ describe("Redis Price Operations", () => {
         });
 
         it("returns null when the price is less than 0", async function () {
-            this.timeout(10_000);
             const paymentType = PaymentType.PremiumMonthly;
             const price = -1;
 
@@ -301,7 +295,6 @@ describe("Redis Price Operations", () => {
         });
 
         it("returns null when the price is NaN", async function () {
-            this.timeout(10_000);
             const paymentType = PaymentType.PremiumMonthly;
             const price = NaN;
 
@@ -574,8 +567,6 @@ describe("getVerifiedSubscriptionInfo", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
@@ -630,8 +621,6 @@ describe("getVerifiedCustomerInfo", () => {
     const user7Id = uuid();
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         stripe = new StripeMock() as unknown as Stripe;
         StripeMock.resetMock();
         StripeMock.injectData({
@@ -712,7 +701,7 @@ describe("getVerifiedCustomerInfo", () => {
                         isActive: true,
                     },
                 },
-            }
+            },
         });
         await DbProvider.get().user.create({
             data: {
@@ -733,7 +722,7 @@ describe("getVerifiedCustomerInfo", () => {
                 id: user3Id,
                 name: "user3",
                 emails: {
-                    create: [{ emailAddress: "missing@example.com" }]
+                    create: [{ emailAddress: "missing@example.com" }],
                 },
             },
         });
@@ -773,8 +762,6 @@ describe("getVerifiedCustomerInfo", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
@@ -898,8 +885,6 @@ describe("createStripeCustomerId", () => {
     const user1Id = uuid();
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         stripe = new StripeMock() as unknown as Stripe;
 
         await DbProvider.get().user.deleteMany();
@@ -915,8 +900,6 @@ describe("createStripeCustomerId", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
@@ -986,8 +969,6 @@ describe("handleCheckoutSessionExpired", () => {
     const user2Id = uuid();
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         stripe = new StripeMock() as unknown as Stripe;
         res = createRes();
 
@@ -998,7 +979,7 @@ describe("handleCheckoutSessionExpired", () => {
             data: {
                 id: user1Id,
                 name: "user1",
-                stripeCustomerId: "customer1"
+                stripeCustomerId: "customer1",
             },
         });
         await DbProvider.get().user.create({
@@ -1023,8 +1004,6 @@ describe("handleCheckoutSessionExpired", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
@@ -1071,8 +1050,6 @@ describe("handleCustomerDeleted", () => {
     const user2Id = uuid();
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         stripe = new StripeMock() as unknown as Stripe;
         res = createRes();
 
@@ -1096,8 +1073,6 @@ describe("handleCustomerDeleted", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
@@ -1160,8 +1135,6 @@ describe("handleCustomerSourceExpiring", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         res = createRes();
         Bull.resetMock();
@@ -1176,14 +1149,12 @@ describe("handleCustomerSourceExpiring", () => {
                 stripeCustomerId: "cus_123",
                 emails: {
                     create: [{ emailAddress: "user1@example.com" }, { emailAddress: "user2@example.com" }],
-                }
+                },
             },
         });
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
         await DbProvider.get().email.deleteMany();
@@ -1237,8 +1208,6 @@ describe("handleCustomerSubscriptionDeleted", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         res = createRes();
         Bull.resetMock();
@@ -1271,8 +1240,6 @@ describe("handleCustomerSubscriptionDeleted", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
         await DbProvider.get().email.deleteMany();
@@ -1325,8 +1292,6 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         res = createRes();
         Bull.resetMock();
 
@@ -1340,7 +1305,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
                 stripeCustomerId: "cus_123",
                 emails: {
                     create: [{ emailAddress: "user@example.com" }],
-                }
+                },
             },
         });
         await DbProvider.get().user.create({
@@ -1353,8 +1318,6 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
         await DbProvider.get().email.deleteMany();
@@ -1429,8 +1392,6 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         res = createRes(); // Assuming this creates a mock response object
         Bull.resetMock();
@@ -1444,8 +1405,6 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
         await DbProvider.get().email.deleteMany();
@@ -1551,8 +1510,6 @@ describe("handleInvoicePaymentCreated", () => {
     let res;
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         res = createRes();
         PrismaClient.injectData({
@@ -1568,8 +1525,6 @@ describe("handleInvoicePaymentCreated", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
         await DbProvider.get().email.deleteMany();
@@ -1675,8 +1630,6 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         res = createRes();
         PrismaClient.injectData({
@@ -1696,8 +1649,6 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
         await DbProvider.get().email.deleteMany();
@@ -1771,8 +1722,6 @@ describe("handleInvoicePaymentSucceeded", () => {
     let stripeMock;
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         res = createRes();
         PrismaClient.injectData({
@@ -1799,8 +1748,6 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
         await DbProvider.get().user.deleteMany();
         await DbProvider.get().premium.deleteMany();
@@ -1904,8 +1851,6 @@ describe("handlePriceUpdated", () => {
     let res;
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
         RedisClientMock.resetMock();
         RedisClientMock.__setAllMockData({});
@@ -1982,8 +1927,6 @@ describe("checkSubscriptionPrices", () => {
     const yearlyPrice = 10_000;
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
         jest.clearAllMocks();
 
         // Setup Stripe Mock
@@ -2007,8 +1950,6 @@ describe("checkSubscriptionPrices", () => {
     });
 
     afterEach(async function afterEach() {
-        this.timeout(10_000);
-
         StripeMock.resetMock();
     });
 

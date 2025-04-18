@@ -346,8 +346,14 @@ export async function permissionsCheck(
     userData: Pick<SessionUser, "id"> | null,
     throwsOnError = true,
 ): Promise<boolean> {
+    const isAdmin = userData?.id && userData.id === SEEDED_IDS.User.Admin;
     // Get permissions
     const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
+    // If you're an admin, skip permissions checking
+    if (isAdmin) {
+        logger.warning("Using admin privileges to perform action", { idsByAction, permissionsById });
+        return true;
+    }
     // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
         // Skip "Create" action
@@ -376,13 +382,7 @@ export async function permissionsCheck(
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
                 if (throwsOnError) {
-                    // If you're ad admin, do it anyway
-                    const isAdmin = userData?.id && userData.id === SEEDED_IDS.User.Admin;
-                    if (isAdmin) {
-                        logger.warning("Using admin privileges to perform action", { action, id, __typename: authDataById[id].__typename });
-                    } else {
-                        throw new CustomError("0297", "Unauthorized", { action, id, __typename: authDataById[id].__typename });
-                    }
+                    throw new CustomError("0297", "Unauthorized", { action, id, __typename: authDataById[id].__typename });
                 } else {
                     return false;
                 }

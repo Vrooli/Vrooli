@@ -6,6 +6,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { reminder_createOne } from "../generated/reminder_createOne.js";
 import { reminder_findMany } from "../generated/reminder_findMany.js";
 import { reminder_findOne } from "../generated/reminder_findOne.js";
@@ -29,7 +30,7 @@ const userReminder1 = {
     index: 0,
     isComplete: false,
     created_at: new Date("2023-03-01"),
-    updated_at: new Date("2023-03-12")
+    updated_at: new Date("2023-03-12"),
 };
 
 const userReminder2 = {
@@ -40,11 +41,8 @@ const userReminder2 = {
     index: 1,
     isComplete: false,
     created_at: new Date("2023-03-05"),
-    updated_at: new Date("2023-03-05")
+    updated_at: new Date("2023-03-05"),
 };
-
-// Array of all reminder IDs for easier testing
-const allReminderIds = [userReminder1.id, userReminder2.id];
 
 describe("EndpointsReminder", () => {
     let loggerErrorStub: sinon.SinonStub;
@@ -56,8 +54,8 @@ describe("EndpointsReminder", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
         await DbProvider.get().user.deleteMany({});
         await DbProvider.get().reminder_list.deleteMany({});
         await DbProvider.get().reminder.deleteMany({});
@@ -99,13 +97,6 @@ describe("EndpointsReminder", () => {
             },
         });
 
-        // Delete any existing test reminders
-        await DbProvider.get().reminder.deleteMany({
-            where: {
-                id: { in: allReminderIds },
-            },
-        });
-
         // Create user-specific reminders
         await DbProvider.get().reminder.create({
             data: {
@@ -116,9 +107,9 @@ describe("EndpointsReminder", () => {
                         created_at: new Date("2023-03-01"),
                         updated_at: new Date("2023-03-01"),
                         user: {
-                            connect: { id: user1Id }
+                            connect: { id: user1Id },
                         },
-                    }
+                    },
                 },
             },
         });
@@ -131,30 +122,21 @@ describe("EndpointsReminder", () => {
                         created_at: new Date("2023-03-05"),
                         updated_at: new Date("2023-03-05"),
                         user: {
-                            connect: { id: user2Id }
+                            connect: { id: user2Id },
                         },
-                    }
+                    },
                 },
             },
         });
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
-        // Clean up test reminders
-        await DbProvider.get().reminder.deleteMany({
-            where: {
-                id: { in: allReminderIds },
-            },
-        });
-
-        // Clean up test users
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id] },
-            },
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().reminder.deleteMany({});
+        await DbProvider.get().reminder_list.deleteMany({});
+        await DbProvider.get().reminder_item.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -380,7 +362,7 @@ describe("EndpointsReminder", () => {
 
                 // Check if the reminder list exists before trying to connect to it
                 const existingList = await DbProvider.get().reminder_list.findUnique({
-                    where: { id: reminderListUser1Id }
+                    where: { id: reminderListUser1Id },
                 });
 
                 if (!existingList) {
@@ -414,7 +396,7 @@ describe("EndpointsReminder", () => {
                     index: 3,
                     reminderListCreate: {
                         id: reminderListId,
-                    }
+                    },
                 };
 
                 const result = await reminder.createOne({ input }, { req, res }, reminder_createOne);
@@ -435,7 +417,7 @@ describe("EndpointsReminder", () => {
                     description: "This reminder should not be created",
                     dueDate: new Date("2023-04-01"),
                     index: 4,
-                    reminderListConnect: uuid()
+                    reminderListConnect: uuid(),
                 };
 
                 try {

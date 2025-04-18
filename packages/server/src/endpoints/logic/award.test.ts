@@ -6,6 +6,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { award_findMany } from "../generated/award_findMany.js";
 import { award } from "./award.js";
 
@@ -20,7 +21,7 @@ const userAward1 = {
     created_at: new Date("2023-03-01"),
     updated_at: new Date("2023-03-01"),
     timeCurrentTierCompleted: null,
-    userId: user1Id
+    userId: user1Id,
 };
 
 const userAward2 = {
@@ -30,11 +31,8 @@ const userAward2 = {
     created_at: new Date("2023-03-15"),
     updated_at: new Date("2023-03-15"),
     timeCurrentTierCompleted: null,
-    userId: user2Id
+    userId: user2Id,
 };
-
-// Array of all award IDs for easier testing
-const allAwardIds = [userAward1.id, userAward2.id];
 
 describe("EndpointsAward", () => {
     let loggerErrorStub: sinon.SinonStub;
@@ -46,14 +44,10 @@ describe("EndpointsAward", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
-        // Create test users
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id] }
-            }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().user.deleteMany({});
+        await DbProvider.get().award.deleteMany({});
 
         await DbProvider.get().user.create({
             data: {
@@ -67,10 +61,10 @@ describe("EndpointsAward", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
         await DbProvider.get().user.create({
             data: {
@@ -84,44 +78,26 @@ describe("EndpointsAward", () => {
                 auths: {
                     create: [{
                         provider: "Password",
-                        hashed_password: "dummy-hash"
-                    }]
-                }
-            }
-        });
-
-        // Delete any existing test awards
-        await DbProvider.get().award.deleteMany({
-            where: {
-                id: { in: allAwardIds }
-            }
+                        hashed_password: "dummy-hash",
+                    }],
+                },
+            },
         });
 
         // Create user-specific awards
         await DbProvider.get().award.create({
-            data: userAward1
+            data: userAward1,
         });
         await DbProvider.get().award.create({
-            data: userAward2
+            data: userAward2,
         });
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
-        // Clean up test awards
-        await DbProvider.get().award.deleteMany({
-            where: {
-                id: { in: allAwardIds }
-            }
-        });
-
-        // Clean up test users
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id] }
-            }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().award.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -140,7 +116,7 @@ describe("EndpointsAward", () => {
                 ];
 
                 const input = {
-                    take: 10
+                    take: 10,
                 };
                 const result = await award.findMany({ input }, { req, res }, award_findMany);
 
@@ -164,8 +140,8 @@ describe("EndpointsAward", () => {
                 const input = {
                     updatedTimeFrame: {
                         after: new Date("2023-02-01"),
-                        before: new Date("2023-04-01")
-                    }
+                        before: new Date("2023-04-01"),
+                    },
                 };
                 const result = await award.findMany({ input }, { req, res }, award_findMany);
 
@@ -183,7 +159,7 @@ describe("EndpointsAward", () => {
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
                 const input = {
-                    take: 10
+                    take: 10,
                 };
                 try {
                     await award.findMany({ input }, { req, res }, award_findMany);
@@ -195,7 +171,7 @@ describe("EndpointsAward", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input = {
-                    take: 10
+                    take: 10,
                 };
                 try {
                     await award.findMany({ input }, { req, res }, award_findMany);
@@ -213,8 +189,8 @@ describe("EndpointsAward", () => {
                     updatedTimeFrame: {
                         // Invalid date objects that will cause errors
                         after: new Date("invalid-date"),
-                        before: new Date("invalid-date")
-                    }
+                        before: new Date("invalid-date"),
+                    },
                 };
 
                 try {

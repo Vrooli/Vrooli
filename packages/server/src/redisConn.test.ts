@@ -19,8 +19,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
 
     describe("createRedisClient function tests", () => {
         it("should create and connect a Redis client successfully", async () => {
-            this.timeout(5_000);
-
             const client = await createRedisClient();
             expect(client).to.not.be.null;
             expect(client?.isReady).to.be.true;
@@ -28,7 +26,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
         });
 
         it("should handle 'error' events correctly", async () => {
-            this.timeout(5_000);
             loggerErrorStub.reset();
 
             const client = await createRedisClient();
@@ -41,7 +38,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
         });
 
         it("should handle 'end' events correctly", async () => {
-            this.timeout(5_000);
             loggerInfoStub.reset();
 
             const client = await createRedisClient();
@@ -57,8 +53,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
 
     describe("initializeRedis function tests", () => {
         it("should initialize a new Redis client when not already initialized", async () => {
-            this.timeout(5_000);
-
             const client = await initializeRedis();
             expect(client).to.not.be.null;
             expect(client?.isReady).to.be.true;
@@ -66,8 +60,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
         });
 
         it("should not initialize a new Redis client if one is already initialized", async () => {
-            this.timeout(5_000);
-
             const client1 = await initializeRedis();
             const client2 = await initializeRedis();
             expect(client1).to.equal(client2);
@@ -75,8 +67,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
         });
 
         it("should return the existing Redis client when already initialized", async () => {
-            this.timeout(5_000);
-
             const client1 = await initializeRedis();
             const client2 = await initializeRedis();
             expect(client1).to.equal(client2);
@@ -86,8 +76,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
 
     describe("withRedis", () => {
         it("executes process successfully", async () => {
-            this.timeout(5_000);
-
             const processStub = sinon.stub().resolves("some value");
             const success = await withRedis({ process: processStub, trace: "testTrace", traceObject: {} });
 
@@ -97,7 +85,6 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
         });
 
         it("handles process errors, logs them", async () => {
-            this.timeout(5_000);
             loggerErrorStub.reset();
 
             const testError = new Error("Test error");

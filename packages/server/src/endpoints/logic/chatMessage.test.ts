@@ -6,6 +6,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { chatMessage_findMany } from "../generated/chatMessage_findMany.js";
 import { chatMessage_findOne } from "../generated/chatMessage_findOne.js";
 import { chatMessage } from "./chatMessage.js";
@@ -109,18 +110,6 @@ const privateChatMessage = {
     parent: null,
 };
 
-// Array of all message IDs for easier testing
-const allMessageIds = [
-    user1Message1.id,
-    botMessage1.id,
-    user2Message1.id,
-    publicChatMessage.id,
-    privateChatMessage.id,
-];
-
-// Array of all chat IDs for easier testing
-const allChatIds = [chatId, publicChatId, privateChatId];
-
 describe("EndpointsChatMessage", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
@@ -131,14 +120,11 @@ describe("EndpointsChatMessage", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(10_000);
-
-        // Create test users
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id, user3Id, botId] },
-            },
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().user.deleteMany({});
+        await DbProvider.get().chat_message.deleteMany({});
+        await DbProvider.get().chat.deleteMany({});
 
         await DbProvider.get().user.create({
             data: {
@@ -203,19 +189,6 @@ describe("EndpointsChatMessage", () => {
                 isBot: true,
                 isBotDepictingPerson: false,
                 isPrivate: false,
-            },
-        });
-
-        // Delete any existing test chats and messages
-        await DbProvider.get().chat_message.deleteMany({
-            where: {
-                id: { in: allMessageIds },
-            },
-        });
-
-        await DbProvider.get().chat.deleteMany({
-            where: {
-                id: { in: allChatIds },
             },
         });
 
@@ -399,28 +372,11 @@ describe("EndpointsChatMessage", () => {
     });
 
     after(async function after() {
-        this.timeout(10_000);
-
-        // Clean up test messages
-        await DbProvider.get().chat_message.deleteMany({
-            where: {
-                id: { in: allMessageIds },
-            },
-        });
-
-        // Clean up test chats
-        await DbProvider.get().chat.deleteMany({
-            where: {
-                id: { in: allChatIds },
-            },
-        });
-
-        // Clean up test users
-        await DbProvider.get().user.deleteMany({
-            where: {
-                id: { in: [user1Id, user2Id, user3Id, botId] },
-            },
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().chat_message.deleteMany({});
+        await DbProvider.get().chat.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { statsCode_findMany } from "../generated/statsCode_findMany.js"; // Assuming this generated type exists
 import { statsCode } from "./statsCode.js";
 
@@ -100,18 +101,11 @@ describe("EndpointsStatsCode", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(15_000);
-
-        // Clean previous test data
-        await DbProvider.get().stats_code.deleteMany({
-            where: { codeId: { in: [testCodeId1, testCodeId2, privateCodeId1, privateCodeId2] } }
-        });
-        await DbProvider.get().code.deleteMany({
-            where: { id: { in: [testCodeId1, testCodeId2, privateCodeId1, privateCodeId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_code.deleteMany({});
+        await DbProvider.get().code.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         // Create test users individually
         await DbProvider.get().user.create({
@@ -121,8 +115,8 @@ describe("EndpointsStatsCode", () => {
                 handle: "test-user-1",
                 status: "Unlocked",
                 isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] }
-            }
+                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            },
         });
         await DbProvider.get().user.create({
             data: {
@@ -131,23 +125,23 @@ describe("EndpointsStatsCode", () => {
                 handle: "test-user-2",
                 status: "Unlocked",
                 isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] }
-            }
+                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            },
         });
 
         // Create test code snippets (ensure all required fields are present)
         // Placeholder: Assuming code needs a name and potentially versions/language
         await DbProvider.get().code.createMany({
             data: [
-                { ...codeData1, /* language: "typescript", versions: { create: [...] } */ },
-                { ...codeData2, /* language: "python", versions: { create: [...] } */ },
-                { ...privateCodeData1, /* language: "typescript", versions: { create: [...] } */ },
-                { ...privateCodeData2, /* language: "python", versions: { create: [...] } */ }
+                { ...codeData1 /* language: "typescript", versions: { create: [...] } */ },
+                { ...codeData2 /* language: "python", versions: { create: [...] } */ },
+                { ...privateCodeData1 /* language: "typescript", versions: { create: [...] } */ },
+                { ...privateCodeData2 /* language: "python", versions: { create: [...] } */ },
             ].map(c => ({ // Adjust ownership fields and add required permissions
                 ...c,
                 ownedByUserId: c.ownedByUserId ?? undefined,
                 permissions: c.permissions ?? JSON.stringify({}), // Add default permissions
-            }))
+            })),
         });
 
         // Create fresh test stats data
@@ -156,24 +150,17 @@ describe("EndpointsStatsCode", () => {
                 statsCodeData1,
                 statsCodeData2,
                 privateCodeStats1,
-                privateCodeStats2
-            ]
+                privateCodeStats2,
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(15_000);
-
-        // Clean up test data
-        await DbProvider.get().stats_code.deleteMany({
-            where: { codeId: { in: [testCodeId1, testCodeId2, privateCodeId1, privateCodeId2] } }
-        });
-        await DbProvider.get().code.deleteMany({
-            where: { id: { in: [testCodeId1, testCodeId2, privateCodeId1, privateCodeId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_code.deleteMany({});
+        await DbProvider.get().code.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -187,7 +174,7 @@ describe("EndpointsStatsCode", () => {
 
                 const input: StatsCodeSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsCode.findMany({ input }, { req, res }, statsCode_findMany);
 
@@ -224,8 +211,8 @@ describe("EndpointsStatsCode", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const result = await statsCode.findMany({ input }, { req, res }, statsCode_findMany);
 
@@ -245,7 +232,7 @@ describe("EndpointsStatsCode", () => {
 
                 const input: StatsCodeSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsCode.findMany({ input }, { req, res }, statsCode_findMany);
 
@@ -264,7 +251,7 @@ describe("EndpointsStatsCode", () => {
 
                 const input: StatsCodeSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 // Assuming readManyHelper allows public access for code when not logged in
                 const result = await statsCode.findMany({ input }, { req, res }, statsCode_findMany);
@@ -287,7 +274,7 @@ describe("EndpointsStatsCode", () => {
 
                 const input: StatsCodeSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") }
+                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") },
                 };
 
                 try {
@@ -319,7 +306,7 @@ describe("EndpointsStatsCode", () => {
                 // Search for User 2's private code
                 const input: StatsCodeSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Code 2" // Assuming name field exists
+                    searchString: "Private Code 2", // Assuming name field exists
                 };
                 const result = await statsCode.findMany({ input }, { req, res }, statsCode_findMany);
 

@@ -1337,9 +1337,6 @@ function realTest() { return 'Hello2'; }`,
 
         describe("Memory leaks", () => {
             it("from memory overloads", async function runMemoryLeakTest() {
-                // Increase the timeout to 10 seconds, since these tests are time-consuming
-                this.timeout(10_000);
-
                 // Record initial memory usage before any tests
                 const initialMemoryUsage = process.memoryUsage().heapUsed;
                 const memoryThreshold = initialMemoryUsage * 1.2; // Allow 20% growth for test overhead
@@ -1416,9 +1413,6 @@ function realTest() { return 'Hello2'; }`,
             });
 
             it("from a mixture of passing and failing jobs", async function runPassFailLeakTest() {
-                // Increase the timeout to 10 seconds, since these tests are time-consuming
-                this.timeout(10_000);
-
                 // Record initial memory usage before any tests
                 const initialMemoryUsage = process.memoryUsage().heapUsed;
                 const memoryThreshold = initialMemoryUsage * 1.2; // Allow 20% growth for test overhead
@@ -1477,9 +1471,6 @@ function realTest() { return 'Hello2'; }`,
             });
 
             it("terminating worker thread after each job", async function runTerminateLeakTest() {
-                // Increase the timeout to 10 seconds, since these tests are time-consuming
-                this.timeout(10_000);
-
                 // Record initial memory usage before any tests
                 const initialMemoryUsage = process.memoryUsage().heapUsed;
                 const memoryThreshold = initialMemoryUsage * 1.2; // Allow 20% growth for test overhead
@@ -1519,7 +1510,6 @@ function realTest() { return 'Hello2'; }`,
 
         describe("performance", () => {
             it("runs 1000 jobs in under 10 seconds", async function runPerformanceTest() {
-                this.timeout(10_000);
                 const code = "function test(count) { return `Hello, world! ${count}`; }";
 
                 const promises: Promise<RunUserCodeOutput>[] = [];

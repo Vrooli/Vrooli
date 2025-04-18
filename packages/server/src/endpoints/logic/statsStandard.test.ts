@@ -7,6 +7,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
 import { statsStandard_findMany } from "../generated/statsStandard_findMany.js"; // Assuming this generated type exists
 import { statsStandard } from "./statsStandard.js";
 
@@ -100,25 +101,18 @@ describe("EndpointsStatsStandard", () => {
     });
 
     beforeEach(async function beforeEach() {
-        this.timeout(15_000);
-
-        // Clean previous test data
-        await DbProvider.get().stats_standard.deleteMany({
-            where: { standardId: { in: [testStandardId1, testStandardId2, privateStandardId1, privateStandardId2] } }
-        });
-        await DbProvider.get().standard.deleteMany({
-            where: { id: { in: [testStandardId1, testStandardId2, privateStandardId1, privateStandardId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_standard.deleteMany({});
+        await DbProvider.get().standard.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         // Create test users
         await DbProvider.get().user.create({
-            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
         await DbProvider.get().user.create({
-            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } }
+            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
         });
 
         // Create test standards (ensure all required fields are present)
@@ -128,11 +122,11 @@ describe("EndpointsStatsStandard", () => {
                 { ...standardData1, permissions: JSON.stringify({}) },
                 { ...standardData2, permissions: JSON.stringify({}) },
                 { ...privateStandardData1, permissions: JSON.stringify({}) },
-                { ...privateStandardData2, permissions: JSON.stringify({}) }
+                { ...privateStandardData2, permissions: JSON.stringify({}) },
             ].map(s => ({ // Adjust ownership fields based on actual model
                 ...s,
                 ownedByUserId: s.ownedByUserId ?? undefined,
-            }))
+            })),
         });
 
         // Create fresh test stats data
@@ -141,24 +135,17 @@ describe("EndpointsStatsStandard", () => {
                 statsStandardData1,
                 statsStandardData2,
                 privateStandardStats1,
-                privateStandardStats2
-            ]
+                privateStandardStats2,
+            ],
         });
     });
 
     after(async function after() {
-        this.timeout(15_000);
-
-        // Clean up test data
-        await DbProvider.get().stats_standard.deleteMany({
-            where: { standardId: { in: [testStandardId1, testStandardId2, privateStandardId1, privateStandardId2] } }
-        });
-        await DbProvider.get().standard.deleteMany({
-            where: { id: { in: [testStandardId1, testStandardId2, privateStandardId1, privateStandardId2] } }
-        });
-        await DbProvider.get().user.deleteMany({
-            where: { id: { in: [user1Id, user2Id] } }
-        });
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.get().stats_standard.deleteMany({});
+        await DbProvider.get().standard.deleteMany({});
+        await DbProvider.get().user.deleteMany({});
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
@@ -172,7 +159,7 @@ describe("EndpointsStatsStandard", () => {
 
                 const input: StatsStandardSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsStandard.findMany({ input }, { req, res }, statsStandard_findMany);
 
@@ -209,8 +196,8 @@ describe("EndpointsStatsStandard", () => {
                     periodType: StatPeriodType.Monthly,
                     periodTimeFrame: {
                         after: new Date("2023-01-01"),
-                        before: new Date("2023-01-31")
-                    }
+                        before: new Date("2023-01-31"),
+                    },
                 };
                 const result = await statsStandard.findMany({ input }, { req, res }, statsStandard_findMany);
 
@@ -230,7 +217,7 @@ describe("EndpointsStatsStandard", () => {
 
                 const input: StatsStandardSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 const result = await statsStandard.findMany({ input }, { req, res }, statsStandard_findMany);
 
@@ -249,7 +236,7 @@ describe("EndpointsStatsStandard", () => {
 
                 const input: StatsStandardSearchInput = {
                     take: 10,
-                    periodType: StatPeriodType.Monthly
+                    periodType: StatPeriodType.Monthly,
                 };
                 // Assuming readManyHelper allows public access for standards
                 const result = await statsStandard.findMany({ input }, { req, res }, statsStandard_findMany);
@@ -272,7 +259,7 @@ describe("EndpointsStatsStandard", () => {
 
                 const input: StatsStandardSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") }
+                    periodTimeFrame: { after: new Date("invalid"), before: new Date("invalid") },
                 };
 
                 try {
@@ -304,7 +291,7 @@ describe("EndpointsStatsStandard", () => {
                 // Search for User 2's private standard
                 const input: StatsStandardSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Standard 2" // Assuming name field exists
+                    searchString: "Private Standard 2", // Assuming name field exists
                 };
                 const result = await statsStandard.findMany({ input }, { req, res }, statsStandard_findMany);
 

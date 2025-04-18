@@ -13,10 +13,12 @@ const objectType = "ReminderList";
 export const reminderList: EndpointsReminderList = {
     createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return createOneHelper({ info, input, objectType, req });
     },
     updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return updateOneHelper({ info, input, objectType, req });
     },
 };

@@ -83,6 +83,7 @@ export async function closeRedis(): Promise<void> {
         try {
             // Try a simple operation to check connection status
             if (redisClient.isReady) {
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 await redisClient.ping().catch(() => { });
                 isConnected = true;
             }
@@ -101,7 +102,7 @@ export async function closeRedis(): Promise<void> {
 
             // Try to unsubscribe from all channels if this is a subscriber
             try {
-                if (typeof redisClient.unsubscribe === 'function') {
+                if (typeof redisClient.unsubscribe === "function") {
                     await redisClient.unsubscribe();
                 }
             } catch (e) {
