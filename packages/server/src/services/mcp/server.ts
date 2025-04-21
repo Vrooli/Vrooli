@@ -1,7 +1,8 @@
-import { HttpStatus } from "@local/shared";
+import { ApiKeyPermission, HttpStatus } from "@local/shared";
 import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from "@modelcontextprotocol/sdk/types.js";
 import { Express } from "express";
+import { RequestService } from "../../auth/request.js";
 import { McpRoutineToolName, McpToolName, ToolRegistry } from "./registry.js";
 import { findRoutines, runRoutine } from "./tools.js";
 import { TransportManager } from "./transport.js";
@@ -68,7 +69,23 @@ export class McpServerApp {
         this.setupRequestHandlers();
     }
 
-    private getTransportManager(): TransportManager {
+    /**
+     * Get the underlying McpServer instance.
+     * @returns The McpServer instance.
+     */
+    public getServerInstance(): McpServer {
+        return this.mcpServer;
+    }
+
+    /**
+     * Get the ToolRegistry instance.
+     * @returns The ToolRegistry instance.
+     */
+    public getToolRegistry(): ToolRegistry {
+        return this.toolRegistry;
+    }
+
+    public getTransportManager(): TransportManager {
         if (!this.transportManager) {
             throw new Error("TransportManager not initialized");
         }
@@ -223,13 +240,19 @@ export class McpServerApp {
 
         // Standard TransportManager for the main /mcp/sse endpoint
         this.transportManager = new TransportManager(
-            this.mcpServer, // Connects to the main McpServer instance
+            this.mcpServer,
             this.logger,
             { heartbeatInterval: this.config.heartbeatInterval, messagePath: this.config.messagePath },
         );
 
         // Standard Health Check
         this.app.get("/mcp/health", (req, res) => {
+            // Validate request permissions via RequestService
+            const { hasApiToken } = RequestService.getRequestPermissions(req);
+            if (!hasApiToken) {
+                return res.status(HttpStatus.Unauthorized).json({ error: "Unauthorized" });
+            }
+
             // Reports health of the main transport manager
             const healthInfo = this.getTransportManager().getHealthInfo();
             res.json(healthInfo);
@@ -239,6 +262,10 @@ export class McpServerApp {
 
         // 1. SSE Connection Endpoint for a specific tool
         this.app.get("/mcp/tool/:tool_id/sse", async (req, res) => {
+            const { hasApiToken: hasApiTokenTool } = RequestService.getRequestPermissions(req);
+            if (!hasApiTokenTool) {
+                return res.status(HttpStatus.Unauthorized).json({ error: "Unauthorized" });
+            }
             const toolId = req.params.tool_id;
             this.logger.info(`Dynamic SSE connection request for tool: ${toolId}`);
 
@@ -270,7 +297,11 @@ export class McpServerApp {
         });
 
         // 2. Message Endpoint for a specific tool's connection
-        this.app.post("/mcp/tool/:tool_id/message", (req, res) => { // Changed to non-async, handlePostMessage is likely sync or handles its own async
+        this.app.post("/mcp/tool/:tool_id/message", (req, res) => {
+            const { hasApiToken: hasApiTokenMessage } = RequestService.getRequestPermissions(req);
+            if (!hasApiTokenMessage) {
+                return res.status(HttpStatus.Unauthorized).json({ error: "Unauthorized" });
+            }
             const toolId = req.params.tool_id;
             this.logger.info(`Dynamic message POST received for tool ${toolId}. Path: ${req.path}`);
 
@@ -292,17 +323,24 @@ export class McpServerApp {
 
         // --- Standard MCP Routes (handled by TransportManager) ---
         this.app.get("/mcp/sse", (req, res) => {
+            // Require public read permission for built-in tools
+            const { permissions } = RequestService.getRequestPermissions(req);
+            if (!permissions[ApiKeyPermission.ReadPublic]) {
+                return res.status(HttpStatus.Unauthorized).json({ error: "Forbidden - missing read permission" });
+            }
             this.logger.info("Handling standard /mcp/sse connection. Path: " + req.path);
             this.getTransportManager().handleSseConnection(req, res);
         });
-        this.app.post(this.config.messagePath, (req, res) => { // Removed express.json()
+        this.app.post(this.config.messagePath, (req, res) => {
+            // Require write permission for built-in tool calls
+            const { permissions } = RequestService.getRequestPermissions(req);
+            if (!permissions[ApiKeyPermission.WritePrivate]) {
+                return res.status(HttpStatus.Unauthorized).json({ error: "Forbidden - missing write permission" });
+            }
             this.logger.info("Handling standard message POST. Path: " + req.path);
-            // TransportManager.handlePostMessage will read the raw body
             this.getTransportManager().handlePostMessage(req, res);
         });
 
-        // Removed app.listen() and httpServer creation/management
-        // The main server application will handle listening.
         this.logger.info(`${this.config.serverInfo.name} routes configured on provided Express app.`);
         this.logger.info("MCP Health endpoint available at /mcp/health");
         this.logger.info("MCP SSE endpoint available at /mcp/sse");

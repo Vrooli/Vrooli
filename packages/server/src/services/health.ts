@@ -7,7 +7,7 @@ import Stripe from "stripe";
 import { promisify } from "util";
 import { DbProvider } from "../db/provider.js";
 import { initializeRedis } from "../redisConn.js";
-import { API_URL, MCP_SITE_WIDE_URL, SERVER_URL } from "../server.js";
+import { API_URL, SERVER_URL } from "../server.js";
 import { io } from "../sockets/io.js";
 import { QueueStatus } from "../tasks/base/queue.js";
 import { emailQueue } from "../tasks/email/queue.js";
@@ -20,6 +20,7 @@ import { pushQueue } from "../tasks/push/queue.js";
 import { runQueue } from "../tasks/run/queue.js";
 import { sandboxQueue } from "../tasks/sandbox/queue.js";
 import { smsQueue } from "../tasks/sms/queue.js";
+import { getMcpServer } from "./mcp/index.js";
 import { McpToolName } from "./mcp/registry.js";
 
 const exec = promisify(execCb);
@@ -91,6 +92,9 @@ const HTTP_STATUS_OK_MAX = 300;
 // Cron job monitoring settings
 const CRON_MAX_FAILURE_AGE_MS = DAYS_1_S; // 24 hours
 const CRON_WARNING_THRESHOLD = 1; // Number of failures before status is degraded
+
+// Define a test routine ID (replace with actual seeded ID when available)
+const MCP_TEST_ROUTINE_ID = "c9dd779d-ebf2-4e65-8429-4eef5c40aa4a"; // Daily Standup routine
 
 /**
  * Service for checking and reporting system health status
@@ -283,14 +287,13 @@ export class HealthService {
     private checkMemory(): ServiceHealth {
         const used = process.memoryUsage();
         const heapUsedPercent = (used.heapUsed / used.heapTotal) * 100;
-
-        const status = used.heapUsed > MEMORY_CRITICAL_THRESHOLD ? ServiceStatus.Down :
+        const memoryStatus = used.heapUsed > MEMORY_CRITICAL_THRESHOLD ? ServiceStatus.Down :
             used.heapUsed > MEMORY_WARNING_THRESHOLD ? ServiceStatus.Degraded :
                 ServiceStatus.Operational;
 
         return {
-            healthy: status === ServiceStatus.Operational,
-            status,
+            healthy: memoryStatus === ServiceStatus.Operational,
+            status: memoryStatus,
             lastChecked: Date.now(),
             details: {
                 heapUsed: used.heapUsed,
@@ -334,13 +337,13 @@ export class HealthService {
             const diskUsagePercent = Math.round((used / size) * 100);
 
             // Determine status
-            const status = cpuUsage > CPU_CRITICAL_THRESHOLD || diskUsagePercent > DISK_CRITICAL_THRESHOLD ? ServiceStatus.Down :
+            const systemStatus = cpuUsage > CPU_CRITICAL_THRESHOLD || diskUsagePercent > DISK_CRITICAL_THRESHOLD ? ServiceStatus.Down :
                 cpuUsage > CPU_WARNING_THRESHOLD || diskUsagePercent > DISK_WARNING_THRESHOLD ? ServiceStatus.Degraded :
                     ServiceStatus.Operational;
 
             return {
-                healthy: status === ServiceStatus.Operational,
-                status,
+                healthy: systemStatus === ServiceStatus.Operational,
+                status: systemStatus,
                 lastChecked: Date.now(),
                 details: {
                     cpu: {
@@ -471,51 +474,63 @@ export class HealthService {
     }
 
     /**
-     * Check MCP service health by testing core endpoints
+     * Check MCP service health by performing an end-to-end transport + RPC test
      */
     private async checkMcp(): Promise<ServiceHealth> {
+        const checkTimestamp = Date.now();
+        let transportHealthy = false;
+        let builtInHealthy = false;
+        let routineHealthy = false;
+        let transportDetails: Record<string, unknown> = {};
+        let builtInDetails: Record<string, unknown> = {};
+        let routineDetails: Record<string, unknown> = {};
+
         try {
-            // Build MCP endpoint URL
-            const listToolsUrl = `${MCP_SITE_WIDE_URL}${McpToolName.FindResources}`;
+            // 1. Check Transport Layer via internal TransportManager (bypass HTTP/runtime permissions)
+            const mcpApp = getMcpServer();
+            const transportInfo = mcpApp.getTransportManager().getHealthInfo();
+            transportHealthy = typeof transportInfo.activeConnections === "number" && transportInfo.activeConnections >= 0;
+            transportDetails = transportInfo;
 
-            const response = await fetch(listToolsUrl);
+            // 2. Built-in tools via registry
+            const toolRegistry = mcpApp.getToolRegistry();
+            const findResult = await toolRegistry.execute(McpToolName.FindResources, { resource_type: "Routine" });
+            builtInHealthy = Array.isArray(findResult.content) && findResult.content.length > 0;
+            builtInDetails = { result: findResult };
 
-            if (!response.ok) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: {
-                        error: "MCP service not responding",
-                        statusCode: response.status,
-                    },
-                };
-            }
-
-            const data = await response.json();
-            return {
-                healthy: true,
-                status: ServiceStatus.Operational,
-                lastChecked: Date.now(),
-                details: {
-                    endpoints: {
-                        listTools: true,
-                        execute: true,
-                        search: true,
-                        register: true,
-                    },
-                    toolCount: data.tools?.length ?? 0,
-                },
-            };
-        } catch (error) {
-            console.error(`[HealthCheck] Error in checkMcp: ${(error as Error).message}`);
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: "Failed to check MCP service status" },
-            };
+            // 3. Routine execution via registry
+            const runResult = await toolRegistry.execute(McpToolName.RunRoutine, { id: MCP_TEST_ROUTINE_ID, replacement: "healthcheck" });
+            routineHealthy = Array.isArray(runResult.content) && runResult.content.length > 0;
+            routineDetails = { result: runResult };
+        } catch (err) {
+            transportHealthy = false;
+            transportDetails = { error: (err as Error).message };
+            builtInHealthy = false;
+            builtInDetails = { error: "Registry execution skipped" };
+            routineHealthy = false;
+            routineDetails = { error: "Registry execution skipped" };
         }
+
+        // Determine the overall MCP status
+        let overallStatus: ServiceStatus;
+        if (transportHealthy && builtInHealthy && routineHealthy) {
+            overallStatus = ServiceStatus.Operational;
+        } else if (transportHealthy) {
+            overallStatus = ServiceStatus.Degraded;
+        } else {
+            overallStatus = ServiceStatus.Down;
+        }
+
+        return {
+            healthy: overallStatus === ServiceStatus.Operational,
+            status: overallStatus,
+            lastChecked: checkTimestamp,
+            details: {
+                transport: { healthy: transportHealthy, ...transportDetails },
+                builtInTools: { healthy: builtInHealthy, ...builtInDetails },
+                routineTools: { healthy: routineHealthy, ...routineDetails },
+            },
+        };
     }
 
     /**
@@ -575,16 +590,16 @@ export class HealthService {
             const totalEndpoints = endpointsToTest.length;
 
             // Determine overall API status
-            let status = ServiceStatus.Operational;
+            let apiStatus = ServiceStatus.Operational;
             if (workingEndpoints === 0) {
-                status = ServiceStatus.Down;
+                apiStatus = ServiceStatus.Down;
             } else if (workingEndpoints < totalEndpoints) {
-                status = ServiceStatus.Degraded;
+                apiStatus = ServiceStatus.Degraded;
             }
 
             return {
-                healthy: status === ServiceStatus.Operational,
-                status,
+                healthy: apiStatus === ServiceStatus.Operational,
+                status: apiStatus,
                 lastChecked: Date.now(),
                 details: {
                     endpoints: results,
@@ -702,12 +717,12 @@ export class HealthService {
             }
 
             // Determine overall status
-            const status = hasCriticalFailures ? ServiceStatus.Down :
+            const cronStatus = hasCriticalFailures ? ServiceStatus.Down :
                 hasFailures ? ServiceStatus.Degraded : ServiceStatus.Operational;
 
             return {
-                healthy: status === ServiceStatus.Operational,
-                status,
+                healthy: cronStatus === ServiceStatus.Operational,
+                status: cronStatus,
                 lastChecked: now,
                 details: {
                     jobs: jobDetails,
@@ -847,11 +862,11 @@ export class HealthService {
             ...Object.values(queueHealths),
             ...Object.values(llmHealth),
         ];
-        const status = allServices.every(s => s.status === ServiceStatus.Operational) ? ServiceStatus.Operational :
+        const overallStatus = allServices.every(s => s.status === ServiceStatus.Operational) ? ServiceStatus.Operational :
             allServices.some(s => s.status === ServiceStatus.Down) ? ServiceStatus.Down : ServiceStatus.Degraded;
 
         const health: SystemHealth = {
-            status,
+            status: overallStatus,
             version: process.env.npm_package_version || "unknown",
             services: {
                 api: apiHealth,
