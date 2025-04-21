@@ -71,5 +71,8 @@
         "dotenv-cli": "^8.0.0",
         "mocha": "^11.1.0",
         "sinon": "^19.0.2"
+    },
+    "mocha": {
+        "timeout": 10000
     }
 }

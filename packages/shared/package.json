@@ -55,5 +55,8 @@
         "sinon": "^19.0.2",
         "ts-json-schema-generator": "^1.2.0",
         "typescript-json-schema": "^0.65.1"
+    },
+    "mocha": {
+        "timeout": 10000
     }
 }

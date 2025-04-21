@@ -99,5 +99,8 @@
         "testcontainers": "^10.18.0",
         "typescript": "5.4.5",
         "why-is-node-running": "^2.3.0"
+    },
+    "mocha": {
+        "timeout": 10000
     }
 }

@@ -163,5 +163,8 @@
         "workerDirectory": [
             "public"
         ]
+    },
+    "mocha": {
+        "timeout": 10000
     }
 }
