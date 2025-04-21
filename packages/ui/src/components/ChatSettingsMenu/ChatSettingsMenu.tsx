@@ -2,7 +2,7 @@
 
 import type { ChatInviteShape, ListObject, ProjectVersion } from '@local/shared';
 import { CanConnect, Chat, ChatParticipantShape, LlmModel, getAvailableModels, uuidToBase36 } from '@local/shared';
-import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemButton, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Form, Formik } from 'formik';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import { SessionContext } from '../../contexts/session.js';
 import { IconCommon } from '../../icons/Icons.js';
 import { getDisplay } from '../../utils/display/listTools.js';
 import { getUserLanguages } from '../../utils/display/translationTools.js';
+import { PubSub } from '../../utils/pubsub.js';
 import { FindObjectDialog } from '../dialogs/FindObjectDialog/FindObjectDialog.js';
 import { TranslatedAdvancedInput } from '../inputs/AdvancedInput/AdvancedInput.js';
 import { detailsInputFeatures, nameInputFeatures } from '../inputs/AdvancedInput/styles.js';
@@ -68,6 +69,8 @@ export interface ChatSettingsMenuProps {
     onUpdateDetails: (data: { name: string; description?: string }) => void;
     onToggleShare: (enabled: boolean) => void;
     onIntegrationSettingsChange: (settings: IntegrationSettings) => void;
+    /** Callback to initiate chat deletion */
+    onDeleteChat?: () => void;
 }
 
 /**
@@ -90,12 +93,28 @@ export function ChatSettingsMenu({
     onUpdateDetails,
     onToggleShare,
     onIntegrationSettingsChange,
+    onDeleteChat,
 }: ChatSettingsMenuProps) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const session = useContext(SessionContext);
     const languages = getUserLanguages(session);
+    const { t } = useTranslation();
     const [currentTab, setCurrentTab] = useState(0);
+
+    const handleDeleteClick = useCallback(() => {
+        if (!onDeleteChat) return;
+        PubSub.get().publish("alertDialog", {
+            messageKey: "DeleteConfirm",
+            buttons: [{
+                labelKey: "Delete",
+                onClick: onDeleteChat,
+            }, {
+                labelKey: "Cancel",
+            }],
+        });
+    }, [onDeleteChat, t]);
+
     const handleTabChange = useCallback((_: React.SyntheticEvent, idx: number) => {
         setCurrentTab(idx);
     }, []);
@@ -115,31 +134,57 @@ export function ChatSettingsMenu({
             }}
         >
             <Box display="flex" height="100%">
-                <Tabs
-                    orientation="vertical"
-                    value={currentTab}
-                    onChange={handleTabChange}
+                <Box
                     sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
                         borderRight: 1,
                         borderColor: 'divider',
                         width: isMobile ? theme.spacing(8) : 200,
-                        "& .MuiTabs-flexContainerVertical": {
-                            justifyContent: 'flex-start',
-                        },
-                        "& .MuiTab-root": {
-                            minHeight: '48px',
-                            paddingTop: theme.spacing(1),
-                            paddingBottom: theme.spacing(1),
-                            justifyContent: 'flex-start',
-                        },
+                        height: '100%',
                     }}
                 >
-                    <Tab icon={<IconCommon name="Bot" />} iconPosition="start" label={isMobile ? undefined : "Model"} />
-                    <Tab icon={<IconCommon name="Link" />} iconPosition="start" label={isMobile ? undefined : "Integrations"} />
-                    <Tab icon={<IconCommon name="Team" />} iconPosition="start" label={isMobile ? undefined : "Participants"} />
-                    <Tab icon={<IconCommon name="Info" />} iconPosition="start" label={isMobile ? undefined : "Details"} />
-                    <Tab icon={<IconCommon name="Export" />} iconPosition="start" label={isMobile ? undefined : "Share"} />
-                </Tabs>
+                    <Tabs
+                        orientation="vertical"
+                        value={currentTab}
+                        onChange={handleTabChange}
+                        sx={{
+                            width: '100%',
+                            "& .MuiTabs-flexContainerVertical": {
+                                justifyContent: 'flex-start',
+                            },
+                            "& .MuiTab-root": {
+                                minHeight: '48px',
+                                paddingTop: theme.spacing(1),
+                                paddingBottom: theme.spacing(1),
+                                justifyContent: 'flex-start',
+                            },
+                        }}
+                    >
+                        <Tab icon={<IconCommon name="Bot" />} iconPosition="start" label={isMobile ? undefined : "Model"} />
+                        <Tab icon={<IconCommon name="Link" />} iconPosition="start" label={isMobile ? undefined : "Integrations"} />
+                        <Tab icon={<IconCommon name="Team" />} iconPosition="start" label={isMobile ? undefined : "Participants"} />
+                        <Tab icon={<IconCommon name="Info" />} iconPosition="start" label={isMobile ? undefined : "Details"} />
+                        <Tab icon={<IconCommon name="Export" />} iconPosition="start" label={isMobile ? undefined : "Share"} />
+                        {onDeleteChat && (
+                            <ListItemButton
+                                onClick={handleDeleteClick}
+                                sx={{
+                                    color: 'error.main',
+                                    marginTop: 'auto',
+                                    paddingTop: theme.spacing(1),
+                                    paddingBottom: theme.spacing(1),
+                                    paddingLeft: theme.spacing(2),
+                                    justifyContent: 'flex-start',
+                                    gap: isMobile ? 0 : theme.spacing(1.5),
+                                }}
+                            >
+                                <IconCommon name="Delete" fill="error.main" />
+                                {!isMobile && t("Delete")}
+                            </ListItemButton>
+                        )}
+                    </Tabs>
+                </Box>
 
                 <Box flex={1} overflow="auto" p={2} bgcolor="background.default">
                     {currentTab === 0 && (

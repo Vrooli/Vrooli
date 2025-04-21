@@ -161,6 +161,10 @@ export function DashboardView({
         setIntegrationSettings(newSettings);
         console.log("Dashboard integration settings updated:", newSettings);
     }, []);
+    // Placeholder for delete chat - not applicable on dashboard
+    const handleDeleteChat = useCallback(() => {
+        console.log("Dashboard: Delete Chat requested (no-op)");
+    }, []);
 
     useEffect(function parseFeedData() {
         const feedResources = feedData?.resources;
@@ -414,6 +418,7 @@ export function DashboardView({
                 onUpdateDetails={handleUpdateDetails}
                 onToggleShare={handleToggleShare}
                 onIntegrationSettingsChange={handleIntegrationSettingsChange}
+                onDeleteChat={handleDeleteChat}
             />
         </DashboardBox>
     );

@@ -1,6 +1,6 @@
 import { Chat, ChatCreateInput, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_IDS, ServerResponse, Session, shapeChat, uuid, uuidToBase36 } from "@local/shared";
-import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
-import { Field, Formik } from "formik";
+import { Box, Button, Checkbox, FormControlLabel, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
+import { Formik, useFormikContext } from "formik";
 import { TFunction } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -126,12 +126,6 @@ export function withYourMessages(chat: ChatShape, session?: Session) {
         messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id) ?? [],
     };
 }
-
-const InviteCheckboxField = styled(Field)(({ theme }) => ({
-    "&.MuiCheckbox-root": {
-        color: theme.palette.secondary.main,
-    },
-}));
 
 const ChatTreeContainer = styled(Box)(({ theme }) => ({
     background: theme.palette.background.default,
@@ -405,6 +399,7 @@ function ChatForm({
     }, [swapMainAndRight]);
 
     const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
+        const { values, setFieldValue, submitForm } = useFormikContext<ChatShape>();
         return (
             <ScrollBox>
                 <BaseForm
@@ -447,22 +442,33 @@ function ChatForm({
                                 <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
                                 <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
                             </Stack>
-                            <Stack direction="row" spacing={0}>
-                                <InviteCheckboxField
-                                    name="openToAnyoneWithInvite"
-                                    type="checkbox"
-                                    as={Checkbox}
-                                />
-                                <TextInput
-                                    disabled
-                                    fullWidth
-                                    id="invite-link"
-                                    label={t("InviteLink")}
-                                    variant="outlined"
-                                    value={url}
-                                    InputProps={copyInviteLinkInputProps}
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={values.openToAnyoneWithInvite}
+                                            onChange={async (e) => {
+                                                await setFieldValue('openToAnyoneWithInvite', e.target.checked);
+                                                await submitForm();
+                                            }}
+                                            size="small"
+                                        />
+                                    }
+                                    label={t("EnableShareLink", { defaultValue: "Enable share link" })}
                                 />
                             </Stack>
+                            {values.openToAnyoneWithInvite && (
+                                <Stack direction="row" spacing={0} mt={2}>
+                                    <TextInput
+                                        fullWidth
+                                        id="invite-link"
+                                        label={t("InviteLink")}
+                                        variant="outlined"
+                                        value={url}
+                                        InputProps={copyInviteLinkInputProps}
+                                    />
+                                </Stack>
+                            )}
                         </FormSection>
                     </FormContainer>
                 </BaseForm>
