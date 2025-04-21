@@ -18,9 +18,10 @@ export const scheduleRecurrenceValidation: YupModel<["create", "update"]> = {
         interval: req(intPositiveOrOne),
         dayOfWeek: opt(dayOfWeek),
         dayOfMonth: opt(dayOfMonth),
+        duration: opt(intPositiveOrOne),
         endDate: opt(endDate),
     }, [
-        ["schedule", ["Connect"], "one", "req"],
+        ["schedule", ["Connect"], "one", "req", ["recurrences"]],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),
@@ -28,6 +29,7 @@ export const scheduleRecurrenceValidation: YupModel<["create", "update"]> = {
         interval: opt(intPositiveOrOne),
         dayOfWeek: opt(dayOfWeek),
         dayOfMonth: opt(dayOfMonth),
+        duration: opt(intPositiveOrOne),
         endDate: opt(endDate),
     }, [], [], d),
 };

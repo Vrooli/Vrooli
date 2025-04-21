@@ -4394,8 +4394,6 @@ export enum ResourceListSortBy {
     DateCreatedDesc = "DateCreatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
-    IndexAsc = "IndexAsc",
-    IndexDesc = "IndexDesc"
 }
 
 export type ResourceListTranslation = BaseTranslation<"ResourceListTranslation"> & {

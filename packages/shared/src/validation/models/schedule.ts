@@ -13,11 +13,11 @@ export const scheduleValidation: YupModel<["create", "update"]> = {
         endTime: opt(endTime),
         timezone: req(timezone),
     }, [
-        ["exceptions", ["Create"], "many", "opt", scheduleExceptionValidation],
+        ["exceptions", ["Create"], "many", "opt", scheduleExceptionValidation, ["schedule"]],
         ["focusMode", ["Connect"], "one", "opt"],
         ["labels", ["Create", "Connect"], "many", "opt", labelValidation],
         ["meeting", ["Connect"], "one", "opt"],
-        ["recurrences", ["Create"], "many", "opt", scheduleRecurrenceValidation],
+        ["recurrences", ["Create"], "many", "opt", scheduleRecurrenceValidation, ["schedule"]],
         ["runProject", ["Connect"], "one", "opt"],
         ["runRoutine", ["Connect"], "one", "opt"],
     ], [], d),
@@ -27,8 +27,8 @@ export const scheduleValidation: YupModel<["create", "update"]> = {
         endTime: opt(endTime),
         timezone: opt(timezone),
     }, [
-        ["exceptions", ["Create", "Update", "Delete"], "many", "opt", scheduleExceptionValidation],
+        ["exceptions", ["Create", "Update", "Delete"], "many", "opt", scheduleExceptionValidation, ["schedule"]],
         ["labels", ["Create", "Connect", "Disconnect"], "many", "opt", labelValidation],
-        ["recurrences", ["Create", "Update", "Delete"], "many", "opt", scheduleRecurrenceValidation],
+        ["recurrences", ["Create", "Update", "Delete"], "many", "opt", scheduleRecurrenceValidation, ["schedule"]],
     ], [], d),
 };
