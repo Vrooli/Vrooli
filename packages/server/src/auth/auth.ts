@@ -10,6 +10,7 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
+import { initializeRedis } from "../redisConn.js";
 import { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types.js";
 import { ResponseService } from "../utils/response.js";
 import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
@@ -254,6 +255,49 @@ export class AuthService {
     }
 
     /**
+     * Verifies an API key by checking Redis cache first, then falling back to database.
+     * Throws if invalid or disabled.
+     * @param apiKey The API key string to verify.
+     * @returns permissions and optional userId.
+     */
+    static async verifyApiKey(
+        apiKey: string
+    ): Promise<{ permissions: Record<ApiKeyPermission, boolean>; userId: string | null }> {
+        // Try Redis cache
+        let client;
+        try {
+            client = await initializeRedis();
+            const cacheKey = `apiKeyPerm:${apiKey}`;
+            const cached = await client.get(cacheKey);
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        } catch (e) {
+            logger.warn("Redis unavailable for API key cache", { error: e });
+        }
+        // Fetch from DB
+        const record = await DbProvider.get().api_key.findUnique({
+            where: { key: apiKey },
+            select: { permissions: true, userId: true, disabledAt: true },
+        });
+        if (!record || record.disabledAt) {
+            throw new CustomError("0900", "Unauthorized");
+        }
+        const permissions = JSON.parse(record.permissions) as Record<ApiKeyPermission, boolean>;
+        const result = { permissions, userId: record.userId ?? null };
+        // Cache in Redis
+        if (client) {
+            try {
+                const cacheKey = `apiKeyPerm:${apiKey}`;
+                await client.setEx(cacheKey, 300, JSON.stringify(result));
+            } catch (e) {
+                logger.warn("Failed to cache API key permissions", { error: e });
+            }
+        }
+        return result;
+    }
+
+    /**
      * Verifies if a user is authenticated, using an http cookie. 
      * Also populates helpful request properties, which can be used by endpoints
      * @param req The request object
@@ -273,14 +317,62 @@ export class AuthService {
             logger.error("Error authenticating request", { trace });
             return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Forbidden);
         }
+
+        // Try API key authentication (env var, header, or query param)
+        const candidateKey: string | undefined = (() => {
+            // 1) Environment variable (for local development or MCP)
+            if (process.env.MCP_API_KEY) {
+                return process.env.MCP_API_KEY;
+            }
+            // 2) X-API-Key header
+            const headerKey = req.header("x-api-key");
+            if (headerKey) {
+                return headerKey;
+            }
+            // 3) Authorization header (Bearer or ApiKey)
+            const authHeader = req.header("authorization");
+            if (authHeader) {
+                const [scheme, token] = authHeader.split(" ");
+                if (token) {
+                    const s = scheme.toLowerCase();
+                    if (s === "bearer" || s === "apikey") {
+                        return token;
+                    }
+                }
+            }
+            // 4) Query parameter ?api_key=
+            const q = req.query.api_key as string | string[] | undefined;
+            if (typeof q === "string") {
+                return q;
+            }
+            if (Array.isArray(q) && typeof q[0] === "string") {
+                return q[0];
+            }
+            return undefined;
+        })();
+
+        if (candidateKey) {
+            try {
+                const { permissions, userId } = await AuthService.verifyApiKey(candidateKey);
+                req.session.apiToken = candidateKey;
+                req.session.isLoggedIn = false;
+                req.session.permissions = permissions;
+                req.session.userId = userId;
+                return next();
+            } catch (error) {
+                logger.error("Error verifying API key", { error });
+                return ResponseService.sendError(res, { trace: "0801", code: "Unauthorized" }, HttpStatus.Unauthorized);
+            }
+        }
+
         try {
             // Authenticate token if it exists
-            const token = cookies[COOKIE.Jwt];
-            if (AuthTokensService.isTokenCorrectType(token)) {
-                const { maxAge, payload, token: authenticatedToken } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt]);
+            const tokenCookie = cookies[COOKIE.Jwt];
+            if (AuthTokensService.isTokenCorrectType(tokenCookie)) {
+                const { maxAge, payload, token: authenticatedToken } = await AuthTokensService.authenticateToken(tokenCookie);
                 updateSessionWithTokenPayload(req, payload);
                 // If the token changed, update the cookie
-                if (authenticatedToken !== token) {
+                if (authenticatedToken !== tokenCookie) {
                     JsonWebToken.addToCookies(res, authenticatedToken, maxAge);
                 }
             }
@@ -379,7 +471,7 @@ export function modifyPayloadToFitUsers(payload: SessionToken): SessionToken {
  * Updates one or more user properties in the session token.
  * Does not extend the max age of the token.
  */
-export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUser>): Promise<undefined> {
+export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUser>): Promise<void> {
     function modifyPayload(payload: SessionToken) {
         // Make sure users array is present
         if (!Array.isArray(payload.users)) {
@@ -394,8 +486,14 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         return modifyPayloadToFitUsers(payload);
     }
     try {
-        const { cookies } = req;
-        const { token, maxAge } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt], { modifyPayload });
+        // Get the raw cookie value
+        const tokenCookie = req.cookies[COOKIE.Jwt];
+        // Only process if the token is a string
+        if (!AuthTokensService.isTokenCorrectType(tokenCookie)) {
+            return;
+        }
+        // Authenticate and modify session cookie
+        const { token, maxAge } = await AuthTokensService.authenticateToken(tokenCookie, { modifyPayload });
         JsonWebToken.addToCookies(res, token, maxAge);
     } catch (error) {
         logger.error("❗️ Session token is invalid", { trace: "0447" });

@@ -2,6 +2,8 @@ import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ApiKeyFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
@@ -44,6 +46,25 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                 permissions: noNull(data.permissions),
                 stopAtLimit: noNull(data.stopAtLimit),
             }),
+        },
+        trigger: {
+            afterMutations: async ({ createdIds, updatedIds, deletedIds, userData }) => {
+                const ids = [...createdIds, ...updatedIds, ...deletedIds];
+                if (ids.length === 0) return;
+                // Fetch the key strings for these API key IDs
+                const records = await DbProvider.get().api_key.findMany({
+                    where: { id: { in: ids } },
+                    select: { key: true },
+                });
+                // Clear cached permissions in Redis
+                await withRedis({
+                    process: async (redisClient) => {
+                        if (!redisClient) return;
+                        await redisClient.del(records.map(r => `apiKeyPerm:${r.key}`));
+                    },
+                    trace: "0902",
+                });
+            },
         },
         yup: apiKeyValidation,
     },
