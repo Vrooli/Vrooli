@@ -14,6 +14,7 @@ export const reaction: EndpointsReaction = {
     findMany: async ({ input }, { req }, info) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 2000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return readManyHelper({ info, input, objectType, req, additionalQueries: { userId: userData.id } });
     },
     /**
@@ -23,6 +24,7 @@ export const reaction: EndpointsReaction = {
     createOne: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         const success = await ReactionModel.react(userData, input);
         return { __typename: "Success", success };
     },

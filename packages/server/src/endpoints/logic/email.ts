@@ -13,11 +13,13 @@ const objectType = "Email";
 export const email: EndpointsEmail = {
     createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         return createOneHelper({ info, input, objectType, req });
     },
     verify: async ({ input }, { req }) => {
         const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 50, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, req.session.languages);
         return { __typename: "Success" as const, success: true };
     },

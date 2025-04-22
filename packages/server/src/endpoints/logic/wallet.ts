@@ -11,6 +11,7 @@ const objectType = "Wallet";
 export const wallet: EndpointsWallet = {
     updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         return updateOneHelper({ info, input, objectType, req });
     },
 };

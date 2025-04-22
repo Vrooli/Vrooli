@@ -1,4 +1,4 @@
-import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatInviteSortBy, ChatInviteStatus, chatInviteValidation, MaxObjects, uuidValidate } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -27,17 +27,18 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
                 return {
                     id: data.id,
                     message: noNull(data.message),
+                    status: ChatInviteStatus.Pending,
                     user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "chatsInvited", data, ...rest }),
                     chat: await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "invites", data, ...rest }),
                 };
             },
-            update: async ({ data, ...rest }) => ({
+            update: async ({ data }) => ({
                 message: noNull(data.message),
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, userData }) => {
-                //TODO Create invite notifications
+            afterMutations: async () => {
+                // TODO: Create invite notifications
             },
         },
         yup: chatInviteValidation,
@@ -81,10 +82,14 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             User: (data?.chat as ChatModelInfo["DbModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const isYourInvite = uuidValidate(userId) && data.userId === userId;
+            const inviteUserId = data.userId ?? data.user?.id;
+            const isYourInvite = uuidValidate(userId) && inviteUserId === userId;
+            const basePermissions = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
             return {
-                ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
-                canDelete: () => isLoggedIn && !isDeleted && (isAdmin || isYourInvite),
+                ...basePermissions,
+                canAccept: () => isYourInvite,
+                canDecline: () => isYourInvite,
+                canRead: () => basePermissions.canRead() || isYourInvite,
             };
         },
         permissionsSelect: () => ({
@@ -101,7 +106,9 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
                     ],
                 };
             },
-            ownOrPublic: null, // Search method disabled
+            ownOrPublic: function getOwnPrivate(data) {
+                return useVisibility("ChatInvite", "Own", data);
+            },
             ownPrivate: function getOwnPrivate(data) {
                 return useVisibility("ChatInvite", "Own", data);
             },

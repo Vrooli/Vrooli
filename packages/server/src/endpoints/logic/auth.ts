@@ -156,6 +156,7 @@ async function establishGuestSession(res: Response) {
 export const auth: EndpointsAuth = {
     emailLogIn: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // Validate arguments with schema
         emailLogInFormValidation.validateSync(input, { abortEarly: false });
         // If email not supplied, check if session is valid. 
@@ -228,6 +229,7 @@ export const auth: EndpointsAuth = {
     },
     emailSignUp: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // Validate input format
         emailSignUpValidation.validateSync(input, { abortEarly: false });
         // Check for censored words
@@ -308,6 +310,7 @@ export const auth: EndpointsAuth = {
     },
     emailRequestPasswordChange: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // Validate input format
         emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
         // Find user
@@ -330,6 +333,7 @@ export const auth: EndpointsAuth = {
     },
     emailResetPassword: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // Validate input format
         emailResetPasswordSchema.validateSync(input, { abortEarly: false });
         // Find user
@@ -428,9 +432,12 @@ export const auth: EndpointsAuth = {
     },
     guestLogIn: async (_d, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         return establishGuestSession(res);
     },
     logOut: async (_d, { req, res }) => {
+        await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         const userData = SessionService.getUser(req);
         const userId = userData?.id;
         // If user is already logged out, return a guest session
@@ -482,6 +489,8 @@ export const auth: EndpointsAuth = {
         return session;
     },
     logOutAll: async (_d, { req, res }) => {
+        await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // Get user data
         const userData = SessionService.getUser(req);
         const userId = userData?.id;
@@ -513,6 +522,7 @@ export const auth: EndpointsAuth = {
     // and handled the cookie. This makes the function below very simple.
     validateSession: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
 
         if (!req.session.isLoggedIn) {
             return GUEST_SESSION;
@@ -534,6 +544,7 @@ export const auth: EndpointsAuth = {
     },
     switchCurrentAccount: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
 
         // Validate input format
         switchCurrentAccountSchema.validateSync(input, { abortEarly: false });
@@ -568,6 +579,7 @@ export const auth: EndpointsAuth = {
      */
     walletInit: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
         const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
         if (!deserializedStakingAddress.startsWith("stake1"))
@@ -618,6 +630,7 @@ export const auth: EndpointsAuth = {
     // Verify that signed message from user wallet has been signed by the correct public address
     walletComplete: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
         // Find wallet with public address
         const walletData = await DbProvider.get().wallet.findUnique({
             where: { stakingAddress: input.stakingAddress },

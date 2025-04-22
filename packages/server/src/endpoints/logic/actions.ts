@@ -20,20 +20,24 @@ export type EndpointsActions = {
 export const actions: EndpointsActions = {
     copy: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         const result = await copyHelper({ info, input, objectType: input.objectType, req });
         return { __typename: "CopyResult" as const, [lowercaseFirstLetter(input.objectType)]: result };
     },
     deleteOne: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return deleteOneHelper({ input, req });
     },
     deleteMany: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return deleteManyHelper({ input, req });
     },
     deleteAll: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 25, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         let totalCount = 0;
         if (input.objectTypes.includes(DeleteType.RunProject)) {
             const { danger } = ModelMap.getLogic(["danger"], DeleteType.RunProject, true, "deleteAll RunProject");
@@ -52,6 +56,7 @@ export const actions: EndpointsActions = {
     deleteAccount: async ({ input }, { req, res }, info) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 500, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         // Find user
         const user = await DbProvider.get().user.findUnique({
             where: { id },

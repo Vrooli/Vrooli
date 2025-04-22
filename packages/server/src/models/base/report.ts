@@ -95,10 +95,10 @@ export const ReportModel: ReportModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async ({ createdIds, userData }) => {
-                for (const objectId of createdIds) {
-                    // await Trigger(userData.languages).reportActivity({
-                    //     objectId,
+            afterMutations: async ({ createdIds, userData: _userData }) => {
+                for (const _objectId of createdIds) {
+                    // await Trigger(_userData.languages).reportActivity({
+                    //     objectId: _objectId,
                     // });
                 }
             },
@@ -149,6 +149,7 @@ export const ReportModel: ReportModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
+            status: true,
             createdBy: "User",
         }),
         permissionResolvers: ({ data, isAdmin, isLoggedIn, isPublic }) => ({

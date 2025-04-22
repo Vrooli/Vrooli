@@ -45,6 +45,10 @@ type AuthenticateTokenResult = {
     token: string;
 }
 
+// Define TTL for caching API key permissions in Redis
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const API_KEY_CACHE_TTL = 300;
+
 export class AuthTokensService {
     private static instance: AuthTokensService;
 
@@ -261,7 +265,7 @@ export class AuthService {
      * @returns permissions and optional userId.
      */
     static async verifyApiKey(
-        apiKey: string
+        apiKey: string,
     ): Promise<{ permissions: Record<ApiKeyPermission, boolean>; userId: string | null }> {
         // Try Redis cache
         let client;
@@ -289,7 +293,7 @@ export class AuthService {
         if (client) {
             try {
                 const cacheKey = `apiKeyPerm:${apiKey}`;
-                await client.setEx(cacheKey, 300, JSON.stringify(result));
+                await client.setEx(cacheKey, API_KEY_CACHE_TTL, JSON.stringify(result));
             } catch (e) {
                 logger.warn("Failed to cache API key permissions", { error: e });
             }
@@ -358,10 +362,12 @@ export class AuthService {
                 req.session.isLoggedIn = false;
                 req.session.permissions = permissions;
                 req.session.userId = userId;
-                return next();
+                next();
+                return;
             } catch (error) {
                 logger.error("Error verifying API key", { error });
-                return ResponseService.sendError(res, { trace: "0801", code: "Unauthorized" }, HttpStatus.Unauthorized);
+                ResponseService.sendError(res, { trace: "0801", code: "Unauthorized" }, HttpStatus.Unauthorized);
+                return;
             }
         }
 

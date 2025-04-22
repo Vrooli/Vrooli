@@ -14,11 +14,13 @@ export const apiKeyExternal: EndpointsApiKeyExternal = {
     createOne: async ({ input }, { req }, info) => {
         RequestService.assertRequestFrom(req, { isOfficialUser: true });
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         return createOneHelper({ info, input, objectType, req });
     },
     updateOne: async ({ input }, { req }, info) => {
         RequestService.assertRequestFrom(req, { isOfficialUser: true });
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         return updateOneHelper({ info, input, objectType, req });
     },
 };

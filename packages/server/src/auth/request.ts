@@ -18,21 +18,24 @@ const MAX_DOMAIN_LENGTH = 253;
 
 const tokenBucketScriptFile = `${process.env.PROJECT_DIR}/packages/server/${process.env.NODE_ENV === "development" ? "src" : "dist"}/utils/tokenBucketScript.lua`;
 
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const DEFAULT_API_MULTIPLIER = 1000;
+
 export type RequestConditions = {
     /**
      * Checks if the request is coming from a user logged in via an API token, or the official Vrooli app/website
      * This allows other services to use Vrooli as a backend, in a way that 
      * we can price it accordingly.
      */
-    isUser?: true;
+    isUser?: boolean;
     /**
      * Checks if the request is coming from a user logged in via the official Vrooli app/website
      */
-    isOfficialUser?: true;
+    isOfficialUser?: boolean;
     /**
      * Checks if the request is coming from a valid API token
      */
-    isApiToken?: true;
+    isApiToken?: boolean;
     /**
      * Checks if the request has ReadPublic permission
      */
@@ -505,8 +508,8 @@ export class RequestService {
         req,
         window = DEFAULT_RATE_LIMIT_WINDOW_S,
     }: RateLimitProps): Promise<void> {
-        // If maxApi not supplied, use maxUser * 1000
-        maxApi = maxApi ?? (maxUser * 1000);
+        // If maxApi not supplied, use maxUser * DEFAULT_API_MULTIPLIER
+        maxApi = maxApi ?? (maxUser * DEFAULT_API_MULTIPLIER);
         // If maxIp not supplied, use maxUser
         maxIp = maxIp ?? maxUser;
 

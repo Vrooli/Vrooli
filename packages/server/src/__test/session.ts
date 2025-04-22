@@ -32,7 +32,7 @@ export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
         routines: 0,
         standards: 0,
     },
-}
+};
 
 /**
  * Creates a mock session object that simulates a logged-in user
@@ -73,12 +73,12 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
             expires_at: future,
             last_refresh_at: now,
             user: { connect: { id: userData.id } },
-            auth: { connect: { id: authId } }
+            auth: { connect: { id: authId } },
         },
         update: {
             expires_at: future,
             last_refresh_at: now,
-        }
+        },
     });
 
     // Create session with proper structure
@@ -88,7 +88,7 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
         isLoggedIn: true,
         users: [sessionUser],
         // Add the access expiration so token won't be considered expired
-        ...JsonWebToken.createAccessExpiresAt()
+        ...JsonWebToken.createAccessExpiresAt(),
     };
 
     // Generate token and set it in the response
@@ -110,7 +110,16 @@ export function mockRequest(): Request {
         },
         cookies: {},
         ip: "127.0.0.1",
-        session: undefined
+        session: undefined,
+        query: {} as Record<string, any>,
+        header(name: string) {
+            const key = name.toLowerCase();
+            const value = (this.headers as any)[key];
+            if (Array.isArray(value)) {
+                return value[0];
+            }
+            return value;
+        },
     };
 
     return result as unknown as Request;
@@ -132,25 +141,25 @@ export function mockResponse(): Response {
         cookies: {} as Record<string, string>,
 
         // Common response methods
-        status: function (code: number) {
+        status(code: number) {
             this.statusCode = code;
             return this;
         },
-        json: function (data: any) {
+        json(data: any) {
             this.jsonData = data;
             return this;
         },
-        send: function (data: any) {
+        send(_data: any) {
             return this;
         },
-        cookie: function (name: string, value: string, options?: any) {
+        cookie(name: string, value: string, _options?: any) {
             this.cookies[name] = value;
             return this;
         },
-        clearCookie: function (name: string) {
+        clearCookie(name: string) {
             delete this.cookies[name];
             return this;
-        }
+        },
     };
 
     // Type assertion to treat our mock as an Express Response
@@ -217,7 +226,7 @@ export async function mockLoggedOutSession() {
     req.session = {
         fromSafeOrigin: true,
         languages: ["en"],
-    }
+    };
 
     return { req, res };
 }

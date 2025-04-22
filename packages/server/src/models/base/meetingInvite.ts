@@ -1,4 +1,4 @@
-import { MaxObjects, MeetingInviteSortBy, meetingInviteValidation } from "@local/shared";
+import { MaxObjects, MeetingInviteSortBy, MeetingInviteStatus, meetingInviteValidation, uuidValidate } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -27,6 +27,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 message: noNull(data.message),
+                status: MeetingInviteStatus.Pending,
                 user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "meetingsInvited", data, ...rest }),
                 meeting: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "invites", data, ...rest }),
             }),
@@ -72,27 +73,41 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             id: true,
             status: true,
             meeting: "Meeting",
+            user: "User",
         }),
-        permissionResolvers: defaultPermissions,
+        permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
+            const inviteUserId = data.userId ?? data.user?.id;
+            const isYourInvite = uuidValidate(userId) && inviteUserId === userId;
+            const basePermissions = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
+            return {
+                ...basePermissions,
+                canAccept: () => isYourInvite,
+                canDecline: () => isYourInvite,
+                canRead: () => basePermissions.canRead() || isYourInvite,
+            };
+        },
         owner: (data) => ({
             Team: (data?.meeting as MeetingModelInfo["DbModel"])?.team,
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["DbSelect"]>([["meeting", "Meeting"]], ...rest),
-        // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
             own: function getOwn(data) {
-                return {
+                return { // If you created the invite or were invited
                     OR: [
-                        { meeting: useVisibility("Meeting", "OwnOrPublic", data) },
+                        { meeting: useVisibility("Meeting", "Own", data) },
                         { user: { id: data.userId } },
                     ],
                 };
             },
-            ownOrPublic: null,
-            ownPrivate: null,
-            ownPublic: null,
-            public: null,
+            ownOrPublic: function getOwnPrivate(data) {
+                return useVisibility("MeetingInvite", "Own", data);
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("MeetingInvite", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

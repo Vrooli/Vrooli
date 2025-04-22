@@ -16,15 +16,18 @@ export const apiKey: EndpointsApiKey = {
     createOne: async ({ input }, { req }, info) => {
         RequestService.assertRequestFrom(req, { isOfficialUser: true });
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         return createOneHelper({ info, input, objectType, req });
     },
     updateOne: async ({ input }, { req }, info) => {
         RequestService.assertRequestFrom(req, { isOfficialUser: true });
         await RequestService.get().rateLimit({ maxUser: 10, req });
+        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
         return updateOneHelper({ info, input, objectType, req });
     },
     validate: async (_i, { req, res }) => {
         await RequestService.get().rateLimit({ maxApi: 5000, req });
+        // Don't check permissions here, since this endpoint is used to validate an API key
         // If session is expired
         if (!req.session.apiToken || !req.session.validToken) {
             res.clearCookie(COOKIE.Jwt);
