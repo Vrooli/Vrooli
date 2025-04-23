@@ -690,11 +690,7 @@ export function CalendarView({
         });
     }, [events, searchQuery, selectedTypes]);
 
-    const openEvent = useCallback((event: any) => {
-        console.log("CalendarEvent clicked:", event);
-    }, []);
-
-    // Handle scheduling
+    // Scheduling state and handlers: manage opening and closing of schedule dialog
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
     const handleAddSchedule = useCallback(() => {
@@ -706,16 +702,20 @@ export function CalendarView({
     }, []);
     const handleCloseScheduleDialog = useCallback(() => {
         setIsScheduleDialogOpen(false);
-        setEditingSchedule(null); // Clear editing state on close
+        setEditingSchedule(null);
     }, []);
     const handleScheduleCompleted = useCallback((_created: Schedule) => {
-        //TODO update schedule list/refetch
         handleCloseScheduleDialog();
     }, [handleCloseScheduleDialog]);
     const handleScheduleDeleted = useCallback((_deleted: Schedule) => {
-        //TODO update schedule list/refetch
         handleCloseScheduleDialog();
     }, [handleCloseScheduleDialog]);
+
+    // Handler for clicking on a calendar event: open the schedule dialog populated with the clicked event's schedule
+    const openEvent = useCallback((event: CalendarEvent) => {
+        console.log("CalendarEvent clicked:", event);
+        handleUpdateSchedule(event.schedule);
+    }, [handleUpdateSchedule]);
 
     const activeDayStyle = useMemo(function activeDayStyleMemo() {
         return {
@@ -872,7 +872,7 @@ export function CalendarView({
                 <ScheduleUpsert
                     canSetScheduleFor={true}
                     defaultScheduleFor={activeTab === CalendarTabs.CALENDAR ? ScheduleFor.Meeting : ScheduleFor.Meeting}
-                    display="dialog"
+                    display="Dialog"
                     isCreate={editingSchedule === null}
                     isMutate={true}
                     isOpen={isScheduleDialogOpen}

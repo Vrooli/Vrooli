@@ -98,7 +98,7 @@ Create.parameters = {
 export function CreateDialog() {
     return (
         <ScheduleUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             defaultScheduleFor="FocusMode"
@@ -119,7 +119,7 @@ CreateDialog.parameters = {
 export function CreateDialogForMeeting() {
     return (
         <ScheduleUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             defaultScheduleFor="Meeting"
@@ -160,7 +160,7 @@ Update.parameters = {
 export function UpdateDialog() {
     return (
         <ScheduleUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             isOpen={true}
             canSetScheduleFor={false}
@@ -223,7 +223,7 @@ NonPremiumUser.parameters = {
 export function WithOverrideObject() {
     return (
         <ScheduleUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             canSetScheduleFor={true}

@@ -80,7 +80,7 @@ function transformReminderValues(values: ReminderShape, existing: ReminderShape,
     return isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 }
 
-const AddStepButton = styled(Button)(({ theme }) => ({
+const AddButton = styled(Button)(({ theme }) => ({
     alignSelf: "center",
     backgroundColor: theme.palette.background.paper,
     borderRadius: 0,
@@ -120,13 +120,11 @@ function useReminderFormStyles(palette: Palette) {
     }), [palette]);
 }
 
-// Define stable sx props outside the component to fix linter errors
 const dialogSx = {
     paper: {
         width: "min(100%, 1200px)",
     },
 };
-const compactClickSx = { cursor: "pointer" };
 
 // Define stable sx for Typography outside, or use useMemo if theme-dependent
 function useCompactTypographySx(isComplete: boolean) {
@@ -599,7 +597,7 @@ function ReminderForm({
                         <Grid container spacing={2}>
                             <Grid item xs={12} lg={6}>
                                 <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
-                                    <Typography variant="h4" sx={styles.sectionTitle}>Basic info</Typography>
+                                    <Typography variant="h5" sx={styles.sectionTitle}>Basic info</Typography>
                                     <RelationshipList
                                         isEditing={true}
                                         objectType={"Reminder"}
@@ -629,7 +627,7 @@ function ReminderForm({
                             <Grid item xs={12} lg={6}>
                                 <Divider sx={styles.dividerStyle} />
                                 <Box display="flex" flexDirection="column" gap={4} justifyContent="flex-start" maxWidth="600px" margin="auto">
-                                    <Typography variant="h4" sx={styles.sectionTitle}>Steps to complete</Typography>
+                                    <Typography variant="h5" sx={styles.sectionTitle}>Steps to complete</Typography>
                                     <Box borderRadius="24px" overflow="overlay">
                                         <Droppable droppableId="reminderItems">
                                             {(provided) => (
@@ -663,14 +661,14 @@ function ReminderForm({
                                                 </div>
                                             )}
                                         </Droppable>
-                                        <AddStepButton
+                                        <AddButton
                                             fullWidth
                                             startIcon={<IconCommon name="Add" />}
                                             onClick={handleAddStep}
                                             variant="contained"
                                         >
                                             {t("StepAdd")}
-                                        </AddStepButton>
+                                        </AddButton>
                                     </Box>
                                 </Box>
                             </Grid>
