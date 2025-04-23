@@ -1,8 +1,8 @@
 import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
-import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
+import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Popover, Select, Stack, styled, Typography, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import memoize from 'lodash/memoize';
-import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
@@ -474,8 +474,8 @@ function ScheduleForm({
     }, []);
 
     const findScheduleForLimitTo = useMemo(function findScheduleForLimitTo() {
-        return scheduleFor?.objectType ? [scheduleFor.objectType] : [];
-    }, [scheduleFor?.objectType]);
+        return scheduleForOptions.map(option => option.objectType);
+    }, []);
     const onScheduleForChange = useCallback(function onScheduleForChangeCallback(selected: ScheduleForOption) {
         handleScheduleForChange(selected);
         setIsScheduleForSearchOpen(true);
@@ -627,6 +627,27 @@ function ScheduleForm({
     // state for recurrences editor dialog
     const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
 
+    // Ref for the Add Exception button
+    const addExceptionButtonRef = useRef<HTMLButtonElement>(null);
+
+    // State for exception date editor popover
+    const [exceptionAnchorEl, setExceptionAnchorEl] = useState<HTMLElement | null>(null);
+    const [editingExceptionIndex, setEditingExceptionIndex] = useState<number | null>(null);
+
+    const handleExceptionClick = (event: React.MouseEvent<HTMLElement>, index: number) => {
+        console.log('Handling exception click for index:', index, 'Target:', event.currentTarget);
+        setExceptionAnchorEl(event.currentTarget);
+        setEditingExceptionIndex(index);
+    };
+
+    const handleExceptionClose = () => {
+        setExceptionAnchorEl(null);
+        setEditingExceptionIndex(null);
+    };
+
+    const openExceptionEditor = Boolean(exceptionAnchorEl);
+    const exceptionEditorId = openExceptionEditor ? 'exception-date-popover' : undefined;
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -695,28 +716,61 @@ function ScheduleForm({
                                     </Grid>
                                     <Grid item xs={12} md={6}>
                                         <Typography variant="h5" sx={styles.sectionTitle}>Exceptions</Typography>
-                                        {exceptionsField.value.length > 0 ? exceptionsField.value.map((ex, idx) => (
-                                            <Box key={ex.id} display="flex" alignItems="center" gap={1} mb={1}>
-                                                <DateInput name={`exceptions[${idx}].date`} label="Exception date" type="date" />
-                                                <IconButton size="small" onClick={() => exceptionsHelpers.setValue(exceptionsField.value.filter((_, i) => i !== idx))}>
-                                                    <IconCommon decorative fill="error.main" name="Delete" />
-                                                </IconButton>
+                                        <Box display="flex" flexWrap="wrap" gap={1} alignItems="center">
+                                            {exceptionsField.value.length > 0 ? exceptionsField.value.map((ex, idx) => (
+                                                <Chip
+                                                    key={ex.id}
+                                                    label={new Date(ex.originalStartTime).toLocaleString()}
+                                                    onClick={(event: React.MouseEvent<HTMLElement>) => handleExceptionClick(event, idx)}
+                                                    onDelete={() => exceptionsHelpers.setValue(exceptionsField.value.filter((_, i) => i !== idx))}
+                                                />
+                                            )) : (
+                                                <Typography variant="body2" color="text.secondary">No exceptions</Typography>
+                                            )}
+                                            <Button
+                                                ref={addExceptionButtonRef}
+                                                variant="outlined"
+                                                onClick={() => {
+                                                    const newException: ScheduleException = {
+                                                        __typename: "ScheduleException" as const,
+                                                        id: uuid(),
+                                                        originalStartTime: new Date().toISOString(),
+                                                        schedule: { __typename: "Schedule" as const, id: values.id } as any,
+                                                    };
+                                                    const currentExceptions = exceptionsField.value || [];
+                                                    const newIndex = currentExceptions.length;
+                                                    exceptionsHelpers.setValue([...currentExceptions, newException]);
+                                                    // Open popover automatically
+                                                    setEditingExceptionIndex(newIndex);
+                                                    setExceptionAnchorEl(addExceptionButtonRef.current);
+                                                }}
+                                            >Add exception</Button>
+                                        </Box>
+                                        {/* Exception Date Editor Popover */}
+                                        <Popover
+                                            id={exceptionEditorId}
+                                            open={openExceptionEditor}
+                                            anchorEl={exceptionAnchorEl}
+                                            onClose={handleExceptionClose}
+                                            anchorOrigin={{
+                                                vertical: 'bottom',
+                                                horizontal: 'center',
+                                            }}
+                                            transformOrigin={{
+                                                vertical: 'top',
+                                                horizontal: 'center',
+                                            }}
+                                        >
+                                            <Box sx={{ p: 2 }}>
+                                                {editingExceptionIndex !== null && (
+                                                    <DateInput
+                                                        name={`exceptions[${editingExceptionIndex}].originalStartTime`}
+                                                        label="Exception Date & Time"
+                                                        type="datetime-local"
+                                                    />
+                                                )}
                                             </Box>
-                                        )) : (
-                                            <Typography variant="body2" color="text.secondary">No exceptions</Typography>
-                                        )}
-                                        <Button
-                                            variant="outlined"
-                                            onClick={() => exceptionsHelpers.setValue([
-                                                ...exceptionsField.value,
-                                                ({
-                                                    __typename: "ScheduleException" as const,
-                                                    id: uuid(),
-                                                    originalStartTime: new Date().toISOString(),
-                                                    schedule: { __typename: "Schedule" as const, id: values.id } as any,
-                                                } as ScheduleException)
-                                            ])}
-                                        >Add exception</Button>
+                                        </Popover>
                                     </Grid>
                                 </Grid>
                             </Box>
