@@ -471,7 +471,7 @@ export function RoutineSingleStepView({
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
             <SideActionsButtons
                 // Treat as a dialog when build view is open
-                display={isGraphOpen ? "dialog" : display}
+                display={isGraphOpen ? "Dialog" : display}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (

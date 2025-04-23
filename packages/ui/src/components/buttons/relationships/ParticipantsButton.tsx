@@ -81,7 +81,7 @@ export function ParticipantsButton({
         return (
             <>
                 <ParticipantManageView
-                    display="dialog"
+                    display="Dialog"
                     isEditing={isEditing}
                     isOpen={isDialogOpen}
                     onClose={closeDialog}

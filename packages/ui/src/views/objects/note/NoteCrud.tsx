@@ -264,8 +264,8 @@ function NoteForm({
         return (
             <ScrollBox>
                 <BaseForm
-                    display="dialog"
-                    isNested={display === "dialog"}
+                    display="Dialog"
+                    isNested={display === "Dialog"}
                     maxWidth={600}
                     style={titleDialogFormStyle}
                 >
@@ -406,7 +406,7 @@ export function NoteCrud({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NoteVersion, NoteVersionShape>({
         ...endpointsNoteVersion.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "NoteVersion",
         overrideObject,

@@ -1,8 +1,8 @@
-import { ApiKeyPermission, FindByIdInput, ResourceCreateInput, ResourceSearchInput, ResourceUpdateInput, ResourceUsedFor, uuid } from "@local/shared";
+import { FindByIdInput, ResourceCreateInput, ResourceSearchInput, ResourceUpdateInput, ResourceUsedFor, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -226,7 +226,7 @@ describe("EndpointsResource", () => {
             });
 
             it("API key with public permissions finds public resources", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
 
@@ -291,7 +291,7 @@ describe("EndpointsResource", () => {
             });
 
             it("API key with public permissions cannot find private resources", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
 
@@ -364,7 +364,7 @@ describe("EndpointsResource", () => {
             });
 
             it("API key with public permissions returns only public resources", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
 
@@ -441,7 +441,7 @@ describe("EndpointsResource", () => {
 
             it("API key with write permissions can create resource in own list", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const newResourceId = uuid();
@@ -507,7 +507,7 @@ describe("EndpointsResource", () => {
 
             it("API key without write permission cannot create resource", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>; // No write permission
+                const permissions = mockReadPublicPermissions(); // No write permission
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: ResourceCreateInput = {
@@ -559,7 +559,7 @@ describe("EndpointsResource", () => {
 
             it("API key with write permissions can update own resource", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: ResourceUpdateInput = {
@@ -627,7 +627,7 @@ describe("EndpointsResource", () => {
 
             it("API key without write permission cannot update resource", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>; // No write permission
+                const permissions = mockReadPublicPermissions(); // No write permission
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: ResourceUpdateInput = {

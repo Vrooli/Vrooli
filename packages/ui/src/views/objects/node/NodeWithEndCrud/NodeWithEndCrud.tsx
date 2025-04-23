@@ -90,7 +90,7 @@ function NodeWithEndForm({
     //         onClose={onClose}
     //     >
     //         <TopBar
-    //             display="dialog"
+    //             display="Dialog"
     //             onClose={onClose}
     //             title={firstString(getDisplay(values).title, t(isCreate ? "CreateNodeEnd" : "UpdateNodeEnd"))}
     //             options={topBarOptions}

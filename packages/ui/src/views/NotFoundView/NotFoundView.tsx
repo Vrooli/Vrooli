@@ -5,6 +5,7 @@ import Bunny404 from "../../assets/img/Bunny404.svg";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { Link } from "../../route/router.js";
+import { ViewProps } from "../../types.js";
 
 function goBack() {
     window.history.back();
@@ -42,7 +43,7 @@ const imageStyles: SxProps<Theme> = {
     maxHeight: "300px",
 };
 
-export function NotFoundView() {
+export function NotFoundView(_props: ViewProps) {
     const { t } = useTranslation();
     const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
 

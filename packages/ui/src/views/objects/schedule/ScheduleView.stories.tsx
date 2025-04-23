@@ -194,7 +194,7 @@ export function DialogView() {
 
     return (
         <ScheduleView
-            display="dialog"
+            display="Dialog"
             isOpen={true}
             onClose={handleClose}
         />

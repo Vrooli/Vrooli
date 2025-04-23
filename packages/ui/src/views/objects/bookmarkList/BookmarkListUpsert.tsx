@@ -261,7 +261,7 @@ function BookmarkListForm({
                     sxs={{
                         stack: {
                             padding: 0,
-                            ...(display === "page" && !isMobile ? {
+                            ...(display === "Page" && !isMobile ? {
                                 margin: "auto",
                                 maxWidth: "800px",
                                 paddingTop: 1,
@@ -271,7 +271,7 @@ function BookmarkListForm({
                     }}
                     DialogContentForm={() => (
                         <BaseForm
-                            display="dialog"
+                            display="Dialog"
                             style={{
                                 paddingBottom: "16px",
                             }}
@@ -354,7 +354,7 @@ export function BookmarkListUpsert({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<BookmarkList, BookmarkListShape>({
         ...endpointsBookmarkList.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "BookmarkList",
         overrideObject,

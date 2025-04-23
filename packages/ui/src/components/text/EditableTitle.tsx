@@ -101,7 +101,7 @@ export function EditableTitle({
                 onClose={handleClose}
             >
                 <TopBar
-                    display="dialog"
+                    display="Dialog"
                     onClose={handleClose}
                 />
                 {DialogContentForm(formik)}

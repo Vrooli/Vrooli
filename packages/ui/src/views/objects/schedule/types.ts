@@ -1,6 +1,6 @@
 import { Schedule, ScheduleShape, TranslationKeyCommon } from "@local/shared";
 import { IconInfo } from "../../../icons/Icons.js";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
 export type ScheduleForType = "FocusMode" | "Meeting" | "RunProject" | "RunRoutine";
 
@@ -20,7 +20,12 @@ type ScheduleUpsertPropsDialog = CrudPropsDialog<Schedule> & {
     defaultScheduleFor: ScheduleForType;
     isMutate: boolean;
 };
-export type ScheduleUpsertProps = ScheduleUpsertPropsPage | ScheduleUpsertPropsDialog;
+type ScheduleUpsertPropsPartial = CrudPropsPartial<Schedule> & {
+    canSetScheduleFor?: never;
+    defaultScheduleFor?: never;
+    isMutate?: never;
+}
+export type ScheduleUpsertProps = ScheduleUpsertPropsPage | ScheduleUpsertPropsDialog | ScheduleUpsertPropsPartial;
 export type ScheduleFormProps = FormProps<Schedule, ScheduleShape> & Pick<ScheduleUpsertProps, | "canSetScheduleFor" | "isMutate"> & {
     scheduleFor: ScheduleForOption | null;
     handleScheduleForChange: (scheduleFor: ScheduleForOption) => unknown;

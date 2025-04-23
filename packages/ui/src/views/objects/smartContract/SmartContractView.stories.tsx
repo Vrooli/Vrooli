@@ -271,7 +271,7 @@ export function DialogView() {
 
     return (
         <SmartContractView
-            display="dialog"
+            display="Dialog"
             isOpen={true}
             onClose={handleClose}
         />

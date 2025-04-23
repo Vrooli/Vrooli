@@ -1,9 +1,9 @@
 // Tests for the Bookmark endpoint (findOne, findMany, createOne, updateOne)
-import { ApiKeyPermission, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkUpdateInput, FindByIdInput, uuid } from "@local/shared";
+import { BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkUpdateInput, FindByIdInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -140,7 +140,7 @@ describe("EndpointsBookmark", () => {
             });
 
             it("API key with read permissions can find own bookmark", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: FindByIdInput = { id: bookmarkUser1Id };
@@ -189,9 +189,10 @@ describe("EndpointsBookmark", () => {
             it("logged out user cannot find any bookmarks", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: BookmarkSearchInput = { take: 10 };
-                const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array").with.lengthOf(0);
+                try {
+                    await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
+                    expect.fail("Expected an error to be thrown");
+                } catch (error) { /* Error expected */ }
             });
         });
     });
@@ -213,7 +214,7 @@ describe("EndpointsBookmark", () => {
             });
 
             it("API key with write permissions can create bookmark", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const newBookmarkId = uuid();
@@ -259,7 +260,7 @@ describe("EndpointsBookmark", () => {
             });
 
             it("API key without write permissions cannot create bookmark", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: BookmarkCreateInput = {
@@ -287,7 +288,7 @@ describe("EndpointsBookmark", () => {
             });
 
             it("API key with write permissions can update own bookmark", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: BookmarkUpdateInput = { id: bookmarkUser1Id, listConnect: listUser1.id };

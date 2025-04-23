@@ -190,7 +190,7 @@ export function ShareObjectDialog({
             }}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={onClose}
                 title={t("Share")}
                 titleId={titleId}

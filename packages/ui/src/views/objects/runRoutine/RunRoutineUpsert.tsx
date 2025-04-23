@@ -131,7 +131,7 @@ function RunRoutineForm({
             <ScheduleUpsert
                 canSetScheduleFor={false}
                 defaultScheduleFor="RunRoutine"
-                display="dialog"
+                display="Dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
@@ -246,7 +246,7 @@ export function RunRoutineUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunRoutine, RunRoutineShape>({
         ...endpointsRunRoutine.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "RunRoutine",
         overrideObject,

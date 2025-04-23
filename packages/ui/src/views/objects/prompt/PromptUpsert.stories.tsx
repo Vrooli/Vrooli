@@ -184,7 +184,7 @@ Create.parameters = {
 export function CreateDialog() {
     return (
         <PromptUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}
@@ -222,7 +222,7 @@ Update.parameters = {
 export function UpdateDialog() {
     return (
         <PromptUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             isOpen={true}
             onClose={() => { }}
@@ -282,7 +282,7 @@ NonPremiumUser.parameters = {
 export function WithOverrideObject() {
     return (
         <PromptUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}

@@ -1,11 +1,11 @@
 import { Box, styled } from "@mui/material";
 import { useFormikContext } from "formik";
-import { ReactNode, useMemo } from "react";
+import { forwardRef, ReactNode, useMemo } from "react";
 import { ViewDisplayType } from "../../types.js";
 
 type OuterFormProps = {
     children: ReactNode;
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`;
     maxWidth?: number | "unset" | "100%";
 };
 
@@ -31,15 +31,15 @@ const LoadingOverlay = styled(Box)(() => ({
     zIndex: 1,
 }));
 
-export function OuterForm({
+export const OuterForm = forwardRef<HTMLDivElement, OuterFormProps>(({
     children,
     display,
     maxWidth = DEFAULT_MAX_WIDTH_PX,
-}: OuterFormProps) {
+}, ref) => {
     const innerStyle = useMemo(function innerStyleMemo() {
         return {
-            height: display === "dialog" ? "100%" : "unset",
-            overflowY: display === "dialog" ? "auto" : "unset",
+            height: display === ViewDisplayType.Dialog ? "100%" : "unset",
+            overflowY: display === ViewDisplayType.Dialog ? "auto" : "unset",
             maxWidth: typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth,
             margin: "auto",
             paddingLeft: 1,
@@ -49,20 +49,21 @@ export function OuterForm({
     }, [display, maxWidth]);
 
     return (
-        <Box flex={1} style={innerStyle}>
+        <Box flex={1} style={innerStyle} ref={ref}>
             {children}
         </Box>
     );
-}
+});
+OuterForm.displayName = 'OuterForm';
 
-export function InnerForm({
+export const InnerForm = forwardRef<HTMLDivElement, InnerFormProps>(({
     children,
     display,
     isLoading = false,
     isNested,
     maxWidth = DEFAULT_MAX_WIDTH_PX,
     style,
-}: InnerFormProps) {
+}, ref) => {
     const { handleReset, handleSubmit } = useFormikContext();
 
     const innerStyle = useMemo(function innerStyleMemo() {
@@ -75,8 +76,8 @@ export function InnerForm({
             maxWidth: typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth,
             margin: "auto",
             paddingBottom: "64px",
-            paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,
-            paddingRight: display === "dialog" ? "env(safe-area-inset-right)" : undefined,
+            paddingLeft: display === ViewDisplayType.Dialog ? "env(safe-area-inset-left)" : undefined,
+            paddingRight: display === ViewDisplayType.Dialog ? "env(safe-area-inset-right)" : undefined,
             ...style,
         } as const;
     }, [display, maxWidth, style]);
@@ -90,21 +91,24 @@ export function InnerForm({
             onSubmit={handleSubmit as (ev: React.FormEvent<HTMLFormElement | HTMLDivElement>) => void}
             onReset={handleReset}
             sx={innerStyle}
+            ref={ref}
         >
             {isLoading && <LoadingOverlay />}
             {children}
         </Box>
     );
-}
+});
+InnerForm.displayName = 'InnerForm';
 
-export function BaseForm({
+export const BaseForm = forwardRef<HTMLDivElement, BaseFormProps>(({
     display,
     maxWidth,
     ...rest
-}: BaseFormProps) {
+}, ref) => {
     return (
-        <OuterForm display={display} maxWidth={maxWidth}>
+        <OuterForm display={display} maxWidth={maxWidth} ref={ref}>
             <InnerForm display={display} maxWidth={maxWidth} {...rest} />
         </OuterForm>
     );
-} 
+});
+BaseForm.displayName = 'BaseForm';

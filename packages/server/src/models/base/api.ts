@@ -114,7 +114,7 @@ export const ApiModel: ApiModelLogic = ({
     validate: () => ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-        isDeleted: (data) => data.isDeleted === false,
+        isDeleted: (data) => data.isDeleted === true,
         // isPublic: function getIsPublic(data, ...rest) {
         //     if (data.isPrivate || data.isDeleted) return false;
         //     if (data.ownedByTeam === null && data.ownedByUser === null) return true;

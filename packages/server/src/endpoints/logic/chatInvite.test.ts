@@ -1,8 +1,8 @@
-import { ApiKeyPermission, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteUpdateInput, FindByIdInput, uuid } from "@local/shared";
+import { ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteUpdateInput, FindByIdInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -16,6 +16,7 @@ import { chatInvite_findOne } from "../generated/chatInvite_findOne.js";
 import { chatInvite_updateMany } from "../generated/chatInvite_updateMany.js";
 import { chatInvite_updateOne } from "../generated/chatInvite_updateOne.js";
 import { chatInvite } from "./chatInvite.js";
+
 const user1Id = uuid();
 const user2Id = uuid();
 const user3Id = uuid();
@@ -164,13 +165,9 @@ describe("EndpointsChatInvite", () => {
                 } catch (err) { /* expected */ }
             });
 
-            it("returns invite for API key with admin permissions", async () => {
+            it("returns invite for API key with private read permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.ReadPublic]: true,
-                    [ApiKeyPermission.ReadPrivate]: true,
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: FindByIdInput = { id: invite1Id };
@@ -227,9 +224,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("API key with write permissions can create invite", async () => {
-                const permissions = {
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const newInviteId = uuid();
@@ -261,7 +256,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("API key without write permissions cannot create invite", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: ChatInviteCreateInput = { id: uuid(), chatConnect: chat2Id, userConnect: user3Id };
@@ -301,7 +296,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("API key without write permissions cannot create many invites", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: ChatInviteCreateInput[] = [
@@ -336,9 +331,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("API key with write permissions can update an invite", async () => {
-                const permissions = {
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: ChatInviteUpdateInput = { id: invite1Id, message: "API Update" };
@@ -374,9 +367,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("API key with write permissions can update many invites", async () => {
-                const permissions = {
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: ChatInviteUpdateInput[] = [{ id: invite1Id, message: "API Bulk" }];

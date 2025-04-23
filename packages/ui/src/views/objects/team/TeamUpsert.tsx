@@ -251,7 +251,7 @@ export function TeamUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Team, TeamShape>({
         ...endpointsTeam.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Team",
         overrideObject,

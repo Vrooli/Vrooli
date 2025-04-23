@@ -253,7 +253,7 @@ export interface LargeDialogProps {
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`;
     isOpen?: boolean;
     onClose?: () => unknown;
 }

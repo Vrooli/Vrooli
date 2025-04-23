@@ -1,5 +1,5 @@
 import { Resource, ResourceShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps } from "../../../types.js";
 
 type ResourceUpsertPropsPage = CrudPropsPage & {
     isMutate: boolean;
@@ -7,5 +7,8 @@ type ResourceUpsertPropsPage = CrudPropsPage & {
 type ResourceUpsertPropsDialog = CrudPropsDialog<Resource> & {
     isMutate: boolean;
 };
-export type ResourceUpsertProps = ResourceUpsertPropsPage | ResourceUpsertPropsDialog;
+type ResourceUpsertPropsPartial = CrudPropsPartial<Resource> & {
+    isMutate: boolean;
+}
+export type ResourceUpsertProps = ResourceUpsertPropsPage | ResourceUpsertPropsDialog | ResourceUpsertPropsPartial;
 export type ResourceFormProps = FormProps<Resource, ResourceShape> & Pick<ResourceUpsertProps, "isMutate">;

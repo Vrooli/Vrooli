@@ -222,7 +222,7 @@ export function ReportUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Report, ReportShape>({
         ...endpointsReport.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Report",
         transform: (existing) => reportInitialValues(session, existing, createdFor),

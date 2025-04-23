@@ -69,7 +69,7 @@ export function SubroutineCreateDialog({
 }: SubroutineCreateDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const display = "dialog";
+    const display = "Dialog";
 
     const [selectedType, setSelectedType] = useState<SubroutineType | null>(null);
     const [page, setPage] = useState<"select" | "create">("select");

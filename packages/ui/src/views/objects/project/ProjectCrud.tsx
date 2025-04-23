@@ -215,7 +215,7 @@ function ProjectForm({
     const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
         return (
             <BaseForm
-                display="dialog"
+                display="Dialog"
                 style={{
                     width: "min(700px, 100vw)",
                     paddingBottom: "16px",
@@ -332,7 +332,7 @@ export function ProjectCrud({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ProjectVersion, ProjectVersionShape>({
         ...endpointsProjectVersion.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "ProjectVersion",
         overrideObject,

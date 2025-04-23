@@ -1,8 +1,8 @@
-import { ApiKeyPermission, FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
+import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -106,7 +106,7 @@ describe("EndpointsMeeting", () => {
 
             it("returns meeting by id with API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: FindByIdInput = { id: meeting1Id };
@@ -140,7 +140,7 @@ describe("EndpointsMeeting", () => {
 
             it("returns meetings without filters for API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: MeetingSearchInput = { take: 10 };
@@ -166,7 +166,7 @@ describe("EndpointsMeeting", () => {
 
             it("API key with write permissions can create meeting", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const newMeetingId = uuid();

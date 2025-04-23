@@ -10,6 +10,7 @@ import { IconCommon, IconRoutine, IconService } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewProps } from "../../types.js";
 
 type MemberData = {
     fullName: string;
@@ -68,7 +69,7 @@ const teamMembers: MemberData[] = [
 
 const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
-export function AboutView() {
+export function AboutView(_props: ViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const theme = useTheme();

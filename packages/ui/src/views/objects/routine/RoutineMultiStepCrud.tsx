@@ -1621,7 +1621,7 @@ function RoutineMultiStepCrudForm({
     //     return (
     //         <ScrollBox>
     //             <BaseForm
-    //                 display="dialog"
+    //                 display="Dialog"
     //                 maxWidth={600}
     //                 style={titleDialogFormStyle}
     //             >

@@ -1,9 +1,9 @@
 // Tests for the Post endpoint (findOne, findMany, createOne, updateOne)
-import { ApiKeyPermission, FindByIdInput, PostCreateInput, PostSearchInput, PostUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
+import { FindByIdInput, PostCreateInput, PostSearchInput, PostUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -117,7 +117,7 @@ describe("EndpointsPost", () => {
             });
 
             it("API key with public read can find public post", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: FindByIdInput = { id: postUser2Public.id };
@@ -163,7 +163,7 @@ describe("EndpointsPost", () => {
             });
 
             it("API key with public read returns only public posts", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: PostSearchInput = { take: 10 };
@@ -199,7 +199,7 @@ describe("EndpointsPost", () => {
             });
 
             it("API key with write permissions can create post", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const newPostId = uuid();
@@ -223,7 +223,7 @@ describe("EndpointsPost", () => {
             });
 
             it("API key without write permissions cannot create post", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: PostCreateInput = { id: uuid(), isPrivate: false };

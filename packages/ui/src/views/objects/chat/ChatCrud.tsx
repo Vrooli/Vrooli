@@ -15,6 +15,7 @@ import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichIn
 import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { NavbarInner, NavListBox, NavListInboxButton, NavListNewChatButton, NavListProfileButton, SiteNavigatorButton } from "../../../components/navigation/Navbar.js";
+import { PartialNavbar } from "../../../components/navigation/PartialNavbar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
@@ -32,8 +33,8 @@ import { useLocation } from "../../../route/router.js";
 import { useActiveChatStore } from "../../../stores/activeChatStore.js";
 import { useLayoutStore } from "../../../stores/layoutStore.js";
 import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
+import { ViewDisplayType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
-import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { getCookiePartialData, setCookieMatchingChat } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -386,25 +387,13 @@ function ChatForm({
         };
     }, [copyLink, t]);
 
-    // Define sx prop for the partial header container
-    const partialHeaderSx = useMemo(() => ({ display: "flex", justifyContent: "flex-end", p: 1 }), []);
-
-    // Define memoized handlers for close and swap actions
-    const handleCloseDrawer = useCallback(() => {
-        PubSub.get().publish("menu", { id: ELEMENT_IDS.RightDrawer, isOpen: false });
-    }, []);
-
-    const handleSwapView = useCallback(() => {
-        swapMainAndRight();
-    }, [swapMainAndRight]);
-
     const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
         const { values, setFieldValue, submitForm } = useFormikContext<ChatShape>();
         return (
             <ScrollBox>
                 <BaseForm
-                    display="dialog"
-                    isNested={display === "dialog"}
+                    display="Dialog"
+                    isNested={display === ViewDisplayType.Dialog}
                     maxWidth={600}
                     style={titleDialogFormStyle}
                 >
@@ -487,17 +476,21 @@ function ChatForm({
                 sxs={dialogStyle}
             >
                 <Box sx={outerBoxStyle}>
-                    {display === "partial" ? (
-                        <Box sx={partialHeaderSx}>
-                            {/* Swap Button */}
-                            <IconButton onClick={handleSwapView} sx={{ mr: 1 }}>
-                                <IconCommon name="MoveLeftRight" />
-                            </IconButton>
-                            {/* Close Button */}
-                            <IconButton onClick={handleCloseDrawer}>
-                                <IconCommon name="Close" />
-                            </IconButton>
-                        </Box>
+                    {display === ViewDisplayType.Partial ? (
+                        <PartialNavbar>
+                            <EditableTitle
+                                handleDelete={handleDelete}
+                                isDeletable={!(values.id === DUMMY_ID || disabled)}
+                                isEditable={!disabled}
+                                language={language}
+                                onClose={onSubmit}
+                                onSubmit={onSubmit}
+                                titleField="name"
+                                subtitleField="description"
+                                variant="header"
+                                DialogContentForm={titleDialogContentForm}
+                            />
+                        </PartialNavbar>
                     ) : (
                         <NavbarInner>
                             <SiteNavigatorButton />
@@ -602,7 +595,7 @@ export function ChatCrud({
         ...endpointsChat.findOne,
         // Call the latest onLoadErrorRef callback
         onError: (errors) => onLoadErrorRef.current(errors),
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         displayError: display === "page" || isOpen === true,
         isCreate,
         objectType: "Chat",

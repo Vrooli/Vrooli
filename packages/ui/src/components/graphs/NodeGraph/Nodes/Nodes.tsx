@@ -668,7 +668,7 @@ export function RoutineListNode({
     return (
         // {/* Normal-click menu */ }
         //     {/* <NodeWithRoutineListCrud
-        //         display="dialog"
+        //         display="Dialog"
         //         onCancel={closeEditDialog}
         //         onClose={closeEditDialog}
         //         onCompleted={handleUpdate}

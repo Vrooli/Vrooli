@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { ObjectDialogAction } from "../components/dialogs/types.js";
 import { useLocation } from "../route/router.js";
 import { SetLocation } from "../route/types.js";
-import { FormProps } from "../types.js";
+import { FormProps, ViewDisplayType } from "../types.js";
 import { getCookieFormData, removeCookieFormData, removeCookiePartialData, setCookieFormData, setCookiePartialData } from "../utils/localStorage.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useDebounce } from "./useDebounce.js";
@@ -94,7 +94,7 @@ export function useSaveToCache<T extends object>({
 
 type TType = OrArray<{ __typename: ListObject["__typename"], id: string }>;
 type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>, "onCancel" | "onCompleted" | "onDeleted"> & {
-    display: "dialog" | "page" | "partial",
+    display: ViewDisplayType | `${ViewDisplayType}`,
     isCreate: boolean,
     objectId?: string,
     objectType: ListObject["__typename"],
@@ -225,7 +225,7 @@ export function useUpsertActions<T extends TType>({
                 }
             }
 
-            if (display === "page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
+            if (display === "Page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
 
             if ((isCreate && messageType === "Created") || (!isCreate && messageType === "Updated")) {
                 publishSnack(messageType, Array.isArray(item) ? item.length : 1, item);
@@ -246,12 +246,12 @@ export function useUpsertActions<T extends TType>({
                         disableCache();
                     }
                 }
-                if (display === "page") goBack(setLocation, isCreate ? undefined : viewUrl);
+                if (display === "Page") goBack(setLocation, isCreate ? undefined : viewUrl);
                 else onCancel?.();
                 break;
             case ObjectDialogAction.Close:
                 // DO NOT remove form backup data from cache
-                if (display === "page") goBack(setLocation, isCreate ? undefined : viewUrl);
+                if (display === "Page") goBack(setLocation, isCreate ? undefined : viewUrl);
                 else onCancel?.();
                 break;
             case ObjectDialogAction.Delete:
@@ -264,7 +264,7 @@ export function useUpsertActions<T extends TType>({
                         disableCache();
                     }
                 }
-                if (display === "page") goBack(setLocation);
+                if (display === "Page") goBack(setLocation);
                 else onDeleted?.(item);
                 // Don't display snack message, as we don't have enough information for the message's "Undo" button
                 break;

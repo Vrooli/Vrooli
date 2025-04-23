@@ -1,8 +1,9 @@
 import { RunProject, RunProjectShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
 type RunProjectUpsertPropsPage = CrudPropsPage;
 type RunProjectUpsertPropsDialog = CrudPropsDialog<RunProject>;
-export type RunProjectUpsertProps = RunProjectUpsertPropsPage | RunProjectUpsertPropsDialog;
+type RunProjectUpsertPropsPartial = CrudPropsPartial<RunProject>;
+export type RunProjectUpsertProps = RunProjectUpsertPropsPage | RunProjectUpsertPropsDialog | RunProjectUpsertPropsPartial;
 export type RunProjectFormProps = FormProps<RunProject, RunProjectShape>
 export type RunProjectViewProps = ObjectViewProps<RunProject>

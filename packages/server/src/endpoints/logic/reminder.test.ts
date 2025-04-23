@@ -1,8 +1,8 @@
-import { ApiKeyPermission, FindByIdInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, uuid } from "@local/shared";
+import { FindByIdInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -161,7 +161,7 @@ describe("EndpointsReminder", () => {
 
             it("API key with public permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -295,7 +295,7 @@ describe("EndpointsReminder", () => {
 
             it("API key - public permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -379,10 +379,7 @@ describe("EndpointsReminder", () => {
 
             it("API key with write permissions can create reminder", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.ReadPublic]: true,
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -474,10 +471,7 @@ describe("EndpointsReminder", () => {
 
             it("API key with write permissions can update reminder", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.ReadPublic]: true,
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 

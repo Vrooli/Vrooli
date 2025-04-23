@@ -112,7 +112,7 @@ Create.parameters = {
 export function CreateDialog() {
     return (
         <RunProjectUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}
@@ -170,7 +170,7 @@ UpdateNoSchedule.parameters = {
 export function UpdateDialog() {
     return (
         <RunProjectUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             isOpen={true}
             onClose={() => { }}
@@ -230,7 +230,7 @@ NonPremiumUser.parameters = {
 export function WithOverrideObject() {
     return (
         <RunProjectUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}

@@ -18,19 +18,19 @@ export function BottomActionsGrid({
     const gridStyle = useMemo(function gridStyleMemo() {
         return {
             padding: 0,
-            marginLeft: display === "page" ? "auto" : 0,
-            marginRight: display === "page" ? "auto" : 0,
-            maxWidth: display === "page" ? "min(700px, 100%)" : "100%",
+            marginLeft: display === "Page" ? "auto" : 0,
+            marginRight: display === "Page" ? "auto" : 0,
+            maxWidth: display === "Page" ? "min(700px, 100%)" : "100%",
             zIndex: 10,
             position: "sticky", //"absolute",
             // Displayed directly above BottomNav (pages only), which is only visible on mobile
-            bottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : 0, md: 0 },
+            bottom: { xs: (display === "Page" && !isKeyboardOpen) ? pagePaddingBottom : 0, md: 0 },
             left: 0,
             right: 0,
             // Background has transparent blur gradient when used for a page, 
             // and a solid color when used for a dialog
-            background: display === "page" ? "transparent" : palette.primary.dark,
-            backdropFilter: display === "page" ? "blur(5px)" : undefined,
+            background: display === "Page" ? "transparent" : palette.primary.dark,
+            backdropFilter: display === "Page" ? "blur(5px)" : undefined,
             "@media print": {
                 display: "none",
             },

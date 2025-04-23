@@ -386,7 +386,7 @@ export function CommentThreadItem({
                     {/* Add/Update comment */}
                     {
                         objectId && objectType && <CommentUpsert
-                            display="dialog"
+                            display="Dialog"
                             overrideObject={commentToUpdate}
                             isCreate={!commentToUpdate}
                             isOpen={isUpsertCommentOpen}

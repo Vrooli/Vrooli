@@ -250,13 +250,13 @@ export function CommentDialog({
             titleId={titleId}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={onClose}
                 title={t(isCreate ? "AddComment" : "EditComment")}
                 titleId={titleId}
             />
             <BaseForm
-                display="dialog"
+                display="Dialog"
                 isLoading={isLoading}
                 style={{
                     width: "min(700px, 100vw)",
@@ -280,7 +280,7 @@ export function CommentDialog({
                     />
                 </Box>
                 <BottomActionsButtons
-                    display={"dialog"}
+                    display={"Dialog"}
                     errors={combineErrorsWithTranslations(props.errors, translationErrors)}
                     hideButtons={disabled}
                     isCreate={isCreate}

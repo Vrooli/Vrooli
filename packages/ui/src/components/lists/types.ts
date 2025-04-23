@@ -201,7 +201,7 @@ export type SearchListProps<T extends OrArray<ListObject>> =
          * If the callback returns false, the list item will not be selected.
          */
         canNavigate?: (item: any) => boolean,
-        display: ViewDisplayType | "partial";
+        display: ViewDisplayType | `${ViewDisplayType}`;
         /**
          * How many dummy lists to display while loading. Smaller is better for lists displayed 
          * in dialogs, since a large dummy list with a small number of results will give 

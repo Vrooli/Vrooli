@@ -94,7 +94,7 @@ function NodeWithRoutineListForm({
     //         onClose={onClose}
     //     >
     //         <TopBar
-    //             display="dialog"
+    //             display="Dialog"
     //             onClose={onClose}
     //             title={firstString(getDisplay(values).title, t(isCreate ? "CreateNodeRoutineList" : "UpdateNodeRoutineList"))}
     //             options={topBarOptions}

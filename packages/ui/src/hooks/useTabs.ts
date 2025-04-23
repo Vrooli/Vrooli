@@ -49,7 +49,7 @@ export function useTabs<TabList extends TabListType = TabListType>({
 
     const [currTab, setCurrTab] = useState<PageTab<TabList[number]>>(() => {
         const storedKey = disableHistory ? undefined : getCookie("LastTab", id);
-        if (display !== "page") {
+        if (display !== "Page") {
             const defaultIndex = tabs.findIndex(tab => tab.key === (storedKey || defaultTab));
             return tabs[defaultIndex !== -1 ? defaultIndex : 0];
         }
@@ -59,7 +59,7 @@ export function useTabs<TabList extends TabListType = TabListType>({
     });
 
     useEffect(function getTabDataFromUrlEffect() {
-        if (display === "page") {
+        if (display === "Page") {
             const searchParams = parseSearchParams();
             const tabFromParams = tabs.find(tab => tab.key === searchParams.type);
             if (tabFromParams) {
@@ -70,7 +70,7 @@ export function useTabs<TabList extends TabListType = TabListType>({
 
     const handleTabChange = useCallback(function handleTabChangeCallback(e: ChangeEvent<unknown> | undefined, tab: PageTab<TabList[number]>) {
         e?.preventDefault();
-        if (display === "page") addSearchParams(setLocation, { type: tab.key });
+        if (display === "Page") addSearchParams(setLocation, { type: tab.key });
         if (!disableHistory) {
             setCookie("LastTab", tab.key, id);
         }

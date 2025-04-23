@@ -82,7 +82,7 @@ export function CookieSettingsDialog({
             sxs={largeDialogSxs}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={onCancel}
                 title={t("CookieSettings")}
                 titleId={titleId}

@@ -226,7 +226,7 @@ export function SettingsFocusModesView({
     return (
         <ScrollBox>
             <FocusModeUpsert
-                display="dialog"
+                display="Dialog"
                 isCreate={editingFocusMode === null}
                 isOpen={isDialogOpen}
                 onCancel={handleCloseDialog}

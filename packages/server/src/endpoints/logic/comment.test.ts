@@ -1,8 +1,8 @@
-import { ApiKeyPermission, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, FindByIdInput, SEEDED_IDS, uuid } from "@local/shared";
+import { CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, FindByIdInput, SEEDED_IDS, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -162,7 +162,7 @@ describe("EndpointsComment", () => {
 
             it("returns comment by id with API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: FindByIdInput = { id: comment1.id };
@@ -200,7 +200,7 @@ describe("EndpointsComment", () => {
 
             it("returns comments for API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: CommentSearchInput = { take: 10 };
@@ -232,7 +232,7 @@ describe("EndpointsComment", () => {
 
             it("API key with write permissions can create comment", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user2Id };
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const newCommentId = uuid();
@@ -268,7 +268,7 @@ describe("EndpointsComment", () => {
 
             it("API key without write permissions cannot create comment", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user2Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: CommentCreateInput = {

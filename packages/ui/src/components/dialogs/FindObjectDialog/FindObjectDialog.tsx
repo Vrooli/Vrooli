@@ -165,7 +165,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
         handleTabChange,
         searchType,
         tabs,
-    } = useTabs({ id: "find-object-tabs", tabParams: filteredTabs, display: "dialog" });
+    } = useTabs({ id: "find-object-tabs", tabParams: filteredTabs, display: "Dialog" });
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<FindObjectType | null>(null);
@@ -376,7 +376,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
     return (
         <>
             {CreateView && <CreateView
-                display="dialog"
+                display="Dialog"
                 isCreate={true}
                 isOpen={createObjectType !== null}
                 onCancel={handleCreateClose}
@@ -439,7 +439,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                         <SearchList
                             {...findManyData}
                             canNavigate={funcFalse}
-                            display="dialog"
+                            display="Dialog"
                             onItemClick={onInputSelect}
                             scrollContainerId={scrollContainerId}
                             searchBarVariant="basic"
@@ -481,7 +481,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                         </Button>
                     </Stack>
                 )}
-                <SideActionsButtons display="dialog">
+                <SideActionsButtons display="Dialog">
                     <IconButton
                         aria-label="create-new"
                         onClick={onCreateStart}

@@ -1,8 +1,8 @@
-import { ApiKeyPermission, FindByIdInput, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteUpdateInput, uuid } from "@local/shared";
+import { FindByIdInput, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -101,8 +101,8 @@ describe("EndpointsMemberInvite", () => {
                 } catch (err) { /* expected */ }
             });
 
-            it("returns invite for API key with admin permissions", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true, [ApiKeyPermission.ReadPrivate]: true, [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+            it("returns invite for API key with private read permissions", async () => {
+                const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: FindByIdInput = { id: invite1Id };
@@ -149,7 +149,7 @@ describe("EndpointsMemberInvite", () => {
             });
 
             it("API key with write permissions can create invite", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const newInviteId = uuid();
@@ -180,7 +180,7 @@ describe("EndpointsMemberInvite", () => {
             });
 
             it("API key without write permissions cannot create invite", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: MemberInviteCreateInput = { id: uuid(), teamConnect: team2.id, userConnect: user3Id };
@@ -219,7 +219,7 @@ describe("EndpointsMemberInvite", () => {
             });
 
             it("API key without write permissions cannot create many invites", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: MemberInviteCreateInput[] = [
@@ -253,7 +253,7 @@ describe("EndpointsMemberInvite", () => {
             });
 
             it("API key with write permissions can update an invite", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: MemberInviteUpdateInput = { id: invite1Id, message: "API Update" };
@@ -286,7 +286,7 @@ describe("EndpointsMemberInvite", () => {
             });
 
             it("API key with write permissions can update many invites", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: MemberInviteUpdateInput[] = [{ id: invite1Id, message: "API Bulk" }];

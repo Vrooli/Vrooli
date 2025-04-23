@@ -440,7 +440,7 @@ export function ReminderList({
             }) as Reminder;
 
         return <ReminderCrud
-            display="dialog"
+            display="Dialog"
             isCreate={editingIndex < 0}
             isOpen={isAddDialogOpen}
             onCancel={closeAddDialog}

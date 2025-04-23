@@ -296,7 +296,7 @@ export function ResourceUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Resource, ResourceShape>({
         ...endpointsResource.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,

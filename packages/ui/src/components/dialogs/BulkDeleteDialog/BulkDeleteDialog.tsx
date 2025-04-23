@@ -65,7 +65,7 @@ export function BulkDeleteDialog({
             onClose={onCancel}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={onCancel}
                 title={t("DeleteBulkConfirm")}
             />
@@ -111,7 +111,7 @@ export function BulkDeleteDialog({
                     sx={{ marginBottom: 2 }}
                 />
             </DialogContent>
-            <BottomActionsGrid display="dialog">
+            <BottomActionsGrid display="Dialog">
                 <Grid item xs={6}>
                     <Button
                         disabled={!isConfirmationValid}

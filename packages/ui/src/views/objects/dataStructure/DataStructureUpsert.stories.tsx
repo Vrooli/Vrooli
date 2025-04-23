@@ -170,7 +170,7 @@ Create.parameters = {
 export function CreateDialog() {
     return (
         <DataStructureUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}
@@ -208,7 +208,7 @@ Update.parameters = {
 export function UpdateDialog() {
     return (
         <DataStructureUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             isOpen={true}
             onClose={() => { }}
@@ -268,7 +268,7 @@ NonPremiumUser.parameters = {
 export function WithOverrideObject() {
     return (
         <DataStructureUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}

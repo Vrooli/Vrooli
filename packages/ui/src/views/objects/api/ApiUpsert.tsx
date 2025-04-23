@@ -1,5 +1,5 @@
 import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointsApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
-import { Box, Button, Divider, Grid, InputAdornment, Typography } from "@mui/material";
+import { Box, Button, Divider, Grid, InputAdornment, Typography, useTheme } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -470,6 +471,9 @@ function ApiForm({
 }: ApiFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const theme = useTheme();
+    const { dimensions, ref } = useDimensions<HTMLDivElement>();
+    const isStacked = dimensions.width < theme.breakpoints.values.lg;
 
     // Handle translations
     const {
@@ -603,10 +607,11 @@ function ApiForm({
                 display={display}
                 maxWidth={1200}
                 isLoading={isLoading}
+                ref={ref}
             >
                 <FormContainer>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} lg={6}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
                             <Box width="100%" padding={2}>
                                 <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
                                 <Box display="flex" flexDirection="column" gap={4}>
@@ -660,7 +665,7 @@ function ApiForm({
                                 </Box>
                             </Box>
                         </Grid>
-                        <Grid item xs={12} lg={6}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
                             <Divider sx={dividerStyle} />
                             <Box width="100%" padding={2}>
                                 <Typography variant="h4" sx={formSectionTitleStyle}>API info</Typography>
@@ -747,7 +752,7 @@ export function ApiUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ApiVersion, ApiVersionShape>({
         ...endpointsApiVersion.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "ApiVersion",
         overrideObject,

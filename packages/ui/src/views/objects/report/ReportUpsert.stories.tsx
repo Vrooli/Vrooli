@@ -56,7 +56,7 @@ export default {
 export function CreateDialog() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             createdFor={{
@@ -78,7 +78,7 @@ CreateDialog.parameters = {
 export function CreateForRoutine() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             createdFor={{
                 __typename: "RoutineVersion" as ReportFor,
@@ -95,7 +95,7 @@ CreateForRoutine.parameters = {
 export function UpdateDialog() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             isOpen={true}
             createdFor={mockReportData.createdFor as { __typename: ReportFor, id: string }}
@@ -124,7 +124,7 @@ UpdateDialog.parameters = {
 export function UpdateOtherReason() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             createdFor={mockOtherReasonReportData.createdFor as { __typename: ReportFor, id: string }}
         />
@@ -148,7 +148,7 @@ UpdateOtherReason.parameters = {
 export function Loading() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             createdFor={mockReportData.createdFor as { __typename: ReportFor, id: string }}
         />
@@ -174,7 +174,7 @@ Loading.parameters = {
 export function NonPremiumUser() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             createdFor={{
                 __typename: "StandardVersion" as ReportFor,
@@ -191,7 +191,7 @@ NonPremiumUser.parameters = {
 export function WithOverrideObject() {
     return (
         <ReportUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             createdFor={mockReportData.createdFor as { __typename: ReportFor, id: string }}

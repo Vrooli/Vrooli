@@ -11,6 +11,7 @@ import { Title } from "../../components/text/Title.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewProps } from "../../types.js";
 import { SettingsData } from "./types.js";
 
 export const accountSettingsData: SettingsData[] = [
@@ -76,7 +77,7 @@ export const displaySettingsData: SettingsData[] = [
     // },
 ];
 
-export function SettingsView() {
+export function SettingsView(_props: ViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const isLeftHanded = useIsLeftHanded();

@@ -132,7 +132,7 @@ const preview: Preview = {
                         createdAt: new Date().toISOString(),
                         key: `mock-key-${Math.random().toString(36).substring(2)}`, // Simulate server-generated key
                     };
-                    mockProfile.apiKeys.push(newKey);
+                    mockProfile.apiKeys?.push(newKey as ApiKey);
                     return HttpResponse.json({
                         data: newKey,
                     });
@@ -140,7 +140,7 @@ const preview: Preview = {
                 http.put(`${API_URL}/v2/rest/apikeys/:id`, async ({ params, request }) => {
                     const id = params.id;
                     const input = await request.json();
-                    const keyIndex = mockProfile.apiKeys.findIndex(key => key.id === id);
+                    const keyIndex = mockProfile.apiKeys?.findIndex(key => key.id === id);
                     if (keyIndex !== -1) {
                         mockProfile.apiKeys[keyIndex] = {
                             ...mockProfile.apiKeys[keyIndex],

@@ -180,7 +180,7 @@ export function SelectBookmarkListDialog({
                     {listItems}
                 </List>
                 <BottomActionsButtons
-                    display={"dialog"}
+                    display={"Dialog"}
                     isCreate={false}
                     loading={isFindLoading || isCreateLoading || isDeleteLoading}
                     onCancel={onCancel}

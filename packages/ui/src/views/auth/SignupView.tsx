@@ -188,7 +188,7 @@ function SignupForm() {
                     >
                         {(formik) => (
                             <InnerForm
-                                display="dialog"
+                                display="Dialog"
                                 isLoading={loading}
                                 style={baseFormStyle}
                             >

@@ -38,7 +38,7 @@ export function LoggedOut() {
     return (
         <PageContainer>
             <StatsObjectView
-                display="dialog"
+                display="Dialog"
                 handleObjectUpdate={handleObjectUpdate}
                 isOpen={true}
                 object={mockObject}
@@ -55,7 +55,7 @@ export function SignedInNoPremiumNoCredits() {
     return (
         <PageContainer>
             <StatsObjectView
-                display="dialog"
+                display="Dialog"
                 handleObjectUpdate={handleObjectUpdate}
                 isOpen={true}
                 object={mockObject}
@@ -72,7 +72,7 @@ export function SignedInNoPremiumWithCredits() {
     return (
         <PageContainer>
             <StatsObjectView
-                display="dialog"
+                display="Dialog"
                 handleObjectUpdate={handleObjectUpdate}
                 isOpen={true}
                 object={mockObject}
@@ -89,7 +89,7 @@ export function SignedInPremiumNoCredits() {
     return (
         <PageContainer>
             <StatsObjectView
-                display="dialog"
+                display="Dialog"
                 handleObjectUpdate={handleObjectUpdate}
                 isOpen={true}
                 object={mockObject}
@@ -106,7 +106,7 @@ export function SignedInPremiumWithCredits() {
     return (
         <PageContainer>
             <StatsObjectView
-                display="dialog"
+                display="Dialog"
                 handleObjectUpdate={handleObjectUpdate}
                 isOpen={true}
                 object={mockObject}

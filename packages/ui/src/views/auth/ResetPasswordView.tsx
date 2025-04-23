@@ -73,7 +73,7 @@ function ResetPasswordForm({
             validationSchema={emailResetPasswordFormSchema}
         >
             {() => <InnerForm
-                display={"dialog"}
+                display={"Dialog"}
                 isLoading={loading}
                 style={baseFormStyle}
             >

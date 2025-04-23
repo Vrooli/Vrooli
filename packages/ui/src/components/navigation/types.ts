@@ -3,6 +3,15 @@ import { IconInfo } from "../../icons/Icons.js";
 import { ViewDisplayType } from "../../types.js";
 import { TitleProps } from "../text/types.js";
 
+export interface PartialNavbarProps {
+    /** Optional children to render in the navbar */
+    children?: React.ReactNode;
+    /** Optional color for the navbar text and icons */
+    color?: string;
+    /** Whether to keep the navbar visible when scrolling */
+    keepVisible?: boolean;
+}
+
 export type NavbarProps = {
     below?: JSX.Element | boolean | undefined;
     color?: string;
@@ -22,7 +31,7 @@ export type NavbarProps = {
 
 export interface TopBarProps extends TitleProps {
     below?: JSX.Element | boolean;
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`
     keepVisible?: boolean;
     onClose?: () => unknown;
     startComponent?: JSX.Element;

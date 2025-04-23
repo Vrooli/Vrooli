@@ -10,6 +10,7 @@ import { TopBar } from "../../components/navigation/TopBar.js";
 import { IconCommon, IconInfo } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewProps } from "../../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
 import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/routine.js";
@@ -211,7 +212,7 @@ function RoutineWizardDialog({
             zIndex={Z_INDEX.Dialog}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={handleClose}
             />
             {step === "complexity" && (
@@ -277,7 +278,7 @@ function RoutineWizardDialog({
     );
 }
 
-export function CreateView() {
+export function CreateView(_props: ViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 

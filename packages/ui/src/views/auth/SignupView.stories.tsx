@@ -7,7 +7,7 @@ export default {
 
 export function Default() {
     return (
-        <SignupView display="page" />
+        <SignupView display="Page" />
     );
 }
 Default.parameters = {

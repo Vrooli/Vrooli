@@ -74,7 +74,7 @@ export function DateRangeMenu({
             disableScrollLock={true}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={onClose}
                 title={t("SelectDateRange")}
                 variant="subheader"

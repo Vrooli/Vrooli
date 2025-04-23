@@ -13,6 +13,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewProps } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -738,7 +739,7 @@ const CheckStatusButton = styled(Button)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
 }));
 
-export function ProView() {
+export function ProView(_props: ViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);

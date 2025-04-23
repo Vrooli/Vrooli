@@ -1,6 +1,6 @@
 import { noop } from "@local/shared";
 import { Box, SwipeableDrawer, SwipeableDrawerProps, styled, useTheme } from "@mui/material";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Routes } from "../Routes.js";
 import { SessionContext } from "../contexts/session.js";
@@ -9,6 +9,7 @@ import { useMenu } from "../hooks/useMenu.js";
 import { useWindowSize } from "../hooks/useWindowSize.js";
 import { useLocation } from "../route/router.js";
 import { LayoutComponentId, LayoutPositionId, useLayoutStore } from "../stores/layoutStore.js";
+import { ViewDisplayType } from "../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 import { ChatCrud } from "../views/objects/chat/ChatCrud.js";
@@ -25,6 +26,8 @@ const MAX_RIGHT_DRAWER_WIDTH = 500;
 const leftDrawerPaperProps = { id: ELEMENT_IDS.LeftDrawer } as const;
 const rightDrawerPaperProps = { id: ELEMENT_IDS.RightDrawer } as const;
 const drawerModalProps = { sx: { zIndex: Z_INDEX.Drawer } } as const;
+
+type LayoutComponentStory = React.ComponentType<{ args: { display: ViewDisplayType | `${ViewDisplayType}` } }>;
 
 interface ResizableDrawerProps extends SwipeableDrawerProps {
     size: number,
@@ -44,7 +47,7 @@ interface ComponentProps {
      * Optional story to render instead of the default routes.
      * Used for testing.
      */
-    Story?: React.ComponentType;
+    Story?: LayoutComponentStory;
     target: HTMLElement | null;
 }
 
@@ -53,6 +56,13 @@ interface ComponentProps {
  */
 function PortalComponent({ id, Story, target }: ComponentProps) {
     const session = useContext(SessionContext);
+    const { positions } = useLayoutStore();
+
+    // Determine if this component should be displayed as partial or page
+    const display = useMemo(() => {
+        const position = Object.entries(positions).find(([, compId]) => compId === id)?.[0] as LayoutPositionId;
+        return position === "main" ? ViewDisplayType.Page : ViewDisplayType.Partial;
+    }, [id, positions]);
 
     // Get the appropriate component based on ID
     function getComponent() {
@@ -60,9 +70,11 @@ function PortalComponent({ id, Story, target }: ComponentProps) {
             case "navigator":
                 return <SiteNavigator />;
             case "primary":
-                return Story ? <Story /> : <Routes sessionChecked={session !== undefined} />;
+                return Story
+                    ? <Story args={{ display }} />
+                    : <Routes sessionChecked={session !== undefined} display={display} />;
             case "secondary":
-                return <ChatCrud display="partial" isCreate={false} />;
+                return <ChatCrud display={display} isCreate={false} />;
             default:
                 return <Box>Unknown component</Box>;
         }
@@ -83,7 +95,7 @@ function PortalComponent({ id, Story, target }: ComponentProps) {
  * Main Adaptive Layout Component
  * Manages the layout with drawers and integrates with router
  */
-export function AdaptiveLayout({ Story }: { Story?: React.ComponentType }) {
+export function AdaptiveLayout({ Story }: { Story?: LayoutComponentStory }) {
     const { breakpoints } = useTheme();
     const [location] = useLocation();
     const isLeftHanded = useIsLeftHanded();

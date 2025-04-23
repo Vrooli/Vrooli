@@ -156,7 +156,7 @@ export function ParticipantManageView({
             <SearchListScrollContainer id={scrollContainerId}>
                 {/* Dialog for creating/updating invites */}
                 <ChatInvitesUpsert
-                    display="dialog"
+                    display="Dialog"
                     invites={invitesToUpsert}
                     isCreate={true}
                     isMutate={true}

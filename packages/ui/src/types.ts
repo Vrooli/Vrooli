@@ -96,18 +96,18 @@ export type SxType = NonNullable<SystemStyleObject<Theme>> & {
 }
 
 export type CrudPropsBase = {
-    display: "dialog" | "page" | "partial";
+    display: `${ViewDisplayType}`;
     isCreate: boolean;
 }
 export type CrudPropsPage = CrudPropsBase & ObjectViewPropsPage & {
-    display: "page";
+    display: `${ViewDisplayType}`;
     onCancel?: never;
     onClose?: never;
     onCompleted?: never;
     onDeleted?: never;
 }
 export type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsDialog<T> & {
-    display: "dialog";
+    display: `${ViewDisplayType}`;
     /** Closes the view and clears cached data */
     onCancel: () => unknown;
     /** Closes the view without clearing cached data */
@@ -118,7 +118,7 @@ export type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase & Obj
     onDeleted: (data: T) => unknown;
 }
 export type CrudPropsPartial<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsPartial<T> & {
-    display: "partial";
+    display: `${ViewDisplayType}`;
     onCancel?: never;
     onClose?: never;
     onCompleted?: never;
@@ -127,24 +127,28 @@ export type CrudPropsPartial<T extends OrArray<ListObject>> = CrudPropsBase & Ob
 export type CrudProps<T extends OrArray<ListObject>> = CrudPropsPage | CrudPropsDialog<T> | CrudPropsPartial<T>;
 
 /** Views can be displayed as full pages or as dialogs */
-export type ViewDisplayType = "dialog" | "page" | "partial";
+export enum ViewDisplayType {
+    Dialog = "Dialog",
+    Page = "Page",
+    Partial = "Partial",
+}
 export type ViewPropsBase = {
-    display: "dialog" | "page" | "partial";
+    display: `${ViewDisplayType}`;
 };
 export type ViewPropsPartial = ViewPropsBase & {
-    display: "partial";
+    display: `${ViewDisplayType}`;
     isOpen?: never;
     onClose?: never;
 }
 export type ViewPropsPage = ViewPropsBase & {
-    display: "page";
+    display: `${ViewDisplayType}`;
     isOpen?: never;
     onClose?: never;
 }
 export type ViewPropsDialog = ViewPropsBase & {
-    display: "dialog";
-    isOpen: boolean;
-    onClose: () => unknown;
+    display: `${ViewDisplayType}`;
+    isOpen?: boolean;
+    onClose?: () => unknown;
 }
 export type ViewProps = ViewPropsPartial | ViewPropsPage | ViewPropsDialog;
 

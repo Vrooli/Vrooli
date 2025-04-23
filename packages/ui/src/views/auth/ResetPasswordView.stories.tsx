@@ -7,7 +7,7 @@ export default {
 
 export function Default() {
     return (
-        <ResetPasswordView display="page" />
+        <ResetPasswordView display="Page" />
     );
 }
 Default.parameters = {

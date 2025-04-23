@@ -460,7 +460,7 @@ function EditingMessageDisplay({
 }
 
 type OuterProps = {
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`;
     isMobile: boolean;
 }
 const Outer = styled(Box)<OuterProps>(({ display, isMobile }) => ({
@@ -469,13 +469,13 @@ const Outer = styled(Box)<OuterProps>(({ display, isMobile }) => ({
     margin: "auto",
     "& .advanced-input": {
         // Remove rounded bottom corners on mobile or in dialogs
-        borderRadius: isMobile || display !== "page" ? 0 : undefined,
+        borderRadius: isMobile || display !== ViewDisplayType.Page ? 0 : undefined,
     },
 }));
 
 type ChatMessageInputProps = Pick<ChatIndicatorProps, "participantsTyping"> & {
     disabled: boolean;
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`;
     isLoading: boolean;
     message: string;
     messageBeingEdited: ChatMessageShape | null;

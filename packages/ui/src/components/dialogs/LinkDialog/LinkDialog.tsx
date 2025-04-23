@@ -193,7 +193,7 @@ export function LinkDialog({
     //             {deleteOption}
     //         </DialogContent>
     //         <BottomActionsButtons
-    //             display="dialog"
+    //             display="Dialog"
     //             errors={errors}
     //             isCreate={isAdd}
     //             onCancel={handleCancel}

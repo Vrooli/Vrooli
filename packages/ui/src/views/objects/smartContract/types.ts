@@ -1,9 +1,10 @@
 import { CodeVersion, CodeVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
 type SmartContractUpsertPropsPage = CrudPropsPage;
 type SmartContractUpsertPropsDialog = CrudPropsDialog<CodeVersion>;
-export type SmartContractUpsertProps = SmartContractUpsertPropsPage | SmartContractUpsertPropsDialog;
+type SmartContractUpsertPropsPartial = CrudPropsPartial<CodeVersion>;
+export type SmartContractUpsertProps = SmartContractUpsertPropsPage | SmartContractUpsertPropsDialog | SmartContractUpsertPropsPartial;
 export type SmartContractFormProps = FormProps<CodeVersion, CodeVersionShape> & {
     versions: string[];
 }

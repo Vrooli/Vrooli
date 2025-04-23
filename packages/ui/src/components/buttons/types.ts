@@ -27,14 +27,14 @@ export interface EllipsisActionButtonProps {
 
 export interface BottomActionsGridProps {
     children: OrArray<JSX.Element | null | undefined>;
-    display: ViewDisplayType
+    display: ViewDisplayType | `${ViewDisplayType}`;
     sx?: SxType;
 }
 
 export interface BottomActionsButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`;
     errors?: FormErrors | undefined;
     hideButtons?: boolean;
     /** Hides button text on mobile */
@@ -47,7 +47,7 @@ export interface BottomActionsButtonsProps {
     sideActionButtons?: OrArray<JSX.Element | null | undefined>;
 }
 
-export interface HelpButtonProps extends ButtonProps {
+export interface HelpButtonProps extends Omit<ButtonProps, "size"> {
     id?: string;
     /** Markdown displayed in the popup menu */
     markdown: string;
@@ -115,7 +115,7 @@ export interface ShareButtonProps {
 
 export interface SideActionsButtonsProps {
     children: OrArray<JSX.Element | null | undefined>;
-    display: ViewDisplayType;
+    display: ViewDisplayType | `${ViewDisplayType}`;
     sx?: SxType;
 }
 

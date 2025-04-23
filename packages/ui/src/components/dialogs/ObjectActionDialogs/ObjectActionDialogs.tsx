@@ -41,7 +41,7 @@ export function ObjectActionDialogs({
             {object?.id && DeleteDialogComponent}
             {object?.id && availableActions.includes(ObjectAction.Delete) && <ReportUpsert
                 createdFor={{ __typename: objectType as unknown as ReportFor, id: object.id }}
-                display="dialog"
+                display="Dialog"
                 isCreate={true}
                 isOpen={isReportDialogOpen}
                 onCancel={closeReportDialog}
@@ -55,7 +55,7 @@ export function ObjectActionDialogs({
                 onClose={closeShareDialog}
             />}
             {availableActions.includes(ObjectAction.Stats) && <StatsObjectView
-                display="dialog"
+                display="Dialog"
                 handleObjectUpdate={() => { }} //TODO
                 isOpen={isStatsDialogOpen}
                 object={object as any}

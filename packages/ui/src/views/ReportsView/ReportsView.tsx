@@ -21,6 +21,7 @@ import { useObjectContextMenu } from "../../hooks/useObjectContextMenu.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewProps } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay, getYou } from "../../utils/display/listTools.js";
 import { UrlInfo, parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
@@ -100,7 +101,7 @@ const reportedObjectBoxStyle = {
     marginBottom: 4,
 } as const;
 
-export function ReportsView() {
+export function ReportsView(_props: ViewProps) {
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
@@ -352,7 +353,7 @@ export function ReportsView() {
                 {showReportUpsert && objectType && createdFor && (
                     <ReportUpsert
                         createdFor={createdFor}
-                        display={"dialog"}
+                        display={"Dialog"}
                         isCreate={true}
                         isOpen={showReportUpsert}
                         onCancel={closeReportUpsert}

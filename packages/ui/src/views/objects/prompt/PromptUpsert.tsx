@@ -32,6 +32,7 @@ import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { PromptFormProps, PromptUpsertProps } from "./types.js";
+import { PromptFormProps, PromptUpsertProps } from "./types.js";
 
 export function promptInitialValues(
     session: Session | undefined,
@@ -168,6 +169,9 @@ function PromptForm({
 }: PromptFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const theme = useTheme();
+    const { dimensions, ref } = useDimensions<HTMLDivElement>();
+    const isStacked = dimensions.width < theme.breakpoints.values.lg;
 
     // Handle translations
     const {
@@ -300,96 +304,90 @@ function PromptForm({
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
+                ref={ref}
             >
                 <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <RelationshipList
-                            isEditing={true}
-                            objectType={"Standard"}
-                            sx={relationshipListStyle}
-                        />
-                        <ResourceListInput
-                            horizontal
-                            isCreate={true}
-                            parent={resourceListParent}
-                            sxs={resourceListStyle}
-                        />
-                        <FormSection sx={formSectionStyle}>
-                            <TranslatedTextInput
-                                fullWidth
-                                label={t("Name")}
-                                language={language}
-                                name="name"
-                                placeholder={t("NamePlaceholder")}
-                            />
-                            <TranslatedRichInput
-                                language={language}
-                                name="description"
-                                maxChars={2048}
-                                minRows={4}
-                                maxRows={8}
-                                placeholder={t("DescriptionPlaceholder")}
-                            />
-                            <LanguageInput
-                                currentLanguage={language}
-                                flexDirection="row-reverse"
-                                handleAdd={handleAddLanguage}
-                                handleDelete={handleDeleteLanguage}
-                                handleCurrent={setLanguage}
-                                languages={languages}
-                            />
-                        </FormSection>
-                        <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
-                        <VersionInput
-                            fullWidth
-                            versions={versions}
-                            sx={{ marginBottom: 2 }}
-                        />
-                    </ContentCollapse>
-                    <Divider />
-                    <ContentCollapse
-                        helpText={"Specify inputs for building the prompt."}
-                        title={t("Input", { count: schemaInput.elements.length })}
-                        isOpen={!disabled}
-                        titleVariant="h4"
-                    >
-                        <FormView
-                            disabled={disabled}
-                            isEditing={true}
-                            onSchemaChange={onSchemaInputChange}
-                            schema={schemaInput}
-                        />
-                    </ContentCollapse>
-                    <Divider sx={dividerStyle} />
-                    <ContentCollapse
-                        helpText={"Define a function that combines the input values into a single output string.\n\nIf not provided or invalid, the output will be a list of the input values in the order of the form."}
-                        title={t("Output", { count: 1 })}
-                        isOpen={!disabled}
-                        titleVariant="h4"
-                        toTheRight={
-                            <Button
-                                variant="outlined"
-                                onClick={showExample}
-                                startIcon={<IconCommon name="Help" />}
-                                sx={exampleButtonStyle}
-                            >
-                                Show example
-                            </Button>
-                        }
-                        sxs={codeCollapseStyle}
-                    >
-                        <CodeInputBase
-                            codeLanguage={codeLanguageField.value as CodeLanguage}
-                            content={outputFunction || ""}
-                            defaultValue={undefined}
-                            format={undefined}
-                            handleCodeLanguageChange={codeLanguageHelpers.setValue}
-                            handleContentChange={setOutputFunction}
-                            limitTo={codeLimitTo}
-                            name="output"
-                            variables={undefined}
-                        />
-                    </ContentCollapse>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                            <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                                <RelationshipList
+                                    isEditing={true}
+                                    objectType={"Standard"}
+                                    sx={relationshipListStyle}
+                                />
+                                <ResourceListInput
+                                    horizontal
+                                    isCreate={true}
+                                    parent={resourceListParent}
+                                    sxs={resourceListStyle}
+                                />
+                                <FormSection sx={formSectionStyle}>
+                                    <TranslatedTextInput
+                                        fullWidth
+                                        label={t("Name")}
+                                        language={language}
+                                        name="name"
+                                        placeholder={t("NamePlaceholder")}
+                                    />
+                                    <TranslatedRichInput
+                                        language={language}
+                                        name="description"
+                                        maxChars={2048}
+                                        minRows={4}
+                                        maxRows={8}
+                                        placeholder={t("DescriptionPlaceholder")}
+                                    />
+                                    <LanguageInput
+                                        currentLanguage={language}
+                                        flexDirection="row-reverse"
+                                        handleAdd={handleAddLanguage}
+                                        handleDelete={handleDeleteLanguage}
+                                        handleCurrent={setLanguage}
+                                        languages={languages}
+                                    />
+                                </FormSection>
+                                <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
+                                <VersionInput
+                                    fullWidth
+                                    versions={versions}
+                                    sx={{ marginBottom: 2 }}
+                                />
+                            </ContentCollapse>
+                        </Grid>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
+                            <ContentCollapse helpText={"Specify inputs for building the prompt."} title={t("Input", { count: schemaInput.elements.length })} isOpen={!disabled} titleVariant="h4">
+                                <FormView
+                                    disabled={disabled}
+                                    isEditing={true}
+                                    onSchemaChange={onSchemaInputChange}
+                                    schema={schemaInput}
+                                />
+                            </ContentCollapse>
+                            <Divider sx={dividerStyle} />
+                            <ContentCollapse helpText={"Define a function that combines the input values into a single output string.\n\nIf not provided or invalid, the output will be a list of the input values in the order of the form."} title={t("Output", { count: 1 })} isOpen={!disabled} titleVariant="h4" toTheRight={
+                                <Button
+                                    variant="outlined"
+                                    onClick={showExample}
+                                    startIcon={<IconCommon name="Help" />}
+                                    sx={exampleButtonStyle}
+                                >
+                                    Show example
+                                </Button>
+                            } sxs={codeCollapseStyle}>
+                                <CodeInputBase
+                                    codeLanguage={codeLanguageField.value as CodeLanguage}
+                                    content={outputFunction || ""}
+                                    defaultValue={undefined}
+                                    format={undefined}
+                                    handleCodeLanguageChange={codeLanguageHelpers.setValue}
+                                    handleContentChange={setOutputFunction}
+                                    limitTo={codeLimitTo}
+                                    name="output"
+                                    variables={undefined}
+                                />
+                            </ContentCollapse>
+                        </Grid>
+                    </Grid>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons
@@ -421,7 +419,7 @@ export function PromptUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<StandardVersion, StandardVersionShape>({
         ...endpointsStandardVersion.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "StandardVersion",
         overrideObject,

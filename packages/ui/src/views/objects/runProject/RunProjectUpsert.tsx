@@ -132,7 +132,7 @@ function RunProjectForm({
             <ScheduleUpsert
                 canSetScheduleFor={false}
                 defaultScheduleFor="RunProject"
-                display="dialog"
+                display="Dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
@@ -247,7 +247,7 @@ export function RunProjectUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunProject, RunProjectShape>({
         ...endpointsRunProject.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "RunProject",
         overrideObject,

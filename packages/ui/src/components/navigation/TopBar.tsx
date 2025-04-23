@@ -1,7 +1,9 @@
 import { forwardRef } from "react";
+import { ViewDisplayType } from "../../types.js";
 import { randomString } from "../../utils/codes.js";
 import { DialogTitle } from "../dialogs/DialogTitle/DialogTitle.js";
 import { Navbar } from "./Navbar.js";
+import { PartialNavbar } from "./PartialNavbar.js";
 import { TopBarProps } from "./types.js";
 
 /**
@@ -13,16 +15,20 @@ export const TopBar = forwardRef(({
     ...titleData
 }: TopBarProps, ref) => {
 
-    if (display === "dialog") return (
+    if (display === ViewDisplayType.Dialog) return (
         <DialogTitle
             ref={ref}
             id={titleData?.titleId ?? randomString()}
             {...titleData}
         />
     );
+    if (display === ViewDisplayType.Partial) return (
+        <PartialNavbar
+            {...titleData}
+        />
+    );
     return (
         <Navbar
-            ref={ref}
             titleBehavior={titleBehavior}
             {...titleData}
         />

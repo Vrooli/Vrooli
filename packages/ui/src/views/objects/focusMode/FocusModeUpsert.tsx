@@ -151,7 +151,7 @@ function FocusModeForm({
             <ScheduleUpsert
                 canSetScheduleFor={false}
                 defaultScheduleFor="FocusMode"
-                display="dialog"
+                display="Dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
@@ -301,7 +301,7 @@ export function FocusModeUpsert({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<FocusMode, FocusModeShape>({
         ...endpointsFocusMode.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "FocusMode",
         overrideObject,

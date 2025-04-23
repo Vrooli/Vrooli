@@ -830,7 +830,7 @@ export function FallbackEmojiPicker({
         currTab: activeCategory,
         handleTabChange,
         tabs,
-    } = useTabs({ id: "emoji-picker-tabs", tabParams: categoryTabParams, display: "dialog" });
+    } = useTabs({ id: "emoji-picker-tabs", tabParams: categoryTabParams, display: "Dialog" });
 
     useEffect(function getSuggestedEmojisCallback() {
         setSuggestedEmojis(getSuggested());

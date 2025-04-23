@@ -174,7 +174,7 @@ export function SearchList<DataType extends ListObject>({
                 <SearchButtons
                     advancedSearchParams={advancedSearchParams}
                     advancedSearchSchema={advancedSearchSchema}
-                    controlsUrl={display === "page"}
+                    controlsUrl={display === "Page"}
                     searchType={searchType}
                     setAdvancedSearchParams={setAdvancedSearchParams}
                     setSortBy={setSortBy}

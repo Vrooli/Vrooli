@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 // Tests for the Label endpoint (findOne, findMany, createOne, updateOne)
-import { ApiKeyPermission, FindByIdInput, LabelCreateInput, LabelSearchInput, LabelUpdateInput, uuid } from "@local/shared";
+import { FindByIdInput, LabelCreateInput, LabelSearchInput, LabelUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -23,8 +24,8 @@ const labelUser1Id = uuid();
 const labelUser2Id = uuid();
 
 // Hold references to seeded label records
-let labelUser1: any;
-let labelUser2: any;
+let _labelUser1: any;
+let _labelUser2: any;
 
 describe("EndpointsLabel", () => {
     let loggerErrorStub: sinon.SinonStub;
@@ -72,7 +73,7 @@ describe("EndpointsLabel", () => {
         });
 
         // Seed two labels owned by each user
-        labelUser1 = await DbProvider.get().label.create({
+        _labelUser1 = await DbProvider.get().label.create({
             data: {
                 id: labelUser1Id,
                 label: "Label One",
@@ -80,7 +81,7 @@ describe("EndpointsLabel", () => {
                 ownedByUser: { connect: { id: user1Id } },
             },
         });
-        labelUser2 = await DbProvider.get().label.create({
+        _labelUser2 = await DbProvider.get().label.create({
             data: {
                 id: labelUser2Id,
                 label: "Label Two",
@@ -112,17 +113,18 @@ describe("EndpointsLabel", () => {
                 expect(result.label).to.equal("Label One");
             });
 
-            it("returns label by id when not authenticated", async () => {
+            it("fails when not authenticated (labels are private)", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: FindByIdInput = { id: labelUser1Id };
-                const result = await label.findOne({ input }, { req, res }, label_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(labelUser1Id);
+                try {
+                    await label.findOne({ input }, { req, res }, label_findOne);
+                    expect.fail("Expected an error to be thrown");
+                } catch (error) { /* Error expected */ }
             });
 
             it("returns label by id with API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: FindByIdInput = { id: labelUser2Id };
@@ -135,35 +137,35 @@ describe("EndpointsLabel", () => {
 
     describe("findMany", () => {
         describe("valid", () => {
-            it("returns all labels without filters for any authenticated user", async () => {
+            it("returns only your labels without filters for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
                 const input: LabelSearchInput = { take: 10 };
                 const result = await label.findMany({ input }, { req, res }, label_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
                 const ids = result.edges!.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([labelUser1Id, labelUser2Id].sort());
+                expect(ids).to.deep.equal([labelUser1Id]);
             });
 
-            it("returns all labels without filters for not authenticated user", async () => {
+            it("fails for not authenticated user (labels are private)", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: LabelSearchInput = { take: 10 };
-                const result = await label.findMany({ input }, { req, res }, label_findMany);
-                expect(result).to.not.be.null;
-                const ids = result.edges!.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([labelUser1Id, labelUser2Id].sort());
+                try {
+                    await label.findMany({ input }, { req, res }, label_findMany);
+                    expect.fail("Expected an error to be thrown");
+                } catch (error) { /* Error expected */ }
             });
 
-            it("returns all labels without filters for API key public read", async () => {
+            it("returns only your labels without filters for API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: LabelSearchInput = { take: 10 };
                 const result = await label.findMany({ input }, { req, res }, label_findMany);
                 expect(result).to.not.be.null;
                 const ids = result.edges!.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([labelUser1Id, labelUser2Id].sort());
+                expect(ids).to.deep.equal([labelUser1Id]);
             });
         });
     });
@@ -180,7 +182,7 @@ describe("EndpointsLabel", () => {
             });
 
             it("API key with write permissions can create label", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const newLabelId = uuid();
@@ -202,7 +204,7 @@ describe("EndpointsLabel", () => {
             });
 
             it("API key without write permissions cannot create label", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: LabelCreateInput = { id: uuid(), label: "NoPerm Label" };
@@ -225,7 +227,7 @@ describe("EndpointsLabel", () => {
             });
 
             it("API key with write permissions can update own label", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
                 const input: LabelUpdateInput = { id: labelUser1Id, label: "API Updated" };

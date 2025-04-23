@@ -7,7 +7,7 @@ export default {
 
 export function Default() {
     return (
-        <LoginView display="page" />
+        <LoginView display="Page" />
     );
 }
 Default.parameters = {

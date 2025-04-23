@@ -1,9 +1,10 @@
 import { StandardVersion, StandardVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
 type DataStructureUpsertPropsPage = CrudPropsPage;
 type DataStructureUpsertPropsDialog = CrudPropsDialog<StandardVersion>;
-export type DataStructureUpsertProps = DataStructureUpsertPropsPage | DataStructureUpsertPropsDialog;
+type DataStructureUpsertPropsPartial = CrudPropsPartial<StandardVersion>;
+export type DataStructureUpsertProps = DataStructureUpsertPropsPage | DataStructureUpsertPropsDialog | DataStructureUpsertPropsPartial;
 export type DataStructureFormProps = FormProps<StandardVersion, StandardVersionShape> & {
     versions: string[];
 }

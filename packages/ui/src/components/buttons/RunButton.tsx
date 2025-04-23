@@ -177,7 +177,7 @@ export function RunPickerMenu({
                     >
                         <ObjectList
                             canNavigate={funcFalse}
-                            dummyItems={new Array(getDummyListLength("dialog")).fill("RunRoutine")}
+                            dummyItems={new Array(getDummyListLength("Dialog")).fill("RunRoutine")}
                             handleToggleSelect={noop}
                             hideUpdateButton={true}
                             isSelecting={false}

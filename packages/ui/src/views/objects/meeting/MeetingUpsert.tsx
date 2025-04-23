@@ -141,7 +141,7 @@ function MeetingForm({
             <ScheduleUpsert
                 canSetScheduleFor={false}
                 defaultScheduleFor="Meeting"
-                display="dialog"
+                display="Dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
                 isOpen={isScheduleDialogOpen}
@@ -256,7 +256,7 @@ export function MeetingUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Meeting, MeetingShape>({
         ...endpointsMeeting.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Meeting",
         overrideObject,

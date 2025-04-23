@@ -3,7 +3,8 @@ import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../.
 
 type ApiUpsertPropsPage = CrudPropsPage;
 type ApiUpsertPropsDialog = CrudPropsDialog<ApiVersion>;
-export type ApiUpsertProps = ApiUpsertPropsPage | ApiUpsertPropsDialog;
+type ApiUpsertPropsPartial = CrudPropsPartial<ApiVersion>;
+export type ApiUpsertProps = ApiUpsertPropsPage | ApiUpsertPropsDialog | ApiUpsertPropsPartial;
 export type ApiFormProps = FormProps<ApiVersion, ApiVersionShape> & {
     versions: string[];
 }

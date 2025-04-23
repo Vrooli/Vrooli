@@ -1,8 +1,8 @@
-import { ApiKeyPermission, FindByIdInput, IssueCloseInput, IssueCreateInput, IssueSearchInput, IssueStatus, IssueUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
+import { FindByIdInput, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueStatus, IssueUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -142,7 +142,7 @@ describe("EndpointsIssue", () => {
             });
 
             it("returns issue with API key public read", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: FindByIdInput = { id: issueUser2.id };
@@ -171,7 +171,7 @@ describe("EndpointsIssue", () => {
             });
 
             it("returns issues with API key public read", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: IssueSearchInput = { take: 10 };
@@ -187,7 +187,7 @@ describe("EndpointsIssue", () => {
             it("creates an issue for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
                 const newIssueId = uuid();
-                const input: IssueCreateInput = { id: newIssueId, issueFor: "Team", forConnect: team1.id };
+                const input: IssueCreateInput = { id: newIssueId, issueFor: IssueFor.Team, forConnect: team1.id };
                 const result = await issue.createOne({ input }, { req, res }, issue_createOne);
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(newIssueId);
@@ -195,11 +195,11 @@ describe("EndpointsIssue", () => {
             });
 
             it("API key with write permissions can create issue", async () => {
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const newIssueId = uuid();
-                const input: IssueCreateInput = { id: newIssueId, issueFor: "Team", forConnect: team1.id };
+                const input: IssueCreateInput = { id: newIssueId, issueFor: IssueFor.Team, forConnect: team1.id };
                 const result = await issue.createOne({ input }, { req, res }, issue_createOne);
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(newIssueId);
@@ -209,7 +209,7 @@ describe("EndpointsIssue", () => {
         describe("invalid", () => {
             it("not logged in user cannot create issue", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: IssueCreateInput = { id: uuid(), issueFor: "Team", forConnect: team1.id };
+                const input: IssueCreateInput = { id: uuid(), issueFor: IssueFor.Team, forConnect: team1.id };
                 try {
                     await issue.createOne({ input }, { req, res }, issue_createOne);
                     expect.fail("Expected an error to be thrown");
@@ -219,10 +219,10 @@ describe("EndpointsIssue", () => {
             });
 
             it("API key without write permissions cannot create issue", async () => {
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
-                const input: IssueCreateInput = { id: uuid(), issueFor: "Team", forConnect: team1.id };
+                const input: IssueCreateInput = { id: uuid(), issueFor: IssueFor.Team, forConnect: team1.id };
                 try {
                     await issue.createOne({ input }, { req, res }, issue_createOne);
                     expect.fail("Expected an error to be thrown");

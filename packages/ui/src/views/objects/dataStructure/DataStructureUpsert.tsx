@@ -1,5 +1,5 @@
 import { CodeLanguage, DUMMY_ID, endpointsStandardVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeStandardVersion, StandardType, StandardVersion, StandardVersionCreateInput, StandardVersionShape, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
-import { Box, Button, Divider, Grid, Typography } from "@mui/material";
+import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,6 +23,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -119,6 +120,9 @@ function DataStructureForm({
 }: DataStructureFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const theme = useTheme();
+    const { dimensions, ref } = useDimensions<HTMLDivElement>();
+    const isStacked = dimensions.width < theme.breakpoints.values.lg;
 
     // Handle translations
     const {
@@ -223,10 +227,11 @@ function DataStructureForm({
                 display={display}
                 isLoading={isLoading}
                 maxWidth={1200}
+                ref={ref}
             >
                 <FormContainer>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} lg={6}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
                             <Box width="100%" padding={2}>
                                 <Typography variant="h4" sx={formSectionTitleStyle}>Basic info</Typography>
                                 <Box display="flex" flexDirection="column" gap={4}>
@@ -272,7 +277,7 @@ function DataStructureForm({
                                 </Box>
                             </Box>
                         </Grid>
-                        <Grid item xs={12} lg={6}>
+                        <Grid item xs={12} lg={isStacked ? 12 : 6}>
                             <Divider sx={dividerStyle} />
                             <Box width="100%" padding={2}>
                                 <Box display="flex" alignItems="center" sx={formSectionTitleStyle}>
@@ -336,7 +341,7 @@ export function DataStructureUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<StandardVersion, StandardVersionShape>({
         ...endpointsStandardVersion.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "StandardVersion",
         overrideObject,

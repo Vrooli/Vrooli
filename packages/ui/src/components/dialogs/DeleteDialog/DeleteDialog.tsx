@@ -40,7 +40,7 @@ export function DeleteDialog({
             onClose={onClose}
         >
             <TopBar
-                display="dialog"
+                display="Dialog"
                 onClose={onClose}
                 title={t("Delete")}
             />

@@ -242,7 +242,7 @@ function SubroutineForm({
     //             </Box>
     //         </TitleBar>
     //         <BaseForm
-    //             display="dialog"
+    //             display="Dialog"
     //             isLoading={false}
     //             maxWidth={1000}
     //         >
@@ -332,7 +332,7 @@ function SubroutineForm({
     //             </FormContainer>
     //         </BaseForm>
     //         {canUpdateRoutineVersion && <BottomActionsButtons
-    //             display="dialog"
+    //             display="Dialog"
     //             errors={combineErrorsWithTranslations(props.errors, translationErrors)}
     //             hideButtons={!isEditing}
     //             isCreate={isCreate}

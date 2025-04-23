@@ -399,7 +399,7 @@ function AdvancedSearchDialog({
                     return (
                         <>
                             <TopBar
-                                display="dialog"
+                                display="Dialog"
                                 onClose={handleClose}
                                 tabTitle={t("AdvancedSearch")}
                                 titleId={ELEMENT_IDS.AdvancedSearchDialogTitle}
@@ -413,7 +413,7 @@ function AdvancedSearchDialog({
                                 />}
                             </FormContainer>
                             {/* Search/Cancel buttons */}
-                            <BottomActionsGrid display="dialog">
+                            <BottomActionsGrid display="Dialog">
                                 <Grid item xs={6}>
                                     <Button
                                         fullWidth

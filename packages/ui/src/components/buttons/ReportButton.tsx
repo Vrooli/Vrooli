@@ -21,7 +21,7 @@ export function ReportButton({
         <>
             <ReportUpsert
                 createdFor={createdFor}
-                display="dialog"
+                display="Dialog"
                 isCreate={true}
                 isOpen={open}
                 onCancel={closeDialog}

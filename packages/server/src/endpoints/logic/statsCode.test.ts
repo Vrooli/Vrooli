@@ -1,9 +1,9 @@
-import { ApiKeyPermission, StatPeriodType, StatsCodeSearchInput, uuid } from "@local/shared";
+import { StatPeriodType, StatsCodeSearchInput, uuid } from "@local/shared";
 import { code as CodeModelPrisma, PeriodType } from "@prisma/client"; // Use lowercase 'code' and alias
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -226,7 +226,7 @@ describe("EndpointsStatsCode", () => {
 
             it("API key - public permissions returns only public code stats", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 

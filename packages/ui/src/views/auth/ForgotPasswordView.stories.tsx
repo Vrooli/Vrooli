@@ -7,7 +7,7 @@ export default {
 
 export function Default() {
     return (
-        <ForgotPasswordView display="page" />
+        <ForgotPasswordView display="Page" />
     );
 }
 Default.parameters = {

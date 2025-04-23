@@ -230,3 +230,54 @@ export async function mockLoggedOutSession() {
 
     return { req, res };
 }
+
+export function mockReadPublicPermissions(): Record<ApiKeyPermission, boolean> {
+    return {
+        [ApiKeyPermission.ReadPublic]: true,
+        [ApiKeyPermission.ReadPrivate]: false,
+        [ApiKeyPermission.ReadAuth]: false,
+        [ApiKeyPermission.WriteAuth]: false,
+        [ApiKeyPermission.WritePrivate]: false,
+    };
+}
+
+export function mockReadPrivatePermissions(): Record<ApiKeyPermission, boolean> {
+    return {
+        [ApiKeyPermission.ReadPublic]: true, // Typically also true when ReadPrivate is true
+        [ApiKeyPermission.ReadPrivate]: true,
+        [ApiKeyPermission.ReadAuth]: false,
+        [ApiKeyPermission.WriteAuth]: false,
+        [ApiKeyPermission.WritePrivate]: false,
+    };
+}
+
+export function mockWritePrivatePermissions(): Record<ApiKeyPermission, boolean> {
+    return {
+        [ApiKeyPermission.ReadPublic]: true, // Typically also true when WritePrivate is true
+        [ApiKeyPermission.ReadPrivate]: true, // Typically also true when WritePrivate is true
+        [ApiKeyPermission.ReadAuth]: false,
+        [ApiKeyPermission.WriteAuth]: false,
+        [ApiKeyPermission.WritePrivate]: true,
+    };
+}
+
+export function mockReadAuthPermissions(): Record<ApiKeyPermission, boolean> {
+    return {
+        [ApiKeyPermission.ReadPublic]: true, // Typically also true when ReadAuth is true
+        [ApiKeyPermission.ReadPrivate]: true, // Typically also true when ReadAuth is true
+        [ApiKeyPermission.ReadAuth]: true,
+        [ApiKeyPermission.WriteAuth]: false,
+        [ApiKeyPermission.WritePrivate]: false,
+    };
+}
+
+export function mockWriteAuthPermissions(): Record<ApiKeyPermission, boolean> {
+    // Typically all permissions are true when WriteAuth is true
+    return {
+        [ApiKeyPermission.ReadPublic]: true,
+        [ApiKeyPermission.ReadPrivate]: true,
+        [ApiKeyPermission.ReadAuth]: true,
+        [ApiKeyPermission.WriteAuth]: true,
+        [ApiKeyPermission.WritePrivate]: true,
+    };
+}

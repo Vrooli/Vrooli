@@ -1,8 +1,8 @@
-import { ApiKeyPermission, FindVersionInput, ScheduleCreateInput, ScheduleRecurrenceType, ScheduleSearchInput, ScheduleUpdateInput, uuid } from "@local/shared";
+import { FindVersionInput, ScheduleCreateInput, ScheduleRecurrenceType, ScheduleSearchInput, ScheduleUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -277,7 +277,7 @@ describe("EndpointsSchedule", () => {
 
             it("API key with public permissions cannot access schedules (assumes schedules are private)", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -332,7 +332,7 @@ describe("EndpointsSchedule", () => {
 
             it("API key with public permissions returns empty list or fails (assumes schedules are private)", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 // We mock the session with user1, but the helper with VisibilityType.Own should still check against the user.
                 // If the helper *only* relied on API key permissions and ignored the user for public reads, this might pass,
@@ -387,9 +387,7 @@ describe("EndpointsSchedule", () => {
 
             it("API key with write permissions can create schedule", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -434,9 +432,7 @@ describe("EndpointsSchedule", () => {
 
             it("API key without write permissions cannot create schedule", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.ReadPublic]: true, // No WritePrivate permission
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -501,9 +497,7 @@ describe("EndpointsSchedule", () => {
 
             it("API key with write permissions can update own schedule", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.WritePrivate]: true,
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -580,9 +574,7 @@ describe("EndpointsSchedule", () => {
 
             it("API key without write permissions cannot update schedule", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
-                const permissions = {
-                    [ApiKeyPermission.ReadPublic]: true, // No WritePrivate
-                } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 

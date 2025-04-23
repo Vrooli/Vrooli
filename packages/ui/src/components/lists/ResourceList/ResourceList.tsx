@@ -477,7 +477,7 @@ export function ResourceList(props: ResourceListProps) {
             }) as Resource;
 
         return <ResourceUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={editingIndex < 0}
             isOpen={isAddDialogOpen}
             isMutate={mutate ?? false}

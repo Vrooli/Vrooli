@@ -1,9 +1,10 @@
 import { CodeVersion, CodeVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
 type DataConverterUpsertPropsPage = CrudPropsPage;
 type DataConverterUpsertPropsDialog = CrudPropsDialog<CodeVersion>;
-export type DataConverterUpsertProps = DataConverterUpsertPropsPage | DataConverterUpsertPropsDialog;
+type DataConverterUpsertPropsPartial = CrudPropsPartial<CodeVersion>;
+export type DataConverterUpsertProps = DataConverterUpsertPropsPage | DataConverterUpsertPropsDialog | DataConverterUpsertPropsPartial;
 export type DataConverterFormProps = FormProps<CodeVersion, CodeVersionShape> & {
     versions: string[];
 }

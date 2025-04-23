@@ -12,6 +12,7 @@ import { useMarkdown } from "../../hooks/useMarkdown.js";
 import { PageTab, useTabs } from "../../hooks/useTabs.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
+import { ViewProps } from "../../types.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
 import { PolicyTabOption, PolicyTabsInfo, TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
 
@@ -39,13 +40,13 @@ const ContentBox = styled(Box)(({ theme }) => ({
     },
 }));
 
-export function PrivacyPolicyView() {
+export function PrivacyPolicyView(_props: ViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
     const content = useMarkdown(privacyMarkdown, injectBusinessData);
 
-    const { currTab, tabs } = useTabs({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
+    const { currTab, tabs } = useTabs({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "Dialog" });
     const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<PolicyTabsInfo>>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
@@ -71,13 +72,13 @@ export function PrivacyPolicyView() {
     );
 }
 
-export function TermsView() {
+export function TermsView(_props: ViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
     const content = useMarkdown(privacyMarkdown, injectBusinessData);
 
-    const { currTab, tabs } = useTabs({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "dialog" });
+    const { currTab, tabs } = useTabs({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "Dialog" });
     const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<PolicyTabsInfo>>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });

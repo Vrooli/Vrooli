@@ -30,7 +30,7 @@ const OuterBox = styled(Box, {
     width: "100%",
     pointerEvents: "none",
     "& > *": {
-        marginBottom: `calc(16px + ${isMobile && display === "page" ? "56px" : "0px"} + env(safe-area-inset-bottom))!important`,
+        marginBottom: `calc(16px + ${isMobile && display === "Page" ? "56px" : "0px"} + env(safe-area-inset-bottom))!important`,
         pointerEvents: "auto",
     },
     "& button": {

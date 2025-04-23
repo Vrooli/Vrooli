@@ -424,7 +424,7 @@ export function EventList({
     const upsertDialog = null;
     // const upsertDialog = useMemo(() => (
     //     isAddDialogOpen ? <ResourceUpsert
-    //         display="dialog"
+    //         display="Dialog"
     //         isCreate={editingIndex < 0}
     //         isOpen={isAddDialogOpen}
     //         isMutate={mutate ?? false}

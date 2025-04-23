@@ -231,7 +231,7 @@ export function QuestionUpsert({
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Question, QuestionShape>({
         ...endpointsQuestion.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Question",
         overrideObject,

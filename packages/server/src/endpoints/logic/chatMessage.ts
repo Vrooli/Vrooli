@@ -25,24 +25,29 @@ const objectType = "ChatMessage";
 export const chatMessage: EndpointsChatMessage = {
     findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return readOneHelper({ info, input, objectType, req });
     },
     findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return readManyHelper({ info, input, objectType, req });
     },
     findTree: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
         return ModelMap.get<ChatMessageModelLogic>("ChatMessage").query.searchTree(req, input, info);
     },
     createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         const { message, model, task, taskContexts } = input;
         const additionalData = { model, task, taskContexts };
         return createOneHelper({ additionalData, info, input: message, objectType, req });
     },
     updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         const { message, model, task, taskContexts } = input;
         const additionalData = { model, task, taskContexts };
         return updateOneHelper({ additionalData, info, input: message, objectType, req });
@@ -51,6 +56,7 @@ export const chatMessage: EndpointsChatMessage = {
     regenerateResponse: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
+        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
 
         const { messageId, model, task, taskContexts } = input;
         if (!uuidValidate(messageId)) {

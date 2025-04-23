@@ -1,9 +1,9 @@
-import { ApiKeyPermission, SEEDED_IDS, SessionUser, uuid } from "@local/shared";
+import { SEEDED_IDS, SessionUser, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
 import { testEndpointRequiresApiKeyPrivatePermissions, testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { PrismaCreate } from "../../builders/types.js";
@@ -90,7 +90,7 @@ describe("EndpointsUser", () => {
 
             it("API key - private permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
-                const permissions = { [ApiKeyPermission.ReadPrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -164,7 +164,7 @@ describe("EndpointsUser", () => {
 
             it("API key - public permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -243,7 +243,7 @@ describe("EndpointsUser", () => {
 
             it("API key - public permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
-                const permissions = { [ApiKeyPermission.ReadPublic]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -311,7 +311,7 @@ describe("EndpointsUser", () => {
 
             it("API key - write permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -541,7 +541,7 @@ describe("EndpointsUser", () => {
                 await user.botCreateOne({ input: botData }, { req: createReq, res: createRes }, user_findOne);
 
                 // Update the bot with API key
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
@@ -766,7 +766,7 @@ describe("EndpointsUser", () => {
 
             it("API key - write permissions", async () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
-                const permissions = { [ApiKeyPermission.WritePrivate]: true } as Record<ApiKeyPermission, boolean>;
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 

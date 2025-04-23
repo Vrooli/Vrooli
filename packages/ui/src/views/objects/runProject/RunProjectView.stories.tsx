@@ -210,7 +210,7 @@ export function DialogView() {
 
     return (
         <RunProjectView
-            display="dialog"
+            display="Dialog"
             isOpen={true}
             onClose={handleClose}
         />

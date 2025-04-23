@@ -1,8 +1,9 @@
 import { BookmarkList, BookmarkListShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
 type BookmarkListUpsertPropsPage = CrudPropsPage;
 type BookmarkListUpsertPropsDialog = CrudPropsDialog<BookmarkList>;
-export type BookmarkListUpsertProps = BookmarkListUpsertPropsPage | BookmarkListUpsertPropsDialog;
+type BookmarkListUpsertPropsPartial = CrudPropsPartial<BookmarkList>;
+export type BookmarkListUpsertProps = BookmarkListUpsertPropsPage | BookmarkListUpsertPropsDialog | BookmarkListUpsertPropsPartial;
 export type BookmarkListFormProps = FormProps<BookmarkList, BookmarkListShape>
 export type BookmarkListViewProps = ObjectViewProps<BookmarkList>

@@ -42,7 +42,7 @@ export function AddBeforeLinkDialog({
     //         titleId={addBeforeLinkDialogTitleId}
     //     >
     //         <TopBar
-    //             display="dialog"
+    //             display="Dialog"
     //             onClose={handleClose}
     //             title={t("LinkSelect")}
     //             titleId={addBeforeLinkDialogTitleId}
@@ -99,7 +99,7 @@ export function AddAfterLinkDialog({
     //         titleId={addAfterLinkDialogTitleId}
     //     >
     //         <TopBar
-    //             display="dialog"
+    //             display="Dialog"
     //             onClose={handleClose}
     //             title={t("LinkSelect")}
     //             titleId={addAfterLinkDialogTitleId}
@@ -292,7 +292,7 @@ export function MoveNodeMenu({
     //         {/* Action buttons */}
     //         <Grid container spacing={1} sx={{ padding: 0, paddingTop: "24px" }}>
     //             <BottomActionsButtons
-    //                 display="dialog"
+    //                 display="Dialog"
     //                 isCreate={false}
     //                 onCancel={closeDialog}
     //                 onSubmit={moveNode}

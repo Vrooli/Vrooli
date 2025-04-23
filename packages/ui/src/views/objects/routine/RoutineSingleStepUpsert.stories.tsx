@@ -190,7 +190,7 @@ Create.parameters = {
 export function CreateDialog() {
     return (
         <RoutineSingleStepUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}
@@ -228,7 +228,7 @@ Update.parameters = {
 export function UpdateDialog() {
     return (
         <RoutineSingleStepUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={false}
             isOpen={true}
             onClose={() => { }}
@@ -288,7 +288,7 @@ NonPremiumUser.parameters = {
 export function WithOverrideObject() {
     return (
         <RoutineSingleStepUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             onClose={() => { }}
@@ -307,7 +307,7 @@ WithOverrideObject.parameters = {
 export function WithSubroutineFlag() {
     return (
         <RoutineSingleStepUpsert
-            display="dialog"
+            display="Dialog"
             isCreate={true}
             isOpen={true}
             isSubroutine={true}

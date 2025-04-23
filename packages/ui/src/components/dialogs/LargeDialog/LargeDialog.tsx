@@ -135,7 +135,7 @@ export function MaybeLargeDialog({
     onClose,
     ...props
 }: MaybeLargeDialogProps) {
-    return display === "dialog" ? (
+    return display === "Dialog" ? (
         <LargeDialog
             onClose={onClose ?? fallbackOnClose}
             isOpen={isOpen ?? false}

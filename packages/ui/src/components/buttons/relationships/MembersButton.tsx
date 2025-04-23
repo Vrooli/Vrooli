@@ -81,7 +81,7 @@ export function MembersButton({
         return (
             <>
                 <MemberManageView
-                    display="dialog"
+                    display="Dialog"
                     isEditing={isEditing}
                     isOpen={isDialogOpen}
                     onClose={closeDialog}

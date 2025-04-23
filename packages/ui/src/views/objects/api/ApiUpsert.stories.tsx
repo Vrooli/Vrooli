@@ -4,6 +4,7 @@
 import { ApiVersion, CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsApiVersion, getObjectUrl, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { ViewDisplayType } from "../../../types.js";
 import { ApiUpsert } from "./ApiUpsert.js";
 
 // Create simplified mock data for API responses
@@ -90,37 +91,19 @@ export default {
 };
 
 // Create a new API
-export function Create() {
+export function Create({ display }: { display: ViewDisplayType }) {
     return (
-        <ApiUpsert display="page" isCreate={true} />
+        <ApiUpsert display={display} isCreate={true} />
     );
 }
 Create.parameters = {
     session: signedInPremiumWithCreditsSession,
 };
 
-// Create a new API in a dialog
-export function CreateDialog() {
-    return (
-        <ApiUpsert
-            display="dialog"
-            isCreate={true}
-            isOpen={true}
-            onClose={() => { }}
-            onCancel={() => { }}
-            onCompleted={() => { }}
-            onDeleted={() => { }}
-        />
-    );
-}
-CreateDialog.parameters = {
-    session: signedInPremiumWithCreditsSession,
-};
-
 // Update an existing API
-export function Update() {
+export function Update({ display }: { display: ViewDisplayType }) {
     return (
-        <ApiUpsert display="page" isCreate={false} />
+        <ApiUpsert display={display} isCreate={false} />
     );
 }
 Update.parameters = {
@@ -137,38 +120,10 @@ Update.parameters = {
     },
 };
 
-// Update an existing API in a dialog
-export function UpdateDialog() {
-    return (
-        <ApiUpsert
-            display="dialog"
-            isCreate={false}
-            isOpen={true}
-            onClose={() => { }}
-            onCancel={() => { }}
-            onCompleted={() => { }}
-            onDeleted={() => { }}
-        />
-    );
-}
-UpdateDialog.parameters = {
-    session: signedInPremiumWithCreditsSession,
-    msw: {
-        handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
-                return HttpResponse.json({ data: mockApiVersionData });
-            }),
-        ],
-    },
-    route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}/edit`,
-    },
-};
-
 // Loading state
-export function Loading() {
+export function Loading({ display }: { display: ViewDisplayType }) {
     return (
-        <ApiUpsert display="page" isCreate={false} />
+        <ApiUpsert display={display} isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -188,9 +143,9 @@ Loading.parameters = {
 };
 
 // Non-premium user
-export function NonPremiumUser() {
+export function NonPremiumUser({ display }: { display: ViewDisplayType }) {
     return (
-        <ApiUpsert display="page" isCreate={true} />
+        <ApiUpsert display={display} isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {
@@ -198,10 +153,10 @@ NonPremiumUser.parameters = {
 };
 
 // With Override Object (using dialog display)
-export function WithOverrideObject() {
+export function WithOverrideObject({ display }: { display: ViewDisplayType }) {
     return (
         <ApiUpsert
-            display="dialog"
+            display={display}
             isCreate={true}
             isOpen={true}
             onClose={() => { }}

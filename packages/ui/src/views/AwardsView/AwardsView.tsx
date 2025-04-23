@@ -12,7 +12,7 @@ import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFetch } from "../../hooks/useFetch.js";
 import { ScrollBox } from "../../styles.js";
-import { AwardDisplay } from "../../types.js";
+import { AwardDisplay, ViewProps } from "../../types.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 
 // Category array for sorting
@@ -146,7 +146,7 @@ function AwardCard({
     );
 }
 
-export function AwardsView() {
+export function AwardsView(_props: ViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);

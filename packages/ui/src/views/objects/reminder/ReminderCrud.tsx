@@ -706,7 +706,7 @@ export function ReminderCrud({
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<Reminder, ReminderShape>({
         ...endpointsReminder.findOne,
-        disabled: display === "dialog" && isOpen !== true,
+        disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Reminder",
         overrideObject: overrideObject as Reminder,
