@@ -1,4 +1,4 @@
-import { IconButton, InputAdornment, styled, useTheme } from "@mui/material";
+import { IconButton, InputAdornment, styled, useTheme, type SxProps, type Theme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
@@ -55,7 +55,8 @@ export function DateInput({
     label,
     name,
     type = "datetime-local",
-}: DateInputProps) {
+    sx,
+}: DateInputProps & { sx?: SxProps<Theme> }) {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField(name);
@@ -91,6 +92,7 @@ export function DateInput({
             InputLabelProps={textInputLabelProps}
             {...field}
             value={formatForDateTimeLocal(field.value, type)}
+            sx={sx}
         />
     );
 }

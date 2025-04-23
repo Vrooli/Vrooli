@@ -1,6 +1,7 @@
 import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
-import { Box, Button, Card, Divider, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, SelectChangeEvent, Stack, styled, Typography, useTheme } from "@mui/material";
+import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
+import memoize from 'lodash/memoize';
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
@@ -79,16 +80,20 @@ export function scheduleInitialValues(
     session: Session | undefined,
     existing?: Schedule | null | undefined,
 ): ScheduleShape {
-    return {
+    const base = {
         __typename: "Schedule" as const,
         id: DUMMY_ID,
         startTime: new Date(),
         endTime: new Date(Date.now() + HOURS_1_MS),
-        // Default to current timezone
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         exceptions: [],
         labels: [],
         recurrences: [],
+    };
+
+    if (!existing) return base;
+    return {
+        ...base,
         ...existing,
     };
 }
@@ -233,6 +238,184 @@ function useScheduleFormStyles(palette: Palette) {
     }), [palette]);
 }
 
+/**
+ * Generate a human-readable summary label for a recurrence rule.
+ */
+function formatRecurrence(r: ScheduleRecurrence): string {
+    const { recurrenceType, interval, dayOfWeek, dayOfMonth, month } = r;
+    switch (recurrenceType) {
+        case ScheduleRecurrenceType.Daily:
+            return interval > 1 ? `Every ${interval} days` : "Daily";
+        case ScheduleRecurrenceType.Weekly: {
+            const d = dayOfWeekOptions.find(o => o.value === dayOfWeek)?.label;
+            const base = interval > 1 ? `Every ${interval} weeks` : "Weekly";
+            return d ? `${base} on ${d}` : base;
+        }
+        case ScheduleRecurrenceType.Monthly:
+            return interval > 1
+                ? `Every ${interval} months on day ${dayOfMonth}`
+                : `Monthly on day ${dayOfMonth}`;
+        case ScheduleRecurrenceType.Yearly: {
+            const m = monthOfYearOptions.find(o => o.value === month)?.label;
+            const base = interval > 1 ? `Every ${interval} years` : "Yearly";
+            return m ? `${base} on ${m} ${dayOfMonth}` : base;
+        }
+        default:
+            return "";
+    }
+}
+
+// Ensure proper memoization of the recurrence formatter
+const memoizedFormatRecurrence = memoize(formatRecurrence);
+
+// Create a memoized component for the recurrence item to prevent unnecessary re-renders
+const RecurrenceItem = memo(function RecurrenceItem({
+    recurrence,
+    index,
+    onDelete,
+    onChange,
+    palette,
+}: {
+    recurrence: ScheduleRecurrence;
+    index: number;
+    onDelete: (index: number) => void;
+    onChange: (index: number, key: keyof ScheduleRecurrence, value: any) => void;
+    palette: Palette;
+}) {
+    // Use the memoized formatRecurrence function directly
+    return (
+        <Paper
+            sx={{
+                p: 3,
+                position: 'relative',
+                backgroundColor: palette.background.paper,
+                '& .delete-button': {
+                    opacity: 0,
+                },
+                '&:hover .delete-button': {
+                    opacity: 1,
+                },
+            }}
+            elevation={2}
+        >
+            {/* Summary header */}
+            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h6" sx={{ color: 'text.primary' }}>
+                    {memoizedFormatRecurrence(recurrence)}
+                </Typography>
+                <IconButton
+                    className="delete-button"
+                    edge="end"
+                    size="small"
+                    onClick={() => onDelete(index)}
+                    sx={{
+                        opacity: 0,
+                        transition: 'opacity 0.2s ease-in-out',
+                        '&:hover': {
+                            backgroundColor: palette.error.main,
+                            '& svg': {
+                                fill: palette.common.white,
+                            },
+                        },
+                    }}
+                >
+                    <IconCommon decorative fill={palette.error.light} name="Delete" />
+                </IconButton>
+            </Box>
+
+            {/* Main form content */}
+            <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                        <InputLabel>Repeats</InputLabel>
+                        <Select
+                            value={recurrence.recurrenceType}
+                            onChange={(event) => onChange(index, "recurrenceType", event.target.value)}
+                            sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1 } }}
+                        >
+                            <MenuItem value={ScheduleRecurrenceType.Daily}>
+                                <IconCommon decorative name="Schedule" type="Common" style={{ fontSize: 20 }} />
+                                Daily
+                            </MenuItem>
+                            <MenuItem value={ScheduleRecurrenceType.Weekly}>
+                                <IconCommon decorative name="Schedule" type="Common" style={{ fontSize: 20 }} />
+                                Weekly
+                            </MenuItem>
+                            <MenuItem value={ScheduleRecurrenceType.Monthly}>
+                                <IconCommon decorative name="Schedule" type="Common" style={{ fontSize: 20 }} />
+                                Monthly
+                            </MenuItem>
+                            <MenuItem value={ScheduleRecurrenceType.Yearly}>
+                                <IconCommon decorative name="Schedule" type="Common" style={{ fontSize: 20 }} />
+                                Yearly
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                    <TextInput
+                        fullWidth
+                        label="Repeat every"
+                        type="number"
+                        value={recurrence.interval}
+                        onChange={(event) => onChange(index, "interval", parseInt(event.target.value))}
+                        InputProps={{
+                            endAdornment: (
+                                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                    {recurrence.recurrenceType.toLowerCase() + (recurrence.interval > 1 ? 's' : '')}
+                                </Typography>
+                            ),
+                        }}
+                    />
+                </Grid>
+
+                {/* Conditional fields based on recurrence type */}
+                {recurrence.recurrenceType === ScheduleRecurrenceType.Weekly && (
+                    <Grid item xs={12}>
+                        <Selector
+                            fullWidth
+                            label="Repeats on"
+                            name={`recurrences[${index}].dayOfWeek`}
+                            options={dayOfWeekOptions}
+                            getOptionLabel={getOptionLabel}
+                        />
+                    </Grid>
+                )}
+                {(recurrence.recurrenceType === ScheduleRecurrenceType.Monthly || recurrence.recurrenceType === ScheduleRecurrenceType.Yearly) && (
+                    <Grid item xs={12} sm={6}>
+                        <IntegerInput
+                            label="Day of month"
+                            name={`recurrences[${index}].dayOfMonth`}
+                            min={1}
+                            max={31}
+                        />
+                    </Grid>
+                )}
+                {recurrence.recurrenceType === ScheduleRecurrenceType.Yearly && (
+                    <Grid item xs={12} sm={6}>
+                        <Selector
+                            fullWidth
+                            label="Month"
+                            name={`recurrences[${index}].monthOfYear`}
+                            options={monthOfYearOptions}
+                            getOptionLabel={getOptionLabel}
+                        />
+                    </Grid>
+                )}
+
+                {/* End date */}
+                <Grid item xs={12}>
+                    <DateInput
+                        name={`recurrences[${index}].endDate`}
+                        label="Ends on"
+                        type="date"
+                    />
+                </Grid>
+            </Grid>
+        </Paper>
+    );
+});
+
 function ScheduleForm({
     canSetScheduleFor,
     disabled,
@@ -252,7 +435,8 @@ function ScheduleForm({
     values,
     ...props
 }: ScheduleFormProps) {
-    const { palette } = useTheme();
+    const theme = useTheme();
+    const { palette, typography } = theme;
     const { t } = useTranslation();
     const styles = useScheduleFormStyles(palette);
 
@@ -297,8 +481,36 @@ function ScheduleForm({
         setIsScheduleForSearchOpen(true);
     }, [handleScheduleForChange]);
 
+    const handleRecurrenceChange = useCallback(function handleRecurrenceChangeCallback(
+        index: number,
+        key: keyof ScheduleRecurrence,
+        value: any,
+    ) {
+        if (!Array.isArray(recurrencesField.value)) return;
+
+        const newRecurrences = [...recurrencesField.value];
+        if (newRecurrences[index]) {
+            (newRecurrences[index] as any)[key] = value;
+            recurrencesHelpers.setValue(newRecurrences);
+        }
+    }, [recurrencesField.value, recurrencesHelpers]);
+
+    const removeRecurrence = useCallback(function removeRecurrenceCallback(index: number) {
+        const currentRecurrences = recurrencesField.value || [];
+        if (!Array.isArray(currentRecurrences)) {
+            recurrencesHelpers.setValue([]);
+            return;
+        }
+        recurrencesHelpers.setValue(currentRecurrences.filter((_, idx) => idx !== index));
+    }, [recurrencesField.value, recurrencesHelpers]);
+
     const addNewRecurrence = useCallback(function addNewRecurrenceCallback() {
-        recurrencesHelpers.setValue([...recurrencesField.value, {
+        const currentRecurrences = recurrencesField.value || [];
+        if (!Array.isArray(currentRecurrences)) {
+            recurrencesHelpers.setValue([]);
+            return;
+        }
+        recurrencesHelpers.setValue([...currentRecurrences, {
             __typename: "ScheduleRecurrence" as const,
             id: uuid(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
@@ -309,21 +521,7 @@ function ScheduleForm({
                 id: values.id,
             } as Schedule,
         }]);
-    }, [recurrencesField, recurrencesHelpers, values.id]);
-
-    const handleRecurrenceChange = useCallback(function handleRecurrenceChangeCallback(
-        index: number,
-        key: keyof ScheduleRecurrence,
-        value: any,
-    ) {
-        const newRecurrences = [...recurrencesField.value];
-        (newRecurrences as any)[index][key] = value;
-        recurrencesHelpers.setValue(newRecurrences);
-    }, [recurrencesField, recurrencesHelpers]);
-
-    const removeRecurrence = useCallback(function removeRecurrenceCallback(index: number) {
-        recurrencesHelpers.setValue(recurrencesField.value.filter((_, idx) => idx !== index));
-    }, [recurrencesField, recurrencesHelpers]);
+    }, [recurrencesField.value, recurrencesHelpers, values.id]);
 
     const { handleCancel, handleCreated, handleCompleted, handleDeleted } = useUpsertActions<Schedule>({
         display,
@@ -426,6 +624,9 @@ function ScheduleForm({
         }] : [];
     }, [handleDelete, isCreate, isMutate, t]);
 
+    // state for recurrences editor dialog
+    const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -447,141 +648,123 @@ function ScheduleForm({
             >
                 <Box width="100%" padding={2}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} lg={4}>
+                        <Grid item xs={12}>
                             <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
                                 <Typography variant="h5" sx={styles.sectionTitle}>Time Frame</Typography>
-                                <DateInput name="startTime" label="Start time" type="datetime-local" />
-                                <DateInput name="endTime" label="End time" type="datetime-local" />
-                                <TimezoneSelector name="timezone" label="Timezone" />
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} md={6}>
+                                        <DateInput
+                                            name="startTime"
+                                            label="Start time"
+                                            type="datetime-local"
+                                            sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <DateInput
+                                            name="endTime"
+                                            label="End time"
+                                            type="datetime-local"
+                                            sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12}>
+                                        <TimezoneSelector
+                                            name="timezone"
+                                            label="Timezone"
+                                            sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                        />
+                                    </Grid>
+                                </Grid>
                             </Box>
                         </Grid>
-                        <Grid item xs={12} lg={8}>
-                            <Divider sx={styles.dividerStyle} />
-                            <Box display="flex" flexDirection="column" gap={4} justifyContent="flex-start" maxWidth="600px" margin="auto">
-                                <Typography variant="h5" sx={styles.sectionTitle}>Recurring events</Typography>
-                                <Box borderRadius="24px" overflow="overlay">
-                                    {recurrencesField.value.length > 0
-                                        ? recurrencesField.value.map((recurrence, index) => {
-                                            function onRecurrenceTypeChange(event: SelectChangeEvent<ScheduleRecurrenceType>) {
-                                                handleRecurrenceChange(index, "recurrenceType", event.target.value);
-                                            }
-                                            function onIntervalChange(event: React.ChangeEvent<HTMLInputElement>) {
-                                                handleRecurrenceChange(index, "interval", parseInt(event.target.value));
-                                            }
-                                            function handleRemoveRecurrence() {
-                                                removeRecurrence(index);
-                                            }
-
-                                            return (
-                                                <Paper key={recurrence.id} sx={styles.recurrencePaper} elevation={2}>
-                                                    <Box display="flex" flexDirection="row" alignItems="flex-start" gap={2}>
-                                                        <Box display="flex" flexDirection="column" gap={2} width="-webkit-fill-available">
-                                                            <FormControl fullWidth>
-                                                                <InputLabel>{"Recurrence type"}</InputLabel>
-                                                                <Select
-                                                                    value={recurrence.recurrenceType}
-                                                                    onChange={onRecurrenceTypeChange}
-                                                                >
-                                                                    <MenuItem value={ScheduleRecurrenceType.Daily}>{"Daily"}</MenuItem>
-                                                                    <MenuItem value={ScheduleRecurrenceType.Weekly}>{"Weekly"}</MenuItem>
-                                                                    <MenuItem value={ScheduleRecurrenceType.Monthly}>{"Monthly"}</MenuItem>
-                                                                    <MenuItem value={ScheduleRecurrenceType.Yearly}>{"Yearly"}</MenuItem>
-                                                                </Select>
-                                                            </FormControl>
-                                                            <TextInput
-                                                                fullWidth
-                                                                label={"Interval"}
-                                                                type="number"
-                                                                value={recurrence.interval}
-                                                                onChange={onIntervalChange}
-                                                            />
-                                                            {recurrence.recurrenceType === ScheduleRecurrenceType.Weekly && (
-                                                                <Selector
-                                                                    fullWidth
-                                                                    label="Day of week"
-                                                                    name={`recurrences[${index}].dayOfWeek`}
-                                                                    options={dayOfWeekOptions}
-                                                                    getOptionLabel={getOptionLabel}
-                                                                />
-                                                            )}
-                                                            {(recurrence.recurrenceType === ScheduleRecurrenceType.Monthly || recurrence.recurrenceType === ScheduleRecurrenceType.Yearly) && (
-                                                                <IntegerInput
-                                                                    label="Day of month"
-                                                                    name={`recurrences[${index}].dayOfMonth`}
-                                                                    min={1}
-                                                                    max={31}
-                                                                />
-                                                            )}
-                                                            {recurrence.recurrenceType === ScheduleRecurrenceType.Yearly && (
-                                                                <Selector
-                                                                    fullWidth
-                                                                    label="Month of year"
-                                                                    name={`recurrences[${index}].monthOfYear`}
-                                                                    options={monthOfYearOptions}
-                                                                    getOptionLabel={getOptionLabel}
-                                                                />
-                                                            )}
-                                                            <DateInput
-                                                                name={`recurrences[${index}].endDate`}
-                                                                label="End date"
-                                                                type="date"
-                                                            />
-                                                        </Box>
-                                                        <Stack spacing={1} width={32}>
-                                                            <IconButton edge="end" size="small" onClick={handleRemoveRecurrence} sx={styles.deleteIconButton}>
-                                                                <IconCommon decorative fill={palette.error.light} name="Delete" />
-                                                            </IconButton>
-                                                        </Stack>
-                                                    </Box>
-                                                </Paper>
-                                            );
-                                        })
-                                        : null}
-                                    <AddButton
-                                        fullWidth
-                                        onClick={addNewRecurrence}
-                                        startIcon={<IconCommon decorative name="Add" />}
-                                        variant="contained"
-                                        sx={styles.addEventButton}
-                                    >{"Add event"}</AddButton>
-                                </Box>
+                        {/* Recurring events & Exceptions side-by-side */}
+                        <Grid item xs={12}>
+                            <Box mt={4} p={2} sx={{ maxWidth: '600px', mx: 'auto' }}>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} md={6}>
+                                        <Typography variant="h5" sx={styles.sectionTitle}>Recurring events</Typography>
+                                        <Box display="flex" flexWrap="wrap" gap={1} alignItems="center">
+                                            {recurrencesField.value.length > 0 ? recurrencesField.value.map((recurrence, index) => (
+                                                <Chip key={recurrence.id} label={formatRecurrence(recurrence)} onDelete={() => removeRecurrence(index)} />
+                                            )) : (
+                                                <Typography variant="body2" color="text.secondary">Does not repeat</Typography>
+                                            )}
+                                            <Button variant="outlined" onClick={() => setRecurrenceDialogOpen(true)}>Edit recurrences</Button>
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <Typography variant="h5" sx={styles.sectionTitle}>Exceptions</Typography>
+                                        {exceptionsField.value.length > 0 ? exceptionsField.value.map((ex, idx) => (
+                                            <Box key={ex.id} display="flex" alignItems="center" gap={1} mb={1}>
+                                                <DateInput name={`exceptions[${idx}].date`} label="Exception date" type="date" />
+                                                <IconButton size="small" onClick={() => exceptionsHelpers.setValue(exceptionsField.value.filter((_, i) => i !== idx))}>
+                                                    <IconCommon decorative fill="error.main" name="Delete" />
+                                                </IconButton>
+                                            </Box>
+                                        )) : (
+                                            <Typography variant="body2" color="text.secondary">No exceptions</Typography>
+                                        )}
+                                        <Button
+                                            variant="outlined"
+                                            onClick={() => exceptionsHelpers.setValue([
+                                                ...exceptionsField.value,
+                                                ({
+                                                    __typename: "ScheduleException" as const,
+                                                    id: uuid(),
+                                                    originalStartTime: new Date().toISOString(),
+                                                    schedule: { __typename: "Schedule" as const, id: values.id } as any,
+                                                } as ScheduleException)
+                                            ])}
+                                        >Add exception</Button>
+                                    </Grid>
+                                </Grid>
                             </Box>
+                        </Grid>
+                        {/* Schedule-for block centered */}
+                        <Grid item xs={12}>
+                            <Box mt={4} p={2} sx={{ maxWidth: '600px', mx: 'auto' }}>
+                                {!scheduleForObject ? (
+                                    <Button
+                                        fullWidth
+                                        variant="outlined"
+                                        onClick={handleScheduleForButtonClick}
+                                        sx={{
+                                            borderStyle: 'dashed',
+                                            borderWidth: 2,
+                                            borderColor: palette.divider,
+                                            backgroundColor: 'transparent',
+                                            color: palette.text.secondary,
+                                            minHeight: 120,
+                                            transition: 'all 0.2s ease-in-out',
+                                            '&:hover': {
+                                                backgroundColor: palette.action.hover,
+                                            },
+                                        }}
+                                    >
+                                        Add object
+                                    </Button>
+                                ) : (
+                                    <>
+                                        <ScheduleForCard scheduleFor={scheduleForObject} />
+                                        <Button fullWidth onClick={handleScheduleForButtonClick} sx={{ mt: 2 }}>
+                                            Change object
+                                        </Button>
+                                    </>
+                                )}
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} sx={{ mt: 4 }}>
+                            <FindObjectDialog
+                                find="List"
+                                isOpen={isScheduleForSearchOpen}
+                                limitTo={findScheduleForLimitTo}
+                                handleCancel={closeScheduleForSearch}
+                                handleComplete={closeScheduleForSearch as (item: object) => unknown}
+                            />
                         </Grid>
                     </Grid>
-                    {!scheduleForObject ? (
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            onClick={handleScheduleForButtonClick}
-                            sx={{
-                                borderStyle: 'dashed',
-                                borderWidth: 2,
-                                borderColor: palette.divider,
-                                backgroundColor: 'transparent',
-                                color: palette.text.secondary,
-                                minHeight: 120,
-                            }}
-                        >
-                            Add object
-                        </Button>
-                    ) : (
-                        <>
-                            <ScheduleForCard scheduleFor={scheduleForObject} />
-                            <Button fullWidth onClick={handleScheduleForButtonClick} sx={{ mt: 2 }}>
-                                Change object
-                            </Button>
-                        </>
-                    )}
-                    <FindObjectDialog
-                        find="List"
-                        isOpen={isScheduleForSearchOpen}
-                        limitTo={findScheduleForLimitTo}
-                        handleCancel={closeScheduleForSearch}
-                        handleComplete={closeScheduleForSearch as (item: object) => unknown}
-                    />
                 </Box>
-                {/* Set up event exceptions */}
-                {/* TODO */}
             </BaseForm>
             <BottomActionsButtons
                 display={display}
@@ -593,6 +776,72 @@ function ScheduleForm({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
             />
+            {/* recurrences editor dialog */}
+            <MaybeLargeDialog
+                display="Dialog"
+                id="schedule-recurrences-dialog"
+                isOpen={recurrenceDialogOpen}
+                onClose={() => setRecurrenceDialogOpen(false)}
+                sxs={dialogSx}
+            >
+                <TopBar
+                    display="Dialog"
+                    onClose={() => setRecurrenceDialogOpen(false)}
+                    title={t("RecurringEvents")}
+                />
+                <BaseForm
+                    display="Dialog"
+                    isLoading={isLoading}
+                    maxWidth={1200}
+                >
+                    <Box width="100%" padding={2}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>Summary:</Typography>
+                        <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary' }}>
+                            {Array.isArray(recurrencesField.value) && recurrencesField.value.length > 0
+                                ? recurrencesField.value.map(formatRecurrence).join('; ')
+                                : 'Does not repeat'}
+                        </Typography>
+                        {Array.isArray(recurrencesField.value) && recurrencesField.value.length > 0 && (
+                            <Box borderRadius={2} overflow="overlay" sx={{ mb: 2 }}>
+                                <Stack spacing={2}>
+                                    {recurrencesField.value.map((recurrence, index) => (
+                                        <RecurrenceItem
+                                            key={recurrence.id}
+                                            recurrence={recurrence}
+                                            index={index}
+                                            onDelete={removeRecurrence}
+                                            onChange={handleRecurrenceChange}
+                                            palette={palette}
+                                        />
+                                    ))}
+                                </Stack>
+                            </Box>
+                        )}
+                        <AddButton
+                            fullWidth
+                            onClick={addNewRecurrence}
+                            startIcon={<IconCommon decorative name="Add" />}
+                            sx={{
+                                transition: 'all 0.2s ease-in-out',
+                                '&:hover': {
+                                    backgroundColor: palette.action.hover,
+                                },
+                            }}
+                        >
+                            Add event
+                        </AddButton>
+                    </Box>
+                </BaseForm>
+                <BottomActionsButtons
+                    display="Dialog"
+                    hideButtons={disabled}
+                    isCreate={isCreate}
+                    loading={isLoading}
+                    onCancel={() => setRecurrenceDialogOpen(false)}
+                    onSetSubmitting={props.setSubmitting}
+                    onSubmit={() => setRecurrenceDialogOpen(false)}
+                />
+            </MaybeLargeDialog>
         </MaybeLargeDialog>
     );
 }
@@ -622,14 +871,14 @@ export const ScheduleUpsert = memo(function ScheduleUpsert({
     }, []);
 
     // Memoize transform to avoid re-creating inline function each render and prevent endless rerenders
-    const transformFn = useCallback((existingData?: Schedule | null) => {
+    const transformFn = useCallback((data: Partial<Schedule>) => {
         // Ensure controlled fields for form before applying existing data
         const baseline: Schedule = {
             focusMode: false,
             meeting: false,
             runProject: false,
             runRoutine: false,
-            ...existingData,
+            ...data,
         } as Schedule;
         return scheduleInitialValues(session, baseline);
     }, [session]);
@@ -639,7 +888,7 @@ export const ScheduleUpsert = memo(function ScheduleUpsert({
         ...endpointsSchedule.findOne,
         disabled: disabledManaged,
         isCreate,
-        objectType: "Schedule",
+        objectType: "Schedule" as const,
         overrideObject: !isCreate ? overrideObject : undefined,
         transform: transformFn,
     }), [disabledManaged, isCreate, overrideObject, transformFn]);
