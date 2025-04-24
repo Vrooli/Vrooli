@@ -138,12 +138,6 @@ export function TimezoneSelector({
             </Popover>
             {/* Text input that looks like a selector */}
             <TextInput
-                fullWidth={false}
-                sx={{
-                    "& .MuiInputBase-root": {
-                        width: "max-content",
-                    },
-                }}
                 {...props}
                 value={field.value}
                 onClick={onOpen}
@@ -168,6 +162,7 @@ export function TimezoneSelector({
                         </IconButton>
                     ),
                 }}
+                spellCheck={false}
             />
         </>
     );

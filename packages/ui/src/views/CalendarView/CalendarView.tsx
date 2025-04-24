@@ -1,11 +1,12 @@
 import { calculateOccurrences, CalendarEvent, Schedule, ScheduleFor } from "@local/shared";
-import { Box, BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Typography, useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, Components, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Calendar, HeaderProps as CalendarHeaderProps, Components, dateFnsLocalizer, DateLocalizer, SlotInfo, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
+import { CalendarPreviewToolbar } from "../../components/CalendarPreviewToolbar.js";
 import { LargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { useIsBottomNavVisible } from "../../components/navigation/BottomNav.js";
 import { APP_BAR_HEIGHT_PX, Navbar } from "../../components/navigation/Navbar.js";
@@ -81,149 +82,6 @@ const dateInputStyle = {
     opacity: 0,
     cursor: "pointer",
 } as const;
-
-type CustomToolbarProps = CalendarToolbarProps & {
-    onSelectDate: (date: Date) => unknown;
-}
-
-/**
- * Toolbar for changing calendar view and navigating between dates
- */
-function CustomToolbar({
-    date,
-    label,
-    onNavigate,
-    onSelectDate,
-    onView,
-}: CustomToolbarProps) {
-    const { palette } = useTheme();
-    const { t } = useTranslation();
-    const dateInputRef = useRef<HTMLInputElement>(null);
-
-    const handleDateChange = useCallback(function handleDateChangeCallback(event: React.ChangeEvent<HTMLInputElement>) {
-        const inputDate = event.target.value; // This is in YYYY-MM-DD format
-        const [year, month, day] = inputDate.split("-").map(Number);
-        const newDate = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
-
-        if (!isNaN(newDate.getTime())) {
-            onNavigate(Navigate.DATE, newDate);
-            onSelectDate(newDate);
-        }
-    }, [onNavigate, onSelectDate]);
-
-    const openDatePicker = useCallback(function openDatePickerCallback() {
-        if (dateInputRef.current) {
-            dateInputRef.current.showPicker();
-        }
-    }, []);
-
-    const navigate = useCallback(function navigateCallback(action) {
-        onNavigate(action);
-    }, [onNavigate]);
-
-    const changeView = useCallback(function changeViewCallback(nextView) {
-        onView(nextView);
-    }, [onView]);
-
-    function toToday() {
-        navigate(Navigate.TODAY);
-    }
-    function toPrevious() {
-        navigate(Navigate.PREVIOUS);
-    }
-    function toNext() {
-        navigate(Navigate.NEXT);
-    }
-
-    function toMonth() {
-        changeView(Views.MONTH);
-    }
-    function toWeek() {
-        changeView(Views.WEEK);
-    }
-    function toDay() {
-        changeView(Views.DAY);
-    }
-
-    return (
-        <ToolbarBox>
-            <ToolbarSection>
-                <Tooltip title={t("Today")}>
-                    <IconButton onClick={toToday}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="Today"
-                        />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title={t("Previous")}>
-                    <IconButton onClick={toPrevious}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="ArrowLeft"
-                        />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title={t("Next")}>
-                    <IconButton onClick={toNext}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="ArrowRight"
-                        />
-                    </IconButton>
-                </Tooltip>
-            </ToolbarSection>
-
-            <ToolbarSection>
-                <Box
-                    onClick={openDatePicker}
-                    sx={dateLabelBoxStyle}
-                >
-                    {label}
-                    <input
-                        ref={dateInputRef}
-                        type="date"
-                        value={date.toISOString().split("T")[0]}
-                        onChange={handleDateChange}
-                        style={dateInputStyle}
-                    />
-                </Box>
-            </ToolbarSection>
-            <ToolbarSection>
-                <Tooltip title={t("Month")}>
-                    <IconButton onClick={toMonth}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="Month"
-                        />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title={t("Week")}>
-                    <IconButton onClick={toWeek}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="Week"
-                        />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title={t("Day")}>
-                    <IconButton onClick={toDay}>
-                        <IconCommon
-                            decorative
-                            fill={palette.secondary.main}
-                            name="Day"
-                        />
-                    </IconButton>
-                </Tooltip>
-            </ToolbarSection>
-        </ToolbarBox>
-    );
-}
 
 const dayColumnHeaderBoxStyle = {
     textAlign: "center",
@@ -820,7 +678,7 @@ export function CalendarView({
 
     const calendarComponents = useMemo(function calendarComponentsMemo() {
         return {
-            toolbar: (props: CalendarToolbarProps<CalendarEvent, object>) => <CustomToolbar {...props} onSelectDate={handleSelectDate} />,
+            toolbar: (props) => <CalendarPreviewToolbar {...props} onSelectDate={handleSelectDate} />,
             month: {
                 header: (props: CalendarHeaderProps) => <DayColumnHeader isBottomNavVisible={isBottomNavVisible} {...props} />,
             },

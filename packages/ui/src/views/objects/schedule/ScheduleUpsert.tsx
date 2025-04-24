@@ -1,11 +1,16 @@
-import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
-import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Popover, Select, Stack, styled, Typography, useTheme } from "@mui/material";
+import { calculateOccurrences, CalendarEvent, CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
+import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
+import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
+import enUS from "date-fns/locale/en-US";
 import { Formik, useField } from "formik";
 import memoize from 'lodash/memoize';
-import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
+import { CalendarPreviewToolbar } from "../../../components/CalendarPreviewToolbar.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { DateInput } from "../../../components/inputs/DateInput/DateInput.js";
@@ -210,6 +215,7 @@ function useScheduleFormStyles(palette: Palette) {
     return useMemo(() => ({
         sectionTitle: {
             marginBottom: 1,
+            color: palette.background.textSecondary,
         },
         deleteIconButton: {
             position: "absolute",
@@ -415,6 +421,13 @@ const RecurrenceItem = memo(function RecurrenceItem({
         </Paper>
     );
 });
+
+// Workaround typing issues: wrap Calendar as any to satisfy JSX
+const BigCalendar: any = Calendar;
+
+// Set up date-fns localizer for react-big-calendar
+const locales = { 'en-US': enUS };
+const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 function ScheduleForm({
     canSetScheduleFor,
@@ -627,26 +640,102 @@ function ScheduleForm({
     // state for recurrences editor dialog
     const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
 
-    // Ref for the Add Exception button
-    const addExceptionButtonRef = useRef<HTMLButtonElement>(null);
+    // State for upcoming occurrence preview
+    const [previewOccurrences, setPreviewOccurrences] = useState<CalendarEvent[]>([]);
+    const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+    const [previewError, setPreviewError] = useState<string | null>(null);
 
-    // State for exception date editor popover
-    const [exceptionAnchorEl, setExceptionAnchorEl] = useState<HTMLElement | null>(null);
-    const [editingExceptionIndex, setEditingExceptionIndex] = useState<number | null>(null);
+    // State for mini calendar view date
+    const [calendarDate, setCalendarDate] = useState<Date>(
+        values.startTime ? new Date(values.startTime) : new Date()
+    );
 
-    const handleExceptionClick = (event: React.MouseEvent<HTMLElement>, index: number) => {
-        console.log('Handling exception click for index:', index, 'Target:', event.currentTarget);
-        setExceptionAnchorEl(event.currentTarget);
-        setEditingExceptionIndex(index);
-    };
+    // Effect to recalculate occurrences for preview
+    useEffect(() => {
+        let isCancelled = false;
+        const calculatePreview = async () => {
+            // Guard against invalid dates or missing recurrences potentially causing errors
+            if (!values.startTime || !values.recurrences || isNaN(new Date(values.startTime).getTime())) {
+                setPreviewOccurrences([]);
+                return;
+            }
 
-    const handleExceptionClose = () => {
-        setExceptionAnchorEl(null);
-        setEditingExceptionIndex(null);
-    };
+            setPreviewLoading(true);
+            setPreviewError(null);
+            const previewStartDate = new Date(values.startTime);
+            const previewEndDate = addDays(previewStartDate, 60); // Preview for next 60 days
 
-    const openExceptionEditor = Boolean(exceptionAnchorEl);
-    const exceptionEditorId = openExceptionEditor ? 'exception-date-popover' : undefined;
+            try {
+                // Cast form values to Schedule for occurrence calculation
+                const occurrences = await calculateOccurrences(
+                    values as any,
+                    previewStartDate,
+                    previewEndDate
+                );
+                if (!isCancelled) {
+                    setPreviewOccurrences(
+                        occurrences.map(o => ({
+                            __typename: "CalendarEvent",
+                            id: `${values.id}|${o.start.getTime()}|${o.end.getTime()}`,
+                            title: "Occurrence",
+                            start: o.start,
+                            end: o.end,
+                            allDay: false,
+                            schedule: values as any,
+                        }) as CalendarEvent)
+                    );
+                }
+            } catch (error) {
+                console.error("Error calculating schedule preview:", error);
+                if (!isCancelled) {
+                    setPreviewError("Could not calculate preview.");
+                    setPreviewOccurrences([]);
+                }
+            } finally {
+                if (!isCancelled) {
+                    setPreviewLoading(false);
+                }
+            }
+        };
+
+        calculatePreview();
+
+        return () => {
+            isCancelled = true; // Cleanup flag
+        };
+        // Dependencies: Recalculate when start time, recurrences, exceptions, or timezone change
+    }, [values.startTime, values.recurrences, values.exceptions, values.timezone, values.id, values]);
+
+    // Function to toggle exception status for a preview occurrence
+    const toggleException = useCallback((occurrenceTime: Date) => {
+        const occurrenceTimeStr = occurrenceTime.toISOString();
+        const existingExceptions = exceptionsField.value || [];
+        const existingIndex = existingExceptions.findIndex(ex => ex.originalStartTime === occurrenceTimeStr);
+
+        if (existingIndex > -1) {
+            // Exception exists, remove it
+            exceptionsHelpers.setValue(existingExceptions.filter((_, i) => i !== existingIndex));
+        } else {
+            // Exception doesn't exist, add it
+            const newException: ScheduleException = {
+                __typename: "ScheduleException" as const,
+                id: uuid(),
+                originalStartTime: occurrenceTimeStr,
+                schedule: { __typename: "Schedule" as const, id: values.id } as any,
+            };
+            exceptionsHelpers.setValue([...existingExceptions, newException]);
+        }
+    }, [exceptionsField.value, exceptionsHelpers, values.id]);
+
+    // Memoize exception times for quick lookup
+    const exceptionTimesSet = useMemo(() => {
+        return new Set((exceptionsField.value || []).map(ex => ex.originalStartTime));
+    }, [exceptionsField.value]);
+
+    // Define calendar components including custom toolbar
+    const calendarComponents = useMemo(() => ({
+        toolbar: (props: any) => <CalendarPreviewToolbar {...props} onSelectDate={setCalendarDate} />,
+    }), [setCalendarDate]);
 
     return (
         <MaybeLargeDialog
@@ -669,110 +758,79 @@ function ScheduleForm({
             >
                 <Box width="100%" padding={2}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                            <Box display="flex" flexDirection="column" gap={4} maxWidth="600px" margin="auto">
-                                <Typography variant="h5" sx={styles.sectionTitle}>Time Frame</Typography>
-                                <Grid container spacing={2}>
-                                    <Grid item xs={12} md={6}>
-                                        <DateInput
-                                            name="startTime"
-                                            label="Start time"
-                                            type="datetime-local"
-                                            sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <DateInput
-                                            name="endTime"
-                                            label="End time"
-                                            type="datetime-local"
-                                            sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <TimezoneSelector
-                                            name="timezone"
-                                            label="Timezone"
-                                            sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
-                                        />
-                                    </Grid>
-                                </Grid>
+                        <Grid item xs={12} md={6}>
+                            <Box display="flex" flexDirection="column" maxWidth="600px" margin="auto" gap={2}>
+                                <DateInput
+                                    name="startTime"
+                                    label="Start time"
+                                    type="datetime-local"
+                                    sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                />
+                                <DateInput
+                                    name="endTime"
+                                    label="End time"
+                                    type="datetime-local"
+                                    sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                />
+                                <TimezoneSelector
+                                    name="timezone"
+                                    label="Timezone"
+                                    sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                />
                             </Box>
                         </Grid>
-                        {/* Recurring events & Exceptions side-by-side */}
+                        <Grid item xs={12} md={6}>
+                            <Box display="flex" flexDirection="column" maxWidth="600px" margin="auto">
+                                <Typography variant="h6" sx={styles.sectionTitle}>Recurrences</Typography>
+                                <Box display="flex" flexWrap="wrap" gap={1} alignItems="center" mb={2}>
+                                    {recurrencesField.value.length > 0 ? recurrencesField.value.map((recurrence, index) => (
+                                        <Chip key={recurrence.id} label={formatRecurrence(recurrence)} onDelete={() => removeRecurrence(index)} />
+                                    )) : (
+                                        <Typography variant="body2" color="text.secondary">Does not repeat</Typography>
+                                    )}
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => setRecurrenceDialogOpen(true)}
+                                        size="small"
+                                    >Edit recurrences</Button>
+                                </Box>
+                                <Typography variant="h6" sx={styles.sectionTitle}>Exceptions</Typography>
+                                <Box display="flex" flexWrap="wrap" gap={1} alignItems="center" mb={2}>
+                                    {exceptionsField.value.length > 0 ? exceptionsField.value.map((ex, idx) => (
+                                        <Chip
+                                            key={ex.id}
+                                            label={new Date(ex.originalStartTime).toLocaleString()}
+                                            onDelete={() => exceptionsHelpers.setValue(exceptionsField.value.filter((_, i) => i !== idx))}
+                                        />
+                                    )) : (
+                                        <Typography variant="body2" color="text.secondary">No exceptions added</Typography>
+                                    )}
+                                </Box>
+                            </Box>
+                        </Grid>
                         <Grid item xs={12}>
-                            <Box mt={4} p={2} sx={{ maxWidth: '600px', mx: 'auto' }}>
-                                <Grid container spacing={2}>
-                                    <Grid item xs={12} md={6}>
-                                        <Typography variant="h5" sx={styles.sectionTitle}>Recurring events</Typography>
-                                        <Box display="flex" flexWrap="wrap" gap={1} alignItems="center">
-                                            {recurrencesField.value.length > 0 ? recurrencesField.value.map((recurrence, index) => (
-                                                <Chip key={recurrence.id} label={formatRecurrence(recurrence)} onDelete={() => removeRecurrence(index)} />
-                                            )) : (
-                                                <Typography variant="body2" color="text.secondary">Does not repeat</Typography>
-                                            )}
-                                            <Button variant="outlined" onClick={() => setRecurrenceDialogOpen(true)}>Edit recurrences</Button>
-                                        </Box>
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <Typography variant="h5" sx={styles.sectionTitle}>Exceptions</Typography>
-                                        <Box display="flex" flexWrap="wrap" gap={1} alignItems="center">
-                                            {exceptionsField.value.length > 0 ? exceptionsField.value.map((ex, idx) => (
-                                                <Chip
-                                                    key={ex.id}
-                                                    label={new Date(ex.originalStartTime).toLocaleString()}
-                                                    onClick={(event: React.MouseEvent<HTMLElement>) => handleExceptionClick(event, idx)}
-                                                    onDelete={() => exceptionsHelpers.setValue(exceptionsField.value.filter((_, i) => i !== idx))}
-                                                />
-                                            )) : (
-                                                <Typography variant="body2" color="text.secondary">No exceptions</Typography>
-                                            )}
-                                            <Button
-                                                ref={addExceptionButtonRef}
-                                                variant="outlined"
-                                                onClick={() => {
-                                                    const newException: ScheduleException = {
-                                                        __typename: "ScheduleException" as const,
-                                                        id: uuid(),
-                                                        originalStartTime: new Date().toISOString(),
-                                                        schedule: { __typename: "Schedule" as const, id: values.id } as any,
-                                                    };
-                                                    const currentExceptions = exceptionsField.value || [];
-                                                    const newIndex = currentExceptions.length;
-                                                    exceptionsHelpers.setValue([...currentExceptions, newException]);
-                                                    // Open popover automatically
-                                                    setEditingExceptionIndex(newIndex);
-                                                    setExceptionAnchorEl(addExceptionButtonRef.current);
-                                                }}
-                                            >Add exception</Button>
-                                        </Box>
-                                        {/* Exception Date Editor Popover */}
-                                        <Popover
-                                            id={exceptionEditorId}
-                                            open={openExceptionEditor}
-                                            anchorEl={exceptionAnchorEl}
-                                            onClose={handleExceptionClose}
-                                            anchorOrigin={{
-                                                vertical: 'bottom',
-                                                horizontal: 'center',
-                                            }}
-                                            transformOrigin={{
-                                                vertical: 'top',
-                                                horizontal: 'center',
-                                            }}
-                                        >
-                                            <Box sx={{ p: 2 }}>
-                                                {editingExceptionIndex !== null && (
-                                                    <DateInput
-                                                        name={`exceptions[${editingExceptionIndex}].originalStartTime`}
-                                                        label="Exception Date & Time"
-                                                        type="datetime-local"
-                                                    />
-                                                )}
-                                            </Box>
-                                        </Popover>
-                                    </Grid>
-                                </Grid>
+                            <Box mt={4} p={2} sx={{ maxWidth: '100%', mx: 'auto' }}>
+                                <Typography variant="h5" sx={{ ...styles.sectionTitle, mb: 2 }}>Preview</Typography>
+                                <BigCalendar
+                                    localizer={localizer}
+                                    events={previewOccurrences}
+                                    startAccessor="start"
+                                    endAccessor="end"
+                                    date={calendarDate}
+                                    views={[Views.MONTH, Views.WEEK, Views.DAY]}
+                                    onNavigate={(date: Date) => setCalendarDate(date)}
+                                    components={calendarComponents}
+                                    eventPropGetter={(event: any) => {
+                                        const isException = exceptionTimesSet.has(event.start.toISOString());
+                                        return {
+                                            style: isException
+                                                ? { backgroundColor: palette.action.disabledBackground, opacity: 0.6 }
+                                                : {}
+                                        };
+                                    }}
+                                    onSelectEvent={(event: any) => toggleException(event.start)}
+                                    style={{ height: 500, width: '100%' }}
+                                />
                             </Box>
                         </Grid>
                         {/* Schedule-for block centered */}
@@ -841,7 +899,7 @@ function ScheduleForm({
                 <TopBar
                     display="Dialog"
                     onClose={() => setRecurrenceDialogOpen(false)}
-                    title={t("RecurringEvents")}
+                    title={t("RecurringEvents" as any)}
                 />
                 <BaseForm
                     display="Dialog"
