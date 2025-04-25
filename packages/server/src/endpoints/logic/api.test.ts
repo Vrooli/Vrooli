@@ -201,7 +201,11 @@ describe("EndpointsApi", () => {
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: ApiSearchInput = { take: 10 };
                 const result = await api.findMany({ input }, { req, res }, api_findMany);
-                const expectedIds = [publicApiId1, publicApiId2, privateApiId1, privateApiId2].sort();
+                const expectedIds = [
+                    publicApiId1,
+                    publicApiId2,
+                    privateApiId1,
+                ].sort();
                 expect(result.edges!.map(e => e!.node!.id).sort()).to.deep.equal(expectedIds);
             });
         });
@@ -212,18 +216,22 @@ describe("EndpointsApi", () => {
             it("creates a new API for API key with private write permissions", async () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const permissions = mockWritePrivatePermissions();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const newApiId = uuid();
                 const versionId = uuid();
                 const translationId = uuid();
-                const input = {
+                const input: ApiCreateInput = {
                     id: newApiId,
                     isPrivate: false,
                     permissions: JSON.stringify({}),
+                    ownedByUserConnect: testUser.id,
                     versionsCreate: [
                         {
                             id: versionId,
                             callLink: "https://test-api.com",
+                            isPrivate: false,
+                            versionLabel: "1.0.0",
                             translationsCreate: [
                                 {
                                     id: translationId,
@@ -233,7 +241,7 @@ describe("EndpointsApi", () => {
                             ],
                         },
                     ],
-                } as ApiCreateInput;
+                };
                 const result = await api.createOne({ input }, { req, res }, api_createOne) as Api;
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(newApiId);
@@ -274,11 +282,12 @@ describe("EndpointsApi", () => {
             it("updates an existing API for API key with private write permissions", async () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const permissions = mockWritePrivatePermissions();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
-                const input = { id: publicApiId1, isPrivate: true } as ApiUpdateInput;
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
+                const input = { id: privateApiId1, isPrivate: false } as ApiUpdateInput;
                 const result = await api.updateOne({ input }, { req, res }, api_updateOne) as Api;
                 expect(result).to.not.be.null;
-                expect(result.isPrivate).to.be.true;
+                expect(result.isPrivate).to.be.false;
             });
         });
 

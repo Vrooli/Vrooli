@@ -1,8 +1,8 @@
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionUpdateInput, FindVersionInput, uuid } from "@local/shared";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSearchResult, ApiVersionUpdateInput, FindVersionInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadAuthPermissions, mockReadPublicPermissions, mockWriteAuthPermissions } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -20,6 +20,8 @@ describe("EndpointsApiVersion", () => {
     const apiRootId = uuid();
     const versionId = uuid();
     const translationId = uuid();
+    const user1Id = uuid();
+    const user2Id = uuid();
 
     before(() => {
         loggerErrorStub = sinon.stub(logger, "error");
@@ -30,12 +32,37 @@ describe("EndpointsApiVersion", () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Seed API root with one public version
+        await DbProvider.get().user.create({
+            data: {
+                id: user1Id,
+                name: "Test User 1",
+                handle: "test-user-1",
+                status: "Unlocked",
+                isBot: false,
+                isBotDepictingPerson: false,
+                isPrivate: false,
+                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            },
+        });
+        await DbProvider.get().user.create({
+            data: {
+                id: user2Id,
+                name: "Test User 2",
+                handle: "test-user-2",
+                status: "Unlocked",
+                isBot: false,
+                isBotDepictingPerson: false,
+                isPrivate: false,
+                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            },
+        });
+
         await DbProvider.get().api.create({
             data: {
                 id: apiRootId,
                 isPrivate: false,
                 permissions: JSON.stringify({}),
+                ownedByUser: { connect: { id: user1Id } },
                 versions: {
                     create: [
                         {
@@ -61,9 +88,9 @@ describe("EndpointsApiVersion", () => {
 
     describe("findOne", () => {
         it("returns the version for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: uuid() });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
             const input: FindVersionInput = { id: versionId };
-            const result: ApiVersion = await apiVersion.findOne({ input }, { req, res }, apiVersion_findOne);
+            const result = await apiVersion.findOne({ input }, { req, res }, apiVersion_findOne) as ApiVersion;
             expect(result).to.not.be.null;
             expect(result.id).to.equal(versionId);
         });
@@ -71,7 +98,7 @@ describe("EndpointsApiVersion", () => {
         it("returns the version for not authenticated user", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: FindVersionInput = { id: versionId };
-            const result: ApiVersion = await apiVersion.findOne({ input }, { req, res }, apiVersion_findOne);
+            const result = await apiVersion.findOne({ input }, { req, res }, apiVersion_findOne) as ApiVersion;
             expect(result).to.not.be.null;
             expect(result.id).to.equal(versionId);
         });
@@ -81,7 +108,7 @@ describe("EndpointsApiVersion", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
             const input: FindVersionInput = { id: versionId };
-            const result: ApiVersion = await apiVersion.findOne({ input }, { req, res }, apiVersion_findOne);
+            const result = await apiVersion.findOne({ input }, { req, res }, apiVersion_findOne) as ApiVersion;
             expect(result).to.not.be.null;
             expect(result.id).to.equal(versionId);
         });
@@ -89,9 +116,9 @@ describe("EndpointsApiVersion", () => {
 
     describe("findMany", () => {
         it("returns the seeded version for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: uuid() });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
             const input: ApiVersionSearchInput = { take: 10 };
-            const result: ApiVersionSearchInput = await apiVersion.findMany({ input }, { req, res }, apiVersion_findMany);
+            const result = await apiVersion.findMany({ input }, { req, res }, apiVersion_findMany) as ApiVersionSearchResult;
             const ids = result.edges!.map(e => e!.node!.id).sort();
             expect(ids).to.include(versionId);
         });
@@ -99,7 +126,7 @@ describe("EndpointsApiVersion", () => {
         it("returns the seeded version for not authenticated user", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: ApiVersionSearchInput = { take: 10 };
-            const result: ApiVersionSearchInput = await apiVersion.findMany({ input }, { req, res }, apiVersion_findMany);
+            const result = await apiVersion.findMany({ input }, { req, res }, apiVersion_findMany) as ApiVersionSearchResult;
             const ids = result.edges!.map(e => e!.node!.id).sort();
             expect(ids).to.include(versionId);
         });
@@ -109,7 +136,7 @@ describe("EndpointsApiVersion", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
             const input: ApiVersionSearchInput = { take: 10 };
-            const result: ApiVersionSearchInput = await apiVersion.findMany({ input }, { req, res }, apiVersion_findMany);
+            const result = await apiVersion.findMany({ input }, { req, res }, apiVersion_findMany) as ApiVersionSearchResult;
             const ids = result.edges!.map(e => e!.node!.id).sort();
             expect(ids).to.include(versionId);
         });
@@ -117,10 +144,11 @@ describe("EndpointsApiVersion", () => {
 
     describe("createOne", () => {
         describe("valid", () => {
-            it("creates a version for API key with write auth permissions", async () => {
-                const permissions = mockWriteAuthPermissions();
+            it("creates a version for API key with write private permissions", async () => {
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const newVersionId = uuid();
                 const newTranslationId = uuid();
                 const input: ApiVersionCreateInput = {
@@ -131,7 +159,7 @@ describe("EndpointsApiVersion", () => {
                     rootConnect: apiRootId,
                     translationsCreate: [{ id: newTranslationId, language: "en", name: "Version New" }],
                 };
-                const result: ApiVersion = await apiVersion.createOne({ input }, { req, res }, apiVersion_createOne);
+                const result = await apiVersion.createOne({ input }, { req, res }, apiVersion_createOne) as ApiVersion;
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(newVersionId);
                 expect(result.versionLabel).to.equal("2.0.0");
@@ -150,8 +178,8 @@ describe("EndpointsApiVersion", () => {
                 }
             });
 
-            it("throws error for API key without write auth permissions", async () => {
-                const permissions = mockReadAuthPermissions();
+            it("throws error for API key without write private permissions", async () => {
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: ApiVersionCreateInput = { id: uuid(), callLink: "x", isPrivate: false, versionLabel: "x", rootConnect: apiRootId, translationsCreate: [] };
@@ -167,12 +195,13 @@ describe("EndpointsApiVersion", () => {
 
     describe("updateOne", () => {
         describe("valid", () => {
-            it("updates versionLabel for API key with write auth permissions", async () => {
-                const permissions = mockWriteAuthPermissions();
+            it("updates versionLabel for API key with write private permissions", async () => {
+                const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: ApiVersionUpdateInput = { id: versionId, versionLabel: "1.1.0" };
-                const result: ApiVersion = await apiVersion.updateOne({ input }, { req, res }, apiVersion_updateOne);
+                const result = await apiVersion.updateOne({ input }, { req, res }, apiVersion_updateOne) as ApiVersion;
                 expect(result).to.not.be.null;
                 expect(result.versionLabel).to.equal("1.1.0");
             });
@@ -190,8 +219,8 @@ describe("EndpointsApiVersion", () => {
                 }
             });
 
-            it("throws error for API key without write auth permissions", async () => {
-                const permissions = mockReadAuthPermissions();
+            it("throws error for API key without write private permissions", async () => {
+                const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: ApiVersionUpdateInput = { id: versionId, versionLabel: "1.2.0" };

@@ -37,7 +37,12 @@ export function getVisibilityFunc<
         }
     }
 
-    const visibilityFunc = validator.visibility[funcName];
+    let visibilityFunc = validator.visibility[funcName];
+
+    // Try fallbacks
+    if (!visibilityFunc && visibilityType === VisibilityType.OwnOrPublic) {
+        visibilityFunc = validator.visibility.own || validator.visibility.public;
+    }
 
     if (visibilityFunc === null || visibilityFunc === undefined) {
         // Check if the function is explicitly null (not supported) or just missing

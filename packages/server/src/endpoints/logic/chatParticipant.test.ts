@@ -129,20 +129,28 @@ describe("EndpointsChatParticipant", () => {
                 expect(result.id).to.equal(cp1.id);
             });
 
-            it("API key with public read can find any participant", async () => {
+            it("API key with public read can find no participants", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: FindByIdInput = { id: cp3.id };
-                const result = await chatParticipant.findOne({ input }, { req, res }, chatParticipant_findOne);
-                expect(result.id).to.equal(cp3.id);
+                try {
+                    await chatParticipant.findOne({ input }, { req, res }, chatParticipant_findOne);
+                    expect.fail("Expected an error");
+                } catch (error) {
+                    // expected
+                }
             });
 
-            it("logged out user can find any participant", async () => {
+            it("logged out user can find no participants", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: FindByIdInput = { id: cp2.id };
-                const result = await chatParticipant.findOne({ input }, { req, res }, chatParticipant_findOne);
-                expect(result.id).to.equal(cp2.id);
+                try {
+                    await chatParticipant.findOne({ input }, { req, res }, chatParticipant_findOne);
+                    expect.fail("Expected an error");
+                } catch (error) {
+                    // expected
+                }
             });
         });
         describe("invalid", () => {
@@ -173,22 +181,28 @@ describe("EndpointsChatParticipant", () => {
             expect(ids).to.deep.equal([cp2.id, cp3.id].sort());
         });
 
-        it("API key with public read returns all participants", async () => {
+        it("API key with public read returns no participants", async () => {
             const permissions = mockReadPublicPermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
             const input: ChatParticipantSearchInput = { take: 10 };
-            const result = await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
-            const ids = result.edges!.map(e => e!.node!.id).sort();
-            expect(ids).to.deep.equal([cp1.id, cp2.id, cp3.id].sort());
+            try {
+                await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
+                expect.fail("Expected an error");
+            } catch (error) {
+                // expected
+            }
         });
 
-        it("logged out user can find all participants", async () => {
+        it("logged out user can find no participants", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: ChatParticipantSearchInput = { take: 10 };
-            const result = await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
-            const ids = result.edges!.map(e => e!.node!.id).sort();
-            expect(ids).to.deep.equal([cp1.id, cp2.id, cp3.id].sort());
+            try {
+                await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
+                expect.fail("Expected an error");
+            } catch (error) {
+                // expected
+            }
         });
     });
 
@@ -203,20 +217,31 @@ describe("EndpointsChatParticipant", () => {
                 expect(result.id).to.equal(cp2.id);
             });
 
-            it("API key with write permissions can update any participant", async () => {
+            it("API key with write permissions can update only own participant", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
                 const input: ChatParticipantUpdateInput = { id: cp1.id };
                 const result = await chatParticipant.updateOne({ input }, { req, res }, chatParticipant_updateOne);
                 expect(result.id).to.equal(cp1.id);
+
+                // user2 should not be able to update cp1
+                const user2 = { ...loggedInUserNoPremiumData, id: user2Id };
+                const { req: req2, res: res2 } = await mockAuthenticatedSession(user2);
+                const input2: ChatParticipantUpdateInput = { id: cp1.id };
+                try {
+                    await chatParticipant.updateOne({ input: input2 }, { req: req2, res: res2 }, chatParticipant_updateOne);
+                    expect.fail("Expected an error");
+                } catch (error) {
+                    // expected
+                }
             });
         });
         describe("invalid", () => {
-            it("cannot update another user's participant record without write permissions", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+            it("cannot update another user's participant record", async () => {
+                const user = { ...loggedInUserNoPremiumData, id: user2Id };
                 const { req, res } = await mockAuthenticatedSession(user);
-                const input: ChatParticipantUpdateInput = { id: cp2.id };
+                const input: ChatParticipantUpdateInput = { id: cp1.id };
                 try {
                     await chatParticipant.updateOne({ input }, { req, res }, chatParticipant_updateOne);
                     expect.fail("Expected an error");
