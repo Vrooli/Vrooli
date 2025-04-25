@@ -145,44 +145,7 @@ const sections: TutorialSection[] = [
                         id: uuid(),
                         isCollapsible: false,
                         isMarkdown: true,
-                        label: "The first thing you'll see are the focus mode tabs. These allow you to customize the resources and reminders shown on the home page.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "More focus mode-related features will be released in the future.",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: uuid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: uuid(),
-                        label: "Tabs can be customized in the settings page",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.DashboardFocusModeTabs,
-                    page: LINKS.Home,
-                },
-            },
-            {
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Next is a customizable list of resource cards.\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
+                        label: "The first thing you'll see is a customizable list of resource cards.\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
                         tag: "body1",
                     },
                     {

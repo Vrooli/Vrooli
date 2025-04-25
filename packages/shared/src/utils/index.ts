@@ -3,7 +3,6 @@ export * from "./arrays.js";
 export * from "./casing.js";
 export * from "./emotions.js";
 export * from "./exists.js";
-export * from "./focusModes.js";
 export * from "./isEqual.js";
 export * from "./lruCache.js";
 export * from "./noop.js";

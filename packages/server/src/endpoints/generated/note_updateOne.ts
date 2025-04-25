@@ -52,7 +52,6 @@ export const note_updateOne = {
         }
     },
     "permissions": true,
-    "questionsCount": true,
     "score": true,
     "bookmarks": true,
     "tags": {
@@ -167,5 +166,5 @@ export const note_updateOne = {
         },
         "versionNotes": true
     },
-    "__cacheKey": "909574164"
+    "__cacheKey": "247114934"
 };

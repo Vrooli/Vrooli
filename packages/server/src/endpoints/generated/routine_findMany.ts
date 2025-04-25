@@ -56,7 +56,6 @@ export const routine_findMany = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -134,5 +133,5 @@ export const routine_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1939664622"
+    "__cacheKey": "472186700"
 };

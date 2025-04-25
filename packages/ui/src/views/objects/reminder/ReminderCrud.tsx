@@ -1,5 +1,5 @@
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
+import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderListShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, Grid, IconButton, InputBase, Palette, Paper, Stack, styled, Typography, useTheme } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -21,47 +21,12 @@ import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { FocusModeInfo, useFocusModes } from "../../../stores/focusModeStore.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ReminderCrudProps, ReminderFormProps } from "./types.js";
 
-function getFallbackReminderList(focusModeInfo: FocusModeInfo, existing: Partial<ReminderShape> | null | undefined) {
-    const { active: activeFocusMode, all: allFocusModes } = focusModeInfo;
-    const activeMode = activeFocusMode?.focusMode;
-
-    // If reminderList exists, return it
-    if (existing?.reminderList) {
-        // Try to add the relevant focus mode to the reminder list so we can display it
-        const focusModeId = existing.reminderList.focusMode?.id;
-        return {
-            ...existing.reminderList,
-            __typename: "ReminderList" as const,
-            focusMode: focusModeId ? allFocusModes.find(f => f.id === focusModeId) : undefined,
-        };
-    }
-    // If active mode exists, return it
-    else if (activeMode?.id) {
-        return {
-            __typename: "ReminderList" as const,
-            id: activeMode.reminderListId ?? DUMMY_ID,
-            focusMode: activeMode,
-        };
-    }
-    // Otherwise, return a new reminder list with any existing focus mode
-    const focusWithReminderList = allFocusModes.find(f => f.reminderList?.id);
-    return {
-        __typename: "ReminderList" as const,
-        id: focusWithReminderList?.reminderList?.id ?? DUMMY_ID,
-        focusMode: focusWithReminderList,
-    };
-}
-
-export function reminderInitialValues(
-    focusModeInfo: FocusModeInfo,
-    existing?: Partial<ReminderShape> | null | undefined,
-): ReminderShape {
+export function reminderInitialValues(existing?: Partial<ReminderShape> & { reminderList: CanConnect<ReminderListShape> } | null | undefined): ReminderShape {
     return {
         __typename: "Reminder" as const,
         id: DUMMY_ID,
@@ -70,7 +35,7 @@ export function reminderInitialValues(
         isComplete: false,
         reminderItems: [],
         ...existing,
-        reminderList: existing?.reminderList || getFallbackReminderList(focusModeInfo, existing),
+        reminderList: existing?.reminderList,
         description: existing?.description ?? "",
         name: existing?.name ?? "",
     };
@@ -708,13 +673,8 @@ export function ReminderCrud({
         isCreate,
         objectType: "Reminder",
         overrideObject: overrideObject as Reminder,
-        transform: (existing) => existing as ReminderShape,
+        transform: (existing) => reminderInitialValues(existing),
     });
-
-    const focusModeInfo = useFocusModes(session);
-    useEffect(function setFocusModeInfoEffect() {
-        setExisting(existing => reminderInitialValues(focusModeInfo, existing));
-    }, [focusModeInfo, setExisting, isCreate]);
 
     async function validateValues(values: ReminderShape) {
         return await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation);

@@ -84,7 +84,6 @@ const baseMockSchedules: Schedule[] = [
         endTime: new Date("2024-03-20T11:00:00Z"),
         timezone: "UTC",
         exceptions: [],
-        focusModes: [],
         labels: [],
         meetings: [mockMeeting],
         recurrences: [{
@@ -108,7 +107,6 @@ const baseMockSchedules: Schedule[] = [
         endTime: new Date("2024-03-21T23:59:59Z"),
         timezone: "UTC",
         exceptions: [],
-        focusModes: [],
         labels: [],
         meetings: [mockMeeting],
         recurrences: [{
@@ -132,7 +130,6 @@ const baseMockSchedules: Schedule[] = [
         endTime: new Date("2024-03-22T16:00:00Z"),
         timezone: "UTC",
         exceptions: [],
-        focusModes: [],
         labels: [],
         meetings: [],
         recurrences: [{

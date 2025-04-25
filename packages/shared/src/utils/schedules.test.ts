@@ -942,7 +942,6 @@ describe("applyExceptions", () => {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             exceptions: [], // Start with no exceptions
-            focusModes: [],
             id: uuid(),
             labels: [],
             meetings: [],
@@ -1169,7 +1168,6 @@ async function testCalculateOccurrences({
         endTime: new Date(endTime).toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        focusModes: [],
         id: uuid(),
         labels: [],
         meetings: [],

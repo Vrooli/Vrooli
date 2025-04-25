@@ -91,7 +91,6 @@ export const runRoutineIO_findMany = {
                             }
                         },
                         "permissions": true,
-                        "questionsCount": true,
                         "score": true,
                         "bookmarks": true,
                         "tags": {
@@ -242,7 +241,6 @@ export const runRoutineIO_findMany = {
                             }
                         },
                         "permissions": true,
-                        "questionsCount": true,
                         "score": true,
                         "bookmarks": true,
                         "tags": {
@@ -289,5 +287,5 @@ export const runRoutineIO_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1147117207"
+    "__cacheKey": "1095666071"
 };

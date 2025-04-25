@@ -1,11 +1,10 @@
-import { endpointsUser, LINKS, ProfileUpdateInput, profileValidation, User } from "@local/shared";
-import { Box, Button, Divider, Grid, Link, styled, Typography, useTheme } from "@mui/material";
+import { endpointsUser, ProfileUpdateInput, profileValidation, User } from "@local/shared";
+import { Box, Button, Grid, styled, Typography, useTheme } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
-import { FocusModeSelector } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { LanguageSelector } from "../../components/inputs/LanguageSelector/LanguageSelector.js";
 import { LeftHandedCheckbox } from "../../components/inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
 import { TextSizeButtons } from "../../components/inputs/TextSizeButtons/TextSizeButtons.js";
@@ -53,13 +52,6 @@ function ClearSettingButton({ onClick, title, description }) {
     );
 }
 
-const dividerStyle = {
-    width: "100%",
-    paddingTop: 2,
-} as const;
-const seeAllLinkStyle = { textAlign: "right" } as const;
-const seeAllLinkTextStyle = { marginRight: "12px", marginBottom: "8px" } as const;
-
 function SettingsDisplayForm({
     display,
     isLoading,
@@ -80,49 +72,41 @@ function SettingsDisplayForm({
                 display={display}
                 isLoading={isLoading}
             >
-                <FormSection variant="transparent">
-                    <Title
-                        help={t("DisplayAccountHelp")}
-                        title={t("DisplayAccount")}
-                        variant="subheader"
-                    />
-                    <LanguageSelector />
-                    <FocusModeSelector />
-                    <Link
-                        href={LINKS.SettingsFocusModes}
-                        sx={seeAllLinkStyle}
-                    >
-                        <Typography variant="body2" sx={seeAllLinkTextStyle}>See all focus modes</Typography>
-                    </Link>
-                </FormSection>
-                <Divider sx={dividerStyle} />
-                <FormSection variant="transparent">
-                    <Title
-                        help={t("DisplayDeviceHelp")}
-                        title={t("DisplayDevice")}
-                        variant="subheader"
-                    />
-                    <Box width="fit-content">
-                        <ThemeSwitch updateServer={false} />
-                    </Box>
-                    <TextSizeButtons />
-                    <Box width="fit-content">
-                        <LeftHandedCheckbox />
-                    </Box>
-                </FormSection>
-                <Divider sx={dividerStyle} />
-                <FormSection variant="transparent">
-                    <Title
-                        help={"Clear different types of display caches to reset display preferences and reduce storage."}
-                        title={"Display Cache"}
-                        variant="subheader"
-                    />
-                    <ClearSettingButton
-                        onClick={handleClearSearchHistory}
-                        title={t("ClearSearchHistory")}
-                        description={"This will clear your search history suggestions when typing in search bars."}
-                    />
-                </FormSection>
+                <Box display="flex" flexDirection="column" gap={2}>
+                    <FormSection variant="card">
+                        <Title
+                            title={t("DisplayAccount")}
+                            variant="subheader"
+                        />
+                        <LanguageSelector />
+                    </FormSection>
+                    <FormSection variant="card">
+                        <Title
+                            help={t("DisplayDeviceHelp")}
+                            title={t("DisplayDevice")}
+                            variant="subheader"
+                        />
+                        <Box width="fit-content">
+                            <ThemeSwitch updateServer={false} />
+                        </Box>
+                        <TextSizeButtons />
+                        <Box width="fit-content">
+                            <LeftHandedCheckbox />
+                        </Box>
+                    </FormSection>
+                    <FormSection variant="card">
+                        <Title
+                            help={"Clear different types of display caches to reset display preferences and reduce storage."}
+                            title={"Display Cache"}
+                            variant="subheader"
+                        />
+                        <ClearSettingButton
+                            onClick={handleClearSearchHistory}
+                            title={t("ClearSearchHistory")}
+                            description={"This will clear your search history suggestions when typing in search bars."}
+                        />
+                    </FormSection>
+                </Box>
             </InnerForm>
             <BottomActionsButtons
                 display={display}

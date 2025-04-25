@@ -78,7 +78,6 @@ export const apiVersion_findMany = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -123,5 +122,5 @@ export const apiVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "526100329"
+    "__cacheKey": "-2078496821"
 };

@@ -159,23 +159,6 @@ export const MaxObjects = {
             public: 1,
         },
     },
-    FocusMode: {
-        User: {
-            noPremium: 2,
-            premium: 15,
-        },
-        Team: 0,
-    },
-    FocusModeFilter: {
-        User: {
-            private: {
-                noPremium: 25,
-                premium: 100,
-            },
-            public: 0,
-        },
-        Team: 0,
-    },
     Issue: {
         User: {
             private: 0,
@@ -275,10 +258,6 @@ export const MaxObjects = {
         noPremium: 1,
         premium: 5,
     },
-    Post: {
-        noPremium: 10000,
-        premium: 100000,
-    },
     Project: {
         private: {
             noPremium: 3,
@@ -294,27 +273,6 @@ export const MaxObjects = {
     PullRequest: 1000000,
     PushDevice: {
         User: 5,
-        Team: 0,
-    },
-    Question: {
-        User: 5000,
-        Team: 0,
-    },
-    QuestionAnswer: {
-        User: 10000,
-        Team: 0,
-    },
-    Quiz: {
-        User: 2000,
-        Team: 0,
-    },
-    QuizAttempt: 100000,
-    QuizQuestion: {
-        User: 200000,
-        Team: 0,
-    },
-    QuizQuestionResponse: {
-        User: 200000,
         Team: 0,
     },
     ReactionSummary: 0,
@@ -410,7 +368,6 @@ export const MaxObjects = {
     StatsApi: 0,
     StatsCode: 0,
     StatsProject: 0,
-    StatsQuiz: 0,
     StatsRoutine: 0,
     StatsSite: 10000000,
     StatsStandard: 0,

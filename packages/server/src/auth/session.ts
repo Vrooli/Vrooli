@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, FocusModeStopCondition, Session, SessionUser, uuidValidate } from "@local/shared";
+import { DEFAULT_LANGUAGE, Session, SessionUser, uuidValidate } from "@local/shared";
 import { Request } from "express";
 import { CustomError } from "../events/error.js";
 import { UserDataForPasswordAuth } from "./email.js";
@@ -54,16 +54,6 @@ export class SessionService {
         const result: SessionUser = {
             __typename: "SessionUser" as const,
             id: userData.id,
-            activeFocusMode: userData.activeFocusMode ? {
-                __typename: "ActiveFocusMode" as const,
-                focusMode: {
-                    __typename: "ActiveFocusModeFocusMode" as const,
-                    id: userData.activeFocusMode.focusMode.id,
-                    reminderListId: userData.activeFocusMode.focusMode.reminderListId,
-                },
-                stopCondition: userData.activeFocusMode.stopCondition as FocusModeStopCondition,
-                stopTime: userData.activeFocusMode.stopTime,
-            } : null,
             apisCount: userData._count?.apis ?? 0,
             codesCount: userData._count?.codes ?? 0,
             credits: (userData.premium?.credits ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
@@ -75,7 +65,6 @@ export class SessionService {
             notesCount: userData._count?.notes ?? 0,
             profileImage: userData.profileImage,
             projectsCount: userData._count?.projects ?? 0,
-            questionsAskedCount: userData._count?.questionsAsked ?? 0,
             routinesCount: userData._count?.routines ?? 0,
             session: {
                 __typename: "SessionUserSession" as const,

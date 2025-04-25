@@ -124,7 +124,6 @@ export const projectVersionDirectory_findOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -177,7 +176,6 @@ export const projectVersionDirectory_findOne = {
         "default": true,
         "versionIndex": true,
         "versionLabel": true,
-        "calledByRoutineVersionsCount": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -245,7 +243,6 @@ export const projectVersionDirectory_findOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -357,7 +354,6 @@ export const projectVersionDirectory_findOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -476,7 +472,6 @@ export const projectVersionDirectory_findOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -603,7 +598,6 @@ export const projectVersionDirectory_findOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -725,7 +719,6 @@ export const projectVersionDirectory_findOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -848,5 +841,5 @@ export const projectVersionDirectory_findOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "-2143557820"
+    "__cacheKey": "-1425246140"
 };

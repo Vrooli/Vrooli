@@ -130,7 +130,6 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
 
     const { title, subtitle, DisplayIcon } = useMemo(() => {
         const scheduleOn =
-            data.schedule.focusModes?.[0] ??
             data.schedule.meetings?.[0] ??
             data.schedule.runProjects?.[0] ??
             data.schedule.runRoutines?.[0];

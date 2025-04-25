@@ -66,13 +66,6 @@ export const createCards: CreateInfo[] = [
         iconInfo: { name: "Comment", type: "Common" },
         id: "create-chat-card",
     },
-    // {
-    //     objectType: "Question",
-    //     description: "CreateQuestionDescription",
-    //     iconInfo: { name: "Help", type: "Common" },
-    //     id: "create-question-card",
-    //     incomplete: true,
-    // },
     {
         objectType: "Prompt",
         description: "CreatePromptDescription",

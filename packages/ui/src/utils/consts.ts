@@ -97,8 +97,6 @@ export enum RelationshipButtonType {
     // Parent = "Parent",
     IsPrivate = "IsPrivate",
     IsComplete = "IsComplete",
-    FocusMode = "FocusMode",
-    QuestionFor = "QuestionFor",
     Members = "Members",
     Participants = "Participants",
 }
@@ -179,7 +177,6 @@ export const ELEMENT_IDS = {
     DashboardEventList: "dashboard-event-list",
     DashboardReminderList: "dashboard-reminder-list",
     DashboardResourceList: "dashboard-resource-list",
-    DashboardFocusModeTabs: "dashboard-focus-mode-tabs",
     EventCards: "event-cards",
     FindInPage: "find-in-page",
     FormRunView: "form-run-view",

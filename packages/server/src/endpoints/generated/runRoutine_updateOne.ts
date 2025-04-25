@@ -75,7 +75,6 @@ export const runRoutine_updateOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -178,6 +177,10 @@ export const runRoutine_updateOne = {
                 "canUse": true,
                 "canRead": true
             },
+            "calledByRoutineVersionsCount": true,
+            "schemaLanguage": true,
+            "schemaText": true,
+            "versionNotes": true,
             "pullRequest": {
                 "id": true,
                 "created_at": true,
@@ -262,7 +265,6 @@ export const runRoutine_updateOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -319,10 +321,7 @@ export const runRoutine_updateOne = {
                 "details": true,
                 "name": true,
                 "summary": true
-            },
-            "schemaLanguage": true,
-            "schemaText": true,
-            "versionNotes": true
+            }
         },
         "codeVersion": {
             "id": true,
@@ -337,7 +336,6 @@ export const runRoutine_updateOne = {
             "default": true,
             "versionIndex": true,
             "versionLabel": true,
-            "calledByRoutineVersionsCount": true,
             "commentsCount": true,
             "directoryListingsCount": true,
             "forksCount": true,
@@ -351,6 +349,7 @@ export const runRoutine_updateOne = {
                 "canUse": true,
                 "canRead": true
             },
+            "calledByRoutineVersionsCount": true,
             "content": true,
             "versionNotes": true,
             "pullRequest": {
@@ -459,7 +458,6 @@ export const runRoutine_updateOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -605,7 +603,6 @@ export const runRoutine_updateOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -738,7 +735,6 @@ export const runRoutine_updateOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -914,7 +910,6 @@ export const runRoutine_updateOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -1109,7 +1104,6 @@ export const runRoutine_updateOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -1260,7 +1254,6 @@ export const runRoutine_updateOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -1336,5 +1329,5 @@ export const runRoutine_updateOne = {
             "versionLabel": true
         }
     },
-    "__cacheKey": "-342380903"
+    "__cacheKey": "-1836017059"
 };

@@ -15,8 +15,6 @@ export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.not
     Note: "note",
     Project: "project",
     PullRequest: "pullRequest",
-    Question: "question",
-    Quiz: "quiz",
     Report: "report",
     Routine: "routine",
     Schedule: "schedule",
@@ -32,7 +30,6 @@ export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.not
  * - A new report is created
  * - A new pull request is created
  * - A new issue is created
- * - A new question is created
  * - A new answer is created
  */
 export function Subscriber() {

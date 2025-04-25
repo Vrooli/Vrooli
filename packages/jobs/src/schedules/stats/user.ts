@@ -1,5 +1,5 @@
 import { batch, batchGroup, DbProvider, logger } from "@local/server";
-import { PeriodType, Prisma, QuizAttemptStatus } from "@prisma/client";
+import { PeriodType, Prisma } from "@prisma/client";
 
 type BatchApisResult = Record<string, {
     apisCreated: number;
@@ -13,11 +13,6 @@ type BatchProjectsResult = Record<string, {
     projectsCreated: number;
     projectsCompleted: number;
     projectCompletionTimeAverage: number;
-}>
-
-type BatchQuizzesResult = Record<string, {
-    quizzesPassed: number;
-    quizzesFailed: number;
 }>
 
 type BatchRoutinesResult = Record<string, {
@@ -205,57 +200,6 @@ const batchProjects = async (
         });
     } catch (error) {
         logger.error("batchProjects caught error", { error });
-    }
-    return initialResult;
-};
-
-/**
- * Batch collects quiz stats for a list of users
- * @param userIds The IDs of the users to collect stats for
- * @param periodStart When the period started
- * @param periodEnd When the period ended
- * @returns A map of user IDs to quiz stats
- */
-const batchQuizzes = async (
-    userIds: string[],
-    periodStart: string,
-    periodEnd: string,
-): Promise<BatchQuizzesResult> => {
-    const initialResult = Object.fromEntries(userIds.map(id => [id, {
-        quizzesPassed: 0,
-        quizzesFailed: 0,
-    }]));
-    try {
-        return await batchGroup<Prisma.quiz_attemptFindManyArgs, BatchQuizzesResult>({
-            initialResult,
-            processBatch: async (batch, result) => {
-                // For each, add stats to the user
-                batch.forEach(attempt => {
-                    const userId = attempt.userId;
-                    if (!userId) return;
-                    const currResult = result[userId];
-                    if (!currResult) return;
-                    if (attempt.status === QuizAttemptStatus.Passed) {
-                        currResult.quizzesPassed += 1;
-                    } else if (attempt.status === QuizAttemptStatus.Failed) {
-                        currResult.quizzesFailed += 1;
-                    }
-                });
-            },
-            objectType: "QuizAttempt",
-            select: {
-                id: true,
-                userId: true,
-                status: true,
-            },
-            where: {
-                userId: { in: userIds },
-                updated_at: { gte: periodStart, lte: periodEnd },
-                status: { in: [QuizAttemptStatus.Passed, QuizAttemptStatus.Failed] },
-            },
-        });
-    } catch (error) {
-        logger.error("batchQuizzes caught error", { error });
     }
     return initialResult;
 };
@@ -641,7 +585,6 @@ export async function logUserStats(
                 const apiStats = await batchApis(userIds, periodStart, periodEnd);
                 const codeStats = await batchCodes(userIds, periodStart, periodEnd);
                 const projectStats = await batchProjects(userIds, periodStart, periodEnd);
-                const quizStats = await batchQuizzes(userIds, periodStart, periodEnd);
                 const routineStats = await batchRoutines(userIds, periodStart, periodEnd);
                 const runProjectStats = await batchRunProjects(userIds, periodStart, periodEnd);
                 const runRoutineStats = await batchRunRoutines(userIds, periodStart, periodEnd);
@@ -657,7 +600,6 @@ export async function logUserStats(
                         ...(apiStats[user.id] || { apisCreated: 0 }),
                         ...(codeStats[user.id] || { codeCompletionTimeAverage: 0, codesCompleted: 0, codesCreated: 0 }),
                         ...(projectStats[user.id] || { projectsCompleted: 0, projectCompletionTimeAverage: 0, projectsCreated: 0 }),
-                        ...(quizStats[user.id] || { quizzesFailed: 0, quizzesPassed: 0 }),
                         ...(routineStats[user.id] || { routineCompletionTimeAverage: 0, routinesCompleted: 0, routinesCreated: 0 }),
                         ...(runProjectStats[user.id] || { runProjectCompletionTimeAverage: 0, runProjectContextSwitchesAverage: 0, runProjectsCompleted: 0, runProjectsStarted: 0 }),
                         ...(runRoutineStats[user.id] || { runRoutineCompletionTimeAverage: 0, runRoutineContextSwitchesAverage: 0, runRoutinesCompleted: 0, runRoutinesStarted: 0 }),

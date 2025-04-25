@@ -12,10 +12,9 @@ export const auth_emailLogIn = {
         "name": true,
         "notesCount": true,
         "projectsCount": true,
-        "questionsAskedCount": true,
         "routinesCount": true,
         "standardsCount": true,
         "theme": true
     },
-    "__cacheKey": "684399318"
+    "__cacheKey": "1777416390"
 };

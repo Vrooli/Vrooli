@@ -133,7 +133,6 @@ export const standardVersion_createOne = {
             }
         },
         "permissions": true,
-        "questionsCount": true,
         "score": true,
         "bookmarks": true,
         "tags": {
@@ -191,5 +190,5 @@ export const standardVersion_createOne = {
         "jsonVariable": true,
         "name": true
     },
-    "__cacheKey": "-1605574594"
+    "__cacheKey": "-1030145508"
 };

@@ -38,13 +38,8 @@ describe("EndpointsLabel", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear Redis cache and truncate relevant tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany({});
-        await DbProvider.get().user_auth.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().label_translation.deleteMany({});
-        await DbProvider.get().label.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create two users for ownership tests
         await DbProvider.get().user.create({
@@ -92,11 +87,9 @@ describe("EndpointsLabel", () => {
     });
 
     after(async () => {
-        // Clean up database and restore logger stubs
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().label_translation.deleteMany({});
-        await DbProvider.get().label.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

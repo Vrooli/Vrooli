@@ -1,5 +1,5 @@
 import { AUTH_PROVIDERS, DAYS_2_MS, MINUTES_15_MS, Session, TranslationKeyError } from "@local/shared";
-import { AccountStatus, PrismaPromise, active_focus_mode, email, focus_mode, premium, session, user_auth, user_language } from "@prisma/client";
+import { AccountStatus, PrismaPromise, email, premium, session, user_auth, user_language } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { DbProvider } from "../db/provider.js";
@@ -28,9 +28,6 @@ export type UserDataForPasswordAuth = {
     theme: string;
     status: AccountStatus;
     updated_at: Date;
-    activeFocusMode: Pick<active_focus_mode, "stopCondition" | "stopTime"> & {
-        focusMode: Pick<focus_mode, "id" | "reminderListId">;
-    } | null;
     auths: Pick<user_auth, "id" | "provider" | "hashed_password">[];
     emails: Pick<email, "emailAddress">[];
     languages: Pick<user_language, "language">[];
@@ -44,7 +41,6 @@ export type UserDataForPasswordAuth = {
         memberships: number;
         notes: number;
         projects: number;
-        questionsAsked: number;
         routines: number;
         standards: number;
     }
@@ -73,18 +69,6 @@ export class PasswordAuthService {
             status: true,
             theme: true,
             updated_at: true,
-            activeFocusMode: {
-                select: {
-                    stopCondition: true,
-                    stopTime: true,
-                    focusMode: {
-                        select: {
-                            id: true,
-                            reminderListId: true,
-                        },
-                    },
-                },
-            },
             auths: {
                 select: {
                     id: true,
@@ -132,7 +116,6 @@ export class PasswordAuthService {
                     memberships: true,
                     notes: true,
                     projects: true,
-                    questionsAsked: true,
                     routines: true,
                     standards: true,
                 },

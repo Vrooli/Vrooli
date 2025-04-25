@@ -83,7 +83,6 @@ export const standardVersion_findMany = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -128,5 +127,5 @@ export const standardVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1160001291"
+    "__cacheKey": "1927763795"
 };

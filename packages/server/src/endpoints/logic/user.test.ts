@@ -42,9 +42,8 @@ describe("EndpointsUser", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         await cudHelper({
             info: { id: true },
@@ -66,9 +65,8 @@ describe("EndpointsUser", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

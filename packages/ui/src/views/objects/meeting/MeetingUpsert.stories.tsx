@@ -53,7 +53,6 @@ const mockMeetingData: Meeting = {
         endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
         timezone: "America/New_York",
         exceptions: [],
-        focusModes: [],
         labels: [],
         meetings: [],
         runProjects: [],

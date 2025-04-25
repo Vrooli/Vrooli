@@ -33,10 +33,7 @@ describe("EndpointsReport", () => {
     beforeEach(async () => {
         // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().report.deleteMany();
+        await DbProvider.deleteAll();
 
         // Create two users
         await DbProvider.get().user.create({
@@ -90,10 +87,7 @@ describe("EndpointsReport", () => {
     after(async () => {
         // Cleanup
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().report.deleteMany();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().session.deleteMany();
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

@@ -145,7 +145,6 @@ export const projectVersion_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -198,7 +197,6 @@ export const projectVersion_findOne = {
             "default": true,
             "versionIndex": true,
             "versionLabel": true,
-            "calledByRoutineVersionsCount": true,
             "commentsCount": true,
             "directoryListingsCount": true,
             "forksCount": true,
@@ -266,7 +264,6 @@ export const projectVersion_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -378,7 +375,6 @@ export const projectVersion_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -497,7 +493,6 @@ export const projectVersion_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -624,7 +619,6 @@ export const projectVersion_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -746,7 +740,6 @@ export const projectVersion_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -954,7 +947,6 @@ export const projectVersion_findOne = {
             }
         },
         "permissions": true,
-        "questionsCount": true,
         "score": true,
         "bookmarks": true,
         "tags": {
@@ -1012,5 +1004,5 @@ export const projectVersion_findOne = {
         "name": true
     },
     "versionNotes": true,
-    "__cacheKey": "299827135"
+    "__cacheKey": "-1036282851"
 };

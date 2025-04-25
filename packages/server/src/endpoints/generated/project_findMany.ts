@@ -55,7 +55,6 @@ export const project_findMany = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -120,5 +119,5 @@ export const project_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-929484087"
+    "__cacheKey": "2115459303"
 };

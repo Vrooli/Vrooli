@@ -36,14 +36,8 @@ describe("EndpointsMemberInvite", () => {
     });
 
     beforeEach(async () => {
-        // Reset Redis and truncate tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().member.deleteMany();
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().member_invite.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Seed three users
         await DbProvider.get().user.create({ data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } } });
@@ -64,12 +58,9 @@ describe("EndpointsMemberInvite", () => {
     });
 
     after(async () => {
-        // Clean up and restore logger
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().member_invite.deleteMany();
-        await DbProvider.get().member.deleteMany();
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

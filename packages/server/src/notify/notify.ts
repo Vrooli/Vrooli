@@ -35,11 +35,9 @@ export type NotificationCategory =
     "Message" |
     "NewObjectInTeam" |
     "NewObjectInProject" |
-    "NewQuestionOrIssue" |
     "ObjectActivity" |
     "Promotion" |
     "PullRequestStatus" |
-    "QuestionActivity" |
     "ReportStatus" |
     "Run" |
     "Schedule" |
@@ -664,14 +662,6 @@ export function Notify(languages: string[] | undefined) {
             languages,
             titleKey: "NewEmailVerification_Title",
         }),
-        pushNewQuestionOnObject: (objectType: `${ModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
-            bodyKey: "NewQuestionOnObject_Body",
-            bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
-            category: "NewQuestionOrIssue",
-            languages,
-            link: `/questions/${questionId}`,
-            titleKey: "NewQuestionOnObject_Title",
-        }),
         pushNewObjectInTeam: (objectType: `${ModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewObjectInTeam_Body",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, teamName: `<Label|Team:${teamId}>` },
@@ -750,14 +740,6 @@ export function Notify(languages: string[] | undefined) {
             languages,
             link: `/${LINKS[objectType]}/${objectId}/pulls/${reportId}`,
             titleKey: `PullRequestStatus${status}_Title`,
-        }),
-        pushQuestionActivity: (questionId: string): NotifyResultType => NotifyResult({
-            bodyKey: "QuestionActivity_Body",
-            bodyVariables: { objectName: `<Label|Question:${questionId}>` },
-            category: "QuestionActivity",
-            languages,
-            link: `/questions/${questionId}`,
-            titleKey: "QuestionActivity_Title",
         }),
         pushRunStartedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunStartedAutomatically_Body",

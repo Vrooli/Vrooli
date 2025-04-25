@@ -62,7 +62,6 @@ export const bookmark_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -179,7 +178,6 @@ export const bookmark_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -223,7 +221,6 @@ export const bookmark_createOne = {
                 "default": true,
                 "versionIndex": true,
                 "versionLabel": true,
-                "calledByRoutineVersionsCount": true,
                 "commentsCount": true,
                 "directoryListingsCount": true,
                 "forksCount": true,
@@ -363,7 +360,6 @@ export const bookmark_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -425,44 +421,6 @@ export const bookmark_createOne = {
                 }
             }
         },
-        "Post": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "commentsCount": true,
-            "repostsCount": true,
-            "score": true,
-            "bookmarks": true,
-            "views": true,
-            "resourceList": {
-                "id": true,
-                "created_at": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                },
-                "resources": {
-                    "id": true,
-                    "index": true,
-                    "link": true,
-                    "usedFor": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    }
-                }
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            }
-        },
         "Project": {
             "id": true,
             "created_at": true,
@@ -517,7 +475,6 @@ export const bookmark_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -577,173 +534,6 @@ export const bookmark_createOne = {
                 }
             }
         },
-        "Question": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "createdBy": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-            },
-            "hasAcceptedAnswer": true,
-            "isPrivate": true,
-            "score": true,
-            "bookmarks": true,
-            "answersCount": true,
-            "commentsCount": true,
-            "reportsCount": true,
-            "forObject": {
-                "Api": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Code": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Note": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Project": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Routine": {
-                    "id": true,
-                    "isInternal": true,
-                    "isPrivate": true
-                },
-                "Standard": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                }
-            },
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "you": {
-                "reaction": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            }
-        },
-        "QuestionAnswer": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "createdBy": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-            },
-            "score": true,
-            "bookmarks": true,
-            "isAccepted": true,
-            "commentsCount": true,
-            "translations": {
-                "id": true,
-                "language": true,
-                "text": true
-            }
-        },
-        "Quiz": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "createdBy": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-            },
-            "score": true,
-            "bookmarks": true,
-            "attemptsCount": true,
-            "quizQuestionsCount": true,
-            "project": {
-                "id": true,
-                "isPrivate": true
-            },
-            "routine": {
-                "id": true,
-                "isInternal": true,
-                "isPrivate": true
-            },
-            "you": {
-                "canDelete": true,
-                "canBookmark": true,
-                "canUpdate": true,
-                "canRead": true,
-                "canReact": true,
-                "hasCompleted": true,
-                "isBookmarked": true,
-                "reaction": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            }
-        },
         "Routine": {
             "id": true,
             "created_at": true,
@@ -799,7 +589,6 @@ export const bookmark_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -926,7 +715,6 @@ export const bookmark_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -1087,5 +875,5 @@ export const bookmark_createOne = {
             }
         }
     },
-    "__cacheKey": "-2031263753"
+    "__cacheKey": "-2002031817"
 };

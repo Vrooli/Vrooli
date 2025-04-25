@@ -25,12 +25,10 @@ const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert.
 const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert.js"));
 const { DataConverterUpsert } = lazily(() => import("../../../views/objects/dataConverter/DataConverterUpsert.js"));
 const { DataStructureUpsert } = lazily(() => import("../../../views/objects/dataStructure/DataStructureUpsert.js"));
-const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert.js"));
 const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert.js"));
 const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud.js"));
 const { ProjectCrud } = lazily(() => import("../../../views/objects/project/ProjectCrud.js"));
 const { PromptUpsert } = lazily(() => import("../../../views/objects/prompt/PromptUpsert.js"));
-const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert.js"));
 const { ReminderCrud } = lazily(() => import("../../../views/objects/reminder/ReminderCrud.js"));
 const { RoutineMultiStepCrud } = lazily(() => import("../../../views/objects/routine/RoutineMultiStepCrud.js"));
 const { RoutineSingleStepUpsert } = lazily(() => import("../../../views/objects/routine/RoutineSingleStepUpsert.js"));
@@ -63,12 +61,10 @@ const createMap: { [K in FindObjectType]: UpsertView } = {
     Bot: BotUpsert as UpsertView,
     DataConverter: DataConverterUpsert as UpsertView,
     DataStructure: DataStructureUpsert as UpsertView,
-    FocusMode: FocusModeUpsert as UpsertView,
     Meeting: MeetingUpsert as UpsertView,
     Note: NoteCrud as UpsertView,
     Project: ProjectCrud as UpsertView,
     Prompt: PromptUpsert as UpsertView,
-    Question: QuestionUpsert as UpsertView,
     Reminder: ReminderCrud as UpsertView,
     RoutineMultiStep: RoutineMultiStepCrud as UpsertView,
     RoutineSingleStep: RoutineSingleStepUpsert as UpsertView,

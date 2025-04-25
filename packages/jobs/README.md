@@ -47,7 +47,6 @@ jobs/
 
 ### Background Jobs
 
-- Scheduled focus mode changes
 - Cleaning up revoked sessions
 - Verifying calculated database fields
 - Updating stale search embeddings

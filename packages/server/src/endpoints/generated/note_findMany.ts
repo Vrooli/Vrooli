@@ -55,7 +55,6 @@ export const note_findMany = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -122,5 +121,5 @@ export const note_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-16439817"
+    "__cacheKey": "-1104197607"
 };

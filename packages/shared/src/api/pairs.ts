@@ -225,14 +225,6 @@ export const endpointsFeed = {
     },
 } as const;
 
-export const endpointsFocusMode = {
-    ...standardCRUD("focusMode", "focusModes"),
-    setActive: {
-        endpoint: "/focusMode/active/:id",
-        method: "PUT" as const,
-    },
-} as const;
-
 export const endpointsIssue = {
     ...standardCRUD("issue", "issues"),
     closeOne: {
@@ -344,25 +336,6 @@ export const endpointsPushDevice = {
     },
 } as const;
 
-export const endpointsQuestion = standardCRUD("question", "questions");
-
-export const endpointsQuestionAnswer = {
-    ...standardCRUD("questionAnswer", "questionAnswers"),
-    acceptOne: {
-        endpoint: "/questionAnswer/:id/accept",
-        method: "PUT" as const,
-    },
-} as const;
-
-export const endpointsQuiz = standardCRUD("quiz", "quizzes");
-
-export const endpointsQuizAttempt = standardCRUD("quizAttempt", "quizAttempts");
-
-export const endpointsQuizQuestionResponse = {
-    ...findOne("quizQuestionResponse"),
-    ...findMany("quizQuestionResponses"),
-} as const;
-
 export const endpointsReaction = {
     ...findMany("reactions"),
     ...createOne("react"),
@@ -418,10 +391,6 @@ export const endpointsStatsCode = {
 
 export const endpointsStatsProject = {
     ...findMany("stats/projects"),
-} as const;
-
-export const endpointsStatsQuiz = {
-    ...findMany("stats/quiz"),
 } as const;
 
 export const endpointsStatsRoutine = {

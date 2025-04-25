@@ -81,7 +81,6 @@ export const transfer_acceptOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -198,7 +197,6 @@ export const transfer_acceptOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -242,7 +240,6 @@ export const transfer_acceptOne = {
                 "default": true,
                 "versionIndex": true,
                 "versionLabel": true,
-                "calledByRoutineVersionsCount": true,
                 "commentsCount": true,
                 "directoryListingsCount": true,
                 "forksCount": true,
@@ -319,7 +316,6 @@ export const transfer_acceptOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -435,7 +431,6 @@ export const transfer_acceptOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -541,7 +536,6 @@ export const transfer_acceptOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -657,7 +651,6 @@ export const transfer_acceptOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -730,5 +723,5 @@ export const transfer_acceptOne = {
         "canDelete": true,
         "canUpdate": true
     },
-    "__cacheKey": "245601124"
+    "__cacheKey": "-2011341412"
 };

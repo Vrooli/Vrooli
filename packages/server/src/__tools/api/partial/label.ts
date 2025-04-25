@@ -21,7 +21,6 @@ export const label: ApiPartial<Label> = {
     full: {
         apisCount: true,
         codesCount: true,
-        focusModesCount: true,
         issuesCount: true,
         meetingsCount: true,
         notesCount: true,

@@ -15,10 +15,6 @@ export type ProjectSubscriptionContext = object
 
 export type PullRequestSubscriptionContext = object
 
-export type QuestionSubscriptionContext = object
-
-export type QuizSubscriptionContext = object
-
 export type ReportSubscriptionContext = object
 
 export type RoutineSubscriptionContext = object
@@ -44,8 +40,6 @@ export type SubscriptionContext = ApiSubscriptionContext |
     NoteSubscriptionContext |
     ProjectSubscriptionContext |
     PullRequestSubscriptionContext |
-    QuestionSubscriptionContext |
-    QuizSubscriptionContext |
     ReportSubscriptionContext |
     RoutineSubscriptionContext |
     ScheduleSubscriptionContext |

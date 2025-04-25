@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { FocusMode, Meeting, Resource, ResourceUsedFor, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, getObjectUrl, uuid } from "@local/shared";
+import { Meeting, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, getObjectUrl, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleView } from "./ScheduleView.js";
 
 // Create simplified mock data for Schedule responses
 const mockScheduleData: Schedule = {
-    __typename: "Schedule" as const,
     id: uuid(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -30,60 +29,6 @@ const mockScheduleData: Schedule = {
             schedule: {} as Schedule, // Circular reference
         } as ScheduleRecurrence,
     ],
-    focusModes: [{
-        __typename: "FocusMode" as const,
-        id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        name: "Deep Work Session",
-        description: "Focus time for deep work and concentration",
-        filters: [],
-        labels: [],
-        reminderList: null,
-        resourceList: {
-            __typename: "ResourceList" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            listFor: {} as any, // Circular reference
-            resources: [
-                {
-                    __typename: "Resource" as const,
-                    id: uuid(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    usedFor: ResourceUsedFor.Context,
-                    link: "https://example.com/deep-work-technique",
-                    list: {} as any, // Circular reference
-                    translations: [{
-                        __typename: "ResourceTranslation" as const,
-                        id: uuid(),
-                        language: "en",
-                        name: "Deep Work Technique Guide",
-                        description: "A guide on how to implement deep work",
-                    }],
-                } as Resource,
-            ],
-            translations: [],
-        },
-        you: {
-            __typename: "FocusModeYou" as const,
-            canDelete: true,
-            canRead: true,
-            canUpdate: true,
-        },
-    } as FocusMode],
-    meetings: [],
-    runProjects: [],
-    runRoutines: [],
-    labels: [],
-} as any; // Cast as any to bypass type checking for stories
-
-// Create the second mock data with a meeting instead of a focus mode
-const mockScheduleWithMeetingData: Schedule = {
-    ...mockScheduleData,
-    id: uuid(),
-    focusModes: [],
     meetings: [{
         __typename: "Meeting" as const,
         id: uuid(),
@@ -107,6 +52,9 @@ const mockScheduleWithMeetingData: Schedule = {
             isParticipant: true,
         },
     } as unknown as Meeting],
+    runProjects: [],
+    runRoutines: [],
+    labels: [],
 } as any; // Cast as any to bypass type checking for stories
 
 export default {
@@ -117,7 +65,7 @@ export default {
 // No results state
 export function NoResults() {
     return (
-        <ScheduleView display="page" />
+        <ScheduleView display="Page" />
     );
 }
 NoResults.parameters = {
@@ -127,7 +75,7 @@ NoResults.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <ScheduleView display="page" />
+        <ScheduleView display="Page" />
     );
 }
 Loading.parameters = {
@@ -146,13 +94,13 @@ Loading.parameters = {
     },
 };
 
-// Signed in user viewing a focus mode schedule
-export function SignedInWithFocusMode() {
+// Rename SignedInWithMeeting to SignedIn or Default
+export function SignedIn() {
     return (
-        <ScheduleView display="page" />
+        <ScheduleView display="Page" />
     );
 }
-SignedInWithFocusMode.parameters = {
+SignedIn.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
@@ -163,26 +111,6 @@ SignedInWithFocusMode.parameters = {
     },
     route: {
         path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
-    },
-};
-
-// Signed in user viewing a meeting schedule
-export function SignedInWithMeeting() {
-    return (
-        <ScheduleView display="page" />
-    );
-}
-SignedInWithMeeting.parameters = {
-    session: signedInPremiumWithCreditsSession,
-    msw: {
-        handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
-                return HttpResponse.json({ data: mockScheduleWithMeetingData });
-            }),
-        ],
-    },
-    route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleWithMeetingData)}`,
     },
 };
 
@@ -217,7 +145,7 @@ DialogView.parameters = {
 // Logged out user
 export function LoggedOut() {
     return (
-        <ScheduleView display="page" />
+        <ScheduleView display="Page" />
     );
 }
 LoggedOut.parameters = {

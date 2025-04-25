@@ -34,14 +34,6 @@ const mockReminderData = {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         reminders: [],
-        focusMode: {
-            __typename: "FocusMode" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            name: "Deep Work Focus Mode",
-            description: "A focus mode for deep, concentrated work sessions",
-        },
     },
 } as unknown as Reminder;
 

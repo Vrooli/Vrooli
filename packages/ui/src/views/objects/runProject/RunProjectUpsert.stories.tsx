@@ -36,7 +36,6 @@ const mockScheduleData = {
             },
         },
     ],
-    focusModes: [],
     meetings: [],
     runProjects: [],
     runRoutines: [],

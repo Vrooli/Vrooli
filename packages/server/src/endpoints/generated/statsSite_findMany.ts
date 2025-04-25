@@ -16,8 +16,6 @@ export const statsSite_findMany = {
             "projectsCreated": true,
             "projectsCompleted": true,
             "projectCompletionTimeAverage": true,
-            "quizzesCreated": true,
-            "quizzesCompleted": true,
             "routinesCreated": true,
             "routinesCompleted": true,
             "routineCompletionTimeAverage": true,
@@ -43,5 +41,5 @@ export const statsSite_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-788783641"
+    "__cacheKey": "1492423522"
 };

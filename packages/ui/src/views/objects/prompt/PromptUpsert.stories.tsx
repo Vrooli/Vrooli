@@ -112,8 +112,6 @@ const mockPromptVersionData: StandardVersion = {
         labels: [],
         pullRequests: [],
         pullRequestsCount: 0,
-        questions: [],
-        questionsCount: 0,
         score: 0,
         stats: [],
         transfers: [],

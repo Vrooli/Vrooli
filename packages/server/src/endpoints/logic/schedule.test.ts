@@ -49,17 +49,8 @@ describe("EndpointsSchedule", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().schedule_exception.deleteMany({});
-        await DbProvider.get().schedule_recurrence.deleteMany({});
-        await DbProvider.get().schedule.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().member.deleteMany({});
-        await DbProvider.get().role.deleteMany({});
-        await DbProvider.get().team.deleteMany({});
-        await DbProvider.get().focus_mode.deleteMany({});
-        await DbProvider.get().meeting.deleteMany({});
+        await DbProvider.deleteAll();
 
 
         // Create test users
@@ -89,15 +80,37 @@ describe("EndpointsSchedule", () => {
         });
 
         // Create schedulable objects owned by the users
-        const focusModeUser1 = await DbProvider.get().focus_mode.create({
+        // User 1 Setup
+        const teamUser1 = await DbProvider.get().team.create({
             data: {
-                userId: user1Id,
-                name: "User 1 Focus",
+                permissions: "{}",
+                createdById: user1Id,
             },
         });
+        const meetingUser1 = await DbProvider.get().meeting.create({
+            data: {
+                team: {
+                    connect: {
+                        id: teamUser1.id,
+                    },
+                },
+                attendees: {
+                    create: {
+                        user: {
+                            connect: {
+                                id: user1Id,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        // User 2 Setup
         const teamUser2 = await DbProvider.get().team.create({
             data: {
                 permissions: "{}",
+                createdById: user2Id,
             },
         });
         const roleUser2 = await DbProvider.get().role.create({
@@ -154,9 +167,9 @@ describe("EndpointsSchedule", () => {
         scheduleUser1 = await DbProvider.get().schedule.create({
             data: {
                 ...scheduleUser1Data,
-                focusModes: {
+                meetings: {
                     connect: {
-                        id: focusModeUser1.id,
+                        id: meetingUser1.id,
                     },
                 },
             },
@@ -196,17 +209,8 @@ describe("EndpointsSchedule", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().schedule_exception.deleteMany({});
-        await DbProvider.get().schedule_recurrence.deleteMany({});
-        await DbProvider.get().schedule.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().member.deleteMany({});
-        await DbProvider.get().role.deleteMany({});
-        await DbProvider.get().team.deleteMany({});
-        await DbProvider.get().focus_mode.deleteMany({});
-        await DbProvider.get().meeting.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

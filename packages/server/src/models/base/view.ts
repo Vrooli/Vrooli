@@ -46,7 +46,6 @@ const whereMapper = {
     NoteVersion: (id: string) => toWhere("note", "versions", id),
     Project: (id: string) => toWhere("project", null, id),
     ProjectVersion: (id: string) => toWhere("project", "versions", id),
-    Question: (id: string) => toWhere("question", null, id),
     Routine: (id: string) => toWhere("routine", null, id),
     RoutineVersion: (id: string) => toWhere("routine", "versions", id),
     Standard: (id: string) => toWhere("standard", null, id),
@@ -67,7 +66,6 @@ const selectMapper = {
     NoteVersion: toSelect("root"),
     Project: toSelect(),
     ProjectVersion: toSelect("root"),
-    Question: toSelect(),
     Routine: toSelect(),
     RoutineVersion: toSelect("root"),
     Standard: toSelect(),
@@ -88,7 +86,6 @@ const dataMapper = {
     NoteVersion: (object: object) => toData(object, "root"),
     Project: (object: object) => toData(object),
     ProjectVersion: (object: object) => toData(object, "root"),
-    Question: (object: object) => toData(object),
     Routine: (object: object) => toData(object),
     RoutineVersion: (object: object) => toData(object, "root"),
     Standard: (object: object) => toData(object),
@@ -109,7 +106,6 @@ const createMapper = {
     NoteVersion: (object: object) => toCreate(object, "note", "root"),
     Project: (object: object) => toCreate(object, "project"),
     ProjectVersion: (object: object) => toCreate(object, "project", "root"),
-    Question: (object: object) => toCreate(object, "question"),
     Routine: (object: object) => toCreate(object, "routine"),
     RoutineVersion: (object: object) => toCreate(object, "routine", "root"),
     Standard: (object: object) => toCreate(object, "standard"),
@@ -149,7 +145,6 @@ async function clearViews(userId: string): Promise<Count> {
 const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] } = {
     Api: "api",
     Code: "code",
-    Question: "question",
     Note: "note",
     Post: "post",
     Project: "project",
@@ -337,12 +332,6 @@ export const ViewModel: ViewModelLogic = ({
                     },
                 });
                 if (rootObject) isOwn = true;
-                break;
-            }
-            case ViewFor.Question: {
-                // Check if question was created by this user
-                const question = await DbProvider.get().question.findFirst({ where: { id: input.forId, createdBy: { id: userData.id } } });
-                if (question) isOwn = true;
                 break;
             }
             case ViewFor.User:

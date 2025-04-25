@@ -3,13 +3,11 @@ import { Box, styled } from "@mui/material";
 import { useMemo } from "react";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS, RelationshipButtonType } from "../../../utils/consts.js";
-import { FocusModeButton } from "../../buttons/relationships/FocusModeButton.js";
 import { IsCompleteButton } from "../../buttons/relationships/IsCompleteButton.js";
 import { IsPrivateButton } from "../../buttons/relationships/IsPrivateButton.js";
 import { MembersButton } from "../../buttons/relationships/MembersButton.js";
 import { OwnerButton } from "../../buttons/relationships/OwnerButton.js";
 import { ParticipantsButton } from "../../buttons/relationships/ParticipantsButton.js";
-import { QuestionForButton } from "../../buttons/relationships/QuestionForButton.js";
 import { RelationshipListProps } from "../types.js";
 
 /**
@@ -32,8 +30,6 @@ const buttonTypeMap: Record<RelationshipButtonType, (ModelType | `${ModelType}`)
     IsPrivate: ["Api", "Code", "Note", "Project", "Routine", "RunProject", "RunRoutine", "Standard", "Team", "User"],
     IsComplete: ["Project", "Routine"],
     Owner: ["Api", "Code", "Comment", "Label", "Note", "Project", "Routine", "Standard"],
-    FocusMode: ["Reminder"],
-    QuestionFor: ["Question"],
     Members: ["Team"],
     Participants: ["Chat"],
 };
@@ -81,8 +77,6 @@ export function RelationshipList({
             {visibleButtons.includes(RelationshipButtonType.IsPrivate) && <IsPrivateButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.IsComplete) && <IsCompleteButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Owner) && <OwnerButton {...props} />}
-            {visibleButtons.includes(RelationshipButtonType.FocusMode) && <FocusModeButton {...props} />}
-            {visibleButtons.includes(RelationshipButtonType.QuestionFor) && <QuestionForButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Members) && <MembersButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Participants) && <ParticipantsButton {...props} />}
         </OuterBox>

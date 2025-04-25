@@ -1,4 +1,4 @@
-import { ActiveFocusMode, Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
+import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { IconCommon } from "../../icons/Icons.js";
 import { routineTypes } from "../search/schemas/routine.js";
@@ -14,7 +14,6 @@ export type CountsInflated = {
     issues: number;
     labels: number;
     pullRequests: number;
-    questions: number;
     reports: number;
     score: number;
     bookmarks: number;
@@ -160,7 +159,6 @@ export function getCounts(
         issues: 0,
         labels: 0,
         pullRequests: 0,
-        questions: 0,
         reports: 0,
         score: 0,
         bookmarks: 0,
@@ -345,8 +343,6 @@ export function getDisplay(
     }
     // If a member or chat participant, use the user's display
     if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | ChatInvite | Member | MemberInvite>).user } as ListObject);
-    // If it's an active focus mode, use the focus mode's title
-    if (isOfType(object, "ActiveFocusMode")) return getDisplay({ ...(object as Partial<ActiveFocusMode>).focusMode, __typename: "FocusMode" } as ListObject, langs);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a User, and `isBot` is true, add BotIcon to adornments

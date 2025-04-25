@@ -60,13 +60,6 @@ const searchItems: PreSearchItem[] = [
         keywords: [{ key: "Alert", count: 1 }, { key: "Alert", count: 2 }, { key: "PushNotification", count: 1 }, { key: "PushNotification", count: 2 }],
         value: LINKS.SettingsNotifications,
     },
-    {
-        iconInfo: { name: "History", type: "Common" },
-        label: "FocusMode",
-        labelArgs: { count: 2 },
-        keywords: [{ key: "Schedule", count: 1 }, { key: "Schedule", count: 2 }, { key: "FocusMode", count: 1 }],
-        value: LINKS.SettingsFocusModes,
-    },
 ];
 
 function getSearchItemOptionLabel(option: SearchItem) { return option.label ?? ""; }

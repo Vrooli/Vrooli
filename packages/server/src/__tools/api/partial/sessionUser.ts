@@ -13,7 +13,6 @@ export const sessionUser: ApiPartial<SessionUser> = {
         name: true,
         notesCount: true,
         projectsCount: true,
-        questionsAskedCount: true,
         routinesCount: true,
         standardsCount: true,
         theme: true,

@@ -1,4 +1,4 @@
-import { CalendarEvent, ChatParticipantShape, DAYS_30_MS, DUMMY_ID, FocusMode, HomeResult, Reminder, ReminderList as ReminderListShape, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid, uuidToBase36 } from "@local/shared";
+import { CalendarEvent, ChatParticipantShape, DAYS_30_MS, DUMMY_ID, HomeResult, Reminder, ReminderList as ReminderListShape, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid, uuidToBase36 } from "@local/shared";
 import { Box, IconButton, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +17,6 @@ import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useActiveChat } from "../../stores/activeChatStore.js";
-import { useFocusModes } from "../../stores/focusModeStore.js";
 import { ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
@@ -43,7 +42,6 @@ const DashboardBox = styled(Box)(({ theme }) => ({
 
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
-const activeFocusModeFallback = { __typename: "FocusMode", id: DUMMY_ID } as const;
 const resourceListFallback = {
     __typename: "ResourceList",
     created_at: 0,
@@ -75,12 +73,6 @@ export function DashboardView({
     const isLeftHanded = useIsLeftHanded();
 
     const [refetch, { data: feedData, loading: isFeedLoading }] = useLazyFetch<Record<string, never>, HomeResult>(endpointsFeed.home);
-
-    const focusModeInfo = useFocusModes(session);
-
-    useEffect(() => {
-        refetch({});
-    }, [focusModeInfo.active, refetch]);
 
     const [resourceList, setResourceList] = useState<ResourceListType>(resourceListFallback);
     const feedResourcesRef = useRef<Resource[]>([]);
@@ -193,45 +185,6 @@ export function DashboardView({
         }
     }, [feedData?.reminders, feedData?.resources, feedData?.schedules]);
 
-    useEffect(function setActiveFocusModeData() {
-        const activeFocusModeId = focusModeInfo.active?.focusMode?.id;
-        const fullActiveFocusModeInfo = focusModeInfo.all.find(focusMode => focusMode.id === activeFocusModeId);
-        // If no active focus mode set
-        if (!fullActiveFocusModeInfo || !fullActiveFocusModeInfo.resourceList) {
-            // Use feed resources only
-            setResourceList({
-                ...resourceListFallback,
-                resources: feedResourcesRef.current,
-            });
-            // Use feed reminders only
-            setReminders(feedRemindersRef.current);
-        }
-        // If active mode set
-        else {
-            // Override full resource list, while combining resources from feed without duplicates
-            setResourceList(r => {
-                // Add feed resources without duplicates
-                const newResources = feedResourcesRef.current.filter(resource => !r.resources.some(r => r.id === resource.id));
-                return {
-                    ...fullActiveFocusModeInfo.resourceList,
-                    __typename: "ResourceList" as const,
-                    listFor: {
-                        ...fullActiveFocusModeInfo,
-                        __typename: "FocusMode" as const,
-                        resourceList: undefined, // Avoid circular reference
-                    },
-                    resources: [...r.resources, ...newResources],
-                } as ResourceListType;
-            });
-            // Combine feed reminders with active mode reminders without duplicates
-            setReminders(r => {
-                // Add feed reminders without duplicates
-                const newReminders = feedRemindersRef.current.filter(reminder => !r.some(r => r.id === reminder.id));
-                return [...r, ...newReminders];
-            });
-        }
-    }, [focusModeInfo, focusModeInfo.active, focusModeInfo.all]);
-
     const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
     useEffect(() => {
         const languages = getUserLanguages(session);
@@ -337,14 +290,6 @@ export function DashboardView({
                         horizontal
                         loading={isFeedLoading}
                         mutate={true}
-                        parent={focusModeInfo.active?.focusMode ?
-                            {
-                                ...focusModeInfo.active.focusMode,
-                                __typename: "FocusMode" as const,
-                                resourceList: undefined,
-                            } as FocusMode
-                            : activeFocusModeFallback
-                        }
                         sx={resourceListStyle}
                     />
                     <EventList
@@ -361,7 +306,6 @@ export function DashboardView({
                             __typename: "ReminderList",
                             id: DUMMY_ID,
                             reminders: reminders,
-                            listFor: activeFocusModeFallback,
                             created_at: Date.now(),
                             updated_at: Date.now(),
                         } as ReminderListShape}

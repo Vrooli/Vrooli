@@ -1,8 +1,4 @@
-import * as chai from "chai";
-import chaiAsPromised from "chai-as-promised";
 import { JSDOM } from "jsdom";
-
-chai.use(chaiAsPromised);
 
 // Create a basic DOM environment
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {

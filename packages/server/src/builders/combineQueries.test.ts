@@ -553,39 +553,5 @@ describe("combineQueries", () => {
                 expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
             });
         });
-        describe("feed.ts", () => {
-            it("reminders with focus mode", () => {
-                const activeFocusModeId = "focusMode123";
-                const userId = "user123";
-                const customWhere = {
-                    reminderList: {
-                        focusMode: {
-                            id: activeFocusModeId,
-                        },
-                    },
-                };
-                const visibilityQuery = {
-                    reminderList: {
-                        focusMode: {
-                            user: {
-                                id: userId,
-                            },
-                        },
-                    },
-                };
-                const queries = [customWhere, visibilityQuery];
-                const expected = {
-                    reminderList: {
-                        focusMode: {
-                            id: activeFocusModeId,
-                            user: {
-                                id: userId,
-                            },
-                        },
-                    },
-                };
-                expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
-            });
-        });
     });
 });

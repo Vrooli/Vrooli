@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LINKS, MINUTES_5_MS, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, uuid, validateSessionSchema } from "@local/shared";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, uuid, validateSessionSchema } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
@@ -13,7 +13,6 @@ import { Award } from "../../events/awards.js";
 import { CustomError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
 import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user.js";
-import { UI_URL_REMOTE } from "../../server.js";
 import { closeSessionSockets, closeUserSockets } from "../../sockets/events.js";
 import { ApiEndpoint, SessionData } from "../../types.js";
 import { hasProfanity } from "../../utils/censor.js";
@@ -39,98 +38,6 @@ const NONCE_VALID_DURATION = MINUTES_5_MS;
 const DEFAULT_USER_DATA = {
     isPrivateBookmarks: true,
     isPrivateVotes: true,
-    focusModes: {
-        create: [{
-            name: "Work",
-            description: "This is an auto-generated focus mode. You can edit or delete it.",
-            reminderList: { create: {} },
-            resourceList: {
-                create: {
-                    resources: {
-                        create: [{
-                            link: `${UI_URL_REMOTE}${LINKS.Calendar}`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Schedule",
-                                    description: "View your schedule and add new events.",
-                                }],
-                            },
-                        }, {
-                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type="Reminder"`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Reminders",
-                                }],
-                            },
-                        }, {
-                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type="Note"`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Notes",
-                                }],
-                            },
-                        }, {
-                            link: `${UI_URL_REMOTE}${LINKS.History}?type="RunsActive"`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Runs",
-                                    description: "View your active routines and projects, and start new ones.",
-                                }],
-                            },
-                        }],
-                    },
-                },
-            },
-        }, {
-            name: "Study",
-            description: "This is an auto-generated focus mode. You can edit or delete it.",
-            reminderList: { create: {} },
-            resourceList: {
-                create: {
-                    resources: {
-                        create: [{
-                            link: `${UI_URL_REMOTE}${LINKS.History}?type="Bookmarked"`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Bookmarks",
-                                }],
-                            },
-                        }, {
-                            link: `${UI_URL_REMOTE}${LINKS.Search}?type="Routine"`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Find Routines",
-                                    description: "Search for public routines to view, run, schedule, or bookmark.",
-                                }],
-                            },
-                        }, {
-                            link: `${UI_URL_REMOTE}${LINKS.Search}?type="Project"`,
-                            usedFor: ResourceUsedFor.Context,
-                            translations: {
-                                create: [{
-                                    language: "en",
-                                    name: "Find Projects",
-                                    description: "Search for public projects to view, run, schedule, or bookmark.",
-                                }],
-                            },
-                        }],
-                    },
-                },
-            },
-        }],
-    },
 };
 
 const GUEST_SESSION: Session & SessionData = {

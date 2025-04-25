@@ -488,7 +488,6 @@ export function UserMenu() {
                                 <TextSizeButtons />
                                 <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
                                 <LanguageSelector />
-                                {/* <FocusModeSelector /> */}
                             </UserMenuDisplaySettingsBox>
                             <SeeAllLink href={LINKS.SettingsDisplay}>
                                 <SeeAllLinkText variant="body2">{t("SeeAll")}</SeeAllLinkText>

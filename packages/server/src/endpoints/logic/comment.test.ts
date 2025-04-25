@@ -17,7 +17,7 @@ import { comment } from "./comment.js";
 const user1Id = uuid();
 const user2Id = uuid();
 
-let post: any;
+let issue: any;
 let comment1: { id: string; translations: Array<{ id: string; language: string; text: string; }> };
 let comment2: { id: string; translations: Array<{ id: string; language: string; text: string; }> };
 
@@ -33,11 +33,7 @@ describe("EndpointsComment", () => {
     beforeEach(async () => {
         // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().post.deleteMany();
-        await DbProvider.get().comment.deleteMany();
+        await DbProvider.deleteAll();
 
         // Create test users
         await DbProvider.get().user.create({
@@ -80,11 +76,11 @@ describe("EndpointsComment", () => {
             },
         });
 
-        // Create a public post to comment on
-        post = await DbProvider.get().post.create({
+        // Create a public issue to comment on
+        issue = await DbProvider.get().issue.create({
             data: {
-                userId: user1Id,
-                isPrivate: false,
+                id: uuid(),
+                createdBy: { connect: { id: user1Id } },
             },
         });
 
@@ -97,7 +93,7 @@ describe("EndpointsComment", () => {
             data: {
                 id: comment1.id,
                 ownedByUser: { connect: { id: user1Id } },
-                post: { connect: { id: post.id } },
+                issue: { connect: { id: issue.id } },
                 translations: {
                     create: comment1.translations.map((t) => ({
                         id: t.id,
@@ -117,7 +113,7 @@ describe("EndpointsComment", () => {
             data: {
                 id: comment2.id,
                 ownedByUser: { connect: { id: user2Id } },
-                post: { connect: { id: post.id } },
+                issue: { connect: { id: issue.id } },
                 parent: { connect: { id: comment1.id } },
                 translations: {
                     create: comment2.translations.map((t) => ({
@@ -133,9 +129,8 @@ describe("EndpointsComment", () => {
     after(async () => {
         // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().comment.deleteMany();
-        await DbProvider.get().post.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });
@@ -220,8 +215,8 @@ describe("EndpointsComment", () => {
                 const translationId = uuid();
                 const input: CommentCreateInput = {
                     id: newCommentId,
-                    createdFor: CommentFor.Post,
-                    forConnect: post.id,
+                    createdFor: CommentFor.Issue,
+                    forConnect: issue.id,
                     translationsCreate: [{ id: translationId, language: "en", text: "New comment text" }],
                 };
                 const result = await comment.createOne({ input }, { req, res }, comment_createOne);
@@ -239,8 +234,8 @@ describe("EndpointsComment", () => {
                 const translationId = uuid();
                 const input: CommentCreateInput = {
                     id: newCommentId,
-                    createdFor: CommentFor.Post,
-                    forConnect: post.id,
+                    createdFor: CommentFor.Issue,
+                    forConnect: issue.id,
                     translationsCreate: [{ id: translationId, language: "en", text: "API created comment" }],
                 };
                 const result = await comment.createOne({ input }, { req, res }, comment_createOne);
@@ -254,8 +249,8 @@ describe("EndpointsComment", () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: CommentCreateInput = {
                     id: uuid(),
-                    createdFor: CommentFor.Post,
-                    forConnect: post.id,
+                    createdFor: CommentFor.Issue,
+                    forConnect: issue.id,
                     translationsCreate: [{ id: uuid(), language: "en", text: "Unauthorized" }],
                 };
                 try {
@@ -273,8 +268,8 @@ describe("EndpointsComment", () => {
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: CommentCreateInput = {
                     id: uuid(),
-                    createdFor: CommentFor.Post,
-                    forConnect: post.id,
+                    createdFor: CommentFor.Issue,
+                    forConnect: issue.id,
                     translationsCreate: [{ id: uuid(), language: "en", text: "Unauthorized" }],
                 };
                 try {

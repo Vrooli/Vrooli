@@ -18,7 +18,6 @@ export const popular: ApiPartial<Popular> = {
             Code: async () => rel((await import("./code.js")).code, "list"),
             Note: async () => rel((await import("./note.js")).note, "list"),
             Project: async () => rel((await import("./project.js")).project, "list"),
-            Question: async () => rel((await import("./question.js")).question, "list"),
             Routine: async () => rel((await import("./routine.js")).routine, "list"),
             Standard: async () => rel((await import("./standard.js")).standard, "list"),
             Team: async () => rel((await import("./team.js")).team, "list"),

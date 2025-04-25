@@ -568,9 +568,7 @@ describe("getVerifiedSubscriptionInfo", () => {
 
     afterEach(async function afterEach() {
         StripeMock.resetMock();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("returns verified subscription info for an active subscription with valid session", async () => {
@@ -685,9 +683,7 @@ describe("getVerifiedCustomerInfo", () => {
             }],
         });
 
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -763,9 +759,7 @@ describe("getVerifiedCustomerInfo", () => {
 
     afterEach(async function afterEach() {
         StripeMock.resetMock();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should return null if userId is not provided", async () => {
@@ -887,9 +881,7 @@ describe("createStripeCustomerId", () => {
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
 
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -901,9 +893,7 @@ describe("createStripeCustomerId", () => {
 
     afterEach(async function afterEach() {
         StripeMock.resetMock();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
 
@@ -972,9 +962,7 @@ describe("handleCheckoutSessionExpired", () => {
         stripe = new StripeMock() as unknown as Stripe;
         res = createRes();
 
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -1005,9 +993,7 @@ describe("handleCheckoutSessionExpired", () => {
 
     afterEach(async function afterEach() {
         StripeMock.resetMock();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("does nothing when no related pending payments found", async () => {
@@ -1053,9 +1039,7 @@ describe("handleCustomerDeleted", () => {
         stripe = new StripeMock() as unknown as Stripe;
         res = createRes();
 
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -1074,9 +1058,7 @@ describe("handleCustomerDeleted", () => {
 
     afterEach(async function afterEach() {
         StripeMock.resetMock();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("removes stripeCustomerId from user on customer deletion", async () => {
@@ -1139,9 +1121,7 @@ describe("handleCustomerSourceExpiring", () => {
         res = createRes();
         Bull.resetMock();
 
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -1155,9 +1135,7 @@ describe("handleCustomerSourceExpiring", () => {
     });
 
     afterEach(async function afterEach() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should send notifications to all user emails when the credit card is expiring", async () => {
@@ -1212,9 +1190,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
         res = createRes();
         Bull.resetMock();
 
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -1240,9 +1216,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
     });
 
     afterEach(async function afterEach() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should send email when user is found and has email", async () => {
@@ -1295,9 +1269,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
         res = createRes();
         Bull.resetMock();
 
-        DbProvider.get().user.deleteMany();
-        DbProvider.get().premium.deleteMany();
-        DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -1318,9 +1290,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     });
 
     afterEach(async function afterEach() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should send email when user is found and has email", async () => {
@@ -1405,9 +1375,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     afterEach(async function afterEach() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should skip processing for non-active subscriptions", async () => {
@@ -1525,9 +1493,7 @@ describe("handleInvoicePaymentCreated", () => {
     });
 
     afterEach(async function afterEach() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should successfully create a new payment if no existing payment is found", async () => {
@@ -1649,9 +1615,7 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     afterEach(async function afterEach() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("updates existing payment status to Failed", async () => {
@@ -1749,9 +1713,7 @@ describe("handleInvoicePaymentSucceeded", () => {
 
     afterEach(async function afterEach() {
         StripeMock.resetMock();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().premium.deleteMany();
-        await DbProvider.get().email.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("updates existing payment status to Paid", async () => {

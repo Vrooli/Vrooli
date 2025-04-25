@@ -31,7 +31,6 @@ export const standard: ApiPartial<Standard> = {
             },
         },
         permissions: true,
-        questionsCount: true,
         score: true,
         bookmarks: true,
         tags: async () => rel((await import("./tag.js")).tag, "list"),

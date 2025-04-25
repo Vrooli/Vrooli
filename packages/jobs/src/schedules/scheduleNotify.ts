@@ -19,8 +19,8 @@ async function scheduleNotifications(
                 processBatch: async (batch) => {
                     // If no subscriptions, continue
                     if (batch.length === 0) return;
-                    // Find objectType and id of the object that has a schedule. Assume there is only one focusMode, meeting, etc.
-                    const [objectField, objectData] = findFirstRel(batch[0].schedule!, ["focusModes", "meetings", "runProjects", "runRoutines"]);
+                    // Find objectType and id of the object that has a schedule. Assume there is only one runRoutine, meeting, etc.
+                    const [objectField, objectData] = findFirstRel(batch[0].schedule!, ["meetings", "runProjects", "runRoutines"]);
                     if (!objectField || !objectData || objectData.length === 0) {
                         logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: "0433" });
                         return;
@@ -88,7 +88,6 @@ async function scheduleNotifications(
                     schedule: {
                         select: {
                             id: true,
-                            focusModes: { select: { id: true } },
                             meetings: { select: { id: true } },
                             runProjects: { select: { id: true } },
                             runRoutines: { select: { id: true } },

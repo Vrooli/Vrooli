@@ -17,8 +17,6 @@ export const statsSite: ApiPartial<StatsSite> = {
         projectsCreated: true,
         projectsCompleted: true,
         projectCompletionTimeAverage: true,
-        quizzesCreated: true,
-        quizzesCompleted: true,
         routinesCreated: true,
         routinesCompleted: true,
         routineCompletionTimeAverage: true,

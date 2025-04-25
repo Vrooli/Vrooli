@@ -1,7 +1,6 @@
 /**
  * Calculates and stores embeddings for all searchable objects (that don't have one yet), including 
- * root objects, versions, and tags. Objects that don't have embeddings 
- * include labels, comments, and focus modes.
+ * root objects, versions, and tags. Objects that don't have embeddings include labels and comments
  * 
  * Embeddings are used to find similar objects. For example, if you are 
  * looking for tags and type "ai", then the search should return tags 
@@ -212,18 +211,6 @@ async function batchEmbeddingsTeam() {
     });
 }
 
-async function batchEmbeddingsPost() {
-    embeddingBatch<Prisma.postFindManyArgs>({
-        objectType: "Post",
-        processBatch: processTranslatedBatchHelper,
-        trace: "0479",
-        where: {
-            isDeleted: false,
-            ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
-        },
-    });
-}
-
 async function batchEmbeddingsProjectVersion() {
     embeddingBatch<Prisma.project_versionFindManyArgs>({
         objectType: "ProjectVersion",
@@ -232,28 +219,6 @@ async function batchEmbeddingsProjectVersion() {
         where: {
             isDeleted: false,
             root: { isDeleted: false },
-            ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
-        },
-    });
-}
-
-async function batchEmbeddingsQuestion() {
-    embeddingBatch<Prisma.questionFindManyArgs>({
-        objectType: "Question",
-        processBatch: processTranslatedBatchHelper,
-        trace: "0480",
-        where: {
-            ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
-        },
-    });
-}
-
-async function batchEmbeddingsQuiz() {
-    embeddingBatch<Prisma.quizFindManyArgs>({
-        objectType: "Quiz",
-        processBatch: processTranslatedBatchHelper,
-        trace: "0481",
-        where: {
             ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingNeedsUpdate: true } } }),
         },
     });
@@ -366,10 +331,7 @@ export async function generateEmbeddings() {
     await batchEmbeddingsIssue();
     await batchEmbeddingsMeeting();
     await batchEmbeddingsNoteVersion();
-    await batchEmbeddingsPost();
     await batchEmbeddingsProjectVersion();
-    await batchEmbeddingsQuestion();
-    await batchEmbeddingsQuiz();
     await batchEmbeddingsReminder();
     await batchEmbeddingsRoutineVersion();
     await batchEmbeddingsRunProject();

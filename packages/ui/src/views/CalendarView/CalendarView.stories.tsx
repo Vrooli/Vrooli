@@ -49,28 +49,6 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
             scheduleFor,
             recurrences,
             exceptions: [],
-            focusModes: scheduleFor === "FocusMode" ? [{
-                __typename: "FocusMode",
-                id: `focusmode-${id}`,
-                translations: [
-                    {
-                        __typename: "FocusModeTranslation",
-                        id: `focusmode-translation-${id}`,
-                        language: "en",
-                        title,
-                        description
-                    }
-                ],
-                you: {
-                    __typename: "FocusModeYou",
-                    canBookmark: true,
-                    canDelete: true,
-                    canRead: true,
-                    canUpdate: true,
-                    canUseExisting: true,
-                    isBookmarked: false,
-                }
-            }] : [],
             meetings: scheduleFor === "Meeting" ? [{
                 __typename: "Meeting",
                 id: `meeting-${id}`,
@@ -187,19 +165,6 @@ const generateSchedules = () => {
             generateDate(day, 14, 0),
             60,
             "Meeting"
-        ));
-    }
-
-    // Focus mode events - 5 throughout the month
-    const focusDays = [5, 10, 15, 20, 25];
-    for (const day of focusDays) {
-        edges.push(createSchedule(
-            id++,
-            `Deep Work Session - April ${day}`,
-            "Focused work with no distractions",
-            generateDate(day, 10, 0),
-            120,
-            "FocusMode"
         ));
     }
 

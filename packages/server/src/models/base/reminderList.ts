@@ -1,10 +1,11 @@
-import { MaxObjects, reminderListValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, reminderListValidation } from "@local/shared";
+import i18next from "i18next";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ReminderListFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
+import { ReminderListModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({
@@ -12,9 +13,8 @@ export const ReminderListModel: ReminderListModelLogic = ({
     dbTable: "reminder_list",
     display: () => ({
         label: {
-            select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.select() } }),
-            // Label is schedule's label
-            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.get(select.focusMode as FocusModeModelInfo["DbModel"], languages),
+            select: () => ({ id: true }),
+            get: (_select, languages) => i18next.t("common:Reminder", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 2 }),
         },
     }),
     format: ReminderListFormat,
@@ -22,12 +22,10 @@ export const ReminderListModel: ReminderListModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                focusMode: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest }),
                 reminders: await shapeHelper({ relation: "reminders", relTypes: ["Create"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest }),
                 user: { connect: { id: rest.userData.id } },
             }),
             update: async ({ data, ...rest }) => ({
-                focusMode: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest }),
                 reminders: await shapeHelper({ relation: "reminders", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest }),
             }),
         },

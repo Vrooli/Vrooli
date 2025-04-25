@@ -57,7 +57,6 @@ export const view_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -174,7 +173,6 @@ export const view_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -218,7 +216,6 @@ export const view_findMany = {
                         "default": true,
                         "versionIndex": true,
                         "versionLabel": true,
-                        "calledByRoutineVersionsCount": true,
                         "commentsCount": true,
                         "directoryListingsCount": true,
                         "forksCount": true,
@@ -386,7 +383,6 @@ export const view_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -448,44 +444,6 @@ export const view_findMany = {
                         }
                     }
                 },
-                "Post": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "commentsCount": true,
-                    "repostsCount": true,
-                    "score": true,
-                    "bookmarks": true,
-                    "views": true,
-                    "resourceList": {
-                        "id": true,
-                        "created_at": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        },
-                        "resources": {
-                            "id": true,
-                            "index": true,
-                            "link": true,
-                            "usedFor": true,
-                            "translations": {
-                                "id": true,
-                                "language": true,
-                                "description": true,
-                                "name": true
-                            }
-                        }
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    }
-                },
                 "Project": {
                     "id": true,
                     "created_at": true,
@@ -540,7 +498,6 @@ export const view_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -589,103 +546,6 @@ export const view_findMany = {
                             "description": true,
                             "name": true
                         }
-                    }
-                },
-                "Question": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "createdBy": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true
-                    },
-                    "hasAcceptedAnswer": true,
-                    "isPrivate": true,
-                    "score": true,
-                    "bookmarks": true,
-                    "answersCount": true,
-                    "commentsCount": true,
-                    "reportsCount": true,
-                    "forObject": {
-                        "Api": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "Code": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "Note": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "Project": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "Routine": {
-                            "id": true,
-                            "isInternal": true,
-                            "isPrivate": true
-                        },
-                        "Standard": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        }
-                    },
-                    "tags": {
-                        "id": true,
-                        "created_at": true,
-                        "tag": true,
-                        "bookmarks": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        },
-                        "you": {
-                            "isOwn": true,
-                            "isBookmarked": true
-                        }
-                    },
-                    "you": {
-                        "reaction": true
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
                     }
                 },
                 "Routine": {
@@ -743,7 +603,6 @@ export const view_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -859,7 +718,6 @@ export const view_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -1011,5 +869,5 @@ export const view_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "912672505"
+    "__cacheKey": "-121743301"
 };

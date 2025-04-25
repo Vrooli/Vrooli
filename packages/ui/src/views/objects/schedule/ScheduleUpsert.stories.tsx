@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { FocusMode, Resource, ResourceUsedFor, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, getObjectUrl, uuid } from "@local/shared";
+import { Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, getObjectUrl, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleUpsert } from "./ScheduleUpsert.js";
 
 // Create simplified mock data for Schedule responses
-const mockScheduleData: Schedule = {
+const mockScheduleData: any = {
     __typename: "Schedule" as const,
     id: uuid(),
     created_at: new Date().toISOString(),
@@ -30,50 +30,29 @@ const mockScheduleData: Schedule = {
             schedule: {} as Schedule, // Circular reference
         } as ScheduleRecurrence,
     ],
-    focusModes: [{
-        __typename: "FocusMode" as const,
+    meetings: [{
+        __typename: "Meeting" as const,
         id: uuid(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        name: "Deep Work Session",
-        description: "Focus time for deep work and concentration",
-        filters: [],
-        labels: [],
-        reminderList: null,
-        resourceList: {
-            __typename: "ResourceList" as const,
+        translations: [{
+            __typename: "MeetingTranslation" as const,
             id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            listFor: {} as any, // Circular reference
-            resources: [
-                {
-                    __typename: "Resource" as const,
-                    id: uuid(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    usedFor: ResourceUsedFor.Context,
-                    link: "https://example.com/deep-work-technique",
-                    list: {} as any, // Circular reference
-                    translations: [{
-                        __typename: "ResourceTranslation" as const,
-                        id: uuid(),
-                        language: "en",
-                        name: "Deep Work Technique Guide",
-                        description: "A guide on how to implement deep work",
-                    }],
-                } as Resource,
-            ],
-            translations: [],
-        },
+            language: "en",
+            name: "Team Meeting",
+            description: "Scheduled team meeting",
+        }],
+        schedules: [],
+        participants: [],
+        invites: [],
         you: {
-            __typename: "FocusModeYou" as const,
+            __typename: "MeetingYou" as const,
             canDelete: true,
-            canRead: true,
             canUpdate: true,
+            isInvited: false,
+            isParticipant: false,
         },
-    } as FocusMode],
-    meetings: [],
+    }],
     runProjects: [],
     runRoutines: [],
     labels: [],
@@ -87,21 +66,21 @@ export default {
 // Create a new Schedule
 export function Create() {
     return (
-        <ScheduleUpsert display="page" isCreate={true} />
+        <ScheduleUpsert display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
     session: signedInPremiumWithCreditsSession,
 };
 
-// Create a new Schedule in a dialog with FocusMode type
+// Create a new Schedule in a dialog with Meeting type
 export function CreateDialog() {
     return (
         <ScheduleUpsert
             display="Dialog"
             isCreate={true}
             isOpen={true}
-            defaultScheduleFor="FocusMode"
+            defaultScheduleFor="Meeting"
             canSetScheduleFor={true}
             isMutate={true}
             onClose={() => { }}
@@ -139,7 +118,7 @@ CreateDialogForMeeting.parameters = {
 // Update an existing Schedule
 export function Update() {
     return (
-        <ScheduleUpsert display="page" isCreate={false} />
+        <ScheduleUpsert display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -164,7 +143,7 @@ export function UpdateDialog() {
             isCreate={false}
             isOpen={true}
             canSetScheduleFor={false}
-            defaultScheduleFor="FocusMode"
+            defaultScheduleFor="Meeting"
             isMutate={true}
             onClose={() => { }}
             onCancel={() => { }}
@@ -190,7 +169,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <ScheduleUpsert display="page" isCreate={false} />
+        <ScheduleUpsert display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -212,7 +191,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <ScheduleUpsert display="page" isCreate={true} />
+        <ScheduleUpsert display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {
@@ -227,7 +206,7 @@ export function WithOverrideObject() {
             isCreate={true}
             isOpen={true}
             canSetScheduleFor={true}
-            defaultScheduleFor="FocusMode"
+            defaultScheduleFor="Meeting"
             isMutate={false}
             onClose={() => { }}
             onCancel={() => { }}

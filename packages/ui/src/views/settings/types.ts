@@ -3,7 +3,7 @@ import { FormikProps } from "formik";
 import { IconInfo } from "../../icons/Icons.js";
 import { ViewDisplayType, ViewProps } from "../../types.js";
 
-export type SettingsPageType = "Data" | "Profile" | "Privacy" | "Authentication" | "Payment" | "Api" | "Display" | "Notification" | "FocusMode";
+export type SettingsPageType = "Data" | "Profile" | "Privacy" | "Authentication" | "Payment" | "Api" | "Display" | "Notification";
 export type SettingsData = {
     description: TranslationKeyCommon,
     iconInfo: IconInfo,
@@ -20,7 +20,6 @@ export type SettingsNotificationsViewProps = ViewProps
 export type SettingsPaymentViewProps = ViewProps
 export type SettingsPrivacyViewProps = ViewProps
 export type SettingsProfileViewProps = ViewProps
-export type SettingsFocusModesViewProps = ViewProps
 
 interface SettingsFormBaseProps {
     display: ViewDisplayType;

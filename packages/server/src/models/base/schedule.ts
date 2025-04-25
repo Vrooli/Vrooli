@@ -13,7 +13,6 @@ import { ModelMap } from "./index.js";
 import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
-    FocusMode: "focusModes",
     Meeting: "meetings",
     RunProject: "runProjects",
     RunRoutine: "runRoutines",
@@ -52,7 +51,6 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                     // These relations are treated as one-to-one in the API, but not in the database.
                     // Therefore, the key is pural, but the "relation" passed to shapeHelper is singular.
-                    focusModes: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "schedule", data, ...rest }),
                     meetings: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest }),
                     runProjects: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest }),
                     runRoutines: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest }),

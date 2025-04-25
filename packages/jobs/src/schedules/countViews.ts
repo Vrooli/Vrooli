@@ -51,7 +51,6 @@ export async function countViews(): Promise<void> {
         "note",
         "post",
         "project",
-        "question",
         "routine",
         "standard",
         "team",

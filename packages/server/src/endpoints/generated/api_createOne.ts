@@ -52,7 +52,6 @@ export const api_createOne = {
         }
     },
     "permissions": true,
-    "questionsCount": true,
     "score": true,
     "bookmarks": true,
     "tags": {
@@ -124,6 +123,10 @@ export const api_createOne = {
             "canUse": true,
             "canRead": true
         },
+        "calledByRoutineVersionsCount": true,
+        "schemaLanguage": true,
+        "schemaText": true,
+        "versionNotes": true,
         "pullRequest": {
             "id": true,
             "created_at": true,
@@ -160,10 +163,7 @@ export const api_createOne = {
             "details": true,
             "name": true,
             "summary": true
-        },
-        "schemaLanguage": true,
-        "schemaText": true,
-        "versionNotes": true
+        }
     },
-    "__cacheKey": "-1256483718"
+    "__cacheKey": "1016412060"
 };

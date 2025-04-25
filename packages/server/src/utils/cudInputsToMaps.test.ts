@@ -16,7 +16,7 @@ describe("fetchAndMapPlaceholder", () => {
 
     before(async function before() {
         // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: userId,
@@ -41,7 +41,7 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     after(async function after() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should fetch and return the correct ID for a new placeholder", async () => {
@@ -125,7 +125,7 @@ describe("replacePlaceholdersInMap", () => {
     const noteId = uuid();
 
     before(async function before() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: userId,
@@ -157,8 +157,7 @@ describe("replacePlaceholdersInMap", () => {
     });
 
     after(async function after() {
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().note.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should replace placeholders with actual IDs", async () => {
@@ -251,7 +250,7 @@ describe("replacePlaceholdersInInputsById", () => {
     const teamId = uuid();
 
     before(async function before() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: userId,
@@ -276,7 +275,7 @@ describe("replacePlaceholdersInInputsById", () => {
     });
 
     after(async function after() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should replace placeholders with string (e.g. 'Delete') inputs", async () => {
@@ -359,7 +358,7 @@ describe("replacePlaceholdersInInputsByType", () => {
     const teamId = uuid();
 
     before(async function before() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: userId,
@@ -384,7 +383,7 @@ describe("replacePlaceholdersInInputsByType", () => {
     });
 
     after(async function after() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should replace placeholders with string (e.g. 'Delete') inputs", async () => {
@@ -497,7 +496,7 @@ describe("convertPlaceholders", () => {
     const teamId = uuid();
 
     before(async function before() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
                 id: userId1,
@@ -531,7 +530,7 @@ describe("convertPlaceholders", () => {
     });
 
     after(async function after() {
-        await DbProvider.get().user.deleteMany();
+        await DbProvider.deleteAll();
     });
 
     it("should replace placeholders with actual IDs", async () => {
@@ -789,7 +788,6 @@ describe("determineModelType", () => {
             },
             parent: "CodeVersion",
             pullRequests: "PullRequest",
-            questions: "Question",
             bookmarkedBy: "User",
             tags: "Tag",
             transfers: "Transfer",

@@ -131,9 +131,6 @@ export async function countReacts(): Promise<void> {
         "note",
         "post",
         "project",
-        "question",
-        "question_answer",
-        "quiz",
         "routine",
         "standard",
     ];

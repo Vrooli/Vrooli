@@ -175,7 +175,6 @@ export const meetingInvite_findOne = {
             },
             "apisCount": true,
             "codesCount": true,
-            "focusModesCount": true,
             "issuesCount": true,
             "meetingsCount": true,
             "notesCount": true,
@@ -215,68 +214,6 @@ export const meetingInvite_findOne = {
                 "you": {
                     "canDelete": true,
                     "canUpdate": true
-                }
-            },
-            "focusModes": {
-                "id": true,
-                "name": true,
-                "description": true,
-                "you": {
-                    "canDelete": true,
-                    "canRead": true,
-                    "canUpdate": true
-                },
-                "labels": {
-                    "id": true,
-                    "color": true,
-                    "label": true
-                },
-                "reminderList": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "reminders": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "name": true,
-                        "description": true,
-                        "dueDate": true,
-                        "index": true,
-                        "isComplete": true,
-                        "reminderItems": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "name": true,
-                            "description": true,
-                            "dueDate": true,
-                            "index": true,
-                            "isComplete": true
-                        }
-                    }
-                },
-                "resourceList": {
-                    "id": true,
-                    "created_at": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    },
-                    "resources": {
-                        "id": true,
-                        "index": true,
-                        "link": true,
-                        "usedFor": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        }
-                    }
                 }
             },
             "runProjects": {
@@ -437,5 +374,5 @@ export const meetingInvite_findOne = {
             "name": true
         }
     },
-    "__cacheKey": "-1656571444"
+    "__cacheKey": "-1616195801"
 };

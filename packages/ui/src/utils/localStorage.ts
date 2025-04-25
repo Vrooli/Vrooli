@@ -1,4 +1,4 @@
-import { AITaskInfo, ActiveFocusMode, FocusMode, ModelType, NavigableObject, ProjectVersion, RoutineVersion, TaskContextInfo, isObject } from "@local/shared";
+import { AITaskInfo, ModelType, NavigableObject, ProjectVersion, RoutineVersion, TaskContextInfo, isObject } from "@local/shared";
 import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
@@ -48,13 +48,11 @@ type RunLoaderCache = {
     routines: { [routineId: string]: RoutineVersion };
 };
 
-export type CreateType = "Api" | "Bot" | "Chat" | "DataConverter" | "DataStructure" | "Note" | "Project" | "Prompt" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Team";
+export type CreateType = "Api" | "Bot" | "Chat" | "DataConverter" | "DataStructure" | "Note" | "Project" | "Prompt" | "Reminder" | "Routine" | "SmartContract" | "Team";
 export type ThemeType = "light" | "dark";
 
 type SimpleStoragePayloads = {
     CreateOrder: string[],
-    FocusModeActive: ActiveFocusMode | null,
-    FocusModeAll: FocusMode[],
     FontSize: number,
     IsLeftHanded: boolean,
     Language: string,
@@ -110,16 +108,6 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
     CreateOrder: {
         __type: "functional",
         check: (value) => Array.isArray(value) && value.every(v => typeof v === "string"),
-        fallback: [],
-    },
-    FocusModeActive: {
-        __type: "functional",
-        check: (value) => typeof value === "object" || value === null,
-        fallback: null,
-    },
-    FocusModeAll: {
-        __type: "functional",
-        check: (value) => Array.isArray(value),
         fallback: [],
     },
     FontSize: {

@@ -109,11 +109,8 @@ describe("EndpointsStatsRoutine", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().stats_routine.deleteMany({});
-        await DbProvider.get().routine.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create test users individually
         await DbProvider.get().user.create({
@@ -163,11 +160,8 @@ describe("EndpointsStatsRoutine", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().stats_routine.deleteMany({});
-        await DbProvider.get().routine.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

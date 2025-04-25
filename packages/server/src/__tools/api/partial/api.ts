@@ -31,7 +31,6 @@ export const api: ApiPartial<Api> = {
             },
         },
         permissions: true,
-        questionsCount: true,
         score: true,
         bookmarks: true,
         tags: async () => rel((await import("./tag.js")).tag, "list"),

@@ -84,15 +84,6 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
             languages: {
                 create: [{ language: DEFAULT_LANGUAGE }],
             },
-            focusModes: {
-                create: [{
-                    name: "Work",
-                    description: "This is an auto-generated focus mode. You can edit or delete it.",
-                }, {
-                    name: "Study",
-                    description: "This is an auto-generated focus mode. You can edit or delete it.",
-                }],
-            },
             awards: {
                 create: [{
                     timeCurrentTierCompleted: new Date(),
@@ -144,15 +135,6 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                     provider: AUTH_PROVIDERS.Password,
                     hashed_password: PasswordAuthService.hashPassword(process.env.VALYXA_PASSWORD ?? ""),
                 },
-            },
-            focusModes: {
-                create: [{
-                    name: "Work",
-                    description: "This is an auto-generated focus mode. You can edit or delete it.",
-                }, {
-                    name: "Study",
-                    description: "This is an auto-generated focus mode. You can edit or delete it.",
-                }],
             },
             awards: {
                 create: [{

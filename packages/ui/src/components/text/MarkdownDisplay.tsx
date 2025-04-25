@@ -1,6 +1,6 @@
 /* eslint-disable import/extensions */
 
-import { endpointsApi, endpointsChat, endpointsCode, endpointsComment, endpointsNote, endpointsProject, endpointsQuestion, endpointsQuiz, endpointsReport, endpointsRoutine, endpointsStandard, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, uuid } from "@local/shared";
+import { endpointsApi, endpointsChat, endpointsCode, endpointsComment, endpointsNote, endpointsProject, endpointsReport, endpointsRoutine, endpointsStandard, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, uuid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
@@ -617,8 +617,6 @@ const specialRoutes = [
     "Comment",
     "Note",
     "Project",
-    "Question",
-    "Quiz",
     "Report",
     "Routine",
     "Standard",
@@ -637,8 +635,6 @@ const routeToEndpoint = {
     [LINKS.Note]: endpointsNote.findOne,
     [LINKS.Project]: endpointsProject.findOne,
     [LINKS.Prompt]: endpointsStandard.findOne,
-    [LINKS.Question]: endpointsQuestion.findOne,
-    [LINKS.Quiz]: endpointsQuiz.findOne,
     [LINKS.Report]: endpointsReport.findOne,
     [LINKS.RoutineMultiStep]: endpointsRoutine.findOne,
     [LINKS.RoutineSingleStep]: endpointsRoutine.findOne,

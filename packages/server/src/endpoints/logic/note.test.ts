@@ -33,12 +33,7 @@ describe("EndpointsNote", () => {
     beforeEach(async () => {
         // Reset Redis and truncate tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().note_version_translation.deleteMany();
-        await DbProvider.get().note_version.deleteMany();
-        await DbProvider.get().note.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create two users
         await DbProvider.get().user.create({
@@ -124,10 +119,8 @@ describe("EndpointsNote", () => {
     after(async () => {
         // Cleanup and restore logger stubs
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().note_version_translation.deleteMany();
-        await DbProvider.get().note_version.deleteMany();
-        await DbProvider.get().note.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

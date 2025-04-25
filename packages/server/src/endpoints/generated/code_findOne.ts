@@ -52,7 +52,6 @@ export const code_findOne = {
         }
     },
     "permissions": true,
-    "questionsCount": true,
     "score": true,
     "bookmarks": true,
     "tags": {
@@ -115,7 +114,6 @@ export const code_findOne = {
         "default": true,
         "versionIndex": true,
         "versionLabel": true,
-        "calledByRoutineVersionsCount": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -129,6 +127,7 @@ export const code_findOne = {
             "canUse": true,
             "canRead": true
         },
+        "calledByRoutineVersionsCount": true,
         "content": true,
         "versionNotes": true,
         "pullRequest": {
@@ -191,5 +190,5 @@ export const code_findOne = {
             "name": true
         }
     },
-    "__cacheKey": "1176790855"
+    "__cacheKey": "1386380517"
 };

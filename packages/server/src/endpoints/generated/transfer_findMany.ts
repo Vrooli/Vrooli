@@ -84,7 +84,6 @@ export const transfer_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -201,7 +200,6 @@ export const transfer_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -245,7 +243,6 @@ export const transfer_findMany = {
                         "default": true,
                         "versionIndex": true,
                         "versionLabel": true,
-                        "calledByRoutineVersionsCount": true,
                         "commentsCount": true,
                         "directoryListingsCount": true,
                         "forksCount": true,
@@ -322,7 +319,6 @@ export const transfer_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -438,7 +434,6 @@ export const transfer_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -544,7 +539,6 @@ export const transfer_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -660,7 +654,6 @@ export const transfer_findMany = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -739,5 +732,5 @@ export const transfer_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1107514746"
+    "__cacheKey": "1575248718"
 };

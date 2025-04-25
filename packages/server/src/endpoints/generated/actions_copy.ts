@@ -76,7 +76,6 @@ export const actions_copy = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -129,7 +128,6 @@ export const actions_copy = {
         "default": true,
         "versionIndex": true,
         "versionLabel": true,
-        "calledByRoutineVersionsCount": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -197,7 +195,6 @@ export const actions_copy = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -309,7 +306,6 @@ export const actions_copy = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -428,7 +424,6 @@ export const actions_copy = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -555,7 +550,6 @@ export const actions_copy = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -677,7 +671,6 @@ export const actions_copy = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -769,5 +762,5 @@ export const actions_copy = {
             }
         }
     },
-    "__cacheKey": "-1899920769"
+    "__cacheKey": "81994431"
 };

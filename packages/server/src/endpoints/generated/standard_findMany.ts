@@ -55,7 +55,6 @@ export const standard_findMany = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -128,5 +127,5 @@ export const standard_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-848910382"
+    "__cacheKey": "-1615780492"
 };

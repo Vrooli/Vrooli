@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, User, UserSearchInput, UserTranslation, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, User, UserSearchInput, UserTranslation, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -49,10 +49,6 @@ export type LlmTaskConverters = {
     ProjectDelete: ConverterFunc<DeleteOneInput>,
     ProjectFind: ConverterFunc<ProjectSearchInput>,
     ProjectUpdate: ConverterFunc<ProjectUpdateInput>,
-    QuestionAdd: ConverterFunc<QuestionCreateInput>,
-    QuestionDelete: ConverterFunc<DeleteOneInput>,
-    QuestionFind: ConverterFunc<QuestionSearchInput>,
-    QuestionUpdate: ConverterFunc<QuestionUpdateInput>,
     ReminderAdd: ConverterFunc<ReminderCreateInput>,
     ReminderDelete: ConverterFunc<DeleteOneInput>,
     ReminderFind: ConverterFunc<ReminderSearchInput>,
@@ -426,60 +422,13 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
             return { label, link, payload };
         };
     },
-    "QuestionAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const Endpoints = await import("../../endpoints/logic/question.js");
-        const info = await import("../../endpoints/generated/question_findOne.js");
-        return async (data) => {
-            const input = converter[task](data, language);
-            const payload = await Endpoints.question.createOne({ input }, context, info);
-            const label = getObjectLabel(payload);
-            const link = getObjectLink(payload);
-            return { label, link, payload };
-        };
-    },
-    "QuestionDelete": async ({ context, converter, language, task }) => {
-        const Endpoints = await import("../../endpoints/logic/actions.js");
-        const info = SuccessInfo;
-        return async (data) => {
-            const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
-            return { label: null, link: null, payload };
-        };
-    },
-    "QuestionFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await import("../../endpoints/generated/question_findMany.js");
-        return async (data) => {
-            const input = converter[task](data, language);
-            const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Question", req: context.req });
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
-            return { label, link, payload };
-        };
-    },
-    "QuestionUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const Endpoints = await import("../../endpoints/logic/question.js");
-        const info = await import("../../endpoints/generated/question_findOne.js");
-        return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
-            const input = converter[task](data, language);
-            const payload = await Endpoints.question.updateOne({ input }, context, info);
-            const label = getObjectLabel(payload);
-            const link = getObjectLink(payload);
-            return { label, link, payload };
-        };
-    },
     "ReminderAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task, userData }) => {
         const Endpoints = await import("../../endpoints/logic/reminder.js");
         const info = await import("../../endpoints/generated/reminder_findOne.js");
         return async (data) => {
             const input = converter[task](data, language);
             if (!input.reminderListConnect && !input.reminderListCreate) {
-                const activeReminderList = userData?.activeFocusMode?.focusMode?.reminderListId;
-                if (activeReminderList) {
-                    input.reminderListConnect = activeReminderList;
-                } else {
-                    throw new CustomError("0555", "InternalError", { task, data, language });
-                }
+                throw new CustomError("0555", "InternalError", { task, data, language });
             }
             const payload = await Endpoints.reminder.createOne({ input }, context, info);
             const label = getObjectLabel(payload);

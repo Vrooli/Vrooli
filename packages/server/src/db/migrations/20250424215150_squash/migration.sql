@@ -8,19 +8,13 @@ CREATE EXTENSION IF NOT EXISTS "vector";
 CREATE TYPE "AccountStatus" AS ENUM ('Deleted', 'Unlocked', 'SoftLocked', 'HardLocked');
 
 -- CreateEnum
-CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectReact', 'OrganizationCreate', 'OrganizationJoin', 'PostCreate', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'QuestionAnswer', 'QuestionCreate', 'QuizPass', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
+CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCreate', 'CommentCreate', 'IssueCreate', 'NoteCreate', 'ObjectBookmark', 'ObjectReact', 'OrganizationCreate', 'OrganizationJoin', 'ProjectCreate', 'PullRequestCreate', 'PullRequestComplete', 'ReportEnd', 'ReportContribute', 'Reputation', 'RunRoutine', 'RunProject', 'RoutineCreate', 'SmartContractCreate', 'StandardCreate', 'Streak', 'UserInvite');
 
 -- CreateEnum
 CREATE TYPE "ChatInviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
 
 -- CreateEnum
 CREATE TYPE "CodeType" AS ENUM ('DataConvert', 'SmartContract');
-
--- CreateEnum
-CREATE TYPE "FocusModeFilterType" AS ENUM ('Blur', 'Hide', 'ShowMore');
-
--- CreateEnum
-CREATE TYPE "FocusModeStopCondition" AS ENUM ('AfterStopTime', 'Automatic', 'Never', 'NextBegins');
 
 -- CreateEnum
 CREATE TYPE "IssueStatus" AS ENUM ('Draft', 'Open', 'Canceled', 'ClosedResolved', 'ClosedUnresolved', 'Rejected');
@@ -45,9 +39,6 @@ CREATE TYPE "PeriodType" AS ENUM ('Hourly', 'Daily', 'Weekly', 'Monthly', 'Yearl
 
 -- CreateEnum
 CREATE TYPE "PullRequestStatus" AS ENUM ('Draft', 'Open', 'Canceled', 'Merged', 'Rejected');
-
--- CreateEnum
-CREATE TYPE "QuizAttemptStatus" AS ENUM ('NotStarted', 'InProgress', 'Passed', 'Failed');
 
 -- CreateEnum
 CREATE TYPE "ReportStatus" AS ENUM ('ClosedDeleted', 'ClosedFalseReport', 'ClosedHidden', 'ClosedNonIssue', 'ClosedSuspended', 'Open');
@@ -215,11 +206,7 @@ CREATE TABLE "bookmark" (
     "commentId" UUID,
     "issueId" UUID,
     "noteId" UUID,
-    "postId" UUID,
     "projectId" UUID,
-    "questionId" UUID,
-    "questionAnswerId" UUID,
-    "quizId" UUID,
     "routineId" UUID,
     "standardId" UUID,
     "tagId" UUID,
@@ -446,11 +433,8 @@ CREATE TABLE "comment" (
     "issueId" UUID,
     "noteVersionId" UUID,
     "parentId" UUID,
-    "postId" UUID,
     "projectVersionId" UUID,
     "pullRequestId" UUID,
-    "questionId" UUID,
-    "questionAnswerId" UUID,
     "routineVersionId" UUID,
     "standardVersionId" UUID,
     "score" INTEGER NOT NULL DEFAULT 0,
@@ -483,40 +467,6 @@ CREATE TABLE "email" (
     "userId" UUID,
 
     CONSTRAINT "email_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "focus_mode" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "name" VARCHAR(128) NOT NULL,
-    "description" VARCHAR(2048),
-    "reminderListId" UUID,
-    "resourceListId" UUID,
-    "scheduleId" UUID,
-    "userId" UUID NOT NULL,
-
-    CONSTRAINT "focus_mode_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "focus_mode_labels" (
-    "id" UUID NOT NULL,
-    "labelledId" UUID NOT NULL,
-    "labelId" UUID NOT NULL,
-
-    CONSTRAINT "focus_mode_labels_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "focus_mode_filter" (
-    "id" UUID NOT NULL,
-    "filterType" "FocusModeFilterType" NOT NULL,
-    "focusModeId" UUID NOT NULL,
-    "tagId" UUID NOT NULL,
-
-    CONSTRAINT "focus_mode_filter_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -723,8 +673,6 @@ CREATE TABLE "notification_subscription" (
     "noteId" UUID,
     "projectId" UUID,
     "pullRequestId" UUID,
-    "questionId" UUID,
-    "quizId" UUID,
     "reportId" UUID,
     "routineId" UUID,
     "scheduleId" UUID,
@@ -884,48 +832,6 @@ CREATE TABLE "member_invite" (
     "userId" UUID NOT NULL,
 
     CONSTRAINT "member_invite_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "post" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "repostedFromId" UUID,
-    "resourceListId" UUID,
-    "isPinned" BOOLEAN NOT NULL DEFAULT false,
-    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
-    "score" INTEGER NOT NULL DEFAULT 0,
-    "bookmarks" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
-    "teamId" UUID,
-    "userId" UUID,
-
-    CONSTRAINT "post_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "post_tags" (
-    "id" UUID NOT NULL,
-    "taggedId" UUID NOT NULL,
-    "tagTag" VARCHAR(128) NOT NULL,
-
-    CONSTRAINT "post_tags_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "post_translation" (
-    "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "embedding" vector(768),
-    "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
-    "description" VARCHAR(2048),
-    "name" VARCHAR(128) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "postId" UUID NOT NULL,
-
-    CONSTRAINT "post_translation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1117,163 +1023,6 @@ CREATE TABLE "pull_request_translation" (
 );
 
 -- CreateTable
-CREATE TABLE "question" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "referencing" VARCHAR(2048),
-    "hasAcceptedAnswer" BOOLEAN NOT NULL DEFAULT false,
-    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "score" INTEGER NOT NULL DEFAULT 0,
-    "bookmarks" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
-    "apiId" UUID,
-    "codeId" UUID,
-    "noteId" UUID,
-    "projectId" UUID,
-    "routineId" UUID,
-    "standardId" UUID,
-    "teamId" UUID,
-    "createdById" UUID,
-
-    CONSTRAINT "question_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "question_translation" (
-    "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "embedding" vector(768),
-    "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
-    "description" VARCHAR(16384),
-    "name" VARCHAR(128) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "questionId" UUID NOT NULL,
-
-    CONSTRAINT "question_translation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "question_tags" (
-    "id" UUID NOT NULL,
-    "taggedId" UUID NOT NULL,
-    "tagTag" VARCHAR(128) NOT NULL,
-
-    CONSTRAINT "question_tags_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "question_answer" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "score" INTEGER NOT NULL DEFAULT 0,
-    "bookmarks" INTEGER NOT NULL DEFAULT 0,
-    "isAccepted" BOOLEAN NOT NULL DEFAULT false,
-    "questionId" UUID NOT NULL,
-    "createdById" UUID,
-
-    CONSTRAINT "question_answer_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "question_answer_translation" (
-    "id" UUID NOT NULL,
-    "text" VARCHAR(32768) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "answerId" UUID NOT NULL,
-
-    CONSTRAINT "question_answer_translation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "maxAttempts" INTEGER,
-    "randomizeQuestionOrder" BOOLEAN NOT NULL DEFAULT false,
-    "revealCorrectAnswers" BOOLEAN NOT NULL DEFAULT true,
-    "timeLimit" INTEGER,
-    "wasAutoGenerated" BOOLEAN NOT NULL DEFAULT false,
-    "pointsToPass" INTEGER,
-    "score" INTEGER NOT NULL DEFAULT 0,
-    "bookmarks" INTEGER NOT NULL DEFAULT 0,
-    "routineId" UUID,
-    "projectId" UUID,
-    "createdById" UUID,
-
-    CONSTRAINT "quiz_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_translation" (
-    "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "embedding" vector(768),
-    "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
-    "description" VARCHAR(2048),
-    "name" VARCHAR(128) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "quizId" UUID NOT NULL,
-
-    CONSTRAINT "quiz_translation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_attempt" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "pointsEarned" INTEGER NOT NULL DEFAULT 0,
-    "language" VARCHAR(3) NOT NULL,
-    "status" "QuizAttemptStatus" NOT NULL DEFAULT 'NotStarted',
-    "contextSwitches" INTEGER NOT NULL DEFAULT 0,
-    "timeTaken" INTEGER,
-    "quizId" UUID NOT NULL,
-    "userId" UUID,
-
-    CONSTRAINT "quiz_attempt_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_question_response" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "response" VARCHAR(8192) NOT NULL,
-    "quizAttemptId" UUID NOT NULL,
-    "quizQuestionId" UUID NOT NULL,
-
-    CONSTRAINT "quiz_question_response_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_question" (
-    "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "order" INTEGER,
-    "points" INTEGER NOT NULL DEFAULT 1,
-    "standardVersionId" UUID,
-    "quizId" UUID NOT NULL,
-
-    CONSTRAINT "quiz_question_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "quiz_question_translation" (
-    "id" UUID NOT NULL,
-    "helpText" VARCHAR(2048),
-    "questionText" VARCHAR(1024) NOT NULL,
-    "language" VARCHAR(3) NOT NULL,
-    "questionId" UUID NOT NULL,
-
-    CONSTRAINT "quiz_question_translation_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "reaction" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1286,11 +1035,7 @@ CREATE TABLE "reaction" (
     "commentId" UUID,
     "issueId" UUID,
     "noteId" UUID,
-    "postId" UUID,
     "projectId" UUID,
-    "questionId" UUID,
-    "questionAnswerId" UUID,
-    "quizId" UUID,
     "routineId" UUID,
     "standardId" UUID,
 
@@ -1310,11 +1055,7 @@ CREATE TABLE "reaction_summary" (
     "commentId" UUID,
     "issueId" UUID,
     "noteId" UUID,
-    "postId" UUID,
     "projectId" UUID,
-    "questionId" UUID,
-    "questionAnswerId" UUID,
-    "quizId" UUID,
     "routineId" UUID,
     "standardId" UUID,
 
@@ -1326,6 +1067,7 @@ CREATE TABLE "reminder_list" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userId" UUID NOT NULL,
 
     CONSTRAINT "reminder_list_pkey" PRIMARY KEY ("id")
 );
@@ -1377,9 +1119,7 @@ CREATE TABLE "report" (
     "commentId" UUID,
     "issueId" UUID,
     "noteVersionId" UUID,
-    "postId" UUID,
     "projectVersionId" UUID,
-    "questionId" UUID,
     "routineVersionId" UUID,
     "standardVersionId" UUID,
     "tagId" UUID,
@@ -1883,8 +1623,6 @@ CREATE TABLE "stats_site" (
     "projectsCreated" INTEGER NOT NULL,
     "projectsCompleted" INTEGER NOT NULL,
     "projectCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
-    "quizzesCreated" INTEGER NOT NULL,
-    "quizzesCompleted" INTEGER NOT NULL,
     "routinesCreated" INTEGER NOT NULL,
     "routinesCompleted" INTEGER NOT NULL,
     "routineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
@@ -1958,22 +1696,6 @@ CREATE TABLE "stats_project" (
 );
 
 -- CreateTable
-CREATE TABLE "stats_quiz" (
-    "id" UUID NOT NULL,
-    "quizId" UUID NOT NULL,
-    "periodStart" TIMESTAMPTZ(6) NOT NULL,
-    "periodEnd" TIMESTAMPTZ(6) NOT NULL,
-    "periodType" "PeriodType" NOT NULL,
-    "timesStarted" INTEGER NOT NULL,
-    "timesPassed" INTEGER NOT NULL,
-    "timesFailed" INTEGER NOT NULL,
-    "scoreAverage" DOUBLE PRECISION NOT NULL,
-    "completionTimeAverage" DOUBLE PRECISION NOT NULL,
-
-    CONSTRAINT "stats_quiz_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "stats_routine" (
     "id" UUID NOT NULL,
     "routineId" UUID NOT NULL,
@@ -2037,8 +1759,6 @@ CREATE TABLE "stats_user" (
     "projectsCreated" INTEGER NOT NULL,
     "projectsCompleted" INTEGER NOT NULL,
     "projectCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
-    "quizzesPassed" INTEGER NOT NULL,
-    "quizzesFailed" INTEGER NOT NULL,
     "routinesCreated" INTEGER NOT NULL,
     "routinesCompleted" INTEGER NOT NULL,
     "routineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
@@ -2128,9 +1848,6 @@ CREATE TABLE "user" (
     "isPrivateProjects" BOOLEAN NOT NULL DEFAULT false,
     "isPrivateProjectsCreated" BOOLEAN NOT NULL DEFAULT false,
     "isPrivatePullRequests" BOOLEAN NOT NULL DEFAULT false,
-    "isPrivateQuestionsAnswered" BOOLEAN NOT NULL DEFAULT false,
-    "isPrivateQuestionsAsked" BOOLEAN NOT NULL DEFAULT false,
-    "isPrivateQuizzesCreated" BOOLEAN NOT NULL DEFAULT false,
     "isPrivateRoles" BOOLEAN NOT NULL DEFAULT false,
     "isPrivateRoutines" BOOLEAN NOT NULL DEFAULT false,
     "isPrivateRoutinesCreated" BOOLEAN NOT NULL DEFAULT false,
@@ -2160,19 +1877,6 @@ CREATE TABLE "user" (
     "status" "AccountStatus" NOT NULL DEFAULT 'Unlocked',
 
     CONSTRAINT "user_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "active_focus_mode" (
-    "id" UUID NOT NULL,
-    "userId" UUID NOT NULL,
-    "focusModeId" UUID NOT NULL,
-    "stopCondition" "FocusModeStopCondition" NOT NULL DEFAULT 'Automatic',
-    "stopTime" TIMESTAMPTZ(6),
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL,
-
-    CONSTRAINT "active_focus_mode_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2237,9 +1941,7 @@ CREATE TABLE "view" (
     "apiId" UUID,
     "codeId" UUID,
     "issueId" UUID,
-    "questionId" UUID,
     "noteId" UUID,
-    "postId" UUID,
     "projectId" UUID,
     "routineId" UUID,
     "standardId" UUID,
@@ -2405,18 +2107,6 @@ CREATE UNIQUE INDEX "comment_translation_commentId_language_key" ON "comment_tra
 CREATE UNIQUE INDEX "email_emailAddress_key" ON "email"("emailAddress");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "focus_mode_reminderListId_key" ON "focus_mode"("reminderListId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "focus_mode_resourceListId_key" ON "focus_mode"("resourceListId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "focus_mode_labels_labelledId_labelId_key" ON "focus_mode_labels"("labelledId", "labelId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "focus_mode_filter_focusModeId_tagId_key" ON "focus_mode_filter"("focusModeId", "tagId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "issue_labels_labelledId_labelId_key" ON "issue_labels"("labelledId", "labelId");
 
 -- CreateIndex
@@ -2495,15 +2185,6 @@ CREATE UNIQUE INDEX "member_invite_userId_key" ON "member_invite"("userId");
 CREATE UNIQUE INDEX "member_invite_userId_teamId_key" ON "member_invite"("userId", "teamId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "post_resourceListId_key" ON "post"("resourceListId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "post_tags_taggedId_tagTag_key" ON "post_tags"("taggedId", "tagTag");
-
--- CreateIndex
-CREATE UNIQUE INDEX "post_translation_postId_language_key" ON "post_translation"("postId", "language");
-
--- CreateIndex
 CREATE UNIQUE INDEX "phone_phoneNumber_key" ON "phone"("phoneNumber");
 
 -- CreateIndex
@@ -2537,25 +2218,7 @@ CREATE UNIQUE INDEX "project_labels_labelledId_labelId_key" ON "project_labels"(
 CREATE UNIQUE INDEX "pull_request_translation_pullRequestId_language_key" ON "pull_request_translation"("pullRequestId", "language");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "question_translation_questionId_language_key" ON "question_translation"("questionId", "language");
-
--- CreateIndex
-CREATE UNIQUE INDEX "question_tags_taggedId_tagTag_key" ON "question_tags"("taggedId", "tagTag");
-
--- CreateIndex
-CREATE UNIQUE INDEX "question_answer_translation_answerId_language_key" ON "question_answer_translation"("answerId", "language");
-
--- CreateIndex
-CREATE UNIQUE INDEX "quiz_translation_quizId_language_key" ON "quiz_translation"("quizId", "language");
-
--- CreateIndex
-CREATE UNIQUE INDEX "quiz_question_response_quizAttemptId_quizQuestionId_key" ON "quiz_question_response"("quizAttemptId", "quizQuestionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "quiz_question_translation_questionId_language_key" ON "quiz_question_translation"("questionId", "language");
-
--- CreateIndex
-CREATE UNIQUE INDEX "reaction_summary_emoji_apiId_chatMessageId_codeId_commentId_key" ON "reaction_summary"("emoji", "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "standardId");
+CREATE UNIQUE INDEX "reaction_summary_emoji_apiId_chatMessageId_codeId_commentId_key" ON "reaction_summary"("emoji", "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "projectId", "routineId", "standardId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "report_response_reportId_createdById_key" ON "report_response"("reportId", "createdById");
@@ -2640,12 +2303,6 @@ CREATE UNIQUE INDEX "user_premiumId_key" ON "user"("premiumId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_stripeCustomerId_key" ON "user"("stripeCustomerId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "active_focus_mode_userId_key" ON "active_focus_mode"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "active_focus_mode_userId_focusModeId_key" ON "active_focus_mode"("userId", "focusModeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_auth_resetPasswordCode_key" ON "user_auth"("resetPasswordCode");
@@ -2768,19 +2425,7 @@ ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_issueId_fkey" FOREIGN KEY ("issu
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2900,19 +2545,10 @@ ALTER TABLE "comment" ADD CONSTRAINT "comment_noteVersionId_fkey" FOREIGN KEY ("
 ALTER TABLE "comment" ADD CONSTRAINT "comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "comment" ADD CONSTRAINT "comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_pullRequestId_fkey" FOREIGN KEY ("pullRequestId") REFERENCES "pull_request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "comment" ADD CONSTRAINT "comment_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "comment" ADD CONSTRAINT "comment_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_routineVersionId_fkey" FOREIGN KEY ("routineVersionId") REFERENCES "routine_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2934,30 +2570,6 @@ ALTER TABLE "email" ADD CONSTRAINT "email_teamId_fkey" FOREIGN KEY ("teamId") RE
 
 -- AddForeignKey
 ALTER TABLE "email" ADD CONSTRAINT "email_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_reminderListId_fkey" FOREIGN KEY ("reminderListId") REFERENCES "reminder_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_resourceListId_fkey" FOREIGN KEY ("resourceListId") REFERENCES "resource_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode" ADD CONSTRAINT "focus_mode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode_labels" ADD CONSTRAINT "focus_mode_labels_labelledId_fkey" FOREIGN KEY ("labelledId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode_labels" ADD CONSTRAINT "focus_mode_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode_filter" ADD CONSTRAINT "focus_mode_filter_focusModeId_fkey" FOREIGN KEY ("focusModeId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "focus_mode_filter" ADD CONSTRAINT "focus_mode_filter_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "issue" ADD CONSTRAINT "issue_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3074,12 +2686,6 @@ ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscriptio
 ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_pullRequestId_fkey" FOREIGN KEY ("pullRequestId") REFERENCES "pull_request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "report"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3165,27 +2771,6 @@ ALTER TABLE "member_invite" ADD CONSTRAINT "member_invite_teamId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "member_invite" ADD CONSTRAINT "member_invite_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post" ADD CONSTRAINT "post_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post" ADD CONSTRAINT "post_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post" ADD CONSTRAINT "post_repostedFromId_fkey" FOREIGN KEY ("repostedFromId") REFERENCES "post"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post" ADD CONSTRAINT "post_resourceListId_fkey" FOREIGN KEY ("resourceListId") REFERENCES "resource_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post_tags" ADD CONSTRAINT "post_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post_tags" ADD CONSTRAINT "post_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "post_translation" ADD CONSTRAINT "post_translation_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "phone" ADD CONSTRAINT "phone_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3275,81 +2860,6 @@ ALTER TABLE "pull_request" ADD CONSTRAINT "pull_request_toStandardId_fkey" FOREI
 ALTER TABLE "pull_request_translation" ADD CONSTRAINT "pull_request_translation_pullRequestId_fkey" FOREIGN KEY ("pullRequestId") REFERENCES "pull_request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_codeId_fkey" FOREIGN KEY ("codeId") REFERENCES "code"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question" ADD CONSTRAINT "question_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question_translation" ADD CONSTRAINT "question_translation_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question_tags" ADD CONSTRAINT "question_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question_tags" ADD CONSTRAINT "question_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question_answer" ADD CONSTRAINT "question_answer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question_answer" ADD CONSTRAINT "question_answer_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "question_answer_translation" ADD CONSTRAINT "question_answer_translation_answerId_fkey" FOREIGN KEY ("answerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz" ADD CONSTRAINT "quiz_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz" ADD CONSTRAINT "quiz_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz" ADD CONSTRAINT "quiz_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_translation" ADD CONSTRAINT "quiz_translation_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_attempt" ADD CONSTRAINT "quiz_attempt_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_attempt" ADD CONSTRAINT "quiz_attempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quizAttemptId_fkey" FOREIGN KEY ("quizAttemptId") REFERENCES "quiz_attempt"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quizQuestionId_fkey" FOREIGN KEY ("quizQuestionId") REFERENCES "quiz_question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_standardVersionId_fkey" FOREIGN KEY ("standardVersionId") REFERENCES "standard_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "quiz_question_translation" ADD CONSTRAINT "quiz_question_translation_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "quiz_question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "reaction" ADD CONSTRAINT "reaction_byId_fkey" FOREIGN KEY ("byId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3371,19 +2881,7 @@ ALTER TABLE "reaction" ADD CONSTRAINT "reaction_issueId_fkey" FOREIGN KEY ("issu
 ALTER TABLE "reaction" ADD CONSTRAINT "reaction_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "reaction" ADD CONSTRAINT "reaction_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "reaction" ADD CONSTRAINT "reaction_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reaction" ADD CONSTRAINT "reaction_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reaction" ADD CONSTRAINT "reaction_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reaction" ADD CONSTRAINT "reaction_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reaction" ADD CONSTRAINT "reaction_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3410,25 +2908,16 @@ ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_issueId_fkey" FO
 ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_questionAnswerId_fkey" FOREIGN KEY ("questionAnswerId") REFERENCES "question_answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reaction_summary" ADD CONSTRAINT "reaction_summary_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reminder_list" ADD CONSTRAINT "reminder_list_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reminder" ADD CONSTRAINT "reminder_reminderListId_fkey" FOREIGN KEY ("reminderListId") REFERENCES "reminder_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3455,13 +2944,7 @@ ALTER TABLE "report" ADD CONSTRAINT "report_issueId_fkey" FOREIGN KEY ("issueId"
 ALTER TABLE "report" ADD CONSTRAINT "report_noteVersionId_fkey" FOREIGN KEY ("noteVersionId") REFERENCES "note_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "report" ADD CONSTRAINT "report_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "report" ADD CONSTRAINT "report_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_routineVersionId_fkey" FOREIGN KEY ("routineVersionId") REFERENCES "routine_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3680,9 +3163,6 @@ ALTER TABLE "stats_code" ADD CONSTRAINT "stats_code_codeId_fkey" FOREIGN KEY ("c
 ALTER TABLE "stats_project" ADD CONSTRAINT "stats_project_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "stats_quiz" ADD CONSTRAINT "stats_quiz_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "stats_routine" ADD CONSTRAINT "stats_routine_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3737,12 +3217,6 @@ ALTER TABLE "user" ADD CONSTRAINT "user_invitedByUserId_fkey" FOREIGN KEY ("invi
 ALTER TABLE "user" ADD CONSTRAINT "user_premiumId_fkey" FOREIGN KEY ("premiumId") REFERENCES "premium"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "active_focus_mode" ADD CONSTRAINT "active_focus_mode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "active_focus_mode" ADD CONSTRAINT "active_focus_mode_focusModeId_fkey" FOREIGN KEY ("focusModeId") REFERENCES "focus_mode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "user_auth" ADD CONSTRAINT "user_auth_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3771,12 +3245,6 @@ ALTER TABLE "view" ADD CONSTRAINT "view_issueId_fkey" FOREIGN KEY ("issueId") RE
 
 -- AddForeignKey
 ALTER TABLE "view" ADD CONSTRAINT "view_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "view" ADD CONSTRAINT "view_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "view" ADD CONSTRAINT "view_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "view" ADD CONSTRAINT "view_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

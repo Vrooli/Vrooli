@@ -56,7 +56,6 @@ export const unions_projectOrTeam = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -166,5 +165,5 @@ export const unions_projectOrTeam = {
         "endCursorProject": true,
         "endCursorTeam": true
     },
-    "__cacheKey": "172515006"
+    "__cacheKey": "1341109084"
 };

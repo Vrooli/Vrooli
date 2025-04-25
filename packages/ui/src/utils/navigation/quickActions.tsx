@@ -97,11 +97,6 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Prompt}/add`,
     },
     {
-        label: "CreateQuestion",
-        keywords: createKeywords,
-        value: `${LINKS.Question}/add`,
-    },
-    {
         label: "CreateReminder",
         keywords: createKeywords,
         value: `${LINKS.Reminder}/add`,
@@ -150,11 +145,6 @@ export const shortcuts: PreSearchItem[] = [
         label: "SearchNote",
         keywords: searchKeywords,
         value: `${LINKS.Search}?type="${SearchPageTabOption.Note}"`,
-    },
-    {
-        label: "SearchQuestion",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Question}"`,
     },
     {
         label: "SearchRoutineMultiStep",
@@ -301,7 +291,6 @@ const iconInfoMap = {
     Code: { name: "Terminal", type: "Common" },
     Note: { name: "Note", type: "Common" },
     Project: { name: "Project", type: "Common" },
-    Question: { name: "Help", type: "Common" },
     Routine: { name: "Routine", type: "Routine" },
     Run: { name: "Play", type: "Common" },
     Shortcut: { name: "Shortcut", type: "Common" },

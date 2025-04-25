@@ -1,5 +1,5 @@
 import { DbProvider, logger } from "@local/server";
-import { PeriodType, Prisma, QuizAttemptStatus } from "@prisma/client";
+import { PeriodType, Prisma } from "@prisma/client";
 
 /**
  * Creates periodic site-wide stats
@@ -27,8 +27,6 @@ export async function logSiteStats(
         projectsCreated: 0,
         projectsCompleted: 0,
         projectCompletionTimeAverage: 0,
-        quizzesCreated: 0,
-        quizzesCompleted: 0,
         routinesCreated: 0,
         routinesCompleted: 0,
         routineCompletionTimeAverage: 0,
@@ -101,19 +99,6 @@ export async function logSiteStats(
 ` : 0;
         // Calculate the average project completion time
         data.projectCompletionTimeAverage = data.projectsCompleted > 0 ? projectsCompletedSum / data.projectsCompleted : 0;
-        // Find all quizzes created within the period
-        data.quizzesCreated = await DbProvider.get().quiz.count({
-            where: {
-                created_at: { gte: periodStart, lte: periodEnd },
-            },
-        });
-        // Find all quiz attempts completed within the period
-        data.quizzesCompleted = await DbProvider.get().quiz_attempt.count({
-            where: {
-                updated_at: { gte: periodStart, lte: periodEnd },
-                status: { in: [QuizAttemptStatus.Passed, QuizAttemptStatus.Failed] },
-            },
-        });
         // Find all routines created within the period
         data.routinesCreated = await DbProvider.get().routine.count({
             where: {

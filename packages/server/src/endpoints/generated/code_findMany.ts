@@ -55,7 +55,6 @@ export const code_findMany = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -99,7 +98,6 @@ export const code_findMany = {
                 "default": true,
                 "versionIndex": true,
                 "versionLabel": true,
-                "calledByRoutineVersionsCount": true,
                 "commentsCount": true,
                 "directoryListingsCount": true,
                 "forksCount": true,
@@ -127,5 +125,5 @@ export const code_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1501050409"
+    "__cacheKey": "-1486774837"
 };

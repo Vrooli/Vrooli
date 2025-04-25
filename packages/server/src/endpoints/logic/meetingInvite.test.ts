@@ -38,16 +38,8 @@ describe("EndpointsMeetingInvite", () => {
     });
 
     beforeEach(async () => {
-        // Reset Redis and truncate tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().member.deleteMany();
-        await DbProvider.get().meeting_invite.deleteMany();
-        await DbProvider.get().meeting.deleteMany();
-        await DbProvider.get().meeting_translation.deleteMany();
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Seed three users
         await DbProvider.get().user.create({
@@ -119,14 +111,9 @@ describe("EndpointsMeetingInvite", () => {
     });
 
     after(async () => {
-        // Clean up and restore logger
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().meeting_invite.deleteMany();
-        await DbProvider.get().meeting.deleteMany();
-        await DbProvider.get().meeting_translation.deleteMany();
-        await DbProvider.get().member.deleteMany();
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

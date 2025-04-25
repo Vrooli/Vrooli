@@ -27,7 +27,6 @@ describe("EndpointsApi", () => {
     const privateApiId2 = uuid();
 
     before(() => {
-        // Suppress logger output during tests
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -35,10 +34,7 @@ describe("EndpointsApi", () => {
     beforeEach(async () => {
         // Reset Redis and truncate relevant tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().api.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Seed two users for authentication and ownership tests
         await DbProvider.get().user.create({
@@ -108,10 +104,7 @@ describe("EndpointsApi", () => {
     after(async () => {
         // Clean up database and restore logger
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().api.deleteMany();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().session.deleteMany();
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

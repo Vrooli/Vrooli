@@ -48,7 +48,6 @@ const LinkIconMap: { [key in LINKS]?: IconInfo } = {
     [LINKS.Profile]: { name: "User", type: "Common" },
     [LINKS.Project]: { name: "Project", type: "Common" },
     [LINKS.Prompt]: { name: "Article", type: "Common" },
-    [LINKS.Question]: { name: "Help", type: "Common" },
     [LINKS.Reminder]: { name: "Reminder", type: "Common" },
     [LINKS.Report]: { name: "Report", type: "Common" },
     [LINKS.RoutineMultiStep]: { name: "Routine", type: "Routine" },

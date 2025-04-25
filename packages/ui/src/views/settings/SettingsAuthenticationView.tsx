@@ -1,5 +1,5 @@
-import { Email, endpointsAuth, endpointsUser, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
-import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
+import { Email, endpointsAuth, endpointsUser, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User } from "@local/shared";
+import { Box, Button, useTheme } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,6 @@ import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/Pas
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PhoneList } from "../../components/lists/devices/PhoneList.js";
-import { WalletList } from "../../components/lists/devices/WalletList.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
@@ -36,7 +35,7 @@ const initialValues: SettingsAuthenticationFormValues = {
 const hiddenInputStyle = { display: "none" } as const;
 const phoneIconInfo = { name: "Phone", type: "Common" } as const;
 const emailIconInfo = { name: "Email", type: "Common" } as const;
-const walletIconInfo = { name: "Wallet", type: "Common" } as const;
+// const walletIconInfo = { name: "Wallet", type: "Common" } as const;
 
 function SettingsAuthenticationForm({
     display,
@@ -62,7 +61,7 @@ function SettingsAuthenticationForm({
                     autoComplete="username"
                     sx={hiddenInputStyle}
                 />
-                <FormSection>
+                <Box width="100%" display="flex" flexDirection="column" gap={2}>
                     <PasswordTextInput
                         fullWidth
                         name="currentPassword"
@@ -81,7 +80,7 @@ function SettingsAuthenticationForm({
                         autoComplete="new-password"
                         label={t("PasswordNewConfirm")}
                     />
-                </FormSection>
+                </Box>
             </BaseForm>
             <BottomActionsButtons
                 display={display}
@@ -142,11 +141,11 @@ export function SettingsAuthenticationView({
     }, [onProfileUpdate, profile]);
     const updatePhones = useCallback((updatedList: Phone[]) => updateProfileField("phones", updatedList), [updateProfileField]);
     const updateEmails = useCallback((updatedList: Email[]) => updateProfileField("emails", updatedList), [updateProfileField]);
-    const updateWallets = useCallback((updatedList: Wallet[]) => updateProfileField("wallets", updatedList), [updateProfileField]);
+    // const updateWallets = useCallback((updatedList: Wallet[]) => updateProfileField("wallets", updatedList), [updateProfileField]);
 
     const numVerifiedPhones = profile?.phones?.filter((phone) => phone.verified)?.length ?? 0;
     const numVerifiedEmails = profile?.emails?.filter((email) => email.verified)?.length ?? 0;
-    const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
+    const numVerifiedWallets = 0;//profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
     const [update, { loading: isUpdating }] = useLazyFetch<ProfileEmailUpdateInput, User>(endpointsUser.profileEmailUpdate);
@@ -188,18 +187,8 @@ export function SettingsAuthenticationView({
             <Navbar title={t("Authentication")} />
             <SettingsContent>
                 <SettingsList />
-                <Stack
-                    direction="column"
-                    spacing={6}
-                    m="auto"
-                    pl={2}
-                    pr={2}
-                    sx={{
-                        maxWidth: "min(100%, 700px)",
-                        width: "100%",
-                    }}
-                >
-                    <Box>
+                <Box display="flex" flexDirection="column" p={1} gap={2} margin="auto" width="min(100%, 700px)">
+                    <FormSection variant="card">
                         <Title
                             help={t("PhoneListHelp")}
                             iconInfo={phoneIconInfo}
@@ -211,9 +200,8 @@ export function SettingsAuthenticationView({
                             list={profile?.phones ?? []}
                             numOtherVerified={numVerifiedEmails + numVerifiedWallets}
                         />
-                    </Box>
-                    <Divider />
-                    <Box>
+                    </FormSection>
+                    <FormSection variant="card">
                         <Title
                             help={t("EmailListHelp")}
                             iconInfo={emailIconInfo}
@@ -225,9 +213,8 @@ export function SettingsAuthenticationView({
                             list={profile?.emails ?? []}
                             numOtherVerified={numVerifiedPhones + numVerifiedWallets}
                         />
-                    </Box>
-                    <Divider />
-                    <Box>
+                    </FormSection>
+                    {/* <FormSection variant="card">
                         <Title
                             help={t("WalletListHelp")}
                             iconInfo={walletIconInfo}
@@ -239,9 +226,8 @@ export function SettingsAuthenticationView({
                             list={profile?.wallets ?? []}
                             numOtherVerified={numVerifiedPhones + numVerifiedEmails}
                         />
-                    </Box>
-                    <Divider />
-                    <Box>
+                    </FormSection> */}
+                    <FormSection variant="card">
                         <Title
                             help={t("PasswordChangeHelp")}
                             title={t("ChangePassword")}
@@ -260,9 +246,8 @@ export function SettingsAuthenticationView({
                                 {...formik}
                             />}
                         </Formik>
-                    </Box>
-                    <Divider />
-                    <Box>
+                    </FormSection>
+                    <FormSection variant="card">
                         <Button
                             color="secondary"
                             onClick={onLogOut}
@@ -289,8 +274,8 @@ export function SettingsAuthenticationView({
                                 color: palette.error.contrastText,
                             }}
                         >{t("DeleteAccount")}</Button>
-                    </Box>
-                </Stack>
+                    </FormSection>
+                </Box>
             </SettingsContent>
         </ScrollBox>
     );

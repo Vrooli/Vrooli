@@ -71,13 +71,11 @@ const statsUserData1 = {
     projectsCreated: 0,
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
-    quizzesPassed: 0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
     standardsCreated: 0,
     teamsCreated: 0,
-    quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
     runProjectCompletionTimeAverage: 0.0,
@@ -103,13 +101,11 @@ const statsUserData2 = {
     projectsCreated: 0,
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
-    quizzesPassed: 0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
     standardsCreated: 0,
     teamsCreated: 0,
-    quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
     runProjectCompletionTimeAverage: 0.0,
@@ -135,13 +131,11 @@ const statsPublicUserData = {
     projectsCreated: 0,
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
-    quizzesPassed: 0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
     standardsCreated: 0,
     teamsCreated: 0,
-    quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
     runProjectCompletionTimeAverage: 0.0,
@@ -167,13 +161,11 @@ const statsUser1BotData = {
     projectsCreated: 0,
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
-    quizzesPassed: 0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
     standardsCreated: 0,
     teamsCreated: 0,
-    quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
     runProjectCompletionTimeAverage: 0.0,
@@ -199,13 +191,11 @@ const statsPublicBotData = {
     projectsCreated: 0,
     projectsCompleted: 0,
     projectCompletionTimeAverage: 0.0,
-    quizzesPassed: 0,
     routinesCreated: 0,
     routinesCompleted: 0,
     routineCompletionTimeAverage: 0.0,
     standardsCreated: 0,
     teamsCreated: 0,
-    quizzesFailed: 0,
     runProjectsStarted: 0,
     runProjectsCompleted: 0,
     runProjectCompletionTimeAverage: 0.0,
@@ -241,10 +231,8 @@ describe("EndpointsStatsUser", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().stats_user.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create test users
         await DbProvider.get().user.create({
@@ -290,10 +278,8 @@ describe("EndpointsStatsUser", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().stats_user.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

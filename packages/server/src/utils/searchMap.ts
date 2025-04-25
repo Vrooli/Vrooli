@@ -84,11 +84,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
                     { comment: { id } },
                     { issue: { id } },
                     { note: { id } },
-                    { post: { id } },
                     { project: { id } },
-                    { question: { id } },
-                    { questionAnswer: { id } },
-                    { quiz: { id } },
                     { routine: { id } },
                     { standard: { id } },
                     { tag: { id } },
@@ -137,8 +133,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     endTimeFrame: (time: TimeFrame) => timeFrameToPrisma("endTime", time),
     excludeIds: (ids: string[]) => ({ NOT: { id: { in: ids } } }),
     excludeLinkedToTag: (exclude: boolean) => exclude === true ? { tagId: null } : {},
-    focusModeId: (id: string) => oneToOneId(id, "focusMode"),
-    focusModesId: (id: string) => oneToManyId(id, "focusModes"),
     fromId: (id: string) => oneToOneId(id, "from"),
     fromTeamId: (id: string) => oneToOneId(id, "fromTeam"),
     hasAcceptedAnswer: (hasAcceptedAnswer: boolean) => ({ hasAcceptedAnswer }),
@@ -303,24 +297,14 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     parentId: (id: string) => oneToOneId(id, "parent"),
     periodTimeFrame: (time: TimeFrame) => timeFrameToPrisma("periodEnd", time),
     periodType: (periodType: PeriodType) => ({ periodType }),
-    postId: (id: string) => oneToOneId(id, "post"),
-    postsId: (id: string) => oneToManyId(id, "posts"),
     projectId: (id: string) => oneToOneId(id, "project"),
     projectsId: (id: string) => oneToManyId(id, "projects"),
     projectVersionId: (id: string) => oneToOneId(id, "projectVersion"),
     projectVersionsId: (id: string) => oneToManyId(id, "projectVersions"),
     pullRequestId: (id: string) => oneToOneId(id, "pullRequest"),
     pullRequestsId: (id: string) => oneToManyId(id, "pullRequests"),
-    questionId: (id: string) => oneToOneId(id, "question"),
-    questionsId: (id: string) => oneToManyId(id, "questions"),
-    questionAnswerId: (id: string) => oneToOneId(id, "questionAnswer"),
-    questionAnswersId: (id: string) => oneToManyId(id, "questionAnswers"),
-    quizId: (id: string) => oneToOneId(id, "quiz"),
-    quizAttemptId: (id: string) => oneToOneId(id, "quizAttempt"),
-    quizQuestionId: (id: string) => oneToOneId(id, "quizQuestion"),
     referencedVersionId: (id: string) => ({ referencedVersionId: id }), // Not a relationship, just a field
     reminderListId: (id: string) => oneToOneId(id, "reminderList"),
-    repostedFromIds: (ids: string[]) => oneToManyIds(ids, "repostedFrom"),
     reportId: (id: string) => oneToOneId(id, "report"),
     reportsId: (id: string) => oneToManyId(id, "reports"),
     resourceListId: (id: string) => oneToOneId(id, "resourceList"),
@@ -344,7 +328,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     scheduleStartTimeFrame: (time: TimeFrame) => ({ schedule: timeFrameToPrisma("startTime", time) }),
     scheduleFor: (scheduleFor: ScheduleFor) => {
         switch (scheduleFor) {
-            case "FocusMode": return { focusModes: { some: {} } };
             case "Meeting": return { meetings: { some: {} } };
             case "RunProject": return { runProjects: { some: {} } };
             case "RunRoutine": return { runRoutines: { some: {} } };
@@ -352,13 +335,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
         }
     },
     scheduleForUserId: (userId: string) => userId ? ({
-        focusModes: {
-            some: {
-                user: {
-                    id: userId,
-                },
-            },
-        },
         meetings: {
             some: {
                 OR: [

@@ -14,7 +14,6 @@ export const scheduleValidation: YupModel<["create", "update"]> = {
         timezone: req(timezone),
     }, [
         ["exceptions", ["Create"], "many", "opt", scheduleExceptionValidation, ["schedule"]],
-        ["focusMode", ["Connect"], "one", "opt"],
         ["labels", ["Create", "Connect"], "many", "opt", labelValidation],
         ["meeting", ["Connect"], "one", "opt"],
         ["recurrences", ["Create"], "many", "opt", scheduleRecurrenceValidation, ["schedule"]],

@@ -14,7 +14,6 @@ export const auth_walletComplete = {
             "name": true,
             "notesCount": true,
             "projectsCount": true,
-            "questionsAskedCount": true,
             "routinesCount": true,
             "standardsCount": true,
             "theme": true
@@ -27,5 +26,5 @@ export const auth_walletComplete = {
         "stakingAddress": true,
         "verified": true
     },
-    "__cacheKey": "-688874082"
+    "__cacheKey": "-951826486"
 };

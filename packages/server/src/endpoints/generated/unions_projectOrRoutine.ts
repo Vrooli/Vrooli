@@ -56,7 +56,6 @@ export const unions_projectOrRoutine = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -162,7 +161,6 @@ export const unions_projectOrRoutine = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -231,5 +229,5 @@ export const unions_projectOrRoutine = {
         "endCursorProject": true,
         "endCursorRoutine": true
     },
-    "__cacheKey": "1670497627"
+    "__cacheKey": "315136407"
 };

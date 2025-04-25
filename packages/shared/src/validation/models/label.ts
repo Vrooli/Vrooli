@@ -25,7 +25,6 @@ export const labelValidation: YupModel<["create", "update"]> = {
     }, [
         ["apis", ["Connect"], "many", "opt"],
         ["codes", ["Connect"], "many", "opt"],
-        ["focusModes", ["Connect"], "many", "opt"],
         ["issues", ["Connect"], "many", "opt"],
         ["notes", ["Connect"], "many", "opt"],
         ["projects", ["Connect"], "many", "opt"],
@@ -43,7 +42,6 @@ export const labelValidation: YupModel<["create", "update"]> = {
     }, [
         ["apis", ["Connect", "Disconnect"], "many", "opt"],
         ["codes", ["Connect", "Disconnect"], "many", "opt"],
-        ["focusModes", ["Connect", "Disconnect"], "many", "opt"],
         ["issues", ["Connect", "Disconnect"], "many", "opt"],
         ["notes", ["Connect", "Disconnect"], "many", "opt"],
         ["projects", ["Connect", "Disconnect"], "many", "opt"],

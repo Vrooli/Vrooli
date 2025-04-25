@@ -120,11 +120,8 @@ describe("EndpointsChatMessage", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().chat_message.deleteMany({});
-        await DbProvider.get().chat.deleteMany({});
+        await DbProvider.deleteAll();
 
         await DbProvider.get().user.create({
             data: {
@@ -372,11 +369,8 @@ describe("EndpointsChatMessage", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().chat_message.deleteMany({});
-        await DbProvider.get().chat.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

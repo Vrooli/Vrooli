@@ -1,4 +1,4 @@
-import { ActiveFocusMode, endpointsAuth, endpointsFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { endpointsAuth, Session, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
@@ -212,7 +212,6 @@ export function App() {
     const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
     const [isProDialogOpen, setIsProDialogOpen] = useState(false);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointsAuth.validateSession);
-    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointsFocusMode.setActive);
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
     useCssVariables();
 
@@ -417,7 +416,7 @@ https://github.com/Vrooli/Vrooli
             popupVideoSub();
             proDialogSub();
         });
-    }, [isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
+    }, [isLeftHanded, isMobile, setThemeAndMeta]);
 
     useSocketConnect();
     useSocketUser(session, setSession);

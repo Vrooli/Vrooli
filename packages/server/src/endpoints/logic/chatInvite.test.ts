@@ -38,12 +38,7 @@ describe("EndpointsChatInvite", () => {
     beforeEach(async () => {
         // Reset Redis and truncate tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().chat_invite.deleteMany();
-        await DbProvider.get().chat.deleteMany();
-        await DbProvider.get().chat_translation.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Seed three users
         await DbProvider.get().user.create({
@@ -128,10 +123,8 @@ describe("EndpointsChatInvite", () => {
     after(async () => {
         // Clean up and restore logger
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().chat_invite.deleteMany();
-        await DbProvider.get().chat.deleteMany();
-        await DbProvider.get().chat_translation.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

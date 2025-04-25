@@ -100,7 +100,6 @@ export const noteVersion_findOne = {
             }
         },
         "permissions": true,
-        "questionsCount": true,
         "score": true,
         "bookmarks": true,
         "tags": {
@@ -167,5 +166,5 @@ export const noteVersion_findOne = {
         }
     },
     "versionNotes": true,
-    "__cacheKey": "1836729149"
+    "__cacheKey": "-968054117"
 };

@@ -39,7 +39,6 @@ export const LabelModel: LabelModelLogic = ({
                 color: noNull(data.color),
                 apis: await shapeHelper({ relation: "apis", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Api", parentRelationshipName: "label", data, ...rest }),
                 codes: await shapeHelper({ relation: "codes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Code", parentRelationshipName: "label", data, ...rest }),
-                focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "label", data, ...rest }),
                 issues: await shapeHelper({ relation: "issues", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Issue", parentRelationshipName: "label", data, ...rest }),
                 meetings: await shapeHelper({ relation: "meetings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Meeting", parentRelationshipName: "label", data, ...rest }),
                 notes: await shapeHelper({ relation: "notes", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Note", parentRelationshipName: "label", data, ...rest }),

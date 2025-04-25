@@ -1,6 +1,5 @@
 import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, SEEDED_IDS, UserSortBy, getTranslation, userValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
-import { shapeHelper } from "../../builders/shapeHelper.js";
 import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
@@ -89,9 +88,6 @@ export const UserModel: UserModelLogic = ({
                     isPrivateProjects: noNull(profileData.isPrivateProjects),
                     isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
                     isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
-                    isPrivateQuestionsAnswered: noNull(profileData.isPrivateQuestionsAnswered),
-                    isPrivateQuestionsAsked: noNull(profileData.isPrivateQuestionsAsked),
-                    isPrivateQuizzesCreated: noNull(profileData.isPrivateQuizzesCreated),
                     isPrivateRoles: noNull(profileData.isPrivateRoles),
                     isPrivateRoutines: noNull(profileData.isPrivateRoutines),
                     isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
@@ -102,7 +98,6 @@ export const UserModel: UserModelLogic = ({
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
                     notificationSettings: profileData.notificationSettings ?? null,
                     // languages: TODO!!!
-                    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
                 }
             },
             /** Update can be either a bot or your profile */
@@ -139,9 +134,6 @@ export const UserModel: UserModelLogic = ({
                     isPrivateProjects: noNull(profileData.isPrivateProjects),
                     isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
                     isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
-                    isPrivateQuestionsAnswered: noNull(profileData.isPrivateQuestionsAnswered),
-                    isPrivateQuestionsAsked: noNull(profileData.isPrivateQuestionsAsked),
-                    isPrivateQuizzesCreated: noNull(profileData.isPrivateQuizzesCreated),
                     isPrivateRoles: noNull(profileData.isPrivateRoles),
                     isPrivateRoutines: noNull(profileData.isPrivateRoutines),
                     isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
@@ -152,7 +144,6 @@ export const UserModel: UserModelLogic = ({
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
                     notificationSettings: profileData.notificationSettings ?? null,
                     // languages: TODO!!!
-                    focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
                 };
             },

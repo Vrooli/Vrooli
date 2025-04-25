@@ -133,7 +133,6 @@ export const standardVersion_findOne = {
             }
         },
         "permissions": true,
-        "questionsCount": true,
         "score": true,
         "bookmarks": true,
         "tags": {
@@ -191,5 +190,5 @@ export const standardVersion_findOne = {
         "jsonVariable": true,
         "name": true
     },
-    "__cacheKey": "-1605574594"
+    "__cacheKey": "-1030145508"
 };

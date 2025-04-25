@@ -53,7 +53,6 @@ export const routine_createOne = {
         }
     },
     "permissions": true,
-    "questionsCount": true,
     "score": true,
     "bookmarks": true,
     "tags": {
@@ -166,6 +165,10 @@ export const routine_createOne = {
                 "canUse": true,
                 "canRead": true
             },
+            "calledByRoutineVersionsCount": true,
+            "schemaLanguage": true,
+            "schemaText": true,
+            "versionNotes": true,
             "pullRequest": {
                 "id": true,
                 "created_at": true,
@@ -250,7 +253,6 @@ export const routine_createOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -307,10 +309,7 @@ export const routine_createOne = {
                 "details": true,
                 "name": true,
                 "summary": true
-            },
-            "schemaLanguage": true,
-            "schemaText": true,
-            "versionNotes": true
+            }
         },
         "codeVersion": {
             "id": true,
@@ -325,7 +324,6 @@ export const routine_createOne = {
             "default": true,
             "versionIndex": true,
             "versionLabel": true,
-            "calledByRoutineVersionsCount": true,
             "commentsCount": true,
             "directoryListingsCount": true,
             "forksCount": true,
@@ -339,6 +337,7 @@ export const routine_createOne = {
                 "canUse": true,
                 "canRead": true
             },
+            "calledByRoutineVersionsCount": true,
             "content": true,
             "versionNotes": true,
             "pullRequest": {
@@ -447,7 +446,6 @@ export const routine_createOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -593,7 +591,6 @@ export const routine_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -726,7 +723,6 @@ export const routine_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -913,7 +909,6 @@ export const routine_createOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -985,5 +980,5 @@ export const routine_createOne = {
             "name": true
         }
     },
-    "__cacheKey": "-123644885"
+    "__cacheKey": "1053401583"
 };

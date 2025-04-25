@@ -49,11 +49,6 @@ const limitTypeOptions: LimitTypeOption[] = [
         value: "Prompt",
     },
     {
-        iconInfo: { name: "Help", type: "Common" } as const,
-        label: t => t("common:Question", { count: 1, defaultValue: "Question" }),
-        value: "Question",
-    },
-    {
         iconInfo: { name: "Routine", type: "Routine" } as const,
         label: t => t("common:RoutineMultiStep", { count: 1, defaultValue: "Multi-step routine (flow)" }),
         value: "RoutineMultiStep",

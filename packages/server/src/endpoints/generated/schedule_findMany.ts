@@ -34,68 +34,6 @@ export const schedule_findMany = {
                     "canUpdate": true
                 }
             },
-            "focusModes": {
-                "id": true,
-                "name": true,
-                "description": true,
-                "you": {
-                    "canDelete": true,
-                    "canRead": true,
-                    "canUpdate": true
-                },
-                "labels": {
-                    "id": true,
-                    "color": true,
-                    "label": true
-                },
-                "reminderList": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "reminders": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "name": true,
-                        "description": true,
-                        "dueDate": true,
-                        "index": true,
-                        "isComplete": true,
-                        "reminderItems": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "name": true,
-                            "description": true,
-                            "dueDate": true,
-                            "index": true,
-                            "isComplete": true
-                        }
-                    }
-                },
-                "resourceList": {
-                    "id": true,
-                    "created_at": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    },
-                    "resources": {
-                        "id": true,
-                        "index": true,
-                        "link": true,
-                        "usedFor": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        }
-                    }
-                }
-            },
             "meetings": {
                 "id": true,
                 "created_at": true,
@@ -414,5 +352,5 @@ export const schedule_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1386972284"
+    "__cacheKey": "1828119388"
 };

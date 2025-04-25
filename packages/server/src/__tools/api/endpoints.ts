@@ -178,7 +178,6 @@ export const endpoints = {
                         endCursorCode: true,
                         endCursorNote: true,
                         endCursorProject: true,
-                        endCursorQuestion: true,
                         endCursorRoutine: true,
                         endCursorStandard: true,
                         endCursorTeam: true,
@@ -186,17 +185,6 @@ export const endpoints = {
                     },
                 },
             }),
-        };
-    },
-    focusMode: async () => {
-        const { activeFocusMode } = await import("./partial/activeFocusMode.js");
-        const { focusMode } = await import("./partial/focusMode.js");
-        return {
-            findOne: await toObject(focusMode, "full"),
-            findMany: await toObject(focusMode, "list", { asSearch: true }),
-            createOne: await toObject(focusMode, "full"),
-            updateOne: await toObject(focusMode, "full"),
-            setActive: await toObject(activeFocusMode, "full"),
         };
     },
     issue: async () => {
@@ -310,15 +298,6 @@ export const endpoints = {
             validate: await toObject(success, "full"),
         };
     },
-    post: async () => {
-        const { post } = await import("./partial/post.js");
-        return {
-            findOne: await toObject(post, "full"),
-            findMany: await toObject(post, "list", { asSearch: true }),
-            createOne: await toObject(post, "full"),
-            updateOne: await toObject(post, "full"),
-        };
-    },
     project: async () => {
         const { project } = await import("./partial/project.js");
         return {
@@ -363,50 +342,6 @@ export const endpoints = {
             createOne: await toObject(pushDevice, "full"),
             updateOne: await toObject(pushDevice, "full"),
             testOne: await toObject(success, "full"),
-        };
-    },
-    question: async () => {
-        const { question } = await import("./partial/question.js");
-        return {
-            findOne: await toObject(question, "full"),
-            findMany: await toObject(question, "list", { asSearch: true }),
-            createOne: await toObject(question, "full"),
-            updateOne: await toObject(question, "full"),
-        };
-    },
-    questionAnswer: async () => {
-        const { questionAnswer } = await import("./partial/questionAnswer.js");
-        return {
-            findOne: await toObject(questionAnswer, "full"),
-            findMany: await toObject(questionAnswer, "list", { asSearch: true }),
-            createOne: await toObject(questionAnswer, "full"),
-            updateOne: await toObject(questionAnswer, "full"),
-            acceptOne: await toObject(questionAnswer, "full"),
-        };
-    },
-    quiz: async () => {
-        const { quiz } = await import("./partial/quiz.js");
-        return {
-            findOne: await toObject(quiz, "full"),
-            findMany: await toObject(quiz, "list", { asSearch: true }),
-            createOne: await toObject(quiz, "full"),
-            updateOne: await toObject(quiz, "full"),
-        };
-    },
-    quizAttempt: async () => {
-        const { quizAttempt } = await import("./partial/quizAttempt.js");
-        return {
-            findOne: await toObject(quizAttempt, "full"),
-            findMany: await toObject(quizAttempt, "list", { asSearch: true }),
-            createOne: await toObject(quizAttempt, "full"),
-            updateOne: await toObject(quizAttempt, "full"),
-        };
-    },
-    quizQuestionResponse: async () => {
-        const { quizQuestionResponse } = await import("./partial/quizQuestionResponse.js");
-        return {
-            findOne: await toObject(quizQuestionResponse, "full"),
-            findMany: await toObject(quizQuestionResponse, "list", { asSearch: true }),
         };
     },
     reaction: async () => {
@@ -570,12 +505,6 @@ export const endpoints = {
         const { statsProject } = await import("./partial/statsProject.js");
         return {
             findMany: await toObject(statsProject, "list", { asSearch: true }),
-        };
-    },
-    statsQuiz: async () => {
-        const { statsQuiz } = await import("./partial/statsQuiz.js");
-        return {
-            findMany: await toObject(statsQuiz, "list", { asSearch: true }),
         };
     },
     statsRoutine: async () => {

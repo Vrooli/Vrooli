@@ -41,7 +41,6 @@ export function MyStuffView({
         apisCount,
         codesCount,
         membershipsCount,
-        questionsAskedCount,
         standardsCount,
     } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -56,15 +55,13 @@ export function MyStuffView({
                 return Boolean(apisCount);
             case "Code":
                 return Boolean(codesCount);
-            case "Question":
-                return Boolean(questionsAskedCount);
             case "Standard":
                 return Boolean(standardsCount);
             case "Team":
                 return Boolean(membershipsCount);
         }
         return true;
-    }), [apisCount, codesCount, membershipsCount, questionsAskedCount, standardsCount]);
+    }), [apisCount, codesCount, membershipsCount, standardsCount]);
     const {
         currTab,
         handleTabChange,

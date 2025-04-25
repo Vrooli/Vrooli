@@ -205,7 +205,6 @@ export const chat_updateOne = {
         },
         "apisCount": true,
         "codesCount": true,
-        "focusModesCount": true,
         "issuesCount": true,
         "meetingsCount": true,
         "notesCount": true,
@@ -220,5 +219,5 @@ export const chat_updateOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "-128986053"
+    "__cacheKey": "-505924458"
 };

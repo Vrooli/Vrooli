@@ -7,7 +7,6 @@ import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
 import { botSettings, botValidation } from "./bot.js";
 import { emailValidation } from "./email.js";
-import { focusModeValidation } from "./focusMode.js";
 
 /**
  * Schema for traditional email/password log in. NOT the form
@@ -42,9 +41,6 @@ export const profileValidation: YupModel<["update"]> = {
         isPrivateProjects: opt(bool),
         isPrivateProjectsCreated: opt(bool),
         isPrivatePullRequests: opt(bool),
-        isPrivateQuestionsAnswered: opt(bool),
-        isPrivateQuestionsAsked: opt(bool),
-        isPrivateQuizzesCreated: opt(bool),
         isPrivateRoles: opt(bool),
         isPrivateRoutines: opt(bool),
         isPrivateRoutinesCreated: opt(bool),
@@ -57,7 +53,6 @@ export const profileValidation: YupModel<["update"]> = {
         profileImage: opt(imageFile),
         theme: opt(theme),
     }, [
-        ["focusModes", ["Create", "Update", "Delete"], "many", "opt", focusModeValidation],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", userTranslationValidation],
     ], [], d),
 };
@@ -85,9 +80,6 @@ export const userValidation: YupModel<["create", "update"]> = {
         isPrivateProjects: opt(bool),
         isPrivateProjectsCreated: opt(bool),
         isPrivatePullRequests: opt(bool),
-        isPrivateQuestionsAnswered: opt(bool),
-        isPrivateQuestionsAsked: opt(bool),
-        isPrivateQuizzesCreated: opt(bool),
         isPrivateRoles: opt(bool),
         isPrivateRoutines: opt(bool),
         isPrivateRoutinesCreated: opt(bool),
@@ -100,8 +92,6 @@ export const userValidation: YupModel<["create", "update"]> = {
         profileImage: opt(imageFile),
         theme: opt(theme),
     }, [
-        // Profile part part
-        ["focusModes", ["Create", "Update", "Delete"], "many", "opt", focusModeValidation],
         // Works for both bots and profiles
         ["translations", ["Create", "Update", "Delete"], "many", "opt", userTranslationValidation],
     ], [], d),

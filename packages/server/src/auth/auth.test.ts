@@ -25,9 +25,7 @@ describe("AuthTokensService", () => {
     });
 
     beforeEach(async function before() {
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().user_auth.deleteMany({});
-        await DbProvider.get().session.deleteMany({});
+        await DbProvider.deleteAll();
         // Create test user and auth for all tests
         testUser = await DbProvider.get().user.create({
             data: {
@@ -46,9 +44,7 @@ describe("AuthTokensService", () => {
     });
 
     after(async function after() {
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().user_auth.deleteMany({});
-        await DbProvider.get().session.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

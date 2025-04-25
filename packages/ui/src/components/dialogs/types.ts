@@ -51,12 +51,10 @@ export type FindObjectType = |
     "Bot" |
     "DataConverter" |
     "DataStructure" |
-    "FocusMode" |
     "Meeting" |
     "Note" |
     "Project" |
     "Prompt" |
-    "Question" |
     "Reminder" |
     "RoutineMultiStep" |
     "RoutineSingleStep" |

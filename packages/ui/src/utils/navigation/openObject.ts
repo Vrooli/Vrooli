@@ -12,12 +12,10 @@ export type ObjectType = "Api" |
     "ChatInvite" |
     "Code" |
     "Comment" |
-    "FocusMode" |
     "Meeting" |
     "MemberInvite" |
     "Note" |
     "Project" |
-    "Question" |
     "Reaction" |
     "Reminder" |
     "Routine" |

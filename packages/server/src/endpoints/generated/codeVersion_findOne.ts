@@ -11,7 +11,6 @@ export const codeVersion_findOne = {
     "default": true,
     "versionIndex": true,
     "versionLabel": true,
-    "calledByRoutineVersionsCount": true,
     "commentsCount": true,
     "directoryListingsCount": true,
     "forksCount": true,
@@ -25,6 +24,7 @@ export const codeVersion_findOne = {
         "canUse": true,
         "canRead": true
     },
+    "calledByRoutineVersionsCount": true,
     "content": true,
     "versionNotes": true,
     "pullRequest": {
@@ -133,7 +133,6 @@ export const codeVersion_findOne = {
             }
         },
         "permissions": true,
-        "questionsCount": true,
         "score": true,
         "bookmarks": true,
         "tags": {
@@ -191,5 +190,5 @@ export const codeVersion_findOne = {
         "jsonVariable": true,
         "name": true
     },
-    "__cacheKey": "1880703692"
+    "__cacheKey": "-1488580054"
 };

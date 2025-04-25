@@ -189,10 +189,6 @@ type ExportConfigUser = ExportConfigBase & {
         pullRequests?: boolean;
         /** Export projects data? */
         projects?: boolean;
-        /** Export questions data? */
-        questions?: boolean;
-        /** Export question answers data? */
-        questionAnswers?: boolean;
         /** Export reactions data? */
         reactions?: boolean;
         /** Export reminders data? */

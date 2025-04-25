@@ -34,7 +34,6 @@ const {
     SettingsPaymentView,
     SettingsProfileView,
     SettingsPrivacyView,
-    SettingsFocusModesView,
 } = lazily(() => import("./views/settings/index.js"));
 const {
     PrivacyPolicyView,
@@ -57,7 +56,6 @@ const { NoteCrud } = lazily(() => import("./views/objects/note/index.js"));
 const { TeamUpsert, TeamView } = lazily(() => import("./views/objects/team/index.js"));
 const { ProjectCrud } = lazily(() => import("./views/objects/project/index.js"));
 const { PromptUpsert, PromptView } = lazily(() => import("./views/objects/prompt/index.js"));
-const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question/index.js"));
 const { ReminderCrud } = lazily(() => import("./views/objects/reminder/index.js"));
 const { RoutineSingleStepUpsert, RoutineMultiStepCrud, RoutineSingleStepView } = lazily(() => import("./views/objects/routine/index.js"));
 const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract/index.js"));
@@ -287,15 +285,6 @@ export function Routes({ sessionChecked, display }: RoutesProps) {
                 <NavRoute path={`${LINKS.Prompt}/:rootId/:versionId?`} {...commonProps}>
                     <PromptView display={display} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...commonProps}>
-                    <QuestionUpsert display={display} isCreate={true} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Question}/edit/:id`} mustBeLoggedIn={true} {...commonProps}>
-                    <QuestionUpsert display={display} isCreate={false} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Question}/:id`} {...commonProps}>
-                    <QuestionView display={display} />
-                </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/add`} mustBeLoggedIn={true} {...commonProps}>
                     <ReminderCrud display={display} isCreate={true} />
                 </NavRoute>
@@ -384,9 +373,6 @@ export function Routes({ sessionChecked, display }: RoutesProps) {
                 </NavRoute>
                 <NavRoute path={LINKS.SettingsPrivacy} mustBeLoggedIn={true} excludePageContainer {...commonProps}>
                     <SettingsPrivacyView display={display} />
-                </NavRoute>
-                <NavRoute path={LINKS.SettingsFocusModes} mustBeLoggedIn={true} excludePageContainer {...commonProps}>
-                    <SettingsFocusModesView display={display} />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.Signup}/:code?`}

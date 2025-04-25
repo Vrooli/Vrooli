@@ -160,8 +160,6 @@ function SettingsDataForm({
                                 props.setFieldValue("comments", checked);
                                 props.setFieldValue("issues", checked);
                                 props.setFieldValue("pullRequests", checked);
-                                props.setFieldValue("questions", checked);
-                                props.setFieldValue("questionAnswers", checked);
                                 props.setFieldValue("reactions", checked);
                                 props.setFieldValue("reports", checked);
                             }}
@@ -184,18 +182,6 @@ function SettingsDataForm({
                         help="Pull requests you've opened"
                         label="Pull Requests"
                         name="pullRequests"
-                    />
-                    <DataOption
-                        disabled={allField.value}
-                        help="Also deletes answers on your questions"
-                        label="Questions"
-                        name="questions"
-                    />
-                    <DataOption
-                        disabled={allField.value}
-                        help="Every answer you've submitted to a question"
-                        label="Question Answers"
-                        name="questionAnswers"
                     />
                     <DataOption
                         disabled={allField.value}
@@ -354,13 +340,8 @@ export function SettingsDataView({
             comments: false,
             issues: false,
             notes: false,
-            //posts: false,
             pullRequests: false,
             projects: false,
-            questions: false,
-            questionAnswers: false,
-            // quizzes: false,
-            // quizResponses: false, // Includes attempts, answers, etc.
             reactions: false,
             reminders: false,
             reports: false,

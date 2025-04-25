@@ -76,7 +76,6 @@ export const projectVersion_findMany = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -120,5 +119,5 @@ export const projectVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "2117255694"
+    "__cacheKey": "1037728812"
 };

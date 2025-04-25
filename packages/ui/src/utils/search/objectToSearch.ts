@@ -13,7 +13,6 @@ import { chatParticipantSearchParams } from "./schemas/chatParticipant.js";
 import { codeSearchParams } from "./schemas/code.js";
 import { codeVersionSearchParams } from "./schemas/codeVersion.js";
 import { commentSearchParams } from "./schemas/comment.js";
-import { focusModeSearchParams } from "./schemas/focusMode.js";
 import { issueSearchParams } from "./schemas/issue.js";
 import { labelSearchParams } from "./schemas/label.js";
 import { meetingSearchParams } from "./schemas/meeting.js";
@@ -25,17 +24,11 @@ import { noteVersionSearchParams } from "./schemas/noteVersion.js";
 import { notificationSearchParams } from "./schemas/notification.js";
 import { notificationSubscriptionSearchParams } from "./schemas/notificationSubscription.js";
 import { popularSearchParams } from "./schemas/popular.js";
-import { postSearchParams } from "./schemas/post.js";
 import { projectSearchParams } from "./schemas/project.js";
 import { projectOrRoutineSearchParams } from "./schemas/projectOrRoutine.js";
 import { projectOrTeamSearchParams } from "./schemas/projectOrTeam.js";
 import { projectVersionSearchParams } from "./schemas/projectVersion.js";
 import { pullRequestSearchParams } from "./schemas/pullRequest.js";
-import { questionSearchParams } from "./schemas/question.js";
-import { questionAnswerSearchParams } from "./schemas/questionAnswer.js";
-import { quizSearchParams } from "./schemas/quiz.js";
-import { quizAttemptSearchParams } from "./schemas/quizAttempt.js";
-import { quizQuestionResponseSearchParams } from "./schemas/quizQuestionResponse.js";
 import { reactionSearchParams } from "./schemas/reaction.js";
 import { reminderSearchParams } from "./schemas/reminder.js";
 import { reportSearchParams } from "./schemas/report.js";
@@ -56,7 +49,6 @@ import { standardVersionSearchParams } from "./schemas/standardVersion.js";
 import { statsApiSearchParams } from "./schemas/statsApi.js";
 import { statsCodeSearchParams } from "./schemas/statsCode.js";
 import { statsProjectSearchParams } from "./schemas/statsProject.js";
-import { statsQuizSearchParams } from "./schemas/statsQuiz.js";
 import { statsRoutineSearchParams } from "./schemas/statsRoutine.js";
 import { statsSiteSearchParams } from "./schemas/statsSite.js";
 import { statsStandardSearchParams } from "./schemas/statsStandard.js";
@@ -119,7 +111,7 @@ export type SearchViewTabsInfo = {
     WhereParams: undefined;
 }
 
-export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Routine", "Project", "Question", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
+export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
     {
         iconInfo: { name: "Visible", type: "Common" } as const,
         key: SearchPageTabOption.All,
@@ -148,13 +140,6 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Project",
         where: () => ({}),
     },
-    // {
-    //     iconInfo: { name: "Help", type: "Common" } as const,
-    //     key: SearchPageTabOption.Question,
-    //     titleKey: "Question",
-    //     searchType: "Question",
-    //     where: () => ({}),
-    // },
     {
         iconInfo: { name: "Note", type: "Common" } as const,
         key: SearchPageTabOption.Note,
@@ -316,12 +301,6 @@ export const calendarTabParams: TabParamSearchableList<CalendarTabsInfo, ["Sched
         searchType: "Schedule",
         where: () => ({ scheduleFor: ScheduleFor.RunProject }),
     },
-    {
-        key: CalendarPageTabOption.FocusMode,
-        titleKey: "FocusMode",
-        searchType: "Schedule",
-        where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
-    },
 ];
 
 export type HistoryTabsInfo = {
@@ -369,15 +348,8 @@ export type FindObjectTabsInfo = {
     WhereParams: undefined;
 }
 
-export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Question", "Note", "Team", "User", "Standard", "Api", "Code", "FocusMode", "Meeting", "RunRoutine", "RunProject"]> = [
+export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code", "Meeting", "RunRoutine", "RunProject"]> = [
     ...searchViewTabParams,
-    {
-        iconInfo: { name: "FocusMode", type: "Common" } as const,
-        key: CalendarPageTabOption.FocusMode,
-        titleKey: "FocusMode",
-        searchType: "FocusMode",
-        where: () => ({}),
-    },
     {
         iconInfo: { name: "Team", type: "Common" } as const,
         key: CalendarPageTabOption.Meeting,
@@ -445,7 +417,7 @@ export type MyStuffTabsInfo = {
     WhereParams: { userId: string };
 }
 
-export const myStuffTabParams: TabParamSearchableList<MyStuffTabsInfo, ["Popular", "Project", "Routine", "Schedule", "Reminder", "Note", "Question", "Team", "User", "Standard", "Api", "Code"]> = [
+export const myStuffTabParams: TabParamSearchableList<MyStuffTabsInfo, ["Popular", "Project", "Routine", "Schedule", "Reminder", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
     {
         iconInfo: { name: "Visible", type: "Common" } as const,
         key: MyStuffPageTabOption.All,
@@ -488,13 +460,6 @@ export const myStuffTabParams: TabParamSearchableList<MyStuffTabsInfo, ["Popular
         searchType: "Note",
         where: () => ({ visibility: VisibilityType.Own }),
     },
-    // {
-    //     iconInfo: { name: "Help", type: "Common" } as const,
-    //     key: MyStuffPageTabOption.Question,
-    //     titleKey: "Question",
-    //     searchType: "Question",
-    //     where: () => ({ visibility: VisibilityType.Own }),
-    // },
     {
         iconInfo: { name: "Team", type: "Common" } as const,
         key: MyStuffPageTabOption.Team,
@@ -705,7 +670,6 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     Code: codeSearchParams,
     CodeVersion: codeVersionSearchParams,
     Comment: commentSearchParams,
-    FocusMode: focusModeSearchParams,
     Issue: issueSearchParams,
     Label: labelSearchParams,
     Meeting: meetingSearchParams,
@@ -717,18 +681,12 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     Notification: notificationSearchParams,
     NotificationSubscription: notificationSubscriptionSearchParams,
     Popular: popularSearchParams,
-    Post: postSearchParams,
     Project: projectSearchParams,
     ProjectOrRoutine: projectOrRoutineSearchParams,
     ProjectOrTeam: projectOrTeamSearchParams,
     ProjectVersion: projectVersionSearchParams,
     // ProjectVersionDirectory: projectVersionDirectorySearchParams,
     PullRequest: pullRequestSearchParams,
-    Question: questionSearchParams,
-    QuestionAnswer: questionAnswerSearchParams,
-    Quiz: quizSearchParams,
-    QuizAttempt: quizAttemptSearchParams,
-    QuizQuestionResponse: quizQuestionResponseSearchParams,
     Reaction: reactionSearchParams,
     Reminder: reminderSearchParams,
     Report: reportSearchParams,
@@ -749,7 +707,6 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     StatsApi: statsApiSearchParams,
     StatsCode: statsCodeSearchParams,
     StatsProject: statsProjectSearchParams,
-    StatsQuiz: statsQuizSearchParams,
     StatsRoutine: statsRoutineSearchParams,
     StatsSite: statsSiteSearchParams,
     StatsStandard: statsStandardSearchParams,

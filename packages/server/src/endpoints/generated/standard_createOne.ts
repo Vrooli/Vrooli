@@ -52,7 +52,6 @@ export const standard_createOne = {
         }
     },
     "permissions": true,
-    "questionsCount": true,
     "score": true,
     "bookmarks": true,
     "tags": {
@@ -191,5 +190,5 @@ export const standard_createOne = {
             "name": true
         }
     },
-    "__cacheKey": "-82393847"
+    "__cacheKey": "-1278405589"
 };

@@ -23,11 +23,7 @@ const forMapper: { [key in ReactionFor]?: keyof Prisma.reactionUpsertArgs["creat
     Comment: "comment",
     Issue: "issue",
     Note: "note",
-    Post: "post",
     Project: "project",
-    Question: "question",
-    QuestionAnswer: "questionAnswer",
-    Quiz: "quiz",
     Routine: "routine",
     Standard: "standard",
 };
@@ -203,7 +199,7 @@ export const ReactionModel: ReactionModelLogic = ({
                     DbProvider.get().$executeRawUnsafe(`
                     INSERT INTO "reaction_summary" (id, emoji, count, "${reactedOnIdField}")
                     VALUES ($1::UUID, $2, $3, $4::UUID)
-                    ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "standardId")
+                    ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "projectId", "routineId", "standardId")
                     DO UPDATE SET count = reaction_summary.count + $5
                   `, createId, emoji, delta, input.forConnect, delta) as unknown as Prisma.PrismaPromise<object>,
                 );
@@ -280,11 +276,7 @@ export const ReactionModel: ReactionModelLogic = ({
             excludeLinkedToTag: true,
             issueId: true,
             noteId: true,
-            postId: true,
             projectId: true,
-            questionId: true,
-            questionAnswerId: true,
-            quizId: true,
             routineId: true,
             standardId: true,
         },
@@ -304,9 +296,6 @@ export const ReactionModel: ReactionModelLogic = ({
                 ["note", "Note"],
                 ["post", "Post"],
                 ["project", "Project"],
-                ["question", "Question"],
-                ["questionAnswer", "QuestionAnswer"],
-                ["quiz", "Quiz"],
                 ["routine", "Routine"],
                 ["standard", "Standard"],
             ], data, ...rest);

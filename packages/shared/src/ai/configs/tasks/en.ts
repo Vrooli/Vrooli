@@ -679,68 +679,6 @@ export const config: AITaskConfig = {
             ["isPrivate", false],
         ], config.__projectProperties),
     }),
-    __questionProperties: {
-        id: {
-            description: "Unique identifier for the question.",
-            type: "uuid",
-        },
-        name: {
-            description: "The question in under 128 characters.",
-            example: "How do I start a business?",
-        },
-        description: {
-            description: "More information about the question, in as much detail as needed.",
-            example: "I'm looking to start a business, but I'm not sure where to begin. I have some ideas, but I'm not sure how to validate them or what steps to take next.",
-        },
-    },
-    QuestionAdd: () => ({
-        label: "Add Question",
-        commands: {
-            add: "Create a question with the provided properties.",
-        },
-        properties: builder.__pick_properties([
-            ["name", true],
-            ["description", true],
-        ], config.__questionProperties),
-    }),
-    QuestionDelete: () => ({
-        label: "Delete Question",
-        commands: {
-            delete: "Permanentely delete a question. Make sure you want to do this before proceeding.",
-        },
-        properties: [
-            {
-                name: "id",
-                type: "uuid",
-            },
-        ],
-    }),
-    QuestionFind: () => ({
-        label: "Find Question",
-        commands: {
-            find: "Look for existing questions.",
-        },
-        properties: [
-            {
-                name: "searchString",
-                is_required: false,
-                description: "A string to search for, such as a name or description.",
-
-            },
-        ],
-        rules: ["Must include at least one search parameter (property)."],
-    }),
-    QuestionUpdate: () => ({
-        label: "Update Question",
-        commands: {
-            update: "Update a question with the provided properties.",
-        },
-        properties: builder.__pick_properties([
-            ["id", true],
-            ["name", false],
-            ["description", false],
-        ], config.__questionProperties),
-    }),
     __reminderProperties: {
         id: {
             description: "The unique identifier for the reminder.",

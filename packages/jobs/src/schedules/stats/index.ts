@@ -3,7 +3,6 @@ import { PeriodType } from "@prisma/client";
 import { logApiStats } from "./api.js";
 import { logCodeStats } from "./code.js";
 import { logProjectStats } from "./project.js";
-import { logQuizStats } from "./quiz.js";
 import { logRoutineStats } from "./routine.js";
 import { logSiteStats } from "./site.js";
 import { logStandardStats } from "./standard.js";
@@ -69,7 +68,6 @@ export function initStatsPeriod(cron: string) {
         logApiStats(...params),
         logTeamStats(...params),
         logProjectStats(...params),
-        logQuizStats(...params),
         logRoutineStats(...params),
         logCodeStats(...params),
         logStandardStats(...params),

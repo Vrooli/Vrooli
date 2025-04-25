@@ -50,4 +50,24 @@ export class PostgresDriver implements DatabaseService {
             return false;
         }
     }
+
+    /**
+     * Drops the entire database by truncating all rows in each table rather than dropping the schema.
+     */
+    public async deleteAll(): Promise<void> {
+        // Truncate all tables in the public schema, preserving table definitions and resetting sequences
+        // Fetch all user table names
+        const tables: Array<{ tablename: string }> = await this.prisma.$queryRawUnsafe(
+            `SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public';`
+        );
+        if (tables.length > 0) {
+            const tableList = tables
+                .map(({ tablename }) => `"public"."${tablename}"`)
+                .join(', ');
+            await this.prisma.$executeRawUnsafe(
+                `TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE;`
+            );
+        }
+        logger.info('Truncated all tables in PostgreSQL database');
+    }
 }

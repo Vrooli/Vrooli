@@ -151,7 +151,6 @@ async function moderateReport(
             "noteVersion",
             "post",
             "projectVersion",
-            "question",
             "routineVersion",
             "standardVersion",
             "tag",
@@ -181,7 +180,7 @@ async function moderateReport(
                 objectOwner = { __typename: "User", id: objectData.user.id };
             }
         }
-        else if (["Issue", "Question", "Tag"].includes(objectType)) {
+        else if (["Issue", "Tag"].includes(objectType)) {
             if (objectData.createdBy) {
                 objectOwner = { __typename: "User", id: objectData.owner.id };
             }
@@ -342,7 +341,6 @@ export async function moderateReports() {
                 noteVersion: { select: versionedObjectQuery },
                 post: { select: nonVersionedObjectQuery2 },
                 projectVersion: { select: versionedObjectQuery },
-                question: { select: nonVersionedObjectQuery3 },
                 routineVersion: { select: versionedObjectQuery },
                 standardVersion: { select: versionedObjectQuery },
                 tag: { select: nonVersionedObjectQuery3 },

@@ -300,7 +300,7 @@ function NoteForm({
         return {
             stack: {
                 padding: 0,
-                ...(display === "page" && !isMobile ? {
+                ...(display === "Page" && !isMobile ? {
                     margin: "auto",
                     maxWidth: "800px",
                     paddingTop: 1,

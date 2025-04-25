@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiKeyExternal, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsFocusMode, endpointsIssue, endpointsLabel, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPost, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsQuestion, endpointsQuestionAnswer, endpointsQuiz, endpointsQuizAttempt, endpointsQuizQuestionResponse, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceList, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineIO, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsQuiz, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiKeyExternal, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsLabel, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceList, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineIO, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
 import { Express, NextFunction, Request, Response, Router } from "express";
 import { SessionService } from "../auth/session.js";
@@ -407,12 +407,6 @@ export async function initRestApi(app: Express) {
         // Feed
         [endpointsFeed.home, Logic.feed.home, Select.feed_home],
         [endpointsFeed.popular, Logic.feed.popular, Select.feed_popular],
-        // Focus mode
-        [endpointsFocusMode.findOne, Logic.focusMode.findOne, Select.focusMode_findOne],
-        [endpointsFocusMode.findMany, Logic.focusMode.findMany, Select.focusMode_findMany],
-        [endpointsFocusMode.createOne, Logic.focusMode.createOne, Select.focusMode_createOne],
-        [endpointsFocusMode.updateOne, Logic.focusMode.updateOne, Select.focusMode_updateOne],
-        [endpointsFocusMode.setActive, Logic.focusMode.setActive, Select.focusMode_setActive],
         // Issue
         [endpointsIssue.findOne, Logic.issue.findOne, Select.issue_findOne],
         [endpointsIssue.findMany, Logic.issue.findMany, Select.issue_findMany],
@@ -477,11 +471,6 @@ export async function initRestApi(app: Express) {
         [endpointsPhone.createOne, Logic.phone.createOne, Select.phone_createOne],
         [endpointsPhone.verify, Logic.phone.verify, Select.phone_verify],
         [endpointsPhone.validate, Logic.phone.validate, Select.phone_validate],
-        // Post
-        [endpointsPost.findOne, Logic.post.findOne, Select.post_findOne],
-        [endpointsPost.findMany, Logic.post.findMany, Select.post_findMany],
-        [endpointsPost.createOne, Logic.post.createOne, Select.post_createOne],
-        [endpointsPost.updateOne, Logic.post.updateOne, Select.post_updateOne],
         // Project
         [endpointsProject.findOne, Logic.project.findOne, Select.project_findOne],
         [endpointsProject.findMany, Logic.project.findMany, Select.project_findMany],
@@ -508,30 +497,6 @@ export async function initRestApi(app: Express) {
         [endpointsPushDevice.createOne, Logic.pushDevice.createOne, Select.pushDevice_createOne],
         [endpointsPushDevice.updateOne, Logic.pushDevice.updateOne, Select.pushDevice_updateOne],
         [endpointsPushDevice.testOne, Logic.pushDevice.testOne, Select.pushDevice_testOne],
-        // Question
-        [endpointsQuestion.findOne, Logic.question.findOne, Select.question_findOne],
-        [endpointsQuestion.findMany, Logic.question.findMany, Select.question_findMany],
-        [endpointsQuestion.createOne, Logic.question.createOne, Select.question_createOne],
-        [endpointsQuestion.updateOne, Logic.question.updateOne, Select.question_updateOne],
-        // Question answer
-        [endpointsQuestionAnswer.findOne, Logic.questionAnswer.findOne, Select.questionAnswer_findOne],
-        [endpointsQuestionAnswer.findMany, Logic.questionAnswer.findMany, Select.questionAnswer_findMany],
-        [endpointsQuestionAnswer.createOne, Logic.questionAnswer.createOne, Select.questionAnswer_createOne],
-        [endpointsQuestionAnswer.updateOne, Logic.questionAnswer.updateOne, Select.questionAnswer_updateOne],
-        [endpointsQuestionAnswer.acceptOne, Logic.questionAnswer.acceptOne, Select.questionAnswer_acceptOne],
-        // Quiz
-        [endpointsQuiz.findOne, Logic.quiz.findOne, Select.quiz_findOne],
-        [endpointsQuiz.findMany, Logic.quiz.findMany, Select.quiz_findMany],
-        [endpointsQuiz.createOne, Logic.quiz.createOne, Select.quiz_createOne],
-        [endpointsQuiz.updateOne, Logic.quiz.updateOne, Select.quiz_updateOne],
-        // Quiz attempt
-        [endpointsQuizAttempt.findOne, Logic.quizAttempt.findOne, Select.quizAttempt_findOne],
-        [endpointsQuizAttempt.findMany, Logic.quizAttempt.findMany, Select.quizAttempt_findMany],
-        [endpointsQuizAttempt.createOne, Logic.quizAttempt.createOne, Select.quizAttempt_createOne],
-        [endpointsQuizAttempt.updateOne, Logic.quizAttempt.updateOne, Select.quizAttempt_updateOne],
-        // Quiz question response
-        [endpointsQuizQuestionResponse.findOne, Logic.quizQuestionResponse.findOne, Select.quizQuestionResponse_findOne],
-        [endpointsQuizQuestionResponse.findMany, Logic.quizQuestionResponse.findMany, Select.quizQuestionResponse_findMany],
         // React
         [endpointsReaction.findMany, Logic.reaction.findMany, Select.reaction_findMany],
         [endpointsReaction.createOne, Logic.reaction.createOne, Select.reaction_createOne],
@@ -614,8 +579,6 @@ export async function initRestApi(app: Express) {
         [endpointsStatsCode.findMany, Logic.statsCode.findMany, Select.statsCode_findMany],
         // Stats project
         [endpointsStatsProject.findMany, Logic.statsProject.findMany, Select.statsProject_findMany],
-        // Stats quiz
-        [endpointsStatsQuiz.findMany, Logic.statsQuiz.findMany, Select.statsQuiz_findMany],
         // Stats routine
         [endpointsStatsRoutine.findMany, Logic.statsRoutine.findMany, Select.statsRoutine_findMany],
         // Stats site

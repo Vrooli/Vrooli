@@ -14,8 +14,6 @@ export const statsUser: ApiPartial<StatsUser> = {
         projectsCreated: true,
         projectsCompleted: true,
         projectCompletionTimeAverage: true,
-        quizzesPassed: true,
-        quizzesFailed: true,
         routinesCreated: true,
         routinesCompleted: true,
         routineCompletionTimeAverage: true,

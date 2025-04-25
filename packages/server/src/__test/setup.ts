@@ -1,5 +1,3 @@
-import * as chai from "chai";
-import chaiAsPromised from "chai-as-promised";
 import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
 import * as http from "http";
@@ -16,9 +14,6 @@ import { initSingletons } from "../utils/singletons.js";
 
 const SETUP_TIMEOUT_MS = 120_000;
 const TEARDOWN_TIMEOUT_MS = 60_000;
-
-// Enable chai-as-promised for async tests
-chai.use(chaiAsPromised);
 
 let redisContainer: StartedTestContainer;
 let postgresContainer: StartedTestContainer;

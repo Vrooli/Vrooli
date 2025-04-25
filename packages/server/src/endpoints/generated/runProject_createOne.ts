@@ -68,7 +68,6 @@ export const runProject_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -190,5 +189,5 @@ export const runProject_createOne = {
             }
         }
     },
-    "__cacheKey": "563855010"
+    "__cacheKey": "961462592"
 };

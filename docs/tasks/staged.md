@@ -189,7 +189,6 @@ Initialize storybook tests for multiple components following the established pat
 **Key Deliverables:**
 - [ ] Create storybook test files for dataConverter component
 - [ ] Create storybook test files for dataStructure component
-- [ ] Create storybook test files for focusMode component
 - [ ] Create storybook test files for meeting component
 - [ ] Create storybook test files for memberInvite component
 - [ ] Create storybook test files for project component

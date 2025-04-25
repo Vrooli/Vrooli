@@ -32,14 +32,8 @@ describe("EndpointsMeeting", () => {
     });
 
     beforeEach(async () => {
-        // Clear Redis cache and truncate relevant tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().meeting.deleteMany();
-        await DbProvider.get().meeting_translation.deleteMany();
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create two test users
         await DbProvider.get().user.create({
@@ -75,12 +69,9 @@ describe("EndpointsMeeting", () => {
     });
 
     after(async () => {
-        // Clear data and restore logger
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().meeting.deleteMany();
-        await DbProvider.get().meeting_translation.deleteMany();
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

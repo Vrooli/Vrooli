@@ -33,67 +33,7 @@ export const feed_home = {
         "reminderList": {
             "id": true,
             "created_at": true,
-            "updated_at": true,
-            "focusMode": {
-                "id": true,
-                "name": true,
-                "description": true,
-                "you": {
-                    "canDelete": true,
-                    "canRead": true,
-                    "canUpdate": true
-                },
-                "labels": {
-                    "id": true,
-                    "color": true,
-                    "label": true
-                },
-                "resourceList": {
-                    "id": true,
-                    "created_at": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    },
-                    "resources": {
-                        "id": true,
-                        "index": true,
-                        "link": true,
-                        "usedFor": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        }
-                    }
-                },
-                "schedule": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "startTime": true,
-                    "endTime": true,
-                    "timezone": true,
-                    "exceptions": {
-                        "id": true,
-                        "originalStartTime": true,
-                        "newStartTime": true,
-                        "newEndTime": true
-                    },
-                    "recurrences": {
-                        "id": true,
-                        "recurrenceType": true,
-                        "interval": true,
-                        "dayOfWeek": true,
-                        "dayOfMonth": true,
-                        "month": true,
-                        "endDate": true
-                    }
-                }
-            }
+            "updated_at": true
         }
     },
     "resources": {
@@ -139,68 +79,6 @@ export const feed_home = {
             "you": {
                 "canDelete": true,
                 "canUpdate": true
-            }
-        },
-        "focusModes": {
-            "id": true,
-            "name": true,
-            "description": true,
-            "you": {
-                "canDelete": true,
-                "canRead": true,
-                "canUpdate": true
-            },
-            "labels": {
-                "id": true,
-                "color": true,
-                "label": true
-            },
-            "reminderList": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "reminders": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "name": true,
-                    "description": true,
-                    "dueDate": true,
-                    "index": true,
-                    "isComplete": true,
-                    "reminderItems": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "name": true,
-                        "description": true,
-                        "dueDate": true,
-                        "index": true,
-                        "isComplete": true
-                    }
-                }
-            },
-            "resourceList": {
-                "id": true,
-                "created_at": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                },
-                "resources": {
-                    "id": true,
-                    "index": true,
-                    "link": true,
-                    "usedFor": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    }
-                }
             }
         },
         "meetings": {
@@ -516,5 +394,5 @@ export const feed_home = {
             "lastStep": true
         }
     },
-    "__cacheKey": "-103616588"
+    "__cacheKey": "18258655"
 };

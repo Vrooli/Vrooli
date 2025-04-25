@@ -8,7 +8,6 @@ import { type TranslationKeyAward } from "../types.js";
  */
 export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnniversary" | "AccountNew">]: number[] } = {
     Streak: [7, 30, 100, 200, 365, 500, 750, 1000],
-    QuizPass: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     Reputation: [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
     ObjectBookmark: [1, 100, 500],
     ObjectReact: [1, 100, 1000, 10000],
@@ -21,8 +20,6 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnnive
     NoteCreate: [1, 5, 10, 25, 50, 100],
     PostCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     ProjectCreate: [1, 5, 10, 25, 50, 100],
-    QuestionAnswer: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
-    QuestionCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     ReportEnd: [1, 5, 10, 25, 50, 100],
     ReportContribute: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     RunRoutine: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
@@ -165,27 +162,6 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "PullRequestComplete_Body", bodyVariables: { count: level }, level };
-    },
-    QuestionAnswer: (count, findNext = false) => {
-        // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const p = "QuestionAnswer";
-        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "QuestionAnswer_Body", bodyVariables: { count: level }, level };
-    },
-    QuestionCreate: (count, findNext = false) => {
-        // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const p = "QuestionCreate";
-        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "QuestionCreate_Body", bodyVariables: { count: level }, level };
-    },
-    QuizPass: (count, findNext = false) => {
-        // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const p = "QuizPass";
-        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "QuizPass_Body", bodyVariables: { count: level }, level };
     },
     ReportEnd: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]

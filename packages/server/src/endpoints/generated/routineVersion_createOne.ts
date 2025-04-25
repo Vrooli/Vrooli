@@ -55,6 +55,10 @@ export const routineVersion_createOne = {
             "canUse": true,
             "canRead": true
         },
+        "calledByRoutineVersionsCount": true,
+        "schemaLanguage": true,
+        "schemaText": true,
+        "versionNotes": true,
         "pullRequest": {
             "id": true,
             "created_at": true,
@@ -139,7 +143,6 @@ export const routineVersion_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -196,10 +199,7 @@ export const routineVersion_createOne = {
             "details": true,
             "name": true,
             "summary": true
-        },
-        "schemaLanguage": true,
-        "schemaText": true,
-        "versionNotes": true
+        }
     },
     "codeVersion": {
         "id": true,
@@ -214,7 +214,6 @@ export const routineVersion_createOne = {
         "default": true,
         "versionIndex": true,
         "versionLabel": true,
-        "calledByRoutineVersionsCount": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -228,6 +227,7 @@ export const routineVersion_createOne = {
             "canUse": true,
             "canRead": true
         },
+        "calledByRoutineVersionsCount": true,
         "content": true,
         "versionNotes": true,
         "pullRequest": {
@@ -336,7 +336,6 @@ export const routineVersion_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -482,7 +481,6 @@ export const routineVersion_createOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -615,7 +613,6 @@ export const routineVersion_createOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -769,7 +766,6 @@ export const routineVersion_createOne = {
             }
         },
         "permissions": true,
-        "questionsCount": true,
         "score": true,
         "bookmarks": true,
         "tags": {
@@ -914,7 +910,6 @@ export const routineVersion_createOne = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -985,5 +980,5 @@ export const routineVersion_createOne = {
         "instructions": true,
         "name": true
     },
-    "__cacheKey": "1493533848"
+    "__cacheKey": "-964699240"
 };

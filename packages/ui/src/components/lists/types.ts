@@ -1,4 +1,4 @@
-import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, ModelType, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
+import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, ListObject, Meeting, MeetingInvite, Member, MemberInvite, ModelType, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, Reminder, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { ReactNode } from "react";
 import { UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
@@ -124,11 +124,6 @@ export interface DateRangeMenuProps {
     strictIntervalRange?: number;
 }
 
-export type RelationshipItemFocusMode = Pick<FocusMode, "id" | "name"> &
-{
-    __typename: "FocusMode";
-    reminderList?: Partial<ReminderList>;
-};
 export type RelationshipItemMeeting = Pick<Meeting, "id"> &
 {
     translations?: Pick<Meeting["translations"][0], "name" | "id" | "language">[];
@@ -139,7 +134,6 @@ export type RelationshipItemTeam = Pick<Team, "handle" | "id"> &
     translations?: Pick<Team["translations"][0], "name" | "id" | "language">[];
     __typename: "Team";
 };
-export type RelationshipItemQuestionForObject = { __typename: QuestionForType | `${QuestionForType}`, id: string }
 export type RelationshipItemUser = Pick<User, "handle" | "id" | "name"> & {
     __typename: "User";
 }

@@ -44,10 +44,8 @@ describe("EndpointsAward", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().award.deleteMany({});
+        await DbProvider.deleteAll();
 
         await DbProvider.get().user.create({
             data: {
@@ -94,10 +92,8 @@ describe("EndpointsAward", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().award.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

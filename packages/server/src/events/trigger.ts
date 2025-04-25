@@ -17,7 +17,6 @@ export type ActionTrigger = "AccountNew" |
     "ObjectBookmark" |
     "ObjectReact" |
     "PullRequestClose" |
-    "QuestionAnswer" |
     "ReportClose" |
     "ReportContribute" |
     "RunComplete" |
@@ -370,26 +369,6 @@ export function Trigger(languages: string[] | undefined) {
             const notification = Notify(languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
             notification.toAll("PullRequest", pullRequestId, { __typename: "User" as const, id: pullRequestCreatedById }, [userUpdatingPullRequestId]);
             notification.toAll(objectType, objectId, objectOwner, [userUpdatingPullRequestId]);
-        },
-        questionAccepted: async (questionId: string, answerId: string, userId: string) => {
-            // // Increase award progress and reputation of answer creator
-            // asdf
-            // const notification = Notify(languages).pushQuestionAccepted();
-            // // Send notification to answer creator
-            // asdf
-            // // Send notification to subscribers
-            // asdf
-        },
-        questionAnswer: async (questionId: string, userId: string) => {
-            // const notification = Notify(languages).pushQuestionAnswer();
-            // // Send notification to question owner
-            // asdf
-            // // Send notification to anyone subscribed to the question
-            // asdf
-            // // Track award progress
-            // Award(userId, languages).update('QuestionAnswer', 1);
-            // // Increase reputation of answer creator
-            // fdsafsafdsa
         },
         /**
          * Call this any time a report's status changes, including when it is first created.

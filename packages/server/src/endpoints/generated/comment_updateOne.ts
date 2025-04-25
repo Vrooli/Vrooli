@@ -119,15 +119,6 @@ export const comment_updateOne = {
                 }
             }
         },
-        "Post": {
-            "id": true,
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            }
-        },
         "ProjectVersion": {
             "id": true,
             "complexity": true,
@@ -152,117 +143,6 @@ export const comment_updateOne = {
             "updated_at": true,
             "mergedOrRejectedAt": true,
             "status": true
-        },
-        "Question": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "createdBy": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-            },
-            "hasAcceptedAnswer": true,
-            "isPrivate": true,
-            "score": true,
-            "bookmarks": true,
-            "answersCount": true,
-            "commentsCount": true,
-            "reportsCount": true,
-            "forObject": {
-                "Api": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Code": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Note": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Project": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Routine": {
-                    "id": true,
-                    "isInternal": true,
-                    "isPrivate": true
-                },
-                "Standard": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                }
-            },
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "you": {
-                "reaction": true
-            }
-        },
-        "QuestionAnswer": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "createdBy": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-            },
-            "score": true,
-            "bookmarks": true,
-            "isAccepted": true,
-            "commentsCount": true
         },
         "RoutineVersion": {
             "id": true,
@@ -312,5 +192,5 @@ export const comment_updateOne = {
         "language": true,
         "text": true
     },
-    "__cacheKey": "-416628507"
+    "__cacheKey": "-1647528212"
 };

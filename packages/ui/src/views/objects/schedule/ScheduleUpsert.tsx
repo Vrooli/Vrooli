@@ -1,4 +1,4 @@
-import { calculateOccurrences, CalendarEvent, CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, HOURS_1_MS, isOfType, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
 import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
 import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
 import enUS from "date-fns/locale/en-US";
@@ -34,23 +34,23 @@ import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "./types.js";
 
-export const scheduleForOptions: ScheduleForOption[] = [{
-    iconInfo: { name: "Team", type: "Common" },
-    labelKey: "Meeting",
-    objectType: "Meeting",
-}, {
-    iconInfo: { name: "Routine", type: "Routine" },
-    labelKey: "RunRoutine",
-    objectType: "RunRoutine",
-}, {
-    iconInfo: { name: "Project", type: "Common" },
-    labelKey: "RunProject",
-    objectType: "RunProject",
-}, {
-    iconInfo: { name: "FocusMode", type: "Common" },
-    labelKey: "FocusMode",
-    objectType: "FocusMode",
-}];
+export const scheduleForOptions: ScheduleForOption[] = [
+    {
+        iconInfo: { name: "Team", type: "Common" },
+        labelKey: "Meeting",
+        objectType: "Meeting",
+    },
+    {
+        iconInfo: { name: "Routine", type: "Routine" },
+        labelKey: "RunRoutine",
+        objectType: "RunRoutine",
+    },
+    {
+        iconInfo: { name: "Project", type: "Common" },
+        labelKey: "RunProject",
+        objectType: "RunProject",
+    }
+];
 
 const dayOfWeekOptions = [
     { label: "Monday", value: 0 },
@@ -107,7 +107,7 @@ export function transformScheduleValues(values: ScheduleShape, existing: Schedul
     return isCreate ? shapeSchedule.create(values) : shapeSchedule.update(existing, values);
 }
 
-type ScheduleForObject = CanConnect<FocusModeShape | MeetingShape | RunProjectShape | RunRoutineShape>;
+type ScheduleForObject = CanConnect<MeetingShape | RunProjectShape | RunRoutineShape>;
 
 
 const ScheduleForCardOuter = styled(Card)(({ theme }) => ({
@@ -130,8 +130,6 @@ const ScheduleForCardAvatar = memo(function ScheduleForCardAvatarMemo({ schedule
     const profileColors = useMemo(() => placeholderColor(), []);
     const iconInfo = useMemo(function iconInfoMemo() {
         switch (scheduleFor.__typename) {
-            case "FocusMode":
-                return { name: "FocusMode", type: "Common" } as const;
             case "Meeting":
                 return { name: "Team", type: "Common" } as const;
             case "RunProject":
@@ -173,12 +171,7 @@ const ScheduleForCard = memo(function ScheduleForCardMemo({
     const [, setLocation] = useLocation();
 
     const handleCardClick = useCallback(function handleCardClickCallback() {
-        // Focus modes should direct you to the focus modes settings page
-        if (scheduleFor.__typename === "FocusMode") {
-            setLocation(LINKS.SettingsFocusModes);
-        } else {
-            openObject(scheduleFor, setLocation);
-        }
+        openObject(scheduleFor, setLocation);
     }, [scheduleFor, setLocation]);
 
     return (
@@ -456,18 +449,16 @@ function ScheduleForm({
     const [exceptionsField, , exceptionsHelpers] = useField<ScheduleException[]>("exceptions");
     const [recurrencesField, , recurrencesHelpers] = useField<ScheduleRecurrence[]>("recurrences");
 
-    const [focusModeField, , focusModeHelpers] = useField<FocusModeShape | null>("focusMode");
     const [meetingField, , meetingHelpers] = useField<MeetingShape | null>("meeting");
     const [runProjectField, , runProjectHelpers] = useField<RunProjectShape | null>("runProject");
     const [runRoutineField, , runRoutineHelpers] = useField<RunRoutineShape | null>("runRoutine");
-    // Determine the selected object (focusMode, meeting, project, or routine)
+    // Determine the selected object (meeting, project, or routine)
     const scheduleForObject = useMemo(() => {
-        if (focusModeField.value) return focusModeField.value;
         if (meetingField.value) return meetingField.value;
         if (runProjectField.value) return runProjectField.value;
         if (runRoutineField.value) return runRoutineField.value;
         return null;
-    }, [focusModeField.value, meetingField.value, runProjectField.value, runRoutineField.value]);
+    }, [meetingField.value, runProjectField.value, runRoutineField.value]);
     const getScheduleForLabel = useCallback(function getScheduleForLabelCallback(scheduleFor: ScheduleForOption) {
         return t(scheduleFor.labelKey, { count: 1 });
     }, [t]);
@@ -476,12 +467,11 @@ function ScheduleForm({
     const closeScheduleForSearch = useCallback(function closeScheduleForSearchCallback(selected?: object) {
         setIsScheduleForSearchOpen(false);
         if (selected) {
-            focusModeHelpers.setValue(isOfType(selected, "FocusMode") ? selected as FocusModeShape : null);
             meetingHelpers.setValue(isOfType(selected, "Meeting") ? selected as MeetingShape : null);
             runProjectHelpers.setValue(isOfType(selected, "RunProject") ? selected as RunProjectShape : null);
             runRoutineHelpers.setValue(isOfType(selected, "RunRoutine") ? selected as RunRoutineShape : null);
         }
-    }, [focusModeHelpers, meetingHelpers, runProjectHelpers, runRoutineHelpers]);
+    }, [meetingHelpers, runProjectHelpers, runRoutineHelpers]);
     const handleScheduleForButtonClick = useCallback(function handleScheduleForButtonClickCallback() {
         setIsScheduleForSearchOpen(true);
     }, []);
@@ -598,10 +588,6 @@ function ScheduleForm({
                             ...values,
                             // Make sure not to set any extra fields, 
                             // so the relationship is treated as a "Connect" instead of a "Create"
-                            focusMode: values.focusMode?.id ? {
-                                __typename: "FocusMode" as const,
-                                id: values.focusMode.id,
-                            } : undefined,
                             meeting: values.meeting?.id ? {
                                 __typename: "Meeting" as const,
                                 id: values.meeting.id,
@@ -986,7 +972,6 @@ export const ScheduleUpsert = memo(function ScheduleUpsert({
     const transformFn = useCallback((data: Partial<Schedule>) => {
         // Ensure controlled fields for form before applying existing data
         const baseline: Schedule = {
-            focusMode: false,
             meeting: false,
             runProject: false,
             runRoutine: false,

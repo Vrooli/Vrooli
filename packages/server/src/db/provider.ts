@@ -23,6 +23,11 @@ export interface DatabaseService {
      * including creating tables and seeding data.
      */
     seed(): Promise<boolean>;
+    /**
+     * Drops the entire database.
+     * Only available in test mode.
+     */
+    deleteAll(): Promise<void>;
 }
 
 /**
@@ -284,5 +289,20 @@ export class DbProvider {
         } catch (error) {
             logger.error("Error during database shutdown", { trace: "0720", error });
         }
+    }
+
+    /**
+     * Drops the entire database.
+     * Only available in test mode.
+     */
+    public static async deleteAll(): Promise<void> {
+        if (process.env.NODE_ENV !== 'test') {
+            throw new Error('dropDatabase is only available in test mode');
+        }
+        if (!DbProvider.dbService) {
+            throw new Error('Database service not initialized. Call init first.');
+        }
+        await DbProvider.dbService.deleteAll();
+        logger.info('Database dropped for test environment');
     }
 }

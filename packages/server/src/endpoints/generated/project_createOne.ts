@@ -52,7 +52,6 @@ export const project_createOne = {
         }
     },
     "permissions": true,
-    "questionsCount": true,
     "score": true,
     "bookmarks": true,
     "tags": {
@@ -249,7 +248,6 @@ export const project_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -302,7 +300,6 @@ export const project_createOne = {
                 "default": true,
                 "versionIndex": true,
                 "versionLabel": true,
-                "calledByRoutineVersionsCount": true,
                 "commentsCount": true,
                 "directoryListingsCount": true,
                 "forksCount": true,
@@ -370,7 +367,6 @@ export const project_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -482,7 +478,6 @@ export const project_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -601,7 +596,6 @@ export const project_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -728,7 +722,6 @@ export const project_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -850,7 +843,6 @@ export const project_createOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -1012,5 +1004,5 @@ export const project_createOne = {
         },
         "versionNotes": true
     },
-    "__cacheKey": "-1543885976"
+    "__cacheKey": "-2112599414"
 };

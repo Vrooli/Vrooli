@@ -68,13 +68,6 @@ export const displaySettingsData: SettingsData[] = [
         link: LINKS.SettingsNotifications,
         iconInfo: { name: "NotificationsCustomized", type: "Common" },
     },
-    // {
-    //     title: "FocusMode",
-    //     titleVariables: { count: 2 },
-    //     description: "FocusModeSettingsDescription",
-    //     link: LINKS.SettingsFocusModes,
-    //     iconInfo: { name: "History", type: "Common" },
-    // },
 ];
 
 export function SettingsView(_props: ViewProps) {

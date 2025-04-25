@@ -55,7 +55,6 @@ export const api_findMany = {
                 }
             },
             "permissions": true,
-            "questionsCount": true,
             "score": true,
             "bookmarks": true,
             "tags": {
@@ -123,5 +122,5 @@ export const api_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1732474348"
+    "__cacheKey": "-918250442"
 };

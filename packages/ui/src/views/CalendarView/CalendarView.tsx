@@ -31,7 +31,6 @@ export enum CalendarTabs {
 
 // Define schedule types for filtering using the ScheduleFor enum
 const SCHEDULE_TYPES: ScheduleFor[] = [
-    ScheduleFor.FocusMode,
     ScheduleFor.Meeting,
     ScheduleFor.RunProject,
     ScheduleFor.RunRoutine,
@@ -492,8 +491,6 @@ export function CalendarView({
                             title = schedule.meetings[0].translations[0].title;
                         } else if (schedule.meetings?.[0]?.translations?.[0]?.name) {
                             title = schedule.meetings[0].translations[0].name;
-                        } else if (schedule.focusModes?.[0]?.name) {
-                            title = schedule.focusModes[0].name;
                         } else if (schedule.runProjects?.[0]?.name) {
                             title = schedule.runProjects[0].name;
                         } else if (schedule.runRoutines?.[0]?.name) {
@@ -638,10 +635,6 @@ export function CalendarView({
 
         // Assign colors based on schedule type
         switch (scheduleType) {
-            case ScheduleFor.FocusMode:
-                backgroundColor = palette.success.light;
-                color = palette.success.contrastText;
-                break;
             case ScheduleFor.Meeting:
                 backgroundColor = palette.info.light;
                 color = palette.info.contrastText;

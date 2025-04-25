@@ -13,8 +13,6 @@ export const statsUser_findMany = {
             "projectsCreated": true,
             "projectsCompleted": true,
             "projectCompletionTimeAverage": true,
-            "quizzesPassed": true,
-            "quizzesFailed": true,
             "routinesCreated": true,
             "routinesCompleted": true,
             "routineCompletionTimeAverage": true,
@@ -36,5 +34,5 @@ export const statsUser_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1863109819"
+    "__cacheKey": "547718527"
 };

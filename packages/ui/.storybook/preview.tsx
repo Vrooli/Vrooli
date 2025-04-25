@@ -161,19 +161,6 @@ const preview: Preview = {
                     }
                     return HttpResponse.json({ error: 'Key not found' }, { status: 404 });
                 }),
-                // focus modes
-                http.get(`${API_URL}/v2/rest/focusModes`, () => {
-                    return HttpResponse.json({
-                        data: {
-                            edges: [],
-                            pageInfo: {
-                                __typename: "PageInfo" as const,
-                                endCursor: null,
-                                hasNextPage: false,
-                            },
-                        },
-                    });
-                }),
                 // pricing
                 http.get(`${API_URL}${StripeEndpoint.SubscriptionPrices}`, () => {
                     return HttpResponse.json({

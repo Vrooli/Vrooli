@@ -32,7 +32,6 @@ export const schedule_findOne = {
         },
         "apisCount": true,
         "codesCount": true,
-        "focusModesCount": true,
         "issuesCount": true,
         "meetingsCount": true,
         "notesCount": true,
@@ -40,87 +39,6 @@ export const schedule_findOne = {
         "routinesCount": true,
         "schedulesCount": true,
         "standardsCount": true
-    },
-    "focusModes": {
-        "id": true,
-        "name": true,
-        "description": true,
-        "you": {
-            "canDelete": true,
-            "canRead": true,
-            "canUpdate": true
-        },
-        "filters": {
-            "id": true,
-            "filterType": true,
-            "tag": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            }
-        },
-        "labels": {
-            "id": true,
-            "color": true,
-            "label": true
-        },
-        "reminderList": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "reminders": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "name": true,
-                "description": true,
-                "dueDate": true,
-                "index": true,
-                "isComplete": true,
-                "reminderItems": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "name": true,
-                    "description": true,
-                    "dueDate": true,
-                    "index": true,
-                    "isComplete": true
-                }
-            }
-        },
-        "resourceList": {
-            "id": true,
-            "created_at": true,
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            },
-            "resources": {
-                "id": true,
-                "index": true,
-                "link": true,
-                "usedFor": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                }
-            }
-        }
     },
     "meetings": {
         "id": true,
@@ -300,7 +218,6 @@ export const schedule_findOne = {
             },
             "apisCount": true,
             "codesCount": true,
-            "focusModesCount": true,
             "issuesCount": true,
             "meetingsCount": true,
             "notesCount": true,
@@ -387,7 +304,6 @@ export const schedule_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -587,7 +503,6 @@ export const schedule_findOne = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -690,6 +605,10 @@ export const schedule_findOne = {
                     "canUse": true,
                     "canRead": true
                 },
+                "calledByRoutineVersionsCount": true,
+                "schemaLanguage": true,
+                "schemaText": true,
+                "versionNotes": true,
                 "pullRequest": {
                     "id": true,
                     "created_at": true,
@@ -774,7 +693,6 @@ export const schedule_findOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -831,10 +749,7 @@ export const schedule_findOne = {
                     "details": true,
                     "name": true,
                     "summary": true
-                },
-                "schemaLanguage": true,
-                "schemaText": true,
-                "versionNotes": true
+                }
             },
             "codeVersion": {
                 "id": true,
@@ -849,7 +764,6 @@ export const schedule_findOne = {
                 "default": true,
                 "versionIndex": true,
                 "versionLabel": true,
-                "calledByRoutineVersionsCount": true,
                 "commentsCount": true,
                 "directoryListingsCount": true,
                 "forksCount": true,
@@ -863,6 +777,7 @@ export const schedule_findOne = {
                     "canUse": true,
                     "canRead": true
                 },
+                "calledByRoutineVersionsCount": true,
                 "content": true,
                 "versionNotes": true,
                 "pullRequest": {
@@ -971,7 +886,6 @@ export const schedule_findOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -1117,7 +1031,6 @@ export const schedule_findOne = {
                             }
                         },
                         "permissions": true,
-                        "questionsCount": true,
                         "score": true,
                         "bookmarks": true,
                         "tags": {
@@ -1250,7 +1163,6 @@ export const schedule_findOne = {
                             }
                         },
                         "permissions": true,
-                        "questionsCount": true,
                         "score": true,
                         "bookmarks": true,
                         "tags": {
@@ -1426,7 +1338,6 @@ export const schedule_findOne = {
                         }
                     },
                     "permissions": true,
-                    "questionsCount": true,
                     "score": true,
                     "bookmarks": true,
                     "tags": {
@@ -1621,7 +1532,6 @@ export const schedule_findOne = {
                             }
                         },
                         "permissions": true,
-                        "questionsCount": true,
                         "score": true,
                         "bookmarks": true,
                         "tags": {
@@ -1772,7 +1682,6 @@ export const schedule_findOne = {
                             }
                         },
                         "permissions": true,
-                        "questionsCount": true,
                         "score": true,
                         "bookmarks": true,
                         "tags": {
@@ -1849,5 +1758,5 @@ export const schedule_findOne = {
             }
         }
     },
-    "__cacheKey": "1905628061"
+    "__cacheKey": "669335596"
 };

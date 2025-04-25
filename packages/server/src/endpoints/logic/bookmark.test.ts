@@ -41,12 +41,8 @@ describe("EndpointsBookmark", () => {
     });
 
     beforeEach(async () => {
-        // Clear Redis and truncate relevant tables before each test
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().bookmark.deleteMany({});
-        await DbProvider.get().bookmark_list.deleteMany({});
-        await DbProvider.get().tag.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create two users for testing
         await DbProvider.get().user.create({
@@ -116,12 +112,8 @@ describe("EndpointsBookmark", () => {
     });
 
     after(async () => {
-        // Clean up after all tests
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().bookmark.deleteMany({});
-        await DbProvider.get().bookmark_list.deleteMany({});
-        await DbProvider.get().tag.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Restore logger stubs
         loggerErrorStub.restore();

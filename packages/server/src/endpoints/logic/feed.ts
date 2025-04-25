@@ -1,4 +1,4 @@
-import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, ReminderSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { SessionService } from "../../auth/session.js";
@@ -31,12 +31,6 @@ export const feed: EndpointsFeed = {
         // Query reminders
         const { nodes: reminders } = await readManyAsFeedHelper({
             ...commonReadParams,
-            additionalQueries: {
-                // Don't include reminders associated with a focus mode. These are handled separately.
-                reminderList: {
-                    focusMode: null,
-                },
-            },
             info: partial.reminders as PartialApiInfo,
             input: { take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Own },
             objectType: "Reminder",
@@ -44,12 +38,6 @@ export const feed: EndpointsFeed = {
         // Query resources
         const { nodes: resources } = await readManyAsFeedHelper({
             ...commonReadParams,
-            additionalQueries: {
-                // Don't include reminders associated with a focus mode. These are handled separately.
-                list: {
-                    focusMode: null,
-                },
-            },
             info: partial.resources as PartialApiInfo,
             input: { take, visibility: VisibilityType.Own },
             objectType: "Resource",
@@ -89,7 +77,6 @@ export const feed: EndpointsFeed = {
             Code: "Code",
             Note: "Note",
             Project: "Project",
-            Question: "Question",
             Routine: "Routine",
             Standard: "Standard",
             Team: "Team",
@@ -164,27 +151,6 @@ export const feed: EndpointsFeed = {
             },
             objectType: "Project",
         }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-        // Query questions
-        const { nodes: questions, pageInfo: questionsInfo } = shouldInclude("Question") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            // Make sure question is not attached to any objects (i.e. standalone)
-            additionalQueries: {
-                api: null,
-                code: null,
-                note: null,
-                project: null,
-                routine: null,
-                standard: null,
-                team: null,
-            },
-            info: partial.Question as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.questionAfter,
-                sortBy: (input.sortBy ?? QuestionSortBy.BookmarksDesc) as QuestionSortBy,
-            },
-            objectType: "Question",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
         // Query routines
         const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
             ...commonReadParams,
@@ -242,7 +208,6 @@ export const feed: EndpointsFeed = {
             codes,
             notes,
             projects,
-            questions,
             routines,
             standards,
             teams,
@@ -252,7 +217,6 @@ export const feed: EndpointsFeed = {
             codes: { type: "Code", ...(partial.Code as PartialApiInfo) },
             notes: { type: "Note", ...(partial.Note as PartialApiInfo) },
             projects: { type: "Project", ...(partial.Project as PartialApiInfo) },
-            questions: { type: "Question", ...(partial.Question as PartialApiInfo) },
             routines: { type: "Routine", ...(partial.Routine as PartialApiInfo) },
             standards: { type: "Standard", ...(partial.Standard as PartialApiInfo) },
             teams: { type: "Team", ...(partial.Team as PartialApiInfo) },
@@ -274,7 +238,6 @@ export const feed: EndpointsFeed = {
                     || codesInfo.hasNextPage
                     || notesInfo.hasNextPage
                     || projectsInfo.hasNextPage
-                    || questionsInfo.hasNextPage
                     || routinesInfo.hasNextPage
                     || standardsInfo.hasNextPage
                     || teamsInfo.hasNextPage
@@ -284,7 +247,6 @@ export const feed: EndpointsFeed = {
                 endCursorCode: codesInfo.endCursor ?? "",
                 endCursorNote: notesInfo.endCursor ?? "",
                 endCursorProject: projectsInfo.endCursor ?? "",
-                endCursorQuestion: questionsInfo.endCursor ?? "",
                 endCursorRoutine: routinesInfo.endCursor ?? "",
                 endCursorStandard: standardsInfo.endCursor ?? "",
                 endCursorTeam: teamsInfo.endCursor ?? "",

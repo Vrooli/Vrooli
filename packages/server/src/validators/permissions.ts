@@ -185,10 +185,6 @@ export type TeamPolicy = PolicyPart & {
          * One or more projects which a user must complete before they can be added to the team.
          */
         onboardingProjectIds?: string[];
-        /**
-         * One or more quizzes which a user must complete before they can be added to the team.
-         */
-        onboardingQuizIds?: string[];
     };
     roles?: NestedPolicyPart;
     info?: NestedPolicyPart;
@@ -196,8 +192,6 @@ export type TeamPolicy = PolicyPart & {
     issues?: NestedPolicyPart;
     notes?: NestedPolicyPart;
     projects?: NestedPolicyPart;
-    questions?: NestedPolicyPart;
-    quizzes?: NestedPolicyPart;
     routines?: NestedPolicyPart;
     standards?: NestedPolicyPart;
     voting?: NestedPolicyPart & {

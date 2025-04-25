@@ -10,7 +10,6 @@ const sitemapObjectTypes = [
     "CodeVersion",
     "NoteVersion",
     "ProjectVersion",
-    "Question",
     "RoutineVersion",
     "StandardVersion",
     "Team",
@@ -37,8 +36,6 @@ function getLink(objectType: typeof sitemapObjectTypes[number], properties: any)
             return LINKS.Note;
         case "ProjectVersion":
             return LINKS.Project;
-        case "Question":
-            return LINKS.Question;
         case "RoutineVersion":
             return properties.routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
         case "Team":
@@ -72,7 +69,7 @@ async function genSitemapForObject(
     // For versioned objects, we also need to collect the root Id/handle
     const isVersioned = objectType.endsWith("Version");
     // If object can be private (in which case we don't want to include it in the sitemap)
-    const canBePrivate = !["Question"].includes(objectType);
+    const canBePrivate = true; // All object types currently support private flags
     // Create do-while loop which breaks when the objects returned are less than the batch size
     let skip = 0;
     let currentBatchSize = 0;

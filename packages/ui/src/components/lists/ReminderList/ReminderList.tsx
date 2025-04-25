@@ -11,7 +11,6 @@ import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
-import { useFocusModes } from "../../../stores/focusModeStore.js";
 import { multiLineEllipsis, noSelect } from "../../../styles.js";
 import { ArgsType } from "../../../types.js";
 import { DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
@@ -354,7 +353,6 @@ export function ReminderList({
 }: ReminderListProps) {
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
-    const focusModeInfo = useFocusModes(session);
 
     const [isEditing, setIsEditing] = useState(false);
     useEffect(() => {
@@ -429,7 +427,7 @@ export function ReminderList({
 
         const overrideObject = editingIndex >= 0 && list?.reminders
             ? { ...list.reminders[editingIndex as number], index: editingIndex }
-            : reminderInitialValues(focusModeInfo, {
+            : reminderInitialValues({
                 index: 0,
                 list: {
                     __connect: true,
@@ -449,7 +447,7 @@ export function ReminderList({
             onDeleted={onDeleted}
             overrideObject={overrideObject}
         />;
-    }, [closeAddDialog, editingIndex, focusModeInfo, isAddDialogOpen, list, onCompleted, onDeleted]);
+    }, [closeAddDialog, editingIndex, isAddDialogOpen, list, onCompleted, onDeleted]);
 
     const {
         isSelecting,

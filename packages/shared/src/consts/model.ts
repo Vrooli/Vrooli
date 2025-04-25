@@ -36,7 +36,6 @@ export enum ViewFor {
     Post = "Post",
     Project = "Project",
     ProjectVersion = "ProjectVersion",
-    Question = "Question",
     Routine = "Routine",
     RoutineVersion = "RoutineVersion",
     Standard = "Standard",

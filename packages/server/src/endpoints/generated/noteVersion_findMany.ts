@@ -73,7 +73,6 @@ export const noteVersion_findMany = {
                     }
                 },
                 "permissions": true,
-                "questionsCount": true,
                 "score": true,
                 "bookmarks": true,
                 "tags": {
@@ -122,5 +121,5 @@ export const noteVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1067077614"
+    "__cacheKey": "344371664"
 };

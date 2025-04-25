@@ -38,14 +38,7 @@ describe("EndpointsIssue", () => {
     beforeEach(async () => {
         // Reset Redis and database tables
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().team.deleteMany();
-        await DbProvider.get().issue_translation.deleteMany();
-        await DbProvider.get().issue.deleteMany();
-        await DbProvider.get().label_translation.deleteMany();
-        await DbProvider.get().label.deleteMany();
+        await DbProvider.deleteAll();
 
         // Create a team for issue ownership
         team1 = await DbProvider.get().team.create({ data: { permissions: "{}" } });
@@ -107,10 +100,8 @@ describe("EndpointsIssue", () => {
     after(async () => {
         // Clean up and restore logger
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().issue_translation.deleteMany();
-        await DbProvider.get().issue.deleteMany();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().team.deleteMany();
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

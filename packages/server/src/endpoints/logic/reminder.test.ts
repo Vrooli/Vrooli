@@ -54,12 +54,8 @@ describe("EndpointsReminder", () => {
     });
 
     beforeEach(async function beforeEach() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().reminder_list.deleteMany({});
-        await DbProvider.get().reminder.deleteMany({});
-        await DbProvider.get().reminder_item.deleteMany({});
+        await DbProvider.deleteAll();
 
         // Create test users
         await DbProvider.get().user.create({
@@ -131,12 +127,8 @@ describe("EndpointsReminder", () => {
     });
 
     after(async function after() {
-        // Clear databases
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().reminder.deleteMany({});
-        await DbProvider.get().reminder_list.deleteMany({});
-        await DbProvider.get().reminder_item.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await DbProvider.deleteAll();
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();

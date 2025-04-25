@@ -28,12 +28,7 @@ describe("EndpointsApiVersion", () => {
 
     beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().user.deleteMany({});
-        await DbProvider.get().api.deleteMany();
-        await DbProvider.get().api_version_translation.deleteMany();
-        await DbProvider.get().api_version.deleteMany();
+        await DbProvider.deleteAll();
 
         // Seed API root with one public version
         await DbProvider.get().api.create({
@@ -58,12 +53,8 @@ describe("EndpointsApiVersion", () => {
 
     after(async () => {
         await (await initializeRedis())?.flushAll();
-        await DbProvider.get().api_version_translation.deleteMany();
-        await DbProvider.get().api_version.deleteMany();
-        await DbProvider.get().api.deleteMany();
-        await DbProvider.get().user.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().session.deleteMany();
+        await DbProvider.deleteAll();
+
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });
