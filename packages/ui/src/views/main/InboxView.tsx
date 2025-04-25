@@ -20,6 +20,7 @@ import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
+import { useNotifications, useNotificationsStore } from "../../stores/notificationsStore.js";
 import { pagePaddingBottom } from "../../styles.js";
 import { ArgsType, ViewDisplayType } from "../../types.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
@@ -43,6 +44,10 @@ export function InboxView({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const isLeftHanded = useIsLeftHanded();
+    useNotifications();
+    const storeNotifications = useNotificationsStore(state => state.notifications);
+    const isLoadingStoreNotifications = useNotificationsStore(state => state.isLoading);
+    const markAllStoreNotificationsAsRead = useNotificationsStore(state => state.markAllNotificationsAsRead);
     const markReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const {
@@ -86,6 +91,16 @@ export function InboxView({
 
     const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointsNotification.markAllAsRead);
 
+    const isNotificationTab = currTab.key === InboxPageTabOption.Notification;
+
+    const currentItems = useMemo(() =>
+        isNotificationTab ? storeNotifications : allData,
+        [isNotificationTab, storeNotifications, allData]
+    ) as ListObject[];
+
+    const isLoadingCurrent = isNotificationTab ? isLoadingStoreNotifications : loading;
+    const isEmptyCurrent = currentItems.length === 0 && !isLoadingCurrent;
+
     useEffect(() => {
         if (markReadTimeoutRef.current) {
             clearTimeout(markReadTimeoutRef.current);
@@ -93,7 +108,7 @@ export function InboxView({
         }
 
         if (currTab.key === InboxPageTabOption.Notification) {
-            const hasUnread = allData.some(item => item.__typename === "Notification" && !(item as Notification).isRead);
+            const hasUnread = storeNotifications.some(item => !item.isRead);
 
             if (hasUnread) {
                 markReadTimeoutRef.current = setTimeout(() => {
@@ -101,9 +116,7 @@ export function InboxView({
                         fetch: markAllAsReadMutation,
                         successCondition: (data) => data.success,
                         onSuccess: () => {
-                            setAllData(prevData => prevData.map(item =>
-                                item.__typename === "Notification" ? { ...item, isRead: true } : item
-                            ));
+                            markAllStoreNotificationsAsRead();
                         },
                         onError: (error) => {
                             console.error("InboxView: markAllAsReadMutation failed:", error);
@@ -118,7 +131,7 @@ export function InboxView({
                 clearTimeout(markReadTimeoutRef.current);
             }
         };
-    }, [currTab, allData, markAllAsReadMutation, setAllData]);
+    }, [currTab, storeNotifications, markAllAsReadMutation, markAllStoreNotificationsAsRead]);
 
     const openCreateChat = useCallback(() => {
         setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`);
@@ -171,16 +184,16 @@ export function InboxView({
             <SearchListScrollContainer id={scrollContainerId}>
                 <ListContainer
                     emptyText={t("NoResults", { ns: "error" })}
-                    isEmpty={allData.length === 0 && !loading}
+                    isEmpty={isEmptyCurrent}
                     sx={listContainerStyle}
                 >
                     <ObjectList
-                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill(searchType)}
+                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill(isNotificationTab ? "Notification" : searchType)}
                         handleToggleSelect={handleToggleSelect}
                         isSelecting={isSelecting}
-                        items={allData as ListObject[]}
+                        items={currentItems}
                         keyPrefix={`${searchType}-list-item`}
-                        loading={loading}
+                        loading={isLoadingCurrent}
                         onAction={onAction}
                         selectedItems={selectedData}
                     />
