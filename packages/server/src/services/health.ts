@@ -6,6 +6,7 @@ import os from "os";
 import Stripe from "stripe";
 import { promisify } from "util";
 import { DbProvider } from "../db/provider.js";
+import { Notify } from "../notify/notify.js";
 import { initializeRedis } from "../redisConn.js";
 import { API_URL, SERVER_URL } from "../server.js";
 import { io } from "../sockets/io.js";
@@ -1005,6 +1006,55 @@ export function setupHealthCheck(app: Express): void {
                 res.status(HttpStatus.InternalServerError).json({
                     success: false,
                     message: "Error clearing queue job data",
+                    error: (error as Error).message,
+                    timestamp: Date.now(),
+                });
+            }
+        });
+
+        // Development endpoint to send a test notification
+        // Example: http://localhost:5329/healthcheck/send-test-notification?userId=3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2
+        app.get("/healthcheck/send-test-notification", async (req, res) => {
+            const userId = req.query.userId as string;
+
+            if (!userId) {
+                return res.status(HttpStatus.BadRequest).json({
+                    success: false,
+                    message: "Missing 'userId' query parameter",
+                    timestamp: Date.now(),
+                });
+            }
+
+            try {
+                // Fetch user languages to ensure proper notification translation
+                const user = await DbProvider.get().user.findUnique({
+                    where: { id: userId },
+                    select: { languages: true },
+                });
+
+                if (!user) {
+                    return res.status(HttpStatus.NotFound).json({
+                        success: false,
+                        message: `User with ID '${userId}' not found`,
+                        timestamp: Date.now(),
+                    });
+                }
+
+                // Use a generic notification type or adapt as needed
+                await Notify(user.languages.map(lang => lang.language))
+                    .pushNewDeviceSignIn() // Using an existing simple notification for testing
+                    .toUser(userId);
+
+                res.status(HttpStatus.Ok).json({
+                    success: true,
+                    message: `Test notification sent to user '${userId}'`,
+                    timestamp: Date.now(),
+                });
+            } catch (error) {
+                console.error(`[HealthCheck] Error sending test notification to user '${userId}':`, error);
+                res.status(HttpStatus.InternalServerError).json({
+                    success: false,
+                    message: "Error sending test notification",
                     error: (error as Error).message,
                     timestamp: Date.now(),
                 });

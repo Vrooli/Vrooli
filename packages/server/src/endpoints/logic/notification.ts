@@ -19,18 +19,18 @@ export type EndpointsNotification = {
 const objectType = "Notification";
 export const notification: EndpointsNotification = {
     findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        await RequestService.get().rateLimit({ maxUser: 10_000, req });
         RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
         return readOneHelper({ info, input, objectType, req });
     },
     findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        await RequestService.get().rateLimit({ maxUser: 10_000, req });
         RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
         return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
     },
     getSettings: async (_, { req }) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
-        await RequestService.get().rateLimit({ maxUser: 250, req });
+        await RequestService.get().rateLimit({ maxUser: 1_000, req });
         RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
         const user = await DbProvider.get().user.findUnique({
             where: { id },
@@ -41,7 +41,7 @@ export const notification: EndpointsNotification = {
     },
     markAsRead: async ({ input }, { req }) => {
         const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        await RequestService.get().rateLimit({ maxUser: 10_000, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         const { count } = await DbProvider.get().notification.updateMany({
             where: { AND: [{ user: { id: userId } }, { id: input.id }] },
@@ -51,7 +51,7 @@ export const notification: EndpointsNotification = {
     },
     markAllAsRead: async (_, { req }) => {
         const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        await RequestService.get().rateLimit({ maxUser: 10_000, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         await DbProvider.get().notification.updateMany({
             where: { AND: [{ user: { id: userId } }, { isRead: false }] },
@@ -61,7 +61,7 @@ export const notification: EndpointsNotification = {
     },
     updateSettings: async ({ input }, { req }) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
-        await RequestService.get().rateLimit({ maxUser: 100, req });
+        await RequestService.get().rateLimit({ maxUser: 1_000, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
         return updateNotificationSettings(input, id);
     },

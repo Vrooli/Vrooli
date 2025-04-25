@@ -10,7 +10,7 @@ import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon, IconText } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
-import { useNotifications } from "../../stores/notificationsStore.js";
+import { useNotifications, useNotificationsStore } from "../../stores/notificationsStore.js";
 import { ProfileAvatar, noSelect } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_CLASSES, ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
@@ -158,7 +158,8 @@ export function NavListInboxButton() {
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const notifications = useNotifications();
+    useNotifications();
+    const notifications = useNotificationsStore(state => state.notifications);
     const numNotifications = useMemo(() => notifications.filter(({ isRead }) => !isRead).length, [notifications]);
 
     const toInbox = useCallback(function toInboxCallback() {
