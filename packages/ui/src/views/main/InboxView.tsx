@@ -1,6 +1,6 @@
 import { Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
@@ -21,7 +21,7 @@ import { useTabs } from "../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { pagePaddingBottom } from "../../styles.js";
-import { ArgsType } from "../../types.js";
+import { ArgsType, ViewDisplayType } from "../../types.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { DUMMY_LIST_LENGTH } from "../../utils/consts.js";
 import { inboxTabParams } from "../../utils/search/objectToSearch.js";
@@ -32,9 +32,9 @@ type InboxObject = Chat | Notification;
 const scrollContainerId = "inbox-scroll-container";
 const cancelIconInfo = { name: "Cancel", type: "Common" } as const;
 const addIconInfo = { name: "Add", type: "Common" } as const;
-const markAllAsReadIconInfo = { name: "Complete", type: "Common" } as const;
 const selectIconInfo = { name: "Action", type: "Common" } as const;
 const listContainerStyle = { marginBottom: pagePaddingBottom } as const;
+const MARK_READ_TIMEOUT_MS = 2000;
 
 export function InboxView({
     display,
@@ -43,6 +43,7 @@ export function InboxView({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const isLeftHanded = useIsLeftHanded();
+    const markReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const {
         currTab,
@@ -50,7 +51,7 @@ export function InboxView({
         searchType,
         tabs,
         where,
-    } = useTabs({ id: "inbox-tabs", tabParams: inboxTabParams, display });
+    } = useTabs({ id: "inbox-tabs", tabParams: inboxTabParams, display: display as ViewDisplayType });
 
     const {
         allData,
@@ -85,27 +86,47 @@ export function InboxView({
 
     const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointsNotification.markAllAsRead);
 
-    const onMarkAllAsRead = useCallback(() => {
-        // TODO handle chats
-        fetchLazyWrapper<any, Success>({
-            fetch: markAllAsReadMutation,
-            successCondition: (data) => data.success,
-            onSuccess: () => {
-                setAllData(n => n.map(n => ({ ...n, isRead: true })));
-            },
-        });
-    }, [markAllAsReadMutation, setAllData]);
+    useEffect(() => {
+        if (markReadTimeoutRef.current) {
+            clearTimeout(markReadTimeoutRef.current);
+            markReadTimeoutRef.current = null;
+        }
+
+        if (currTab.key === InboxPageTabOption.Notification) {
+            const hasUnread = allData.some(item => item.__typename === "Notification" && !(item as Notification).isRead);
+
+            if (hasUnread) {
+                markReadTimeoutRef.current = setTimeout(() => {
+                    fetchLazyWrapper<undefined, Success>({
+                        fetch: markAllAsReadMutation,
+                        successCondition: (data) => data.success,
+                        onSuccess: () => {
+                            setAllData(prevData => prevData.map(item =>
+                                item.__typename === "Notification" ? { ...item, isRead: true } : item
+                            ));
+                        },
+                        onError: (error) => {
+                            console.error("InboxView: markAllAsReadMutation failed:", error);
+                        }
+                    });
+                }, MARK_READ_TIMEOUT_MS);
+            }
+        }
+
+        return () => {
+            if (markReadTimeoutRef.current) {
+                clearTimeout(markReadTimeoutRef.current);
+            }
+        };
+    }, [currTab, allData, markAllAsReadMutation, setAllData]);
 
     const openCreateChat = useCallback(() => {
         setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`);
     }, [setLocation]);
 
     const [onActionButtonPress, actionButtonIconInfo, actionTooltip] = useMemo(() => {
-        if (currTab.key === InboxPageTabOption.Notification) {
-            return [onMarkAllAsRead, markAllAsReadIconInfo, "MarkAllAsRead"] as const;
-        }
         return [openCreateChat, addIconInfo, "CreateChat"] as const;
-    }, [currTab.key, onMarkAllAsRead, openCreateChat]);
+    }, [openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
         switch (action) {
@@ -187,14 +208,16 @@ export function InboxView({
                         <Icon info={isSelecting ? cancelIconInfo : selectIconInfo} />
                     </IconButton>
                 </Tooltip>
-                {!isSelecting ? <Tooltip title={t(actionTooltip)}>
-                    <IconButton
-                        aria-label={t(actionTooltip)}
-                        onClick={onActionButtonPress}
-                    >
-                        <Icon info={actionButtonIconInfo} />
-                    </IconButton>
-                </Tooltip> : null}
+                {!isSelecting && currTab.key !== InboxPageTabOption.Notification ? (
+                    <Tooltip title={t(actionTooltip)}>
+                        <IconButton
+                            aria-label={t(actionTooltip)}
+                            onClick={onActionButtonPress}
+                        >
+                            <Icon info={actionButtonIconInfo} />
+                        </IconButton>
+                    </Tooltip>
+                ) : null}
             </SideActionsButtons>
         </PageContainer>
     );

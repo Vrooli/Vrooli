@@ -1,61 +1,153 @@
-import { endpointsNotification, FindByIdInput, Success } from "@local/shared";
-import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { IconCommon } from "../../../icons/Icons.js";
-import { PubSub } from "../../../utils/pubsub.js";
-import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+// Import necessary MUI components
+import { alpha, Avatar, Box, ListItem, ListItemAvatar, ListItemButton, ListItemText, Skeleton, Stack, Typography, useTheme } from "@mui/material";
+// Keep ListItemChip for category display
+// import { NotificationCategory } from "@local/shared"; // Import category type
+import { useCallback, useMemo } from "react"; // Import useCallback and useMemo
+import { Icon, IconInfo } from "../../../icons/Icons.js"; // Import Icon and IconInfo
+import { useLocation } from "../../../route/router.js"; // Import useLocation for navigation
 import { NotificationListItemProps } from "../types.js";
+
+const notificationIconInfo = { name: "NotificationsCustomized", type: "Common" } as const;
+
+// Fallback Icon
+const defaultIconInfo: IconInfo = { name: "NotificationsCustomized", type: "Common" };
+
+// Mapping from category to IconInfo using available common icons
+const categoryIconMap: Partial<Record<string, IconInfo>> = {
+    AccountCreditsOrApi: { name: "Wallet", type: "Common" },
+    Award: { name: "Premium", type: "Common" },
+    IssueStatus: { name: "Report", type: "Common" },
+    Message: { name: "Email", type: "Common" },
+    NewObjectInTeam: { name: "Team", type: "Common" },
+    NewObjectInProject: { name: "Note", type: "Common" },
+    ObjectActivity: { name: "History", type: "Common" },
+    Promotion: { name: "Info", type: "Common" },
+    PullRequestStatus: defaultIconInfo,
+    ReportStatus: { name: "Report", type: "Common" },
+    Run: { name: "Play", type: "Common" },
+    Schedule: { name: "Today", type: "Common" },
+    Security: { name: "Lock", type: "Common" },
+    Streak: defaultIconInfo,
+    Transfer: { name: "Switch", type: "Common" },
+    UserInvite: { name: "Add", type: "Common" },
+};
 
 export function NotificationListItem({
     data,
-    onAction,
-    ...props
+    onAction, // Keep onAction if needed for other actions later, otherwise remove
+    loading,
+    isSelecting,
+    isSelected,
+    handleToggleSelect,
+    sx, // Pass sx down to the root element
+    style // Pass style down
 }: NotificationListItemProps) {
-    const { palette } = useTheme();
-    const { t } = useTranslation();
+    const { palette, typography } = useTheme();
+    const [, setLocation] = useLocation(); // Hook for navigation
 
-    const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointsNotification.markAsRead);
-    const onMarkAsRead = useCallback(() => {
-        if (!data) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
+    // Determine if the item is read (handle loading state)
+    const isRead = !loading && data?.isRead;
+
+    // Click handler for navigation or selection
+    const handleClick = useCallback(() => {
+        if (loading) return;
+        if (isSelecting && handleToggleSelect && data) {
+            handleToggleSelect(data);
+        } else if (data) {
+            // Navigate to notification detail or related object if applicable
+            // Example: setLocation(`/notifications/${data.id}`);
+            // For now, let's assume no specific navigation on click
+            console.log("Notification clicked:", data.id);
         }
-        fetchLazyWrapper<FindByIdInput, Success>({
-            fetch: markAsReadMutation,
-            inputs: { id: data.id },
-            successCondition: (data) => data.success,
-            onSuccess: () => {
-                onAction("Deleted", data.id);
-            },
-        });
-    }, [data, markAsReadMutation, onAction]);
+    }, [data, isSelecting, handleToggleSelect, loading, setLocation]);
+
+    const handleCheckboxChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        event.stopPropagation(); // Prevent click propagating to the list item
+        if (handleToggleSelect && data) {
+            handleToggleSelect(data);
+        }
+    }, [handleToggleSelect, data]);
+
+    // Apply greyed-out style if read
+    const itemStyle = {
+        opacity: isRead ? 0.6 : 1,
+        transition: "opacity 0.3s ease",
+        backgroundColor: isSelected ? alpha(palette.secondary.light, 0.3) : undefined,
+        "&:hover": {
+            backgroundColor: isSelected ? alpha(palette.secondary.light, 0.4) : alpha(palette.action.hover, 0.5),
+        },
+        // Combine passed sx
+        ...sx,
+    };
+
+    // Determine title and description
+    const title = loading ? <Skeleton variant="text" width="60%" /> : (data?.title ?? "Notification");
+    const description = loading ? <Skeleton variant="text" width="90%" /> : (data?.description ?? "");
+
+    // Get the appropriate icon based on category
+    const iconInfo = useMemo(() => {
+        if (loading || !data?.category) return defaultIconInfo;
+        return categoryIconMap[data.category] || defaultIconInfo;
+    }, [data?.category, loading]);
 
     return (
-        <ObjectListItemBase
-            {...props}
-            belowTags={
-                data?.category && (
-                    <ListItemChip
-                        color="Purple"
-                        label={data.category}
-                    />
-                )
+        <ListItem
+            disablePadding // Use ListItemButton for padding and hover effects
+            sx={itemStyle}
+            style={style} // Apply passed style
+            secondaryAction={
+                isSelecting && !loading ? (
+                    // Using a simple Box for click area instead of Checkbox for simplicity
+                    <Box
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (handleToggleSelect && data) handleToggleSelect(data);
+                        }}
+                        sx={{ padding: 1, cursor: "pointer" }}
+                    >
+                        <Box
+                            sx={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                border: `2px solid ${palette.divider}`,
+                                backgroundColor: isSelected ? palette.secondary.main : 'transparent',
+                            }}
+                        />
+                    </Box>
+                ) : null
             }
-            toTheRight={
-                <Stack direction="row" spacing={1}>
-                    {!data?.isRead && <Tooltip title={t("MarkAsRead")}>
-                        <IconButton edge="end" size="small" onClick={onMarkAsRead}>
-                            <IconCommon name="Visible" fill="secondary.main" />
-                        </IconButton>
-                    </Tooltip>}
-                </Stack>
-            }
-            data={data}
-            objectType="Notification"
-            onAction={onAction}
-        />
+        >
+            <ListItemButton onClick={handleClick} sx={{ paddingY: 1, paddingX: 2 }}>
+                <ListItemAvatar sx={{ minWidth: 40, marginRight: 1 }}>
+                    {loading ? (
+                        <Skeleton variant="circular" width={40} height={40} />
+                    ) : (
+                        <Avatar sx={{ bgcolor: palette.primary.main }}>
+                            <Icon info={iconInfo} fill={palette.primary.contrastText} />
+                        </Avatar>
+                    )}
+                </ListItemAvatar>
+                <ListItemText
+                    disableTypography
+                    primary={
+                        <Typography
+                            variant="body1"
+                            component="div"
+                            sx={{ fontWeight: isRead ? typography.fontWeightRegular : typography.fontWeightMedium }}
+                        >
+                            {title}
+                        </Typography>
+                    }
+                    secondary={
+                        <Stack spacing={0.5} sx={{ marginTop: 0.5 }}>
+                            {description && <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {description}
+                            </Typography>}
+                        </Stack>
+                    }
+                />
+            </ListItemButton>
+        </ListItem>
     );
 }

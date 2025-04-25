@@ -103,7 +103,10 @@ export type ChatParticipantListItemProps = ObjectListItemProps<ChatParticipant>
 export type MeetingInviteListItemProps = ObjectListItemProps<MeetingInvite>
 export type MemberInviteListItemProps = ObjectListItemProps<MemberInvite>
 export type MemberListItemProps = ObjectListItemProps<Member>
-export type NotificationListItemProps = ObjectListItemProps<Notification>
+export type NotificationListItemProps = ObjectListItemProps<Notification> & {
+    sx?: SxType;
+    style?: React.CSSProperties;
+};
 export type ReminderListItemProps = ObjectListItemProps<Reminder>
 export type ReportListItemProps = ObjectListItemProps<Report>
 export type ReportResponseListItemProps = ObjectListItemProps<ReportResponse>
