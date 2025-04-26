@@ -1,1 +1,1 @@
-
+- Change primary keys away from uuidv4. Research best practices for this.

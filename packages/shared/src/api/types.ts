@@ -722,7 +722,6 @@ export type ChatMessageSearchTreeInput = {
     chatId: Scalars["ID"];
     excludeDown?: InputMaybe<Scalars["Boolean"]>;
     excludeUp?: InputMaybe<Scalars["Boolean"]>;
-    sortBy?: InputMaybe<ChatMessageSortBy>;
     startId?: InputMaybe<Scalars["ID"]>;
     take?: InputMaybe<Scalars["Int"]>;
 };

@@ -1,4 +1,4 @@
-import { FindByIdInput, uuid } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, FindByIdInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
@@ -9,6 +9,7 @@ import { logger } from "../../events/logger.js";
 import { initializeRedis } from "../../redisConn.js";
 import { chatMessage_findMany } from "../generated/chatMessage_findMany.js";
 import { chatMessage_findOne } from "../generated/chatMessage_findOne.js";
+import { chatMessage_findTree } from "../generated/chatMessage_findTree.js";
 import { chatMessage } from "./chatMessage.js";
 
 // Test users
@@ -21,6 +22,9 @@ const botId = uuid();
 const chatId = uuid(); // Normal chat with users 1 and 2
 const publicChatId = uuid(); // Chat with openToAnyoneWithInvite=true
 const privateChatId = uuid(); // Private chat with only user2
+const seqChatId = uuid(); // Sequential chat
+const branchChatId = uuid(); // Branching chat
+const gapChatId = uuid(); // Chat for testing gaps
 
 // Test chat messages
 const user1Message1 = {
@@ -108,6 +112,75 @@ const privateChatMessage = {
     created_at: new Date("2023-03-04"),
     updated_at: new Date("2023-03-04"),
     parent: null,
+};
+
+// Sequential chat messages
+const seqMsgA = {
+    id: uuid(),
+    chatId: seqChatId,
+    userId: user1Id,
+    translations: [{ id: uuid(), language: "en", text: "Seq A" }],
+    versionIndex: 0, created_at: new Date("2023-04-01"), updated_at: new Date("2023-04-01"), parentId: null,
+};
+const seqMsgB = {
+    id: uuid(),
+    chatId: seqChatId,
+    userId: botId,
+    translations: [{ id: uuid(), language: "en", text: "Seq B" }],
+    versionIndex: 0, created_at: new Date("2023-04-01T00:01:00"), updated_at: new Date("2023-04-01T00:01:00"), parentId: seqMsgA.id,
+};
+const seqMsgC = {
+    id: uuid(),
+    chatId: seqChatId,
+    userId: user1Id,
+    translations: [{ id: uuid(), language: "en", text: "Seq C" }],
+    versionIndex: 0, created_at: new Date("2023-04-01T00:02:00"), updated_at: new Date("2023-04-01T00:02:00"), parentId: seqMsgB.id,
+};
+
+// Branching chat messages
+const branchMsgA = {
+    id: uuid(),
+    chatId: branchChatId,
+    userId: user1Id,
+    translations: [{ id: uuid(), language: "en", text: "Branch A" }],
+    versionIndex: 0, created_at: new Date("2023-04-02"), updated_at: new Date("2023-04-02"), parentId: null,
+};
+const branchMsgB = {
+    id: uuid(),
+    chatId: branchChatId,
+    userId: botId,
+    translations: [{ id: uuid(), language: "en", text: "Branch B" }],
+    versionIndex: 0, created_at: new Date("2023-04-02T00:01:00"), updated_at: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
+};
+const branchMsgC = {
+    id: uuid(),
+    chatId: branchChatId,
+    userId: user2Id,
+    translations: [{ id: uuid(), language: "en", text: "Branch C" }],
+    versionIndex: 0, created_at: new Date("2023-04-02T00:01:00"), updated_at: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
+};
+
+// Gap chat messages (MsgA will be deleted to create a gap)
+const gapMsgA = { // This message will be deleted
+    id: uuid(),
+    chatId: gapChatId,
+    userId: user1Id,
+    translations: [{ id: uuid(), language: "en", text: "Gap A (to be deleted)" }],
+    versionIndex: 0, created_at: new Date("2023-04-03"), updated_at: new Date("2023-04-03"), parentId: null,
+};
+const gapMsgB = {
+    id: uuid(),
+    chatId: gapChatId,
+    userId: botId,
+    translations: [{ id: uuid(), language: "en", text: "Gap B (orphan)" }],
+    versionIndex: 0, created_at: new Date("2023-04-03T00:01:00"), updated_at: new Date("2023-04-03T00:01:00"), parentId: gapMsgA.id,
+};
+const gapMsgC = { // Another root message
+    id: uuid(),
+    chatId: gapChatId,
+    userId: user1Id,
+    translations: [{ id: uuid(), language: "en", text: "Gap C (root)" }],
+    versionIndex: 0, created_at: new Date("2023-04-03T00:02:00"), updated_at: new Date("2023-04-03T00:02:00"), parentId: null,
 };
 
 describe("EndpointsChatMessage", () => {
@@ -366,6 +439,45 @@ describe("EndpointsChatMessage", () => {
                 updated_at: privateChatMessage.updated_at,
             },
         });
+
+        // Create sequential chat (user1, bot)
+        await DbProvider.get().chat.create({
+            data: {
+                id: seqChatId, isPrivate: true, openToAnyoneWithInvite: false,
+                translations: { create: { id: uuid(), language: "en", name: "Sequential Chat" } },
+                participants: { create: [{ id: uuid(), user: { connect: { id: user1Id } } }, { id: uuid(), user: { connect: { id: botId } } }] }
+            }
+        });
+        await DbProvider.get().chat_message.create({ data: { id: seqMsgA.id, chatId: seqChatId, userId: user1Id, translations: { create: seqMsgA.translations } } });
+        await DbProvider.get().chat_message.create({ data: { id: seqMsgB.id, chatId: seqChatId, userId: botId, parentId: seqMsgB.parentId, translations: { create: seqMsgB.translations } } });
+        await DbProvider.get().chat_message.create({ data: { id: seqMsgC.id, chatId: seqChatId, userId: user1Id, parentId: seqMsgC.parentId, translations: { create: seqMsgC.translations } } });
+
+        // Create branching chat (user1, user2, bot)
+        await DbProvider.get().chat.create({
+            data: {
+                id: branchChatId, isPrivate: true, openToAnyoneWithInvite: false,
+                translations: { create: { id: uuid(), language: "en", name: "Branching Chat" } },
+                participants: { create: [{ id: uuid(), user: { connect: { id: user1Id } } }, { id: uuid(), user: { connect: { id: user2Id } } }, { id: uuid(), user: { connect: { id: botId } } }] }
+            }
+        });
+        await DbProvider.get().chat_message.create({ data: { id: branchMsgA.id, chatId: branchChatId, userId: user1Id, translations: { create: branchMsgA.translations } } });
+        await DbProvider.get().chat_message.create({ data: { id: branchMsgB.id, chatId: branchChatId, userId: botId, parentId: branchMsgB.parentId, translations: { create: branchMsgB.translations } } });
+        await DbProvider.get().chat_message.create({ data: { id: branchMsgC.id, chatId: branchChatId, userId: user2Id, parentId: branchMsgC.parentId, translations: { create: branchMsgC.translations } } });
+
+        // Create gap chat (user1, bot)
+        await DbProvider.get().chat.create({
+            data: {
+                id: gapChatId, isPrivate: true, openToAnyoneWithInvite: false,
+                translations: { create: { id: uuid(), language: "en", name: "Gap Chat" } },
+                participants: { create: [{ id: uuid(), user: { connect: { id: user1Id } } }, { id: uuid(), user: { connect: { id: botId } } }] }
+            }
+        });
+        await DbProvider.get().chat_message.create({ data: { id: gapMsgA.id, chatId: gapChatId, userId: user1Id, translations: { create: gapMsgA.translations } } });
+        await DbProvider.get().chat_message.create({ data: { id: gapMsgB.id, chatId: gapChatId, userId: botId, parentId: gapMsgB.parentId, translations: { create: gapMsgB.translations } } });
+        await DbProvider.get().chat_message.create({ data: { id: gapMsgC.id, chatId: gapChatId, userId: user1Id, translations: { create: gapMsgC.translations } } });
+
+        // Delete message to create a gap (parentId is set to null by onDelete: SetNull)
+        await DbProvider.get().chat_message.delete({ where: { id: gapMsgA.id } });
     });
 
     after(async function after() {
@@ -715,6 +827,205 @@ describe("EndpointsChatMessage", () => {
                 } catch (error) {
                     // Error expected
                 }
+            });
+        });
+    });
+
+    describe("findTree", () => {
+        describe("access control", () => {
+            it("user1 can access tree from chats they participate in (sequential)", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: seqChatId,
+                    startId: seqMsgA.id, // Assuming starting from the root
+                    take: 3, // Specify take for clarity, enough for all messages
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+
+                expect(result).to.not.be.null;
+                const fullResult = result as ChatMessageSearchTreeResult;
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(3); // A, B, C
+                const messageIds = fullResult.messages.map(m => m.id).sort();
+                expect(messageIds).to.deep.equal([seqMsgA.id, seqMsgB.id, seqMsgC.id].sort());
+                expect(fullResult.hasMoreUp).to.be.false; // Started at root
+                expect(fullResult.hasMoreDown).to.be.false; // Fetched all descendants
+            });
+
+            it("user2 can access tree from chats they participate in (branching)", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user2Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: branchChatId,
+                    startId: branchMsgA.id, // Assuming starting from the root
+                    take: 2, // Enough for A, B, C
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+
+                expect(result).to.not.be.null;
+                const fullResult = result as ChatMessageSearchTreeResult;
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(3); // A, B, C
+                const messageIds = fullResult.messages.map(m => m.id).sort();
+                expect(messageIds).to.deep.equal([branchMsgA.id, branchMsgB.id, branchMsgC.id].sort());
+                expect(fullResult.hasMoreUp).to.be.false; // Started at root
+                expect(fullResult.hasMoreDown).to.be.false; // Fetched all descendants
+            });
+
+            it("user3 can access tree from public chats", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user3Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: publicChatId,
+                    startId: publicChatMessage.id, // The only message is the root
+                    take: 1,
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+
+                expect(result).to.not.be.null;
+                const fullResult = result as ChatMessageSearchTreeResult;
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(1);
+                expect(fullResult.messages[0].id).to.equal(publicChatMessage.id);
+                expect(fullResult.hasMoreUp).to.be.false;
+                expect(fullResult.hasMoreDown).to.be.false;
+            });
+
+            it("user1 cannot access tree from private chat they are not in", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: privateChatId,
+                    startId: privateChatMessage.id, // Assuming a root id even if inaccessible
+                };
+
+                try {
+                    await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+                    expect.fail("Expected an error or empty result");
+                } catch (error: any) {
+                    expect(error.message).to.contain("Unauthorized"); // Or similar authorization error
+                }
+            });
+
+            it("logged-out user can access tree from public chats", async () => {
+                const { req, res } = await mockLoggedOutSession();
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: publicChatId,
+                    startId: publicChatMessage.id,
+                    take: 1,
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+
+                expect(result).to.not.be.null;
+                const fullResult = result as ChatMessageSearchTreeResult;
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(1);
+                expect(fullResult.messages[0].id).to.equal(publicChatMessage.id);
+                expect(fullResult.hasMoreUp).to.be.false;
+                expect(fullResult.hasMoreDown).to.be.false;
+            });
+
+            it("logged-out user cannot access tree from private chat", async () => {
+                const { req, res } = await mockLoggedOutSession();
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: chatId, // Use the regular private chat
+                    startId: user1Message1.id, // Provide a startId
+                };
+
+                try {
+                    await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+                    expect.fail("Expected an error or empty result");
+                } catch (error: any) {
+                    expect(error.message).to.contain("Unauthorized"); // Or similar auth error
+                }
+            });
+        });
+
+        describe("tree structure", () => {
+            it("returns correct structure for sequential chat", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: seqChatId,
+                    startId: seqMsgA.id,
+                    take: 3, // Fetch all
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+                const fullResult = result as ChatMessageSearchTreeResult; // Assert type
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(3);
+                const messageIds = fullResult.messages.map(m => m.id).sort();
+                expect(messageIds).to.deep.equal([seqMsgA.id, seqMsgB.id, seqMsgC.id].sort());
+                // Check order if necessary (A, B, C)
+                expect(fullResult.messages[0].id).to.equal(seqMsgA.id);
+                expect(fullResult.messages[1].id).to.equal(seqMsgB.id);
+                expect(fullResult.messages[2].id).to.equal(seqMsgC.id);
+                expect(fullResult.hasMoreUp).to.be.false;
+                expect(fullResult.hasMoreDown).to.be.false;
+            });
+
+            it("returns correct structure for branching chat", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: branchChatId,
+                    startId: branchMsgA.id,
+                    take: 2, // Fetch all
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+                const fullResult = result as ChatMessageSearchTreeResult; // Assert type
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(3); // A, B, C
+                const messageIds = fullResult.messages.map(m => m.id).sort();
+                expect(messageIds).to.deep.equal([branchMsgA.id, branchMsgB.id, branchMsgC.id].sort());
+                expect(fullResult.hasMoreUp).to.be.false;
+                expect(fullResult.hasMoreDown).to.be.false;
+            });
+
+            it("returns correct structure for chat with gaps (deleted parent)", async () => {
+                // Note: gapMsgA was deleted in beforeEach. gapMsgB is now a root.
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: gapChatId,
+                    startId: gapMsgC.id, // Start from root C
+                    take: 1,
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+                const fullResult = result as ChatMessageSearchTreeResult; // Assert type
+
+                // Assertions for the new structure when starting from C
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(1); // Only C
+                expect(fullResult.messages[0].id).to.equal(gapMsgC.id);
+                expect(fullResult.hasMoreUp).to.be.false;
+                expect(fullResult.hasMoreDown).to.be.false;
+
+                // Test starting from the orphaned root B
+                const inputB: ChatMessageSearchTreeInput = {
+                    chatId: gapChatId,
+                    startId: gapMsgB.id, // Start from orphaned root B
+                    take: 1,
+                };
+                const resultB = await chatMessage.findTree({ input: inputB }, { req, res }, chatMessage_findTree);
+                const fullResultB = resultB as ChatMessageSearchTreeResult;
+                expect(fullResultB.messages).to.be.an("array").with.lengthOf(1); // Only B
+                expect(fullResultB.messages[0].id).to.equal(gapMsgB.id);
+                expect(fullResultB.hasMoreUp).to.be.false;
+                expect(fullResultB.hasMoreDown).to.be.false;
             });
         });
     });

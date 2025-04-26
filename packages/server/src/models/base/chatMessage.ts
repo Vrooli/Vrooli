@@ -16,7 +16,6 @@ import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, P
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
 import { InputNode } from "../../utils/inputNode.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
-import { SortMap } from "../../utils/sortMap.js";
 import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
 import { getSingleTypePermissions, permissionsCheck } from "../../validators/permissions.js";
 import { ChatMessageFormat } from "../formats.js";
@@ -24,7 +23,9 @@ import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
 import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types.js";
 
-const DEFAULT_CHAT_TAKE = 50;
+const DEFAULT_CHAT_TAKE = 25;
+const MAX_CHAT_TAKE = DEFAULT_CHAT_TAKE;
+const MIN_CHAT_TAKE = 1;
 
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
@@ -425,48 +426,182 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             input: ChatMessageSearchTreeInput,
             info: PartialApiInfo,
         ): Promise<ChatMessageSearchTreeResult> {
-            if (!input.chatId) throw new CustomError("0531", "InvalidArgs", { input });
-            // Query for all authentication data
+            const { chatId, startId, take: takeInput, excludeUp, excludeDown } = input;
+            if (!chatId || !startId) throw new CustomError("0531", "InvalidArgs", { input });
+
+            const take = Math.min(Math.max(MIN_CHAT_TAKE, takeInput ?? DEFAULT_CHAT_TAKE), MAX_CHAT_TAKE);
+
+            // --- Permissions Check --- 
             const userData = SessionService.getUser(req);
-            const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, userData ?? null);
-            if (Object.keys(authDataById).length === 0) {
-                throw new CustomError("0016", "NotFound", { input, userId: userData?.id });
+            const authDataById = await getAuthenticatedData({ "Chat": [chatId], "ChatMessage": [startId] }, userData ?? null);
+            if (!authDataById[chatId]) {
+                throw new CustomError("0016", "ChatNotFoundOrUnauthorized", { chatId, userId: userData?.id });
             }
-            await permissionsCheck(authDataById, { ["Read"]: [input.chatId] }, {}, userData);
-            // Partially convert info type
-            const partial = InfoConverter.get().fromApiToPartialApi(info, {
-                __typename: "ChatMessageSearchTreeResult",
-                messages: "ChatMessage",
-            }, true);
-            // Determine sort order. This is only used if startId is not provided, since the sort is used 
-            // to determine the starting point of the search.
-            const orderByField = input.sortBy ?? ModelMap.get<ChatMessageModelLogic>("ChatMessage").search.defaultSort;
-            const orderBy = !input.startId && orderByField in SortMap ? SortMap[orderByField] : undefined;
-            // First, find the total number of messages in the chat
-            const totalInThread = await DbProvider.get().chat_message.count({
-                where: { chatId: input.chatId },
+            if (!authDataById[startId]) {
+                throw new CustomError("0017", "NotFound", { startId, chatId, userId: userData?.id });
+            }
+            // Check read permission on the Chat first
+            await permissionsCheck({ [chatId]: authDataById[chatId] }, { ["Read"]: [chatId] }, {}, userData);
+            // Check read permission on the start message (using ChatMessage validator)
+            await permissionsCheck({ [startId]: authDataById[startId] }, { ["Read"]: [startId] }, {}, userData);
+
+            // --- Prepare Select --- 
+            // Convert the incoming GraphQL info into a PartialApiInfo object
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info.messages as PartialApiInfo, ChatMessageFormat.apiRelMap, true);
+            // Convert the PartialApiInfo into a Prisma select object
+            const baseSelect = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
+            if (!baseSelect?.select) { // Check if baseSelect and baseSelect.select are valid
+                throw new CustomError("0532", "InternalError", { info });
+            }
+
+            // Helper function to recursively build select object
+            function buildNestedSelect(currentSelect: Record<string, any>, depth: number, exUp: boolean, exDown: boolean): Record<string, any> {
+                if (depth <= 0) {
+                    return currentSelect;
+                }
+                const nextSelect: Record<string, any> = { ...currentSelect };
+                if (!exUp) {
+                    nextSelect.parent = { select: buildNestedSelect({ id: true }, depth - 1, exUp, exDown) };
+                }
+                if (!exDown) {
+                    nextSelect.children = { select: buildNestedSelect({ id: true, versionIndex: true }, depth - 1, exUp, exDown) };
+                }
+                return nextSelect;
+            }
+
+            // Generate the full recursive select object, respecting exclusions
+            const treeSelect = {
+                select: buildNestedSelect({ ...baseSelect.select, id: true }, take, !!excludeUp, !!excludeDown), // Start with base fields + id
+            };
+
+            // --- Fetch message tree --- 
+            logger.info({ trace: "searchTree-query", where: { id: startId }, select: treeSelect.select });
+            const tree = await DbProvider.get().chat_message.findUnique({
+                where: { id: startId },
+                select: treeSelect.select,
             });
-            // If it's less than or equal to the take amount, we can just return all messages. 
-            const take = input.take ?? DEFAULT_CHAT_TAKE;
-            if (totalInThread <= take) {
-                let messages: any[] = await DbProvider.get().chat_message.findMany({
-                    where: { chatId: input.chatId },
-                    orderBy,
-                    take,
-                    ...InfoConverter.get().fromPartialApiToPrismaSelect(partial.messages as PartialApiInfo),
-                });
-                messages = messages.map((c: any) => InfoConverter.get().fromDbToApi(c, partial.messages as PartialApiInfo));
-                messages = await addSupplementalFields(SessionService.getUser(req), messages, partial.messages as PartialApiInfo);
-                return {
-                    __typename: "ChatMessageSearchTreeResult" as const,
-                    hasMoreDown: false,
-                    hasMoreUp: false,
-                    messages,
-                };
+
+            if (!tree) {
+                throw new CustomError("0018", "NotFound", { startId, chatId });
             }
-            // Otherwise, we need to traverse up and/or down the chat tree to find the messages
-            //TODO
-            return {} as any;
+
+            // --- Flatten Tree & Determine hasMore --- 
+            const messageMap = new Map<string, any>();
+            const nodesToProcess: any[] = [tree];
+            let hasMoreUp = false;
+            let hasMoreDown = false;
+
+            // Function to recursively extract all nodes from the fetched tree
+            function extractNodes(node: any, currentDepth: number) {
+                if (!node || messageMap.has(node.id) || currentDepth > take) {
+                    return;
+                }
+                messageMap.set(node.id, node);
+
+                // Check parent for hasMoreUp at the limit
+                if (currentDepth === take && node.parent) {
+                    // This check might need refinement depending on how deep parents were fetched
+                    // Assuming the recursive select fetches parents up to 'take' depth
+                    hasMoreUp = true;
+                }
+                if (node.parent) {
+                    extractNodes(node.parent, currentDepth + 1); // Process parent upwards
+                }
+
+                // Process children downwards
+                if (node.children && node.children.length > 0) {
+                    // Check for hasMoreDown at the limit
+                    if (currentDepth === take) {
+                        hasMoreDown = true; // Found children at the depth limit
+                    }
+                    for (const child of node.children) {
+                        extractNodes(child, currentDepth + 1);
+                    }
+                }
+            }
+
+            // Start extraction from the root of the fetched tree (startId)
+            // We need a slightly different traversal for determining hasMoreUp/Down accurately
+            // based on the *intended* path, not just existence of any node at the depth limit.
+
+            // Determine hasMoreUp by checking the actual ancestor chain, only if not excluded
+            if (!excludeUp) {
+                let ancestorCheckNode: any = tree; // Use any to simplify nested access
+                for (let i = 0; i < take; i++) {
+                    if (!ancestorCheckNode?.parent) {
+                        hasMoreUp = false;
+                        break;
+                    }
+                    ancestorCheckNode = ancestorCheckNode.parent;
+                    if (i === take - 1 && (ancestorCheckNode as any)?.parent) { // Cast here
+                        hasMoreUp = true; // Reached limit and parent still exists
+                    }
+                }
+            } else {
+                hasMoreUp = false; // Explicitly excluded
+            }
+
+            // Determine hasMoreDown by checking the intended descendant path, only if not excluded
+            if (!excludeDown) {
+                let descendantCheckNode: any = tree; // Use any to simplify nested access
+                for (let i = 0; i < take; i++) {
+                    const children = descendantCheckNode?.children;
+                    if (!children || children.length === 0) {
+                        hasMoreDown = false;
+                        break;
+                    }
+                    // Find the default next node (highest versionIndex)
+                    const sortedChildren = [...children].sort((a: any, b: any) => b.versionIndex - a.versionIndex);
+                    const nextNode = sortedChildren[0];
+
+                    if (!nextNode) {
+                        hasMoreDown = false; // Should not happen if children.length > 0
+                        break;
+                    }
+                    descendantCheckNode = nextNode;
+                    // Check if the default node at the limit still has children fetched
+                    if (i === take - 1 && descendantCheckNode?.children && descendantCheckNode.children.length > 0) {
+                        hasMoreDown = true;
+                    }
+                }
+            } else {
+                hasMoreDown = false; // Explicitly excluded
+            }
+
+            // Flatten all nodes from the fetched tree into a map to handle duplicates
+            const allNodesMap = new Map<string, any>();
+            function flattenRecursively(node: any) {
+                if (!node || allNodesMap.has(node.id)) {
+                    return;
+                }
+                // Store node without deep nested relations for processing
+                const shallowNode = { ...node };
+                delete shallowNode.parent;
+                delete shallowNode.children;
+                allNodesMap.set(node.id, shallowNode);
+
+                if (node.parent) {
+                    flattenRecursively(node.parent);
+                }
+                // Recursively process ALL children
+                if (node.children) {
+                    node.children.forEach(flattenRecursively);
+                }
+            }
+            flattenRecursively(tree);
+            const rawMessages = Array.from(allNodesMap.values());
+
+            // --- Convert & Supplement --- 
+            const partialMessages = rawMessages.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo)); // Use the already derived partialInfo
+            const messagesWithSupplements = await addSupplementalFields(userData, partialMessages, partialInfo); // Use partialInfo here too
+
+            // --- Return Result --- 
+            return {
+                __typename: "ChatMessageSearchTreeResult" as const,
+                hasMoreDown,
+                hasMoreUp,
+                messages: messagesWithSupplements as ChatMessage[], // Cast to expected type
+            };
         },
     },
     search: {

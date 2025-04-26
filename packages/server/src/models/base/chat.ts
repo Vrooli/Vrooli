@@ -212,7 +212,7 @@ export const ChatModel: ChatModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: () => false,
+        isPublic: (data) => data?.openToAnyoneWithInvite === true,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
@@ -221,7 +221,7 @@ export const ChatModel: ChatModelLogic = ({
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isInvited = uuidValidate(userId) && data.invites?.some((i) => i.userId === userId && i.status === ChatInviteStatus.Pending);
-            const isParticipant = uuidValidate(userId) && data.participants?.some((p) => p.userId === userId);
+            const isParticipant = uuidValidate(userId) && data.participants?.some((p) => p.user?.id === userId);
             return {
                 ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
                 canInvite: () => isLoggedIn && isAdmin,
@@ -231,6 +231,7 @@ export const ChatModel: ChatModelLogic = ({
         permissionsSelect: (userId) => ({
             id: true,
             creator: "User",
+            openToAnyoneWithInvite: true,
             ...(userId ? {
                 participants: {
                     where: {

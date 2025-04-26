@@ -1,8 +1,10 @@
-import { API_CREDITS_MULTIPLIER, LINKS } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, Session as ChatSession, LINKS, getObjectUrl } from "@local/shared";
 import { Box, Button, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TextLoading } from "../../components/lists/TextLoading/TextLoading.js";
 import { SessionContext } from "../../contexts/session.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, IconCommon, IconInfo, IconText } from "../../icons/Icons.js";
@@ -20,6 +22,9 @@ import { useIsBottomNavVisible } from "./BottomNav.js";
 // eslint-disable-next-line no-magic-numbers
 const LOW_CREDIT_THRESHOLD = BigInt(5_00) * API_CREDITS_MULTIPLIER;
 const AVATAR_SIZE_PX = 50;
+
+// Fetch only a few recent chats for the sidebar
+const CHAT_HISTORY_TAKE = 7;
 
 const projectItemStyles = {
     selected: { pl: 4, bgcolor: "#3B82F6" },
@@ -100,14 +105,6 @@ const StyledListItem = styled(ListItem)(({ theme }) => ({
 const projects = [
     { text: "Local Vrooli" },
     { text: "Routine graphs", selected: true },
-];
-
-const yesterdayItems = [
-    "Generate Yup Schema",
-    "Align Story at Bottom",
-    "MSW unhandled request byp...",
-    "Previous 7 Days",
-    "Command Palette Search Res...",
 ];
 
 // Separate component for navigation items
@@ -234,6 +231,14 @@ export function SiteNavigator() {
         return { creditsAsDollars, showLowCreditBalance, creditsAsBigInt };
     }, [credits]);
 
+    // Fetch recent chat history
+    const { allData: chatHistory, loading: loadingChatHistory } = useFindMany<ChatSession>({
+        searchType: "Chat",
+        take: CHAT_HISTORY_TAKE,
+        where: { sortBy: "updatedAt:desc" }, // Fetch recent chats first
+        controlsUrl: false, // Don't control URL params from here
+    });
+
     const handleOpenSearch = useCallback(function handleOpenSearchCallback() {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.CommandPalette, isOpen: true });
     }, []);
@@ -292,6 +297,16 @@ export function SiteNavigator() {
 
     // Get credit typography styles
     const creditTypographyStyles = useCreditTypographyStyles(creditsAsBigInt, showLowCreditBalance);
+
+    // Handler to navigate to a chat
+    const handleChatClick = useCallback((chat: ChatSession) => {
+        const url = getObjectUrl(chat);
+        if (url) {
+            setLocation(url);
+        } else {
+            console.warn("Could not determine URL for chat:", chat);
+        }
+    }, [setLocation]);
 
     return (
         <Box
@@ -401,19 +416,28 @@ export function SiteNavigator() {
                             </List>
                         </Collapse>
 
-                        {/* Yesterday Section */}
+                        {/* Chat History Section */}
                         <Divider sx={dividerStyles} />
                         <StyledListItem>
-                            <ListItemText primary="Yesterday" sx={yesterdayLabelStyles} />
+                            <ListItemText primary={t("RecentChats")} sx={yesterdayLabelStyles} />
                         </StyledListItem>
-                        {yesterdayItems.map((item, index) => (
-                            <StyledListItem button key={index}>
-                                <ListItemText
-                                    primary={item}
-                                    primaryTypographyProps={yesterdayItemStyles}
-                                />
-                            </StyledListItem>
-                        ))}
+                        {loadingChatHistory ? (
+                            <TextLoading sx={{ p: 2 }} />
+                        ) : (
+                            chatHistory.map((chat) => (
+                                <StyledListItem
+                                    button
+                                    key={chat.id}
+                                    onClick={() => handleChatClick(chat)}
+                                >
+                                    <ListItemText
+                                        primary={chat.name || t("UntitledChat")} // Use chat name or fallback
+                                        primaryTypographyProps={yesterdayItemStyles}
+                                    />
+                                </StyledListItem>
+                            ))
+                        )}
+                        {/* TODO: Add a 'See all chats' button later */}
                     </StyledList>
                 </ScrollBox>
                 {showFooter && (
