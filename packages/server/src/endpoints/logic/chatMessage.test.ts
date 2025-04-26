@@ -1027,6 +1027,27 @@ describe("EndpointsChatMessage", () => {
                 expect(fullResultB.hasMoreUp).to.be.false;
                 expect(fullResultB.hasMoreDown).to.be.false;
             });
+
+            it("starts from highest sequence message when startId is omitted", async () => {
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const { req, res } = await mockAuthenticatedSession(testUser);
+                const input: ChatMessageSearchTreeInput = {
+                    chatId: seqChatId,
+                    // startId is omitted
+                    take: 1, // Only fetch the last message (highest sequence)
+                    excludeDown: true, // Exclude descendants as we start from the end
+                };
+
+                const result = await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
+                const fullResult = result as ChatMessageSearchTreeResult; // Assert type
+
+                // Assertions for the new structure
+                expect(fullResult.messages).to.be.an("array").with.lengthOf(1); // Should fetch only seqMsgC
+                expect(fullResult.messages[0].id).to.equal(seqMsgC.id); // Verify it's the highest sequence message
+                // Check if there are more ancestors (seqMsgB exists)
+                expect(fullResult.hasMoreUp).to.be.true;
+                expect(fullResult.hasMoreDown).to.be.false; // Excluded
+            });
         });
     });
 }); 

@@ -1,5 +1,5 @@
 import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointsChatMessage, getTranslation, noop, uuid } from "@local/shared";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { SessionContext } from "../contexts/session.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
@@ -502,13 +502,26 @@ export function useMessageTree(chatId?: string | null) {
     }, []);
 
     // Which branches of the tree are in view
-    const [branches, setBranches] = useState<BranchMap>(chatId ? (getCookieMessageTree(chatId)?.branches ?? {}) : {});
+    // Initialize from cookie if chatId is present
+    const initialBranches = useMemo(() => {
+        return chatId ? getCookieMessageTree(chatId)?.branches ?? {} : {};
+    }, [chatId]);
+    const [branches, setBranches] = useState<BranchMap>(initialBranches);
 
-    useEffect(() => {
-        if (!chatId) return;
-        // Update the cookie with current branches
-        setCookieMessageTree(chatId, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
-    }, [branches, chatId]);
+    // Function to update branches state and cookie, including locationId
+    const updateBranchesAndLocation = useCallback((parentId: string, newActiveChildId: string) => {
+        setBranches(prevBranches => {
+            const newBranches = {
+                ...prevBranches,
+                [parentId]: newActiveChildId,
+            };
+            // Update the cookie with current branches and the new locationId
+            if (chatId) {
+                setCookieMessageTree(chatId, { branches: newBranches, locationId: newActiveChildId });
+            }
+            return newBranches;
+        });
+    }, [chatId]);
 
     const addMessages = useCallback((newMessages: ChatMessageShape[]) => {
         if (!newMessages || newMessages.length === 0) return;
@@ -552,16 +565,24 @@ export function useMessageTree(chatId?: string | null) {
         });
     }, []);
 
-    // When chatId changes, clear everything and fetch new data
-    useEffect(function clearData() {
+    // When chatId changes, clear everything, read cookie, and fetch new data
+    useEffect(() => {
         clearMessages();
-        setBranches({});
-        console.log("getting tree data?", chatId, chatId !== DUMMY_ID);
+        let startId: string | undefined = undefined;
+        let initialBranchesFromCookie: BranchMap = {};
+
         if (chatId && chatId !== DUMMY_ID) {
-            getTreeData({ chatId });
+            const cookieData = getCookieMessageTree(chatId);
+            startId = cookieData?.locationId;
+            initialBranchesFromCookie = cookieData?.branches ?? {};
+            console.log("getting tree data?", { chatId, startId });
+            getTreeData({ chatId, startId });
         }
+        setBranches(initialBranchesFromCookie);
+
     }, [chatId, clearMessages, getTreeData]);
 
+    // Add fetched messages to the tree
     useEffect(() => {
         if (!searchTreeData || searchTreeData.messages.length === 0) return;
         addMessages(searchTreeData.messages.map(message => ({ ...message, status: "sent" })));
@@ -575,7 +596,8 @@ export function useMessageTree(chatId?: string | null) {
         editMessage,
         isTreeLoading,
         removeMessages,
-        setBranches,
+        // setBranches, // Expose updateBranchesAndLocation instead
+        updateBranchesAndLocation,
         tree,
     };
 }

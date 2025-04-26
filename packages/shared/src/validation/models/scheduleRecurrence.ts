@@ -6,6 +6,7 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { endDate, id, intPositiveOrOne } from "../utils/commonFields.js";
 import { maxNumErr, minNumErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { scheduleValidation } from "./schedule.js";
 
 const recurrenceType = enumToYup(ScheduleRecurrenceType);
 const dayOfWeek = yup.number().min(1, minNumErr).max(7, maxNumErr).integer();
@@ -21,7 +22,7 @@ export const scheduleRecurrenceValidation: YupModel<["create", "update"]> = {
         duration: opt(intPositiveOrOne),
         endDate: opt(endDate),
     }, [
-        ["schedule", ["Connect"], "one", "req", ["recurrences"]],
+        ["schedule", ["Connect"], "one", "req", scheduleValidation, ["recurrences"]],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),

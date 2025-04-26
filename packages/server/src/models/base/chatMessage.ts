@@ -426,24 +426,68 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             input: ChatMessageSearchTreeInput,
             info: PartialApiInfo,
         ): Promise<ChatMessageSearchTreeResult> {
-            const { chatId, startId, take: takeInput, excludeUp, excludeDown } = input;
-            if (!chatId || !startId) throw new CustomError("0531", "InvalidArgs", { input });
+            const { chatId, startId: inputStartId, take: takeInput, excludeUp, excludeDown } = input;
+
+            // --- Input Validation --- 
+            if (!chatId || !uuidValidate(chatId)) { // Validate chatId
+                throw new CustomError("0531", "InvalidArgs", { input, reason: "Invalid or missing chatId" });
+            }
 
             const take = Math.min(Math.max(MIN_CHAT_TAKE, takeInput ?? DEFAULT_CHAT_TAKE), MAX_CHAT_TAKE);
-
-            // --- Permissions Check --- 
             const userData = SessionService.getUser(req);
-            const authDataById = await getAuthenticatedData({ "Chat": [chatId], "ChatMessage": [startId] }, userData ?? null);
-            if (!authDataById[chatId]) {
+
+            // --- Determine Start ID & Initial Permission Check --- 
+            let startId: string;
+            let startMessageAuthData: Awaited<ReturnType<typeof getAuthenticatedData>>[string] | undefined;
+
+            // Check chat read permission first
+            const chatAuthDataById = await getAuthenticatedData({ "Chat": [chatId] }, userData ?? null);
+            if (!chatAuthDataById[chatId]) {
                 throw new CustomError("0016", "ChatNotFoundOrUnauthorized", { chatId, userId: userData?.id });
             }
-            if (!authDataById[startId]) {
-                throw new CustomError("0017", "NotFound", { startId, chatId, userId: userData?.id });
+            await permissionsCheck({ [chatId]: chatAuthDataById[chatId] }, { ["Read"]: [chatId] }, {}, userData);
+
+            if (inputStartId && uuidValidate(inputStartId)) {
+                startId = inputStartId;
+                // Check permission on the provided start message
+                const startMsgAuthDataById = await getAuthenticatedData({ "ChatMessage": [startId] }, userData ?? null);
+                startMessageAuthData = startMsgAuthDataById[startId];
+                if (!startMessageAuthData) {
+                    throw new CustomError("0017", "NotFound", { startId, chatId, userId: userData?.id });
+                }
+                await permissionsCheck({ [startId]: startMessageAuthData }, { ["Read"]: [startId] }, {}, userData);
+            } else {
+                // Find the message with the highest sequence in the chat
+                const highestSeqMessage = await DbProvider.get().chat_message.findFirst({
+                    where: { chatId },
+                    orderBy: { sequence: "desc" },
+                    select: { id: true },
+                });
+                const temp = await DbProvider.get().chat_message.findMany({
+                    where: { chatId },
+                    select: { id: true, translations: { select: { text: true } } },
+                });
+                console.log("all messages in chat", JSON.stringify(temp, null, 2));
+                const temp2 = await DbProvider.get().chat.findMany({
+                    where: {},
+                    select: { id: true, messages: { select: { id: true, translations: { select: { text: true } } } } },
+                });
+                console.log("all chats", JSON.stringify(temp2, null, 2));
+
+                if (!highestSeqMessage) {
+                    return { __typename: "ChatMessageSearchTreeResult", messages: [], hasMoreUp: false, hasMoreDown: false };
+                }
+                startId = highestSeqMessage.id;
+
+                // Check permission on the found start message
+                const startMsgAuthDataById = await getAuthenticatedData({ "ChatMessage": [startId] }, userData ?? null);
+                startMessageAuthData = startMsgAuthDataById[startId];
+                if (!startMessageAuthData) {
+                    // This case should theoretically not happen if highestSeqMessage was found and chat permission passed,
+                    // but adding check for robustness.
+                    throw new CustomError("0561", "InternalError", { startId, chatId, userId: userData?.id });
+                }
             }
-            // Check read permission on the Chat first
-            await permissionsCheck({ [chatId]: authDataById[chatId] }, { ["Read"]: [chatId] }, {}, userData);
-            // Check read permission on the start message (using ChatMessage validator)
-            await permissionsCheck({ [startId]: authDataById[startId] }, { ["Read"]: [startId] }, {}, userData);
 
             // --- Prepare Select --- 
             // Convert the incoming GraphQL info into a PartialApiInfo object
@@ -475,7 +519,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             };
 
             // --- Fetch message tree --- 
-            logger.info({ trace: "searchTree-query", where: { id: startId }, select: treeSelect.select });
             const tree = await DbProvider.get().chat_message.findUnique({
                 where: { id: startId },
                 select: treeSelect.select,

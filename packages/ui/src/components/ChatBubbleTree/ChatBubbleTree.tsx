@@ -1,6 +1,6 @@
 import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointsReaction, getObjectUrl, getTranslation, noop } from "@local/shared";
 import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SessionContext } from "../../contexts/session.js";
@@ -756,7 +756,7 @@ type MessageRenderData = {
     activeIndex: number;
     key: string;
     numSiblings: number;
-    onActiveIndexChange: (newIndex: number) => unknown;
+    updateBranchesAndLocation: (parentId: string, newActiveChildId: string) => unknown;
     onDeleted: (message: ChatMessageShape) => unknown;
     message: ChatMessageShape;
     isOwn: boolean;
@@ -774,7 +774,7 @@ type ChatBubbleTreeProps = {
     isReplyingToMessage: boolean,
     messageStream: ChatSocketEventPayloads["responseStream"] | null,
     removeMessages: (messageIds: string[]) => unknown,
-    setBranches: Dispatch<SetStateAction<BranchMap>>,
+    updateBranchesAndLocation: (parentId: string, newActiveChildId: string) => unknown;
     tree: MessageTree<ChatMessageShape>,
 };
 
@@ -814,7 +814,7 @@ export function ChatBubbleTree({
     isReplyingToMessage,
     messageStream,
     removeMessages,
-    setBranches,
+    updateBranchesAndLocation,
     tree,
 }: ChatBubbleTreeProps) {
     const session = useContext(SessionContext);
@@ -829,6 +829,7 @@ export function ChatBubbleTree({
             const sibling = siblingId ? tree.getMap().get(siblingId) : null;
             if (!sibling) return [];
             const isOwn = sibling.message.user?.id === userId;
+            const parentId = sibling.message.parent?.id;
 
             // Find information for next message
             // Check the stored branch data first
@@ -843,15 +844,8 @@ export function ChatBubbleTree({
                     activeIndex,
                     key: sibling.message.id,
                     numSiblings: withSiblings.length,
-                    onActiveIndexChange: (newIndex) => {
-                        const siblingId = withSiblings[newIndex];
-                        const parentId = sibling.message.parent?.id;
-                        if (!siblingId) return;
-                        if (!parentId) return; // TODO if root message, should reorder root
-                        setBranches(prev => ({
-                            ...prev,
-                            [parentId]: siblingId,
-                        }));
+                    updateBranchesAndLocation: (parentIdToUpdate: string, newActiveChildId: string) => {
+                        updateBranchesAndLocation(parentIdToUpdate, newActiveChildId);
                     },
                     onDeleted: (message) => { removeMessages([message.id]); },
                     message: sibling.message,
@@ -861,7 +855,7 @@ export function ChatBubbleTree({
             ];
         }
         return renderMessage(tree.getRoots(), 0);
-    }, [branches, removeMessages, setBranches, tree, userId]);
+    }, [branches, removeMessages, tree, updateBranchesAndLocation, userId]);
 
     return (
         <OuterMessageList id={id} ref={outerBoxRef}>
@@ -873,7 +867,15 @@ export function ChatBubbleTree({
                         chatWidth={dimensions.width}
                         isBotOnlyChat={isBotOnlyChat}
                         numSiblings={data.numSiblings}
-                        onActiveIndexChange={data.onActiveIndexChange}
+                        onActiveIndexChange={(newIndex) => {
+                            const messageNode = tree.getMap().get(data.message.id);
+                            const parentId = messageNode?.message.parent?.id;
+                            const siblings = parentId ? tree.getMap().get(parentId)?.children ?? [] : tree.getRoots();
+                            const newSiblingId = siblings[newIndex];
+                            if (parentId && newSiblingId) {
+                                data.updateBranchesAndLocation(parentId, newSiblingId);
+                            }
+                        }}
                         onDeleted={data.onDeleted}
                         onEdit={handleEdit}
                         onRegenerateResponse={handleRegenerateResponse}
