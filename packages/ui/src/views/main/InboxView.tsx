@@ -11,18 +11,17 @@ import { ObjectListActions } from "../../components/lists/types.js";
 import { NavbarInner, NavListBox, NavListProfileButton, SiteNavigatorButton, TitleDisplay } from "../../components/navigation/Navbar.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { useInfiniteScroll } from "../../hooks/gestures.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
-import { useFindMany } from "../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
+import { useChats, useChatsStore } from "../../stores/chatsStore.js";
 import { useNotifications, useNotificationsStore } from "../../stores/notificationsStore.js";
 import { pagePaddingBottom } from "../../styles.js";
-import { ArgsType, ViewDisplayType } from "../../types.js";
+import { ViewDisplayType } from "../../types.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { DUMMY_LIST_LENGTH } from "../../utils/consts.js";
 import { inboxTabParams } from "../../utils/search/objectToSearch.js";
@@ -50,6 +49,12 @@ export function InboxView({
     const markAllStoreNotificationsAsRead = useNotificationsStore(state => state.markAllNotificationsAsRead);
     const markReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    useChats();
+    const storeChats = useChatsStore(state => state.chats);
+    const isLoadingStoreChats = useChatsStore(state => state.isLoading);
+    const removeChatFromStore = useChatsStore(state => state.removeChat);
+    const updateChatInStore = useChatsStore(state => state.updateChat);
+
     const {
         currTab,
         handleTabChange,
@@ -58,17 +63,15 @@ export function InboxView({
         where,
     } = useTabs({ id: "inbox-tabs", tabParams: inboxTabParams, display: display as ViewDisplayType });
 
-    const {
-        allData,
-        loading,
-        removeItem,
-        loadMore,
-        setAllData,
-        updateItem,
-    } = useFindMany<InboxObject>({
-        searchType,
-        where: where(undefined),
-    });
+    const isNotificationTab = currTab.key === InboxPageTabOption.Notification;
+    const isChatTab = currTab.key === InboxPageTabOption.Message;
+
+    const currentRawItems = useMemo(() =>
+        isNotificationTab ? storeNotifications : isChatTab ? storeChats : [],
+        [isNotificationTab, isChatTab, storeNotifications, storeChats],
+    );
+
+    const isLoadingCurrent = isNotificationTab ? isLoadingStoreNotifications : isChatTab ? isLoadingStoreChats : false;
 
     const {
         isSelecting,
@@ -77,11 +80,26 @@ export function InboxView({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<InboxObject>(allData);
+    } = useSelectableList<InboxObject>(currentRawItems);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<InboxObject>({
-        allData,
+        allData: currentRawItems,
         selectedData,
-        setAllData,
+        setAllData: (newDataOrFn) => {
+            if (isChatTab) {
+                if (typeof newDataOrFn !== "function") {
+                    const newData = newDataOrFn as Chat[];
+                    const originalIds = new Set(storeChats.map(c => c.id));
+                    const newIds = new Set(newData.map(c => c.id));
+                    const deletedIds = [...originalIds].filter(id => !newIds.has(id));
+
+                    deletedIds.forEach(id => removeChatFromStore(id));
+                } else {
+                    console.warn("InboxView: setAllData received a function; cannot update chat store accurately after delete. Consider refetching or modifying useBulkObjectActions.");
+                }
+            } else if (isNotificationTab) {
+                console.warn("InboxView: setAllData called for notifications tab, store update not implemented.");
+            }
+        },
         setSelectedData: (data) => {
             setSelectedData(data);
             setIsSelecting(false);
@@ -91,14 +109,11 @@ export function InboxView({
 
     const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointsNotification.markAllAsRead);
 
-    const isNotificationTab = currTab.key === InboxPageTabOption.Notification;
-
     const currentItems = useMemo(() =>
-        isNotificationTab ? storeNotifications : allData,
-        [isNotificationTab, storeNotifications, allData]
-    ) as ListObject[];
+        currentRawItems as ListObject[],
+        [currentRawItems],
+    );
 
-    const isLoadingCurrent = isNotificationTab ? isLoadingStoreNotifications : loading;
     const isEmptyCurrent = currentItems.length === 0 && !isLoadingCurrent;
 
     useEffect(() => {
@@ -120,7 +135,7 @@ export function InboxView({
                         },
                         onError: (error) => {
                             console.error("InboxView: markAllAsReadMutation failed:", error);
-                        }
+                        },
                     });
                 }, MARK_READ_TIMEOUT_MS);
             }
@@ -138,29 +153,39 @@ export function InboxView({
     }, [setLocation]);
 
     const [onActionButtonPress, actionButtonIconInfo, actionTooltip] = useMemo(() => {
-        return [openCreateChat, addIconInfo, "CreateChat"] as const;
-    }, [openCreateChat]);
+        if (isChatTab) {
+            return [openCreateChat, addIconInfo, "CreateChat"] as const;
+        }
+        return [undefined, undefined, undefined] as const;
+    }, [isChatTab, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
+        const item = data[0] as InboxObject;
+        if (!item) return;
+
+        const itemId = typeof item === "string" ? item : item.id;
+
         switch (action) {
             case "Deleted":
-                removeItem(...(data as ArgsType<ObjectListActions<InboxObject>["Deleted"]>));
+                if (isChatTab && itemId) {
+                    removeChatFromStore(itemId);
+                } else if (isNotificationTab) {
+                    console.warn("Notification deletion from list not implemented via store yet.");
+                }
                 break;
             case "Updated":
-                updateItem(...(data as ArgsType<ObjectListActions<InboxObject>["Updated"]>));
+                if (isChatTab && typeof item !== "string") {
+                    updateChatInStore(item as Chat);
+                } else if (isNotificationTab && typeof item !== "string") {
+                    console.warn("Notification update from list not implemented via store yet.");
+                }
                 break;
         }
-    }, [removeItem, updateItem]);
+    }, [isChatTab, isNotificationTab, removeChatFromStore, updateChatInStore]);
 
     function handleDelete() {
         onBulkActionStart(BulkObjectAction.Delete);
     }
-
-    useInfiniteScroll({
-        loading,
-        loadMore,
-        scrollContainerId,
-    });
 
     return (
         <PageContainer size="fullSize">
@@ -188,7 +213,7 @@ export function InboxView({
                     sx={listContainerStyle}
                 >
                     <ObjectList
-                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill(isNotificationTab ? "Notification" : searchType)}
+                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill(isNotificationTab ? "Notification" : isChatTab ? "Chat" : undefined)}
                         handleToggleSelect={handleToggleSelect}
                         isSelecting={isSelecting}
                         items={currentItems}
@@ -221,7 +246,7 @@ export function InboxView({
                         <Icon info={isSelecting ? cancelIconInfo : selectIconInfo} />
                     </IconButton>
                 </Tooltip>
-                {!isSelecting && currTab.key !== InboxPageTabOption.Notification ? (
+                {!isSelecting && isChatTab && actionButtonIconInfo && actionTooltip ? (
                     <Tooltip title={t(actionTooltip)}>
                         <IconButton
                             aria-label={t(actionTooltip)}

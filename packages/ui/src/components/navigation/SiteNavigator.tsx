@@ -4,11 +4,11 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TextLoading } from "../../components/lists/TextLoading/TextLoading.js";
 import { SessionContext } from "../../contexts/session.js";
-import { useFindMany } from "../../hooks/useFindMany.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, IconCommon, IconInfo, IconText } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
+import { useChats, useChatsStore } from "../../stores/chatsStore.js";
 import { ProfileAvatar, ScrollBox } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
@@ -124,7 +124,7 @@ function NavItem({
     }, [onClick, link]);
 
     return (
-        <StyledListItem button onClick={handleClick}>
+        <StyledListItem onClick={handleClick}>
             <ListItemIcon>
                 <Icon decorative info={iconInfo} />
             </ListItemIcon>
@@ -231,13 +231,10 @@ export function SiteNavigator() {
         return { creditsAsDollars, showLowCreditBalance, creditsAsBigInt };
     }, [credits]);
 
-    // Fetch recent chat history
-    const { allData: chatHistory, loading: loadingChatHistory } = useFindMany<ChatSession>({
-        searchType: "Chat",
-        take: CHAT_HISTORY_TAKE,
-        where: { sortBy: "updatedAt:desc" }, // Fetch recent chats first
-        controlsUrl: false, // Don't control URL params from here
-    });
+    // Fetch recent chat history using the store
+    useChats(); // Initialize the chat store
+    const storeChats = useChatsStore(state => state.chats);
+    const isLoadingStoreChats = useChatsStore(state => state.isLoading);
 
     const handleOpenSearch = useCallback(function handleOpenSearchCallback() {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.CommandPalette, isOpen: true });
@@ -421,17 +418,17 @@ export function SiteNavigator() {
                         <StyledListItem>
                             <ListItemText primary={t("RecentChats")} sx={yesterdayLabelStyles} />
                         </StyledListItem>
-                        {loadingChatHistory ? (
+                        {isLoadingStoreChats ? (
                             <TextLoading sx={{ p: 2 }} />
                         ) : (
-                            chatHistory.map((chat) => (
+                            storeChats.slice(0, CHAT_HISTORY_TAKE).map((chat) => (
                                 <StyledListItem
                                     button
                                     key={chat.id}
                                     onClick={() => handleChatClick(chat)}
                                 >
                                     <ListItemText
-                                        primary={chat.name || t("UntitledChat")} // Use chat name or fallback
+                                        primary={chat.name || t("UntitledChat")}
                                         primaryTypographyProps={yesterdayItemStyles}
                                     />
                                 </StyledListItem>

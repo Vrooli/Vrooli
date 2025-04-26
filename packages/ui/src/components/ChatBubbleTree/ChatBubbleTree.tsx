@@ -295,7 +295,7 @@ function ChatBubbleReactions({
     return (
         <ReactionsOuterBox isOwn={isOwn}>
             <ReactionsMainStack isMobile={isMobile} isOwn={isOwn}>
-                {reactions.map((reaction) => {
+                {Array.isArray(reactions) && reactions.map((reaction) => {
                     function handleClick() {
                         onReactionAdd(reaction.emoji);
                     }

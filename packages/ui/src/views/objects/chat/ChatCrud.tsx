@@ -1,5 +1,5 @@
 import { Chat, ChatCreateInput, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_IDS, ServerResponse, Session, shapeChat, uuid, uuidToBase36 } from "@local/shared";
-import { Box, Button, Checkbox, FormControlLabel, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
 import { Formik, useFormikContext } from "formik";
 import { TFunction } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -31,7 +31,6 @@ import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { useActiveChatStore } from "../../../stores/activeChatStore.js";
-import { useLayoutStore } from "../../../stores/layoutStore.js";
 import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
 import { ViewDisplayType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -166,7 +165,6 @@ function ChatForm({
     const { t } = useTranslation();
     const isLeftHanded = useIsLeftHanded();
     const resetActiveChatFromStore = useActiveChatStore((state) => state.resetActiveChat);
-    const { swapMainAndRight } = useLayoutStore();
 
     const {
         fetch,
@@ -437,7 +435,7 @@ function ChatForm({
                                         <Checkbox
                                             checked={values.openToAnyoneWithInvite}
                                             onChange={async (e) => {
-                                                await setFieldValue('openToAnyoneWithInvite', e.target.checked);
+                                                await setFieldValue("openToAnyoneWithInvite", e.target.checked);
                                                 await submitForm();
                                             }}
                                             size="small"
@@ -511,27 +509,6 @@ function ChatForm({
                                 <NavListInboxButton />
                                 <NavListProfileButton />
                             </NavListBox>
-                            {existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
-                                display="flex"
-                                flexDirection="row"
-                                justifyContent="space-around"
-                                alignItems="center"
-                                maxWidth="min(100vw, 1000px)"
-                                margin="auto"
-                            >
-                                <Button
-                                    color="primary"
-                                    onClick={newChat}
-                                    variant="contained"
-                                    sx={addChatButtonStyle}
-                                    startIcon={<IconCommon
-                                        decorative
-                                        name="Add"
-                                    />}
-                                >
-                                    {t("NewChat")}
-                                </Button>
-                            </Box>}
                         </NavbarInner>
                     )}
                     <ChatTreeContainer>
@@ -588,7 +565,7 @@ export function ChatCrud({
     const stableTransform = useCallback(
         (data: Partial<Chat>) =>
             chatInitialValues(session, t, getUserLanguages(session)[0], data),
-        [session, t]
+        [session, t],
     );
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Chat, ChatShape>({
