@@ -63,7 +63,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     preMap,
                     userData,
                 });
-                console.log("preMap chatData here", JSON.stringify(preMap.chatData));
 
                 // Collect information for new messages, which can't be queried for
                 for (const { node, input } of Create) {
@@ -304,6 +303,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 const preMapUserData: Record<string, PreMapUserData> = preMap[__typename]?.userData ?? {};
                 const preMapChatData: Record<string, PreMapChatData> = preMap[__typename]?.chatData ?? {};
                 const preMapMessageData: Record<string, PreMapMessageData> = preMap[__typename]?.messageData ?? {};
+                return;
                 // Call triggers
                 for (const objectId of createdIds) {
                     const messageData = preMapMessageData[objectId] as PreMapMessageDataCreate | undefined;
@@ -463,16 +463,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     orderBy: { sequence: "desc" },
                     select: { id: true },
                 });
-                const temp = await DbProvider.get().chat_message.findMany({
-                    where: { chatId },
-                    select: { id: true, translations: { select: { text: true } } },
-                });
-                console.log("all messages in chat", JSON.stringify(temp, null, 2));
-                const temp2 = await DbProvider.get().chat.findMany({
-                    where: {},
-                    select: { id: true, messages: { select: { id: true, translations: { select: { text: true } } } } },
-                });
-                console.log("all chats", JSON.stringify(temp2, null, 2));
 
                 if (!highestSeqMessage) {
                     return { __typename: "ChatMessageSearchTreeResult", messages: [], hasMoreUp: false, hasMoreDown: false };
@@ -489,7 +479,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 }
             }
 
-            // --- Prepare Select --- 
+            // --- Prepare Select ---
             // Convert the incoming GraphQL info into a PartialApiInfo object
             const partialInfo = InfoConverter.get().fromApiToPartialApi(info.messages as PartialApiInfo, ChatMessageFormat.apiRelMap, true);
             // Convert the PartialApiInfo into a Prisma select object
@@ -498,27 +488,68 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 throw new CustomError("0532", "InternalError", { info });
             }
 
-            // Helper function to recursively build select object
-            function buildNestedSelect(currentSelect: Record<string, any>, depth: number, exUp: boolean, exDown: boolean): Record<string, any> {
+            // Helper function to recursively build select object for parent/child branches
+            // Accepts baseSelectFields to merge requested fields at each level
+            function buildBranchSelect(depth: number, selectUp: boolean, selectDown: boolean, baseSelectFields: Record<string, any>): Record<string, any> {
+                // Base case: Merge base fields with id
                 if (depth <= 0) {
-                    return currentSelect;
+                    return {
+                        ...baseSelectFields,
+                        id: true,
+                    };
                 }
-                const nextSelect: Record<string, any> = { ...currentSelect };
-                if (!exUp) {
-                    nextSelect.parent = { select: buildNestedSelect({ id: true }, depth - 1, exUp, exDown) };
+
+                // Recursive step: Start with base fields + id
+                const select: Record<string, any> = { ...baseSelectFields, id: true };
+
+                if (selectUp) {
+                    // Continue selecting parents up the chain, passing baseSelectFields
+                    select.parent = {
+                        select: buildBranchSelect(depth - 1, true, false, baseSelectFields), // Keep going up, don't select children from this path
+                    };
                 }
-                if (!exDown) {
-                    nextSelect.children = { select: buildNestedSelect({ id: true, versionIndex: true }, depth - 1, exUp, exDown) };
+
+                if (selectDown) {
+                    // Continue selecting children down the chain, passing baseSelectFields
+                    select.children = {
+                        select: buildBranchSelect(depth - 1, false, true, baseSelectFields), // Keep going down, don't select parents from this path
+                    };
                 }
-                return nextSelect;
+
+                return select;
             }
 
-            // Generate the full recursive select object, respecting exclusions
+            // Start with the base fields requested by the client for the root node
+            const finalSelect: Record<string, any> = { ...baseSelect.select, id: true };
+
+            // Add the parent branch select if not excluded, passing baseSelect.select
+            if (!excludeUp) {
+                // Fetch 'take' levels up (one more than needed for the result) to check for hasMoreUp.
+                finalSelect.parent = {
+                    select: buildBranchSelect(take, true, false, baseSelect.select),
+                };
+            }
+
+            // Add the children branch select if not excluded, passing baseSelect.select
+            if (!excludeDown) {
+                // Create a copy of baseSelect.select and remove the parent field for child recursion
+                const childBaseSelect = { ...baseSelect.select };
+                delete childBaseSelect.parent;
+
+                // Fetch 'take' levels down, passing the modified base fields.
+                const childrenSelect = buildBranchSelect(take, false, true, childBaseSelect);
+
+                finalSelect.children = {
+                    select: childrenSelect,
+                };
+            }
+
+            // Generate the full select object for the findUnique query
             const treeSelect = {
-                select: buildNestedSelect({ ...baseSelect.select, id: true }, take, !!excludeUp, !!excludeDown), // Start with base fields + id
+                select: finalSelect,
             };
 
-            // --- Fetch message tree --- 
+            // --- Fetch message tree ---
             const tree = await DbProvider.get().chat_message.findUnique({
                 where: { id: startId },
                 select: treeSelect.select,
@@ -529,109 +560,62 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             }
 
             // --- Flatten Tree & Determine hasMore --- 
-            const messageMap = new Map<string, any>();
-            const nodesToProcess: any[] = [tree];
             let hasMoreUp = false;
             let hasMoreDown = false;
-
-            // Function to recursively extract all nodes from the fetched tree
-            function extractNodes(node: any, currentDepth: number) {
-                if (!node || messageMap.has(node.id) || currentDepth > take) {
-                    return;
-                }
-                messageMap.set(node.id, node);
-
-                // Check parent for hasMoreUp at the limit
-                if (currentDepth === take && node.parent) {
-                    // This check might need refinement depending on how deep parents were fetched
-                    // Assuming the recursive select fetches parents up to 'take' depth
-                    hasMoreUp = true;
-                }
-                if (node.parent) {
-                    extractNodes(node.parent, currentDepth + 1); // Process parent upwards
-                }
-
-                // Process children downwards
-                if (node.children && node.children.length > 0) {
-                    // Check for hasMoreDown at the limit
-                    if (currentDepth === take) {
-                        hasMoreDown = true; // Found children at the depth limit
-                    }
-                    for (const child of node.children) {
-                        extractNodes(child, currentDepth + 1);
-                    }
-                }
-            }
-
-            // Start extraction from the root of the fetched tree (startId)
-            // We need a slightly different traversal for determining hasMoreUp/Down accurately
-            // based on the *intended* path, not just existence of any node at the depth limit.
-
-            // Determine hasMoreUp by checking the actual ancestor chain, only if not excluded
-            if (!excludeUp) {
-                let ancestorCheckNode: any = tree; // Use any to simplify nested access
-                for (let i = 0; i < take; i++) {
-                    if (!ancestorCheckNode?.parent) {
-                        hasMoreUp = false;
-                        break;
-                    }
-                    ancestorCheckNode = ancestorCheckNode.parent;
-                    if (i === take - 1 && (ancestorCheckNode as any)?.parent) { // Cast here
-                        hasMoreUp = true; // Reached limit and parent still exists
-                    }
-                }
-            } else {
-                hasMoreUp = false; // Explicitly excluded
-            }
-
-            // Determine hasMoreDown by checking the intended descendant path, only if not excluded
-            if (!excludeDown) {
-                let descendantCheckNode: any = tree; // Use any to simplify nested access
-                for (let i = 0; i < take; i++) {
-                    const children = descendantCheckNode?.children;
-                    if (!children || children.length === 0) {
-                        hasMoreDown = false;
-                        break;
-                    }
-                    // Find the default next node (highest versionIndex)
-                    const sortedChildren = [...children].sort((a: any, b: any) => b.versionIndex - a.versionIndex);
-                    const nextNode = sortedChildren[0];
-
-                    if (!nextNode) {
-                        hasMoreDown = false; // Should not happen if children.length > 0
-                        break;
-                    }
-                    descendantCheckNode = nextNode;
-                    // Check if the default node at the limit still has children fetched
-                    if (i === take - 1 && descendantCheckNode?.children && descendantCheckNode.children.length > 0) {
-                        hasMoreDown = true;
-                    }
-                }
-            } else {
-                hasMoreDown = false; // Explicitly excluded
-            }
-
-            // Flatten all nodes from the fetched tree into a map to handle duplicates
             const allNodesMap = new Map<string, any>();
-            function flattenRecursively(node: any) {
+
+            // New flatten function to track depth, determine hasMore flags, and add parentId linkage
+            function flattenAndCheckDepth(node: any, depthUp: number, depthDown: number, parentId: string | null = null) {
                 if (!node || allNodesMap.has(node.id)) {
-                    return;
+                    return; // Already processed or null
                 }
-                // Store node without deep nested relations for processing
+
+                // Check depth limits before processing/adding
+                if (!excludeUp && depthUp >= take) {
+                    hasMoreUp = true;
+                    return; // Reached limit upwards, don't add or recurse further up
+                }
+                if (!excludeDown && depthDown >= take) {
+                    hasMoreDown = true;
+                    return; // Reached limit downwards on this branch, don't add or recurse further down
+                }
+
+                // Store node (shallow copy)
                 const shallowNode = { ...node };
+
+                // Set parentId:
+                // 1. If explicitly passed (meaning we traversed down to this node)
+                // 2. Or if the node fetched from DB has a parent object with an id (meaning we traversed up or this is the start node)
+                if (parentId) {
+                    shallowNode.parentId = parentId;
+                    shallowNode.parent = { __typename: "ChatMessage", id: parentId };
+                } else if (node.parent?.id) {
+                    shallowNode.parentId = node.parent.id;
+                    shallowNode.parent = { __typename: "ChatMessage", id: node.parent.id };
+                }
+
+                // Clean up relations to avoid circular refs and redundant data
                 delete shallowNode.parent;
                 delete shallowNode.children;
+
                 allNodesMap.set(node.id, shallowNode);
 
-                if (node.parent) {
-                    flattenRecursively(node.parent);
+                // Recurse Up (Parent)
+                if (!excludeUp && node.parent) {
+                    // Pass null for parentId when going up (parentId will be derived from node.parent.parent inside the recursive call)
+                    flattenAndCheckDepth(node.parent, depthUp + 1, depthDown, null);
                 }
-                // Recursively process ALL children
-                if (node.children) {
-                    node.children.forEach(flattenRecursively);
+
+                // Recurse Down (Children)
+                if (!excludeDown && node.children) {
+                    // Pass current node's id as parentId when going down
+                    node.children.forEach((child: any) => flattenAndCheckDepth(child, depthUp, depthDown + 1, node.id));
                 }
             }
-            flattenRecursively(tree);
+
+            // Start flattening from the fetched root node (startId)
+            flattenAndCheckDepth(tree, 0, 0);
+
             const rawMessages = Array.from(allNodesMap.values());
 
             // --- Convert & Supplement --- 

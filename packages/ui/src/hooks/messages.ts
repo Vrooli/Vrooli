@@ -18,7 +18,9 @@ export type MinimumChatMessage = {
         parent?: {
             id: string;
         } | null;
+        parentId?: string | null;
     } | null;
+    parentId?: string | null;
     user?: {
         id: string;
     } | null;
@@ -155,12 +157,12 @@ export class MessageTree<T extends MinimumChatMessage> {
         if (!orphan) return null;
 
         // First, try to attach to the direct parent if possible
-        const parentId = orphan.message.parent?.id;
+        const parentId = orphan.message.parent?.id || orphan.message.parentId;
         const parentNode = parentId ? this.map.get(parentId) : null;
         if (parentNode) return parentId || null;
 
         // Then, try to attach to the grandparent if possible
-        const grandparentId = orphan.message.parent?.parent?.id;
+        const grandparentId = orphan.message.parent?.parent?.id || orphan.message.parent?.parentId;
         const grandparent = grandparentId ? this.map.get(grandparentId) : null;
         if (grandparent) return grandparentId || null;
 
@@ -321,7 +323,7 @@ export class MessageTree<T extends MinimumChatMessage> {
         const orphanedChildren = [...nodeToRemove.children];
 
         // Remove from parent's children
-        const parentId = nodeToRemove.message.parent?.id;
+        const parentId = nodeToRemove.message.parent?.id || nodeToRemove.message.parentId;
         if (parentId) {
             const parentNode = this.map.get(parentId);
             if (parentNode) {
@@ -346,7 +348,7 @@ export class MessageTree<T extends MinimumChatMessage> {
 
     addMessageToTree(message: T) {
         const messageId = message.id;
-        const parentId = message.parent?.id;
+        const parentId = message.parent?.id || message.parentId;
 
         // Add or update the node in the map
         if (!this.map.has(messageId)) {
@@ -820,7 +822,7 @@ export function useMessageActions({
         if (!chat) return;
         const taskContexts = await getTaskContexts();
 
-        const { parent, versionIndex, user } = failedMessage;
+        const { parent, parentId, versionIndex, user } = failedMessage;
 
         const text = getTranslation(failedMessage, [language])?.text;
 
@@ -833,7 +835,7 @@ export function useMessageActions({
         const message: ChatMessageCreateInput = {
             id: uuid(), // Generate new id
             chatConnect: chat.id,
-            parentConnect: parent?.id ?? undefined,
+            parentConnect: parent?.id ?? parentId ?? undefined,
             userConnect: user?.id ?? getCurrentUser(session).id ?? "",
             versionIndex: versionIndex ?? 0,
             translationsCreate: [{

@@ -255,6 +255,7 @@ export type ChatMessageShape = Pick<ChatMessage, "id" | "versionIndex"> & {
     /** If not provided, we'll assume it's sent */
     status?: ChatMessageStatus;
     parent?: CanConnect<ChatMessageParent> | null;
+    parentId?: string | null;
     reactionSummaries: ReactionSummary[]; // Only used by the UI
     translations: ChatMessageTranslationShape[];
     user?: CanConnect<User> | null;

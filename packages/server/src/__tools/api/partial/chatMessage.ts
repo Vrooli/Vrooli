@@ -25,7 +25,6 @@ export const chatMessage: ApiPartial<ChatMessage> = {
     common: {
         id: true,
         created_at: true,
-        updated_at: true,
         sequence: true,
         versionIndex: true,
         parent: { id: true, created_at: true },
