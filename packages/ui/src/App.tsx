@@ -8,6 +8,7 @@ import { ServerResponseParser } from "./api/responseParser.js";
 import { SERVER_CONNECT_MESSAGE_ID } from "./api/socket.js";
 import { AdaptiveLayout } from "./components/AdaptiveLayout.js";
 import { Celebration } from "./components/Celebration/Celebration.js";
+import { DebugComponent } from "./components/Debug/index.js";
 import { AlertDialog } from "./components/dialogs/AlertDialog/AlertDialog.js";
 import { ImagePopup, VideoPopup } from "./components/dialogs/media.js";
 import { ProDialog } from "./components/dialogs/ProDialog/ProDialog.js";
@@ -422,46 +423,45 @@ https://github.com/Vrooli/Vrooli
     useSocketUser(session, setSession);
 
     return (
-        <>
+        <ThemeProvider theme={theme}>
             <StyledEngineProvider injectFirst>
+                <GlobalStyles styles={getGlobalStyles(theme)} />
                 <CssBaseline />
-                <ThemeProvider theme={theme}>
-                    <GlobalStyles styles={getGlobalStyles} />
-                    <SessionContext.Provider value={session}>
-                        <MainBox id="App" component="main">
-                            {/* Popups and other components that don't effect layout */}
-                            <PullToRefresh />
-                            <CommandPalette />
-                            <FindInPage />
-                            <Celebration />
-                            <AlertDialog />
-                            <SnackStack />
-                            <ProDialog
-                                isOpen={isProDialogOpen}
-                                onClose={closeProDialog}
-                            />
-                            <TutorialDialog />
-                            <ImagePopup
-                                alt="Tutorial content"
-                                open={!!openImageData}
-                                onClose={closePopupImage}
-                                src={openImageData?.src ?? ""}
-                                zIndex={Z_INDEX.Popup}
-                            />
-                            <VideoPopup
-                                open={!!openVideoData}
-                                onClose={closePopupVideo}
-                                src={openVideoData?.src ?? ""}
-                                zIndex={Z_INDEX.Popup}
-                            />
-                            <UserMenu />
-                            <FullPageSpinner />
-                            <AdaptiveLayout />
-                            <BottomNav />
-                        </MainBox>
-                    </SessionContext.Provider>
-                </ThemeProvider>
+                <SessionContext.Provider value={session}>
+                    <MainBox>
+                        {/* Popups and other components that don't effect layout */}
+                        <PullToRefresh />
+                        <CommandPalette />
+                        <FindInPage />
+                        <Celebration />
+                        <AlertDialog />
+                        <SnackStack />
+                        <ProDialog
+                            isOpen={isProDialogOpen}
+                            onClose={closeProDialog}
+                        />
+                        <TutorialDialog />
+                        <ImagePopup
+                            alt="Tutorial content"
+                            open={!!openImageData}
+                            onClose={closePopupImage}
+                            src={openImageData?.src ?? ""}
+                            zIndex={Z_INDEX.Popup}
+                        />
+                        <VideoPopup
+                            open={!!openVideoData}
+                            onClose={closePopupVideo}
+                            src={openVideoData?.src ?? ""}
+                            zIndex={Z_INDEX.Popup}
+                        />
+                        <UserMenu />
+                        <FullPageSpinner />
+                        <AdaptiveLayout />
+                        <BottomNav />
+                        {process.env.NODE_ENV === "development" && <DebugComponent />}
+                    </MainBox>
+                </SessionContext.Provider>
             </StyledEngineProvider>
-        </>
+        </ThemeProvider>
     );
 }

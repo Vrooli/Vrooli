@@ -2,6 +2,7 @@ import { ChatMessageShape, ChatParticipantShape, ChatShape, ChatSocketEventPaylo
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { SocketService } from "../api/socket.js";
 import { SessionContext } from "../contexts/session.js";
+import { useDebugStore } from "../stores/debugStore.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
 import { removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, updateCookiePartialTaskForChat, upsertCookieTaskForChat } from "../utils/localStorage.js";
 import { PubSub } from "../utils/pubsub.js";
@@ -20,21 +21,60 @@ type UseSocketChatProps = {
     usersTyping: ParticipantWithoutChat[];
 }
 
+// Add constants for magic numbers
+const MAX_MESSAGE_PREVIEW_LENGTH = 50;
+
+// Track active join attempts globally to prevent duplicates
+const activeJoinAttempts = new Map<string, boolean>();
+
 export function processMessages(
     { added, updated, removed }: ChatSocketEventPayloads["messages"],
     addMessages: UseSocketChatProps["addMessages"],
     editMessage: UseSocketChatProps["editMessage"],
     removeMessages: UseSocketChatProps["removeMessages"],
+    chatId?: string | null,
 ) {
+    // Add debug data for received messages
     if (Array.isArray(added) && added.length > 0) {
+        // Debug: Track new messages
+        useDebugStore.getState().addData(`chat-messages-${chatId || "unknown"}`, {
+            event: "received-messages",
+            count: added.length,
+            messages: added.map(m => ({
+                id: m.id,
+                // Safe access to content field which might not exist in the type
+                preview: typeof m["content"] === "string"
+                    ? m["content"].substring(0, MAX_MESSAGE_PREVIEW_LENGTH) +
+                    (m["content"].length > MAX_MESSAGE_PREVIEW_LENGTH ? "..." : "")
+                    : "(no content)",
+            })),
+            timestamp: new Date().toISOString(),
+        });
+
         addMessages(added.map(m => ({ ...m, status: "sent" })));
     }
     if (Array.isArray(updated) && updated.length > 0) {
+        // Debug: Track updated messages
+        useDebugStore.getState().addData(`chat-messages-${chatId || "unknown"}`, {
+            event: "updated-messages",
+            count: updated.length,
+            messages: updated.map(m => ({ id: m.id })),
+            timestamp: new Date().toISOString(),
+        });
+
         updated.forEach(message => {
             editMessage({ ...message, status: "sent" });
         });
     }
     if (Array.isArray(removed) && removed.length > 0) {
+        // Debug: Track removed messages
+        useDebugStore.getState().addData(`chat-messages-${chatId || "unknown"}`, {
+            event: "removed-messages",
+            count: removed.length,
+            messageIds: removed,
+            timestamp: new Date().toISOString(),
+        });
+
         removeMessages(removed);
     }
 }
@@ -206,30 +246,103 @@ export function useSocketChat({
     usersTyping,
 }: UseSocketChatProps) {
     const session = useContext(SessionContext);
+    const addDebugData = useDebugStore(state => state.addData);
+    // Add a ref to track if we've already joined a chat
+    const joinedChatsRef = useRef<Set<string>>(new Set());
 
     // Handle connection/disconnection
     useEffect(function connectToChatEffect() {
         if (!chat?.id || chat.id === DUMMY_ID) return;
+        const debugTrace = `chat-room-${chat.id}`;
 
-        SocketService.get().emitEvent("joinChatRoom", { chatId: chat.id }, (response) => {
-            if (response.error) {
-                PubSub.get().publish("snack", { messageKey: "ChatRoomJoinFailed", severity: "Error" });
-                // If the response indicates that the chat was deleted or is unauthorized,
-                // we should remove all references to this chat from local storage
-                if (response.error === JOIN_CHAT_ROOM_ERRORS.ChatNotFoundOrUnauthorized) {
-                    removeCookiesWithChatId(chat.id);
-                }
-            }
-        });
+        // Prevent multiple simultaneous join attempts for the same chat
+        if (activeJoinAttempts.get(chat.id)) {
+            console.debug(`Prevented duplicate join attempt for chat ${chat.id}`);
+            return;
+        }
 
-        return () => {
-            SocketService.get().emitEvent("leaveChatRoom", { chatId: chat.id }, (response) => {
+        // Only join if we haven't joined this chat before
+        if (!joinedChatsRef.current.has(chat.id)) {
+            // Mark this chat as having an active join attempt
+            activeJoinAttempts.set(chat.id, true);
+
+            // Debug: log chat room join attempt
+            addDebugData(debugTrace, {
+                event: "join-attempt",
+                chatId: chat.id,
+                timestamp: new Date().toISOString(),
+            });
+
+            SocketService.get().emitEvent("joinChatRoom", { chatId: chat.id }, (response) => {
+                // Clear the active join attempt flag
+                activeJoinAttempts.delete(chat.id);
+
                 if (response.error) {
-                    console.error("Failed to leave chat room", response.error);
+                    // Debug: log join error
+                    addDebugData(debugTrace, {
+                        event: "join-error",
+                        chatId: chat.id,
+                        error: response.error,
+                        timestamp: new Date().toISOString(),
+                    });
+
+                    PubSub.get().publish("snack", { messageKey: "ChatRoomJoinFailed", severity: "Error" });
+                    // If the response indicates that the chat was deleted or is unauthorized,
+                    // we should remove all references to this chat from local storage
+                    if (response.error === JOIN_CHAT_ROOM_ERRORS.ChatNotFoundOrUnauthorized) {
+                        removeCookiesWithChatId(chat.id);
+                    }
+                } else {
+                    // Mark this chat as joined
+                    joinedChatsRef.current.add(chat.id);
+
+                    // Debug: log successful join
+                    addDebugData(debugTrace, {
+                        event: "join-success",
+                        chatId: chat.id,
+                        timestamp: new Date().toISOString(),
+                    });
                 }
             });
+        }
+
+        // Always return a cleanup function that properly leaves the chat room
+        return () => {
+            // Only attempt to leave if we previously joined and there's no active join attempt
+            if (joinedChatsRef.current.has(chat.id) && !activeJoinAttempts.get(chat.id)) {
+                // Debug: log chat room leave
+                addDebugData(debugTrace, {
+                    event: "leave-attempt",
+                    chatId: chat.id,
+                    timestamp: new Date().toISOString(),
+                });
+
+                SocketService.get().emitEvent("leaveChatRoom", { chatId: chat.id }, (response) => {
+                    if (response.error) {
+                        // Debug: log leave error
+                        addDebugData(debugTrace, {
+                            event: "leave-error",
+                            chatId: chat.id,
+                            error: response.error,
+                            timestamp: new Date().toISOString(),
+                        });
+
+                        console.error("Failed to leave chat room", response.error);
+                    } else {
+                        // Remove chat from joined set
+                        joinedChatsRef.current.delete(chat.id);
+
+                        // Debug: log successful leave
+                        addDebugData(debugTrace, {
+                            event: "leave-success",
+                            chatId: chat.id,
+                            timestamp: new Date().toISOString(),
+                        });
+                    }
+                });
+            }
         };
-    }, [chat?.id]);
+    }, [chat?.id, addDebugData]);
 
     const messageStreamRef = useRef<ChatSocketEventPayloads["responseStream"] | null>(null);
     const [messageStream, setMessageStream] = useState<ChatSocketEventPayloads["responseStream"] | null>(null);
@@ -250,7 +363,7 @@ export function useSocketChat({
     usersTypingRef.current = usersTyping;
 
     // Handle incoming data
-    useEffect(() => SocketService.get().onEvent("messages", (payload) => processMessages(payload, addMessages, editMessage, removeMessages)), [addMessages, editMessage, removeMessages]);
+    useEffect(() => SocketService.get().onEvent("messages", (payload) => processMessages(payload, addMessages, editMessage, removeMessages, chat?.id)), [addMessages, editMessage, removeMessages, chat?.id]);
     useEffect(() => SocketService.get().onEvent("typing", (payload) => processTypingUpdates(payload, usersTypingRef.current, participantsRef.current, session, setUsersTyping)), [session, setUsersTyping]);
     useEffect(() => SocketService.get().onEvent("llmTasks", (payload) => processLlmTasks(payload, chat?.id)), [chat?.id]);
     useEffect(() => SocketService.get().onEvent("participants", (payload) => processParticipantsUpdates(payload, participantsRef.current, chatRef.current, setParticipants)), [setParticipants]);

@@ -9,6 +9,7 @@ import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
 import { API_URL, baseSession } from '../src/__test/storybookConsts.js';
 import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
 import { Celebration } from '../src/components/Celebration/Celebration.js';
+import { DebugComponent } from '../src/components/Debug/index.js';
 import { PullToRefresh } from '../src/components/PullToRefresh/PullToRefresh.js';
 import { FullPageSpinner } from '../src/components/Spinners.js';
 import { AlertDialog } from '../src/components/dialogs/AlertDialog/AlertDialog.js';
@@ -280,6 +281,7 @@ const preview: Preview = {
                                 <FullPageSpinner />
                                 <AdaptiveLayout Story={Story} />
                                 <BottomNav />
+                                <DebugComponent />
                             </MainBox>
                         </SessionContext.Provider>
                     </I18nextProvider>
