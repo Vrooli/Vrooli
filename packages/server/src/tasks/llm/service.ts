@@ -7,7 +7,7 @@ import { emitSocketEvent } from "../../sockets/events.js";
 import { PreMapUserData } from "../../utils/chat.js";
 import { objectToYaml } from "../../utils/toYaml.js";
 import { ChatContextManager, CollectMessageContextInfoParams, MessageContextInfo } from "./context.js";
-import { LlmServiceRegistry, LlmServiceState } from "./registry.js";
+import { LlmServiceErrorType, LlmServiceRegistry, LlmServiceState } from "./registry.js";
 import { GenerateContextParams, GenerateResponseResult, GetConfigObjectParams, GetOutputTokenLimitParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, SimpleChatMessageData } from "./types.js";
 
 /**
@@ -389,30 +389,67 @@ export async function generateResponseWithFallback({
 
             // Check input safety
             const stringifiedInput = JSON.stringify(messages) + systemMessage;
-            const { cost: safetyCheckCost, isSafe: isInputSafe } = await serviceInstance.safeInputCheck(stringifiedInput);
-            accumulatedCost += safetyCheckCost;
-            if (!isInputSafe) {
-                // Delete the message
-                try {
-                    if (latestMessage) {
-                        await cudHelper({
-                            info: {},
-                            inputData: [{
-                                action: "Delete",
-                                input: latestMessage,
-                                objectType: "ChatMessage",
-                            }],
-                            userData,
-                        });
+
+            try {
+                const { cost: safetyCheckCost, isSafe: isInputSafe } = await serviceInstance.safeInputCheck(stringifiedInput);
+                accumulatedCost += safetyCheckCost;
+
+                if (!isInputSafe) {
+                    // Delete the message only if it's actually unsafe content
+                    try {
+                        if (latestMessage) {
+                            await cudHelper({
+                                info: {},
+                                inputData: [{
+                                    action: "Delete",
+                                    input: latestMessage,
+                                    objectType: "ChatMessage",
+                                }],
+                                userData,
+                            });
+
+                            // Notify the user that their message was removed
+                            if (chatId) {
+                                // Use the 'stream' type since 'system' is not an available event type
+                                emitSocketEvent("responseStream", chatId, {
+                                    __type: "stream",
+                                    message: "Your message was removed because it was flagged as potentially unsafe content.",
+                                    botId: respondingBotId,
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        logger.error("Failed to delete unsafe message", { trace: "0607", chatId, respondingBotId, error });
                     }
-                } catch (error) {
-                    logger.error("Failed to delete unsafe message", { trace: "0607", chatId, respondingBotId, error });
+
+                    const MAX_LOGGED_INPUT_LENGTH = 1000;
+                    throw new CustomError(UNSAFE_CONTENT_CODE, "UnsafeContent", {
+                        input: stringifiedInput.length > MAX_LOGGED_INPUT_LENGTH ? stringifiedInput.slice(0, MAX_LOGGED_INPUT_LENGTH) + "..." : stringifiedInput,
+                        latestMessage,
+                    });
                 }
-                const MAX_LOGGED_INPUT_LENGTH = 1000;
-                throw new CustomError(UNSAFE_CONTENT_CODE, "UnsafeContent", {
-                    input: stringifiedInput.length > MAX_LOGGED_INPUT_LENGTH ? stringifiedInput.slice(0, MAX_LOGGED_INPUT_LENGTH) + "..." : stringifiedInput,
-                    latestMessage,
-                });
+            } catch (moderationError) {
+                // If the error is not our custom UnsafeContent error (which we throw above),
+                // then it's an API error from the moderation service
+                if (!(moderationError instanceof CustomError && moderationError.code === "UnsafeContent")) {
+                    logger.error("Moderation service error", { trace: "0608", chatId, respondingBotId, error: moderationError });
+
+                    // Instead of treating this as unsafe content, throw a moderation error
+                    // that will be caught in the outer catch block and trigger the fallback mechanism
+                    const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);
+                    if (serviceState !== LlmServiceState.Active) {
+                        // Let it fall through to the catch block, which will try another service
+                        throw moderationError;
+                    } else {
+                        // If the service is still active, let's try another service anyway
+                        // by setting the service state to inactive temporarily
+                        LlmServiceRegistry.get().updateServiceState(serviceId.toString(), LlmServiceErrorType.ApiError);
+                        throw moderationError;
+                    }
+                } else {
+                    // If it's our UnsafeContent error, rethrow it
+                    throw moderationError;
+                }
             }
 
             // Calculate input tokens and determine max output tokens based on maxCredits
@@ -458,7 +495,7 @@ export async function generateResponseWithFallback({
                         payload.botId = respondingBotId;
                         messageStreamStarted = true;
                     }
-                    emitSocketEvent("responseStream", chatId, { __type, message });
+                    emitSocketEvent("responseStream", chatId, payload);
                 }
             } else {
                 const response = await serviceInstance.generateResponse({
@@ -482,10 +519,11 @@ export async function generateResponseWithFallback({
             const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);
             // If the service is still active, then the error was likely due 
             // to the request we made. So we'll throw the error instead of retrying.
-            if (serviceState === LlmServiceState.Active) {
+            if (serviceState === LlmServiceState.Active && !(error instanceof CustomError && error.code === "UnsafeContent")) {
                 throw error;
             }
             // Otherwise, we'll retry with the next best service
+            logger.info("Retrying with another service due to error", { serviceId, attempts, retryLimit });
         }
     }
 

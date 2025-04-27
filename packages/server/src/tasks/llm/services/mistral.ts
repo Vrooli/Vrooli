@@ -190,7 +190,7 @@ export class MistralService implements LanguageModelService<MistralModel> {
         return this.defaultModel;
     }
 
-    getErrorType(error: unknown) {
+    getErrorType(_error: unknown) {
         return LlmServiceErrorType.Authentication; //TODO can't find error codes
     }
 
@@ -253,14 +253,15 @@ export class MistralService implements LanguageModelService<MistralModel> {
                 },
             });
             return { cost, isSafe };
-        } catch (error) {
+        } catch (err) {
             const trace = "0423";
-            const errorType = this.getErrorType(error);
+            const errorType = this.getErrorType(err);
             LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
-            logger.error("Failed to perform content moderation", { trace, error, errorType });
+            logger.error("Failed to perform content moderation", { trace, error: err, errorType });
 
-            // In case of an error, we assume the input is not safe
-            return { cost: 0, isSafe: false };
+            // Instead of treating service errors as unsafe content,
+            // throw the error to allow fallback mechanisms to work
+            throw new CustomError(trace, "InternalError", { error: err, errorType });
         }
     }
 }

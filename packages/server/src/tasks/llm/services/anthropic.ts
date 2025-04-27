@@ -271,8 +271,9 @@ export class AnthropicService implements LanguageModelService<AnthropicModel> {
             LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
             logger.error("Failed to perform content moderation", { trace, error, errorType });
 
-            // In case of an error, we assume the input is not safe
-            return { cost: 0, isSafe: false };
+            // Instead of treating service errors as unsafe content,
+            // throw the error to allow fallback mechanisms to work
+            throw new CustomError(trace, "InternalError", { error, errorType });
         }
     }
 }

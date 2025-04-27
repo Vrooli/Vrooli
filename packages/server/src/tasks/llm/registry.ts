@@ -145,9 +145,13 @@ export class LlmServiceRegistry {
      */
     getService(serviceId: LlmServiceId): LanguageModelService<any> {
         // Check if the service is active
-        const state = this.getServiceState(serviceId);
+        const state = this.getServiceState(serviceId.toString());
         if (state !== LlmServiceState.Active) {
-            throw new CustomError("0652", "ServiceDisabled", { serviceId });
+            const registry = LlmServiceRegistry.get();
+            const availableServices = Object.entries(serviceInstances)
+                .filter(([serviceIdKey, _]) => registry.getServiceState(serviceIdKey) === LlmServiceState.Active)
+                .map(([serviceIdKey]) => serviceIdKey);
+            throw new CustomError("0652", "ServiceDisabled", { serviceId, availableServices });
         }
 
         // Get the service instance
@@ -169,7 +173,7 @@ export class LlmServiceRegistry {
     getBestService(model: string | undefined): LlmServiceId | null {
         // Try requested service first
         const serviceId = this.getServiceId(model);
-        if (this.getServiceState(serviceId) === LlmServiceState.Active) {
+        if (this.getServiceState(serviceId.toString()) === LlmServiceState.Active) {
             return serviceId;
         }
 
@@ -181,7 +185,7 @@ export class LlmServiceRegistry {
         // Try fallbacks
         for (const fallback of fallbacksForModel) {
             const fallbackServiceId = this.getServiceId(fallback);
-            if (this.getServiceState(fallbackServiceId) === LlmServiceState.Active) {
+            if (this.getServiceState(fallbackServiceId.toString()) === LlmServiceState.Active) {
                 return fallbackServiceId;
             }
         }
