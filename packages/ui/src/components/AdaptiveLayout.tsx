@@ -35,9 +35,11 @@ interface ResizableDrawerProps extends SwipeableDrawerProps {
 const ResizableDrawer = styled(SwipeableDrawer)<ResizableDrawerProps>(({ size }) => ({
     width: size,
     flexShrink: 0,
+    zIndex: Z_INDEX.Drawer,
     "& .MuiDrawer-paper": {
         width: size,
         boxSizing: "border-box",
+        zIndex: Z_INDEX.Drawer,
     },
 }));
 
