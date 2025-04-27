@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, Session as ChatSession, LINKS, getObjectUrl } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, Session as ChatSession, LINKS, MyStuffPageTabOption, getObjectUrl } from "@local/shared";
 import { Box, Button, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, IconCommon, IconInfo, IconText } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { useChats, useChatsStore } from "../../stores/chatsStore.js";
+import { useProjects, useProjectsStore } from "../../stores/projectsStore.js";
 import { ProfileAvatar, ScrollBox } from "../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
@@ -101,11 +102,6 @@ const StyledListItem = styled(ListItem)(({ theme }) => ({
     paddingTop: theme.spacing(0.5),
     paddingBottom: theme.spacing(0.5),
 }));
-
-const projects = [
-    { text: "Local Vrooli" },
-    { text: "Routine graphs", selected: true },
-];
 
 // Separate component for navigation items
 function NavItem({
@@ -236,6 +232,13 @@ export function SiteNavigator() {
     const storeChats = useChatsStore(state => state.chats);
     const isLoadingStoreChats = useChatsStore(state => state.isLoading);
 
+    // Fetch projects using the store
+    useProjects(); // Initialize the projects store
+    const storeProjects = useProjectsStore(state => state.projects);
+    const selectedProjectId = useProjectsStore(state => state.selectedProjectId);
+    const selectProject = useProjectsStore(state => state.selectProject);
+    const isLoadingStoreProjects = useProjectsStore(state => state.isLoading);
+
     const handleOpenSearch = useCallback(function handleOpenSearchCallback() {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.CommandPalette, isOpen: true });
     }, []);
@@ -257,14 +260,20 @@ export function SiteNavigator() {
         setProjectsOpen(!projectsOpen);
     }
 
+    // Handler for selecting a project
+    const handleSelectProject = useCallback((projectId: string) => {
+        selectProject(projectId);
+        // Add navigation to project URL when needed
+    }, [selectProject]);
+
     // Handlers for Projects buttons
     const handleAddProject = useCallback(() => {
-        // Add logic for adding a new project
-    }, []);
+        setLocation(`${LINKS.Project}/add`);
+    }, [setLocation]);
 
     const handleSeeMoreProjects = useCallback(() => {
-        // Add logic for showing more projects
-    }, []);
+        setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Project}"`);
+    }, [setLocation]);
 
     // Open side menu when profile icon is clicked
     const openUserMenu = useCallback(() => {
@@ -295,6 +304,9 @@ export function SiteNavigator() {
     // Get credit typography styles
     const creditTypographyStyles = useCreditTypographyStyles(creditsAsBigInt, showLowCreditBalance);
 
+    // Memoize the TextLoading styles to avoid linter warnings
+    const textLoadingStyles = useMemo(() => ({ p: 2 }), []);
+
     // Handler to navigate to a chat
     const handleChatClick = useCallback((chat: ChatSession) => {
         const url = getObjectUrl(chat);
@@ -304,6 +316,21 @@ export function SiteNavigator() {
             console.warn("Could not determine URL for chat:", chat);
         }
     }, [setLocation]);
+
+    // Create memoized project and chat item click handlers
+    const projectItemClickHandlers = useMemo(() =>
+        storeProjects.reduce((acc, project) => {
+            acc[project.id] = () => handleSelectProject(project.id);
+            return acc;
+        }, {} as Record<string, () => void>),
+        [storeProjects, handleSelectProject]);
+
+    const chatItemClickHandlers = useMemo(() =>
+        storeChats.slice(0, CHAT_HISTORY_TAKE).reduce((acc, chat) => {
+            acc[chat.id] = () => handleChatClick(chat as ChatSession);
+            return acc;
+        }, {} as Record<string, () => void>),
+        [storeChats, handleChatClick]);
 
     return (
         <Box
@@ -350,7 +377,6 @@ export function SiteNavigator() {
                         {/* Projects Section */}
                         <StyledListItem
                             aria-label={t("Project", { count: 2 })}
-                            button
                             onClick={handleProjectsClick}
                         >
                             <ListItemIcon>
@@ -376,20 +402,23 @@ export function SiteNavigator() {
                         </StyledListItem>
                         <Collapse in={projectsOpen} timeout="auto" unmountOnExit>
                             <List component="div" disablePadding>
-                                {projects.map((project, index) => (
-                                    <StyledListItem
-                                        button
-                                        key={index}
-                                        selected={project.selected}
-                                        sx={getProjectItemStyle(project.selected || false)}
-                                    >
-                                        <ListItemText primary={project.text} />
-                                    </StyledListItem>
-                                ))}
+                                {isLoadingStoreProjects ? (
+                                    <TextLoading sx={textLoadingStyles} />
+                                ) : (
+                                    storeProjects.map((project) => (
+                                        <StyledListItem
+                                            key={project.id}
+                                            selected={project.id === selectedProjectId}
+                                            sx={getProjectItemStyle(project.id === selectedProjectId)}
+                                            onClick={projectItemClickHandlers[project.id]}
+                                        >
+                                            <ListItemText primary={project.translatedName} />
+                                        </StyledListItem>
+                                    ))
+                                )}
                                 {/* Add and See More buttons for Projects */}
                                 <StyledListItem
                                     aria-label={t("AddProject")}
-                                    button
                                     onClick={handleAddProject}
                                     sx={addProjectStyles}
                                 >
@@ -404,7 +433,6 @@ export function SiteNavigator() {
                                 </StyledListItem>
                                 <StyledListItem
                                     aria-label={t("SeeAll")}
-                                    button
                                     onClick={handleSeeMoreProjects}
                                     sx={addProjectStyles}
                                 >
@@ -416,19 +444,18 @@ export function SiteNavigator() {
                         {/* Chat History Section */}
                         <Divider sx={dividerStyles} />
                         <StyledListItem>
-                            <ListItemText primary={t("RecentChats")} sx={yesterdayLabelStyles} />
+                            <ListItemText primary={t("RecentChats") || "Recent Chats"} sx={yesterdayLabelStyles} />
                         </StyledListItem>
                         {isLoadingStoreChats ? (
-                            <TextLoading sx={{ p: 2 }} />
+                            <TextLoading sx={textLoadingStyles} />
                         ) : (
                             storeChats.slice(0, CHAT_HISTORY_TAKE).map((chat) => (
                                 <StyledListItem
-                                    button
                                     key={chat.id}
-                                    onClick={() => handleChatClick(chat)}
+                                    onClick={chatItemClickHandlers[chat.id]}
                                 >
                                     <ListItemText
-                                        primary={chat.name || t("UntitledChat")}
+                                        primary={(chat as any).name || t("UntitledChat") || "Untitled Chat"}
                                         primaryTypographyProps={yesterdayItemStyles}
                                     />
                                 </StyledListItem>
