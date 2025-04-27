@@ -46,7 +46,7 @@ export function SearchVersionView({
     } = useTabs({ id: "search-version-tabs", tabParams: searchVersionViewTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where(undefined),

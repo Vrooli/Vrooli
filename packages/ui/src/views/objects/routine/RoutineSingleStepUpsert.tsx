@@ -493,7 +493,7 @@ function RoutineSingleStepForm({
                 isLoading={isLoading}
             >
                 <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={display === "page"} sxs={basicInfoCollapseStyle}>
+                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={display === "Page"} sxs={basicInfoCollapseStyle}>
                         <RelationshipList
                             isEditing={true}
                             objectType={"Routine"}

@@ -47,7 +47,7 @@ export function ParticipantManageView({
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(chat.id),
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where({ chatId: chat.id }),
@@ -198,7 +198,7 @@ export function ParticipantManageView({
                     isEmpty={allData.length === 0 && !loading}
                 >
                     <ObjectList
-                        dummyItems={new Array(display === "page" ? 5 : 3).fill(searchType)}
+                        dummyItems={new Array(display === "Page" ? 5 : 3).fill(searchType)}
                         handleToggleSelect={handleToggleSelect}
                         isSelecting={isSelecting}
                         items={allData as ListObject[]}

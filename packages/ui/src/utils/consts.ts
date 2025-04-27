@@ -138,9 +138,9 @@ export const BUSINESS_DATA = {
 };
 
 // Determine origin of API server
-const windowObj = typeof global !== 'undefined' && global.window
+const windowObj = typeof global !== "undefined" && global.window
     ? global.window
-    : typeof window !== 'undefined'
+    : typeof window !== "undefined"
         ? window
         : null;
 const host = windowObj?.location?.host ?? "";

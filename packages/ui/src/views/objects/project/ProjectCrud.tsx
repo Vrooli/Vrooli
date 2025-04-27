@@ -13,7 +13,7 @@ import { LanguageInput } from "../../../components/inputs/LanguageInput/Language
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { DirectoryList } from "../../../components/lists/DirectoryList/DirectoryList.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "../../../components/navigation/TopBar.js";
+import { NavbarInner, SiteNavigatorButton } from "../../../components/navigation/Navbar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
@@ -202,7 +202,7 @@ function ProjectForm({
         return {
             stack: {
                 padding: 0,
-                ...(display === "page" && !isMobile ? {
+                ...(display === "Page" && !isMobile ? {
                     margin: "auto",
                     maxWidth: "700px",
                     paddingTop: 1,
@@ -268,10 +268,9 @@ function ProjectForm({
             onClose={onClose}
         >
             <Box display="flex" flexDirection="column" minHeight="100vh">
-                <TopBar
-                    display={display}
-                    onClose={onClose}
-                    titleComponent={<EditableTitle
+                <NavbarInner>
+                    <SiteNavigatorButton />
+                    <EditableTitle
                         handleDelete={handleDelete}
                         isDeletable={!(isCreate || disabled)}
                         isEditable={!disabled}
@@ -281,8 +280,8 @@ function ProjectForm({
                         variant="subheader"
                         sxs={topBarStyle}
                         DialogContentForm={titleDialogContentForm}
-                    />}
-                />
+                    />
+                </NavbarInner>
                 <BaseForm
                     display={display}
                     isLoading={isLoading}

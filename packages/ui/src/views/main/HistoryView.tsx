@@ -37,7 +37,7 @@ export function HistoryView({
     } = useTabs({ id: "history-tabs", tabParams: historyTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where(undefined),

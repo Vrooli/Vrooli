@@ -72,7 +72,7 @@ export function MyStuffView({
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(userId),
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where({ userId: userId ?? "" }),

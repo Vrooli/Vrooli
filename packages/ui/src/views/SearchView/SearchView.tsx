@@ -116,7 +116,7 @@ export function SearchView({
     }, [searchType]);
 
     const findManyData = useFindMany<ListObject>({
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where(undefined),

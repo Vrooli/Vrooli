@@ -190,7 +190,7 @@ export function ReportsView(_props: ViewProps) {
     // Fetch reports
     const findManyData = useFindMany<Report>({
         canSearch: () => typeof objectType === "string",
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType: "Report",
         take,
         where: objectType ? {

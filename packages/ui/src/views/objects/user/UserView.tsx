@@ -192,7 +192,7 @@ export function UserView({
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(user?.id ?? ""),
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where({ userId: user?.id ?? "", permissions }),

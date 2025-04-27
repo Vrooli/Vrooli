@@ -191,7 +191,7 @@ function ChatForm({
             inputs: transformChatValues(withModifiableMessages(withSearchParams, session), withYourMessages(existing, session), true),
             onSuccess: (data) => {
                 handleUpdate({ ...data, messages: [] });
-                if (display === "page") setLocation(getObjectUrl(data), { replace: true });
+                if (display === "Page") setLocation(getObjectUrl(data), { replace: true });
             },
             onCompleted: () => {
                 chatCreateStatus.current = "complete";
@@ -286,7 +286,7 @@ function ChatForm({
             },
             onSuccess: (data) => {
                 handleUpdate({ ...data, messages: [] });
-                if (display === "page") setLocation(getObjectUrl(data), { replace: true });
+                if (display === "Page") setLocation(getObjectUrl(data), { replace: true });
                 setUsersTyping([]);
                 //TODO simple update would be ideal, but there is a bug where it switches back to the original chat and messes up message retrieval
                 window.location.reload();
@@ -359,7 +359,7 @@ function ChatForm({
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            ...(display === "page" && {
+            ...(display === "Page" && {
                 maxHeight: "calc(100vh - env(safe-area-inset-bottom))",
                 height: "calc(100vh - env(safe-area-inset-bottom))",
             }),
@@ -573,7 +573,7 @@ export function ChatCrud({
         // Call the latest onLoadErrorRef callback
         onError: (errors) => onLoadErrorRef.current(errors),
         disabled: display === "Dialog" && isOpen !== true,
-        displayError: display === "page" || isOpen === true,
+        displayError: display === "Page" || isOpen === true,
         isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
@@ -584,7 +584,7 @@ export function ChatCrud({
     useEffect(() => {
         onLoadErrorRef.current = (errors) => {
             if (ServerResponseParser.hasErrorCode({ errors }, "NotFound")) {
-                if (display === "page") {
+                if (display === "Page") {
                     setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
                 }
                 setExisting(chatInitialValues(session, t, getUserLanguages(session)[0]));

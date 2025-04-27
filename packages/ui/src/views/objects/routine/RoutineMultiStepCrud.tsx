@@ -1607,7 +1607,7 @@ function RoutineMultiStepCrudForm({
     //     return {
     //         stack: {
     //             padding: 0,
-    //             ...(display === "page" && !isMobile ? {
+    //             ...(display === "Page" && !isMobile ? {
     //                 margin: "auto",
     //                 maxWidth: "700px",
     //                 paddingTop: 1,

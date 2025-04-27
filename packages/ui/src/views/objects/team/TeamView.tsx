@@ -96,7 +96,7 @@ export function TeamView({
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(team?.id),
-        controlsUrl: display === "page",
+        controlsUrl: display === "Page",
         searchType,
         take: 20,
         where: where({ teamId: team?.id ?? "", permissions }),
