@@ -73,6 +73,7 @@ model api_version {
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     completedAt             DateTime?                   @db.Timestamptz(6)
     callLink                String                      @unique @db.VarChar(1024)
+    config                  String?                     @db.VarChar(32768)
     documentationLink       String?                     @db.VarChar(1024)
     schemaLanguage          String?                     @db.VarChar(128)
     schemaText              String?                     @db.VarChar(16384)
@@ -82,7 +83,6 @@ model api_version {
     isLatestPublic          Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
     rootId                  BigInt                      @db.BigInt
-    resourceListId          BigInt?                     @unique @db.BigInt
     versionIndex            Int                         @default(0)
     versionLabel            String                      @default("1.0.0") @db.VarChar(16)
     versionNotes            String?                     @db.VarChar(4096)
@@ -93,7 +93,6 @@ model api_version {
     root                    api                         @relation(fields: [rootId], references: [id], onDelete: Cascade)
     forks                   api[]                       @relation("api_version_fork")
     intendToPullRequest     Boolean                     @default(false)
-    resourceList            resource_list?              @relation("resource_list_api_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     pullRequest             pull_request?               @relation("pull_request_from_api_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
     translations            api_version_translation[]
     directoryListings       project_version_directory[]
@@ -322,12 +321,11 @@ model code_version {
     codeLanguage            String                      @db.VarChar(128)
     codeType                CodeType                    @default(DataConvert)
     completedAt             DateTime?                   @db.Timestamptz(6)
-    data                    String?                     @db.VarChar(8192)
+    config                  String?                     @db.VarChar(32768)
     default                 String?                     @db.VarChar(2048)
     content                 String                      @db.VarChar(8192)
     isLatest                Boolean                     @default(false)
     isLatestPublic          Boolean                     @default(false)
-    resourceListId          BigInt?                     @unique @db.BigInt
     rootId                  BigInt                      @db.BigInt
     versionIndex            Int                         @default(0)
     versionLabel            String                      @default("1.0.0") @db.VarChar(16)
@@ -344,7 +342,6 @@ model code_version {
     pullRequest             pull_request?               @relation("pull_request_from_code_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
     reports                 report[]
     root                    code                        @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    resourceList            resource_list?              @relation("resource_list_code_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     translations            code_version_translation[]
     directoryListings       project_version_directory[]
 
@@ -670,6 +667,7 @@ model team {
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     bannerImage        String?                     @db.VarChar(2048)
+    config             String?                     @db.VarChar(32768)
     handle             String?                     @unique @db.Citext
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
@@ -679,7 +677,6 @@ model team {
     views              Int                         @default(0)
     parentId           BigInt?                     @db.BigInt
     premiumId          BigInt?                     @unique @db.BigInt
-    resourceListId     BigInt?                     @unique @db.BigInt
     createdById        BigInt?                     @db.BigInt
     stripeCustomerId   String?                     @unique @db.VarChar(255)
     createdBy          user?                       @relation("team_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -702,7 +699,6 @@ model team {
     memberInvites      member_invite[]
     projects           project[]                   @relation("project_ownedByTeam")
     reports            report[]
-    resourceList       resource_list?              @relation("resource_list_team", fields: [resourceListId], references: [id], onDelete: SetNull)
     routines           routine[]                   @relation("routine_ownedByTeam")
     runRoutines        run_routine[]               @relation("run_routine_team")
     runProjects        run_project[]               @relation("run_project_team")
@@ -938,6 +934,7 @@ model project_version {
     updated_at          DateTime                      @default(now()) @db.Timestamptz(6)
     completedAt         DateTime?                     @db.Timestamptz(6)
     complexity          Int                           @default(1)
+    config              String?                       @db.VarChar(32768)
     intendToPullRequest Boolean                       @default(false)
     isComplete          Boolean                       @default(true)
     isDeleted           Boolean                       @default(false)
@@ -948,7 +945,6 @@ model project_version {
     simplicity          Int                           @default(1)
     timesStarted        Int                           @default(0)
     timesCompleted      Int                           @default(0)
-    resourceListId      BigInt?                       @unique @db.BigInt
     pullRequestId       BigInt?                       @unique @db.BigInt
     versionIndex        Int                           @default(0)
     versionLabel        String                        @default("1.0.0") @db.VarChar(16)
@@ -958,7 +954,6 @@ model project_version {
     directoryListings   project_version_directory[]   @relation("project_version_directory_listing")
     pullRequest         pull_request?                 @relation("pull_request_from_project_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
     reports             report[]
-    resourceList        resource_list?                @relation("resource_list_project_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     root                project                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
     forks               project[]                     @relation("project_version_fork")
     translations        project_version_translation[]
@@ -1226,54 +1221,6 @@ model reputation_history {
     user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model resource {
-    id           BigInt                 @id @default(dbgenerated("snowflake_id()")) @db.BigInt
-    created_at   DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
-    index        Int?                   @default(0)
-    link         String                 @db.VarChar(1024)
-    usedFor      ResourceUsedFor        @default(Context)
-    listId       BigInt                 @db.BigInt
-    list         resource_list          @relation(fields: [listId], references: [id], onDelete: Cascade)
-    translations resource_translation[]
-}
-
-model resource_translation {
-    id          BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
-    description String?  @db.VarChar(2048)
-    name        String?  @db.VarChar(128)
-    language    String   @db.VarChar(3)
-    resourceId  BigInt   @db.BigInt
-    resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([resourceId, language], name: "resource_translation_resourceId_language_unique")
-}
-
-model resource_list {
-    id              BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
-    created_at      DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime                    @default(now()) @db.Timestamptz(6)
-    apiVersion      api_version?                @relation("resource_list_api_version")
-    codeVersion     code_version?               @relation("resource_list_code_version")
-    projectVersion  project_version?            @relation("resource_list_project_version")
-    routineVersion  routine_version?            @relation("resource_list_routine_version")
-    standardVersion standard_version?           @relation("resource_list_standard_version")
-    resources       resource[]
-    team            team?                       @relation("resource_list_team")
-    translations    resource_list_translation[]
-}
-
-model resource_list_translation {
-    id          BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
-    description String?       @db.VarChar(2048)
-    name        String?       @db.VarChar(128)
-    language    String        @db.VarChar(3)
-    listId      BigInt        @db.BigInt
-    list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
-
-    @@unique([listId, language], name: "resource_list_translation_listId_language_unique")
-}
-
 model role {
     id           BigInt             @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at   DateTime           @default(now()) @db.Timestamptz(6)
@@ -1356,7 +1303,6 @@ model routine_version {
     simplicity          Int                           @default(1)
     timesStarted        Int                           @default(0)
     timesCompleted      Int                           @default(0)
-    resourceListId      BigInt?                       @unique @db.BigInt
     apiVersionId        BigInt?                       @db.BigInt
     codeVersionId       BigInt?                       @db.BigInt
     pullRequestId       BigInt?                       @unique @db.BigInt
@@ -1369,7 +1315,6 @@ model routine_version {
     reports             report[]
     subroutineLinks     routine_version_subroutine[]  @relation("routine_version_child")
     parentRoutineLinks  routine_version_subroutine[]  @relation("routine_version_parent")
-    resourceList        resource_list?                @relation("resource_list_routine_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     root                routine                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
     forks               routine[]                     @relation("routine_version_fork")
     inputs              routine_version_input[]
@@ -1651,12 +1596,12 @@ model standard_version {
     updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
     completedAt           DateTime?                      @db.Timestamptz(6)
     codeLanguage          String                         @default("json") @db.VarChar(128)
+    config                String?                        @db.VarChar(32768)
     default               String?                        @db.VarChar(2048)
     variant               StandardType                   @default(DataStructure)
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
     isLatestPublic        Boolean                        @default(false)
-    resourceListId        BigInt?                        @unique @db.BigInt
     rootId                BigInt                         @db.BigInt
     yup                   String?                        @db.VarChar(8192)
     versionIndex          Int                            @default(0)
@@ -1673,7 +1618,6 @@ model standard_version {
     forks                 standard[]                     @relation("standard_version_fork")
     pullRequest           pull_request?                  @relation("pull_request_from_standard_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
     reports               report[]
-    resourceList          resource_list?                 @relation("resource_list_standard_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     root                  standard                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
     routineVersionInputs  routine_version_input[]
     routineVersionOutputs routine_version_output[]
@@ -2252,25 +2196,6 @@ enum ReportSuggestedAction {
     HideUntilFixed
     NonIssue
     SuspendUser
-}
-
-enum ResourceUsedFor {
-    Community
-    Context
-    Developer
-    Donation
-    ExternalService
-    Feed
-    Install
-    Learning
-    Notes
-    OfficialWebsite
-    Proposal
-    Related
-    Researching
-    Scheduling
-    Social
-    Tutorial
 }
 
 enum RoutineType {

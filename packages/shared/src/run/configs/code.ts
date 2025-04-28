@@ -2,7 +2,8 @@ import { CodeVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { CodeLanguage } from "../../consts/ui.js";
 import { LATEST_RUN_CONFIG_VERSION } from "../consts.js";
-import { parseObject, stringifyObject, type StringifyMode } from "./utils.js";
+import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
+import { parseObject, type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
@@ -137,9 +138,7 @@ type CodeVersionTestCaseResult = {
  * etc. are commonly used to find codes, so it makes sense to store them in 
  * their own db columns (i.e. not here).
  */
-export type CodeVersionConfigObject = {
-    /** Store the version number for future compatibility */
-    __version: string;
+export interface CodeVersionConfigObject extends BaseConfigObject {
     /** How to pass input to the code */
     inputConfig: CodeVersionInputDefinition;
     /** 
@@ -156,8 +155,7 @@ export type CodeVersionConfigObject = {
 /**
  * Top-level Code config that encapsulates all code-related data.
  */
-export class CodeVersionConfig {
-    __version: CodeVersionConfigObject["__version"];
+export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
     inputConfig: CodeVersionConfigObject["inputConfig"];
     outputConfig: CodeVersionConfigObject["outputConfig"];
     testCases: CodeVersionTestCase[];
@@ -166,7 +164,7 @@ export class CodeVersionConfig {
     codeLanguage: CodeVersion["codeLanguage"];
 
     constructor({ data, content, codeLanguage }: { data: CodeVersionConfigObject, content: CodeVersion["content"], codeLanguage: CodeVersion["codeLanguage"] }) {
-        this.__version = data.__version ?? LATEST_RUN_CONFIG_VERSION;
+        super(data);
         this.inputConfig = data.inputConfig ?? CodeVersionConfig.defaultInputConfig();
         this.outputConfig = data.outputConfig ?? CodeVersionConfig.defaultOutputConfig();
         this.testCases = data.testCases ?? CodeVersionConfig.defaultTestCases();
@@ -175,16 +173,19 @@ export class CodeVersionConfig {
         this.codeLanguage = codeLanguage;
     }
 
-    static deserialize(
-        { data, content, codeLanguage }: Pick<CodeVersion, "data" | "content" | "codeLanguage">,
+    /**
+     * Create a CodeVersionConfig from a code version object
+     */
+    static createFromCodeVersion(
+        codeVersion: Pick<CodeVersion, "data" | "content" | "codeLanguage">,
         logger: PassableLogger,
-        { mode = DEFAULT_STRINGIFY_MODE }: { mode?: StringifyMode } = {},
+        options: { mode?: StringifyMode } = {},
     ): CodeVersionConfig {
-        const obj = data ? parseObject<CodeVersionConfigObject>(data, mode, logger) : null;
+        const obj = codeVersion.data ? parseObject<CodeVersionConfigObject>(codeVersion.data, options.mode || DEFAULT_STRINGIFY_MODE, logger) : null;
         if (!obj) {
-            return CodeVersionConfig.default({ content, codeLanguage });
+            return CodeVersionConfig.default({ content: codeVersion.content, codeLanguage: codeVersion.codeLanguage });
         }
-        return new CodeVersionConfig({ data: obj, content, codeLanguage });
+        return new CodeVersionConfig({ data: obj, content: codeVersion.content, codeLanguage: codeVersion.codeLanguage });
     }
 
     static default({ content, codeLanguage }: { content: CodeVersion["content"], codeLanguage: CodeVersion["codeLanguage"] }): CodeVersionConfig {
@@ -193,17 +194,15 @@ export class CodeVersionConfig {
             inputConfig: CodeVersionConfig.defaultInputConfig(),
             outputConfig: CodeVersionConfig.defaultOutputConfig(),
             testCases: CodeVersionConfig.defaultTestCases(),
+            resources: [],
+            metadata: {},
         };
         return new CodeVersionConfig({ data, content, codeLanguage });
     }
 
-    serialize(mode: StringifyMode): string {
-        return stringifyObject(this.export(), mode);
-    }
-
-    export(): CodeVersionConfigObject {
+    override export(): CodeVersionConfigObject {
         return {
-            __version: this.__version,
+            ...super.export(),
             inputConfig: this.inputConfig,
             outputConfig: this.outputConfig,
             testCases: this.testCases,
