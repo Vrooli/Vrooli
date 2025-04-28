@@ -8,17 +8,6 @@ export const feed_popular = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -124,17 +113,6 @@ export const feed_popular = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -243,17 +221,6 @@ export const feed_popular = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -358,17 +325,6 @@ export const feed_popular = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -472,17 +428,6 @@ export const feed_popular = {
                 "isInternal": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -598,17 +543,6 @@ export const feed_popular = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -803,5 +737,5 @@ export const feed_popular = {
         "endCursorTeam": true,
         "endCursorUser": true
     },
-    "__cacheKey": "-1507654967"
+    "__cacheKey": "-141477327"
 };

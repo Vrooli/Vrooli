@@ -6,7 +6,6 @@ import { getLabels } from "../../getters/getLabels.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
@@ -46,7 +45,6 @@ export const ProjectModel: ProjectModelLogic = ({
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "forks", data, ...rest }),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -59,7 +57,6 @@ export const ProjectModel: ProjectModelLogic = ({
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: false, objectType: __typename, data, ...rest })),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", data, ...rest }),
                 };
             },
         },
@@ -79,7 +76,6 @@ export const ProjectModel: ProjectModelLogic = ({
             excludeIds: true,
             hasCompleteVersion: true,
             issuesId: true,
-            labelsIds: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,
@@ -97,7 +93,6 @@ export const ProjectModel: ProjectModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "tagsWrapped",
-                "labelsWrapped",
                 { versions: { some: "transDescriptionWrapped" } },
                 { versions: { some: "transNameWrapped" } },
             ],

@@ -1,4 +1,4 @@
-import { FindByIdInput, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueStatus, IssueUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
+import { FindByIdInput, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueStatus, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
@@ -11,7 +11,6 @@ import { issue_closeOne } from "../generated/issue_closeOne.js";
 import { issue_createOne } from "../generated/issue_createOne.js";
 import { issue_findMany } from "../generated/issue_findMany.js";
 import { issue_findOne } from "../generated/issue_findOne.js";
-import { issue_updateOne } from "../generated/issue_updateOne.js";
 import { issue } from "./issue.js";
 
 // Generate test user IDs
@@ -20,7 +19,6 @@ const user2Id = uuid();
 let team1: any;
 let issueUser1: any;
 let issueUser2: any;
-let label1Id: string;
 
 /**
  * Test suite for the Issue endpoint (findOne, findMany, createOne, updateOne, closeOne)
@@ -82,17 +80,6 @@ describe("EndpointsIssue", () => {
                 id: uuid(),
                 createdBy: { connect: { id: user2Id } },
                 team: { connect: { id: team1.id } },
-            },
-        });
-
-        // Seed a label for updateOne tests
-        label1Id = uuid();
-        await DbProvider.get().label.create({
-            data: {
-                id: label1Id,
-                label: "Test Label",
-                color: "#123456",
-                ownedByUser: { connect: { id: user1Id } },
             },
         });
     });
@@ -216,85 +203,6 @@ describe("EndpointsIssue", () => {
                 const input: IssueCreateInput = { id: uuid(), issueFor: IssueFor.Team, forConnect: team1.id };
                 try {
                     await issue.createOne({ input }, { req, res }, issue_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch {
-                    // expected error
-                }
-            });
-        });
-    });
-
-    describe("updateOne", () => {
-        describe("valid", () => {
-            it("allows admin to connect a label to an issue", async () => {
-                // Ensure admin user exists
-                await DbProvider.get().user.upsert({
-                    where: { id: SEEDED_IDS.User.Admin },
-                    update: {},
-                    create: {
-                        id: SEEDED_IDS.User.Admin,
-                        name: "Admin User",
-                        handle: "admin",
-                        status: "Unlocked",
-                        isBot: false,
-                        isBotDepictingPerson: false,
-                        isPrivate: false,
-                        auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-                    },
-                });
-                const admin = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
-                const { req, res } = await mockAuthenticatedSession(admin);
-                const input: IssueUpdateInput = { id: issueUser1.id, labelsConnect: [label1Id] };
-                const result = await issue.updateOne({ input }, { req, res }, issue_updateOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(issueUser1.id);
-                expect(result.labels.map(l => l.id)).to.include(label1Id);
-            });
-        });
-
-        describe("invalid", () => {
-            it("denies update for non-admin user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
-                const input: IssueUpdateInput = { id: issueUser2.id, labelsConnect: [label1Id] };
-                try {
-                    await issue.updateOne({ input }, { req, res }, issue_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch {
-                    // expected error
-                }
-            });
-
-            it("denies update for not logged in user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: IssueUpdateInput = { id: issueUser1.id, labelsConnect: [label1Id] };
-                try {
-                    await issue.updateOne({ input }, { req, res }, issue_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch {
-                    // expected error
-                }
-            });
-
-            it("throws when updating non-existent issue as admin", async () => {
-                await DbProvider.get().user.upsert({
-                    where: { id: SEEDED_IDS.User.Admin },
-                    update: {},
-                    create: {
-                        id: SEEDED_IDS.User.Admin,
-                        name: "Admin User",
-                        handle: "admin",
-                        status: "Unlocked",
-                        isBot: false,
-                        isBotDepictingPerson: false,
-                        isPrivate: false,
-                        auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-                    },
-                });
-                const admin = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
-                const { req, res } = await mockAuthenticatedSession(admin);
-                const input: IssueUpdateInput = { id: uuid(), labelsConnect: [label1Id] };
-                try {
-                    await issue.updateOne({ input }, { req, res }, issue_updateOne);
                     expect.fail("Expected an error to be thrown");
                 } catch {
                     // expected error

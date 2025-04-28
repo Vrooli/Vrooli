@@ -6,7 +6,6 @@ import { getLabels } from "../../getters/getLabels.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
@@ -229,7 +228,6 @@ export const RoutineModel: RoutineModelLogic = ({
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest }),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -242,7 +240,6 @@ export const RoutineModel: RoutineModelLogic = ({
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
                 };
             },
         },
@@ -263,7 +260,6 @@ export const RoutineModel: RoutineModelLogic = ({
             hasCompleteVersion: true,
             isInternal: true,
             issuesId: true,
-            labelsIds: true,
             latestVersionRoutineType: true,
             latestVersionRoutineTypes: true,
             maxScore: true,
@@ -283,7 +279,6 @@ export const RoutineModel: RoutineModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "tagsWrapped",
-                "labelsWrapped",
                 { versions: { some: "transDescriptionWrapped" } },
                 { versions: { some: "transNameWrapped" } },
             ],

@@ -70,17 +70,6 @@ export const feed_home = {
             "month": true,
             "endDate": true
         },
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            }
-        },
         "meetings": {
             "id": true,
             "created_at": true,
@@ -224,17 +213,6 @@ export const feed_home = {
                 "canDelete": true,
                 "canInvite": true,
                 "canUpdate": true
-            },
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
             },
             "translations": {
                 "id": true,
@@ -394,5 +372,5 @@ export const feed_home = {
             "lastStep": true
         }
     },
-    "__cacheKey": "18258655"
+    "__cacheKey": "-108739721"
 };

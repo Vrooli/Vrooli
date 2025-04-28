@@ -49,7 +49,6 @@ export const issue: ApiPartial<Issue> = {
         score: true,
         bookmarks: true,
         views: true,
-        labels: async () => rel((await import("./label.js")).label, "nav"),
         you: () => rel(issueYou, "full"),
     },
     full: {

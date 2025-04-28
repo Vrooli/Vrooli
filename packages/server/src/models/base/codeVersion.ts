@@ -146,7 +146,6 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
                 "transDescriptionWrapped",
                 "transNameWrapped",
                 { root: "tagsWrapped" },
-                { root: "labelsWrapped" },
             ],
         }),
         supplemental: {

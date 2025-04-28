@@ -1,5 +1,5 @@
 import { ModelType } from "@local/shared";
-import { ApiKeyExternalModelInfo, ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineIOModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
+import { ApiKeyExternalModelInfo, ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, IssueModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineIOModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
 import { Formatter } from "./types.js";
 
 export const ApiFormat: Formatter<ApiModelInfo> = {
@@ -13,7 +13,6 @@ export const ApiFormat: Formatter<ApiModelInfo> = {
         parent: "ApiVersion",
         tags: "Tag",
         versions: "ApiVersion",
-        labels: "Label",
         issues: "Issue",
         pullRequests: "PullRequest",
         bookmarkedBy: "User",
@@ -36,11 +35,10 @@ export const ApiFormat: Formatter<ApiModelInfo> = {
         viewedBy: "View",
         pullRequests: "PullRequest",
         versions: "ApiVersion",
-        labels: "Label",
         stats: "StatsApi",
         transfers: "Transfer",
     },
-    joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
+    joinMap: { bookmarkedBy: "user", tags: "tag" },
     countFields: {
         issuesCount: true,
         pullRequestsCount: true,
@@ -176,7 +174,6 @@ export const ChatFormat: Formatter<ChatModelInfo> = {
         messages: "ChatMessage",
         participants: "ChatParticipant",
         invites: "ChatInvite",
-        labels: "Label",
     },
     prismaRelMap: {
         __typename: "Chat",
@@ -186,13 +183,11 @@ export const ChatFormat: Formatter<ChatModelInfo> = {
         messages: "ChatMessage",
         participants: "ChatParticipant",
         invites: "ChatInvite",
-        labels: "Label",
     },
-    joinMap: { labels: "label", restrictedToRoles: "role" },
+    joinMap: { restrictedToRoles: "role" },
     countFields: {
         participantsCount: true,
         invitesCount: true,
-        labelsCount: true,
         translationsCount: true,
     },
 };
@@ -318,7 +313,6 @@ export const IssueFormat: Formatter<IssueModelInfo> = {
         closedBy: "User",
         comments: "Comment",
         createdBy: "User",
-        labels: "Label",
         reports: "Report",
         bookmarkedBy: "User",
         to: {
@@ -344,71 +338,16 @@ export const IssueFormat: Formatter<IssueModelInfo> = {
         standard: "Standard",
         closedBy: "User",
         comments: "Comment",
-        labels: "Label",
         reports: "Report",
         reactions: "Reaction",
         team: "Team",
         bookmarkedBy: "User",
         viewedBy: "View",
     },
-    joinMap: { labels: "label", bookmarkedBy: "user" },
+    joinMap: { bookmarkedBy: "user" },
     countFields: {
         commentsCount: true,
-        labelsCount: true,
         reportsCount: true,
-        translationsCount: true,
-    },
-};
-
-export const LabelFormat: Formatter<LabelModelInfo> = {
-    apiRelMap: {
-        __typename: "Label",
-        apis: "Api",
-        issues: "Issue",
-        meetings: "Meeting",
-        notes: "Note",
-        owner: {
-            ownedByTeam: "Team",
-            ownedByUser: "User",
-        },
-        projects: "Project",
-        routines: "Routine",
-        schedules: "Schedule",
-    },
-    unionFields: {
-        owner: {},
-    },
-    prismaRelMap: {
-        __typename: "Label",
-        apis: "Api",
-        issues: "Issue",
-        meetings: "Meeting",
-        notes: "Note",
-        ownedByTeam: "Team",
-        ownedByUser: "User",
-        projects: "Project",
-        routines: "Routine",
-        schedules: "Schedule",
-    },
-    joinMap: {
-        apis: "labelled",
-        issues: "labelled",
-        meetings: "labelled",
-        notes: "labelled",
-        projects: "labelled",
-        routines: "labelled",
-        schedules: "labelled",
-    },
-    countFields: {
-        apisCount: true,
-        codesCount: true,
-        issuesCount: true,
-        meetingsCount: true,
-        notesCount: true,
-        projectsCount: true,
-        standardsCount: true,
-        routinesCount: true,
-        schedulesCount: true,
         translationsCount: true,
     },
 };
@@ -418,7 +357,6 @@ export const MeetingFormat: Formatter<MeetingModelInfo> = {
         __typename: "Meeting",
         attendees: "User",
         invites: "MeetingInvite",
-        labels: "Label",
         restrictedToRoles: "Role",
         schedule: "Schedule",
         team: "Team",
@@ -427,20 +365,17 @@ export const MeetingFormat: Formatter<MeetingModelInfo> = {
         __typename: "Meeting",
         attendees: "User",
         invites: "MeetingInvite",
-        labels: "Label",
         restrictedToRoles: "Role",
         schedule: "Schedule",
         team: "Team",
     },
     joinMap: {
-        labels: "label",
         restrictedToRoles: "role",
         attendees: "user",
     },
     countFields: {
         attendeesCount: true,
         invitesCount: true,
-        labelsCount: true,
         translationsCount: true,
     },
 };
@@ -494,7 +429,6 @@ export const NoteFormat: Formatter<NoteModelInfo> = {
         __typename: "Note",
         createdBy: "User",
         issues: "Issue",
-        labels: "Label",
         owner: {
             ownedByTeam: "Team",
             ownedByUser: "User",
@@ -517,15 +451,13 @@ export const NoteFormat: Formatter<NoteModelInfo> = {
         ownedByUser: "User",
         versions: "NoteVersion",
         pullRequests: "PullRequest",
-        labels: "Label",
         issues: "Issue",
         tags: "Tag",
         bookmarkedBy: "User",
     },
-    joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
+    joinMap: { bookmarkedBy: "user", tags: "tag" },
     countFields: {
         issuesCount: true,
-        labelsCount: true,
         pullRequestsCount: true,
         transfersCount: true,
         versionsCount: true,
@@ -620,7 +552,6 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
         directoryListings: "ProjectVersionDirectory",
         forks: "Team",
         issues: "Issue",
-        labels: "Label",
         meetings: "Meeting",
         members: "Member",
         notes: "Note",
@@ -644,7 +575,6 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
         createdBy: "User",
         directoryListings: "ProjectVersionDirectory",
         issues: "Issue",
-        labels: "Label",
         notes: "Note",
         apis: "Api",
         codes: "Code",
@@ -673,7 +603,6 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
         codesCount: true,
         commentsCount: true,
         issuesCount: true,
-        labelsCount: true,
         meetingsCount: true,
         membersCount: true,
         notesCount: true,
@@ -728,7 +657,6 @@ export const ProjectFormat: Formatter<ProjectModelInfo> = {
         __typename: "Project",
         createdBy: "User",
         issues: "Issue",
-        labels: "Label",
         owner: {
             ownedByTeam: "Team",
             ownedByUser: "User",
@@ -750,7 +678,6 @@ export const ProjectFormat: Formatter<ProjectModelInfo> = {
         ownedByUser: "User",
         parent: "ProjectVersion",
         issues: "Issue",
-        labels: "Label",
         tags: "Tag",
         versions: "ProjectVersion",
         bookmarkedBy: "User",
@@ -758,10 +685,9 @@ export const ProjectFormat: Formatter<ProjectModelInfo> = {
         stats: "StatsProject",
         transfers: "Transfer",
     },
-    joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
+    joinMap: { bookmarkedBy: "user", tags: "tag" },
     countFields: {
         issuesCount: true,
-        labelsCount: true,
         pullRequestsCount: true,
         transfersCount: true,
         versionsCount: true,
@@ -791,10 +717,6 @@ export const ProjectVersionFormat: Formatter<ProjectVersionModelInfo> = {
         root: "Project",
         forks: "Project",
         runProjects: "RunProject",
-        suggestedNextByProject: "ProjectVersion",
-    },
-    joinMap: {
-        suggestedNextByProject: "toProjectVersion",
     },
     countFields: {
         commentsCount: true,
@@ -1110,7 +1032,6 @@ export const RoutineFormat: Formatter<RoutineModelInfo> = {
         },
         forks: "Routine",
         issues: "Issue",
-        labels: "Label",
         parent: "RoutineVersion",
         bookmarkedBy: "User",
         tags: "Tag",
@@ -1126,7 +1047,6 @@ export const RoutineFormat: Formatter<RoutineModelInfo> = {
         ownedByUser: "User",
         parent: "RoutineVersion",
         issues: "Issue",
-        labels: "Label",
         pullRequests: "PullRequest",
         bookmarkedBy: "User",
         stats: "StatsRoutine",
@@ -1135,7 +1055,7 @@ export const RoutineFormat: Formatter<RoutineModelInfo> = {
         versions: "RoutineVersion",
         viewedBy: "View",
     },
-    joinMap: { labels: "label", tags: "tag", bookmarkedBy: "user" },
+    joinMap: { tags: "tag", bookmarkedBy: "user" },
     countFields: {
         forksCount: true,
         issuesCount: true,
@@ -1160,7 +1080,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         reports: "Report",
         root: "Routine",
         subroutineLinks: "RoutineVersion",
-        suggestedNextByRoutineVersion: "RoutineVersion",
     },
     prismaRelMap: {
         __typename: "RoutineVersion",
@@ -1179,11 +1098,9 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         runRoutines: "RunRoutine",
         runSteps: "RunRoutineStep",
         subroutineLinks: "RoutineVersion",
-        suggestedNextByRoutineVersion: "RoutineVersion",
     },
     joinMap: {
         subroutineLinks: "subroutine",
-        suggestedNextByRoutineVersion: "toRoutineVersion",
     },
     countFields: {
         commentsCount: true,
@@ -1192,7 +1109,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         inputsCount: true,
         outputsCount: true,
         reportsCount: true,
-        suggestedNextByRoutineVersionCount: true,
         translationsCount: true,
     },
 };
@@ -1322,7 +1238,6 @@ export const ScheduleFormat: Formatter<ScheduleModelInfo> = {
     apiRelMap: {
         __typename: "Schedule",
         exceptions: "ScheduleException",
-        labels: "Label",
         recurrences: "ScheduleRecurrence",
         runProjects: "RunProject",
         runRoutines: "RunRoutine",
@@ -1331,13 +1246,11 @@ export const ScheduleFormat: Formatter<ScheduleModelInfo> = {
     prismaRelMap: {
         __typename: "Schedule",
         exceptions: "ScheduleException",
-        labels: "Label",
         recurrences: "ScheduleRecurrence",
         runProjects: "RunProject",
         runRoutines: "RunRoutine",
         meetings: "Meeting",
     },
-    joinMap: { labels: "label" },
     countFields: {},
 };
 
@@ -1370,7 +1283,6 @@ export const CodeFormat: Formatter<CodeModelInfo> = {
         __typename: "Code",
         createdBy: "User",
         issues: "Issue",
-        labels: "Label",
         owner: {
             ownedByTeam: "Team",
             ownedByUser: "User",
@@ -1389,7 +1301,6 @@ export const CodeFormat: Formatter<CodeModelInfo> = {
         __typename: "Code",
         createdBy: "User",
         issues: "Issue",
-        labels: "Label",
         ownedByTeam: "Team",
         ownedByUser: "User",
         parent: "CodeVersion",
@@ -1399,7 +1310,7 @@ export const CodeFormat: Formatter<CodeModelInfo> = {
         transfers: "Transfer",
         versions: "CodeVersion",
     },
-    joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
+    joinMap: { bookmarkedBy: "user", tags: "tag" },
     countFields: {
         issuesCount: true,
         pullRequestsCount: true,
@@ -1455,7 +1366,6 @@ export const StandardFormat: Formatter<StandardModelInfo> = {
         __typename: "Standard",
         createdBy: "User",
         issues: "Issue",
-        labels: "Label",
         owner: {
             ownedByTeam: "Team",
             ownedByUser: "User",
@@ -1476,7 +1386,6 @@ export const StandardFormat: Formatter<StandardModelInfo> = {
         ownedByTeam: "Team",
         ownedByUser: "User",
         issues: "Issue",
-        labels: "Label",
         parent: "StandardVersion",
         tags: "Tag",
         bookmarkedBy: "User",
@@ -1485,7 +1394,7 @@ export const StandardFormat: Formatter<StandardModelInfo> = {
         stats: "StatsStandard",
         transfers: "Transfer",
     },
-    joinMap: { labels: "label", tags: "tag", bookmarkedBy: "user" },
+    joinMap: { tags: "tag", bookmarkedBy: "user" },
     countFields: {
         forksCount: true,
         issuesCount: true,
@@ -1698,7 +1607,6 @@ export const UserFormat: Formatter<UserModelInfo> = {
         __typename: "User",
         comments: "Comment",
         emails: "Email",
-        labels: "Label",
         // phones: 'Phone',
         projects: "Project",
         pushDevices: "PushDevice",
@@ -1720,7 +1628,6 @@ export const UserFormat: Formatter<UserModelInfo> = {
         invitedUsers: "User",
         issuesCreated: "Issue",
         issuesClosed: "Issue",
-        labels: "Label",
         meetingsAttending: "Meeting",
         meetingsInvited: "MeetingInvite",
         pushDevices: "PushDevice",
@@ -1828,7 +1735,6 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     Comment: CommentFormat,
     Email: EmailFormat,
     Issue: IssueFormat,
-    Label: LabelFormat,
     Meeting: MeetingFormat,
     MeetingInvite: MeetingInviteFormat,
     Member: MemberFormat,

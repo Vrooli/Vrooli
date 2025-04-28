@@ -8,17 +8,6 @@ export const unions_projectOrRoutine = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -113,17 +102,6 @@ export const unions_projectOrRoutine = {
                 "isInternal": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -229,5 +207,5 @@ export const unions_projectOrRoutine = {
         "endCursorProject": true,
         "endCursorRoutine": true
     },
-    "__cacheKey": "315136407"
+    "__cacheKey": "-684235021"
 };

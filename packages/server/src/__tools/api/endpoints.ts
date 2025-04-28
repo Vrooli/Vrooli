@@ -197,15 +197,6 @@ export const endpoints = {
             closeOne: await toObject(issue, "full"),
         };
     },
-    label: async () => {
-        const { label } = await import("./partial/label.js");
-        return {
-            findOne: await toObject(label, "full"),
-            findMany: await toObject(label, "list", { asSearch: true }),
-            createOne: await toObject(label, "full"),
-            updateOne: await toObject(label, "full"),
-        };
-    },
     meeting: async () => {
         const { meeting } = await import("./partial/meeting.js");
         return {

@@ -164,26 +164,6 @@ export const meeting_createOne = {
             "canUpdate": true
         }
     },
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        },
-        "apisCount": true,
-        "codesCount": true,
-        "issuesCount": true,
-        "meetingsCount": true,
-        "notesCount": true,
-        "projectsCount": true,
-        "routinesCount": true,
-        "schedulesCount": true,
-        "standardsCount": true
-    },
     "schedule": {
         "id": true,
         "created_at": true,
@@ -205,17 +185,6 @@ export const meeting_createOne = {
             "dayOfMonth": true,
             "month": true,
             "endDate": true
-        },
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            }
         },
         "runProjects": {
             "id": true,
@@ -374,5 +343,5 @@ export const meeting_createOne = {
         "link": true,
         "name": true
     },
-    "__cacheKey": "-1572803900"
+    "__cacheKey": "2106911930"
 };

@@ -7,7 +7,6 @@ import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ScheduleFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
@@ -47,7 +46,6 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
-                    labels: await labelShapeHelper({ relation: "labels", relTypes: ["Connect", "Create"], parentType: "Schedule", data, ...rest }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                     // These relations are treated as one-to-one in the API, but not in the database.
                     // Therefore, the key is pural, but the "relation" passed to shapeHelper is singular.
@@ -62,7 +60,6 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     endTime: noNull(data.endTime),
                     timezone: noNull(data.timezone),
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
-                    labels: await labelShapeHelper({ relation: "labels", relTypes: ["Connect", "Create", "Disconnect"], parentType: "Schedule", data, ...rest }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },

@@ -95,17 +95,6 @@ export const routineVersion_findOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -288,17 +277,6 @@ export const routineVersion_findOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -433,17 +411,6 @@ export const routineVersion_findOne = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -565,17 +532,6 @@ export const routineVersion_findOne = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -718,17 +674,6 @@ export const routineVersion_findOne = {
         "isInternal": true,
         "isPrivate": true,
         "issuesCount": true,
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            }
-        },
         "owner": {
             "Team": {
                 "id": true,
@@ -862,17 +807,6 @@ export const routineVersion_findOne = {
             "isInternal": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -949,30 +883,6 @@ export const routineVersion_findOne = {
             "name": true
         }
     },
-    "suggestedNextByRoutineVersion": {
-        "id": true,
-        "complexity": true,
-        "isAutomatable": true,
-        "isComplete": true,
-        "isDeleted": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "root": {
-            "id": true,
-            "isInternal": true,
-            "isPrivate": true
-        },
-        "routineType": true,
-        "translations": {
-            "id": true,
-            "language": true,
-            "description": true,
-            "instructions": true,
-            "name": true
-        },
-        "versionIndex": true,
-        "versionLabel": true
-    },
     "translations": {
         "id": true,
         "language": true,
@@ -980,5 +890,5 @@ export const routineVersion_findOne = {
         "instructions": true,
         "name": true
     },
-    "__cacheKey": "-964699240"
+    "__cacheKey": "-4683235"
 };

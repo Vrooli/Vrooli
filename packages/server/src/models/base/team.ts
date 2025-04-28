@@ -161,7 +161,6 @@ export const TeamModel: TeamModelLogic = ({
         sortBy: TeamSortBy,
         searchStringQuery: () => ({
             OR: [
-                "labelsOwnerWrapped",
                 "tagsWrapped",
                 "transNameWrapped",
                 "transBioWrapped",

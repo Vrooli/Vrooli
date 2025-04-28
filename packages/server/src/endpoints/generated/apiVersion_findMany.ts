@@ -30,17 +30,6 @@ export const apiVersion_findMany = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -122,5 +111,5 @@ export const apiVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2078496821"
+    "__cacheKey": "-2129211204"
 };

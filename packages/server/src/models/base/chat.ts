@@ -6,7 +6,6 @@ import { DbProvider } from "../../db/provider.js";
 import { ChatPre, populatePreMapForChatUpdates, prepareChatMessageOperations } from "../../utils/chat.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { preShapeEmbeddableTranslatable } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
@@ -108,7 +107,6 @@ export const ChatModel: ChatModelLogic = ({
                             },
                         ],
                     },
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", data, ...rest }),
                     messages,
                     team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "chats", data, ...rest }),
                     restrictedToRoles: await shapeHelper({
@@ -156,7 +154,6 @@ export const ChatModel: ChatModelLogic = ({
                         ],
                         delete: data.participantsDelete?.map((id) => ({ id })),
                     },
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Delete", "Disconnect"], parentType: "Chat", data, ...rest }),
                     messages,
                     restrictedToRoles: await shapeHelper({
                         relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
@@ -185,7 +182,6 @@ export const ChatModel: ChatModelLogic = ({
             createdTimeFrame: true,
             creatorId: true,
             openToAnyoneWithInvite: true,
-            labelsIds: true,
             teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -193,7 +189,6 @@ export const ChatModel: ChatModelLogic = ({
         sortBy: ChatSortBy,
         searchStringQuery: () => ({
             OR: [
-                "labelsWrapped",
                 "transNameWrapped",
                 "transDescriptionWrapped",
             ],

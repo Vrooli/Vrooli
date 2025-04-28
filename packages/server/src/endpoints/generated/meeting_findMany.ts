@@ -145,17 +145,6 @@ export const meeting_findMany = {
                 "canInvite": true,
                 "canUpdate": true
             },
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "schedule": {
                 "id": true,
                 "created_at": true,
@@ -177,17 +166,6 @@ export const meeting_findMany = {
                     "dayOfMonth": true,
                     "month": true,
                     "endDate": true
-                },
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
                 },
                 "runProjects": {
                     "id": true,
@@ -352,5 +330,5 @@ export const meeting_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "788081459"
+    "__cacheKey": "-396153211"
 };

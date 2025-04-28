@@ -70,7 +70,6 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     versionNotes: noNull(data.versionNotes),
                     directories: await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
-                    // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), //TODO needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -82,7 +81,6 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     versionNotes: noNull(data.versionNotes),
                     directories: await shapeHelper({ relation: "directories", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
-                    // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },

@@ -240,7 +240,6 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             OR: [
                 "transDescriptionWrapped",
                 { root: "tagsWrapped" },
-                { root: "labelsWrapped" },
                 { root: "nameWrapped" },
             ],
         }),

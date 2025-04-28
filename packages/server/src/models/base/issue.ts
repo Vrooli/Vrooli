@@ -4,7 +4,6 @@ import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBui
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
@@ -62,7 +61,6 @@ export const IssueModel: IssueModelLogic = ({
                     id: data.id,
                     referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
                     [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -73,7 +71,6 @@ export const IssueModel: IssueModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as IssuePre;
                 return {
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },

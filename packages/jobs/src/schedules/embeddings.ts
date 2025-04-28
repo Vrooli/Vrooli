@@ -1,6 +1,6 @@
 /**
  * Calculates and stores embeddings for all searchable objects (that don't have one yet), including 
- * root objects, versions, and tags. Objects that don't have embeddings include labels and comments
+ * root objects, versions, and tags
  * 
  * Embeddings are used to find similar objects. For example, if you are 
  * looking for tags and type "ai", then the search should return tags 

@@ -84,7 +84,6 @@ class GenerateManager {
             end: {
                 __typename: "NodeEnd" as const,
                 id: uuid(),
-                suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
             translations: [{

@@ -85,17 +85,6 @@ export const standardVersion_createOne = {
         "updated_at": true,
         "isPrivate": true,
         "issuesCount": true,
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            }
-        },
         "owner": {
             "Team": {
                 "id": true,
@@ -190,5 +179,5 @@ export const standardVersion_createOne = {
         "jsonVariable": true,
         "name": true
     },
-    "__cacheKey": "-1030145508"
+    "__cacheKey": "996890615"
 };

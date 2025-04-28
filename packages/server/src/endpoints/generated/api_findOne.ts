@@ -4,17 +4,6 @@ export const api_findOne = {
     "updated_at": true,
     "isPrivate": true,
     "issuesCount": true,
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        }
-    },
     "owner": {
         "Team": {
             "id": true,
@@ -165,5 +154,5 @@ export const api_findOne = {
             "summary": true
         }
     },
-    "__cacheKey": "1016412060"
+    "__cacheKey": "1456642131"
 };

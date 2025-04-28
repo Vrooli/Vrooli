@@ -137,7 +137,6 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                 "transSummaryWrapped",
                 "transNameWrapped",
                 { root: "tagsWrapped" },
-                { root: "labelsWrapped" },
             ],
         }),
         supplemental: {

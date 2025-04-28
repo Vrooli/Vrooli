@@ -192,26 +192,6 @@ export const chatInvite_acceptOne = {
             "canInvite": true,
             "canUpdate": true
         },
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            },
-            "apisCount": true,
-            "codesCount": true,
-            "issuesCount": true,
-            "meetingsCount": true,
-            "notesCount": true,
-            "projectsCount": true,
-            "routinesCount": true,
-            "schedulesCount": true,
-            "standardsCount": true
-        },
         "translations": {
             "id": true,
             "language": true,
@@ -219,5 +199,5 @@ export const chatInvite_acceptOne = {
             "name": true
         }
     },
-    "__cacheKey": "1158144000"
+    "__cacheKey": "752705085"
 };

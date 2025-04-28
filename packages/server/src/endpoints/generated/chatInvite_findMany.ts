@@ -195,17 +195,6 @@ export const chatInvite_findMany = {
                     "canInvite": true,
                     "canUpdate": true
                 },
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "translations": {
                     "id": true,
                     "language": true,
@@ -219,5 +208,5 @@ export const chatInvite_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1750430430"
+    "__cacheKey": "-983626995"
 };

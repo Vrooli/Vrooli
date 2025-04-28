@@ -15,7 +15,6 @@ export * from "./codeVersion.js";
 export * from "./comment.js";
 export * from "./email.js";
 export * from "./issue.js";
-export * from "./label.js";
 export * from "./meeting.js";
 export * from "./meetingInvite.js";
 export * from "./member.js";

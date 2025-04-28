@@ -5,7 +5,6 @@ import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
@@ -42,7 +41,6 @@ export const NoteModel: NoteModelLogic = ({
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest }),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -54,7 +52,6 @@ export const NoteModel: NoteModelLogic = ({
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
                 };
             },
         },
@@ -85,7 +82,6 @@ export const NoteModel: NoteModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "tagsWrapped",
-                "labelsWrapped",
                 { versions: { some: "transDescriptionWrapped" } },
                 { versions: { some: "transNameWrapped" } },
             ],

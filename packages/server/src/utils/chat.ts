@@ -363,7 +363,7 @@ export async function getChatParticipantData({
             botParticipants: allowedBots.map(p => p.user.id),
             participantsCount: chat._count.participants,
             // Skip if custom message query is provided
-            lastMessageId: (notSelectingLastMessage && chat.messages.length > 0) ? chat.messages[0].id : undefined,
+            lastMessageId: (!notSelectingLastMessage && chat.messages.length > 0) ? chat.messages[0].id : undefined,
         };
         // Set message information
         if (notSelectingLastMessage) {
@@ -659,6 +659,11 @@ export async function populatePreMapForChatUpdates({
         return acc;
     }, {} as ChatPre["branchInfo"]);
 
+    // Collect IDs of last messages to always fetch their tree info
+    const lastMessageIds = Object.values(branchInfo)
+        .map(info => info.lastSequenceId)
+        .filter((id): id is string => id !== null);
+
     // Collect all message IDs that are being deleted
     const deletedMessageIds = updateInputs.reduce((acc, input) => {
         const deleteIds = input.messagesDelete ?? [];
@@ -691,6 +696,36 @@ export async function populatePreMapForChatUpdates({
             branchInfo[chatId].messageTreeInfo[msg.id] = {
                 parentId: msg.parent?.id ?? null,
                 childIds: msg.children.map(c => c.id),
+            };
+        });
+    }
+    // Always fetch tree info for the last message in each chat, if it exists and wasn't already fetched via deletion
+    const idsToFetch = lastMessageIds.filter(id => !deletedMessageIds.includes(id));
+    if (idsToFetch.length > 0) {
+        const lastMessages = await DbProvider.get().chat_message.findMany({
+            where: { id: { in: idsToFetch } },
+            select: {
+                id: true,
+                chat: { select: { id: true } },
+                parent: { select: { id: true } },
+                children: { select: { id: true } }, // Need children to confirm it's a leaf/last node? Or just parent?
+            },
+        });
+        // Populate messageTreeInfo for these last messages
+        lastMessages.forEach((msg) => {
+            if (!msg.chat) {
+                return;
+            }
+            const chatId = msg.chat.id;
+            // Ensure the chat entry exists (should always exist from the first query)
+            if (!branchInfo[chatId]) {
+                logger.error(`BranchInfo missing for chat ${chatId} when processing last message ${msg.id}`, { trace: "0888" });
+                return; // Skip if chat info is unexpectedly missing
+            }
+            // Add or overwrite the entry for the last message ID
+            branchInfo[chatId].messageTreeInfo[msg.id] = {
+                parentId: msg.parent?.id ?? null,
+                childIds: msg.children.map(c => c.id), // Populate children even if empty
             };
         });
     }

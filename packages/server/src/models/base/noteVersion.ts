@@ -148,7 +148,6 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 "transDescriptionWrapped",
                 "transNameWrapped",
                 { root: "tagsWrapped" },
-                { root: "labelsWrapped" },
             ],
         }),
         supplemental: {

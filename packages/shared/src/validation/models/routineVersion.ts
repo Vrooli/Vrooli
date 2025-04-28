@@ -47,7 +47,6 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
         ["translations", ["Create"], "many", "opt", routineVersionTranslationValidation],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["subroutineLinks", ["Connect"], "many", "opt"],
-        ["suggestedNextByProject", ["Connect"], "many", "opt"],
     ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
@@ -68,7 +67,6 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
         ["resourceList", ["Create", "Update"], "one", "opt", resourceListValidation],
         ["root", ["Update"], "one", "opt", routineValidation, ["versions"]],
         ["subroutineLinks", ["Connect", "Disconnect"], "many", "opt"],
-        ["suggestedNextByProject", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", routineVersionTranslationValidation],
     ], [], d),
 };

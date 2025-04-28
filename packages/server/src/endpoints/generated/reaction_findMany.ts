@@ -10,17 +10,6 @@ export const reaction_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -123,7 +112,6 @@ export const reaction_findMany = {
                 "ChatMessage": {
                     "id": true,
                     "created_at": true,
-                    "updated_at": true,
                     "sequence": true,
                     "versionIndex": true,
                     "parent": {
@@ -167,17 +155,6 @@ export const reaction_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -401,17 +378,6 @@ export const reaction_findMany = {
                     "score": true,
                     "bookmarks": true,
                     "views": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "you": {
                         "canComment": true,
                         "canDelete": true,
@@ -436,17 +402,6 @@ export const reaction_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -551,17 +506,6 @@ export const reaction_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -665,17 +609,6 @@ export const reaction_findMany = {
                     "isInternal": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -791,17 +724,6 @@ export const reaction_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -913,5 +835,5 @@ export const reaction_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-406563126"
+    "__cacheKey": "-898607372"
 };

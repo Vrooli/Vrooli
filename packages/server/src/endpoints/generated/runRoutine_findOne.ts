@@ -27,17 +27,6 @@ export const runRoutine_findOne = {
             "created_at": true,
             "updated_at": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -217,17 +206,6 @@ export const runRoutine_findOne = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -410,17 +388,6 @@ export const runRoutine_findOne = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -555,17 +522,6 @@ export const runRoutine_findOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -687,17 +643,6 @@ export const runRoutine_findOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -873,17 +818,6 @@ export const runRoutine_findOne = {
                 "isInternal": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -959,30 +893,6 @@ export const runRoutine_findOne = {
                 "instructions": true,
                 "name": true
             }
-        },
-        "suggestedNextByRoutineVersion": {
-            "id": true,
-            "complexity": true,
-            "isAutomatable": true,
-            "isComplete": true,
-            "isDeleted": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "root": {
-                "id": true,
-                "isInternal": true,
-                "isPrivate": true
-            },
-            "routineType": true,
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "instructions": true,
-                "name": true
-            },
-            "versionIndex": true,
-            "versionLabel": true
         }
     },
     "team": {
@@ -1067,17 +977,6 @@ export const runRoutine_findOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1217,17 +1116,6 @@ export const runRoutine_findOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1340,5 +1228,5 @@ export const runRoutine_findOne = {
             "versionLabel": true
         }
     },
-    "__cacheKey": "27080512"
+    "__cacheKey": "-1518199575"
 };

@@ -15,7 +15,6 @@ export const SuppFields = {
     Comment: ["you"],
     Email: [],
     Issue: ["you"],
-    Label: ["you"],
     Meeting: ["you"],
     MeetingInvite: ["you"],
     Member: ["you"],

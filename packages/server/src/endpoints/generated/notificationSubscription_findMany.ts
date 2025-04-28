@@ -12,17 +12,6 @@ export const notificationSubscription_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -128,17 +117,6 @@ export const notificationSubscription_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -362,17 +340,6 @@ export const notificationSubscription_findMany = {
                     "score": true,
                     "bookmarks": true,
                     "views": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "you": {
                         "canComment": true,
                         "canDelete": true,
@@ -535,17 +502,6 @@ export const notificationSubscription_findMany = {
                         "canInvite": true,
                         "canUpdate": true
                     },
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "schedule": {
                         "id": true,
                         "created_at": true,
@@ -567,17 +523,6 @@ export const notificationSubscription_findMany = {
                             "dayOfMonth": true,
                             "month": true,
                             "endDate": true
-                        },
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
                         },
                         "runProjects": {
                             "id": true,
@@ -743,17 +688,6 @@ export const notificationSubscription_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -858,17 +792,6 @@ export const notificationSubscription_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1018,17 +941,6 @@ export const notificationSubscription_findMany = {
                     "isInternal": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1144,17 +1056,6 @@ export const notificationSubscription_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1318,5 +1219,5 @@ export const notificationSubscription_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2093436052"
+    "__cacheKey": "1588587011"
 };

@@ -943,7 +943,6 @@ describe("applyExceptions", () => {
             updated_at: new Date().toISOString(),
             exceptions: [], // Start with no exceptions
             id: uuid(),
-            labels: [],
             meetings: [],
             recurrences: [],
             runProjects: [],
@@ -1169,7 +1168,6 @@ async function testCalculateOccurrences({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         id: uuid(),
-        labels: [],
         meetings: [],
         runProjects: [],
         runRoutines: [],

@@ -17,17 +17,6 @@ export const bookmark_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -133,17 +122,6 @@ export const bookmark_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -315,17 +293,6 @@ export const bookmark_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -430,17 +397,6 @@ export const bookmark_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -544,17 +500,6 @@ export const bookmark_findMany = {
                     "isInternal": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -670,17 +615,6 @@ export const bookmark_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -884,5 +818,5 @@ export const bookmark_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1329399481"
+    "__cacheKey": "-685190673"
 };

@@ -23,7 +23,6 @@ export const standard: ApiPartial<Standard> = {
         updated_at: true,
         isPrivate: true,
         issuesCount: true,
-        labels: async () => rel((await import("./label.js")).label, "list"),
         owner: {
             __union: {
                 Team: async () => rel((await import("./team.js")).team, "nav"),

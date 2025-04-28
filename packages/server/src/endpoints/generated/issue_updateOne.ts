@@ -60,17 +60,6 @@ export const issue_updateOne = {
     "score": true,
     "bookmarks": true,
     "views": true,
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        }
-    },
     "you": {
         "canComment": true,
         "canDelete": true,
@@ -110,5 +99,5 @@ export const issue_updateOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "-1716964463"
+    "__cacheKey": "348842810"
 };

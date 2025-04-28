@@ -9,17 +9,6 @@ export const view_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -125,17 +114,6 @@ export const view_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -300,17 +278,6 @@ export const view_findMany = {
                     "score": true,
                     "bookmarks": true,
                     "views": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "you": {
                         "canComment": true,
                         "canDelete": true,
@@ -335,17 +302,6 @@ export const view_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -450,17 +406,6 @@ export const view_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -555,17 +500,6 @@ export const view_findMany = {
                     "isInternal": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -670,17 +604,6 @@ export const view_findMany = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -869,5 +792,5 @@ export const view_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-121743301"
+    "__cacheKey": "-288899822"
 };

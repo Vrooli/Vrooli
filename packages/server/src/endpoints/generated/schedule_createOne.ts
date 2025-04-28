@@ -20,26 +20,6 @@ export const schedule_createOne = {
         "month": true,
         "endDate": true
     },
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        },
-        "apisCount": true,
-        "codesCount": true,
-        "issuesCount": true,
-        "meetingsCount": true,
-        "notesCount": true,
-        "projectsCount": true,
-        "routinesCount": true,
-        "schedulesCount": true,
-        "standardsCount": true
-    },
     "meetings": {
         "id": true,
         "created_at": true,
@@ -206,26 +186,6 @@ export const schedule_createOne = {
                 "canUpdate": true
             }
         },
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            },
-            "apisCount": true,
-            "codesCount": true,
-            "issuesCount": true,
-            "meetingsCount": true,
-            "notesCount": true,
-            "projectsCount": true,
-            "routinesCount": true,
-            "schedulesCount": true,
-            "standardsCount": true
-        },
         "translations": {
             "id": true,
             "language": true,
@@ -256,17 +216,6 @@ export const schedule_createOne = {
                 "created_at": true,
                 "updated_at": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -455,17 +404,6 @@ export const schedule_createOne = {
                 "created_at": true,
                 "updated_at": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -645,17 +583,6 @@ export const schedule_createOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -838,17 +765,6 @@ export const schedule_createOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -983,17 +899,6 @@ export const schedule_createOne = {
                         "updated_at": true,
                         "isPrivate": true,
                         "issuesCount": true,
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
-                        },
                         "owner": {
                             "Team": {
                                 "id": true,
@@ -1115,17 +1020,6 @@ export const schedule_createOne = {
                         "updated_at": true,
                         "isPrivate": true,
                         "issuesCount": true,
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
-                        },
                         "owner": {
                             "Team": {
                                 "id": true,
@@ -1290,17 +1184,6 @@ export const schedule_createOne = {
                     "isInternal": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1376,30 +1259,6 @@ export const schedule_createOne = {
                     "instructions": true,
                     "name": true
                 }
-            },
-            "suggestedNextByRoutineVersion": {
-                "id": true,
-                "complexity": true,
-                "isAutomatable": true,
-                "isComplete": true,
-                "isDeleted": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "root": {
-                    "id": true,
-                    "isInternal": true,
-                    "isPrivate": true
-                },
-                "routineType": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "instructions": true,
-                    "name": true
-                },
-                "versionIndex": true,
-                "versionLabel": true
             }
         },
         "team": {
@@ -1484,17 +1343,6 @@ export const schedule_createOne = {
                         "updated_at": true,
                         "isPrivate": true,
                         "issuesCount": true,
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
-                        },
                         "owner": {
                             "Team": {
                                 "id": true,
@@ -1634,17 +1482,6 @@ export const schedule_createOne = {
                         "updated_at": true,
                         "isPrivate": true,
                         "issuesCount": true,
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
-                        },
                         "owner": {
                             "Team": {
                                 "id": true,
@@ -1758,5 +1595,5 @@ export const schedule_createOne = {
             }
         }
     },
-    "__cacheKey": "669335596"
+    "__cacheKey": "-1834162972"
 };

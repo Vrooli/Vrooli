@@ -6,7 +6,6 @@ import { getLabels } from "../../getters/getLabels.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
@@ -44,7 +43,6 @@ export const StandardModel: StandardModelLogic = ({
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "forks", data, ...rest }),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -57,7 +55,6 @@ export const StandardModel: StandardModelLogic = ({
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: false, objectType: __typename, data, ...rest })),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
                 };
             },
         },
@@ -168,7 +165,6 @@ export const StandardModel: StandardModelLogic = ({
             hasCompleteVersion: true,
             isInternal: true,
             issuesId: true,
-            labelsIds: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,
@@ -187,7 +183,6 @@ export const StandardModel: StandardModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "tagsWrapped",
-                "labelsWrapped",
                 { versions: { some: "transNameWrapped" } },
                 { versions: { some: "transDescriptionWrapped" } },
             ],

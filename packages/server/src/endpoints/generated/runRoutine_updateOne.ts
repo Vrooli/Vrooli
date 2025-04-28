@@ -27,17 +27,6 @@ export const runRoutine_updateOne = {
             "created_at": true,
             "updated_at": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -217,17 +206,6 @@ export const runRoutine_updateOne = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -410,17 +388,6 @@ export const runRoutine_updateOne = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -555,17 +522,6 @@ export const runRoutine_updateOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -687,17 +643,6 @@ export const runRoutine_updateOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -862,17 +807,6 @@ export const runRoutine_updateOne = {
                 "isInternal": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -948,30 +882,6 @@ export const runRoutine_updateOne = {
                 "instructions": true,
                 "name": true
             }
-        },
-        "suggestedNextByRoutineVersion": {
-            "id": true,
-            "complexity": true,
-            "isAutomatable": true,
-            "isComplete": true,
-            "isDeleted": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "root": {
-                "id": true,
-                "isInternal": true,
-                "isPrivate": true
-            },
-            "routineType": true,
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "instructions": true,
-                "name": true
-            },
-            "versionIndex": true,
-            "versionLabel": true
         }
     },
     "team": {
@@ -1056,17 +966,6 @@ export const runRoutine_updateOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1206,17 +1105,6 @@ export const runRoutine_updateOne = {
                     "updated_at": true,
                     "isPrivate": true,
                     "issuesCount": true,
-                    "labels": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "color": true,
-                        "label": true,
-                        "you": {
-                            "canDelete": true,
-                            "canUpdate": true
-                        }
-                    },
                     "owner": {
                         "Team": {
                             "id": true,
@@ -1329,5 +1217,5 @@ export const runRoutine_updateOne = {
             "versionLabel": true
         }
     },
-    "__cacheKey": "-1836017059"
+    "__cacheKey": "202385452"
 };

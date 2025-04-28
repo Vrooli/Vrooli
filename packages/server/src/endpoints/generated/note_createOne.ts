@@ -4,17 +4,6 @@ export const note_createOne = {
     "updated_at": true,
     "isPrivate": true,
     "issuesCount": true,
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        }
-    },
     "owner": {
         "Team": {
             "id": true,
@@ -166,5 +155,5 @@ export const note_createOne = {
         },
         "versionNotes": true
     },
-    "__cacheKey": "247114934"
+    "__cacheKey": "-2030595219"
 };

@@ -7,6 +7,8 @@
  */
 import * as yup from "yup";
 import { ReportFor } from "../../api/types.js";
+import { validatePublicId } from "../../id/publicId.js";
+import { validateSnowflakeId } from "../../id/snowflake.js";
 import { uuidValidate } from "../../id/uuid.js";
 import { urlRegexDev } from "../../validation/utils/regex.js";
 import { YupMutateParams } from "../../validation/utils/types.js";
@@ -47,7 +49,20 @@ yup.addMethod(yup.bool, "toBool", function transformToBool() {
 
 
 // db fields
-export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be a valid UUID", (value) => value === null || value === undefined || (typeof value === "string" && uuidValidate(value)));
+export const id = yup.string().trim().removeEmptyString().test(
+    "id-validation",
+    "Must be a valid ID (UUID or Snowflake ID)",
+    (value) => value === null || value === undefined || (
+        typeof value === "string" && (uuidValidate(value) || validateSnowflakeId(value))
+    ),
+);
+
+// Add publicId validation
+export const publicId = yup.string().trim().removeEmptyString().test(
+    "publicId-validation",
+    "Must be a valid public ID (10-12 character alphanumeric string)",
+    (value) => value === null || value === undefined || (typeof value === "string" && validatePublicId(value)),
+);
 
 // protocol fields
 export const configCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);

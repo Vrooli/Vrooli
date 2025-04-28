@@ -193,31 +193,11 @@ export const chat_createOne = {
             "canUpdate": true
         }
     },
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        },
-        "apisCount": true,
-        "codesCount": true,
-        "issuesCount": true,
-        "meetingsCount": true,
-        "notesCount": true,
-        "projectsCount": true,
-        "routinesCount": true,
-        "schedulesCount": true,
-        "standardsCount": true
-    },
     "translations": {
         "id": true,
         "language": true,
         "description": true,
         "name": true
     },
-    "__cacheKey": "-505924458"
+    "__cacheKey": "-1702440775"
 };

@@ -28,7 +28,6 @@ export const SearchStringMap = {
     labelWrapped: (p: P) => ({ label: SearchStringMap.label(p) }),
     labels: ({ insensitive }: P) => ({ some: { label: { label: { ...insensitive } } } }),
     labelsWrapped: (p: P) => ({ labels: SearchStringMap.labels(p) }),
-    labelsOwnerWrapped: ({ insensitive }: P) => ({ labels: { some: { label: { ...insensitive } } } }),
     link: ({ insensitive }: P) => ({ ...insensitive }),
     linkWrapped: (p: P) => ({ link: SearchStringMap.link(p) }),
     message: ({ insensitive }: P) => ({ ...insensitive }),

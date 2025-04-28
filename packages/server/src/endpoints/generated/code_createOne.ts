@@ -4,17 +4,6 @@ export const code_createOne = {
     "updated_at": true,
     "isPrivate": true,
     "issuesCount": true,
-    "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "you": {
-            "canDelete": true,
-            "canUpdate": true
-        }
-    },
     "owner": {
         "Team": {
             "id": true,
@@ -190,5 +179,5 @@ export const code_createOne = {
             "name": true
         }
     },
-    "__cacheKey": "1386380517"
+    "__cacheKey": "1847529102"
 };

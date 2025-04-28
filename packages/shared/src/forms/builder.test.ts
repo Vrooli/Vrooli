@@ -344,9 +344,25 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            await expect(validationSchema.validate({ username: "abc" })).to.be.fulfilled;
-            await expect(validationSchema.validate({ username: "ab" })).to.be.rejectedWith("Username must be at least 3 characters");
-            await expect(validationSchema.validate({})).to.be.rejectedWith("Username is required");
+
+            // Test valid case
+            await validationSchema.validate({ username: "abc" });
+
+            // Test validation error - too short
+            try {
+                await validationSchema.validate({ username: "ab" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username must be at least 3 characters");
+            }
+
+            // Test validation error - required field
+            try {
+                await validationSchema.validate({});
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username is required");
+            }
         });
 
         it("should generate a Yup schema for optional number input", async () => {
@@ -378,9 +394,20 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            await expect(validationSchema.validate({ age: 20 })).to.be.fulfilled;
-            await expect(validationSchema.validate({ age: 16 })).to.be.rejectedWith("You must be at least 18 years old");
-            await expect(validationSchema.validate({})).to.be.fulfilled; // Age is optional
+
+            // Valid age
+            await validationSchema.validate({ age: 20 });
+
+            // Invalid age
+            try {
+                await validationSchema.validate({ age: 16 });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("You must be at least 18 years old");
+            }
+
+            // Age is optional
+            await validationSchema.validate({});
         });
 
         it("should handle multiple fields with different types", async () => {
@@ -440,35 +467,41 @@ describe("FormBuilder", () => {
                 expect.fail("validationSchema should not be null");
             }
 
-            await expect(
-                validationSchema.validate({
-                    email: "test@example.com",
-                    password: "secret",
-                    rememberMe: true,
-                }),
-            ).to.be.fulfilled;
+            // Valid case with all fields
+            await validationSchema.validate({
+                email: "test@example.com",
+                password: "secret",
+                rememberMe: true,
+            });
 
-            await expect(
-                validationSchema.validate({
+            // Invalid email format
+            try {
+                await validationSchema.validate({
                     email: "invalid-email",
                     password: "secret",
                     rememberMe: false,
-                }),
-            ).to.be.rejectedWith(/ust be a valid email/);
+                });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.include("valid email");
+            }
 
-            await expect(
-                validationSchema.validate({
+            // Password too short
+            try {
+                await validationSchema.validate({
                     email: "test@example.com",
                     password: "short",
-                }),
-            ).to.be.rejectedWith("Password must be at least 6 characters");
+                });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Password must be at least 6 characters");
+            }
 
-            await expect(
-                validationSchema.validate({
-                    email: "test@example.com",
-                    password: "secret",
-                }),
-            ).to.be.fulfilled; // rememberMe is optional
+            // RememberMe is optional
+            await validationSchema.validate({
+                email: "test@example.com",
+                password: "secret",
+            });
         });
 
         it("should handle custom validation methods", async () => {
@@ -499,9 +532,20 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            await expect(validationSchema.validate({ website: "https://example.com" })).to.be.fulfilled;
-            await expect(validationSchema.validate({ website: "invalid-url" })).to.be.rejectedWith("Must be a valid URL");
-            await expect(validationSchema.validate({})).to.be.fulfilled; // website is optional
+
+            // Valid URL
+            await validationSchema.validate({ website: "https://example.com" });
+
+            // Invalid URL
+            try {
+                await validationSchema.validate({ website: "invalid-url" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Must be a valid URL");
+            }
+
+            // Website is optional
+            await validationSchema.validate({});
         });
 
         it("should handle boolean fields", async () => {
@@ -517,7 +561,7 @@ describe("FormBuilder", () => {
                             checks: [
                                 {
                                     key: "oneOf",
-                                    value: [true],
+                                    value: [true] as any, // Type cast to avoid compile error
                                     error: "You must accept the terms",
                                 },
                             ],
@@ -533,9 +577,25 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            await expect(validationSchema.validate({ terms: true })).to.be.fulfilled;
-            await expect(validationSchema.validate({ terms: false })).to.be.rejectedWith("You must accept the terms");
-            await expect(validationSchema.validate({})).to.be.rejectedWith("Accept Terms is required");
+
+            // Terms accepted
+            await validationSchema.validate({ terms: true });
+
+            // Terms declined
+            try {
+                await validationSchema.validate({ terms: false });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("You must accept the terms");
+            }
+
+            // Terms missing
+            try {
+                await validationSchema.validate({});
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Accept Terms is required");
+            }
         });
 
         it("should handle fields with multiple checks", async () => {
@@ -561,7 +621,7 @@ describe("FormBuilder", () => {
                                 },
                                 {
                                     key: "matches",
-                                    value: /^[a-zA-Z0-9]+$/,
+                                    value: /^[a-zA-Z0-9]+$/ as any, // Type cast to avoid compile error
                                     error: "Username must be alphanumeric",
                                 },
                             ],
@@ -577,10 +637,33 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            await expect(validationSchema.validate({ username: "user123" })).to.be.fulfilled;
-            await expect(validationSchema.validate({ username: "us" })).to.be.rejectedWith("Username must be at least 3 characters");
-            await expect(validationSchema.validate({ username: "thisusernameistoolong" })).to.be.rejectedWith("Username must be at most 10 characters");
-            await expect(validationSchema.validate({ username: "user!@#" })).to.be.rejectedWith("Username must be alphanumeric");
+
+            // Valid username
+            await validationSchema.validate({ username: "user123" });
+
+            // Username too short
+            try {
+                await validationSchema.validate({ username: "us" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username must be at least 3 characters");
+            }
+
+            // Username too long
+            try {
+                await validationSchema.validate({ username: "thisusernameistoolong" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username must be at most 10 characters");
+            }
+
+            // Username not alphanumeric
+            try {
+                await validationSchema.validate({ username: "user!@#" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username must be alphanumeric");
+            }
         });
 
         it("should skip fields with unsupported input types", () => {
@@ -595,7 +678,9 @@ describe("FormBuilder", () => {
                             required: true,
                             checks: [],
                         },
-                        props: {},
+                        props: {
+                            options: [], // Add required options property for CheckboxFormInputProps
+                        },
                     },
                 ],
                 containers: [],
@@ -720,7 +805,7 @@ describe("FormBuilder", () => {
                             checks: [
                                 {
                                     key: "oneOf",
-                                    value: ["active", "inactive"],
+                                    value: ["active", "inactive"] as any, // Type cast to avoid compile error
                                     error: "Status must be active or inactive",
                                 },
                             ],
@@ -739,24 +824,31 @@ describe("FormBuilder", () => {
             const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, RoutineType.Api);
 
             // Valid case: both fields valid
-            await expect(
-                yupSchema.validate({ "input-username": "JohnDoe", "output-status": "active" }),
-            ).to.be.fulfilled;
+            await yupSchema.validate({ "input-username": "JohnDoe", "output-status": "active" });
 
             // Invalid: username too short
-            await expect(
-                yupSchema.validate({ "input-username": "Jo", "output-status": "active" }),
-            ).to.be.rejectedWith("Username must be at least 3 characters");
+            try {
+                await yupSchema.validate({ "input-username": "Jo", "output-status": "active" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username must be at least 3 characters");
+            }
 
             // Invalid: status not allowed (if provided)
-            await expect(
-                yupSchema.validate({ "input-username": "JohnDoe", "output-status": "pending" }),
-            ).to.be.rejectedWith("Status must be active or inactive");
+            try {
+                await yupSchema.validate({ "input-username": "JohnDoe", "output-status": "pending" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Status must be active or inactive");
+            }
 
             // Invalid: missing required username
-            await expect(
-                yupSchema.validate({ "output-status": "active" }),
-            ).to.be.rejectedWith("Username is required");
+            try {
+                await yupSchema.validate({ "output-status": "active" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Username is required");
+            }
         });
 
         it("should handle cases when only one of formInput or formOutput is provided", async () => {
@@ -789,12 +881,16 @@ describe("FormBuilder", () => {
 
             const yupSchemaInputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configInputOnly, RoutineType.Api);
 
-            await expect(
-                yupSchemaInputOnly.validate({ "input-email": "test@example.com" }),
-            ).to.be.fulfilled;
-            await expect(
-                yupSchemaInputOnly.validate({ "input-email": "not-an-email" }),
-            ).to.be.rejectedWith("Must be a valid email");
+            // Valid email
+            await yupSchemaInputOnly.validate({ "input-email": "test@example.com" });
+
+            // Invalid email
+            try {
+                await yupSchemaInputOnly.validate({ "input-email": "not-an-email" });
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Must be a valid email");
+            }
 
             // Test with only formOutput provided
             const sampleOutputSchema: FormSchema = {
@@ -820,12 +916,16 @@ describe("FormBuilder", () => {
 
             const yupSchemaOutputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configOutputOnly, RoutineType.Api);
 
-            await expect(
-                yupSchemaOutputOnly.validate({ "output-result": "success" }),
-            ).to.be.fulfilled;
-            await expect(
-                yupSchemaOutputOnly.validate({}),
-            ).to.be.rejectedWith("Result is required");
+            // Valid result
+            await yupSchemaOutputOnly.validate({ "output-result": "success" });
+
+            // Missing required result
+            try {
+                await yupSchemaOutputOnly.validate({});
+                expect.fail("Validation should have failed but passed");
+            } catch (error) {
+                expect(error.message).to.equal("Result is required");
+            }
         });
 
         it("should skip fields without a yup property", () => {

@@ -3,7 +3,6 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, id, permissions } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 import { codeVersionValidation } from "./codeVersion.js";
-import { labelValidation } from "./label.js";
 import { tagValidation } from "./tag.js";
 
 export const codeValidation: YupModel<["create", "update"]> = {
@@ -15,7 +14,6 @@ export const codeValidation: YupModel<["create", "update"]> = {
         ["ownedByUser", ["Connect"], "one", "opt"],
         ["ownedByTeam", ["Connect"], "one", "opt"],
         ["parent", ["Connect"], "one", "opt"],
-        ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
         ["versions", ["Create"], "many", "req", codeVersionValidation, ["root"]],
     ], [["ownedByTeamConnect", "ownedByUserConnect", true]], d),
@@ -26,7 +24,6 @@ export const codeValidation: YupModel<["create", "update"]> = {
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
         ["ownedByTeam", ["Connect"], "one", "opt"],
-        ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
         ["versions", ["Create", "Update", "Delete"], "many", "opt", codeVersionValidation, ["root"]],
     ], [["ownedByTeamConnect", "ownedByUserConnect", false]], d),

@@ -4,7 +4,6 @@ import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
@@ -62,7 +61,6 @@ export const MeetingModel: MeetingModelLogic = ({
                     }),
                     invites: await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -82,7 +80,6 @@ export const MeetingModel: MeetingModelLogic = ({
                     }),
                     invites: await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -103,7 +100,6 @@ export const MeetingModel: MeetingModelLogic = ({
         sortBy: MeetingSortBy,
         searchFields: {
             createdTimeFrame: true,
-            labelsIds: true,
             openToAnyoneWithInvite: true,
             scheduleEndTimeFrame: true,
             scheduleStartTimeFrame: true,
@@ -114,7 +110,6 @@ export const MeetingModel: MeetingModelLogic = ({
         },
         searchStringQuery: () => ({
             OR: [
-                "labelsWrapped",
                 "transNameWrapped",
                 "transDescriptionWrapped",
             ],

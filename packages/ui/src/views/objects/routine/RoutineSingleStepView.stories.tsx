@@ -138,7 +138,6 @@ const mockRoutineVersionData: RoutineVersion = {
     routineType: RoutineType.Generate,
     simplicity: 5,
     subroutineLinks: [],
-    suggestedNextByRoutineVersion: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),
     translations: [{

@@ -10,20 +10,21 @@ datasource db {
 }
 
 model award {
-    id                       String        @id @default(uuid()) @db.Uuid
+    id                       BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at               DateTime      @default(now()) @db.Timestamptz(6)
     updated_at               DateTime      @default(now()) @db.Timestamptz(6)
     timeCurrentTierCompleted DateTime?     @db.Timestamptz(6)
     category                 AwardCategory
     progress                 Int           @default(0)
-    userId                   String        @db.Uuid
+    userId                   BigInt        @db.BigInt
     user                     user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, category])
+    @@unique([userId, category], name: "award_userId_category_unique")
 }
 
 model api {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     completedAt        DateTime?                   @db.Timestamptz(6)
@@ -35,10 +36,10 @@ model api {
     isDeleted          Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
     permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
+    createdById        BigInt?                     @db.BigInt
+    ownedByTeamId      BigInt?                     @db.BigInt
+    ownedByUserId      BigInt?                     @db.BigInt
+    parentId           BigInt?                     @db.BigInt
     createdBy          user?                       @relation("api_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
     ownedByTeam        team?                       @relation("api_ownedByTeam", fields: [ownedByTeamId], references: [id])
     ownedByUser        user?                       @relation("api_ownedByUser", fields: [ownedByUserId], references: [id])
@@ -51,25 +52,14 @@ model api {
     viewedBy           view[]                      @relation("view_api")
     pullRequests       pull_request[]
     versions           api_version[]
-    labels             api_labels[]
     stats              stats_api[]
     transfers          transfer[]                  @relation("transfer_api")
     subscriptions      notification_subscription[]
 }
 
-model api_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   api    @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "api_labels_labelledid_labelid_unique")
-}
-
 model api_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
+    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt @db.BigInt
     tagTag   String @db.VarChar(128)
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   api    @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -78,7 +68,7 @@ model api_tags {
 }
 
 model api_version {
-    id                      String                      @id @default(uuid()) @db.Uuid
+    id                      BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     completedAt             DateTime?                   @db.Timestamptz(6)
@@ -91,12 +81,12 @@ model api_version {
     isLatest                Boolean                     @default(false)
     isLatestPublic          Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
-    rootId                  String                      @db.Uuid
-    resourceListId          String?                     @unique @db.Uuid
+    rootId                  BigInt                      @db.BigInt
+    resourceListId          BigInt?                     @unique @db.BigInt
     versionIndex            Int                         @default(0)
     versionLabel            String                      @default("1.0.0") @db.VarChar(16)
     versionNotes            String?                     @db.VarChar(4096)
-    pullRequestId           String?                     @unique @db.Uuid
+    pullRequestId           BigInt?                     @unique @db.BigInt
     calledByRoutineVersions routine_version[]
     comments                comment[]
     reports                 report[]
@@ -112,7 +102,7 @@ model api_version {
 }
 
 model api_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
@@ -120,12 +110,12 @@ model api_version_translation {
     summary              String?                     @db.VarChar(1024)
     details              String?                     @db.VarChar(8192)
     language             String                      @db.VarChar(3)
-    apiVersionId         String                      @db.Uuid
+    apiVersionId         BigInt                      @db.BigInt
     apiVersion           api_version                 @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
 }
 
 model api_key {
-    id          String    @id @default(uuid()) @db.Uuid
+    id          BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at  DateTime  @default(now()) @db.Timestamptz(6)
     updated_at  DateTime  @default(now()) @db.Timestamptz(6)
     creditsUsed BigInt    @default(0)
@@ -136,42 +126,42 @@ model api_key {
     name        String    @db.VarChar(128)
     permissions String    @db.VarChar(4096)
     stopAtLimit Boolean   @default(true)
-    teamId      String?   @db.Uuid
-    userId      String?   @db.Uuid
+    teamId      BigInt?   @db.BigInt
+    userId      BigInt?   @db.BigInt
     team        team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user        user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model api_key_external {
-    id         String    @id @default(uuid()) @db.Uuid
+    id         BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime  @default(now()) @db.Timestamptz(6)
     updated_at DateTime  @default(now()) @db.Timestamptz(6)
     key        String    @db.VarChar(255)
     disabledAt DateTime? @db.Timestamptz(6)
     name       String    @db.VarChar(128)
     service    String    @db.VarChar(128)
-    teamId     String?   @db.Uuid
-    userId     String?   @db.Uuid
+    teamId     BigInt?   @db.BigInt
+    userId     BigInt?   @db.BigInt
     team       team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user       user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model bookmark {
-    id         String         @id @default(uuid()) @db.Uuid
+    id         BigInt         @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime       @default(now()) @db.Timestamptz(6)
     updated_at DateTime       @default(now()) @db.Timestamptz(6)
-    listId     String?        @db.Uuid
-    apiId      String?        @db.Uuid
-    codeId     String?        @db.Uuid
-    commentId  String?        @db.Uuid
-    issueId    String?        @db.Uuid
-    noteId     String?        @db.Uuid
-    projectId  String?        @db.Uuid
-    routineId  String?        @db.Uuid
-    standardId String?        @db.Uuid
-    tagId      String?        @db.Uuid
-    teamId     String?        @db.Uuid
-    userId     String?        @db.Uuid
+    listId     BigInt?        @db.BigInt
+    apiId      BigInt?        @db.BigInt
+    codeId     BigInt?        @db.BigInt
+    commentId  BigInt?        @db.BigInt
+    issueId    BigInt?        @db.BigInt
+    noteId     BigInt?        @db.BigInt
+    projectId  BigInt?        @db.BigInt
+    routineId  BigInt?        @db.BigInt
+    standardId BigInt?        @db.BigInt
+    tagId      BigInt?        @db.BigInt
+    teamId     BigInt?        @db.BigInt
+    userId     BigInt?        @db.BigInt
     list       bookmark_list? @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
     api        api?           @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
     code       code?          @relation("bookmark_code", fields: [codeId], references: [id], onDelete: Cascade)
@@ -187,12 +177,12 @@ model bookmark {
 }
 
 model bookmark_list {
-    id         String     @id @default(uuid()) @db.Uuid
+    id         BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime   @default(now()) @db.Timestamptz(6)
     updated_at DateTime   @default(now()) @db.Timestamptz(6)
     index      Int
     label      String     @db.VarChar(128)
-    userId     String     @db.Uuid
+    userId     BigInt     @db.BigInt
     bookmarks  bookmark[] @relation("bookmark_list")
     user       user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -200,31 +190,30 @@ model bookmark_list {
 }
 
 model chat {
-    id                     String                      @id @default(uuid()) @db.Uuid
+    id                     BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId               String                      @unique @db.VarChar(12)
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
-    inviteId               String?                     @db.Uuid
     isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
-    creatorId              String?                     @db.Uuid
-    teamId                 String?                     @db.Uuid
+    creatorId              BigInt?                     @db.BigInt
+    teamId                 BigInt?                     @db.BigInt
     creator                user?                       @relation(fields: [creatorId], references: [id], onDelete: SetNull)
     team                   team?                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
     restrictedToRoles      chat_roles[]
     messages               chat_message[]
     participants           chat_participants[]
     invites                chat_invite[]
-    labels                 chat_labels[]
     translations           chat_translation[]
     subscriptions          notification_subscription[]
 }
 
 model chat_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
-    chatId               String                      @db.Uuid
+    chatId               BigInt                      @db.BigInt
     chat                 chat                        @relation(fields: [chatId], references: [id], onDelete: Cascade)
     language             String                      @db.VarChar(3)
     name                 String?                     @db.VarChar(128)
@@ -234,85 +223,66 @@ model chat_translation {
 }
 
 model chat_message {
-    id                String                     @id @default(uuid()) @db.Uuid
-    created_at        DateTime                   @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime                   @default(now()) @db.Timestamptz(6)
-    metadata          String?                    @db.VarChar(4096)
-    score             Int                        @default(0)
-    sequence          Int                        @default(autoincrement())
-    versionIndex      Int                        @default(0)
-    parentId          String?                    @db.Uuid
-    userId            String?                    @db.Uuid
-    chatId            String?                    @db.Uuid
-    chat              chat?                      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    parent            chat_message?              @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
-    children          chat_message[]             @relation("chat_message_parent")
-    user              user?                      @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
-    translations      chat_message_translation[]
-    reactions         reaction[]                 @relation("reaction_chat_message")
-    reactionSummaries reaction_summary[]         @relation("reaction_summary_chat_message")
+    id                BigInt             @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    created_at        DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime           @default(now()) @db.Timestamptz(6)
+    language          String             @db.VarChar(3)
+    metadata          String?            @db.VarChar(4096)
+    score             Int                @default(0)
+    sequence          Int                @default(autoincrement())
+    versionIndex      Int                @default(0)
+    parentId          BigInt?            @db.BigInt
+    userId            BigInt?            @db.BigInt
+    chatId            BigInt?            @db.BigInt
+    chat              chat?              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    parent            chat_message?      @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
+    children          chat_message[]     @relation("chat_message_parent")
+    user              user?              @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
+    reactions         reaction[]         @relation("reaction_chat_message")
+    reactionSummaries reaction_summary[] @relation("reaction_summary_chat_message")
     reports           report[]
 }
 
-model chat_message_translation {
-    id        String       @id @default(uuid()) @db.Uuid
-    text      String       @db.VarChar(32768)
-    language  String       @db.VarChar(3)
-    messageId String       @db.Uuid
-    message   chat_message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-    @@unique([messageId, language])
-}
-
 model chat_participants {
-    id         String   @id @default(uuid()) @db.Uuid
+    id         BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime @default(now()) @db.Timestamptz(6)
     updated_at DateTime @default(now()) @db.Timestamptz(6)
     hasUnread  Boolean  @default(true)
-    chatId     String   @db.Uuid
+    chatId     BigInt   @db.BigInt
+    userId     BigInt   @db.BigInt
     chat       chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    userId     String   @db.Uuid
     user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([chatId, userId])
+    @@unique([chatId, userId], name: "chat_participants_chatid_userid_unique")
 }
 
 model chat_invite {
-    id         String           @id @default(uuid()) @db.Uuid
+    id         BigInt           @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime         @default(now()) @db.Timestamptz(6)
     updated_at DateTime         @default(now()) @db.Timestamptz(6)
     status     ChatInviteStatus @default(Pending)
     message    String?          @db.VarChar(4096)
-    chatId     String           @db.Uuid
+    chatId     BigInt           @db.BigInt
+    userId     BigInt           @db.BigInt
     chat       chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    userId     String           @db.Uuid
     user       user             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([chatId, userId], name: "chat_invite_chatid_userid_unique")
 }
 
-model chat_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   chat   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "chat_labels_labelledid_labelid_unique")
-}
-
 model chat_roles {
-    id     String @id @default(uuid()) @db.Uuid
-    chatId String @db.Uuid
+    id     BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    chatId BigInt @db.BigInt
     chat   chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    roleId String @db.Uuid
+    roleId BigInt @db.BigInt
     role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
     @@unique([chatId, roleId], name: "chat_roles_chatid_roleid_unique")
 }
 
 model code {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     hasBeenTransferred Boolean                     @default(false)
@@ -324,16 +294,15 @@ model code {
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
+    createdById        BigInt?                     @db.BigInt
+    parentId           BigInt?                     @db.BigInt
+    ownedByTeamId      BigInt?                     @db.BigInt
+    ownedByUserId      BigInt?                     @db.BigInt
     createdBy          user?                       @relation("code_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     issues             issue[]
     parent             code_version?               @relation("code_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     ownedByTeam        team?                       @relation("code_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
     ownedByUser        user?                       @relation("code_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    labels             code_labels[]
     tags               code_tags[]
     bookmarkedBy       bookmark[]                  @relation("bookmark_code")
     versions           code_version[]
@@ -347,7 +316,7 @@ model code {
 }
 
 model code_version {
-    id                      String                      @id @default(uuid()) @db.Uuid
+    id                      BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     codeLanguage            String                      @db.VarChar(128)
@@ -358,13 +327,13 @@ model code_version {
     content                 String                      @db.VarChar(8192)
     isLatest                Boolean                     @default(false)
     isLatestPublic          Boolean                     @default(false)
-    resourceListId          String?                     @unique @db.Uuid
-    rootId                  String                      @db.Uuid
+    resourceListId          BigInt?                     @unique @db.BigInt
+    rootId                  BigInt                      @db.BigInt
     versionIndex            Int                         @default(0)
     versionLabel            String                      @default("1.0.0") @db.VarChar(16)
     versionNotes            String?                     @db.VarChar(4096)
     intendToPullRequest     Boolean                     @default(false)
-    pullRequestId           String?                     @unique @db.Uuid
+    pullRequestId           BigInt?                     @unique @db.BigInt
     isComplete              Boolean                     @default(false)
     isDeleted               Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
@@ -383,25 +352,25 @@ model code_version {
 }
 
 model code_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     name                 String                      @db.VarChar(128)
     description          String?                     @db.VarChar(2048)
     jsonVariable         String?                     @db.VarChar(8192)
-    codeVersionId        String                      @db.Uuid
+    codeVersionId        BigInt                      @db.BigInt
     language             String                      @db.VarChar(3)
     codeVersion          code_version                @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
 
-    @@unique([codeVersionId, language])
+    @@unique([codeVersionId, language], name: "code_version_translation_codeVersionId_language_unique")
 }
 
 model code_version_contract {
-    id                String       @id @default(uuid()) @db.Uuid
+    id                BigInt       @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     address           String?      @db.VarChar(256)
     blockchain        String       @db.VarChar(128)
-    codeVersionId     String       @unique @db.Uuid
+    codeVersionId     BigInt       @unique @db.BigInt
     contractType      String?      @db.VarChar(256)
     hash              String?      @db.VarChar(256)
     isAddressVerified Boolean      @default(false)
@@ -410,8 +379,8 @@ model code_version_contract {
 }
 
 model code_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
+    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt @db.BigInt
     tagTag   String @db.VarChar(128)
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   code   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -419,31 +388,21 @@ model code_tags {
     @@unique([taggedId, tagTag], name: "code_tags_taggedid_tagTag_unique")
 }
 
-model code_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   code   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "code_labels_labelledid_labelid_unique")
-}
-
 model comment {
-    id                String                      @id @default(uuid()) @db.Uuid
+    id                BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at        DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
-    ownedByTeamId     String?                     @db.Uuid
-    ownedByUserId     String?                     @db.Uuid
-    apiVersionId      String?                     @db.Uuid
-    codeVersionId     String?                     @db.Uuid
-    issueId           String?                     @db.Uuid
-    noteVersionId     String?                     @db.Uuid
-    parentId          String?                     @db.Uuid
-    projectVersionId  String?                     @db.Uuid
-    pullRequestId     String?                     @db.Uuid
-    routineVersionId  String?                     @db.Uuid
-    standardVersionId String?                     @db.Uuid
+    ownedByTeamId     BigInt?                     @db.BigInt
+    ownedByUserId     BigInt?                     @db.BigInt
+    apiVersionId      BigInt?                     @db.BigInt
+    codeVersionId     BigInt?                     @db.BigInt
+    issueId           BigInt?                     @db.BigInt
+    noteVersionId     BigInt?                     @db.BigInt
+    parentId          BigInt?                     @db.BigInt
+    projectVersionId  BigInt?                     @db.BigInt
+    pullRequestId     BigInt?                     @unique @db.BigInt
+    routineVersionId  BigInt?                     @db.BigInt
+    standardVersionId BigInt?                     @db.BigInt
     score             Int                         @default(0)
     bookmarks         Int                         @default(0)
     apiVersion        api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
@@ -467,17 +426,17 @@ model comment {
 }
 
 model comment_translation {
-    id        String  @id @default(uuid()) @db.Uuid
+    id        BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     text      String  @db.VarChar(32768)
     language  String  @db.VarChar(3)
-    commentId String  @db.Uuid
+    commentId BigInt  @db.BigInt
     comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-    @@unique([commentId, language])
+    @@unique([commentId, language], name: "comment_translation_commentId_language_unique")
 }
 
 model email {
-    id                                 String    @id @default(uuid()) @db.Uuid
+    id                                 BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at                         DateTime  @default(now()) @db.Timestamptz(6)
     updated_at                         DateTime  @default(now()) @db.Timestamptz(6)
     emailAddress                       String    @unique @db.Citext
@@ -485,14 +444,15 @@ model email {
     lastVerifiedTime                   DateTime? @db.Timestamptz(6)
     verificationCode                   String?   @db.VarChar(256)
     lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    teamId                             String?   @db.Uuid
-    userId                             String?   @db.Uuid
+    teamId                             BigInt?   @db.BigInt
+    userId                             BigInt?   @db.BigInt
     team                               team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model issue {
-    id                      String                      @id @default(uuid()) @db.Uuid
+    id                      BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId                String                      @unique @db.VarChar(12)
     status                  IssueStatus                 @default(Open)
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @updatedAt @db.Timestamptz(6)
@@ -501,16 +461,16 @@ model issue {
     score                   Int                         @default(0)
     bookmarks               Int                         @default(0)
     views                   Int                         @default(0)
-    apiId                   String?                     @db.Uuid
-    codeId                  String?                     @db.Uuid
-    noteId                  String?                     @db.Uuid
-    projectId               String?                     @db.Uuid
-    routineId               String?                     @db.Uuid
-    standardId              String?                     @db.Uuid
-    teamId                  String?                     @db.Uuid
-    closedById              String?                     @db.Uuid
-    createdById             String?                     @db.Uuid
-    referencedVersionId     String?                     @db.Uuid
+    apiId                   BigInt?                     @db.BigInt
+    codeId                  BigInt?                     @db.BigInt
+    noteId                  BigInt?                     @db.BigInt
+    projectId               BigInt?                     @db.BigInt
+    routineId               BigInt?                     @db.BigInt
+    standardId              BigInt?                     @db.BigInt
+    teamId                  BigInt?                     @db.BigInt
+    closedById              BigInt?                     @db.BigInt
+    createdById             BigInt?                     @db.BigInt
+    referencedVersionId     BigInt?                     @db.BigInt
     api                     api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
     code                    code?                       @relation(fields: [codeId], references: [id], onDelete: Cascade)
     note                    note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
@@ -520,7 +480,6 @@ model issue {
     closedBy                user?                       @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
     createdBy               user?                       @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
     comments                comment[]
-    labels                  issue_labels[]
     reports                 report[]
     team                    team?                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
     translations            issue_translation[]
@@ -531,67 +490,23 @@ model issue {
     subscriptions           notification_subscription[]
 }
 
-model issue_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   issue  @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "issue_labels_labelledid_labelid_unique")
-}
-
 model issue_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     description          String?                     @db.VarChar(2048)
     name                 String?                     @db.VarChar(128)
-    issueId              String                      @db.Uuid
+    issueId              BigInt                      @db.BigInt
     language             String                      @db.VarChar(3)
     issue                issue                       @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
-    @@unique([issueId, language])
-}
-
-model label {
-    id            String              @id @default(uuid()) @db.Uuid
-    created_at    DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime            @default(now()) @db.Timestamptz(6)
-    label         String              @unique @db.VarChar(128)
-    color         String?             @db.VarChar(7)
-    ownedByTeamId String?             @db.Uuid
-    ownedByUserId String?             @db.Uuid
-    apis          api_labels[]
-    codes         code_labels[]
-    chats         chat_labels[]
-    issues        issue_labels[]
-    meetings      meeting_labels[]
-    notes         note_labels[]
-    projects      project_labels[]
-    routines      routine_labels[]
-    schedules     schedule_labels[]
-    standards     standard_labels[]
-    ownedByTeam   team?               @relation(fields: [ownedByTeamId], references: [id], onDelete: Cascade)
-    ownedByUser   user?               @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
-    translations  label_translation[]
-
-    @@unique([label, ownedByUserId, ownedByTeamId])
-}
-
-model label_translation {
-    id          String @id @default(uuid()) @db.Uuid
-    description String @db.VarChar(2048)
-    labelId     String @db.Uuid
-    language    String @db.VarChar(3)
-    label       label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelId, language])
+    @@unique([issueId, language], name: "issue_translation_issueId_language_unique")
 }
 
 model note {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     hasBeenTransferred Boolean                     @default(false)
@@ -603,18 +518,17 @@ model note {
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     permissions        String                      @db.VarChar(4096)
-    parentId           String?                     @db.Uuid
-    createdById        String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    createdByTeamId    String?                     @db.Uuid
+    parentId           BigInt?                     @db.BigInt
+    createdById        BigInt?                     @db.BigInt
+    ownedByTeamId      BigInt?                     @db.BigInt
+    ownedByUserId      BigInt?                     @db.BigInt
+    createdByTeamId    BigInt?                     @db.BigInt
     parent             note_version?               @relation("note_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     createdBy          user?                       @relation("note_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
     ownedByTeam        team?                       @relation("note_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: Cascade)
     ownedByUser        user?                       @relation("note_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: Cascade)
     versions           note_version[]
     pullRequests       pull_request[]
-    labels             note_labels[]
     issues             issue[]
     tags               note_tags[]
     bookmarkedBy       bookmark[]                  @relation("bookmark_note")
@@ -625,19 +539,9 @@ model note {
     subscriptions      notification_subscription[]
 }
 
-model note_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   note   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "note_labels_labelledid_labelid_unique")
-}
-
 model note_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
+    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt @db.BigInt
     tagTag   String @db.VarChar(128)
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   note   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -646,7 +550,7 @@ model note_tags {
 }
 
 model note_version {
-    id                  String                      @id @default(uuid()) @db.Uuid
+    id                  BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
     completedAt         DateTime?                   @db.Timestamptz(6)
@@ -656,8 +560,8 @@ model note_version {
     isLatest            Boolean                     @default(false)
     isLatestPublic      Boolean                     @default(false)
     isPrivate           Boolean                     @default(false)
-    rootId              String                      @db.Uuid
-    pullRequestId       String?                     @unique @db.Uuid
+    rootId              BigInt                      @db.BigInt
+    pullRequestId       BigInt?                     @unique @db.BigInt
     versionIndex        Int                         @default(0)
     versionLabel        String                      @default("1.0.0") @db.VarChar(16)
     versionNotes        String?                     @db.VarChar(4096)
@@ -673,32 +577,32 @@ model note_version {
 }
 
 model note_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     name                 String                      @db.VarChar(128)
     description          String?                     @db.VarChar(2048)
     language             String                      @db.VarChar(3)
-    noteVersionId        String                      @db.Uuid
+    noteVersionId        BigInt                      @db.BigInt
     noteVersion          note_version                @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
     pages                note_page[]
 }
 
 model note_page {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     pageIndex            Int                         @default(0)
     text                 String                      @db.VarChar(65536)
-    translationId        String                      @db.Uuid
+    translationId        BigInt                      @db.BigInt
     translation          note_version_translation    @relation(fields: [translationId], references: [id], onDelete: Cascade)
 
     @@unique([translationId, pageIndex], name: "translationId_pageIndex_unique")
 }
 
 model notification {
-    id          String   @id @default(uuid()) @db.Uuid
+    id          BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at  DateTime @default(now()) @db.Timestamptz(6)
     updated_at  DateTime @default(now()) @db.Timestamptz(6)
     category    String   @db.VarChar(64)
@@ -708,40 +612,40 @@ model notification {
     count       Int      @default(1)
     link        String?  @db.VarChar(2048)
     imgLink     String?  @db.VarChar(2048)
-    userId      String   @db.Uuid
+    userId      BigInt   @db.BigInt
     user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model push_device {
-    id       String    @id @default(uuid()) @db.Uuid
+    id       BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     endpoint String    @unique @db.VarChar(1024)
     p256dh   String    @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
     expires  DateTime? @db.Timestamptz(6)
     name     String?   @db.VarChar(128)
-    userId   String    @db.Uuid
+    userId   BigInt    @db.BigInt
     user     user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model notification_subscription {
-    id            String        @id @default(uuid()) @db.Uuid
+    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at    DateTime      @default(now()) @db.Timestamptz(6)
     context       String?       @db.VarChar(2048)
     silent        Boolean       @default(false)
-    apiId         String?       @db.Uuid
-    chatId        String?       @db.Uuid
-    codeId        String?       @db.Uuid
-    commentId     String?       @db.Uuid
-    issueId       String?       @db.Uuid
-    meetingId     String?       @db.Uuid
-    noteId        String?       @db.Uuid
-    projectId     String?       @db.Uuid
-    pullRequestId String?       @db.Uuid
-    reportId      String?       @db.Uuid
-    routineId     String?       @db.Uuid
-    scheduleId    String?       @db.Uuid
-    standardId    String?       @db.Uuid
-    teamId        String?       @db.Uuid
+    apiId         BigInt?       @db.BigInt
+    chatId        BigInt?       @db.BigInt
+    codeId        BigInt?       @db.BigInt
+    commentId     BigInt?       @db.BigInt
+    issueId       BigInt?       @db.BigInt
+    meetingId     BigInt?       @db.BigInt
+    noteId        BigInt?       @db.BigInt
+    projectId     BigInt?       @db.BigInt
+    pullRequestId BigInt?       @db.BigInt
+    reportId      BigInt?       @db.BigInt
+    routineId     BigInt?       @db.BigInt
+    scheduleId    BigInt?       @db.BigInt
+    standardId    BigInt?       @db.BigInt
+    teamId        BigInt?       @db.BigInt
     api           api?          @relation(fields: [apiId], references: [id], onDelete: Cascade)
     chat          chat?         @relation(fields: [chatId], references: [id], onDelete: Cascade)
     code          code?         @relation(fields: [codeId], references: [id], onDelete: Cascade)
@@ -756,12 +660,13 @@ model notification_subscription {
     schedule      schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     standard      standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
     team          team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    subscriberId  String        @db.Uuid
+    subscriberId  BigInt        @db.BigInt
     subscriber    user          @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
 }
 
 model team {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     bannerImage        String?                     @db.VarChar(2048)
@@ -772,17 +677,16 @@ model team {
     profileImage       String?                     @db.VarChar(2048)
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
-    parentId           String?                     @db.Uuid
-    premiumId          String?                     @unique @db.Uuid
-    resourceListId     String?                     @unique @db.Uuid
-    createdById        String?                     @db.Uuid
+    parentId           BigInt?                     @db.BigInt
+    premiumId          BigInt?                     @unique @db.BigInt
+    resourceListId     BigInt?                     @unique @db.BigInt
+    createdById        BigInt?                     @db.BigInt
     stripeCustomerId   String?                     @unique @db.VarChar(255)
     createdBy          user?                       @relation("team_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     chats              chat[]
     codes              code[]                      @relation("code_ownedByTeam")
     emails             email[]
     issues             issue[]
-    labels             label[]
     notes              note[]                      @relation("note_ownedByTeam")
     apis               api[]                       @relation("api_ownedByTeam")
     apiKeys            api_key[]
@@ -818,83 +722,73 @@ model team {
 }
 
 model team_language {
-    id       String @id @default(uuid()) @db.Uuid
-    teamId   String @db.Uuid
+    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    teamId   BigInt @db.BigInt
     language String @db.VarChar(3)
     team     team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-    @@unique([teamId, language])
+    @@unique([teamId, language], name: "team_language_teamId_language_unique")
 }
 
 model meeting {
-    id                     String                      @id @default(uuid()) @db.Uuid
+    id                     BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId               String                      @unique @db.VarChar(12)
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
-    inviteId               String?                     @db.Uuid
-    scheduleId             String?                     @db.Uuid
+    inviteId               BigInt?                     @db.BigInt
+    scheduleId             BigInt?                     @db.BigInt
     openToAnyoneWithInvite Boolean                     @default(false)
     showOnTeamProfile      Boolean                     @default(false)
-    teamId                 String                      @db.Uuid
+    teamId                 BigInt                      @db.BigInt
     team                   team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
     restrictedToRoles      meeting_roles[]
     attendees              meeting_attendees[]
     invites                meeting_invite[]
-    labels                 meeting_labels[]
     translations           meeting_translation[]
     schedule               schedule?                   @relation("meeting_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
     subscriptions          notification_subscription[]
 }
 
 model meeting_attendees {
-    id        String  @id @default(uuid()) @db.Uuid
-    meetingId String  @db.Uuid
+    id        BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    meetingId BigInt  @db.BigInt
+    userId    BigInt  @db.BigInt
     meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    userId    String  @db.Uuid
     user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([meetingId, userId])
+    @@unique([meetingId, userId], name: "meeting_attendees_meetingid_userid_unique")
 }
 
 model meeting_invite {
-    id         String              @id @default(uuid()) @db.Uuid
+    id         BigInt              @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime            @default(now()) @db.Timestamptz(6)
     updated_at DateTime            @default(now()) @db.Timestamptz(6)
     status     MeetingInviteStatus @default(Pending)
     message    String?             @db.VarChar(4096)
-    meetingId  String              @db.Uuid
+    meetingId  BigInt              @db.BigInt
     meeting    meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    userId     String              @db.Uuid
+    userId     BigInt              @db.BigInt
     user       user                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([meetingId, userId], name: "meeting_invite_meetingid_userid_unique")
 }
 
-model meeting_labels {
-    id         String  @id @default(uuid()) @db.Uuid
-    labelledId String  @db.Uuid
-    labelId    String  @db.Uuid
-    labelled   meeting @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "meeting_labels_labelledid_labelid_unique")
-}
-
 model meeting_roles {
-    id        String  @id @default(uuid()) @db.Uuid
-    meetingId String  @db.Uuid
+    id        BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    meetingId BigInt  @db.BigInt
     meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    roleId    String  @db.Uuid
+    roleId    BigInt  @db.BigInt
     role      role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
     @@unique([meetingId, roleId], name: "meeting_roles_meetingid_roleid_unique")
 }
 
 model meeting_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
-    meetingId            String                      @db.Uuid
+    meetingId            BigInt                      @db.BigInt
     meeting              meeting                     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
     language             String                      @db.VarChar(3)
     name                 String?                     @db.VarChar(128)
@@ -905,22 +799,22 @@ model meeting_translation {
 }
 
 model team_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     bio                  String?                     @db.VarChar(2048)
     name                 String                      @db.VarChar(128)
     language             String                      @db.VarChar(3)
-    teamId               String                      @db.Uuid
+    teamId               BigInt                      @db.BigInt
     team                 team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-    @@unique([teamId, language])
+    @@unique([teamId, language], name: "team_translation_teamId_language_unique")
 }
 
 model team_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
+    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt @db.BigInt
     tagTag   String @db.VarChar(128)
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   team   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -929,13 +823,14 @@ model team_tags {
 }
 
 model member {
-    id          String   @id @default(uuid()) @db.Uuid
+    id          BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId    String   @unique @db.VarChar(12)
     created_at  DateTime @default(now()) @db.Timestamptz(6)
     updated_at  DateTime @default(now()) @db.Timestamptz(6)
     isAdmin     Boolean  @default(false)
     permissions String   @db.VarChar(4096)
-    teamId      String   @db.Uuid
-    userId      String   @db.Uuid
+    teamId      BigInt   @db.BigInt
+    userId      BigInt   @db.BigInt
     team        team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
     roles       role[]
@@ -944,36 +839,36 @@ model member {
 }
 
 model member_invite {
-    id                  String             @id @default(uuid()) @db.Uuid
+    id                  BigInt             @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at          DateTime           @default(now()) @db.Timestamptz(6)
     updated_at          DateTime           @default(now()) @db.Timestamptz(6)
     status              MemberInviteStatus @default(Pending)
     message             String?            @db.VarChar(4096)
     willBeAdmin         Boolean            @default(false)
     willHavePermissions String?            @db.VarChar(4096)
-    teamId              String             @db.Uuid
-    userId              String             @unique @db.Uuid
+    teamId              BigInt             @db.BigInt
+    userId              BigInt             @unique @db.BigInt
     team                team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user                user               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, teamId])
+    @@unique([userId, teamId], name: "member_invite_userid_teamid_unique")
 }
 
 model phone {
-    id                                 String    @id @default(uuid()) @db.Uuid
+    id                                 BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     phoneNumber                        String    @unique @db.VarChar(16)
     verified                           Boolean   @default(false)
     lastVerifiedTime                   DateTime? @db.Timestamptz(6)
     verificationCode                   String?   @db.VarChar(16)
     lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    teamId                             String?   @db.Uuid
-    userId                             String?   @db.Uuid
+    teamId                             BigInt?   @db.BigInt
+    userId                             BigInt?   @db.BigInt
     team                               team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model payment {
-    id            String        @id @default(uuid()) @db.Uuid
+    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at    DateTime      @default(now()) @db.Timestamptz(6)
     updated_at    DateTime      @default(now()) @db.Timestamptz(6)
     amount        Int
@@ -983,14 +878,14 @@ model payment {
     paymentMethod String        @db.VarChar(255)
     paymentType   PaymentType   @default(PremiumMonthly)
     status        PaymentStatus @default(Pending)
-    teamId        String?       @db.Uuid
-    userId        String?       @db.Uuid
+    teamId        BigInt?       @db.BigInt
+    userId        BigInt?       @db.BigInt
     team          team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
     user          user?         @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model premium {
-    id                   String    @id @default(uuid()) @db.Uuid
+    id                   BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     credits              BigInt    @default(0)
     customPlan           String?   @db.VarChar(2048)
     enabledAt            DateTime? @db.Timestamptz(6)
@@ -1002,7 +897,8 @@ model premium {
 }
 
 model project {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     hasBeenTransferred Boolean                     @default(false)
@@ -1014,17 +910,16 @@ model project {
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
+    createdById        BigInt?                     @db.BigInt
     handle             String?                     @unique @db.Citext
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
+    ownedByTeamId      BigInt?                     @db.BigInt
+    ownedByUserId      BigInt?                     @db.BigInt
+    parentId           BigInt?                     @db.BigInt
     createdBy          user?                       @relation("project_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     ownedByTeam        team?                       @relation("project_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
     ownedByUser        user?                       @relation("project_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     parent             project_version?            @relation("project_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     issues             issue[]
-    labels             project_labels[]
     tags               project_tags[]
     versions           project_version[]
     bookmarkedBy       bookmark[]                  @relation("bookmark_project")
@@ -1038,50 +933,48 @@ model project {
 }
 
 model project_version {
-    id                         String                        @id @default(uuid()) @db.Uuid
-    created_at                 DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at                 DateTime                      @default(now()) @db.Timestamptz(6)
-    completedAt                DateTime?                     @db.Timestamptz(6)
-    complexity                 Int                           @default(1)
-    intendToPullRequest        Boolean                       @default(false)
-    isComplete                 Boolean                       @default(true)
-    isDeleted                  Boolean                       @default(false)
-    isLatest                   Boolean                       @default(false)
-    isLatestPublic             Boolean                       @default(false)
-    isPrivate                  Boolean                       @default(false)
-    rootId                     String                        @db.Uuid
-    simplicity                 Int                           @default(1)
-    timesStarted               Int                           @default(0)
-    timesCompleted             Int                           @default(0)
-    resourceListId             String?                       @unique @db.Uuid
-    pullRequestId              String?                       @unique @db.Uuid
-    versionIndex               Int                           @default(0)
-    versionLabel               String                        @default("1.0.0") @db.VarChar(16)
-    versionNotes               String?                       @db.VarChar(4096)
-    comments                   comment[]
-    directories                project_version_directory[]   @relation("project_version_directory_project")
-    directoryListings          project_version_directory[]   @relation("project_version_directory_listing")
-    pullRequest                pull_request?                 @relation("pull_request_from_project_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    reports                    report[]
-    resourceList               resource_list?                @relation("resource_list_project_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    root                       project                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    forks                      project[]                     @relation("project_version_fork")
-    translations               project_version_translation[]
-    runProjects                run_project[]                 @relation("run_project_version")
-    suggestedNextByProject     project_version_end_next[]    @relation("project_version_end_next_to")
-    suggestedNextByProjectFrom project_version_end_next[]    @relation("project_version_end_next_from")
+    id                  BigInt                        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    created_at          DateTime                      @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime                      @default(now()) @db.Timestamptz(6)
+    completedAt         DateTime?                     @db.Timestamptz(6)
+    complexity          Int                           @default(1)
+    intendToPullRequest Boolean                       @default(false)
+    isComplete          Boolean                       @default(true)
+    isDeleted           Boolean                       @default(false)
+    isLatest            Boolean                       @default(false)
+    isLatestPublic      Boolean                       @default(false)
+    isPrivate           Boolean                       @default(false)
+    rootId              BigInt                        @db.BigInt
+    simplicity          Int                           @default(1)
+    timesStarted        Int                           @default(0)
+    timesCompleted      Int                           @default(0)
+    resourceListId      BigInt?                       @unique @db.BigInt
+    pullRequestId       BigInt?                       @unique @db.BigInt
+    versionIndex        Int                           @default(0)
+    versionLabel        String                        @default("1.0.0") @db.VarChar(16)
+    versionNotes        String?                       @db.VarChar(4096)
+    comments            comment[]
+    directories         project_version_directory[]   @relation("project_version_directory_project")
+    directoryListings   project_version_directory[]   @relation("project_version_directory_listing")
+    pullRequest         pull_request?                 @relation("pull_request_from_project_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+    reports             report[]
+    resourceList        resource_list?                @relation("resource_list_project_version", fields: [resourceListId], references: [id], onDelete: SetNull)
+    root                project                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    forks               project[]                     @relation("project_version_fork")
+    translations        project_version_translation[]
+    runProjects         run_project[]                 @relation("run_project_version")
 
     @@unique([rootId, versionIndex], name: "project_version_rootId_versionIndex_unique")
 }
 
 model project_version_directory {
-    id                    String                                  @id @default(uuid()) @db.Uuid
+    id                    BigInt                                  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at            DateTime                                @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                                @default(now()) @db.Timestamptz(6)
     isRoot                Boolean                                 @default(false)
-    parentDirectoryId     String?                                 @db.Uuid
+    parentDirectoryId     BigInt?                                 @db.BigInt
     childOrder            String?                                 @db.VarChar(4096)
-    projectVersionId      String                                  @db.Uuid
+    projectVersionId      BigInt                                  @db.BigInt
     parentDirectory       project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
     projectVersion        project_version                         @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: Cascade)
     children              project_version_directory[]             @relation("project_version_directory_parent")
@@ -1097,43 +990,33 @@ model project_version_directory {
 }
 
 model project_version_directory_translation {
-    id                        String                    @id @default(uuid()) @db.Uuid
+    id                        BigInt                    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     description               String?                   @db.VarChar(2048)
     name                      String?                   @db.VarChar(128)
     language                  String                    @db.VarChar(3)
-    projectVersionDirectoryId String                    @db.Uuid
+    projectVersionDirectoryId BigInt                    @db.BigInt
     projectVersionDirectory   project_version_directory @relation(fields: [projectVersionDirectoryId], references: [id], onDelete: Cascade)
 
-    @@unique([projectVersionDirectoryId, language])
+    @@unique([projectVersionDirectoryId, language], name: "project_version_directory_translation_projectVersionDirectoryId_language_unique")
 }
 
 model project_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     description          String?                     @db.VarChar(2048)
     name                 String                      @db.VarChar(128)
     language             String                      @db.VarChar(3)
-    projectVersionId     String                      @db.Uuid
+    projectVersionId     BigInt                      @db.BigInt
     projectVersion       project_version             @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
 
-    @@unique([projectVersionId, language])
-}
-
-model project_version_end_next {
-    id                   String          @id @default(uuid()) @db.Uuid
-    fromProjectVersionId String          @db.Uuid
-    toProjectVersionId   String          @db.Uuid
-    fromProjectVersion   project_version @relation("project_version_end_next_from", fields: [fromProjectVersionId], references: [id], onDelete: Cascade)
-    toProjectVersion     project_version @relation("project_version_end_next_to", fields: [toProjectVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([fromProjectVersionId, toProjectVersionId])
+    @@unique([projectVersionId, language], name: "project_version_translation_projectVersionId_language_unique")
 }
 
 model project_tags {
-    id       String  @id @default(uuid()) @db.Uuid
-    taggedId String  @db.Uuid
+    id       BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt  @db.BigInt
     tagTag   String  @db.VarChar(128)
     tag      tag     @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   project @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -1141,30 +1024,21 @@ model project_tags {
     @@unique([taggedId, tagTag], name: "project_tags_taggedid_tagTag_unique")
 }
 
-model project_labels {
-    id         String  @id @default(uuid()) @db.Uuid
-    labelledId String  @db.Uuid
-    labelId    String  @db.Uuid
-    labelled   project @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "project_labels_labelledid_labelid_unique")
-}
-
 model pull_request {
-    id                      String                      @id @default(uuid()) @db.Uuid
+    id                      BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId                String                      @unique @db.VarChar(12)
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     status                  PullRequestStatus           @default(Open)
     hasBeenClosedOrRejected Boolean                     @default(false)
     mergedOrRejectedAt      DateTime?                   @db.Timestamptz(6)
-    createdById             String?                     @db.Uuid
-    toApiId                 String?                     @db.Uuid
-    toCodeId                String?                     @db.Uuid
-    toNoteId                String?                     @db.Uuid
-    toProjectId             String?                     @db.Uuid
-    toRoutineId             String?                     @db.Uuid
-    toStandardId            String?                     @db.Uuid
+    createdById             BigInt?                     @db.BigInt
+    toApiId                 BigInt?                     @db.BigInt
+    toCodeId                BigInt?                     @db.BigInt
+    toNoteId                BigInt?                     @db.BigInt
+    toProjectId             BigInt?                     @db.BigInt
+    toRoutineId             BigInt?                     @db.BigInt
+    toStandardId            BigInt?                     @db.BigInt
     createdBy               user?                       @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     toApi                   api?                        @relation(fields: [toApiId], references: [id], onDelete: Cascade)
     fromApiVersion          api_version?                @relation("pull_request_from_api_version")
@@ -1184,30 +1058,30 @@ model pull_request {
 }
 
 model pull_request_translation {
-    id            String       @id @default(uuid()) @db.Uuid
+    id            BigInt       @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     text          String       @db.VarChar(32768)
     language      String       @db.VarChar(3)
-    pullRequestId String       @db.Uuid
+    pullRequestId BigInt       @db.BigInt
     pullRequest   pull_request @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
 
-    @@unique([pullRequestId, language])
+    @@unique([pullRequestId, language], name: "pull_request_translation_pullRequestId_language_unique")
 }
 
 model reaction {
-    id            String        @id @default(uuid()) @db.Uuid
+    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at    DateTime      @default(now()) @db.Timestamptz(6)
     updated_at    DateTime      @default(now()) @db.Timestamptz(6)
     emoji         String        @db.VarChar(32)
-    byId          String        @db.Uuid
-    apiId         String?       @db.Uuid
-    chatMessageId String?       @db.Uuid
-    codeId        String?       @db.Uuid
-    commentId     String?       @db.Uuid
-    issueId       String?       @db.Uuid
-    noteId        String?       @db.Uuid
-    projectId     String?       @db.Uuid
-    routineId     String?       @db.Uuid
-    standardId    String?       @db.Uuid
+    byId          BigInt        @db.BigInt
+    apiId         BigInt?       @db.BigInt
+    chatMessageId BigInt?       @db.BigInt
+    codeId        BigInt?       @db.BigInt
+    commentId     BigInt?       @db.BigInt
+    issueId       BigInt?       @db.BigInt
+    noteId        BigInt?       @db.BigInt
+    projectId     BigInt?       @db.BigInt
+    routineId     BigInt?       @db.BigInt
+    standardId    BigInt?       @db.BigInt
     by            user          @relation("reaction_by", fields: [byId], references: [id], onDelete: Cascade)
     api           api?          @relation("reaction_api", fields: [apiId], references: [id], onDelete: Cascade)
     chatMessage   chat_message? @relation("reaction_chat_message", fields: [chatMessageId], references: [id], onDelete: Cascade)
@@ -1221,20 +1095,20 @@ model reaction {
 }
 
 model reaction_summary {
-    id            String        @id @default(uuid()) @db.Uuid
+    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at    DateTime      @default(now()) @db.Timestamptz(6)
     updated_at    DateTime      @default(now()) @db.Timestamptz(6)
     emoji         String        @db.VarChar(32)
     count         Int           @default(0)
-    apiId         String?       @db.Uuid
-    chatMessageId String?       @db.Uuid
-    codeId        String?       @db.Uuid
-    commentId     String?       @db.Uuid
-    issueId       String?       @db.Uuid
-    noteId        String?       @db.Uuid
-    projectId     String?       @db.Uuid
-    routineId     String?       @db.Uuid
-    standardId    String?       @db.Uuid
+    apiId         BigInt?       @db.BigInt
+    chatMessageId BigInt?       @db.BigInt
+    codeId        BigInt?       @db.BigInt
+    commentId     BigInt?       @db.BigInt
+    issueId       BigInt?       @db.BigInt
+    noteId        BigInt?       @db.BigInt
+    projectId     BigInt?       @db.BigInt
+    routineId     BigInt?       @db.BigInt
+    standardId    BigInt?       @db.BigInt
     api           api?          @relation("reaction_summary_api", fields: [apiId], references: [id], onDelete: Cascade)
     chatMessage   chat_message? @relation("reaction_summary_chat_message", fields: [chatMessageId], references: [id], onDelete: Cascade)
     code          code?         @relation("reaction_summary_code", fields: [codeId], references: [id], onDelete: Cascade)
@@ -1249,16 +1123,16 @@ model reaction_summary {
 }
 
 model reminder_list {
-    id         String     @id @default(uuid()) @db.Uuid
+    id         BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime   @default(now()) @db.Timestamptz(6)
     updated_at DateTime   @default(now()) @db.Timestamptz(6)
-    userId     String     @db.Uuid
+    userId     BigInt     @db.BigInt
     reminders  reminder[]
     user       user       @relation("reminder_list_user", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model reminder {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at           DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
@@ -1268,13 +1142,13 @@ model reminder {
     dueDate              DateTime?                   @db.Timestamptz(6)
     index                Int
     isComplete           Boolean                     @default(false)
-    reminderListId       String                      @db.Uuid
+    reminderListId       BigInt                      @db.BigInt
     reminderItems        reminder_item[]
     reminderList         reminder_list               @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
 }
 
 model reminder_item {
-    id          String    @id @default(uuid()) @db.Uuid
+    id          BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at  DateTime  @default(now()) @db.Timestamptz(6)
     updated_at  DateTime  @default(now()) @db.Timestamptz(6)
     name        String    @db.VarChar(128)
@@ -1282,31 +1156,32 @@ model reminder_item {
     dueDate     DateTime? @db.Timestamptz(6)
     index       Int
     isComplete  Boolean   @default(false)
-    reminderId  String    @db.Uuid
+    reminderId  BigInt    @db.BigInt
     reminder    reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
 }
 
 model report {
-    id                String                      @id @default(uuid()) @db.Uuid
+    id                BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId          String                      @unique @db.VarChar(12)
     created_at        DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
     reason            String                      @db.VarChar(128)
     details           String?                     @db.VarChar(8192)
     language          String                      @db.VarChar(3)
     status            ReportStatus
-    apiVersionId      String?                     @db.Uuid
-    chatMessageId     String?                     @db.Uuid
-    codeVersionId     String?                     @db.Uuid
-    commentId         String?                     @db.Uuid
-    issueId           String?                     @db.Uuid
-    noteVersionId     String?                     @db.Uuid
-    projectVersionId  String?                     @db.Uuid
-    routineVersionId  String?                     @db.Uuid
-    standardVersionId String?                     @db.Uuid
-    tagId             String?                     @db.Uuid
-    teamId            String?                     @db.Uuid
-    userId            String?                     @db.Uuid
-    createdById       String?                     @db.Uuid
+    apiVersionId      BigInt?                     @db.BigInt
+    chatMessageId     BigInt?                     @db.BigInt
+    codeVersionId     BigInt?                     @db.BigInt
+    commentId         BigInt?                     @db.BigInt
+    issueId           BigInt?                     @db.BigInt
+    noteVersionId     BigInt?                     @db.BigInt
+    projectVersionId  BigInt?                     @db.BigInt
+    routineVersionId  BigInt?                     @db.BigInt
+    standardVersionId BigInt?                     @db.BigInt
+    tagId             BigInt?                     @db.BigInt
+    teamId            BigInt?                     @db.BigInt
+    userId            BigInt?                     @db.BigInt
+    createdById       BigInt?                     @db.BigInt
     apiVersion        api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     chatMessage       chat_message?               @relation(fields: [chatMessageId], references: [id], onDelete: Cascade)
     codeVersion       code_version?               @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
@@ -1325,11 +1200,11 @@ model report {
 }
 
 model report_response {
-    id              String                @id @default(uuid()) @db.Uuid
+    id              BigInt                @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at      DateTime              @default(now()) @db.Timestamptz(6)
     updated_at      DateTime              @default(now()) @db.Timestamptz(6)
-    reportId        String                @db.Uuid
-    createdById     String                @db.Uuid
+    reportId        BigInt                @db.BigInt
+    createdById     BigInt                @db.BigInt
     actionSuggested ReportSuggestedAction
     details         String?               @db.VarChar(8192)
     language        String?               @db.VarChar(3)
@@ -1340,42 +1215,42 @@ model report_response {
 }
 
 model reputation_history {
-    id         String   @id @default(uuid()) @db.Uuid
+    id         BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at DateTime @default(now()) @db.Timestamptz(6)
     updated_at DateTime @default(now()) @db.Timestamptz(6)
     amount     Int
     event      String   @db.VarChar(128)
-    objectId1  String?  @db.Uuid
-    objectId2  String?  @db.Uuid
-    userId     String   @db.Uuid
+    objectId1  BigInt?  @db.BigInt
+    objectId2  BigInt?  @db.BigInt
+    userId     BigInt   @db.BigInt
     user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model resource {
-    id           String                 @id @default(uuid()) @db.Uuid
+    id           BigInt                 @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at   DateTime               @default(now()) @db.Timestamptz(6)
     updated_at   DateTime               @default(now()) @db.Timestamptz(6)
     index        Int?                   @default(0)
     link         String                 @db.VarChar(1024)
     usedFor      ResourceUsedFor        @default(Context)
-    listId       String                 @db.Uuid
+    listId       BigInt                 @db.BigInt
     list         resource_list          @relation(fields: [listId], references: [id], onDelete: Cascade)
     translations resource_translation[]
 }
 
 model resource_translation {
-    id          String   @id @default(uuid()) @db.Uuid
+    id          BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     description String?  @db.VarChar(2048)
     name        String?  @db.VarChar(128)
     language    String   @db.VarChar(3)
-    resourceId  String   @db.Uuid
+    resourceId  BigInt   @db.BigInt
     resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-    @@unique([resourceId, language])
+    @@unique([resourceId, language], name: "resource_translation_resourceId_language_unique")
 }
 
 model resource_list {
-    id              String                      @id @default(uuid()) @db.Uuid
+    id              BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at      DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at      DateTime                    @default(now()) @db.Timestamptz(6)
     apiVersion      api_version?                @relation("resource_list_api_version")
@@ -1389,23 +1264,23 @@ model resource_list {
 }
 
 model resource_list_translation {
-    id          String        @id @default(uuid()) @db.Uuid
+    id          BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     description String?       @db.VarChar(2048)
     name        String?       @db.VarChar(128)
     language    String        @db.VarChar(3)
-    listId      String        @db.Uuid
+    listId      BigInt        @db.BigInt
     list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
 
-    @@unique([listId, language])
+    @@unique([listId, language], name: "resource_list_translation_listId_language_unique")
 }
 
 model role {
-    id           String             @id @default(uuid()) @db.Uuid
+    id           BigInt             @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at   DateTime           @default(now()) @db.Timestamptz(6)
     updated_at   DateTime           @default(now()) @db.Timestamptz(6)
     name         String             @db.VarChar(128)
     permissions  String             @db.VarChar(4096)
-    teamId       String             @db.Uuid
+    teamId       BigInt             @db.BigInt
     team         team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
     members      member[]
     meetings     meeting_roles[]
@@ -1416,18 +1291,19 @@ model role {
 }
 
 model role_translation {
-    id          String  @id @default(uuid()) @db.Uuid
+    id          BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     description String? @db.VarChar(2048)
     name        String  @db.VarChar(128)
     language    String  @db.VarChar(3)
-    roleId      String  @db.Uuid
+    roleId      BigInt  @db.BigInt
     role        role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-    @@unique([roleId, language])
+    @@unique([roleId, language], name: "role_translation_roleId_language_unique")
 }
 
 model routine {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     hasBeenTransferred Boolean                     @default(false)
@@ -1440,16 +1316,15 @@ model routine {
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
+    createdById        BigInt?                     @db.BigInt
+    parentId           BigInt?                     @db.BigInt
+    ownedByTeamId      BigInt?                     @db.BigInt
+    ownedByUserId      BigInt?                     @db.BigInt
     createdBy          user?                       @relation("routine_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     issues             issue[]
     parent             routine_version?            @relation("routine_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     ownedByTeam        team?                       @relation("routine_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
     ownedByUser        user?                       @relation("routine_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    labels             routine_labels[]
     tags               routine_tags[]
     bookmarkedBy       bookmark[]                  @relation("bookmark_routine")
     versions           routine_version[]
@@ -1463,57 +1338,55 @@ model routine {
 }
 
 model routine_version {
-    id                                String                        @id @default(uuid()) @db.Uuid
-    created_at                        DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at                        DateTime                      @default(now()) @db.Timestamptz(6)
-    completedAt                       DateTime?                     @db.Timestamptz(6)
-    config                            String?                       @db.VarChar(32768)
-    complexity                        Int                           @default(1)
-    intendToPullRequest               Boolean                       @default(false)
-    isAutomatable                     Boolean                       @default(false)
-    isComplete                        Boolean                       @default(true)
-    isDeleted                         Boolean                       @default(false)
-    isLatest                          Boolean                       @default(false)
-    isLatestPublic                    Boolean                       @default(false)
-    isPrivate                         Boolean                       @default(false)
-    rootId                            String                        @db.Uuid
-    routineType                       RoutineType                   @default(Informational)
-    simplicity                        Int                           @default(1)
-    timesStarted                      Int                           @default(0)
-    timesCompleted                    Int                           @default(0)
-    resourceListId                    String?                       @unique @db.Uuid
-    apiVersionId                      String?                       @db.Uuid
-    codeVersionId                     String?                       @db.Uuid
-    pullRequestId                     String?                       @unique @db.Uuid
-    versionIndex                      Int                           @default(0)
-    versionLabel                      String                        @default("1.0.0") @db.VarChar(16)
-    versionNotes                      String?                       @db.VarChar(4096)
-    apiVersion                        api_version?                  @relation(fields: [apiVersionId], references: [id], onDelete: SetNull)
-    codeVersion                       code_version?                 @relation(fields: [codeVersionId], references: [id], onDelete: SetNull)
-    comments                          comment[]
-    reports                           report[]
-    subroutineLinks                   routine_version_subroutine[]  @relation("routine_version_child")
-    parentRoutineLinks                routine_version_subroutine[]  @relation("routine_version_parent")
-    resourceList                      resource_list?                @relation("resource_list_routine_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    root                              routine                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    forks                             routine[]                     @relation("routine_version_fork")
-    inputs                            routine_version_input[]
-    outputs                           routine_version_output[]
-    pullRequest                       pull_request?                 @relation("pull_request_from_routine_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    translations                      routine_version_translation[]
-    runRoutines                       run_routine[]                 @relation("run_routine_version")
-    runSteps                          run_routine_step[]            @relation("run_routine_step_subroutine")
-    suggestedNextByRoutineVersion     routine_version_end_next[]    @relation("routine_version_end_next_to")
-    suggestedNextByRoutineVersionFrom routine_version_end_next[]    @relation("routine_version_end_next_from")
-    directoryListings                 project_version_directory[]
+    id                  BigInt                        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    created_at          DateTime                      @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime                      @default(now()) @db.Timestamptz(6)
+    completedAt         DateTime?                     @db.Timestamptz(6)
+    config              String?                       @db.VarChar(32768)
+    complexity          Int                           @default(1)
+    intendToPullRequest Boolean                       @default(false)
+    isAutomatable       Boolean                       @default(false)
+    isComplete          Boolean                       @default(true)
+    isDeleted           Boolean                       @default(false)
+    isLatest            Boolean                       @default(false)
+    isLatestPublic      Boolean                       @default(false)
+    isPrivate           Boolean                       @default(false)
+    rootId              BigInt                        @db.BigInt
+    routineType         RoutineType                   @default(Informational)
+    simplicity          Int                           @default(1)
+    timesStarted        Int                           @default(0)
+    timesCompleted      Int                           @default(0)
+    resourceListId      BigInt?                       @unique @db.BigInt
+    apiVersionId        BigInt?                       @db.BigInt
+    codeVersionId       BigInt?                       @db.BigInt
+    pullRequestId       BigInt?                       @unique @db.BigInt
+    versionIndex        Int                           @default(0)
+    versionLabel        String                        @default("1.0.0") @db.VarChar(16)
+    versionNotes        String?                       @db.VarChar(4096)
+    apiVersion          api_version?                  @relation(fields: [apiVersionId], references: [id], onDelete: SetNull)
+    codeVersion         code_version?                 @relation(fields: [codeVersionId], references: [id], onDelete: SetNull)
+    comments            comment[]
+    reports             report[]
+    subroutineLinks     routine_version_subroutine[]  @relation("routine_version_child")
+    parentRoutineLinks  routine_version_subroutine[]  @relation("routine_version_parent")
+    resourceList        resource_list?                @relation("resource_list_routine_version", fields: [resourceListId], references: [id], onDelete: SetNull)
+    root                routine                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    forks               routine[]                     @relation("routine_version_fork")
+    inputs              routine_version_input[]
+    outputs             routine_version_output[]
+    pullRequest         pull_request?                 @relation("pull_request_from_routine_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+    translations        routine_version_translation[]
+    runRoutines         run_routine[]                 @relation("run_routine_version")
+    runSteps            run_routine_step[]            @relation("run_routine_step_subroutine")
+    directoryListings   project_version_directory[]
 
     @@unique([rootId, versionIndex], name: "routine_version_rootId_versionIndex_unique")
 }
 
 model routine_version_subroutine {
-    id              String          @id @default(uuid()) @db.Uuid
-    parentRoutineId String          @db.Uuid
-    subroutineId    String          @db.Uuid
+    id              BigInt          @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    parentRoutineId BigInt          @db.BigInt
+    subroutineId    BigInt          @db.BigInt
     parentRoutine   routine_version @relation("routine_version_parent", fields: [parentRoutineId], references: [id], onDelete: Cascade)
     subroutine      routine_version @relation("routine_version_child", fields: [subroutineId], references: [id], onDelete: Cascade)
 
@@ -1521,7 +1394,7 @@ model routine_version_subroutine {
 }
 
 model routine_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
@@ -1529,19 +1402,19 @@ model routine_version_translation {
     instructions         String?                     @db.VarChar(8192)
     name                 String                      @db.VarChar(128)
     language             String                      @db.VarChar(3)
-    routineVersionId     String                      @db.Uuid
+    routineVersionId     BigInt                      @db.BigInt
     routineVersion       routine_version             @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
 
-    @@unique([routineVersionId, language])
+    @@unique([routineVersionId, language], name: "routine_version_translation_routineVersionId_language_unique")
 }
 
 model routine_version_input {
-    id                String                              @id @default(uuid()) @db.Uuid
+    id                BigInt                              @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     index             Int?                                @default(0)
     isRequired        Boolean                             @default(true)
     name              String?                             @db.VarChar(128)
-    routineVersionId  String                              @db.Uuid
-    standardVersionId String?                             @db.Uuid
+    routineVersionId  BigInt                              @db.BigInt
+    standardVersionId BigInt?                             @db.BigInt
     routineVersion    routine_version                     @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
     standardVersion   standard_version?                   @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
     translations      routine_version_input_translation[]
@@ -1549,52 +1422,42 @@ model routine_version_input {
 }
 
 model routine_version_input_translation {
-    id                    String                @id @default(uuid()) @db.Uuid
+    id                    BigInt                @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     description           String?               @db.VarChar(2048)
     helpText              String?               @db.VarChar(2048)
-    routineVersionInputId String                @db.Uuid
+    routineVersionInputId BigInt                @db.BigInt
     language              String                @db.VarChar(3)
     routineVersionInput   routine_version_input @relation(fields: [routineVersionInputId], references: [id], onDelete: Cascade)
 
-    @@unique([routineVersionInputId, language])
+    @@unique([routineVersionInputId, language], name: "routine_version_input_translation_routineVersionInputId_language_unique")
 }
 
 model routine_version_output {
-    id                String                                @id @default(uuid()) @db.Uuid
-    index             Int?                                  @default(0)
-    name              String?                               @db.VarChar(128)
-    routineVersionId  String                                @db.Uuid
-    standardVersionId String?                               @db.Uuid
-    routineVersion    routine_version                       @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    standardVersion   standard_version?                     @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
-    translations      routine_verstion_output_translation[]
+    id                BigInt                               @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    index             Int?                                 @default(0)
+    name              String?                              @db.VarChar(128)
+    routineVersionId  BigInt                               @db.BigInt
+    standardVersionId BigInt?                              @db.BigInt
+    routineVersion    routine_version                      @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    standardVersion   standard_version?                    @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
+    translations      routine_version_output_translation[]
     runIO             run_routine_io[]
 }
 
-model routine_verstion_output_translation {
-    id                   String                 @id @default(uuid()) @db.Uuid
+model routine_version_output_translation {
+    id                   BigInt                 @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     description          String?                @db.VarChar(2048)
     helpText             String?                @db.VarChar(2048)
-    routineOutputId      String                 @db.Uuid
+    routineOutputId      BigInt                 @db.BigInt
     language             String                 @db.VarChar(3)
     routineVersionOutput routine_version_output @relation(fields: [routineOutputId], references: [id], onDelete: Cascade)
 
-    @@unique([routineOutputId, language])
-}
-
-model routine_version_end_next {
-    id                   String          @id @default(uuid()) @db.Uuid
-    fromRoutineVersionId String          @db.Uuid
-    toRoutineVersionId   String          @db.Uuid
-    fromRoutineVersion   routine_version @relation("routine_version_end_next_from", fields: [fromRoutineVersionId], references: [id], onDelete: Cascade)
-    toRoutineVersion     routine_version @relation("routine_version_end_next_to", fields: [toRoutineVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([fromRoutineVersionId, toRoutineVersionId])
+    @@unique([routineOutputId, language], name: "routine_version_output_translation_routineOutputId_language_unique")
 }
 
 model routine_tags {
-    id       String  @id @default(uuid()) @db.Uuid
-    taggedId String  @db.Uuid
+    id       BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt  @db.BigInt
     tagTag   String  @db.VarChar(128)
     tag      tag     @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   routine @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -1602,18 +1465,9 @@ model routine_tags {
     @@unique([taggedId, tagTag], name: "routine_tags_taggedid_tagTag_unique")
 }
 
-model routine_labels {
-    id         String  @id @default(uuid()) @db.Uuid
-    labelledId String  @db.Uuid
-    labelId    String  @db.Uuid
-    labelled   routine @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "routine_labels_labelledid_labelid_unique")
-}
-
 model run_project {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId             String                      @unique @db.VarChar(12)
     created_at           DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
@@ -1622,15 +1476,15 @@ model run_project {
     contextSwitches      Int                         @default(0)
     data                 String?                     @db.VarChar(16384)
     isPrivate            Boolean                     @default(false)
-    scheduleId           String?                     @db.Uuid
+    scheduleId           BigInt?                     @db.BigInt
     startedAt            DateTime?                   @db.Timestamptz(6)
     timeElapsed          Int?
     completedAt          DateTime?                   @db.Timestamptz(6)
     name                 String                      @db.VarChar(128)
     status               RunStatus                   @default(Scheduled)
-    projectVersionId     String?                     @db.Uuid
-    teamId               String?                     @db.Uuid
-    userId               String?                     @db.Uuid
+    projectVersionId     BigInt?                     @db.BigInt
+    teamId               BigInt?                     @db.BigInt
+    userId               BigInt?                     @db.BigInt
     projectVersion       project_version?            @relation("run_project_version", fields: [projectVersionId], references: [id])
     schedule             schedule?                   @relation("run_project_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
     team                 team?                       @relation("run_project_team", fields: [teamId], references: [id], onDelete: Cascade)
@@ -1639,24 +1493,25 @@ model run_project {
 }
 
 model run_project_step {
-    id              String                     @id @default(uuid()) @db.Uuid
+    id              BigInt                     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     completedAt     DateTime?                  @db.Timestamptz(6)
     complexity      Int                        @default(0)
     contextSwitches Int                        @default(0)
     name            String                     @db.VarChar(128)
     order           Int                        @default(0)
-    directoryInId   String                     @db.Uuid
+    directoryInId   BigInt                     @db.BigInt
     startedAt       DateTime?                  @db.Timestamptz(6)
     status          RunStepStatus              @default(InProgress)
     timeElapsed     Int?
-    directoryId     String?                    @db.Uuid
-    runProjectId    String                     @db.Uuid
+    directoryId     BigInt?                    @db.BigInt
+    runProjectId    BigInt                     @db.BigInt
     directory       project_version_directory? @relation("run_project_step_directory", fields: [directoryId], references: [id], onDelete: SetNull)
     runProject      run_project                @relation("run_project_step_run", fields: [runProjectId], references: [id], onDelete: Cascade)
 }
 
 model run_routine {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId             String                      @unique @db.VarChar(12)
     created_at           DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
@@ -1665,16 +1520,16 @@ model run_routine {
     contextSwitches      Int                         @default(0)
     data                 String?                     @db.VarChar(16384)
     isPrivate            Boolean                     @default(false)
-    scheduleId           String?                     @db.Uuid
+    scheduleId           BigInt?                     @db.BigInt
     wasRunAutomatically  Boolean                     @default(false)
     startedAt            DateTime?                   @db.Timestamptz(6)
     timeElapsed          Int?
     completedAt          DateTime?                   @db.Timestamptz(6)
     name                 String                      @db.VarChar(128)
     status               RunStatus                   @default(Scheduled)
-    routineVersionId     String?                     @db.Uuid
-    teamId               String?                     @db.Uuid
-    userId               String?                     @db.Uuid
+    routineVersionId     BigInt?                     @db.BigInt
+    teamId               BigInt?                     @db.BigInt
+    userId               BigInt?                     @db.BigInt
     routineVersion       routine_version?            @relation("run_routine_version", fields: [routineVersionId], references: [id])
     schedule             schedule?                   @relation("run_routine_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
     team                 team?                       @relation("run_routine_team", fields: [teamId], references: [id], onDelete: SetNull)
@@ -1684,22 +1539,22 @@ model run_routine {
 }
 
 model run_routine_io {
-    id                     String                  @id @default(uuid()) @db.Uuid
+    id                     BigInt                  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at             DateTime                @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                @default(now()) @db.Timestamptz(6)
     data                   String                  @db.VarChar(8192)
     nodeInputName          String                  @db.VarChar(128)
     nodeName               String                  @db.VarChar(128)
-    runRoutineId           String                  @db.Uuid
-    routineVersionInputId  String?                 @db.Uuid
-    routineVersionOutputId String?                 @db.Uuid
+    runRoutineId           BigInt                  @db.BigInt
+    routineVersionInputId  BigInt?                 @db.BigInt
+    routineVersionOutputId BigInt?                 @db.BigInt
     runRoutine             run_routine             @relation("run_routine_io_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
     routineVersionInput    routine_version_input?  @relation(fields: [routineVersionInputId], references: [id], onDelete: SetNull)
     routineVersionOutput   routine_version_output? @relation(fields: [routineVersionOutputId], references: [id], onDelete: SetNull)
 }
 
 model run_routine_step {
-    id              String           @id @default(uuid()) @db.Uuid
+    id              BigInt           @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     completedAt     DateTime?        @db.Timestamptz(6)
     complexity      Int              @default(0)
     contextSwitches Int              @default(0)
@@ -1710,21 +1565,21 @@ model run_routine_step {
     startedAt       DateTime?        @db.Timestamptz(6)
     status          RunStepStatus    @default(InProgress)
     timeElapsed     Int?
-    runRoutineId    String           @db.Uuid
-    subroutineId    String?          @db.Uuid
+    runRoutineId    BigInt           @db.BigInt
+    subroutineId    BigInt?          @db.BigInt
     runRoutine      run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
     subroutine      routine_version? @relation("run_routine_step_subroutine", fields: [subroutineId], references: [id])
 }
 
 model schedule {
-    id            String                      @id @default(uuid()) @db.Uuid
+    id            BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId      String                      @unique @db.VarChar(12)
     created_at    DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at    DateTime                    @default(now()) @db.Timestamptz(6)
     startTime     DateTime
     endTime       DateTime
     timezone      String
     exceptions    schedule_exception[]
-    labels        schedule_labels[]
     meetings      meeting[]                   @relation("meeting_schedule")
     recurrences   schedule_recurrence[]
     runProjects   run_project[]               @relation("run_project_schedule")
@@ -1732,19 +1587,9 @@ model schedule {
     subscriptions notification_subscription[]
 }
 
-model schedule_labels {
-    id         String   @id @default(uuid()) @db.Uuid
-    labelledId String   @db.Uuid
-    labelId    String   @db.Uuid
-    labelled   schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "schedule_labels_labelledid_labelid_unique")
-}
-
 model schedule_exception {
-    id                String    @id @default(uuid()) @db.Uuid
-    scheduleId        String    @db.Uuid
+    id                BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    scheduleId        BigInt    @db.BigInt
     schedule          schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     originalStartTime DateTime
     newStartTime      DateTime?
@@ -1752,8 +1597,8 @@ model schedule_exception {
 }
 
 model schedule_recurrence {
-    id             String                 @id @default(uuid()) @db.Uuid
-    scheduleId     String                 @db.Uuid
+    id             BigInt                 @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    scheduleId     BigInt                 @db.BigInt
     schedule       schedule               @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     recurrenceType ScheduleRecurrenceType
     interval       Int                    @default(1)
@@ -1765,7 +1610,8 @@ model schedule_recurrence {
 }
 
 model standard {
-    id                 String                      @id @default(uuid()) @db.Uuid
+    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
     hasBeenTransferred Boolean                     @default(false)
@@ -1778,15 +1624,14 @@ model standard {
     isDeleted          Boolean                     @default(false)
     isInternal         Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
-    parentId           String?                     @db.Uuid
-    createdById        String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
+    parentId           BigInt?                     @db.BigInt
+    createdById        BigInt?                     @db.BigInt
+    ownedByTeamId      BigInt?                     @db.BigInt
+    ownedByUserId      BigInt?                     @db.BigInt
     createdBy          user?                       @relation("standard_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     ownedByTeam        team?                       @relation("standard_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
     ownedByUser        user?                       @relation("standard_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     issues             issue[]
-    labels             standard_labels[]
     parent             standard_version?           @relation("standard_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags               standard_tags[]
     bookmarkedBy       bookmark[]                  @relation("bookmark_standard")
@@ -1801,7 +1646,7 @@ model standard {
 }
 
 model standard_version {
-    id                    String                         @id @default(uuid()) @db.Uuid
+    id                    BigInt                         @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at            DateTime                       @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
     completedAt           DateTime?                      @db.Timestamptz(6)
@@ -1811,14 +1656,14 @@ model standard_version {
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
     isLatestPublic        Boolean                        @default(false)
-    resourceListId        String?                        @unique @db.Uuid
-    rootId                String                         @db.Uuid
+    resourceListId        BigInt?                        @unique @db.BigInt
+    rootId                BigInt                         @db.BigInt
     yup                   String?                        @db.VarChar(8192)
     versionIndex          Int                            @default(0)
     versionLabel          String                         @default("1.0.0") @db.VarChar(16)
     versionNotes          String?                        @db.VarChar(4096)
     intendToPullRequest   Boolean                        @default(false)
-    pullRequestId         String?                        @unique @db.Uuid
+    pullRequestId         BigInt?                        @unique @db.BigInt
     isComplete            Boolean                        @default(false)
     isDeleted             Boolean                        @default(false)
     isPrivate             Boolean                        @default(false)
@@ -1838,23 +1683,23 @@ model standard_version {
 }
 
 model standard_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     name                 String                      @db.VarChar(128)
     description          String?                     @db.VarChar(2048)
     jsonVariable         String?                     @db.VarChar(8192)
-    standardVersionId    String                      @db.Uuid
+    standardVersionId    BigInt                      @db.BigInt
     language             String                      @db.VarChar(3)
     standardVersion      standard_version            @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
 
-    @@unique([standardVersionId, language])
+    @@unique([standardVersionId, language], name: "standard_version_translation_standardVersionId_language_unique")
 }
 
 model standard_tags {
-    id       String   @id @default(uuid()) @db.Uuid
-    taggedId String   @db.Uuid
+    id       BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt   @db.BigInt
     tagTag   String   @db.VarChar(128)
     tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   standard @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -1862,18 +1707,8 @@ model standard_tags {
     @@unique([taggedId, tagTag], name: "standard_tags_taggedid_tagTag_unique")
 }
 
-model standard_labels {
-    id         String   @id @default(uuid()) @db.Uuid
-    labelledId String   @db.Uuid
-    labelId    String   @db.Uuid
-    labelled   standard @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "standard_labels_labelledid_labelid_unique")
-}
-
 model stats_site {
-    id                               String     @id @default(uuid()) @db.Uuid
+    id                               BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     periodStart                      DateTime   @db.Timestamptz(6)
     periodEnd                        DateTime   @db.Timestamptz(6)
     periodType                       PeriodType
@@ -1909,8 +1744,8 @@ model stats_site {
 }
 
 model stats_api {
-    id              String     @id @default(uuid()) @db.Uuid
-    apiId           String     @db.Uuid
+    id              BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    apiId           BigInt     @db.BigInt
     periodStart     DateTime   @db.Timestamptz(6)
     periodEnd       DateTime   @db.Timestamptz(6)
     periodType      PeriodType
@@ -1920,8 +1755,8 @@ model stats_api {
 }
 
 model stats_code {
-    id              String     @id @default(uuid()) @db.Uuid
-    codeId          String     @db.Uuid
+    id              BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    codeId          BigInt     @db.BigInt
     periodStart     DateTime   @db.Timestamptz(6)
     periodEnd       DateTime   @db.Timestamptz(6)
     periodType      PeriodType
@@ -1931,8 +1766,8 @@ model stats_code {
 }
 
 model stats_project {
-    id                        String     @id @default(uuid()) @db.Uuid
-    projectId                 String     @db.Uuid
+    id                        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    projectId                 BigInt     @db.BigInt
     periodStart               DateTime   @db.Timestamptz(6)
     periodEnd                 DateTime   @db.Timestamptz(6)
     periodType                PeriodType
@@ -1952,8 +1787,8 @@ model stats_project {
 }
 
 model stats_routine {
-    id                        String     @id @default(uuid()) @db.Uuid
-    routineId                 String     @db.Uuid
+    id                        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    routineId                 BigInt     @db.BigInt
     periodStart               DateTime   @db.Timestamptz(6)
     periodEnd                 DateTime   @db.Timestamptz(6)
     periodType                PeriodType
@@ -1965,8 +1800,8 @@ model stats_routine {
 }
 
 model stats_standard {
-    id             String     @id @default(uuid()) @db.Uuid
-    standardId     String     @db.Uuid
+    id             BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    standardId     BigInt     @db.BigInt
     periodStart    DateTime   @db.Timestamptz(6)
     periodEnd      DateTime   @db.Timestamptz(6)
     periodType     PeriodType
@@ -1976,8 +1811,8 @@ model stats_standard {
 }
 
 model stats_team {
-    id                               String     @id @default(uuid()) @db.Uuid
-    teamId                           String     @db.Uuid
+    id                               BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    teamId                           BigInt     @db.BigInt
     periodStart                      DateTime   @db.Timestamptz(6)
     periodEnd                        DateTime   @db.Timestamptz(6)
     periodType                       PeriodType
@@ -1996,8 +1831,8 @@ model stats_team {
 }
 
 model stats_user {
-    id                               String     @id @default(uuid()) @db.Uuid
-    userId                           String     @db.Uuid
+    id                               BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    userId                           BigInt     @db.BigInt
     periodStart                      DateTime   @db.Timestamptz(6)
     periodEnd                        DateTime   @db.Timestamptz(6)
     periodType                       PeriodType
@@ -2027,12 +1862,12 @@ model stats_user {
 }
 
 model tag {
-    id           String            @id @default(uuid()) @db.Uuid
+    id           BigInt            @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at   DateTime          @default(now()) @db.Timestamptz(6)
     updated_at   DateTime          @default(now()) @db.Timestamptz(6)
     tag          String            @unique @db.VarChar(128)
     bookmarks    Int               @default(0)
-    createdById  String?           @db.Uuid
+    createdById  BigInt?           @db.BigInt
     createdBy    user?             @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     apis         api_tags[]
     codes        code_tags[]
@@ -2047,36 +1882,36 @@ model tag {
 }
 
 model tag_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     description          String?                     @db.VarChar(2048)
-    tagId                String                      @db.Uuid
+    tagId                BigInt                      @db.BigInt
     language             String                      @db.VarChar(3)
     tag                  tag                         @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-    @@unique([tagId, language])
+    @@unique([tagId, language], name: "tag_translation_tagId_language_unique")
 }
 
 model transfer {
-    id                    String         @id @default(uuid()) @db.Uuid
+    id                    BigInt         @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at            DateTime       @default(now()) @db.Timestamptz(6)
     updated_at            DateTime       @default(now()) @db.Timestamptz(6)
     status                TransferStatus @default(Pending)
     initializedByReceiver Boolean        @default(false)
     message               String?        @db.VarChar(4096)
     denyReason            String?        @db.VarChar(2048)
-    fromTeamId            String?        @db.Uuid
-    fromUserId            String?        @db.Uuid
-    toTeamId              String?        @db.Uuid
-    toUserId              String?        @db.Uuid
-    apiId                 String?        @db.Uuid
-    codeId                String?        @db.Uuid
-    noteId                String?        @db.Uuid
-    projectId             String?        @db.Uuid
-    routineId             String?        @db.Uuid
-    standardId            String?        @db.Uuid
+    fromTeamId            BigInt?        @db.BigInt
+    fromUserId            BigInt?        @db.BigInt
+    toTeamId              BigInt?        @db.BigInt
+    toUserId              BigInt?        @db.BigInt
+    apiId                 BigInt?        @db.BigInt
+    codeId                BigInt?        @db.BigInt
+    noteId                BigInt?        @db.BigInt
+    projectId             BigInt?        @db.BigInt
+    routineId             BigInt?        @db.BigInt
+    standardId            BigInt?        @db.BigInt
     fromTeam              team?          @relation("transfer_from_team", fields: [fromTeamId], references: [id], onDelete: SetNull)
     fromUser              user?          @relation("transfer_from_user", fields: [fromUserId], references: [id], onDelete: SetNull)
     toTeam                team?          @relation("transfer_to_team", fields: [toTeamId], references: [id], onDelete: Cascade)
@@ -2090,13 +1925,14 @@ model transfer {
 }
 
 model user {
-    id                        String                      @id @default(uuid()) @db.Uuid
+    id                        BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    publicId                  String                      @unique @db.VarChar(12)
     created_at                DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
     bannerImage               String?                     @db.VarChar(2048)
     confirmationCode          String?                     @unique @db.VarChar(256)
     confirmationCodeDate      DateTime?                   @db.Timestamptz(6)
-    invitedByUserId           String?                     @db.Uuid
+    invitedByUserId           BigInt?                     @db.BigInt
     isBot                     Boolean                     @default(false)
     isBotDepictingPerson      Boolean                     @default(false)
     isPrivate                 Boolean                     @default(false)
@@ -2134,7 +1970,7 @@ model user {
     bookmarks                 Int                         @default(0)
     views                     Int                         @default(0)
     reputation                Int                         @default(0)
-    premiumId                 String?                     @unique @db.Uuid
+    premiumId                 BigInt?                     @unique @db.BigInt
     stripeCustomerId          String?                     @unique @db.VarChar(255)
     status                    AccountStatus               @default(Unlocked)
     apisCreated               api[]                       @relation("api_createdBy")
@@ -2156,7 +1992,6 @@ model user {
     invitedUsers              user[]                      @relation("user_invitedByUser")
     issuesCreated             issue[]                     @relation("issue_createdBy")
     issuesClosed              issue[]                     @relation("issue_closedBy")
-    labels                    label[]
     languages                 user_language[]
     meetingsAttending         meeting_attendees[]
     meetingsInvited           meeting_invite[]
@@ -2199,8 +2034,8 @@ model user {
 }
 
 model user_auth {
-    id                              String    @id @default(uuid()) @db.Uuid
-    user_id                         String    @db.Uuid
+    id                              BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    user_id                         BigInt    @db.BigInt
     provider                        String
     provider_user_id                String?
     hashed_password                 String?
@@ -2212,14 +2047,14 @@ model user_auth {
     user     user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
     sessions session[]
 
-    @@unique([provider, provider_user_id])
+    @@unique([provider, provider_user_id], name: "user_auth_provider_provider_user_id_unique")
     @@index([user_id])
 }
 
 model session {
-    id              String   @id @default(uuid()) @db.Uuid
-    user_id         String   @db.Uuid
-    auth_id         String   @db.Uuid
+    id              BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    user_id         BigInt   @db.BigInt
+    auth_id         BigInt   @db.BigInt
     last_refresh_at DateTime @default(now()) @db.Timestamptz(6)
     created_at      DateTime @default(now()) @db.Timestamptz(6)
     updated_at      DateTime @updatedAt @db.Timestamptz(6)
@@ -2236,41 +2071,41 @@ model session {
 }
 
 model user_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
+    id                   BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     bio                  String?                     @db.VarChar(2048)
-    userId               String                      @db.Uuid
+    userId               BigInt                      @db.BigInt
     language             String                      @db.VarChar(3)
     user                 user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, language])
+    @@unique([userId, language], name: "user_translation_userId_language_unique")
 }
 
 model user_language {
-    id       String @id @default(uuid()) @db.Uuid
-    userId   String @db.Uuid
+    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    userId   BigInt @db.BigInt
     language String @db.VarChar(3)
     user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, language])
+    @@unique([userId, language], name: "user_language_userId_language_unique")
 }
 
 model view {
-    id           String    @id @default(uuid()) @db.Uuid
+    id           BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     lastViewedAt DateTime  @default(now()) @db.Timestamptz(6)
     name         String    @db.VarChar(128)
-    byId         String    @db.Uuid
-    apiId        String?   @db.Uuid
-    codeId       String?   @db.Uuid
-    issueId      String?   @db.Uuid
-    noteId       String?   @db.Uuid
-    projectId    String?   @db.Uuid
-    routineId    String?   @db.Uuid
-    standardId   String?   @db.Uuid
-    teamId       String?   @db.Uuid
-    userId       String?   @db.Uuid
+    byId         BigInt    @db.BigInt
+    apiId        BigInt?   @db.BigInt
+    codeId       BigInt?   @db.BigInt
+    issueId      BigInt?   @db.BigInt
+    noteId       BigInt?   @db.BigInt
+    projectId    BigInt?   @db.BigInt
+    routineId    BigInt?   @db.BigInt
+    standardId   BigInt?   @db.BigInt
+    teamId       BigInt?   @db.BigInt
+    userId       BigInt?   @db.BigInt
     by           user      @relation("view_by", fields: [byId], references: [id], onDelete: Cascade)
     api          api?      @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
     code         code?     @relation("view_code", fields: [codeId], references: [id], onDelete: Cascade)
@@ -2284,7 +2119,7 @@ model view {
 }
 
 model wallet {
-    id                String    @id @default(uuid()) @db.Uuid
+    id                BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     created_at        DateTime  @default(now()) @db.Timestamptz(6)
     updated_at        DateTime  @default(now()) @db.Timestamptz(6)
     stakingAddress    String    @unique @db.VarChar(128)
@@ -2295,8 +2130,8 @@ model wallet {
     verified          Boolean   @default(false)
     lastVerifiedTime  DateTime? @db.Timestamptz(6)
     wasReported       Boolean   @default(false)
-    teamId            String?   @db.Uuid
-    userId            String?   @db.Uuid
+    teamId            BigInt?   @db.BigInt
+    userId            BigInt?   @db.BigInt
     team              team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user              user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

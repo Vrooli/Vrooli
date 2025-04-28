@@ -76,17 +76,6 @@ export const projectVersionDirectory_updateOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -195,17 +184,6 @@ export const projectVersionDirectory_updateOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -306,17 +284,6 @@ export const projectVersionDirectory_updateOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -424,17 +391,6 @@ export const projectVersionDirectory_updateOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -550,17 +506,6 @@ export const projectVersionDirectory_updateOne = {
             "isInternal": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -671,17 +616,6 @@ export const projectVersionDirectory_updateOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -841,5 +775,5 @@ export const projectVersionDirectory_updateOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "-1425246140"
+    "__cacheKey": "1631519712"
 };

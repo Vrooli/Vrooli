@@ -196,7 +196,6 @@ const mockRoutineVersionData: RoutineVersion = {
             end: {
                 __typename: "NodeEnd" as const,
                 id: uuid(),
-                suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
             translations: [
@@ -287,7 +286,6 @@ const mockRoutineVersionData: RoutineVersion = {
     routineType: RoutineType.Standard,
     simplicity: 3,
     subroutineLinks: [],
-    suggestedNextByRoutineVersion: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),
     translations: [{

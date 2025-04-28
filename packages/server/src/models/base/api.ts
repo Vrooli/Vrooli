@@ -5,7 +5,6 @@ import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
@@ -42,7 +41,6 @@ export const ApiModel: ApiModelLogic = ({
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ApiVersion", parentRelationshipName: "forks", data, ...rest }),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ApiVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Api", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Api", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -54,7 +52,6 @@ export const ApiModel: ApiModelLogic = ({
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "apis", isCreate: false, objectType: __typename, data, ...rest })),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ApiVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Api", relation: "tags", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Api", data, ...rest }),
                 };
             },
         },
@@ -74,7 +71,6 @@ export const ApiModel: ApiModelLogic = ({
             excludeIds: true,
             hasCompleteVersion: true,
             issuesId: true,
-            labelsIds: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,
@@ -92,7 +88,6 @@ export const ApiModel: ApiModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "tagsWrapped",
-                "labelsWrapped",
                 { versions: { some: "transNameWrapped" } },
                 { versions: { some: "transSummaryWrapped" } },
             ],

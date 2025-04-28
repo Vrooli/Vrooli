@@ -4,7 +4,6 @@ export const chatMessage_findMany = {
         "node": {
             "id": true,
             "created_at": true,
-            "updated_at": true,
             "sequence": true,
             "versionIndex": true,
             "parent": {
@@ -47,5 +46,5 @@ export const chatMessage_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "2023547114"
+    "__cacheKey": "1498069533"
 };

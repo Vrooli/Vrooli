@@ -133,7 +133,6 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                         },
                         ...rest,
                     }),
-                    // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), TODO needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -171,7 +170,6 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                         },
                         ...rest,
                     }),
-                    // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -228,7 +226,6 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                 "transDescriptionWrapped",
                 "transNameWrapped",
                 { root: "tagsWrapped" },
-                { root: "labelsWrapped" },
             ],
         }),
         supplemental: {

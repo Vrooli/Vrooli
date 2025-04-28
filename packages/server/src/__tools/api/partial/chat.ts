@@ -35,12 +35,10 @@ export const chat: ApiPartial<Chat> = {
     full: {
         participants: async () => rel((await import("./chatParticipant.js")).chatParticipant, "list", { omit: "chat" }),
         invites: async () => rel((await import("./chatInvite.js")).chatInvite, "list", { omit: "chat" }),
-        labels: async () => rel((await import("./label.js")).label, "full"),
         // Messages are omitted here because they are handled by the chatMessageTree query
         translations: () => rel(chatTranslation, "full"),
     },
     list: {
-        labels: async () => rel((await import("./label.js")).label, "list"),
         translations: () => rel(chatTranslation, "list"),
     },
 };

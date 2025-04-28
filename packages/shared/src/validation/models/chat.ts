@@ -23,7 +23,6 @@ export const chatValidation: YupModel<["create", "update"]> = {
         openToAnyoneWithInvite: opt(bool),
     }, [
         ["invites", ["Create"], "many", "opt", chatInviteValidation, ["chat"]],
-        ["labels", ["Connect"], "many", "opt"],
         ["messages", ["Create"], "many", "opt", chatMessageValidation, ["chat"]],
         ["team", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", chatTranslationValidation],
@@ -33,7 +32,6 @@ export const chatValidation: YupModel<["create", "update"]> = {
         openToAnyoneWithInvite: opt(bool),
     }, [
         ["invites", ["Create", "Update", "Delete"], "many", "opt", chatInviteValidation],
-        ["labels", ["Connect", "Disconnect"], "many", "opt"],
         ["messages", ["Create", "Update", "Delete"], "many", "opt", chatMessageValidation],
         ["participants", ["Delete"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", chatTranslationValidation],

@@ -20,17 +20,6 @@ export const runProject_findOne = {
             "created_at": true,
             "updated_at": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -189,5 +178,5 @@ export const runProject_findOne = {
             }
         }
     },
-    "__cacheKey": "961462592"
+    "__cacheKey": "-1300085383"
 };

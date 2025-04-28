@@ -5,7 +5,6 @@ import { transRel } from "../utils/builders/rel.js";
 import { yupObj } from "../utils/builders/yupObj.js";
 import { description, id, name } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
-import { labelValidation } from "./label.js";
 
 const issueFor = enumToYup(IssueFor);
 
@@ -26,13 +25,11 @@ export const issueValidation: YupModel<["create", "update"]> = {
         issueFor: req(issueFor),
     }, [
         ["for", ["Connect"], "one", "req"],
-        ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["translations", ["Create"], "many", "opt", issueTranslationValidation],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),
     }, [
-        ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", issueTranslationValidation],
     ], [], d),
 };

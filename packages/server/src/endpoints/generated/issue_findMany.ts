@@ -63,17 +63,6 @@ export const issue_findMany = {
             "score": true,
             "bookmarks": true,
             "views": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "you": {
                 "canComment": true,
                 "canDelete": true,
@@ -97,5 +86,5 @@ export const issue_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2108576717"
+    "__cacheKey": "307013224"
 };

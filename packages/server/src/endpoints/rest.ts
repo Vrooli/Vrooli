@@ -413,11 +413,6 @@ export async function initRestApi(app: Express) {
         [endpointsIssue.createOne, Logic.issue.createOne, Select.issue_createOne],
         [endpointsIssue.updateOne, Logic.issue.updateOne, Select.issue_updateOne],
         [endpointsIssue.closeOne, Logic.issue.closeOne, Select.issue_closeOne],
-        // Label
-        [endpointsLabel.findOne, Logic.label.findOne, Select.label_findOne],
-        [endpointsLabel.findMany, Logic.label.findMany, Select.label_findMany],
-        [endpointsLabel.createOne, Logic.label.createOne, Select.label_createOne],
-        [endpointsLabel.updateOne, Logic.label.updateOne, Select.label_updateOne],
         // Meeting
         [endpointsMeeting.findOne, Logic.meeting.findOne, Select.meeting_findOne],
         [endpointsMeeting.findMany, Logic.meeting.findMany, Select.meeting_findMany],

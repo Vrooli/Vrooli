@@ -24,7 +24,6 @@ export const routine: ApiPartial<Routine> = {
         isInternal: true,
         isPrivate: true,
         issuesCount: true,
-        labels: async () => rel((await import("./label.js")).label, "list"),
         owner: {
             __union: {
                 Team: async () => rel((await import("./team.js")).team, "nav"),

@@ -33,17 +33,6 @@ export const transfer_acceptOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -149,17 +138,6 @@ export const transfer_acceptOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -268,17 +246,6 @@ export const transfer_acceptOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -383,17 +350,6 @@ export const transfer_acceptOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -488,17 +444,6 @@ export const transfer_acceptOne = {
             "isInternal": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -603,17 +548,6 @@ export const transfer_acceptOne = {
             "updated_at": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -723,5 +657,5 @@ export const transfer_acceptOne = {
         "canDelete": true,
         "canUpdate": true
     },
-    "__cacheKey": "-2011341412"
+    "__cacheKey": "-644347326"
 };

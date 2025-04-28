@@ -43,17 +43,6 @@ export const runRoutineIO_findMany = {
                         "updated_at": true,
                         "isPrivate": true,
                         "issuesCount": true,
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
-                        },
                         "owner": {
                             "Team": {
                                 "id": true,
@@ -193,17 +182,6 @@ export const runRoutineIO_findMany = {
                         "updated_at": true,
                         "isPrivate": true,
                         "issuesCount": true,
-                        "labels": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "color": true,
-                            "label": true,
-                            "you": {
-                                "canDelete": true,
-                                "canUpdate": true
-                            }
-                        },
                         "owner": {
                             "Team": {
                                 "id": true,
@@ -287,5 +265,5 @@ export const runRoutineIO_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1095666071"
+    "__cacheKey": "955653211"
 };

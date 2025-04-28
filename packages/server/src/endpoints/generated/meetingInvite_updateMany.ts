@@ -163,26 +163,6 @@ export const meetingInvite_updateMany = {
             "name": true,
             "profileImage": true
         },
-        "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "you": {
-                "canDelete": true,
-                "canUpdate": true
-            },
-            "apisCount": true,
-            "codesCount": true,
-            "issuesCount": true,
-            "meetingsCount": true,
-            "notesCount": true,
-            "projectsCount": true,
-            "routinesCount": true,
-            "schedulesCount": true,
-            "standardsCount": true
-        },
         "schedule": {
             "id": true,
             "created_at": true,
@@ -204,17 +184,6 @@ export const meetingInvite_updateMany = {
                 "dayOfMonth": true,
                 "month": true,
                 "endDate": true
-            },
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
             },
             "runProjects": {
                 "id": true,
@@ -374,5 +343,5 @@ export const meetingInvite_updateMany = {
             "name": true
         }
     },
-    "__cacheKey": "-1616195801"
+    "__cacheKey": "1839499093"
 };

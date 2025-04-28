@@ -36,12 +36,10 @@ export const meeting: ApiPartial<Meeting> = {
     full: {
         attendees: async () => rel((await import("./user.js")).user, "nav"),
         invites: async () => rel((await import("./meetingInvite.js")).meetingInvite, "list", { omit: "meeting" }),
-        labels: async () => rel((await import("./label.js")).label, "full"),
         schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "full"),
     },
     list: {
-        labels: async () => rel((await import("./label.js")).label, "list"),
         schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "list"),
     },

@@ -41,17 +41,6 @@ export const routineVersion_findMany = {
                 "isInternal": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -133,5 +122,5 @@ export const routineVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-130172735"
+    "__cacheKey": "-1440917412"
 };

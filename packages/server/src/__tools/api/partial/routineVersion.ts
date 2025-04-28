@@ -62,7 +62,6 @@ export const routineVersion: ApiPartial<RoutineVersion> = {
         resourceList: async () => rel((await import("./resourceList.js")).resourceList, "common"),
         root: async () => rel((await import("./routine.js")).routine, "full", { omit: "versions" }),
         subroutineLinks: async () => rel(routineVersion, "list"),
-        suggestedNextByRoutineVersion: async () => rel((await import("./routineVersion.js")).routineVersion, "nav"),
         translations: () => rel(routineVersionTranslation, "full"),
     },
     list: {

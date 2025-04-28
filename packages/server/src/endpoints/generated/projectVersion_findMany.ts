@@ -28,17 +28,6 @@ export const projectVersion_findMany = {
                 "updated_at": true,
                 "isPrivate": true,
                 "issuesCount": true,
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
                 "owner": {
                     "Team": {
                         "id": true,
@@ -119,5 +108,5 @@ export const projectVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1037728812"
+    "__cacheKey": "757684797"
 };

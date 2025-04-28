@@ -91,7 +91,6 @@ export type Api = DbObject<"Api"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
     owner?: Maybe<Owner>;
     parent?: Maybe<ApiVersion>;
     permissions: Scalars["String"];
@@ -112,8 +111,6 @@ export type Api = DbObject<"Api"> & {
 export type ApiCreateInput = {
     id: Scalars["ID"];
     isPrivate: Scalars["Boolean"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
@@ -197,7 +194,6 @@ export type ApiSearchInput = BaseSearchInput<ApiSortBy> & {
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
     hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
     maxScore?: InputMaybe<Scalars["Int"]>;
     maxViews?: InputMaybe<Scalars["Int"]>;
@@ -239,9 +235,6 @@ export enum ApiSortBy {
 export type ApiUpdateInput = {
     id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
@@ -580,8 +573,6 @@ export type Chat = DbObject<"Chat"> & {
     created_at: Scalars["Date"];
     invites: Array<ChatInvite>;
     invitesCount: Scalars["Int"];
-    labels: Array<Label>;
-    labelsCount: Scalars["Int"];
     messages: Array<ChatMessage>;
     openToAnyoneWithInvite: Scalars["Boolean"];
     participants: Array<ChatParticipant>;
@@ -597,8 +588,6 @@ export type Chat = DbObject<"Chat"> & {
 export type ChatCreateInput = BaseTranslatableCreateInput<ChatTranslationCreateInput> & {
     id: Scalars["ID"];
     invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
     restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
@@ -809,7 +798,6 @@ export type ChatParticipantUpdateInput = {
 export type ChatSearchInput = BaseSearchInput<ChatSortBy> & {
     createdTimeFrame?: InputMaybe<TimeFrame>;
     creatorId?: InputMaybe<Scalars["ID"]>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
     searchString?: InputMaybe<Scalars["String"]>;
     teamId?: InputMaybe<Scalars["ID"]>;
@@ -853,9 +841,6 @@ export type ChatUpdateInput = BaseTranslatableUpdateInput<ChatTranslationCreateI
     invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
     invitesDelete?: InputMaybe<Array<Scalars["ID"]>>;
     invitesUpdate?: InputMaybe<Array<ChatInviteUpdateInput>>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
     messagesDelete?: InputMaybe<Array<Scalars["ID"]>>;
     messagesUpdate?: InputMaybe<Array<ChatMessageUpdateInput>>;
@@ -894,7 +879,6 @@ export type Code = DbObject<"Code"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
     owner?: Maybe<Owner>;
     parent?: Maybe<CodeVersion>;
     permissions: Scalars["String"];
@@ -917,8 +901,6 @@ export type CodeCreateInput = {
     id: Scalars["ID"];
     data?: InputMaybe<Scalars["String"]>;
     isPrivate: Scalars["Boolean"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
@@ -938,7 +920,6 @@ export type CodeSearchInput = BaseSearchInput<CodeSortBy> & {
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
     hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
     maxScore?: InputMaybe<Scalars["Int"]>;
     maxViews?: InputMaybe<Scalars["Int"]>;
@@ -988,9 +969,6 @@ export type CodeUpdateInput = {
     id: Scalars["ID"];
     data?: InputMaybe<Scalars["String"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
@@ -1424,7 +1402,6 @@ export enum ModelType {
     Handle = "Handle",
     HomeResult = "HomeResult",
     Issue = "Issue",
-    Label = "Label",
     Meeting = "Meeting",
     MeetingInvite = "MeetingInvite",
     Member = "Member",
@@ -1510,8 +1487,6 @@ export type Issue = DbObject<"Issue"> & {
     commentsCount: Scalars["Int"];
     createdBy?: Maybe<User>;
     created_at: Scalars["Date"];
-    labels: Array<Label>;
-    labelsCount: Scalars["Int"];
     referencedVersionId?: Maybe<Scalars["String"]>;
     reports: Array<Report>;
     reportsCount: Scalars["Int"];
@@ -1534,8 +1509,6 @@ export type IssueCreateInput = BaseTranslatableCreateInput<IssueTranslationCreat
     forConnect: Scalars["ID"];
     id: Scalars["ID"];
     issueFor: IssueFor;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     referencedVersionIdConnect?: InputMaybe<Scalars["ID"]>;
 };
 
@@ -1619,9 +1592,6 @@ export type IssueTranslationUpdateInput = BaseTranslationUpdateInput & {
 
 export type IssueUpdateInput = BaseTranslatableUpdateInput<IssueTranslationCreateInput, IssueTranslationUpdateInput> & {
     id: Scalars["ID"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
 };
 
 export type IssueYou = {
@@ -1635,105 +1605,6 @@ export type IssueYou = {
     canUpdate: Scalars["Boolean"];
     isBookmarked: Scalars["Boolean"];
     reaction?: Maybe<Scalars["String"]>;
-};
-
-export type Label = DbObject<"Label"> & {
-    apis?: Maybe<Array<Api>>;
-    apisCount: Scalars["Int"];
-    codes?: Maybe<Array<Code>>;
-    codesCount: Scalars["Int"];
-    color?: Maybe<Scalars["String"]>;
-    created_at: Scalars["Date"];
-    issues?: Maybe<Array<Issue>>;
-    issuesCount: Scalars["Int"];
-    label: Scalars["String"];
-    meetings?: Maybe<Array<Meeting>>;
-    meetingsCount: Scalars["Int"];
-    notes?: Maybe<Array<Note>>;
-    notesCount: Scalars["Int"];
-    owner: Owner;
-    projects?: Maybe<Array<Project>>;
-    projectsCount: Scalars["Int"];
-    routines?: Maybe<Array<Routine>>;
-    routinesCount: Scalars["Int"];
-    schedules?: Maybe<Array<Schedule>>;
-    schedulesCount: Scalars["Int"];
-    standards?: Maybe<Array<Standard>>;
-    standardsCount: Scalars["Int"];
-    translations: Array<LabelTranslation>;
-    translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
-    you: LabelYou;
-};
-
-export type LabelCreateInput = BaseTranslatableCreateInput<LabelTranslationCreateInput> & {
-    color?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    label: Scalars["String"];
-    teamConnect?: InputMaybe<Scalars["ID"]>;
-};
-
-export type LabelEdge = Edge<Label, "LabelEdge">;
-
-export type LabelSearchInput = BaseSearchInput<LabelSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    ownedByTeamId?: InputMaybe<Scalars["ID"]>;
-    ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type LabelSearchResult = SearchResult<LabelEdge, "LabelSearchResult">;
-
-export enum LabelSortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc"
-}
-
-export type LabelTranslation = BaseTranslation<"LabelTranslation"> & {
-    description: Scalars["String"];
-};
-
-export type LabelTranslationCreateInput = BaseTranslationCreateInput & {
-    description: Scalars["String"];
-};
-
-export type LabelTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-};
-
-export type LabelUpdateInput = BaseTranslatableUpdateInput<LabelTranslationCreateInput, LabelTranslationUpdateInput> & {
-    apisConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    apisDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    codesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    codesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    color?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    issuesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    issuesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    label?: InputMaybe<Scalars["String"]>;
-    meetingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    meetingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    notesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    notesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    projectsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    projectsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    routinesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    routinesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    schedulesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    schedulesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    standardsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    standardsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-};
-
-export type LabelYou = {
-    __typename: "LabelYou";
-    canDelete: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
 };
 
 export enum LlmTask {
@@ -1800,8 +1671,6 @@ export type Meeting = DbObject<"Meeting"> & {
     created_at: Scalars["Date"];
     invites: Array<MeetingInvite>;
     invitesCount: Scalars["Int"];
-    labels: Array<Label>;
-    labelsCount: Scalars["Int"];
     openToAnyoneWithInvite: Scalars["Boolean"];
     restrictedToRoles: Array<Role>;
     schedule?: Maybe<Schedule>;
@@ -1816,8 +1685,6 @@ export type Meeting = DbObject<"Meeting"> & {
 export type MeetingCreateInput = BaseTranslatableCreateInput<MeetingTranslationCreateInput> & {
     id: Scalars["ID"];
     invitesCreate?: InputMaybe<Array<MeetingInviteCreateInput>>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
     restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
@@ -1892,7 +1759,6 @@ export type MeetingInviteYou = {
 
 export type MeetingSearchInput = BaseSearchInput<MeetingSortBy> & {
     createdTimeFrame?: InputMaybe<TimeFrame>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
     scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
     scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
@@ -1936,9 +1802,6 @@ export type MeetingUpdateInput = BaseTranslatableUpdateInput<MeetingTranslationC
     invitesCreate?: InputMaybe<Array<MeetingInviteCreateInput>>;
     invitesDelete?: InputMaybe<Array<Scalars["ID"]>>;
     invitesUpdate?: InputMaybe<Array<MeetingInviteUpdateInput>>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
     restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
     restrictedToRolesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
@@ -2071,8 +1934,6 @@ export type Note = DbObject<"Note"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
-    labelsCount: Scalars["Int"];
     owner?: Maybe<Owner>;
     parent?: Maybe<NoteVersion>;
     permissions: Scalars["String"];
@@ -2092,8 +1953,6 @@ export type Note = DbObject<"Note"> & {
 export type NoteCreateInput = {
     id: Scalars["ID"];
     isPrivate: Scalars["Boolean"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
@@ -2163,9 +2022,6 @@ export enum NoteSortBy {
 export type NoteUpdateInput = {
     id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
@@ -2584,8 +2440,6 @@ export type Project = DbObject<"Project"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
-    labelsCount: Scalars["Int"];
     owner?: Maybe<Owner>;
     parent?: Maybe<ProjectVersion>;
     permissions: Scalars["String"];
@@ -2608,8 +2462,6 @@ export type ProjectCreateInput = {
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isPrivate: Scalars["Boolean"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
@@ -2745,7 +2597,6 @@ export type ProjectSearchInput = BaseSearchInput<ProjectSortBy> & {
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
     hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
     maxScore?: InputMaybe<Scalars["Int"]>;
     maxViews?: InputMaybe<Scalars["Int"]>;
@@ -2790,9 +2641,6 @@ export type ProjectUpdateInput = {
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
@@ -2825,7 +2673,6 @@ export type ProjectVersion = DbObject<"ProjectVersion"> & {
     root: Project;
     runProjectsCount: Scalars["Int"];
     simplicity: Scalars["Int"];
-    suggestedNextByProject: Array<Project>;
     timesCompleted: Scalars["Int"];
     timesStarted: Scalars["Int"];
     translations: Array<ProjectVersionTranslation>;
@@ -2872,7 +2719,6 @@ export type ProjectVersionCreateInput = BaseTranslatableCreateInput<ProjectVersi
     isPrivate: Scalars["Boolean"];
     rootConnect?: InputMaybe<Scalars["ID"]>;
     rootCreate?: InputMaybe<ProjectCreateInput>;
-    suggestedNextByProjectConnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel: Scalars["String"];
     versionNotes?: InputMaybe<Scalars["String"]>;
 };
@@ -3045,8 +2891,6 @@ export type ProjectVersionUpdateInput = BaseTranslatableUpdateInput<ProjectVersi
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
     rootUpdate?: InputMaybe<ProjectUpdateInput>;
-    suggestedNextByProjectConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    suggestedNextByProjectDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel?: InputMaybe<Scalars["String"]>;
     versionNotes?: InputMaybe<Scalars["String"]>;
 };
@@ -3797,7 +3641,6 @@ export type Routine = DbObject<"Routine"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
     owner?: Maybe<Owner>;
     parent?: Maybe<RoutineVersion>;
     permissions: Scalars["String"];
@@ -3820,8 +3663,6 @@ export type RoutineCreateInput = {
     id: Scalars["ID"];
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
@@ -3840,7 +3681,6 @@ export type RoutineSearchInput = BaseSearchInput<RoutineSortBy> & {
     hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     latestVersionRoutineType?: InputMaybe<RoutineType>;
     latestVersionRoutineTypes?: InputMaybe<Array<RoutineType>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
@@ -3898,9 +3738,6 @@ export type RoutineUpdateInput = {
     id: Scalars["ID"];
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
@@ -3942,8 +3779,6 @@ export type RoutineVersion = DbObject<"RoutineVersion"> & {
     routineType: RoutineType;
     simplicity: Scalars["Int"];
     subroutineLinks: Array<RoutineVersion>;
-    suggestedNextByRoutineVersion: Array<RoutineVersion>;
-    suggestedNextByRoutineVersionCount: Scalars["Int"];
     timesCompleted: Scalars["Int"];
     timesStarted: Scalars["Int"];
     translations: Array<RoutineVersionTranslation>;
@@ -3971,7 +3806,6 @@ export type RoutineVersionCreateInput = BaseTranslatableCreateInput<RoutineVersi
     rootCreate?: InputMaybe<RoutineCreateInput>;
     routineType: RoutineType;
     subroutineLinksConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel: Scalars["String"];
     versionNotes?: InputMaybe<Scalars["String"]>;
 };
@@ -4167,8 +4001,6 @@ export type RoutineVersionUpdateInput = BaseTranslatableUpdateInput<RoutineVersi
     rootUpdate?: InputMaybe<RoutineUpdateInput>;
     subroutineLinksConnect?: InputMaybe<Array<Scalars["ID"]>>;
     subroutineLinksDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    suggestedNextByRoutineVersionDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel?: InputMaybe<Scalars["String"]>;
     versionNotes?: InputMaybe<Scalars["String"]>;
 };
@@ -4600,7 +4432,6 @@ export type Schedule = DbObject<"Schedule"> & {
     created_at: Scalars["Date"];
     endTime: Scalars["Date"];
     exceptions: Array<ScheduleException>;
-    labels: Array<Label>;
     meetings: Array<Meeting>;
     recurrences: Array<ScheduleRecurrence>;
     runProjects: Array<RunProject>;
@@ -4614,8 +4445,6 @@ export type ScheduleCreateInput = {
     endTime?: InputMaybe<Scalars["Date"]>;
     exceptionsCreate?: InputMaybe<Array<ScheduleExceptionCreateInput>>;
     id: Scalars["ID"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     meetingConnect?: InputMaybe<Scalars["ID"]>;
     recurrencesCreate?: InputMaybe<Array<ScheduleRecurrenceCreateInput>>;
     runProjectConnect?: InputMaybe<Scalars["ID"]>;
@@ -4771,9 +4600,6 @@ export type ScheduleUpdateInput = {
     exceptionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
     exceptionsUpdate?: InputMaybe<Array<ScheduleExceptionUpdateInput>>;
     id: Scalars["ID"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     recurrencesCreate?: InputMaybe<Array<ScheduleRecurrenceCreateInput>>;
     recurrencesDelete?: InputMaybe<Array<Scalars["ID"]>>;
     recurrencesUpdate?: InputMaybe<Array<ScheduleRecurrenceUpdateInput>>;
@@ -4842,7 +4668,6 @@ export type Standard = DbObject<"Standard"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
     owner?: Maybe<Owner>;
     parent?: Maybe<StandardVersion>;
     permissions: Scalars["String"];
@@ -4865,8 +4690,6 @@ export type StandardCreateInput = {
     id: Scalars["ID"];
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
@@ -4886,7 +4709,6 @@ export type StandardSearchInput = BaseSearchInput<StandardSortBy> & {
     hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
-    labelsIds?: InputMaybe<Array<Scalars["ID"]>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
     maxScore?: InputMaybe<Scalars["Int"]>;
     maxViews?: InputMaybe<Scalars["Int"]>;
@@ -4937,9 +4759,6 @@ export type StandardUpdateInput = {
     id: Scalars["ID"];
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-    labelsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
@@ -5532,8 +5351,6 @@ export type Team = DbObject<"Team"> & {
     isPrivate: Scalars["Boolean"];
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
-    labels: Array<Label>;
-    labelsCount: Scalars["Int"];
     meetings: Array<Meeting>;
     meetingsCount: Scalars["Int"];
     members: Array<Member>;
@@ -5811,7 +5628,6 @@ export type User = DbObject<"User"> & {
     isPrivateVotes: Scalars["Boolean"];
     issuesClosed?: Maybe<Array<Issue>>;
     issuesCreated?: Maybe<Array<Issue>>;
-    labels?: Maybe<Array<Label>>;
     meetingsAttending?: Maybe<Array<Meeting>>;
     meetingsInvited?: Maybe<Array<MeetingInvite>>;
     memberships?: Maybe<Array<Member>>;

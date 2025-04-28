@@ -4,7 +4,6 @@ export const chatMessage_findTree = {
     "messages": {
         "id": true,
         "created_at": true,
-        "updated_at": true,
         "sequence": true,
         "versionIndex": true,
         "parent": {
@@ -42,5 +41,5 @@ export const chatMessage_findTree = {
             "text": true
         }
     },
-    "__cacheKey": "1802350475"
+    "__cacheKey": "-854788738"
 };

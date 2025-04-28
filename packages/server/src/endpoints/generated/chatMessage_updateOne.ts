@@ -1,7 +1,6 @@
 export const chatMessage_updateOne = {
     "id": true,
     "created_at": true,
-    "updated_at": true,
     "sequence": true,
     "versionIndex": true,
     "parent": {
@@ -38,5 +37,5 @@ export const chatMessage_updateOne = {
         "language": true,
         "text": true
     },
-    "__cacheKey": "-105038720"
+    "__cacheKey": "1723351981"
 };

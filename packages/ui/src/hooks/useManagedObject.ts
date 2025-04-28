@@ -587,17 +587,8 @@ export function useManagedObject<
         hasUnauthorizedError,
         fetchFailed,
         isLoading,
-        // Functions and identifiers needed for the effect
-        transform,
-        setFormData,
-        setCachedData,
-        clearCache,
-        fetchObjectData,
-        // URL info but only the essential parts
         urlInfo.hasIdentifier,
-        // Other flags and handlers
         shouldFetch,
-        displayError,
         onInvalidUrlParams,
     ]);
 
