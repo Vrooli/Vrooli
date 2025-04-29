@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, Session, SessionUser, uuidValidate } from "@local/shared";
+import { DEFAULT_LANGUAGE, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
 import { CustomError } from "../events/error.js";
 import { UserDataForPasswordAuth } from "./email.js";
@@ -28,12 +28,12 @@ export class SessionService {
         if (typeof session !== "object" || session === null) {
             return null;
         }
-        if (session.userId && typeof session.userId === "string" && uuidValidate(session.userId)) {
+        if (session.userId && typeof session.userId === "string") {
             return { id: session.userId, languages: [DEFAULT_LANGUAGE] } as unknown as User;
         }
         if (Array.isArray(session.users) && session.users.length > 0) {
             const user = session.users[0];
-            if (user !== undefined && typeof user.id === "string" && uuidValidate(user.id)) {
+            if (user !== undefined && typeof user.id === "string") {
                 return user;
             }
 
@@ -54,24 +54,17 @@ export class SessionService {
         const result: SessionUser = {
             __typename: "SessionUser" as const,
             id: userData.id,
-            apisCount: userData._count?.apis ?? 0,
-            codesCount: userData._count?.codes ?? 0,
             credits: (userData.premium?.credits ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
             handle: userData.handle ?? undefined,
             hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
             languages: userData.languages.map(l => l.language),
-            membershipsCount: userData._count?.memberships ?? 0,
             name: userData.name,
-            notesCount: userData._count?.notes ?? 0,
             profileImage: userData.profileImage,
-            projectsCount: userData._count?.projects ?? 0,
-            routinesCount: userData._count?.routines ?? 0,
             session: {
                 __typename: "SessionUserSession" as const,
                 id: sessionData.id,
                 lastRefreshAt: sessionData.last_refresh_at,
             },
-            standardsCount: userData._count?.standards ?? 0,
             theme: userData.theme,
             updated_at: userData.updated_at,
         };

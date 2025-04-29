@@ -46,7 +46,6 @@ function noteInitialValues(
     return {
         __typename: "NoteVersion" as const,
         id: DUMMY_ID,
-        directoryListings: [],
         isPrivate: true,
         versionLabel: existing?.versionLabel ?? "1.0.0",
         ...existing,

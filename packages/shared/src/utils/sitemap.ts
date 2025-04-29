@@ -17,12 +17,20 @@ export type SitemapEntryMain = {
  * A sitemap entry for user-generated pages (e.g. /routine/123, /api/123)
  */
 export type SitemapEntryContent = {
-    handle?: string | undefined; // Replaces id in path if present
-    id: string; // Used with baseLink to generate the path
-    languages: string[]; // Used to generate rel="alternate" hreflang="xx" links
-    objectLink: string; // Used with id to generate the path
-    rootHandle?: string | undefined; // If object is versioned, this is added between objectLink and id in the path
-    rootId?: string | undefined; // If object is versioned, this is added between objectLink and id in the path
+    /** Optional handle (for Team/User or overrides) */
+    handle?: string;
+    /** Public identifier for the resource or version */
+    publicId: string;
+    /** Version label if this is a versioned resource */
+    versionLabel?: string;
+    /** Languages for alternate hreflang links */
+    languages: string[];
+    /** Base path segment for this object type */
+    objectLink: string;
+    /** Optional root handle if versioned object supports it */
+    rootHandle?: string;
+    /** Public identifier of the root resource for versioned entries */
+    rootPublicId?: string;
 }
 
 /**
@@ -61,8 +69,8 @@ export function generateSitemap(siteName: string, entries: {
     if (entries.content) {
         // Loop through entries
         entries.content.forEach(function (entry: SitemapEntryContent) {
-            const rootPart = entry.rootHandle ?? entry.rootId ?? "";
-            const versionPart = entry.handle ?? entry.id ?? "";
+            const rootPart = entry.rootHandle ?? entry.rootPublicId ?? "";
+            const versionPart = entry.versionLabel ?? entry.handle ?? entry.publicId;
             const separator = rootPart ? "/" : "";
             const link = `${siteName}${entry.objectLink}/${rootPart}${separator}${versionPart}`;
             const urlElement = xml.ele("url");

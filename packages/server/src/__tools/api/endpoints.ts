@@ -384,35 +384,8 @@ export const endpoints = {
             findMany: await toObject(reputationHistory, "list", { asSearch: true }),
         };
     },
-    resource: async () => {
-        const { resource } = await import("./partial/resource.js");
-        return {
-            findOne: await toObject(resource, "full"),
-            findMany: await toObject(resource, "list", { asSearch: true }),
-            createOne: await toObject(resource, "full"),
-            updateOne: await toObject(resource, "full"),
-        };
-    },
-    resourceList: async () => {
-        const { resourceList } = await import("./partial/resourceList.js");
-        return {
-            findOne: await toObject(resourceList, "full"),
-            findMany: await toObject(resourceList, "list", { asSearch: true }),
-            createOne: await toObject(resourceList, "full"),
-            updateOne: await toObject(resourceList, "full"),
-        };
-    },
-    role: async () => {
-        const { role } = await import("./partial/role.js");
-        return {
-            findOne: await toObject(role, "full"),
-            findMany: await toObject(role, "list", { asSearch: true }),
-            createOne: await toObject(role, "full"),
-            updateOne: await toObject(role, "full"),
-        };
-    },
     routine: async () => {
-        const { routine } = await import("./partial/routine.js");
+        const { routine } = await import("./partial/resource.js");
         return {
             findOne: await toObject(routine, "full"),
             findMany: await toObject(routine, "list", { asSearch: true }),
@@ -421,7 +394,7 @@ export const endpoints = {
         };
     },
     routineVersion: async () => {
-        const { routineVersion } = await import("./partial/routineVersion.js");
+        const { routineVersion } = await import("./partial/resourceVersion.js");
         return {
             findOne: await toObject(routineVersion, "full"),
             findMany: await toObject(routineVersion, "list", { asSearch: true }),
@@ -439,7 +412,7 @@ export const endpoints = {
         };
     },
     runRoutine: async () => {
-        const { runRoutine } = await import("./partial/runRoutine.js");
+        const { runRoutine } = await import("./partial/run.js");
         return {
             findOne: await toObject(runRoutine, "full"),
             findMany: await toObject(runRoutine, "list", { asSearch: true }),
@@ -448,7 +421,7 @@ export const endpoints = {
         };
     },
     runRoutineIO: async () => {
-        const { runRoutineIO } = await import("./partial/runRoutineIO.js");
+        const { runRoutineIO } = await import("./partial/runIO.js");
         return {
             findMany: await toObject(runRoutineIO, "list", { asSearch: true }),
         };

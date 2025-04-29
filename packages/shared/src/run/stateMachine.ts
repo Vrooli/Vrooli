@@ -1,10 +1,10 @@
 import { ModelType, RoutineVersion, RunStatus } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
-import { uuid } from "../id/uuid.js";
+import { generatePKString } from "../id/snowflake.js";
+import { RoutineVersionConfig } from "../shape/configs/routine.js";
+import { RunProgressConfig } from "../shape/configs/run.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
-import { RoutineVersionConfig } from "./configs/routine.js";
-import { RunProgressConfig } from "./configs/run.js";
 import { DEFAULT_LOOP_DELAY_MULTIPLIER, DEFAULT_MAX_LOOP_DELAY_MS, DEFAULT_MAX_RUN_CREDITS, DEFAULT_ON_BRANCH_FAILURE, LATEST_RUN_CONFIG_VERSION, MAX_MAIN_LOOP_ITERATIONS, MAX_PARALLEL_BRANCHES } from "./consts.js";
 import { SubroutineContextManager } from "./context.js";
 import { SubroutineExecutor } from "./executor.js";
@@ -180,7 +180,7 @@ export class RunStateMachine {
         }
         const { object: startObject } = startLocationData;
 
-        const runId = uuid();
+        const runId = generatePKString();
         this.services.logger.info(`Initializing new run with ID ${runId}`);
         const { description, instructions, name } = getTranslation(startObject as { translations: { language: string, name: string, description: string, instructions?: string }[] | null | undefined }, userData.languages, true);
         const subcontext: SubroutineContext = {

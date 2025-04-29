@@ -24,7 +24,7 @@ export const transfer: ApiPartial<Transfer> = {
                 Code: async () => rel((await import("./code.js")).code, "list"),
                 Note: async () => rel((await import("./note.js")).note, "list"),
                 Project: async () => rel((await import("./project.js")).project, "list"),
-                Routine: async () => rel((await import("./routine.js")).routine, "list"),
+                Routine: async () => rel((await import("./resource.js")).routine, "list"),
                 Standard: async () => rel((await import("./standard.js")).standard, "list"),
             },
         },

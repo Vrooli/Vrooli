@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, exists, getTranslation, teamValidation } from "@local/shared";
 import { role } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { onlyValidIds } from "../../builders/onlyValid.js";
@@ -57,6 +57,7 @@ export const TeamModel: TeamModelLogic = ({
                 return {
                     id: data.id,
                     bannerImage: data.bannerImage,
+                    config: noNull(data.config),
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: data.isPrivate,
@@ -71,8 +72,6 @@ export const TeamModel: TeamModelLogic = ({
                         },
                     },
                     memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
-                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "team", data, ...rest }),
-                    roles: await shapeHelper({ relation: "roles", relTypes: ["Create"], isOneToOne: false, objectType: "Role", parentRelationshipName: "team", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Team", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
@@ -81,6 +80,7 @@ export const TeamModel: TeamModelLogic = ({
                 const preData = rest.preMap[__typename] as TeamPre;
                 return {
                     bannerImage: noNull(data.bannerImage),
+                    config: noNull(data.config),
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
@@ -88,8 +88,6 @@ export const TeamModel: TeamModelLogic = ({
                     profileImage: noNull(data.profileImage),
                     members: await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
                     memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
-                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "team", data, ...rest }),
-                    roles: await shapeHelper({ relation: "roles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Role", parentRelationshipName: "team", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Team", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
@@ -98,41 +96,6 @@ export const TeamModel: TeamModelLogic = ({
         trigger: {
             afterMutations: async ({ createdIds, userData }) => {
                 for (const teamId of createdIds) {
-                    // Upsert "Admin" role (in case they already included it in the request). 
-                    // Trying to connect you as a member again shouldn't throw an error (hopefully)
-                    await DbProvider.get().role.upsert({
-                        where: {
-                            role_teamId_name_unique: {
-                                name: "Admin",
-                                teamId,
-                            },
-                        },
-                        create: {
-                            id: uuid(),
-                            name: "Admin",
-                            permissions: JSON.stringify({}), //TODO
-                            members: {
-                                connect: {
-                                    member_teamid_userid_unique: {
-                                        userId: userData.id,
-                                        teamId,
-                                    },
-                                },
-                            },
-                            teamId,
-                        },
-                        update: {
-                            permissions: JSON.stringify({}), //TODO
-                            members: {
-                                connect: {
-                                    member_teamid_userid_unique: {
-                                        userId: userData.id,
-                                        teamId,
-                                    },
-                                },
-                            },
-                        },
-                    });
                     // Handle trigger
                     // Trigger(userData.languages).createTeam(userData.id, teamId);
                 }
@@ -277,19 +240,6 @@ export const TeamModel: TeamModelLogic = ({
             languages: { select: { language: true } },
             permissions: true,
             ...(userId ? {
-                roles: {
-                    where: {
-                        members: {
-                            some: {
-                                userId,
-                            },
-                        },
-                    },
-                    select: {
-                        id: true,
-                        permissions: true,
-                    },
-                },
                 members: {
                     where: {
                         userId,

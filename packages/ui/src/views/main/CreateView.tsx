@@ -13,7 +13,7 @@ import { ScrollBox } from "../../styles.js";
 import { ViewProps } from "../../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
-import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/routine.js";
+import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/resource.js";
 
 type CreateInfo = {
     objectType: CreateType;

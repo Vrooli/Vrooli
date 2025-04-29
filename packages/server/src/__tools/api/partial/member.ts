@@ -16,7 +16,6 @@ export const member: ApiPartial<Member> = {
         updated_at: true,
         isAdmin: true,
         permissions: true,
-        roles: async () => rel((await import("./role.js")).role, "list"),
         you: () => rel(memberYou, "full"),
     },
     full: {

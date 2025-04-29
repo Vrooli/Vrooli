@@ -44,7 +44,6 @@ export function smartContractInitialValues(
         codeLanguage: CodeLanguage.Solidity,
         codeType: CodeType.SmartContract,
         content: "",
-        directoryListings: [],
         isComplete: false,
         isPrivate: false,
         resourceList: {

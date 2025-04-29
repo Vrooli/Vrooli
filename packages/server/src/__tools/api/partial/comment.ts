@@ -48,7 +48,7 @@ export const comment: ApiPartial<Comment> = {
                 NoteVersion: async () => rel((await import("./noteVersion.js")).noteVersion, "nav"),
                 ProjectVersion: async () => rel((await import("./projectVersion.js")).projectVersion, "nav"),
                 PullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "nav"),
-                RoutineVersion: async () => rel((await import("./routineVersion.js")).routineVersion, "nav"),
+                RoutineVersion: async () => rel((await import("./resourceVersion.js")).routineVersion, "nav"),
                 StandardVersion: async () => rel((await import("./standardVersion.js")).standardVersion, "nav"),
             },
         },

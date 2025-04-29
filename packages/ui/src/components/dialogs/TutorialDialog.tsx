@@ -1,4 +1,4 @@
-import { FormInformationalType, FormStructureType, LINKS, SEEDED_IDS, SearchPageTabOption, TutorialViewSearchParams, UrlTools, getObjectUrl, uuid } from "@local/shared";
+import { FormInformationalType, FormStructureType, LINKS, SEEDED_IDS, SearchPageTabOption, TutorialViewSearchParams, UrlTools, getObjectUrl, nanoid } from "@local/shared";
 import { Box, Button, Dialog, IconButton, LinearProgress, List, ListItem, ListItemText, ListSubheader, Menu, MenuItem, MobileStepper, Paper, PaperProps, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
@@ -14,7 +14,7 @@ import { addSearchParams, removeSearchParams } from "../../route/searchParams.js
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { TUTORIAL_HIGHLIGHT, addHighlight, removeHighlights } from "../../utils/display/documentTools.js";
 import { MenuPayloads, PubSub } from "../../utils/pubsub.js";
-import { routineTypes } from "../../utils/search/schemas/routine.js";
+import { routineTypes } from "../../utils/search/schemas/resource.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { DialogTitle } from "./DialogTitle/DialogTitle.js";
@@ -79,7 +79,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "This tutorial will show you how to use Vrooli to assist your personal and professional life.",
@@ -88,7 +88,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "It will only take a few minutes, and you can skip it at any time.",
@@ -96,19 +96,19 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Watch the tutorial video instead (recommended for mobile users)",
                         link: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1", //TODO: Add video link
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Need this again? Look for \"Tutorial\" in the user menu",
                     },
                 ],
@@ -126,7 +126,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The home page shows the most important information for you.",
@@ -142,7 +142,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The first thing you'll see is a customizable list of resource cards.\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
@@ -150,19 +150,19 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press the last card to add a new resource",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Hold or right-click on a resource to edit or delete it",
                     },
                 ],
@@ -176,7 +176,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Next is a list of upcoming events. These can be for meetings, focus mode sessions, or scheduled tasks (more on that later).",
@@ -184,13 +184,13 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         isMarkdown: true,
                         label: "Press the **Open** button to see a full calendar view",
                     },
@@ -205,7 +205,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Then there's a list of reminders.",
@@ -214,7 +214,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "These reminders are associated with the current focus mode.",
@@ -222,19 +222,19 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press the **Open** icon to view all reminders, regardless of focus mode",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press the **Add** icon to create a new reminder",
                     },
                 ],
@@ -254,7 +254,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The user menu has many useful features.\nOpen it by pressing on your profile picture.",
@@ -271,7 +271,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The first section lists all logged-in accounts.",
@@ -279,19 +279,19 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press on your current account to open your profile",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press on another account to switch to it",
                     },
                 ],
@@ -310,7 +310,7 @@ const sections: TutorialSection[] = [
                 content: [
                     {
                         type: FormStructureType.Header,
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The second section allows you to control your display settings. This includes:\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed**: Flip the layout of the app to be left-handed.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
@@ -326,7 +326,7 @@ const sections: TutorialSection[] = [
                 content: [
                     {
                         type: FormStructureType.Header,
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The third section displays additional pages not listed in the main navigation bar.",
@@ -348,7 +348,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The **Search** page allows you to explore public objects available on Vrooli.",
@@ -364,7 +364,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Use the tabs to switch between different types of objects.",
@@ -386,7 +386,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Routines enable you to automate and streamline various tasks.",
@@ -395,7 +395,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "There are several types of routines, each with different capabilities. Let's explore them.",
@@ -403,18 +403,18 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Routines can be used for anything, from simple tasks to complex workflows.",
                     },
                     {
                         type: FormStructureType.Tip,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Watch an example of a routine in action",
                         link: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1", //TODO: Add video link
                     },
@@ -428,7 +428,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Here's an overview of each routine type.",
@@ -437,7 +437,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: routineTypes.map(type => `\n- **${type.label}**: ${type.description}`).join(""),
@@ -445,19 +445,19 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Routines can be created using AI, so you don't need to worry about the details.",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Warning",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Not all routine types are fully implemented yet.",
                     },
                 ],
@@ -470,7 +470,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Choose a routine to explore, or press the check mark to skip to the next section.",
@@ -509,7 +509,7 @@ const sections: TutorialSection[] = [
             //     content: [
             //         {
             //             type: FormStructureType.Header,
-            //             id: uuid(),
+            //             id: nanoid(),
             //             isCollapsible: false,
             //             isMarkdown: true,
             //             label: "This routine is more complex and includes multiple steps.",
@@ -517,7 +517,7 @@ const sections: TutorialSection[] = [
             //         },
             //         {
             //             type: FormStructureType.Header,
-            //             id: uuid(),
+            //             id: nanoid(),
             //             isCollapsible: false,
             //             isMarkdown: true,
             //             label: "Steps help break down tasks into manageable parts and can be reused in other routines.",
@@ -529,7 +529,7 @@ const sections: TutorialSection[] = [
             //     content: [
             //         {
             //             type: FormStructureType.Header,
-            //             id: uuid(),
+            //             id: nanoid(),
             //             isCollapsible: false,
             //             isMarkdown: true,
             //             label: "Finally, we have a fully automated routine.",
@@ -537,7 +537,7 @@ const sections: TutorialSection[] = [
             //         },
             //         {
             //             type: FormStructureType.Header,
-            //             id: uuid(),
+            //             id: nanoid(),
             //             isCollapsible: false,
             //             isMarkdown: true,
             //             label: "An AI bot handles the entire task, requiring minimal input from you.",
@@ -549,7 +549,7 @@ const sections: TutorialSection[] = [
             //     content: [
             //         {
             //             type: FormStructureType.Header,
-            //             id: uuid(),
+            //             id: nanoid(),
             //             isCollapsible: false,
             //             isMarkdown: true,
             //             label: "This is just one example of how routines can be utilized.",
@@ -558,7 +558,7 @@ const sections: TutorialSection[] = [
             //         {
             //             type: FormStructureType.Tip,
             //             icon: "Info",
-            //             id: uuid(),
+            //             id: nanoid(),
             //             label: "Explore and create routines to automate tasks and enhance productivity.",
             //         },
             //     ],
@@ -574,7 +574,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "In this example, we're showing off the form-building capabilities of routines.",
@@ -583,7 +583,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Typically, basic routines like this one are created as part of a multi-step routine. They're important for collecting information to use in later steps.",
@@ -600,7 +600,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Here is some general information about the routine, such as its completion status and owner.",
@@ -608,13 +608,13 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press on the owner's name to view their profile",
                     },
                 ],
@@ -628,7 +628,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Here are relevant links and resources for the routine.",
@@ -645,7 +645,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Here is the form that is filled out when running the routine.",
@@ -654,7 +654,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "All of the text and input components you see here (and more!) can be added to your own routines.",
@@ -678,7 +678,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "In this example, we're showcasing the AI generation capabilities of routines.",
@@ -687,7 +687,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "\"Generate\" routines use the inputs you provide to produce an output.",
@@ -695,13 +695,13 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Warning",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "We currently support only text inputs and outputs. This will be expanded in the future.",
                     },
 
@@ -716,7 +716,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Here is some general information about the routine, such as its completion status and owner.",
@@ -724,13 +724,13 @@ const sections: TutorialSection[] = [
                     },
                     {
                         type: FormStructureType.Divider,
-                        id: uuid(),
+                        id: nanoid(),
                         label: "",
                     },
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Press on the owner's name to view their profile.",
                     },
                 ],
@@ -744,7 +744,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "You can choose the AI model and bot style for generating the output.",
@@ -753,7 +753,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Tip,
                         icon: "Info",
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Selecting different bots or styles can significantly affect the generated output.",
                     },
                 ],
@@ -767,7 +767,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Here is the form that is filled out when running the routine.",
@@ -776,7 +776,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "secondary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "The inputs you provide here will be used by the AI to generate a personalized workout plan.",
@@ -815,7 +815,7 @@ const sections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Open the navigation menu by pressing the list icon.",

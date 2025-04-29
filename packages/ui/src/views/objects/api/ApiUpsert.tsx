@@ -43,7 +43,6 @@ function apiInitialValues(
         __typename: "ApiVersion" as const,
         id: DUMMY_ID,
         callLink: "",
-        directoryListings: [],
         isComplete: false,
         isPrivate: false,
         resourceList: {

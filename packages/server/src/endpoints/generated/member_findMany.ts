@@ -7,42 +7,6 @@ export const member_findMany = {
             "updated_at": true,
             "isAdmin": true,
             "permissions": true,
-            "roles": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "name": true,
-                "permissions": true,
-                "membersCount": true,
-                "team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                }
-            },
             "you": {
                 "canDelete": true,
                 "canUpdate": true
@@ -130,5 +94,5 @@ export const member_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1202671121"
+    "__cacheKey": "-340141921"
 };

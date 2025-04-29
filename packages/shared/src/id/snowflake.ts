@@ -88,7 +88,7 @@ export function nextBigInt(): bigint {
 /**
  * Validates if a string is a valid Snowflake ID
  */
-export function validateSnowflakeId(id: unknown): boolean {
+export function validatePK(id: unknown): boolean {
     if (typeof id !== "string" && typeof id !== "bigint") return false;
     try {
         // Convert to BigInt if it's a string
@@ -127,4 +127,10 @@ export function generatePK(): bigint {
  */
 export function generatePKString(): string {
     return nextBigInt().toString();
-} 
+}
+
+/**
+ * Dummy ID for testing purposes and satisfying type requirements. 
+ * Validation schemas should detect and cast this to a valid ID.
+ */
+export const DUMMY_ID = "0";

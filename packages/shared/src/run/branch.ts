@@ -1,6 +1,6 @@
 import { ModelType, RoutineVersion, RunStepStatus } from "../api/types.js";
-import { uuid } from "../id/uuid.js";
-import { RoutineVersionConfig } from "./configs/routine.js";
+import { nanoid } from "../id/publicId.js";
+import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { SubroutineContextManager } from "./context.js";
 import { BranchLocationDataMap, BranchProgress, BranchStatus, IOMap, Id, Location, LocationStack, RunProgress, RunStateMachineServices } from "./types.js";
 
@@ -348,14 +348,14 @@ export class BranchManager {
     * Creates a new branch ID.
     */
     static generateBranchId(): Id {
-        return uuid();
+        return nanoid();
     }
 
     /**
      * Creates a new branch process ID.
      */
     static generateBranchProcessId(): Id {
-        return uuid();
+        return nanoid();
     }
 
     /**
@@ -365,6 +365,6 @@ export class BranchManager {
      * @returns A composite ID of the shape `${subroutineId}.${uniqueId}`.
      */
     static generateSubroutineInstanceId(subroutineId: Id): string {
-        return `${subroutineId}.${uuid()}`;
+        return `${subroutineId}.${nanoid()}`;
     }
 }

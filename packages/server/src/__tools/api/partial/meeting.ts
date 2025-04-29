@@ -28,7 +28,6 @@ export const meeting: ApiPartial<Meeting> = {
         openToAnyoneWithInvite: true,
         showOnTeamProfile: true,
         team: async () => rel((await import("./team.js")).team, "nav"),
-        restrictedToRoles: async () => rel((await import("./role.js")).role, "full"),
         attendeesCount: true,
         invitesCount: true,
         you: () => rel(meetingYou, "full"),

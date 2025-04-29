@@ -69,7 +69,6 @@ export const profile: ApiPartial<User> = {
         isPrivateProjects: true,
         isPrivateProjectsCreated: true,
         isPrivatePullRequests: true,
-        isPrivateRoles: true,
         isPrivateRoutines: true,
         isPrivateRoutinesCreated: true,
         isPrivateStandards: true,

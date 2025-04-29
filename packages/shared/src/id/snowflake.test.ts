@@ -1,17 +1,17 @@
 import { expect } from "chai";
-import { generatePK, generatePKString, validateSnowflakeId } from "./snowflake.js";
+import { generatePK, generatePKString, validatePK } from "./snowflake.js";
 
 describe("Snowflake IDs", () => {
     it("generates a valid Snowflake ID as bigint", () => {
         const id = generatePK();
         expect(typeof id).to.equal("bigint");
-        expect(validateSnowflakeId(id)).to.equal(true);
+        expect(validatePK(id)).to.equal(true);
     });
 
     it("generates a valid Snowflake ID string", () => {
         const id = generatePKString();
         expect(typeof id).to.equal("string");
-        expect(validateSnowflakeId(id)).to.equal(true);
+        expect(validatePK(id)).to.equal(true);
     });
 
     it("generates unique IDs", () => {
@@ -27,7 +27,7 @@ describe("Snowflake IDs", () => {
     it("validates Snowflake IDs correctly", () => {
         // Valid ID
         const validId = generatePKString();
-        expect(validateSnowflakeId(validId)).to.equal(true);
+        expect(validatePK(validId)).to.equal(true);
 
         // Invalid IDs
         const invalidIds = [
@@ -42,7 +42,7 @@ describe("Snowflake IDs", () => {
         ];
 
         invalidIds.forEach(id => {
-            expect(validateSnowflakeId(id)).to.equal(false);
+            expect(validatePK(id)).to.equal(false);
         });
     });
 });

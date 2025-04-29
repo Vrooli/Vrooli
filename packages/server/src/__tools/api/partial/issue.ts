@@ -39,7 +39,7 @@ export const issue: ApiPartial<Issue> = {
                 Code: async () => rel((await import("./code.js")).code, "nav"),
                 Note: async () => rel((await import("./note.js")).note, "nav"),
                 Project: async () => rel((await import("./project.js")).project, "nav"),
-                Routine: async () => rel((await import("./routine.js")).routine, "nav"),
+                Routine: async () => rel((await import("./resource.js")).routine, "nav"),
                 Standard: async () => rel((await import("./standard.js")).standard, "nav"),
                 Team: async () => rel((await import("./team.js")).team, "nav"),
             },

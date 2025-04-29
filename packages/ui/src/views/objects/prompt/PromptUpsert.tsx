@@ -32,7 +32,6 @@ import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { PromptFormProps, PromptUpsertProps } from "./types.js";
-import { PromptFormProps, PromptUpsertProps } from "./types.js";
 
 export function promptInitialValues(
     session: Session | undefined,
@@ -43,7 +42,6 @@ export function promptInitialValues(
         id: DUMMY_ID,
         codeLanguage: CodeLanguage.Javascript,
         default: JSON.stringify({}),
-        directoryListings: [],
         isComplete: false,
         isPrivate: false,
         isFile: false,

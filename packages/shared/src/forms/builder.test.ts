@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
-import { RoutineType, RunRoutine } from "../api/types.js";
+import { ResourceSubTypeRoutine, RunRoutine } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { RoutineVersionConfig } from "../run/index.js";
 import { FormBuilder } from "./builder.js";
@@ -149,7 +149,7 @@ describe("FormBuilder", () => {
                 formOutput: { schema: sampleOutputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, RoutineType.Informational);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Informational);
 
             expect(result).to.deep.equal({
                 "input-name": "John",
@@ -170,7 +170,7 @@ describe("FormBuilder", () => {
                 formOutput: { schema: sampleOutputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, RoutineType.Api);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Api);
 
             expect(result).to.deep.equal({
                 "output-result": "success",
@@ -187,7 +187,7 @@ describe("FormBuilder", () => {
                 formInput: { schema: sampleInputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, RoutineType.SmartContract);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.SmartContract);
 
             expect(result).to.deep.equal({
                 "input-name": "John",
@@ -210,7 +210,7 @@ describe("FormBuilder", () => {
                 formOutput: { schema: sampleOutputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, RoutineType.Action);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Action);
 
             expect(result).to.deep.equal({});
         });
@@ -234,7 +234,7 @@ describe("FormBuilder", () => {
                 formOutput: { schema: sampleOutputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, RoutineType.Action);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Action);
 
             expect(result).to.deep.equal({
                 "input-name": "",
@@ -293,7 +293,7 @@ describe("FormBuilder", () => {
                     },
                 ],
             } as unknown as Pick<RunRoutine, "io">;
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, RoutineType.Action, run);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Action, run);
 
             expect(result).to.deep.equal({
                 "input-name": "Jane",
@@ -821,7 +821,7 @@ describe("FormBuilder", () => {
                 formOutput: { schema: sampleOutputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, RoutineType.Api);
+            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.Api);
 
             // Valid case: both fields valid
             await yupSchema.validate({ "input-username": "JohnDoe", "output-status": "active" });
@@ -879,7 +879,7 @@ describe("FormBuilder", () => {
                 formInput: { schema: sampleInputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const yupSchemaInputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configInputOnly, RoutineType.Api);
+            const yupSchemaInputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configInputOnly, ResourceSubTypeRoutine.Api);
 
             // Valid email
             await yupSchemaInputOnly.validate({ "input-email": "test@example.com" });
@@ -914,7 +914,7 @@ describe("FormBuilder", () => {
                 formOutput: { schema: sampleOutputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const yupSchemaOutputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configOutputOnly, RoutineType.Api);
+            const yupSchemaOutputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configOutputOnly, ResourceSubTypeRoutine.Api);
 
             // Valid result
             await yupSchemaOutputOnly.validate({ "output-result": "success" });
@@ -947,7 +947,7 @@ describe("FormBuilder", () => {
                 formInput: { schema: sampleInputSchema },
             } as unknown as RoutineVersionConfig;
 
-            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, RoutineType.Api);
+            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.Api);
             // Expect that no validation exists for the field since yup is not provided.
             expect(yupSchema.fields).to.not.have.property("input-noValidation");
         });

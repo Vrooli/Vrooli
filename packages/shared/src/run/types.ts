@@ -1,8 +1,8 @@
 /* c8 ignore start */
 import { ModelType, ProjectVersion, RoutineVersion, RunStatus, RunStepStatus, SessionUser } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
+import { LlmModel } from "../shape/configs/bot.js";
 import { ScheduleShape } from "../shape/models/models.js";
-import { LlmModel } from "./configs/bot.js";
 import { type SubroutineExecutor } from "./executor.js";
 import { type RunLimitsManager } from "./limits.js";
 import { type RunLoader } from "./loader.js";

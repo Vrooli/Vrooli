@@ -14,7 +14,6 @@ const mockApiVersionData: ApiVersion = {
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "https://api.example.com/v1",
     documentationLink: "https://docs.example.com/v1",
-    directoryListings: [],
     isComplete: true,
     isPrivate: false,
     resourceList: {

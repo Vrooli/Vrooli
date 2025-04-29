@@ -43,7 +43,6 @@ export function dataStructureInitialValues(
         id: DUMMY_ID,
         codeLanguage: CodeLanguage.Json,
         default: JSON.stringify({}),
-        directoryListings: [],
         isComplete: false,
         isPrivate: false,
         isFile: false,

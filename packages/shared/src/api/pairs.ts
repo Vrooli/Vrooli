@@ -310,8 +310,6 @@ export const endpointsPhone = {
     },
 } as const;
 
-export const endpointsPost = standardCRUD("post", "posts");
-
 export const endpointsProject = standardCRUD("project", "projects");
 
 export const endpointsProjectVersion = {
@@ -356,12 +354,6 @@ export const endpointsReputationHistory = {
     ...findOne("reputationHistory"),
     ...findMany("reputationHistories"),
 } as const;
-
-export const endpointsResource = standardCRUD("resource", "resources");
-
-export const endpointsResourceList = standardCRUD("resourceList", "resourceLists");
-
-export const endpointsRole = standardCRUD("role", "roles");
 
 export const endpointsRoutine = standardCRUD("routine", "routines");
 

@@ -80,48 +80,6 @@ export enum AccountStatus {
     Unlocked = "Unlocked"
 }
 
-export type Api = DbObject<"Api"> & {
-    bookmarkedBy: Array<User>;
-    bookmarks: Scalars["Int"];
-    completedAt?: Maybe<Scalars["Date"]>;
-    createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
-    hasCompleteVersion: Scalars["Boolean"];
-    isDeleted: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    issues: Array<Issue>;
-    issuesCount: Scalars["Int"];
-    owner?: Maybe<Owner>;
-    parent?: Maybe<ApiVersion>;
-    permissions: Scalars["String"];
-    pullRequests: Array<PullRequest>;
-    pullRequestsCount: Scalars["Int"];
-    score: Scalars["Int"];
-    stats: Array<StatsApi>;
-    tags: Array<Tag>;
-    transfers: Array<Transfer>;
-    transfersCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
-    versions: Array<ApiVersion>;
-    versionsCount: Scalars["Int"];
-    views: Scalars["Int"];
-    you: ApiYou;
-};
-
-export type ApiCreateInput = {
-    id: Scalars["ID"];
-    isPrivate: Scalars["Boolean"];
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    parentConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    versionsCreate?: InputMaybe<Array<ApiVersionCreateInput>>;
-};
-
-export type ApiEdge = Edge<Api, "ApiEdge">;
-
 export type ApiKey = DbObject<"ApiKey"> & {
     creditsUsed: Scalars["BigInt"];
     disabledAt?: Maybe<Scalars["Date"]>;
@@ -188,199 +146,6 @@ export type ApiKeyExternalUpdateInput = {
     service?: InputMaybe<Scalars["String"]>;
 }
 
-export type ApiSearchInput = BaseSearchInput<ApiSortBy> & {
-    createdById?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
-    issuesId?: InputMaybe<Scalars["ID"]>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxScore?: InputMaybe<Scalars["Int"]>;
-    maxViews?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minScore?: InputMaybe<Scalars["Int"]>;
-    minViews?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamId?: InputMaybe<Scalars["ID"]>;
-    ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    parentId?: InputMaybe<Scalars["ID"]>;
-    pullRequestsId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ApiSearchResult = SearchResult<ApiEdge, "ApiSearchResult">;
-
-export enum ApiSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IssuesAsc = "IssuesAsc",
-    IssuesDesc = "IssuesDesc",
-    PullRequestsAsc = "PullRequestsAsc",
-    PullRequestsDesc = "PullRequestsDesc",
-    ScoreAsc = "ScoreAsc",
-    ScoreDesc = "ScoreDesc",
-    VersionsAsc = "VersionsAsc",
-    VersionsDesc = "VersionsDesc",
-    ViewsAsc = "ViewsAsc",
-    ViewsDesc = "ViewsDesc"
-}
-
-export type ApiUpdateInput = {
-    id: Scalars["ID"];
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    tagsDisconnect?: InputMaybe<Array<Scalars["String"]>>;
-    versionsCreate?: InputMaybe<Array<ApiVersionCreateInput>>;
-    versionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsUpdate?: InputMaybe<Array<ApiVersionUpdateInput>>;
-};
-
-export type ApiVersion = DbObject<"ApiVersion"> & {
-    calledByRoutineVersionsCount: Scalars["Int"];
-    callLink: Scalars["String"];
-    comments: Array<Comment>;
-    commentsCount: Scalars["Int"];
-    created_at: Scalars["Date"];
-    directoryListings: Array<ProjectVersionDirectory>;
-    directoryListingsCount: Scalars["Int"];
-    documentationLink?: Maybe<Scalars["String"]>;
-    forks: Array<Api>;
-    forksCount: Scalars["Int"];
-    isComplete: Scalars["Boolean"];
-    isLatest: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    pullRequest?: Maybe<PullRequest>;
-    reports: Array<Report>;
-    reportsCount: Scalars["Int"];
-    resourceList?: Maybe<ResourceList>;
-    root: Api;
-    schemaLanguage?: Maybe<Scalars["String"]>;
-    schemaText?: Maybe<Scalars["String"]>;
-    translations: Array<ApiVersionTranslation>;
-    updated_at: Scalars["Date"];
-    versionIndex: Scalars["Int"];
-    versionLabel: Scalars["String"];
-    versionNotes?: Maybe<Scalars["String"]>;
-    you: VersionYou;
-};
-
-export type ApiVersionCreateInput = BaseTranslatableCreateInput<ApiVersionTranslationCreateInput> & {
-    callLink: Scalars["String"];
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    documentationLink?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate: Scalars["Boolean"];
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    rootConnect?: InputMaybe<Scalars["ID"]>;
-    rootCreate?: InputMaybe<ApiCreateInput>;
-    schemaLanguage?: InputMaybe<Scalars["String"]>;
-    schemaText?: InputMaybe<Scalars["String"]>;
-    versionLabel: Scalars["String"];
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type ApiVersionEdge = Edge<ApiVersion, "ApiVersionEdge">;
-
-export type ApiVersionSearchInput = BaseSearchInput<ApiVersionSortBy> & {
-    calledByRoutineVersionId?: InputMaybe<Scalars["ID"]>;
-    createdByIdRoot?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    isCompleteWithRoot?: InputMaybe<Scalars["Boolean"]>;
-    isLatest?: InputMaybe<Scalars["Boolean"]>;
-    maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxViewsRoot?: InputMaybe<Scalars["Int"]>;
-    minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minViewsRoot?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
-    ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tagsRoot?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ApiVersionSearchResult = SearchResult<ApiVersionEdge, "ApiVersionSearchResult">;
-
-export enum ApiVersionSortBy {
-    CalledByRoutinesAsc = "CalledByRoutinesAsc",
-    CalledByRoutinesDesc = "CalledByRoutinesDesc",
-    CommentsAsc = "CommentsAsc",
-    CommentsDesc = "CommentsDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    DirectoryListingsAsc = "DirectoryListingsAsc",
-    DirectoryListingsDesc = "DirectoryListingsDesc",
-    ForksAsc = "ForksAsc",
-    ForksDesc = "ForksDesc",
-    ReportsAsc = "ReportsAsc",
-    ReportsDesc = "ReportsDesc"
-}
-
-export type ApiVersionTranslation = BaseTranslation<"ApiVersionTranslation"> & {
-    details?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-    summary?: Maybe<Scalars["String"]>;
-};
-
-export type ApiVersionTranslationCreateInput = BaseTranslationCreateInput & {
-    details?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-    summary?: InputMaybe<Scalars["String"]>;
-};
-
-export type ApiVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
-    details?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-    summary?: InputMaybe<Scalars["String"]>;
-};
-
-export type ApiVersionUpdateInput = BaseTranslatableUpdateInput<ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput> & {
-    callLink?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    directoryListingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    documentationLink?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-    rootUpdate?: InputMaybe<ApiUpdateInput>;
-    schemaLanguage?: InputMaybe<Scalars["String"]>;
-    schemaText?: InputMaybe<Scalars["String"]>;
-    versionLabel?: InputMaybe<Scalars["String"]>;
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type ApiYou = {
-    __typename: "ApiYou";
-    canBookmark: Scalars["Boolean"];
-    canDelete: Scalars["Boolean"];
-    canReact: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canTransfer: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-    isBookmarked: Scalars["Boolean"];
-    isViewed: Scalars["Boolean"];
-    reaction?: Maybe<Scalars["String"]>;
-};
-
 export type Award = DbObject<"Award"> & {
     category: AwardCategory;
     created_at: Scalars["Date"];
@@ -409,8 +174,7 @@ export enum AwardCategory {
     ReportEnd = "ReportEnd",
     Reputation = "Reputation",
     RoutineCreate = "RoutineCreate",
-    RunProject = "RunProject",
-    RunRoutine = "RunRoutine",
+    Run = "Run",
     SmartContractCreate = "SmartContractCreate",
     StandardCreate = "StandardCreate",
     Streak = "Streak",
@@ -451,14 +215,9 @@ export type BookmarkCreateInput = {
 export type BookmarkEdge = Edge<Bookmark, "BookmarkEdge">;
 
 export enum BookmarkFor {
-    Api = "Api",
-    Code = "Code",
     Comment = "Comment",
     Issue = "Issue",
-    Note = "Note",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    Resource = "Resource",
     Tag = "Tag",
     Team = "Team",
     User = "User"
@@ -508,19 +267,14 @@ export type BookmarkListUpdateInput = {
 };
 
 export type BookmarkSearchInput = BaseSearchInput<BookmarkSortBy> & {
-    apiId?: InputMaybe<Scalars["ID"]>;
-    codeId?: InputMaybe<Scalars["ID"]>;
     commentId?: InputMaybe<Scalars["ID"]>;
     excludeLinkedToTag?: InputMaybe<Scalars["Boolean"]>;
     issueId?: InputMaybe<Scalars["ID"]>;
     limitTo?: InputMaybe<Array<BookmarkFor>>;
     listId?: InputMaybe<Scalars["ID"]>;
     listLabel?: InputMaybe<Scalars["String"]>;
-    noteId?: InputMaybe<Scalars["ID"]>;
-    projectId?: InputMaybe<Scalars["ID"]>;
-    routineId?: InputMaybe<Scalars["ID"]>;
+    resourceId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardId?: InputMaybe<Scalars["ID"]>;
     tagId?: InputMaybe<Scalars["ID"]>;
     teamId?: InputMaybe<Scalars["ID"]>;
     userId?: InputMaybe<Scalars["ID"]>;
@@ -534,7 +288,7 @@ export enum BookmarkSortBy {
     DateUpdatedDesc = "DateUpdatedDesc"
 }
 
-export type BookmarkTo = Api | Code | Comment | Issue | Note | Project | Routine | Standard | Tag | Team | User;
+export type BookmarkTo = Comment | Issue | Resource | Tag | Team | User;
 
 export type BookmarkUpdateInput = {
     id: Scalars["ID"];
@@ -577,7 +331,7 @@ export type Chat = DbObject<"Chat"> & {
     openToAnyoneWithInvite: Scalars["Boolean"];
     participants: Array<ChatParticipant>;
     participantsCount: Scalars["Int"];
-    restrictedToRoles: Array<Role>;
+    publicId: Scalars["String"];
     team?: Maybe<Team>;
     translations: Array<ChatTranslation>;
     translationsCount: Scalars["Int"];
@@ -590,7 +344,6 @@ export type ChatCreateInput = BaseTranslatableCreateInput<ChatTranslationCreateI
     invitesCreate?: InputMaybe<Array<ChatInviteCreateInput>>;
     messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
-    restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
     task?: InputMaybe<Scalars["String"]>;
     teamConnect?: InputMaybe<Scalars["ID"]>;
 };
@@ -760,7 +513,7 @@ export type ChatMessageYou = {
     reaction?: Maybe<Scalars["String"]>;
 };
 
-export type ChatMessageedOn = ApiVersion | CodeVersion | Issue | NoteVersion | ProjectVersion | PullRequest | RoutineVersion | StandardVersion;
+export type ChatMessageedOn = Issue | PullRequest | ResourceVersion;
 
 export type ChatParticipant = DbObject<"ChatParticipant"> & {
     chat: Chat;
@@ -846,8 +599,6 @@ export type ChatUpdateInput = BaseTranslatableUpdateInput<ChatTranslationCreateI
     messagesUpdate?: InputMaybe<Array<ChatMessageUpdateInput>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
     participantsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    restrictedToRolesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
 };
 
 export type ChatYou = {
@@ -866,262 +617,6 @@ export type CheckTaskStatusesInput = {
 export type CheckTaskStatusesResult = {
     __typename: "CheckTaskStatusesResult";
     statuses: Array<TaskStatusInfo>;
-};
-
-export type Code = DbObject<"Code"> & {
-    bookmarkedBy: Array<User>;
-    bookmarks: Scalars["Int"];
-    completedAt?: Maybe<Scalars["Date"]>;
-    createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
-    hasCompleteVersion: Scalars["Boolean"];
-    isDeleted: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    issues: Array<Issue>;
-    issuesCount: Scalars["Int"];
-    owner?: Maybe<Owner>;
-    parent?: Maybe<CodeVersion>;
-    permissions: Scalars["String"];
-    pullRequests: Array<PullRequest>;
-    pullRequestsCount: Scalars["Int"];
-    score: Scalars["Int"];
-    stats: Array<StatsCode>;
-    tags: Array<Tag>;
-    transfers: Array<Transfer>;
-    transfersCount: Scalars["Int"];
-    translatedName: Scalars["String"];
-    updated_at: Scalars["Date"];
-    versions: Array<CodeVersion>;
-    versionsCount?: Maybe<Scalars["Int"]>;
-    views: Scalars["Int"];
-    you: CodeYou;
-};
-
-export type CodeCreateInput = {
-    id: Scalars["ID"];
-    data?: InputMaybe<Scalars["String"]>;
-    isPrivate: Scalars["Boolean"];
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    parentConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    versionsCreate?: InputMaybe<Array<CodeVersionCreateInput>>;
-};
-
-export type CodeEdge = Edge<Code, "CodeEdge">;
-
-export type CodeSearchInput = BaseSearchInput<CodeSortBy> & {
-    codeLanguageLatestVersion?: InputMaybe<Scalars["String"]>;
-    codeTypeLatestVersion?: InputMaybe<CodeType>;
-    createdById?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
-    issuesId?: InputMaybe<Scalars["ID"]>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxScore?: InputMaybe<Scalars["Int"]>;
-    maxViews?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minScore?: InputMaybe<Scalars["Int"]>;
-    minViews?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamId?: InputMaybe<Scalars["ID"]>;
-    ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    parentId?: InputMaybe<Scalars["ID"]>;
-    pullRequestsId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type CodeSearchResult = SearchResult<CodeEdge, "CodeSearchResult">;
-
-export enum CodeSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IssuesAsc = "IssuesAsc",
-    IssuesDesc = "IssuesDesc",
-    PullRequestsAsc = "PullRequestsAsc",
-    PullRequestsDesc = "PullRequestsDesc",
-    ScoreAsc = "ScoreAsc",
-    ScoreDesc = "ScoreDesc",
-    VersionsAsc = "VersionsAsc",
-    VersionsDesc = "VersionsDesc",
-    ViewsAsc = "ViewsAsc",
-    ViewsDesc = "ViewsDesc"
-}
-
-export enum CodeType {
-    DataConvert = "DataConvert",
-    SmartContract = "SmartContract"
-}
-
-export type CodeUpdateInput = {
-    id: Scalars["ID"];
-    data?: InputMaybe<Scalars["String"]>;
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    tagsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsCreate?: InputMaybe<Array<CodeVersionCreateInput>>;
-    versionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsUpdate?: InputMaybe<Array<CodeVersionUpdateInput>>;
-};
-
-export type CodeVersion = DbObject<"CodeVersion"> & {
-    calledByRoutineVersionsCount: Scalars["Int"];
-    codeLanguage: Scalars["String"];
-    codeType: CodeType;
-    comments: Array<Comment>;
-    commentsCount: Scalars["Int"];
-    completedAt?: Maybe<Scalars["Date"]>;
-    content: Scalars["String"];
-    created_at: Scalars["Date"];
-    data?: Maybe<Scalars["String"]>;
-    default?: Maybe<Scalars["String"]>;
-    directoryListings: Array<ProjectVersionDirectory>;
-    directoryListingsCount: Scalars["Int"];
-    forks: Array<Code>;
-    forksCount: Scalars["Int"];
-    isComplete: Scalars["Boolean"];
-    isDeleted: Scalars["Boolean"];
-    isLatest: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    pullRequest?: Maybe<PullRequest>;
-    reports: Array<Report>;
-    reportsCount: Scalars["Int"];
-    resourceList?: Maybe<ResourceList>;
-    root: Code;
-    translations: Array<CodeVersionTranslation>;
-    translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
-    versionIndex: Scalars["Int"];
-    versionLabel: Scalars["String"];
-    versionNotes?: Maybe<Scalars["String"]>;
-    you: VersionYou;
-};
-
-export type CodeVersionCreateInput = BaseTranslatableCreateInput<CodeVersionTranslationCreateInput> & {
-    codeLanguage: Scalars["String"];
-    codeType: CodeType;
-    content: Scalars["String"];
-    default?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate: Scalars["Boolean"];
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    rootConnect: Scalars["ID"];
-    rootCreate?: InputMaybe<CodeCreateInput>;
-    versionLabel: Scalars["String"];
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type CodeVersionEdge = Edge<CodeVersion, "CodeVersionEdge">;
-
-export type CodeVersionSearchInput = BaseSearchInput<CodeVersionSortBy> & {
-    calledByRoutineVersionId?: InputMaybe<Scalars["ID"]>;
-    codeLanguage?: InputMaybe<Scalars["String"]>;
-    codeType?: InputMaybe<CodeType>;
-    completedTimeFrame?: InputMaybe<TimeFrame>;
-    createdByIdRoot?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    isCompleteWithRoot?: InputMaybe<Scalars["Boolean"]>;
-    isLatest?: InputMaybe<Scalars["Boolean"]>;
-    maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxViewsRoot?: InputMaybe<Scalars["Int"]>;
-    minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minViewsRoot?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
-    ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
-    reportId?: InputMaybe<Scalars["ID"]>;
-    rootId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tagsRoot?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    userId?: InputMaybe<Scalars["ID"]>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type CodeVersionSearchResult = SearchResult<CodeVersionEdge, "CodeVersionSearchResult">;
-
-export enum CodeVersionSortBy {
-    CalledByRoutinesAsc = "CalledByRoutinesAsc",
-    CalledByRoutinesDesc = "CalledByRoutinesDesc",
-    CommentsAsc = "CommentsAsc",
-    CommentsDesc = "CommentsDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    DirectoryListingsAsc = "DirectoryListingsAsc",
-    DirectoryListingsDesc = "DirectoryListingsDesc",
-    ForksAsc = "ForksAsc",
-    ForksDesc = "ForksDesc",
-    ReportsAsc = "ReportsAsc",
-    ReportsDesc = "ReportsDesc"
-}
-
-export type CodeVersionTranslation = BaseTranslation<"CodeVersionTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    jsonVariable?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type CodeVersionTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    jsonVariable?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type CodeVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    jsonVariable?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type CodeVersionUpdateInput = BaseTranslatableUpdateInput<CodeVersionTranslationCreateInput, CodeVersionTranslationUpdateInput> & {
-    codeLanguage?: InputMaybe<Scalars["String"]>;
-    content?: InputMaybe<Scalars["String"]>;
-    default?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    directoryListingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-    rootUpdate?: InputMaybe<CodeUpdateInput>;
-    versionLabel?: InputMaybe<Scalars["String"]>;
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type CodeYou = {
-    __typename: "CodeYou";
-    canBookmark: Scalars["Boolean"];
-    canDelete: Scalars["Boolean"];
-    canReact: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canTransfer: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-    isBookmarked: Scalars["Boolean"];
-    isViewed: Scalars["Boolean"];
-    reaction?: Maybe<Scalars["String"]>;
 };
 
 export type Comment = DbObject<"Comment"> & {
@@ -1147,31 +642,21 @@ export type CommentCreateInput = BaseTranslatableCreateInput<CommentTranslationC
 };
 
 export enum CommentFor {
-    ApiVersion = "ApiVersion",
-    CodeVersion = "CodeVersion",
     Issue = "Issue",
-    NoteVersion = "NoteVersion",
-    ProjectVersion = "ProjectVersion",
     PullRequest = "PullRequest",
-    RoutineVersion = "RoutineVersion",
-    StandardVersion = "StandardVersion"
+    ResourceVersion = "ResourceVersion",
 }
 
 export type CommentSearchInput = Omit<BaseSearchInput<CommentSortBy>, "ids"> & {
-    apiVersionId?: InputMaybe<Scalars["ID"]>;
-    codeVersionId?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     issueId?: InputMaybe<Scalars["ID"]>;
     minBookmarks?: InputMaybe<Scalars["Int"]>;
     minScore?: InputMaybe<Scalars["Int"]>;
-    noteVersionId?: InputMaybe<Scalars["ID"]>;
     ownedByTeamId?: InputMaybe<Scalars["ID"]>;
     ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    projectVersionId?: InputMaybe<Scalars["ID"]>;
     pullRequestId?: InputMaybe<Scalars["ID"]>;
-    routineVersionId?: InputMaybe<Scalars["ID"]>;
+    resourceVersionId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardVersionId?: InputMaybe<Scalars["ID"]>;
     translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
@@ -1230,7 +715,7 @@ export type CommentYou = {
     reaction?: Maybe<Scalars["String"]>;
 };
 
-export type CommentedOn = ApiVersion | CodeVersion | Issue | NoteVersion | ProjectVersion | PullRequest | RoutineVersion | StandardVersion;
+export type CommentedOn = Issue | PullRequest | ResourceVersion;
 
 export type CopyInput = {
     id: Scalars["ID"];
@@ -1240,22 +725,12 @@ export type CopyInput = {
 
 export type CopyResult = {
     __typename: "CopyResult";
-    apiVersion?: Maybe<ApiVersion>;
-    codeVersion?: Maybe<CodeVersion>;
-    noteVersion?: Maybe<NoteVersion>;
-    projectVersion?: Maybe<ProjectVersion>;
-    routineVersion?: Maybe<RoutineVersion>;
-    standardVersion?: Maybe<StandardVersion>;
+    resourceVersion?: Maybe<ResourceVersion>;
     team?: Maybe<Team>;
 };
 
 export enum CopyType {
-    ApiVersion = "ApiVersion",
-    CodeVersion = "CodeVersion",
-    NoteVersion = "NoteVersion",
-    ProjectVersion = "ProjectVersion",
-    RoutineVersion = "RoutineVersion",
-    StandardVersion = "StandardVersion",
+    Resource = "Resource",
     Team = "Team"
 }
 
@@ -1283,18 +758,14 @@ export type DeleteAccountInput = {
 };
 
 export enum DeleteType {
-    Api = "Api",
     ApiKey = "ApiKey",
     ApiKeyExternal = "ApiKeyExternal",
-    ApiVersion = "ApiVersion",
     Bookmark = "Bookmark",
     BookmarkList = "BookmarkList",
     Chat = "Chat",
     ChatInvite = "ChatInvite",
     ChatMessage = "ChatMessage",
     ChatParticipant = "ChatParticipant",
-    Code = "Code",
-    CodeVersion = "CodeVersion",
     Comment = "Comment",
     Email = "Email",
     Issue = "Issue",
@@ -1302,26 +773,17 @@ export enum DeleteType {
     MeetingInvite = "MeetingInvite",
     Member = "Member",
     MemberInvite = "MemberInvite",
-    Note = "Note",
-    NoteVersion = "NoteVersion",
     Notification = "Notification",
     Phone = "Phone",
-    Project = "Project",
-    ProjectVersion = "ProjectVersion",
     PullRequest = "PullRequest",
     PushDevice = "PushDevice",
     Reminder = "Reminder",
     ReminderList = "ReminderList",
     Report = "Report",
     Resource = "Resource",
-    Role = "Role",
-    Routine = "Routine",
-    RoutineVersion = "RoutineVersion",
-    RunProject = "RunProject",
-    RunRoutine = "RunRoutine",
+    ResourceVersion = "ResourceVersion",
+    Run = "Run",
     Schedule = "Schedule",
-    Standard = "Standard",
-    StandardVersion = "StandardVersion",
     Team = "Team",
     Transfer = "Transfer",
     User = "User",
@@ -1381,10 +843,8 @@ export type FindVersionInput = {
 };
 
 export enum ModelType {
-    Api = "Api",
     ApiKey = "ApiKey",
     ApiKeyExternal = "ApiKeyExternal",
-    ApiVersion = "ApiVersion",
     Award = "Award",
     Bookmark = "Bookmark",
     BookmarkList = "BookmarkList",
@@ -1393,8 +853,6 @@ export enum ModelType {
     ChatMessage = "ChatMessage",
     ChatMessageSearchTreeResult = "ChatMessageSearchTreeResult",
     ChatParticipant = "ChatParticipant",
-    Code = "Code",
-    CodeVersion = "CodeVersion",
     Comment = "Comment",
     Copy = "Copy",
     Email = "Email",
@@ -1406,20 +864,12 @@ export enum ModelType {
     MeetingInvite = "MeetingInvite",
     Member = "Member",
     MemberInvite = "MemberInvite",
-    Note = "Note",
-    NoteVersion = "NoteVersion",
     Notification = "Notification",
     NotificationSubscription = "NotificationSubscription",
     Payment = "Payment",
     Phone = "Phone",
     PopularResult = "PopularResult",
     Premium = "Premium",
-    Project = "Project",
-    ProjectOrRoutineSearchResult = "ProjectOrRoutineSearchResult",
-    ProjectOrTeamSearchResult = "ProjectOrTeamSearchResult",
-    ProjectVersion = "ProjectVersion",
-    ProjectVersionContentsSearchResult = "ProjectVersionContentsSearchResult",
-    ProjectVersionDirectory = "ProjectVersionDirectory",
     PullRequest = "PullRequest",
     PushDevice = "PushDevice",
     Reaction = "Reaction",
@@ -1431,31 +881,18 @@ export enum ModelType {
     ReportResponse = "ReportResponse",
     ReputationHistory = "ReputationHistory",
     Resource = "Resource",
-    ResourceList = "ResourceList",
-    Role = "Role",
-    Routine = "Routine",
-    RoutineVersion = "RoutineVersion",
-    RoutineVersionInput = "RoutineVersionInput",
-    RoutineVersionOutput = "RoutineVersionOutput",
-    RunProject = "RunProject",
-    RunProjectOrRunRoutineSearchResult = "RunProjectOrRunRoutineSearchResult",
-    RunProjectStep = "RunProjectStep",
-    RunRoutine = "RunRoutine",
-    RunRoutineIO = "RunRoutineIO",
-    RunRoutineStep = "RunRoutineStep",
+    ResourceVersion = "ResourceVersion",
+    ResourceVersionRelation = "ResourceVersionRelation",
+    Run = "Run",
+    RunStep = "RunStep",
+    RunIO = "RunIO",
     Schedule = "Schedule",
     ScheduleException = "ScheduleException",
     ScheduleRecurrence = "ScheduleRecurrence",
     Session = "Session",
     SessionUser = "SessionUser",
-    Standard = "Standard",
-    StandardVersion = "StandardVersion",
-    StatsApi = "StatsApi",
-    StatsCode = "StatsCode",
-    StatsProject = "StatsProject",
-    StatsRoutine = "StatsRoutine",
+    StatsResource = "StatsResource",
     StatsSite = "StatsSite",
-    StatsStandard = "StatsStandard",
     StatsTeam = "StatsTeam",
     StatsUser = "StatsUser",
     Tag = "Tag",
@@ -1468,9 +905,7 @@ export enum ModelType {
 
 export type HomeResult = {
     __typename: "HomeResult";
-    recommended: Array<Resource>;
     reminders: Array<Reminder>;
-    resources: Array<Resource>;
     schedules: Array<Schedule>;
 };
 
@@ -1487,6 +922,7 @@ export type Issue = DbObject<"Issue"> & {
     commentsCount: Scalars["Int"];
     createdBy?: Maybe<User>;
     created_at: Scalars["Date"];
+    publicId: Scalars["String"];
     referencedVersionId?: Maybe<Scalars["String"]>;
     reports: Array<Report>;
     reportsCount: Scalars["Int"];
@@ -1515,30 +951,20 @@ export type IssueCreateInput = BaseTranslatableCreateInput<IssueTranslationCreat
 export type IssueEdge = Edge<Issue, "IssueEdge">;
 
 export enum IssueFor {
-    Api = "Api",
-    Code = "Code",
-    Note = "Note",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    Resource = "Resource",
     Team = "Team"
 }
 
 export type IssueSearchInput = BaseSearchInput<IssueSortBy> & {
-    apiId?: InputMaybe<Scalars["ID"]>;
     closedById?: InputMaybe<Scalars["ID"]>;
-    codeId?: InputMaybe<Scalars["ID"]>;
     createdById?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     minBookmarks?: InputMaybe<Scalars["Int"]>;
     minScore?: InputMaybe<Scalars["Int"]>;
     minViews?: InputMaybe<Scalars["Int"]>;
-    noteId?: InputMaybe<Scalars["ID"]>;
-    projectId?: InputMaybe<Scalars["ID"]>;
     referencedVersionId?: InputMaybe<Scalars["ID"]>;
-    routineId?: InputMaybe<Scalars["ID"]>;
+    resourceId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardId?: InputMaybe<Scalars["ID"]>;
     status?: InputMaybe<IssueStatus>;
     teamId?: InputMaybe<Scalars["ID"]>;
     translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
@@ -1573,7 +999,7 @@ export enum IssueStatus {
     Rejected = "Rejected"
 }
 
-export type IssueTo = Api | Code | Note | Project | Routine | Standard | Team;
+export type IssueTo = Resource | Team;
 
 export type IssueTranslation = BaseTranslation<"IssueTranslation"> & {
     description?: Maybe<Scalars["String"]>;
@@ -1608,56 +1034,27 @@ export type IssueYou = {
 };
 
 export enum LlmTask {
-    ApiAdd = "ApiAdd",
-    ApiDelete = "ApiDelete",
-    ApiFind = "ApiFind",
-    ApiUpdate = "ApiUpdate",
     BotAdd = "BotAdd",
     BotDelete = "BotDelete",
     BotFind = "BotFind",
     BotUpdate = "BotUpdate",
-    DataConverterAdd = "DataConverterAdd",
-    DataConverterDelete = "DataConverterDelete",
-    DataConverterFind = "DataConverterFind",
-    DataConverterUpdate = "DataConverterUpdate",
     MembersAdd = "MembersAdd",
     MembersDelete = "MembersDelete",
     MembersFind = "MembersFind",
     MembersUpdate = "MembersUpdate",
-    NoteAdd = "NoteAdd",
-    NoteDelete = "NoteDelete",
-    NoteFind = "NoteFind",
-    NoteUpdate = "NoteUpdate",
-    ProjectAdd = "ProjectAdd",
-    ProjectDelete = "ProjectDelete",
-    ProjectFind = "ProjectFind",
-    ProjectUpdate = "ProjectUpdate",
     ReminderAdd = "ReminderAdd",
     ReminderDelete = "ReminderDelete",
     ReminderFind = "ReminderFind",
     ReminderUpdate = "ReminderUpdate",
-    RoleAdd = "RoleAdd",
-    RoleDelete = "RoleDelete",
-    RoleFind = "RoleFind",
-    RoleUpdate = "RoleUpdate",
-    RoutineAdd = "RoutineAdd",
-    RoutineDelete = "RoutineDelete",
-    RoutineFind = "RoutineFind",
-    RoutineUpdate = "RoutineUpdate",
-    RunProjectStart = "RunProjectStart",
-    RunRoutineStart = "RunRoutineStart",
+    ResourceAdd = "ResourceAdd",
+    ResourceDelete = "ResourceDelete",
+    ResourceFind = "ResourceFind",
+    ResourceUpdate = "ResourceUpdate",
+    RuntStart = "RuntStart",
     ScheduleAdd = "ScheduleAdd",
     ScheduleDelete = "ScheduleDelete",
     ScheduleFind = "ScheduleFind",
     ScheduleUpdate = "ScheduleUpdate",
-    SmartContractAdd = "SmartContractAdd",
-    SmartContractDelete = "SmartContractDelete",
-    SmartContractFind = "SmartContractFind",
-    SmartContractUpdate = "SmartContractUpdate",
-    StandardAdd = "StandardAdd",
-    StandardDelete = "StandardDelete",
-    StandardFind = "StandardFind",
-    StandardUpdate = "StandardUpdate",
     Start = "Start",
     TeamAdd = "TeamAdd",
     TeamDelete = "TeamDelete",
@@ -1672,7 +1069,7 @@ export type Meeting = DbObject<"Meeting"> & {
     invites: Array<MeetingInvite>;
     invitesCount: Scalars["Int"];
     openToAnyoneWithInvite: Scalars["Boolean"];
-    restrictedToRoles: Array<Role>;
+    publicId: Scalars["String"];
     schedule?: Maybe<Schedule>;
     showOnTeamProfile: Scalars["Boolean"];
     team: Team;
@@ -1686,7 +1083,6 @@ export type MeetingCreateInput = BaseTranslatableCreateInput<MeetingTranslationC
     id: Scalars["ID"];
     invitesCreate?: InputMaybe<Array<MeetingInviteCreateInput>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
-    restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
     showOnTeamProfile?: InputMaybe<Scalars["Boolean"]>;
     teamConnect: Scalars["ID"];
@@ -1803,8 +1199,6 @@ export type MeetingUpdateInput = BaseTranslatableUpdateInput<MeetingTranslationC
     invitesDelete?: InputMaybe<Array<Scalars["ID"]>>;
     invitesUpdate?: InputMaybe<Array<MeetingInviteUpdateInput>>;
     openToAnyoneWithInvite?: InputMaybe<Scalars["Boolean"]>;
-    restrictedToRolesConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    restrictedToRolesDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
     scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
     showOnTeamProfile?: InputMaybe<Scalars["Boolean"]>;
@@ -1821,7 +1215,7 @@ export type Member = DbObject<"Member"> & {
     created_at: Scalars["Date"];
     isAdmin: Scalars["Boolean"];
     permissions: Scalars["String"];
-    roles: Array<Role>;
+    publicId: Scalars["String"];
     team: Team;
     updated_at: Scalars["Date"];
     user: User;
@@ -1897,7 +1291,6 @@ export type MemberInviteYou = {
 export type MemberSearchInput = BaseSearchInput<MemberSortBy> & {
     createdTimeFrame?: InputMaybe<TimeFrame>;
     isAdmin?: InputMaybe<Scalars["Boolean"]>;
-    roles?: InputMaybe<Array<Scalars["String"]>>;
     searchString?: InputMaybe<Scalars["String"]>;
     teamId?: InputMaybe<Scalars["ID"]>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -1924,226 +1317,6 @@ export type MemberYou = {
     __typename: "MemberYou";
     canDelete: Scalars["Boolean"];
     canUpdate: Scalars["Boolean"];
-};
-
-export type Note = DbObject<"Note"> & {
-    bookmarkedBy: Array<User>;
-    bookmarks: Scalars["Int"];
-    createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
-    isPrivate: Scalars["Boolean"];
-    issues: Array<Issue>;
-    issuesCount: Scalars["Int"];
-    owner?: Maybe<Owner>;
-    parent?: Maybe<NoteVersion>;
-    permissions: Scalars["String"];
-    pullRequests: Array<PullRequest>;
-    pullRequestsCount: Scalars["Int"];
-    score: Scalars["Int"];
-    tags: Array<Tag>;
-    transfers: Array<Transfer>;
-    transfersCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
-    versions: Array<NoteVersion>;
-    versionsCount: Scalars["Int"];
-    views: Scalars["Int"];
-    you: NoteYou;
-};
-
-export type NoteCreateInput = {
-    id: Scalars["ID"];
-    isPrivate: Scalars["Boolean"];
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    parentConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    versionsCreate?: InputMaybe<Array<NoteVersionCreateInput>>;
-};
-
-export type NoteEdge = Edge<Note, "NoteEdge">;
-
-export type NotePage = DbObject<"NotePage"> & {
-    pageIndex: Scalars["Int"];
-    text: Scalars["String"];
-};
-
-export type NotePageCreateInput = {
-    id: Scalars["ID"];
-    pageIndex: Scalars["Int"];
-    text: Scalars["String"];
-};
-
-export type NotePageUpdateInput = {
-    id: Scalars["ID"];
-    pageIndex?: InputMaybe<Scalars["Int"]>;
-    text?: InputMaybe<Scalars["String"]>;
-};
-
-export type NoteSearchInput = BaseSearchInput<NoteSortBy> & {
-    createdById?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxScore?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minScore?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamId?: InputMaybe<Scalars["ID"]>;
-    ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    parentId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type NoteSearchResult = SearchResult<NoteEdge, "NoteSearchResult">;
-
-export enum NoteSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IssuesAsc = "IssuesAsc",
-    IssuesDesc = "IssuesDesc",
-    PullRequestsAsc = "PullRequestsAsc",
-    PullRequestsDesc = "PullRequestsDesc",
-    ScoreAsc = "ScoreAsc",
-    ScoreDesc = "ScoreDesc",
-    VersionsAsc = "VersionsAsc",
-    VersionsDesc = "VersionsDesc",
-    ViewsAsc = "ViewsAsc",
-    ViewsDesc = "ViewsDesc"
-}
-
-export type NoteUpdateInput = {
-    id: Scalars["ID"];
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    tagsDisconnect?: InputMaybe<Array<Scalars["String"]>>;
-    versionsCreate?: InputMaybe<Array<NoteVersionCreateInput>>;
-    versionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsUpdate?: InputMaybe<Array<NoteVersionUpdateInput>>;
-};
-
-export type NoteVersion = DbObject<"NoteVersion"> & {
-    comments: Array<Comment>;
-    commentsCount: Scalars["Int"];
-    created_at: Scalars["Date"];
-    directoryListings: Array<ProjectVersionDirectory>;
-    directoryListingsCount: Scalars["Int"];
-    forks: Array<Note>;
-    forksCount: Scalars["Int"];
-    isLatest: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    pullRequest?: Maybe<PullRequest>;
-    reports: Array<Report>;
-    reportsCount: Scalars["Int"];
-    root: Note;
-    translations: Array<NoteVersionTranslation>;
-    updated_at: Scalars["Date"];
-    versionIndex: Scalars["Int"];
-    versionLabel: Scalars["String"];
-    versionNotes?: Maybe<Scalars["String"]>;
-    you: VersionYou;
-};
-
-export type NoteVersionCreateInput = BaseTranslatableCreateInput<NoteVersionTranslationCreateInput> & {
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isPrivate: Scalars["Boolean"];
-    rootConnect?: InputMaybe<Scalars["ID"]>;
-    rootCreate?: InputMaybe<NoteCreateInput>;
-    versionLabel: Scalars["String"];
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type NoteVersionEdge = Edge<NoteVersion, "NoteVersionEdge">;
-
-export type NoteVersionSearchInput = BaseSearchInput<NoteVersionSortBy> & {
-    createdByIdRoot?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    isLatest?: InputMaybe<Scalars["Boolean"]>;
-    maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxViewsRoot?: InputMaybe<Scalars["Int"]>;
-    minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minViewsRoot?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
-    ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tagsRoot?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type NoteVersionSearchResult = SearchResult<NoteVersionEdge, "NoteVersionSearchResult">;
-
-export enum NoteVersionSortBy {
-    CommentsAsc = "CommentsAsc",
-    CommentsDesc = "CommentsDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    DirectoryListingsAsc = "DirectoryListingsAsc",
-    DirectoryListingsDesc = "DirectoryListingsDesc",
-    ForksAsc = "ForksAsc",
-    ForksDesc = "ForksDesc",
-    ReportsAsc = "ReportsAsc",
-    ReportsDesc = "ReportsDesc"
-}
-
-export type NoteVersionTranslation = BaseTranslation<"NoteVersionTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-    pages: Array<NotePage>;
-};
-
-export type NoteVersionTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-    pagesCreate?: InputMaybe<Array<NotePageCreateInput>>;
-};
-
-export type NoteVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-    pagesCreate?: InputMaybe<Array<NotePageCreateInput>>;
-    pagesDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    pagesUpdate?: InputMaybe<Array<NotePageUpdateInput>>;
-};
-
-export type NoteVersionUpdateInput = BaseTranslatableUpdateInput<NoteVersionTranslationCreateInput, NoteVersionTranslationUpdateInput> & {
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    directoryListingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    rootUpdate?: InputMaybe<NoteUpdateInput>;
-    versionLabel?: InputMaybe<Scalars["String"]>;
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type NoteYou = {
-    __typename: "NoteYou";
-    canBookmark: Scalars["Boolean"];
-    canDelete: Scalars["Boolean"];
-    canReact: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canTransfer: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-    isBookmarked: Scalars["Boolean"];
-    isViewed: Scalars["Boolean"];
-    reaction?: Maybe<Scalars["String"]>;
 };
 
 export type Notification = DbObject<"Notification"> & {
@@ -2332,45 +1505,30 @@ export type PhoneCreateInput = {
     phoneNumber: Scalars["String"];
 };
 
-export type Popular = Api | Code | Note | Project | Routine | Standard | Team | User;
+export type Popular = Resource | Team | User;
 
 export type PopularEdge = Edge<Popular, "PopularEdge">;
 
 export enum PopularObjectType {
-    Api = "Api",
-    Code = "Code",
-    Note = "Note",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    Resource = "Resource",
     Team = "Team",
     User = "User"
 }
 
 export type PopularPageInfo = {
     __typename: "PopularPageInfo";
-    endCursorApi?: Maybe<Scalars["String"]>;
-    endCursorCode?: Maybe<Scalars["String"]>;
-    endCursorNote?: Maybe<Scalars["String"]>;
-    endCursorProject?: Maybe<Scalars["String"]>;
-    endCursorRoutine?: Maybe<Scalars["String"]>;
-    endCursorStandard?: Maybe<Scalars["String"]>;
+    endCursorResource?: Maybe<Scalars["String"]>;
     endCursorTeam?: Maybe<Scalars["String"]>;
     endCursorUser?: Maybe<Scalars["String"]>;
     hasNextPage: Scalars["Boolean"];
 };
 
 export type PopularSearchInput = {
-    apiAfter?: InputMaybe<Scalars["String"]>;
-    codeAfter?: InputMaybe<Scalars["String"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
-    noteAfter?: InputMaybe<Scalars["String"]>;
     objectType?: InputMaybe<PopularObjectType>;
-    projectAfter?: InputMaybe<Scalars["String"]>;
-    routineAfter?: InputMaybe<Scalars["String"]>;
+    resourceAfter?: InputMaybe<Scalars["String"]>;
     searchString?: InputMaybe<Scalars["String"]>;
     sortBy?: InputMaybe<PopularSortBy>;
-    standardAfter?: InputMaybe<Scalars["String"]>;
     take?: InputMaybe<Scalars["Int"]>;
     teamAfter?: InputMaybe<Scalars["String"]>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -2407,20 +1565,11 @@ export type ProfileUpdateInput = BaseTranslatableUpdateInput<UserTranslationCrea
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateApis?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateApisCreated?: InputMaybe<Scalars["Boolean"]>;
     isPrivateBookmarks?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateCodes?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateCodesCreated?: InputMaybe<Scalars["Boolean"]>;
     isPrivateMemberships?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateProjects?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateProjectsCreated?: InputMaybe<Scalars["Boolean"]>;
     isPrivatePullRequests?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateRoles?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateRoutines?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateRoutinesCreated?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateStandards?: InputMaybe<Scalars["Boolean"]>;
-    isPrivateStandardsCreated?: InputMaybe<Scalars["Boolean"]>;
+    isPrivateResources?: InputMaybe<Scalars["Boolean"]>;
+    isPrivateResourcesCreated?: InputMaybe<Scalars["Boolean"]>;
     isPrivateTeamsCreated?: InputMaybe<Scalars["Boolean"]>;
     isPrivateVotes?: InputMaybe<Scalars["Boolean"]>;
     languages?: InputMaybe<Array<Scalars["String"]>>;
@@ -2430,496 +1579,6 @@ export type ProfileUpdateInput = BaseTranslatableUpdateInput<UserTranslationCrea
     theme?: InputMaybe<Scalars["String"]>;
 };
 
-export type Project = DbObject<"Project"> & {
-    bookmarkedBy: Array<User>;
-    bookmarks: Scalars["Int"];
-    createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
-    handle?: Maybe<Scalars["String"]>;
-    hasCompleteVersion: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    issues: Array<Issue>;
-    issuesCount: Scalars["Int"];
-    owner?: Maybe<Owner>;
-    parent?: Maybe<ProjectVersion>;
-    permissions: Scalars["String"];
-    pullRequests: Array<PullRequest>;
-    pullRequestsCount: Scalars["Int"];
-    score: Scalars["Int"];
-    stats: Array<StatsProject>;
-    tags: Array<Tag>;
-    transfers: Array<Transfer>;
-    transfersCount: Scalars["Int"];
-    translatedName: Scalars["String"];
-    updated_at: Scalars["Date"];
-    versions: Array<ProjectVersion>;
-    versionsCount: Scalars["Int"];
-    views: Scalars["Int"];
-    you: ProjectYou;
-};
-
-export type ProjectCreateInput = {
-    handle?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    isPrivate: Scalars["Boolean"];
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    parentConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    versionsCreate?: InputMaybe<Array<ProjectVersionCreateInput>>;
-};
-
-export type ProjectEdge = Edge<Project, "ProjectEdge">;
-
-export type ProjectOrRoutine = Project | Routine;
-
-export type ProjectOrRoutineEdge = Edge<ProjectOrRoutine, "ProjectOrRoutineEdge">;
-
-export type ProjectOrRoutinePageInfo = {
-    __typename: "ProjectOrRoutinePageInfo";
-    endCursorProject?: Maybe<Scalars["String"]>;
-    endCursorRoutine?: Maybe<Scalars["String"]>;
-    hasNextPage: Scalars["Boolean"];
-};
-
-export type ProjectOrRoutineSearchInput = MultiObjectSearchInput<ProjectOrRoutineSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
-    hasCompleteVersionExceptions?: InputMaybe<Array<SearchException>>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxScore?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minScore?: InputMaybe<Scalars["Int"]>;
-    minViews?: InputMaybe<Scalars["Int"]>;
-    objectType?: InputMaybe<Scalars["String"]>;
-    parentId?: InputMaybe<Scalars["ID"]>;
-    projectAfter?: InputMaybe<Scalars["String"]>;
-    reportId?: InputMaybe<Scalars["ID"]>;
-    resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
-    routineAfter?: InputMaybe<Scalars["String"]>;
-    routineIsInternal?: InputMaybe<Scalars["Boolean"]>;
-    routineMaxComplexity?: InputMaybe<Scalars["Int"]>;
-    routineMaxSimplicity?: InputMaybe<Scalars["Int"]>;
-    routineMaxTimesCompleted?: InputMaybe<Scalars["Int"]>;
-    routineMinComplexity?: InputMaybe<Scalars["Int"]>;
-    routineMinSimplicity?: InputMaybe<Scalars["Int"]>;
-    routineMinTimesCompleted?: InputMaybe<Scalars["Int"]>;
-    routineProjectId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    teamId?: InputMaybe<Scalars["ID"]>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    userId?: InputMaybe<Scalars["ID"]>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectOrRoutineSearchResult = SearchResult<ProjectOrRoutineEdge, "ProjectOrRoutineSearchResult", ProjectOrRoutinePageInfo>;
-
-export enum ProjectOrRoutineSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IssuesAsc = "IssuesAsc",
-    IssuesDesc = "IssuesDesc",
-    PullRequestsAsc = "PullRequestsAsc",
-    PullRequestsDesc = "PullRequestsDesc",
-    ScoreAsc = "ScoreAsc",
-    ScoreDesc = "ScoreDesc",
-    VersionsAsc = "VersionsAsc",
-    VersionsDesc = "VersionsDesc",
-    ViewsAsc = "ViewsAsc",
-    ViewsDesc = "ViewsDesc"
-}
-
-export type ProjectOrTeam = Project | Team;
-
-export type ProjectOrTeamEdge = Edge<ProjectOrTeam, "ProjectOrTeamEdge">;
-
-export type ProjectOrTeamPageInfo = {
-    __typename: "ProjectOrTeamPageInfo";
-    endCursorProject?: Maybe<Scalars["String"]>;
-    endCursorTeam?: Maybe<Scalars["String"]>;
-    hasNextPage: Scalars["Boolean"];
-};
-
-export type ProjectOrTeamSearchInput = MultiObjectSearchInput<ProjectOrTeamSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxViews?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minViews?: InputMaybe<Scalars["Int"]>;
-    objectType?: InputMaybe<Scalars["String"]>;
-    projectAfter?: InputMaybe<Scalars["String"]>;
-    projectIsComplete?: InputMaybe<Scalars["Boolean"]>;
-    projectIsCompleteExceptions?: InputMaybe<Array<SearchException>>;
-    projectMaxScore?: InputMaybe<Scalars["Int"]>;
-    projectMinScore?: InputMaybe<Scalars["Int"]>;
-    projectParentId?: InputMaybe<Scalars["ID"]>;
-    projectTeamId?: InputMaybe<Scalars["ID"]>;
-    reportId?: InputMaybe<Scalars["ID"]>;
-    resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    teamAfter?: InputMaybe<Scalars["String"]>;
-    teamIsOpenToNewMembers?: InputMaybe<Scalars["Boolean"]>;
-    teamProjectId?: InputMaybe<Scalars["ID"]>;
-    teamRoutineId?: InputMaybe<Scalars["ID"]>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    userId?: InputMaybe<Scalars["ID"]>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectOrTeamSearchResult = SearchResult<ProjectOrTeamEdge, "ProjectOrTeamSearchResult", ProjectOrTeamPageInfo>;
-
-export enum ProjectOrTeamSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc"
-}
-
-export type ProjectSearchInput = BaseSearchInput<ProjectSortBy> & {
-    createdById?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
-    issuesId?: InputMaybe<Scalars["ID"]>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxScore?: InputMaybe<Scalars["Int"]>;
-    maxViews?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minScore?: InputMaybe<Scalars["Int"]>;
-    minViews?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamId?: InputMaybe<Scalars["ID"]>;
-    ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    parentId?: InputMaybe<Scalars["ID"]>;
-    pullRequestsId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectSearchResult = SearchResult<ProjectEdge, "ProjectSearchResult">;
-
-export enum ProjectSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IssuesAsc = "IssuesAsc",
-    IssuesDesc = "IssuesDesc",
-    PullRequestsAsc = "PullRequestsAsc",
-    PullRequestsDesc = "PullRequestsDesc",
-    ScoreAsc = "ScoreAsc",
-    ScoreDesc = "ScoreDesc",
-    VersionsAsc = "VersionsAsc",
-    VersionsDesc = "VersionsDesc",
-    ViewsAsc = "ViewsAsc",
-    ViewsDesc = "ViewsDesc"
-}
-
-export type ProjectUpdateInput = {
-    handle?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    tagsDisconnect?: InputMaybe<Array<Scalars["String"]>>;
-    versionsCreate?: InputMaybe<Array<ProjectVersionCreateInput>>;
-    versionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsUpdate?: InputMaybe<Array<ProjectVersionUpdateInput>>;
-};
-
-export type ProjectVersion = DbObject<"ProjectVersion"> & {
-    comments: Array<Comment>;
-    commentsCount: Scalars["Int"];
-    completedAt?: Maybe<Scalars["Date"]>;
-    complexity: Scalars["Int"];
-    created_at: Scalars["Date"];
-    directories: Array<ProjectVersionDirectory>;
-    directoriesCount: Scalars["Int"];
-    directoryListings: Array<ProjectVersionDirectory>;
-    directoryListingsCount: Scalars["Int"];
-    forks: Array<Project>;
-    forksCount: Scalars["Int"];
-    isComplete: Scalars["Boolean"];
-    isLatest: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    pullRequest?: Maybe<PullRequest>;
-    reports: Array<Report>;
-    reportsCount: Scalars["Int"];
-    root: Project;
-    runProjectsCount: Scalars["Int"];
-    simplicity: Scalars["Int"];
-    timesCompleted: Scalars["Int"];
-    timesStarted: Scalars["Int"];
-    translations: Array<ProjectVersionTranslation>;
-    translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
-    versionIndex: Scalars["Int"];
-    versionLabel: Scalars["String"];
-    versionNotes?: Maybe<Scalars["String"]>;
-    you: ProjectVersionYou;
-};
-
-export type ProjectVersionContentsSearchInput = Omit<BaseSearchInput<ProjectVersionContentsSortBy>, "ids"> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    directoryIds?: InputMaybe<Array<Scalars["ID"]>>;
-    projectVersionId: Scalars["ID"];
-    searchString?: InputMaybe<Scalars["String"]>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectVersionContentsSearchResult = {
-    __typename: "ProjectVersionContentsSearchResult";
-    apiVersion?: Maybe<ApiVersion>;
-    codeVersion?: Maybe<CodeVersion>;
-    directory?: Maybe<ProjectVersionDirectory>;
-    noteVersion?: Maybe<NoteVersion>;
-    projectVersion?: Maybe<ProjectVersion>;
-    routineVersion?: Maybe<RoutineVersion>;
-    standardVersion?: Maybe<StandardVersion>;
-    team?: Maybe<Team>;
-};
-
-export enum ProjectVersionContentsSortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc"
-}
-
-export type ProjectVersionCreateInput = BaseTranslatableCreateInput<ProjectVersionTranslationCreateInput> & {
-    directoriesCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate: Scalars["Boolean"];
-    rootConnect?: InputMaybe<Scalars["ID"]>;
-    rootCreate?: InputMaybe<ProjectCreateInput>;
-    versionLabel: Scalars["String"];
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type ProjectVersionDirectory = DbObject<"ProjectVersionDirectory"> & {
-    childApiVersions: Array<ApiVersion>;
-    childCodeVersions: Array<CodeVersion>;
-    childNoteVersions: Array<NoteVersion>;
-    childOrder?: Maybe<Scalars["String"]>;
-    childProjectVersions: Array<ProjectVersion>;
-    childRoutineVersions: Array<RoutineVersion>;
-    childStandardVersions: Array<StandardVersion>;
-    childTeams: Array<Team>;
-    children: Array<ProjectVersionDirectory>;
-    created_at: Scalars["Date"];
-    isRoot: Scalars["Boolean"];
-    parentDirectory?: Maybe<ProjectVersionDirectory>;
-    projectVersion?: Maybe<ProjectVersion>;
-    runProjectSteps: Array<RunProjectStep>;
-    translations: Array<ProjectVersionDirectoryTranslation>;
-    updated_at: Scalars["Date"];
-};
-
-export type ProjectVersionDirectoryCreateInput = BaseTranslatableCreateInput<ProjectVersionDirectoryTranslationCreateInput> & {
-    childApiVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childCodeVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childNoteVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childOrder?: InputMaybe<Scalars["String"]>;
-    childProjectVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childRoutineVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childStandardVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childTeamsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isRoot?: InputMaybe<Scalars["Boolean"]>;
-    parentDirectoryConnect?: InputMaybe<Scalars["ID"]>;
-    projectVersionConnect: Scalars["ID"];
-};
-
-export type ProjectVersionDirectoryEdge = Edge<ProjectVersionDirectory, "ProjectVersionDirectoryEdge">;
-
-export type ProjectVersionDirectorySearchInput = BaseSearchInput<ProjectVersionDirectorySortBy> & {
-    isRoot?: InputMaybe<Scalars["Boolean"]>;
-    parentDirectoryId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectVersionDirectorySearchResult = SearchResult<ProjectVersionDirectoryEdge, "ProjectVersionDirectorySearchResult">;
-
-export enum ProjectVersionDirectorySortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc"
-}
-
-export type ProjectVersionDirectoryTranslation = BaseTranslation<"ProjectVersionDirectoryTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name?: Maybe<Scalars["String"]>;
-};
-
-export type ProjectVersionDirectoryTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ProjectVersionDirectoryTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ProjectVersionDirectoryUpdateInput = BaseTranslatableUpdateInput<ProjectVersionDirectoryTranslationCreateInput, ProjectVersionDirectoryTranslationUpdateInput> & {
-    childApiVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childApiVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childCodeVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childCodeVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childNoteVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childNoteVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childOrder?: InputMaybe<Scalars["String"]>;
-    childProjectVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childProjectVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childRoutineVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childRoutineVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childStandardVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childStandardVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childTeamsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    childTeamsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isRoot?: InputMaybe<Scalars["Boolean"]>;
-    parentDirectoryConnect?: InputMaybe<Scalars["ID"]>;
-    parentDirectoryDisconnect?: InputMaybe<Scalars["Boolean"]>;
-    projectVersionConnect?: InputMaybe<Scalars["ID"]>;
-};
-
-export type ProjectVersionEdge = Edge<ProjectVersion, "ProjectVersionEdge">;
-
-export type ProjectVersionSearchInput = BaseSearchInput<ProjectVersionSortBy> & {
-    createdByIdRoot?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    directoryListingsId?: InputMaybe<Scalars["ID"]>;
-    isCompleteWithRoot?: InputMaybe<Scalars["Boolean"]>;
-    isCompleteWithRootExcludeOwnedByTeamId?: InputMaybe<Scalars["ID"]>;
-    isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars["ID"]>;
-    isLatest?: InputMaybe<Scalars["Boolean"]>;
-    maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    maxComplexity?: InputMaybe<Scalars["Int"]>;
-    maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxSimplicity?: InputMaybe<Scalars["Int"]>;
-    maxTimesCompleted?: InputMaybe<Scalars["Int"]>;
-    maxViewsRoot?: InputMaybe<Scalars["Int"]>;
-    minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    minComplexity?: InputMaybe<Scalars["Int"]>;
-    minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minSimplicity?: InputMaybe<Scalars["Int"]>;
-    minTimesCompleted?: InputMaybe<Scalars["Int"]>;
-    minViewsRoot?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
-    ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
-    rootId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tagsRoot?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectVersionSearchResult = SearchResult<ProjectVersionEdge, "ProjectVersionSearchResult">;
-
-export enum ProjectVersionSortBy {
-    CommentsAsc = "CommentsAsc",
-    CommentsDesc = "CommentsDesc",
-    ComplexityAsc = "ComplexityAsc",
-    ComplexityDesc = "ComplexityDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    DirectoryListingsAsc = "DirectoryListingsAsc",
-    DirectoryListingsDesc = "DirectoryListingsDesc",
-    ForksAsc = "ForksAsc",
-    ForksDesc = "ForksDesc",
-    RunProjectsAsc = "RunProjectsAsc",
-    RunProjectsDesc = "RunProjectsDesc",
-    SimplicityAsc = "SimplicityAsc",
-    SimplicityDesc = "SimplicityDesc"
-}
-
-export type ProjectVersionTranslation = BaseTranslation<"ProjectVersionTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type ProjectVersionTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type ProjectVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ProjectVersionUpdateInput = BaseTranslatableUpdateInput<ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput> & {
-    directoriesCreate?: InputMaybe<Array<ProjectVersionDirectoryCreateInput>>;
-    directoriesDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    directoriesUpdate?: InputMaybe<Array<ProjectVersionDirectoryUpdateInput>>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    rootUpdate?: InputMaybe<ProjectUpdateInput>;
-    versionLabel?: InputMaybe<Scalars["String"]>;
-    versionNotes?: InputMaybe<Scalars["String"]>;
-};
-
-export type ProjectVersionYou = {
-    __typename: "ProjectVersionYou";
-    canComment: Scalars["Boolean"];
-    canCopy: Scalars["Boolean"];
-    canDelete: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canReport: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-    canUse: Scalars["Boolean"];
-    runs: Array<RunProject>;
-};
-
-export type ProjectYou = {
-    __typename: "ProjectYou";
-    canBookmark: Scalars["Boolean"];
-    canDelete: Scalars["Boolean"];
-    canReact: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canTransfer: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-    isBookmarked: Scalars["Boolean"];
-    isViewed: Scalars["Boolean"];
-    reaction?: Maybe<Scalars["String"]>;
-};
-
 export type PullRequest = DbObject<"PullRequest"> & {
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
@@ -2927,6 +1586,7 @@ export type PullRequest = DbObject<"PullRequest"> & {
     created_at: Scalars["Date"];
     from: PullRequestFrom;
     mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
+    publicId: Scalars["String"];
     status: PullRequestStatus;
     to: PullRequestTo;
     translations: Array<CommentTranslation>;
@@ -2945,15 +1605,10 @@ export type PullRequestCreateInput = BaseTranslatableCreateInput<PullRequestTran
 
 export type PullRequestEdge = Edge<PullRequest, "PullRequestEdge">;
 
-export type PullRequestFrom = ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion;
+export type PullRequestFrom = ResourceVersion;
 
 export enum PullRequestFromObjectType {
-    ApiVersion = "ApiVersion",
-    CodeVersion = "CodeVersion",
-    NoteVersion = "NoteVersion",
-    ProjectVersion = "ProjectVersion",
-    RoutineVersion = "RoutineVersion",
-    StandardVersion = "StandardVersion"
+    ResourceVersion = "ResourceVersion",
 }
 
 export type PullRequestSearchInput = BaseSearchInput<PullRequestSortBy> & {
@@ -2988,15 +1643,10 @@ export enum PullRequestStatus {
     Rejected = "Rejected"
 }
 
-export type PullRequestTo = Api | Code | Note | Project | Routine | Standard;
+export type PullRequestTo = Resource;
 
 export enum PullRequestToObjectType {
-    Api = "Api",
-    Code = "Code",
-    Note = "Note",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard"
+    Resource = "Resource",
 }
 
 export type PullRequestTranslation = BaseTranslation<"PullRequestTranslation"> & {
@@ -3066,29 +1716,19 @@ export type Reaction = DbObject<"Reaction"> & {
 export type ReactionEdge = Edge<Reaction, "ReactionEdge">;
 
 export enum ReactionFor {
-    Api = "Api",
     ChatMessage = "ChatMessage",
-    Code = "Code",
     Comment = "Comment",
     Issue = "Issue",
-    Note = "Note",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard"
+    Resource = "Resource",
 }
 
 export type ReactionSearchInput = BaseSearchInput<ReactionSortBy> & {
-    apiId?: InputMaybe<Scalars["ID"]>;
     chatMessageId?: InputMaybe<Scalars["ID"]>;
-    codeId?: InputMaybe<Scalars["ID"]>;
     commentId?: InputMaybe<Scalars["ID"]>;
     excludeLinkedToTag?: InputMaybe<Scalars["Boolean"]>;
     issueId?: InputMaybe<Scalars["ID"]>;
-    noteId?: InputMaybe<Scalars["ID"]>;
-    projectId?: InputMaybe<Scalars["ID"]>;
-    routineId?: InputMaybe<Scalars["ID"]>;
+    resourceId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardId?: InputMaybe<Scalars["ID"]>;
 };
 
 export type ReactionSearchResult = SearchResult<ReactionEdge, "ReactionSearchResult">;
@@ -3104,7 +1744,7 @@ export type ReactionSummary = {
     emoji: Scalars["String"];
 };
 
-export type ReactionTo = Api | ChatMessage | Code | Comment | Issue | Note | Project | Routine | Standard;
+export type ReactionTo = ChatMessage | Comment | Issue | Resource;
 
 export type ReadAssetsInput = {
     files: Array<Scalars["String"]>;
@@ -3229,6 +1869,7 @@ export type Report = DbObject<"Report"> & {
     created_at: Scalars["Date"];
     details?: Maybe<Scalars["String"]>;
     language: Scalars["String"];
+    publicId: Scalars["String"];
     reason: Scalars["String"];
     responses: Array<ReportResponse>;
     responsesCount: Scalars["Int"];
@@ -3249,15 +1890,10 @@ export type ReportCreateInput = {
 export type ReportEdge = Edge<Report, "ReportEdge">;
 
 export enum ReportFor {
-    ApiVersion = "ApiVersion",
     ChatMessage = "ChatMessage",
-    CodeVersion = "CodeVersion",
     Comment = "Comment",
     Issue = "Issue",
-    NoteVersion = "NoteVersion",
-    ProjectVersion = "ProjectVersion",
-    RoutineVersion = "RoutineVersion",
-    StandardVersion = "StandardVersion",
+    ResourceVersion = "ResourceVersion",
     Tag = "Tag",
     Team = "Team",
     User = "User"
@@ -3314,19 +1950,14 @@ export type ReportResponseYou = {
 };
 
 export type ReportSearchInput = BaseSearchInput<ReportSortBy> & {
-    apiVersionId?: InputMaybe<Scalars["ID"]>;
     chatMessageId?: InputMaybe<Scalars["ID"]>;
-    codeVersionId?: InputMaybe<Scalars["ID"]>;
     commentId?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     fromId?: InputMaybe<Scalars["ID"]>;
     issueId?: InputMaybe<Scalars["ID"]>;
     languageIn?: InputMaybe<Array<Scalars["String"]>>;
-    noteVersionId?: InputMaybe<Scalars["ID"]>;
-    projectVersionId?: InputMaybe<Scalars["ID"]>;
-    routineVersionId?: InputMaybe<Scalars["ID"]>;
+    resourceVersionId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardVersionId?: InputMaybe<Scalars["ID"]>;
     tagId?: InputMaybe<Scalars["ID"]>;
     teamId?: InputMaybe<Scalars["ID"]>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -3403,237 +2034,19 @@ export enum ReputationHistorySortBy {
     DateCreatedDesc = "DateCreatedDesc"
 }
 
-export type Resource = DbObject<"Resource"> & {
-    created_at: Scalars["Date"];
-    index?: Maybe<Scalars["Int"]>;
-    link: Scalars["String"];
-    list: ResourceList;
-    translations: Array<ResourceTranslation>;
-    updated_at: Scalars["Date"];
-    usedFor: ResourceUsedFor;
-};
-
-export type ResourceCreateInput = BaseTranslatableCreateInput<ResourceTranslationCreateInput> & {
-    id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    link: Scalars["String"];
-    listConnect?: InputMaybe<Scalars["ID"]>;
-    listCreate?: InputMaybe<ResourceListCreateInput>;
-    usedFor: ResourceUsedFor;
-};
-
-export type ResourceEdge = Edge<Resource, "ResourceEdge">;
-
-export type ResourceList = DbObject<"ResourceList"> & {
-    created_at: Scalars["Date"];
-    listFor: ResourceListOn;
-    resources: Array<Resource>;
-    translations: Array<ResourceListTranslation>;
-    updated_at: Scalars["Date"];
-};
-
-export type ResourceListCreateInput = BaseTranslatableCreateInput<ResourceListTranslationCreateInput> & {
-    id: Scalars["ID"];
-    listForConnect: Scalars["ID"];
-    listForType: ResourceListFor;
-    resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-};
-
-export type ResourceListEdge = Edge<ResourceList, "ResourceListEdge">;
-
-export enum ResourceListFor {
-    ApiVersion = "ApiVersion",
-    CodeVersion = "CodeVersion",
-    ProjectVersion = "ProjectVersion",
-    RoutineVersion = "RoutineVersion",
-    StandardVersion = "StandardVersion",
-    Team = "Team"
-}
-
-export type ResourceListOn = ApiVersion | CodeVersion | ProjectVersion | RoutineVersion | StandardVersion | Team;
-
-export type ResourceListSearchInput = BaseSearchInput<ResourceListSortBy> & {
-    apiVersionId?: InputMaybe<Scalars["ID"]>;
-    codeVersionId?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    projectVersionId?: InputMaybe<Scalars["ID"]>;
-    routineVersionId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    standardVersionId?: InputMaybe<Scalars["ID"]>;
-    teamId?: InputMaybe<Scalars["ID"]>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-};
-
-export type ResourceListSearchResult = SearchResult<ResourceListEdge, "ResourceListSearchResult">;
-
-export enum ResourceListSortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-}
-
-export type ResourceListTranslation = BaseTranslation<"ResourceListTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name?: Maybe<Scalars["String"]>;
-};
-
-export type ResourceListTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ResourceListTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ResourceListUpdateInput = BaseTranslatableUpdateInput<ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput> & {
-    id: Scalars["ID"];
-    resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-    resourcesDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
-};
-
-export type ResourceSearchInput = BaseSearchInput<ResourceListSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    resourceListId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-};
-
-export type ResourceSearchResult = SearchResult<ResourceEdge, "ResourceSearchResult">;
-
-export enum ResourceSortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IndexAsc = "IndexAsc",
-    IndexDesc = "IndexDesc",
-    UsedForAsc = "UsedForAsc",
-    UsedForDesc = "UsedForDesc"
-}
-
-export type ResourceTranslation = BaseTranslation<"ResourceTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name?: Maybe<Scalars["String"]>;
-};
-
-export type ResourceTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ResourceTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type ResourceUpdateInput = BaseTranslatableUpdateInput<ResourceTranslationCreateInput, ResourceTranslationUpdateInput> & {
-    id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    link?: InputMaybe<Scalars["String"]>;
-    listConnect?: InputMaybe<Scalars["ID"]>;
-    listCreate?: InputMaybe<ResourceListCreateInput>;
-    usedFor?: InputMaybe<ResourceUsedFor>;
-};
-
-export enum ResourceUsedFor {
-    Community = "Community",
-    Context = "Context",
-    Developer = "Developer",
-    Donation = "Donation",
-    ExternalService = "ExternalService",
-    Feed = "Feed",
-    Install = "Install",
-    Learning = "Learning",
-    Notes = "Notes",
-    OfficialWebsite = "OfficialWebsite",
-    Proposal = "Proposal",
-    Related = "Related",
-    Researching = "Researching",
-    Scheduling = "Scheduling",
-    Social = "Social",
-    Tutorial = "Tutorial"
-}
-
 export type Response = {
     __typename: "Response";
     code?: Maybe<Scalars["Int"]>;
     message: Scalars["String"];
 };
 
-export type Role = DbObject<"Role"> & {
-    created_at: Scalars["Date"];
-    members?: Maybe<Array<Member>>;
-    membersCount: Scalars["Int"];
-    name: Scalars["String"];
-    permissions: Scalars["String"];
-    team: Team;
-    translations: Array<RoleTranslation>;
-    updated_at: Scalars["Date"];
-};
-
-export type RoleCreateInput = BaseTranslatableCreateInput<RoleTranslationCreateInput> & {
-    id: Scalars["ID"];
-    membersConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    name: Scalars["String"];
-    permissions: Scalars["String"];
-    teamConnect: Scalars["ID"];
-};
-
-export type RoleEdge = Edge<Role, "RoleEdge">;
-
-export type RoleSearchInput = BaseSearchInput<RoleSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    teamId: Scalars["ID"];
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type RoleSearchResult = SearchResult<RoleEdge, "RoleSearchResult">;
-
-export enum RoleSortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    MembersAsc = "MembersAsc",
-    MembersDesc = "MembersDesc"
-}
-
-export type RoleTranslation = BaseTranslation<"RoleTranslation"> & {
-    description: Scalars["String"];
-};
-
-export type RoleTranslationCreateInput = BaseTranslationCreateInput & {
-    description: Scalars["String"];
-};
-
-export type RoleTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-};
-
-export type RoleUpdateInput = BaseTranslatableUpdateInput<RoleTranslationCreateInput, RoleTranslationUpdateInput> & {
-    id: Scalars["ID"];
-    membersConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    membersDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    name?: InputMaybe<Scalars["String"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-};
-
-export type Routine = DbObject<"Routine"> & {
+export type Resource = DbObject<"Resource"> & {
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
     completedAt?: Maybe<Scalars["Date"]>;
     createdBy?: Maybe<User>;
     created_at: Scalars["Date"];
-    forks: Array<Routine>;
+    forks: Array<Resource>;
     forksCount: Scalars["Int"];
     hasCompleteVersion: Scalars["Boolean"];
     isDeleted: Scalars["Boolean"];
@@ -3642,24 +2055,25 @@ export type Routine = DbObject<"Routine"> & {
     issues: Array<Issue>;
     issuesCount: Scalars["Int"];
     owner?: Maybe<Owner>;
-    parent?: Maybe<RoutineVersion>;
+    parent?: Maybe<ResourceVersion>;
     permissions: Scalars["String"];
+    publicId: Scalars["String"];
     pullRequests: Array<PullRequest>;
     pullRequestsCount: Scalars["Int"];
     score: Scalars["Int"];
-    stats: Array<StatsRoutine>;
+    stats: Array<StatsResource>;
     tags: Array<Tag>;
     transfers: Array<Transfer>;
     transfersCount: Scalars["Int"];
     translatedName: Scalars["String"];
     updated_at: Scalars["Date"];
-    versions: Array<RoutineVersion>;
+    versions: Array<ResourceVersion>;
     versionsCount?: Maybe<Scalars["Int"]>;
     views: Scalars["Int"];
-    you: RoutineYou;
+    you: ResourceYou;
 };
 
-export type RoutineCreateInput = {
+export type ResourceCreateInput = {
     id: Scalars["ID"];
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
@@ -3667,22 +2081,23 @@ export type RoutineCreateInput = {
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
     parentConnect?: InputMaybe<Scalars["ID"]>;
     permissions?: InputMaybe<Scalars["String"]>;
+    resourceType: ResourceType;
     tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    versionsCreate?: InputMaybe<Array<RoutineVersionCreateInput>>;
+    versionsCreate?: InputMaybe<Array<ResourceVersionCreateInput>>;
 };
 
-export type RoutineEdge = Edge<Routine, "RoutineEdge">;
+export type ResourceEdge = Edge<Resource, "ResourceEdge">;
 
-export type RoutineSearchInput = BaseSearchInput<RoutineSortBy> & {
+export type ResourceSearchInput = BaseSearchInput<ResourceSortBy> & {
     createdById?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
     hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
-    latestVersionRoutineType?: InputMaybe<RoutineType>;
-    latestVersionRoutineTypes?: InputMaybe<Array<RoutineType>>;
+    latestVersionResourceSubType?: InputMaybe<ResourceSubType>;
+    latestVersionResourceTypes?: InputMaybe<Array<ResourceSubType>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
     maxScore?: InputMaybe<Scalars["Int"]>;
     maxViews?: InputMaybe<Scalars["Int"]>;
@@ -3693,6 +2108,7 @@ export type RoutineSearchInput = BaseSearchInput<RoutineSortBy> & {
     ownedByUserId?: InputMaybe<Scalars["ID"]>;
     parentId?: InputMaybe<Scalars["ID"]>;
     pullRequestsId?: InputMaybe<Scalars["ID"]>;
+    resourceType?: InputMaybe<ResourceType>;
     searchString?: InputMaybe<Scalars["String"]>;
     tags?: InputMaybe<Array<Scalars["String"]>>;
     translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
@@ -3700,9 +2116,9 @@ export type RoutineSearchInput = BaseSearchInput<RoutineSortBy> & {
     visibility?: InputMaybe<VisibilityType>;
 };
 
-export type RoutineSearchResult = SearchResult<RoutineEdge, "RoutineSearchResult">;
+export type ResourceSearchResult = SearchResult<ResourceEdge, "ResourceSearchResult">;
 
-export enum RoutineSortBy {
+export enum ResourceSortBy {
     BookmarksAsc = "BookmarksAsc",
     BookmarksDesc = "BookmarksDesc",
     DateCompletedAsc = "DateCompletedAsc",
@@ -3723,18 +2139,54 @@ export enum RoutineSortBy {
     ViewsDesc = "ViewsDesc"
 }
 
-export enum RoutineType {
-    Action = "Action",
+export enum ResourceType {
     Api = "Api",
     Code = "Code",
-    Data = "Data",
-    Generate = "Generate",
-    Informational = "Informational",
-    MultiStep = "MultiStep",
-    SmartContract = "SmartContract"
+    Note = "Note",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard"
 }
 
-export type RoutineUpdateInput = {
+export enum ResourceSubTypeRoutine {
+    RoutineAction = "RoutineAction",
+    RoutineApi = "RoutineApi",
+    RoutineCode = "RoutineCode",
+    RoutineData = "RoutineData",
+    RoutineGenerate = "RoutineGenerate",
+    RoutineInformational = "RoutineInformational",
+    RoutineMultiStep = "RoutineMultiStep",
+    RoutineSmartContract = "RoutineSmartContract",
+    RoutineWeb = "RoutineWeb"
+}
+
+export enum ResourceSubTypeCode {
+    CodeDataConverter = "CodeDataConverter",
+    CodeSmartContract = "CodeSmartContract",
+}
+
+export enum ResourceSubTypeStandard {
+    StandardDataStructure = "StandardDataStructure",
+    StandardPrompt = "StandardPrompt",
+}
+
+export enum ResourceSubType {
+    RoutineAction = "RoutineAction",
+    RoutineApi = "RoutineApi",
+    RoutineCode = "RoutineCode",
+    RoutineData = "RoutineData",
+    RoutineGenerate = "RoutineGenerate",
+    RoutineInformational = "RoutineInformational",
+    RoutineMultiStep = "RoutineMultiStep",
+    RoutineSmartContract = "RoutineSmartContract",
+    RoutineWeb = "RoutineWeb",
+    CodeDataConverter = "CodeDataConverter",
+    CodeSmartContract = "CodeSmartContract",
+    StandardDataStructure = "StandardDataStructure",
+    StandardPrompt = "StandardPrompt"
+}
+
+export type ResourceUpdateInput = {
     id: Scalars["ID"];
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
@@ -3744,164 +2196,79 @@ export type RoutineUpdateInput = {
     tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     tagsCreate?: InputMaybe<Array<TagCreateInput>>;
     tagsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsCreate?: InputMaybe<Array<RoutineVersionCreateInput>>;
+    versionsCreate?: InputMaybe<Array<ResourceVersionCreateInput>>;
     versionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsUpdate?: InputMaybe<Array<RoutineVersionUpdateInput>>;
+    versionsUpdate?: InputMaybe<Array<ResourceVersionUpdateInput>>;
 };
 
-export type RoutineVersion = DbObject<"RoutineVersion"> & {
-    apiVersion?: Maybe<ApiVersion>;
-    codeVersion?: Maybe<CodeVersion>;
+export type ResourceVersion = DbObject<"ResourceVersion"> & {
+    codeLanguage?: Maybe<Scalars["String"]>;
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
     completedAt?: Maybe<Scalars["Date"]>;
     complexity: Scalars["Int"];
     config?: Maybe<Scalars["String"]>;
     created_at: Scalars["Date"];
-    directoryListings: Array<ProjectVersionDirectory>;
-    directoryListingsCount: Scalars["Int"];
-    forks: Array<Routine>;
-    forksCount: Scalars["Int"];
-    inputs: Array<RoutineVersionInput>;
-    inputsCount: Scalars["Int"];
     isAutomatable?: Maybe<Scalars["Boolean"]>;
     isComplete: Scalars["Boolean"];
     isDeleted: Scalars["Boolean"];
     isLatest: Scalars["Boolean"];
     isPrivate: Scalars["Boolean"];
-    outputs: Array<RoutineVersionOutput>;
-    outputsCount: Scalars["Int"];
     pullRequest?: Maybe<PullRequest>;
+    relatedVersions: Array<ResourceVersionRelation>;
     reports: Array<Report>;
     reportsCount: Scalars["Int"];
-    resourceList?: Maybe<ResourceList>;
-    root: Routine;
-    routineType: RoutineType;
+    root: Resource;
+    resourceSubType: ResourceSubType;
     simplicity: Scalars["Int"];
-    subroutineLinks: Array<RoutineVersion>;
     timesCompleted: Scalars["Int"];
     timesStarted: Scalars["Int"];
-    translations: Array<RoutineVersionTranslation>;
+    translations: Array<ResourceVersionTranslation>;
     translationsCount: Scalars["Int"];
     updated_at: Scalars["Date"];
     versionIndex: Scalars["Int"];
     versionLabel: Scalars["String"];
     versionNotes?: Maybe<Scalars["String"]>;
-    you: RoutineVersionYou;
+    you: ResourceVersionYou;
 };
 
-export type RoutineVersionCreateInput = BaseTranslatableCreateInput<RoutineVersionTranslationCreateInput> & {
-    apiVersionConnect?: InputMaybe<Scalars["ID"]>;
-    codeVersionConnect?: InputMaybe<Scalars["ID"]>;
+export type ResourceVersionCreateInput = BaseTranslatableCreateInput<ResourceVersionTranslationCreateInput> & {
+    codeLanguage?: InputMaybe<Scalars["String"]>;
     config?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     id: Scalars["ID"];
-    inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
-    outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+    relatedVersionsCreate?: InputMaybe<Array<ResourceVersionRelationCreateInput>>;
+    resourceSubType: ResourceSubType;
     rootConnect?: InputMaybe<Scalars["ID"]>;
-    rootCreate?: InputMaybe<RoutineCreateInput>;
-    routineType: RoutineType;
-    subroutineLinksConnect?: InputMaybe<Array<Scalars["ID"]>>;
+    rootCreate?: InputMaybe<ResourceCreateInput>;
     versionLabel: Scalars["String"];
     versionNotes?: InputMaybe<Scalars["String"]>;
 };
 
-export type RoutineVersionEdge = Edge<RoutineVersion, "RoutineVersionEdge">;
+export type ResourceVersionEdge = Edge<ResourceVersion, "ResourceVersionEdge">;
 
-export type RoutineVersionInput = DbObject<"RoutineVersionInput"> & {
-    index?: Maybe<Scalars["Int"]>;
-    isRequired?: Maybe<Scalars["Boolean"]>;
-    name?: Maybe<Scalars["String"]>;
-    routineVersion: RoutineVersion;
-    standardVersion?: Maybe<StandardVersion>;
-    translations: Array<RoutineVersionInputTranslation>;
+export type ResourceVersionRelation = DbObject<"ResourceVersionRelation"> & {
+    toVersion: ResourceVersion;
+    labels: Array<Scalars["String"]>;
 };
 
-export type RoutineVersionInputCreateInput = BaseTranslatableCreateInput<RoutineVersionInputTranslationCreateInput> & {
+export type ResourceVersionRelationCreateInput = {
     id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    isRequired?: InputMaybe<Scalars["Boolean"]>;
-    name?: InputMaybe<Scalars["String"]>;
-    routineVersionConnect: Scalars["ID"];
-    standardVersionConnect?: InputMaybe<Scalars["ID"]>;
-    standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
+    labels: Array<Scalars["String"]>;
+    toVersionConnect: Scalars["ID"];
 };
 
-export type RoutineVersionInputTranslation = BaseTranslation<"RoutineVersionInputTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    helpText?: Maybe<Scalars["String"]>;
-};
-
-export type RoutineVersionInputTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    helpText?: InputMaybe<Scalars["String"]>;
-};
-
-export type RoutineVersionInputTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    helpText?: InputMaybe<Scalars["String"]>;
-};
-
-export type RoutineVersionInputUpdateInput = BaseTranslatableUpdateInput<RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput> & {
+export type ResourceVersionRelationUpdateInput = {
     id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    isRequired?: InputMaybe<Scalars["Boolean"]>;
-    name?: InputMaybe<Scalars["String"]>;
-    standardVersionConnect?: InputMaybe<Scalars["ID"]>;
-    standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
-    standardVersionDisconnect?: InputMaybe<Scalars["Boolean"]>;
+    labels?: InputMaybe<Array<Scalars["String"]>>;
 };
 
-export type RoutineVersionOutput = DbObject<"RoutineVersionOutput"> & {
-    index?: Maybe<Scalars["Int"]>;
-    name?: Maybe<Scalars["String"]>;
-    routineVersion: RoutineVersion;
-    standardVersion?: Maybe<StandardVersion>;
-    translations: Array<RoutineVersionOutputTranslation>;
-};
-
-export type RoutineVersionOutputCreateInput = BaseTranslatableCreateInput<RoutineVersionOutputTranslationCreateInput> & {
-    id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    name?: InputMaybe<Scalars["String"]>;
-    routineVersionConnect: Scalars["ID"];
-    standardVersionConnect?: InputMaybe<Scalars["ID"]>;
-    standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
-};
-
-export type RoutineVersionOutputTranslation = BaseTranslation<"RoutineVersionOutputTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    helpText?: Maybe<Scalars["String"]>;
-};
-
-export type RoutineVersionOutputTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    helpText?: InputMaybe<Scalars["String"]>;
-};
-
-export type RoutineVersionOutputTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    helpText?: InputMaybe<Scalars["String"]>;
-};
-
-export type RoutineVersionOutputUpdateInput = BaseTranslatableUpdateInput<RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput> & {
-    id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    name?: InputMaybe<Scalars["String"]>;
-    standardVersionConnect?: InputMaybe<Scalars["ID"]>;
-    standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
-    standardVersionDisconnect?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export type RoutineVersionSearchInput = BaseSearchInput<RoutineVersionSortBy> & {
-    codeVersionId?: InputMaybe<Scalars["ID"]>;
+export type ResourceVersionSearchInput = BaseSearchInput<ResourceVersionSortBy> & {
+    codeLanguage?: InputMaybe<Scalars["String"]>;
     createdByIdRoot?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
-    directoryListingsId?: InputMaybe<Scalars["ID"]>;
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
     isCompleteWithRoot?: InputMaybe<Scalars["Boolean"]>;
     isCompleteWithRootExcludeOwnedByTeamId?: InputMaybe<Scalars["ID"]>;
@@ -3928,8 +2295,8 @@ export type RoutineVersionSearchInput = BaseSearchInput<RoutineVersionSortBy> & 
     ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
     reportId?: InputMaybe<Scalars["ID"]>;
     rootId?: InputMaybe<Scalars["ID"]>;
-    routineType?: InputMaybe<RoutineType>;
-    routineTypes?: InputMaybe<Array<RoutineType>>;
+    resourceSubType?: InputMaybe<ResourceSubType>;
+    resourceSubTypes?: InputMaybe<Array<ResourceSubType>>;
     searchString?: InputMaybe<Scalars["String"]>;
     tagsRoot?: InputMaybe<Array<Scalars["String"]>>;
     translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
@@ -3937,9 +2304,9 @@ export type RoutineVersionSearchInput = BaseSearchInput<RoutineVersionSortBy> & 
     visibility?: InputMaybe<VisibilityType>;
 };
 
-export type RoutineVersionSearchResult = SearchResult<RoutineVersionEdge, "RoutineVersionSearchResult">;
+export type ResourceVersionSearchResult = SearchResult<ResourceVersionEdge, "ResourceVersionSearchResult">;
 
-export enum RoutineVersionSortBy {
+export enum ResourceVersionSortBy {
     CommentsAsc = "CommentsAsc",
     CommentsDesc = "CommentsDesc",
     ComplexityAsc = "ComplexityAsc",
@@ -3950,63 +2317,51 @@ export enum RoutineVersionSortBy {
     DateCreatedDesc = "DateCreatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
-    DirectoryListingsAsc = "DirectoryListingsAsc",
-    DirectoryListingsDesc = "DirectoryListingsDesc",
     ForksAsc = "ForksAsc",
     ForksDesc = "ForksDesc",
-    RunRoutinesAsc = "RunRoutinesAsc",
-    RunRoutinesDesc = "RunRoutinesDesc",
+    RunsAsc = "RunsAsc",
+    RunsDesc = "RunsDesc",
     SimplicityAsc = "SimplicityAsc",
     SimplicityDesc = "SimplicityDesc"
 }
 
-export type RoutineVersionTranslation = BaseTranslation<"RoutineVersionTranslation"> & {
+export type ResourceVersionTranslation = BaseTranslation<"ResourceVersionTranslation"> & {
     description?: Maybe<Scalars["String"]>;
     instructions?: Maybe<Scalars["String"]>;
     name: Scalars["String"];
 };
 
-export type RoutineVersionTranslationCreateInput = BaseTranslationCreateInput & {
+export type ResourceVersionTranslationCreateInput = BaseTranslationCreateInput & {
     description?: InputMaybe<Scalars["String"]>;
+    details?: InputMaybe<Scalars["String"]>;
     instructions?: InputMaybe<Scalars["String"]>;
     name: Scalars["String"];
 };
 
-export type RoutineVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
+export type ResourceVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
     description?: InputMaybe<Scalars["String"]>;
+    details?: InputMaybe<Scalars["String"]>;
     instructions?: InputMaybe<Scalars["String"]>;
     name?: InputMaybe<Scalars["String"]>;
 };
 
-export type RoutineVersionUpdateInput = BaseTranslatableUpdateInput<RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput> & {
-    apiVersionConnect?: InputMaybe<Scalars["ID"]>;
-    apiVersionDisconnect?: InputMaybe<Scalars["Boolean"]>;
-    codeVersionConnect?: InputMaybe<Scalars["ID"]>;
-    codeVersionDisconnect?: InputMaybe<Scalars["Boolean"]>;
+export type ResourceVersionUpdateInput = BaseTranslatableUpdateInput<ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput> & {
+    codeLanguage?: InputMaybe<Scalars["String"]>;
     config?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    directoryListingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     id: Scalars["ID"];
-    inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
-    inputsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    inputsUpdate?: InputMaybe<Array<RoutineVersionInputUpdateInput>>;
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
-    outputsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    outputsUpdate?: InputMaybe<Array<RoutineVersionOutputUpdateInput>>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-    rootUpdate?: InputMaybe<RoutineUpdateInput>;
-    subroutineLinksConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    subroutineLinksDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
+    rootUpdate?: InputMaybe<ResourceUpdateInput>;
+    relatedVersionsCreate?: InputMaybe<Array<ResourceVersionRelationCreateInput>>;
+    relatedVersionsUpdate?: InputMaybe<Array<ResourceVersionRelationUpdateInput>>;
+    relatedVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel?: InputMaybe<Scalars["String"]>;
     versionNotes?: InputMaybe<Scalars["String"]>;
 };
 
-export type RoutineVersionYou = {
-    __typename: "RoutineVersionYou";
+export type ResourceVersionYou = {
+    __typename: "ResourceVersionYou";
     canBookmark: Scalars["Boolean"];
     canComment: Scalars["Boolean"];
     canCopy: Scalars["Boolean"];
@@ -4018,8 +2373,8 @@ export type RoutineVersionYou = {
     canUpdate: Scalars["Boolean"];
 };
 
-export type RoutineYou = {
-    __typename: "RoutineYou";
+export type ResourceYou = {
+    __typename: "ResourceYou";
     canBookmark: Scalars["Boolean"];
     canComment: Scalars["Boolean"];
     canDelete: Scalars["Boolean"];
@@ -4032,273 +2387,94 @@ export type RoutineYou = {
     reaction?: Maybe<Scalars["String"]>;
 };
 
-export type RunProject = DbObject<"RunProject"> & {
+export type Run = DbObject<"Run"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     completedComplexity: Scalars["Int"];
     contextSwitches: Scalars["Int"];
     data?: Maybe<Scalars["String"]>;
-    isPrivate: Scalars["Boolean"];
-    lastStep?: Maybe<Array<Scalars["Int"]>>;
-    name: Scalars["String"];
-    projectVersion?: Maybe<ProjectVersion>;
-    schedule?: Maybe<Schedule>;
-    startedAt?: Maybe<Scalars["Date"]>;
-    status: RunStatus;
-    steps: Array<RunProjectStep>;
-    stepsCount: Scalars["Int"];
-    team?: Maybe<Team>;
-    timeElapsed?: Maybe<Scalars["Int"]>;
-    user?: Maybe<User>;
-    you: RunProjectYou;
-};
-
-export type RunProjectCreateInput = {
-    completedComplexity?: InputMaybe<Scalars["Int"]>;
-    contextSwitches?: InputMaybe<Scalars["Int"]>;
-    data?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    isPrivate: Scalars["Boolean"];
-    name: Scalars["String"];
-    projectVersionConnect: Scalars["ID"];
-    scheduleCreate?: InputMaybe<ScheduleCreateInput>;
-    startedAt?: InputMaybe<Scalars["Date"]>;
-    status: RunStatus;
-    stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
-    teamConnect?: InputMaybe<Scalars["ID"]>;
-    timeElapsed?: InputMaybe<Scalars["Int"]>;
-};
-
-export type RunProjectEdge = Edge<RunProject, "RunProjectEdge">;
-
-export type RunProjectOrRunRoutine = RunProject | RunRoutine;
-
-export type RunProjectOrRunRoutineEdge = Edge<RunProjectOrRunRoutine, "RunProjectOrRunRoutineEdge">;
-
-export type RunProjectOrRunRoutinePageInfo = {
-    __typename: "RunProjectOrRunRoutinePageInfo";
-    endCursorRunProject?: Maybe<Scalars["String"]>;
-    endCursorRunRoutine?: Maybe<Scalars["String"]>;
-    hasNextPage: Scalars["Boolean"];
-};
-
-export type RunProjectOrRunRoutineSearchInput = MultiObjectSearchInput<RunProjectOrRunRoutineSortBy> & {
-    completedTimeFrame?: InputMaybe<TimeFrame>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    objectType?: InputMaybe<Scalars["String"]>;
-    projectVersionId?: InputMaybe<Scalars["ID"]>;
-    routineVersionId?: InputMaybe<Scalars["ID"]>;
-    runProjectAfter?: InputMaybe<Scalars["String"]>;
-    runRoutineAfter?: InputMaybe<Scalars["String"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    startedTimeFrame?: InputMaybe<TimeFrame>;
-    status?: InputMaybe<RunStatus>;
-    statuses?: InputMaybe<Array<RunStatus>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type RunProjectOrRunRoutineSearchResult = SearchResult<RunProjectOrRunRoutineEdge, "RunProjectOrRunRoutineSearchResult", RunProjectOrRunRoutinePageInfo>;
-
-export enum RunProjectOrRunRoutineSortBy {
-    ContextSwitchesAsc = "ContextSwitchesAsc",
-    ContextSwitchesDesc = "ContextSwitchesDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateStartedAsc = "DateStartedAsc",
-    DateStartedDesc = "DateStartedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    StepsAsc = "StepsAsc",
-    StepsDesc = "StepsDesc"
-}
-
-export type RunProjectSearchInput = BaseSearchInput<RunProjectSortBy> & {
-    completedTimeFrame?: InputMaybe<TimeFrame>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    projectVersionId?: InputMaybe<Scalars["ID"]>;
-    scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
-    scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    startedTimeFrame?: InputMaybe<TimeFrame>;
-    status?: InputMaybe<RunStatus>;
-    statuses?: InputMaybe<Array<RunStatus>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type RunProjectSearchResult = SearchResult<RunProjectEdge, "RunProjectSearchResult">;
-
-export enum RunProjectSortBy {
-    ContextSwitchesAsc = "ContextSwitchesAsc",
-    ContextSwitchesDesc = "ContextSwitchesDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateStartedAsc = "DateStartedAsc",
-    DateStartedDesc = "DateStartedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    RunRoutinesAsc = "RunRoutinesAsc",
-    RunRoutinesDesc = "RunRoutinesDesc",
-    StepsAsc = "StepsAsc",
-    StepsDesc = "StepsDesc"
-}
-
-export type RunProjectStep = DbObject<"RunProjectStep"> & {
-    completedAt?: Maybe<Scalars["Date"]>;
-    complexity: Scalars["Int"];
-    contextSwitches: Scalars["Int"];
-    directory?: Maybe<ProjectVersionDirectory>;
-    directoryInId: Scalars["ID"];
-    name: Scalars["String"];
-    order: Scalars["Int"];
-    runProject: RunProject;
-    startedAt?: Maybe<Scalars["Date"]>;
-    status: RunStepStatus;
-    timeElapsed?: Maybe<Scalars["Int"]>;
-};
-
-export type RunProjectStepCreateInput = {
-    complexity: Scalars["Int"];
-    contextSwitches?: InputMaybe<Scalars["Int"]>;
-    directoryConnect?: InputMaybe<Scalars["ID"]>;
-    directoryInId: Scalars["ID"];
-    id: Scalars["ID"];
-    name: Scalars["String"];
-    order: Scalars["Int"];
-    runProjectConnect: Scalars["ID"];
-    status?: InputMaybe<RunStepStatus>;
-    timeElapsed?: InputMaybe<Scalars["Int"]>;
-};
-
-export type RunProjectStepUpdateInput = {
-    contextSwitches?: InputMaybe<Scalars["Int"]>;
-    id: Scalars["ID"];
-    status?: InputMaybe<RunStepStatus>;
-    timeElapsed?: InputMaybe<Scalars["Int"]>;
-};
-
-export type RunProjectUpdateInput = {
-    completedComplexity?: InputMaybe<Scalars["Int"]>;
-    contextSwitches?: InputMaybe<Scalars["Int"]>;
-    data?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    scheduleCreate?: InputMaybe<ScheduleCreateInput>;
-    scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
-    scheduleDelete?: InputMaybe<Scalars["Boolean"]>;
-    startedAt?: InputMaybe<Scalars["Date"]>;
-    status?: InputMaybe<RunStatus>;
-    stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
-    stepsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    stepsUpdate?: InputMaybe<Array<RunProjectStepUpdateInput>>;
-    timeElapsed?: InputMaybe<Scalars["Int"]>;
-};
-
-export type RunProjectYou = {
-    __typename: "RunProjectYou";
-    canDelete: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-};
-
-export type RunRoutine = DbObject<"RunRoutine"> & {
-    completedAt?: Maybe<Scalars["Date"]>;
-    completedComplexity: Scalars["Int"];
-    contextSwitches: Scalars["Int"];
-    data?: Maybe<Scalars["String"]>;
-    io: Array<RunRoutineIO>;
+    io: Array<RunIO>;
     ioCount: Scalars["Int"];
     isPrivate: Scalars["Boolean"];
     lastStep?: Maybe<Array<Scalars["Int"]>>;
     name: Scalars["String"];
-    routineVersion?: Maybe<RoutineVersion>;
+    resourceVersion?: Maybe<ResourceVersion>;
     schedule?: Maybe<Schedule>;
     startedAt?: Maybe<Scalars["Date"]>;
     status: RunStatus;
-    steps: Array<RunRoutineStep>;
+    steps: Array<RunStep>;
     stepsCount: Scalars["Int"];
     team?: Maybe<Team>;
     timeElapsed?: Maybe<Scalars["Int"]>;
     user?: Maybe<User>;
     wasRunAutomatically: Scalars["Boolean"];
-    you: RunRoutineYou;
+    you: RunYou;
 };
 
-export type RunRoutineCreateInput = {
+export type RunCreateInput = {
     completedComplexity?: InputMaybe<Scalars["Int"]>;
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     data?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
-    ioCreate?: InputMaybe<Array<RunRoutineIOCreateInput>>;
+    ioCreate?: InputMaybe<Array<RunIOCreateInput>>;
     isPrivate: Scalars["Boolean"];
     name: Scalars["String"];
-    routineVersionConnect: Scalars["ID"];
+    resourceVersionConnect: Scalars["ID"];
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
     startedAt?: InputMaybe<Scalars["Date"]>;
     status: RunStatus;
-    stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
+    stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
     teamConnect?: InputMaybe<Scalars["ID"]>;
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
-export type RunRoutineEdge = Edge<RunRoutine, "RunRoutineEdge">;
+export type RunEdge = Edge<Run, "RunEdge">;
 
-export type RunRoutineIO = DbObject<"RunRoutineIO"> & {
+export type RunIO = DbObject<"RunIO"> & {
     data: Scalars["String"];
     nodeInputName: Scalars["String"];
     nodeName: Scalars["String"];
-    runRoutine: RunRoutine;
-    routineVersionInput: Maybe<RoutineVersionInput>;
-    routineVersionOutput: Maybe<RoutineVersionOutput>;
+    run: Run;
 };
 
-export type RunRoutineIOCreateInput = {
+export type RunIOCreateInput = {
     data: Scalars["String"];
     id: Scalars["ID"];
     nodeInputName: Scalars["String"];
     nodeName: Scalars["String"];
-    runRoutineConnect: Scalars["ID"];
-    routineVersionInputConnect: InputMaybe<Scalars["ID"]>;
-    routineVersionOutputConnect: InputMaybe<Scalars["ID"]>;
+    runConnect: Scalars["ID"];
 };
 
-export type RunRoutineIOEdge = Edge<RunRoutineIO, "RunRoutineIOEdge">;
+export type RunIOEdge = Edge<RunIO, "RunIOEdge">;
 
-export type RunRoutineIOSearchInput = {
+export type RunIOSearchInput = {
     after?: InputMaybe<Scalars["String"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
     ids?: InputMaybe<Array<Scalars["ID"]>>;
-    runRoutineIds?: InputMaybe<Array<Scalars["ID"]>>;
+    runIds?: InputMaybe<Array<Scalars["ID"]>>;
     take?: InputMaybe<Scalars["Int"]>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
-export type RunRoutineIOSearchResult = SearchResult<RunRoutineIOEdge, "RunRoutineIOSearchResult">;
+export type RunIOSearchResult = SearchResult<RunIOEdge, "RunIOSearchResult">;
 
-export enum RunRoutineIOSortBy {
+export enum RunIOSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateCreatedDesc = "DateCreatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc"
 }
 
-export type RunRoutineIOUpdateInput = {
+export type RunIOUpdateInput = {
     data: Scalars["String"];
     id: Scalars["ID"];
 };
 
-export type RunRoutineSearchInput = BaseSearchInput<RunRoutineSortBy> & {
+export type RunSearchInput = BaseSearchInput<RunSortBy> & {
     completedTimeFrame?: InputMaybe<TimeFrame>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    routineVersionId?: InputMaybe<Scalars["ID"]>;
+    resourceVersionId?: InputMaybe<Scalars["ID"]>;
     scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
     scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
     searchString?: InputMaybe<Scalars["String"]>;
@@ -4309,9 +2485,9 @@ export type RunRoutineSearchInput = BaseSearchInput<RunRoutineSortBy> & {
     visibility?: InputMaybe<VisibilityType>;
 };
 
-export type RunRoutineSearchResult = SearchResult<RunRoutineEdge, "RunRoutineSearchResult">;
+export type RunSearchResult = SearchResult<RunEdge, "RunSearchResult">;
 
-export enum RunRoutineSortBy {
+export enum RunSortBy {
     ContextSwitchesAsc = "ContextSwitchesAsc",
     ContextSwitchesDesc = "ContextSwitchesDesc",
     DateCompletedAsc = "DateCompletedAsc",
@@ -4326,36 +2502,35 @@ export enum RunRoutineSortBy {
     StepsDesc = "StepsDesc"
 }
 
-export type RunRoutineStep = DbObject<"RunRoutineStep"> & {
+export type RunStep = DbObject<"RunStep"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     complexity: Scalars["Int"];
     contextSwitches: Scalars["Int"];
     name: Scalars["String"];
     nodeId: Scalars["String"];
     order: Scalars["Int"];
-    runRoutine: RunRoutine;
     startedAt?: Maybe<Scalars["Date"]>;
     status: RunStepStatus;
-    subroutine?: Maybe<RoutineVersion>;
-    subroutineInId: Scalars["ID"];
+    resourceVersion?: Maybe<ResourceVersion>;
+    resourceInId: Scalars["ID"];
     timeElapsed?: Maybe<Scalars["Int"]>;
 };
 
-export type RunRoutineStepCreateInput = {
+export type RunStepCreateInput = {
     complexity: Scalars["Int"];
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     id: Scalars["ID"];
     name: Scalars["String"];
     nodeId: Scalars["String"];
     order: Scalars["Int"];
-    runRoutineConnect: Scalars["ID"];
+    runConnect: Scalars["ID"];
     status?: InputMaybe<RunStepStatus>;
-    subroutineConnect?: InputMaybe<Scalars["ID"]>;
-    subroutineInId: Scalars["ID"];
+    resourceVersionConnect?: InputMaybe<Scalars["ID"]>;
+    resourceInId: Scalars["ID"];
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
-export enum RunRoutineStepSortBy {
+export enum RunStepSortBy {
     ContextSwitchesAsc = "ContextSwitchesAsc",
     ContextSwitchesDesc = "ContextSwitchesDesc",
     OrderAsc = "OrderAsc",
@@ -4368,35 +2543,35 @@ export enum RunRoutineStepSortBy {
     TimeStartedDesc = "TimeStartedDesc"
 }
 
-export type RunRoutineStepUpdateInput = {
+export type RunStepUpdateInput = {
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     id: Scalars["ID"];
     status?: InputMaybe<RunStepStatus>;
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
-export type RunRoutineUpdateInput = {
+export type RunUpdateInput = {
     completedComplexity?: InputMaybe<Scalars["Int"]>;
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     data?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
-    ioCreate?: InputMaybe<Array<RunRoutineIOCreateInput>>;
+    ioCreate?: InputMaybe<Array<RunIOCreateInput>>;
     ioDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    ioUpdate?: InputMaybe<Array<RunRoutineIOUpdateInput>>;
+    ioUpdate?: InputMaybe<Array<RunIOUpdateInput>>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
     scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
     scheduleDelete?: InputMaybe<Scalars["Boolean"]>;
     startedAt?: InputMaybe<Scalars["Date"]>;
     status?: InputMaybe<RunStatus>;
-    stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
+    stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
     stepsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    stepsUpdate?: InputMaybe<Array<RunRoutineStepUpdateInput>>;
+    stepsUpdate?: InputMaybe<Array<RunStepUpdateInput>>;
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
-export type RunRoutineYou = {
-    __typename: "RunRoutineYou";
+export type RunYou = {
+    __typename: "RunYou";
     canDelete: Scalars["Boolean"];
     canRead: Scalars["Boolean"];
     canUpdate: Scalars["Boolean"];
@@ -4417,11 +2592,6 @@ export enum RunStepStatus {
     Skipped = "Skipped"
 }
 
-export enum RunTask {
-    RunProject = "RunProject",
-    RunRoutine = "RunRoutine"
-}
-
 export enum SandboxTask {
     CallApi = "CallApi",
     RunDataTransform = "RunDataTransform",
@@ -4433,9 +2603,9 @@ export type Schedule = DbObject<"Schedule"> & {
     endTime: Scalars["Date"];
     exceptions: Array<ScheduleException>;
     meetings: Array<Meeting>;
+    publicId: Scalars["String"];
     recurrences: Array<ScheduleRecurrence>;
-    runProjects: Array<RunProject>;
-    runRoutines: Array<RunRoutine>;
+    runs: Array<Run>;
     startTime: Scalars["Date"];
     timezone: Scalars["String"];
     updated_at: Scalars["Date"];
@@ -4447,8 +2617,7 @@ export type ScheduleCreateInput = {
     id: Scalars["ID"];
     meetingConnect?: InputMaybe<Scalars["ID"]>;
     recurrencesCreate?: InputMaybe<Array<ScheduleRecurrenceCreateInput>>;
-    runProjectConnect?: InputMaybe<Scalars["ID"]>;
-    runRoutineConnect?: InputMaybe<Scalars["ID"]>;
+    runConnect?: InputMaybe<Scalars["ID"]>;
     startTime?: InputMaybe<Scalars["Date"]>;
     timezone: Scalars["String"];
 };
@@ -4499,8 +2668,7 @@ export type ScheduleExceptionUpdateInput = {
 
 export enum ScheduleFor {
     Meeting = "Meeting",
-    RunProject = "RunProject",
-    RunRoutine = "RunRoutine"
+    Run = "Run",
 }
 
 export type ScheduleRecurrence = DbObject<"ScheduleRecurrence"> & {
@@ -4629,21 +2797,14 @@ export type Session = {
 
 export type SessionUser = {
     __typename: "SessionUser";
-    apisCount: Scalars["Int"];
-    codesCount: Scalars["Int"];
     credits: Scalars["String"];
     handle?: Maybe<Scalars["String"]>;
     hasPremium: Scalars["Boolean"];
     id: Scalars["String"];
     languages: Array<Scalars["String"]>;
-    membershipsCount: Scalars["Int"];
     name?: Maybe<Scalars["String"]>;
-    notesCount: Scalars["Int"];
     profileImage?: Maybe<Scalars["String"]>;
-    projectsCount: Scalars["Int"];
-    routinesCount: Scalars["Int"];
     session: SessionUserSession;
-    standardsCount: Scalars["Int"];
     theme?: Maybe<Scalars["String"]>;
     updated_at: Scalars["Date"];
 };
@@ -4652,271 +2813,6 @@ export type SessionUserSession = {
     __typename: "SessionUserSession";
     id: Scalars["String"];
     lastRefreshAt: Scalars["Date"];
-};
-
-export type Standard = DbObject<"Standard"> & {
-    bookmarkedBy: Array<User>;
-    bookmarks: Scalars["Int"];
-    completedAt?: Maybe<Scalars["Date"]>;
-    createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
-    forks: Array<Standard>;
-    forksCount: Scalars["Int"];
-    hasCompleteVersion: Scalars["Boolean"];
-    isDeleted: Scalars["Boolean"];
-    isInternal: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    issues: Array<Issue>;
-    issuesCount: Scalars["Int"];
-    owner?: Maybe<Owner>;
-    parent?: Maybe<StandardVersion>;
-    permissions: Scalars["String"];
-    pullRequests: Array<PullRequest>;
-    pullRequestsCount: Scalars["Int"];
-    score: Scalars["Int"];
-    stats: Array<StatsStandard>;
-    tags: Array<Tag>;
-    transfers: Array<Transfer>;
-    transfersCount: Scalars["Int"];
-    translatedName: Scalars["String"];
-    updated_at: Scalars["Date"];
-    versions: Array<StandardVersion>;
-    versionsCount?: Maybe<Scalars["Int"]>;
-    views: Scalars["Int"];
-    you: StandardYou;
-};
-
-export type StandardCreateInput = {
-    id: Scalars["ID"];
-    isInternal?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate: Scalars["Boolean"];
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    parentConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
-};
-
-export type StandardEdge = Edge<Standard, "StandardEdge">;
-
-export type StandardSearchInput = BaseSearchInput<StandardSortBy> & {
-    codeLanguageLatestVersion?: InputMaybe<Scalars["String"]>;
-    createdById?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    hasCompleteVersion?: InputMaybe<Scalars["Boolean"]>;
-    isInternal?: InputMaybe<Scalars["Boolean"]>;
-    issuesId?: InputMaybe<Scalars["ID"]>;
-    maxBookmarks?: InputMaybe<Scalars["Int"]>;
-    maxScore?: InputMaybe<Scalars["Int"]>;
-    maxViews?: InputMaybe<Scalars["Int"]>;
-    minBookmarks?: InputMaybe<Scalars["Int"]>;
-    minScore?: InputMaybe<Scalars["Int"]>;
-    minViews?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamId?: InputMaybe<Scalars["ID"]>;
-    ownedByUserId?: InputMaybe<Scalars["ID"]>;
-    parentId?: InputMaybe<Scalars["ID"]>;
-    pullRequestsId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tags?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguagesLatestVersion?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    variantLatestVersion?: InputMaybe<StandardType>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type StandardSearchResult = SearchResult<StandardEdge, "StandardSearchResult">;
-
-export enum StandardSortBy {
-    BookmarksAsc = "BookmarksAsc",
-    BookmarksDesc = "BookmarksDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    IssuesAsc = "IssuesAsc",
-    IssuesDesc = "IssuesDesc",
-    PullRequestsAsc = "PullRequestsAsc",
-    PullRequestsDesc = "PullRequestsDesc",
-    ScoreAsc = "ScoreAsc",
-    ScoreDesc = "ScoreDesc",
-    VersionsAsc = "VersionsAsc",
-    VersionsDesc = "VersionsDesc",
-    ViewsAsc = "ViewsAsc",
-    ViewsDesc = "ViewsDesc"
-}
-
-export enum StandardType {
-    DataStructure = "DataStructure",
-    Prompt = "Prompt"
-}
-
-export type StandardUpdateInput = {
-    id: Scalars["ID"];
-    isInternal?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
-    ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
-    permissions?: InputMaybe<Scalars["String"]>;
-    tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-    tagsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
-    versionsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    versionsUpdate?: InputMaybe<Array<StandardVersionUpdateInput>>;
-};
-
-export type StandardVersion = DbObject<"StandardVersion"> & {
-    codeLanguage: Scalars["String"];
-    comments: Array<Comment>;
-    commentsCount: Scalars["Int"];
-    completedAt?: Maybe<Scalars["Date"]>;
-    created_at: Scalars["Date"];
-    default?: Maybe<Scalars["String"]>;
-    directoryListings: Array<ProjectVersionDirectory>;
-    directoryListingsCount: Scalars["Int"];
-    forks: Array<Standard>;
-    forksCount: Scalars["Int"];
-    isComplete: Scalars["Boolean"];
-    isDeleted: Scalars["Boolean"];
-    isFile?: Maybe<Scalars["Boolean"]>;
-    isLatest: Scalars["Boolean"];
-    isPrivate: Scalars["Boolean"];
-    props: Scalars["String"];
-    pullRequest?: Maybe<PullRequest>;
-    reports: Array<Report>;
-    reportsCount: Scalars["Int"];
-    resourceList?: Maybe<ResourceList>;
-    root: Standard;
-    translations: Array<StandardVersionTranslation>;
-    translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
-    variant: StandardType;
-    versionIndex: Scalars["Int"];
-    versionLabel: Scalars["String"];
-    versionNotes?: Maybe<Scalars["String"]>;
-    you: VersionYou;
-    yup?: Maybe<Scalars["String"]>;
-};
-
-export type StandardVersionCreateInput = BaseTranslatableCreateInput<StandardVersionTranslationCreateInput> & {
-    codeLanguage: Scalars["String"];
-    default?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isFile?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate: Scalars["Boolean"];
-    props: Scalars["String"];
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    rootConnect?: InputMaybe<Scalars["ID"]>;
-    rootCreate?: InputMaybe<StandardCreateInput>;
-    variant: StandardType;
-    versionLabel: Scalars["String"];
-    versionNotes?: InputMaybe<Scalars["String"]>;
-    yup?: InputMaybe<Scalars["String"]>;
-};
-
-export type StandardVersionEdge = Edge<StandardVersion, "StandardVersionEdge">;
-
-export type StandardVersionSearchInput = BaseSearchInput<StandardVersionSortBy> & {
-    codeLanguage?: InputMaybe<Scalars["String"]>;
-    completedTimeFrame?: InputMaybe<TimeFrame>;
-    createdByIdRoot?: InputMaybe<Scalars["ID"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    isCompleteWithRoot?: InputMaybe<Scalars["Boolean"]>;
-    isInternalWithRoot?: InputMaybe<Scalars["Boolean"]>;
-    isLatest?: InputMaybe<Scalars["Boolean"]>;
-    maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxViewsRoot?: InputMaybe<Scalars["Int"]>;
-    minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
-    minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minViewsRoot?: InputMaybe<Scalars["Int"]>;
-    ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
-    ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
-    reportId?: InputMaybe<Scalars["ID"]>;
-    rootId?: InputMaybe<Scalars["ID"]>;
-    searchString?: InputMaybe<Scalars["String"]>;
-    tagsRoot?: InputMaybe<Array<Scalars["String"]>>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    userId?: InputMaybe<Scalars["ID"]>;
-    variant?: InputMaybe<StandardType>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type StandardVersionSearchResult = SearchResult<StandardVersionEdge, "StandardVersionSearchResult">;
-
-export enum StandardVersionSortBy {
-    CommentsAsc = "CommentsAsc",
-    CommentsDesc = "CommentsDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    DirectoryListingsAsc = "DirectoryListingsAsc",
-    DirectoryListingsDesc = "DirectoryListingsDesc",
-    ForksAsc = "ForksAsc",
-    ForksDesc = "ForksDesc",
-    ReportsAsc = "ReportsAsc",
-    ReportsDesc = "ReportsDesc"
-}
-
-export type StandardVersionTranslation = BaseTranslation<"StandardVersionTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    jsonVariable?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type StandardVersionTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    jsonVariable?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type StandardVersionTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    jsonVariable?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type StandardVersionUpdateInput = BaseTranslatableUpdateInput<StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput> & {
-    codeLanguage?: InputMaybe<Scalars["String"]>;
-    default?: InputMaybe<Scalars["String"]>;
-    directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    directoryListingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    id: Scalars["ID"];
-    isComplete?: InputMaybe<Scalars["Boolean"]>;
-    isFile?: InputMaybe<Scalars["Boolean"]>;
-    isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    props?: InputMaybe<Scalars["String"]>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-    rootUpdate?: InputMaybe<StandardUpdateInput>;
-    variant?: InputMaybe<StandardType>;
-    versionLabel?: InputMaybe<Scalars["String"]>;
-    versionNotes?: InputMaybe<Scalars["String"]>;
-    yup?: InputMaybe<Scalars["String"]>;
-};
-
-export type StandardYou = {
-    __typename: "StandardYou";
-    canBookmark: Scalars["Boolean"];
-    canDelete: Scalars["Boolean"];
-    canReact: Scalars["Boolean"];
-    canRead: Scalars["Boolean"];
-    canTransfer: Scalars["Boolean"];
-    canUpdate: Scalars["Boolean"];
-    isBookmarked: Scalars["Boolean"];
-    isViewed: Scalars["Boolean"];
-    reaction?: Maybe<Scalars["String"]>;
 };
 
 export type StartLlmTaskInput = {
@@ -4933,8 +2829,7 @@ export type StartRunTaskInput = {
     config: RunConfig;
     formValues?: InputMaybe<Scalars["JSONObject"]>;
     isNewRun: Scalars["Boolean"];
-    projectVersionId?: InputMaybe<Scalars["ID"]>;
-    routineVersionId?: InputMaybe<Scalars["ID"]>;
+    resourceVersionId?: InputMaybe<Scalars["ID"]>;
     runId: Scalars["ID"];
 };
 
@@ -4946,143 +2841,50 @@ export enum StatPeriodType {
     Yearly = "Yearly"
 }
 
-export type StatsApi = DbObject<"StatsApi"> & {
-    calls: Scalars["Int"];
+export type StatsResource = DbObject<"StatsResource"> & {
     periodEnd: Scalars["Date"];
     periodStart: Scalars["Date"];
     periodType: StatPeriodType;
-    routineVersions: Scalars["Int"];
-};
-
-export type StatsApiEdge = Edge<StatsApi, "StatsApiEdge">;
-
-export type StatsApiSearchInput = BaseSearchInput<StatsApiSortBy> & {
-    periodTimeFrame?: InputMaybe<TimeFrame>;
-    periodType: StatPeriodType;
-    searchString?: InputMaybe<Scalars["String"]>;
-};
-
-export type StatsApiSearchResult = SearchResult<StatsApiEdge, "StatsApiSearchResult">;
-
-export enum StatsApiSortBy {
-    PeriodStartAsc = "PeriodStartAsc",
-    PeriodStartDesc = "PeriodStartDesc"
-}
-
-export type StatsCode = DbObject<"StatsCode"> & {
-    calls: Scalars["Int"];
-    periodEnd: Scalars["Date"];
-    periodStart: Scalars["Date"];
-    periodType: StatPeriodType;
-    routineVersions: Scalars["Int"];
-};
-
-export type StatsCodeEdge = Edge<StatsCode, "StatsCodeEdge">;
-
-export type StatsCodeSearchInput = BaseSearchInput<StatsCodeSortBy> & {
-    periodTimeFrame?: InputMaybe<TimeFrame>;
-    periodType: StatPeriodType;
-    searchString?: InputMaybe<Scalars["String"]>;
-};
-
-export type StatsCodeSearchResult = SearchResult<StatsCodeEdge, "StatsCodeSearchResult">;
-
-export enum StatsCodeSortBy {
-    PeriodStartAsc = "PeriodStartAsc",
-    PeriodStartDesc = "PeriodStartDesc"
-}
-
-export type StatsProject = DbObject<"StatsProject"> & {
-    apis: Scalars["Int"];
-    codes: Scalars["Int"];
-    directories: Scalars["Int"];
-    notes: Scalars["Int"];
-    periodEnd: Scalars["Date"];
-    periodStart: Scalars["Date"];
-    periodType: StatPeriodType;
-    projects: Scalars["Int"];
-    routines: Scalars["Int"];
-    runCompletionTimeAverage: Scalars["Float"];
-    runContextSwitchesAverage: Scalars["Float"];
-    runsCompleted: Scalars["Int"];
-    runsStarted: Scalars["Int"];
-    standards: Scalars["Int"];
-    teams: Scalars["Int"];
-};
-
-export type StatsProjectEdge = Edge<StatsProject, "StatsProjectEdge">;
-
-export type StatsProjectSearchInput = BaseSearchInput<StatsProjectSortBy> & {
-    periodTimeFrame?: InputMaybe<TimeFrame>;
-    periodType: StatPeriodType;
-    searchString?: InputMaybe<Scalars["String"]>;
-};
-
-export type StatsProjectSearchResult = SearchResult<StatsProjectEdge, "StatsProjectSearchResult">;
-
-export enum StatsProjectSortBy {
-    PeriodStartAsc = "PeriodStartAsc",
-    PeriodStartDesc = "PeriodStartDesc"
-}
-
-export type StatsRoutine = DbObject<"StatsRoutine"> & {
-    periodEnd: Scalars["Date"];
-    periodStart: Scalars["Date"];
-    periodType: StatPeriodType;
+    references: Scalars["Int"];
+    referencedBy: Scalars["Int"];
     runCompletionTimeAverage: Scalars["Float"];
     runContextSwitchesAverage: Scalars["Float"];
     runsCompleted: Scalars["Int"];
     runsStarted: Scalars["Int"];
 };
 
-export type StatsRoutineEdge = Edge<StatsRoutine, "StatsRoutineEdge">;
+export type StatsResourceEdge = Edge<StatsResource, "StatsResourceEdge">;
 
-export type StatsRoutineSearchInput = BaseSearchInput<StatsRoutineSortBy> & {
+export type StatsResourceSearchInput = BaseSearchInput<StatsResourceSortBy> & {
     periodTimeFrame?: InputMaybe<TimeFrame>;
     periodType: StatPeriodType;
     searchString?: InputMaybe<Scalars["String"]>;
 };
 
-export type StatsRoutineSearchResult = SearchResult<StatsRoutineEdge, "StatsRoutineSearchResult">;
+export type StatsResourceSearchResult = SearchResult<StatsResourceEdge, "StatsResourceSearchResult">;
 
-export enum StatsRoutineSortBy {
+export enum StatsResourceSortBy {
     PeriodStartAsc = "PeriodStartAsc",
     PeriodStartDesc = "PeriodStartDesc"
 }
 
 export type StatsSite = DbObject<"StatsSite"> & {
-    activeUsers: Scalars["Int"];
-    apiCalls: Scalars["Int"];
-    apisCreated: Scalars["Int"];
-    codeCalls: Scalars["Int"];
-    codeCompletionTimeAverage: Scalars["Float"];
-    codesCompleted: Scalars["Int"];
-    codesCreated: Scalars["Int"];
     periodEnd: Scalars["Date"];
     periodStart: Scalars["Date"];
     periodType: StatPeriodType;
-    projectCompletionTimeAverage: Scalars["Float"];
-    projectsCompleted: Scalars["Int"];
-    projectsCreated: Scalars["Int"];
-    routineCompletionTimeAverage: Scalars["Float"];
-    routineComplexityAverage: Scalars["Float"];
-    routineSimplicityAverage: Scalars["Float"];
-    routinesCompleted: Scalars["Int"];
-    routinesCreated: Scalars["Int"];
-    runProjectCompletionTimeAverage: Scalars["Float"];
-    runProjectContextSwitchesAverage: Scalars["Float"];
-    runProjectsCompleted: Scalars["Int"];
-    runProjectsStarted: Scalars["Int"];
-    runRoutineCompletionTimeAverage: Scalars["Float"];
-    runRoutineContextSwitchesAverage: Scalars["Float"];
-    runRoutinesCompleted: Scalars["Int"];
-    runRoutinesStarted: Scalars["Int"];
-    standardCompletionTimeAverage: Scalars["Float"];
-    standardsCompleted: Scalars["Int"];
-    standardsCreated: Scalars["Int"];
+    activeUsers: Scalars["Int"];
     teamsCreated: Scalars["Int"];
     verifiedEmailsCreated: Scalars["Int"];
     verifiedWalletsCreated: Scalars["Int"];
+    resourcesCreatedByType: Scalars["String"];
+    resourcesCompletedByType: Scalars["String"];
+    resourceCompletionTimeAverageByType: Scalars["String"];
+    routineSimplicityAverage: Scalars["Float"];
+    routineComplexityAverage: Scalars["Float"];
+    runCompletionTimeAverage: Scalars["Float"];
+    runContextSwitchesAverage: Scalars["Float"];
+    runsStarted: Scalars["Int"];
+    runsCompleted: Scalars["Int"];
 };
 
 export type StatsSiteEdge = Edge<StatsSite, "StatsSiteEdge">;
@@ -5100,44 +2902,17 @@ export enum StatsSiteSortBy {
     PeriodStartDesc = "PeriodStartDesc"
 }
 
-export type StatsStandard = DbObject<"StatsStandard"> & {
-    linksToInputs: Scalars["Int"];
-    linksToOutputs: Scalars["Int"];
-    periodEnd: Scalars["Date"];
-    periodStart: Scalars["Date"];
-    periodType: StatPeriodType;
-};
-
-export type StatsStandardEdge = Edge<StatsStandard, "StatsStandardEdge">;
-
-export type StatsStandardSearchInput = BaseSearchInput<StatsStandardSortBy> & {
-    periodTimeFrame?: InputMaybe<TimeFrame>;
-    periodType: StatPeriodType;
-    searchString?: InputMaybe<Scalars["String"]>;
-};
-
-export type StatsStandardSearchResult = SearchResult<StatsStandardEdge, "StatsStandardSearchResult">;
-
-export enum StatsStandardSortBy {
-    PeriodStartAsc = "PeriodStartAsc",
-    PeriodStartDesc = "PeriodStartDesc"
-}
-
 export type StatsTeam = DbObject<"StatsTeam"> & {
-    apis: Scalars["Int"];
-    codes: Scalars["Int"];
     members: Scalars["Int"];
-    notes: Scalars["Int"];
     periodEnd: Scalars["Date"];
     periodStart: Scalars["Date"];
     periodType: StatPeriodType;
     projects: Scalars["Int"];
-    routines: Scalars["Int"];
-    runRoutineCompletionTimeAverage: Scalars["Float"];
-    runRoutineContextSwitchesAverage: Scalars["Float"];
-    runRoutinesCompleted: Scalars["Int"];
-    runRoutinesStarted: Scalars["Int"];
-    standards: Scalars["Int"];
+    resources: Scalars["Int"];
+    runCompletionTimeAverage: Scalars["Float"];
+    runContextSwitchesAverage: Scalars["Float"];
+    runsCompleted: Scalars["Int"];
+    runsStarted: Scalars["Int"];
 };
 
 export type StatsTeamEdge = Edge<StatsTeam, "StatsTeamEdge">;
@@ -5156,30 +2931,16 @@ export enum StatsTeamSortBy {
 }
 
 export type StatsUser = DbObject<"StatsUser"> & {
-    apisCreated: Scalars["Int"];
-    codeCompletionTimeAverage: Scalars["Float"];
-    codesCompleted: Scalars["Int"];
-    codesCreated: Scalars["Int"];
     periodEnd: Scalars["Date"];
     periodStart: Scalars["Date"];
     periodType: StatPeriodType;
-    projectCompletionTimeAverage: Scalars["Float"];
-    projectsCompleted: Scalars["Int"];
-    projectsCreated: Scalars["Int"];
-    routineCompletionTimeAverage: Scalars["Float"];
-    routinesCompleted: Scalars["Int"];
-    routinesCreated: Scalars["Int"];
-    runProjectCompletionTimeAverage: Scalars["Float"];
-    runProjectContextSwitchesAverage: Scalars["Float"];
-    runProjectsCompleted: Scalars["Int"];
-    runProjectsStarted: Scalars["Int"];
-    runRoutineCompletionTimeAverage: Scalars["Float"];
-    runRoutineContextSwitchesAverage: Scalars["Float"];
-    runRoutinesCompleted: Scalars["Int"];
-    runRoutinesStarted: Scalars["Int"];
-    standardCompletionTimeAverage: Scalars["Float"];
-    standardsCompleted: Scalars["Int"];
-    standardsCreated: Scalars["Int"];
+    resourcesCreatedByType: Scalars["String"];
+    resourcesCompletedByType: Scalars["String"];
+    resourceCompletionTimeAverageByType: Scalars["String"];
+    runsStarted: Scalars["Int"];
+    runsCompleted: Scalars["Int"];
+    runCompletionTimeAverage: Scalars["Float"];
+    runContextSwitchesAverage: Scalars["Float"];
     teamsCreated: Scalars["Int"];
 };
 
@@ -5199,22 +2960,17 @@ export enum StatsUserSortBy {
 }
 
 export enum SubscribableObject {
-    Api = "Api",
-    Code = "Code",
     Comment = "Comment",
     Issue = "Issue",
     Meeting = "Meeting",
-    Note = "Note",
-    Project = "Project",
     PullRequest = "PullRequest",
     Report = "Report",
-    Routine = "Routine",
+    Resource = "Resource",
     Schedule = "Schedule",
-    Standard = "Standard",
     Team = "Team"
 }
 
-export type SubscribedObject = Api | Code | Comment | Issue | Meeting | Note | Project | PullRequest | Report | Routine | Schedule | Standard | Team;
+export type SubscribedObject = Comment | Issue | Meeting | PullRequest | Report | Resource | Schedule | Team;
 
 export type Success = {
     __typename: "Success";
@@ -5226,16 +2982,11 @@ export type SwitchCurrentAccountInput = {
 };
 
 export type Tag = DbObject<"Tag"> & {
-    apis: Array<Api>;
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
-    codes: Array<Code>;
     created_at: Scalars["Date"];
-    notes: Array<Note>;
-    projects: Array<Project>;
     reports: Array<Report>;
-    routines: Array<Routine>;
-    standards: Array<Standard>;
+    resources: Array<Resource>;
     tag: Scalars["String"];
     teams: Array<Team>;
     translations: Array<TagTranslation>;
@@ -5334,17 +3085,13 @@ export enum TaskType {
 }
 
 export type Team = DbObject<"Team"> & {
-    apis: Array<Api>;
-    apisCount: Scalars["Int"];
     bannerImage?: Maybe<Scalars["String"]>;
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
-    codes: Array<Code>;
-    codesCount: Scalars["Int"];
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
+    config?: Maybe<Scalars["String"]>;
     created_at: Scalars["Date"];
-    directoryListings: Array<ProjectVersionDirectory>;
     forks: Array<Team>;
     handle?: Maybe<Scalars["String"]>;
     isOpenToNewMembers: Scalars["Boolean"];
@@ -5355,24 +3102,16 @@ export type Team = DbObject<"Team"> & {
     meetingsCount: Scalars["Int"];
     members: Array<Member>;
     membersCount: Scalars["Int"];
-    notes: Array<Note>;
-    notesCount: Scalars["Int"];
     parent?: Maybe<Team>;
     paymentHistory: Array<Payment>;
     permissions: Scalars["String"];
     premium?: Maybe<Premium>;
     profileImage?: Maybe<Scalars["String"]>;
-    projects: Array<Project>;
-    projectsCount: Scalars["Int"];
+    publicId: Scalars["String"];
     reports: Array<Report>;
     reportsCount: Scalars["Int"];
-    resourceList?: Maybe<ResourceList>;
-    roles?: Maybe<Array<Role>>;
-    rolesCount: Scalars["Int"];
-    routines: Array<Routine>;
-    routinesCount: Scalars["Int"];
-    standards: Array<Standard>;
-    standardsCount: Scalars["Int"];
+    resources: Array<Resource>;
+    resourcesCount: Scalars["Int"];
     stats: Array<StatsTeam>;
     tags: Array<Tag>;
     transfersIncoming: Array<Transfer>;
@@ -5388,6 +3127,7 @@ export type Team = DbObject<"Team"> & {
 
 export type TeamCreateInput = BaseTranslatableCreateInput<TeamTranslationCreateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
+    config?: InputMaybe<Scalars["String"]>;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isOpenToNewMembers?: InputMaybe<Scalars["Boolean"]>;
@@ -5395,8 +3135,6 @@ export type TeamCreateInput = BaseTranslatableCreateInput<TeamTranslationCreateI
     memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
     permissions?: InputMaybe<Scalars["String"]>;
     profileImage?: InputMaybe<Scalars["Upload"]>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
     tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
     tagsCreate?: InputMaybe<Array<TagCreateInput>>;
 };
@@ -5411,11 +3149,9 @@ export type TeamSearchInput = BaseSearchInput<TeamSortBy> & {
     memberUserIds?: InputMaybe<Array<Scalars["ID"]>>;
     minBookmarks?: InputMaybe<Scalars["Int"]>;
     minViews?: InputMaybe<Scalars["Int"]>;
-    projectId?: InputMaybe<Scalars["ID"]>;
     reportId?: InputMaybe<Scalars["ID"]>;
-    routineId?: InputMaybe<Scalars["ID"]>;
+    resourceId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardId?: InputMaybe<Scalars["ID"]>;
     tags?: InputMaybe<Array<Scalars["String"]>>;
     translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -5450,6 +3186,7 @@ export type TeamTranslationUpdateInput = BaseTranslationUpdateInput & {
 
 export type TeamUpdateInput = BaseTranslatableUpdateInput<TeamTranslationCreateInput, TeamTranslationUpdateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
+    config?: InputMaybe<Scalars["String"]>;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isOpenToNewMembers?: InputMaybe<Scalars["Boolean"]>;
@@ -5459,11 +3196,6 @@ export type TeamUpdateInput = BaseTranslatableUpdateInput<TeamTranslationCreateI
     membersDelete?: InputMaybe<Array<Scalars["ID"]>>;
     permissions?: InputMaybe<Scalars["String"]>;
     profileImage?: InputMaybe<Scalars["Upload"]>;
-    resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-    resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-    rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
-    rolesDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    rolesUpdate?: InputMaybe<Array<RoleUpdateInput>>;
     tagsConnect?: InputMaybe<Array<Scalars["String"]>>;
     tagsCreate?: InputMaybe<Array<TagCreateInput>>;
     tagsDisconnect?: InputMaybe<Array<Scalars["String"]>>;
@@ -5505,15 +3237,10 @@ export type TransferDenyInput = {
 
 export type TransferEdge = Edge<Transfer, "TransferEdge">;
 
-export type TransferObject = Api | Code | Note | Project | Routine | Standard;
+export type TransferObject = Resource;
 
 export enum TransferObjectType {
-    Api = "Api",
-    Code = "Code",
-    Note = "Note",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard"
+    Resource = "Resource",
 }
 
 export type TransferRequestReceiveInput = {
@@ -5532,15 +3259,10 @@ export type TransferRequestSendInput = {
 };
 
 export type TransferSearchInput = BaseSearchInput<TransferSortBy> & {
-    apiId?: InputMaybe<Scalars["ID"]>;
-    codeId?: InputMaybe<Scalars["ID"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     fromTeamId?: InputMaybe<Scalars["ID"]>;
-    noteId?: InputMaybe<Scalars["ID"]>;
-    projectId?: InputMaybe<Scalars["ID"]>;
-    routineId?: InputMaybe<Scalars["ID"]>;
+    resourceId?: InputMaybe<Scalars["ID"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    standardId?: InputMaybe<Scalars["ID"]>;
     status?: InputMaybe<TransferStatus>;
     toTeamId?: InputMaybe<Scalars["ID"]>;
     toUserId?: InputMaybe<Scalars["ID"]>;
@@ -5589,18 +3311,12 @@ export type TranslateInput = {
 export type User = DbObject<"User"> & {
     apiKeys?: Maybe<Array<ApiKey>>;
     apiKeysExternal?: Maybe<Array<ApiKeyExternal>>;
-    apis: Array<Api>;
-    apisCount: Scalars["Int"];
-    apisCreated?: Maybe<Array<Api>>;
     awards?: Maybe<Array<Award>>;
     bannerImage?: Maybe<Scalars["String"]>;
     bookmarked?: Maybe<Array<Bookmark>>;
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
     botSettings?: Maybe<Scalars["String"]>;
-    codes?: Maybe<Array<Code>>;
-    codesCount: Scalars["Int"];
-    codesCreated?: Maybe<Array<Code>>;
     comments?: Maybe<Array<Comment>>;
     created_at: Scalars["Date"];
     emails?: Maybe<Array<Email>>;
@@ -5610,20 +3326,11 @@ export type User = DbObject<"User"> & {
     isBot: Scalars["Boolean"];
     isBotDepictingPerson: Scalars["Boolean"];
     isPrivate: Scalars["Boolean"];
-    isPrivateApis: Scalars["Boolean"];
-    isPrivateApisCreated: Scalars["Boolean"];
     isPrivateBookmarks: Scalars["Boolean"];
-    isPrivateCodes: Scalars["Boolean"];
-    isPrivateCodesCreated: Scalars["Boolean"];
     isPrivateMemberships: Scalars["Boolean"];
-    isPrivateProjects: Scalars["Boolean"];
-    isPrivateProjectsCreated: Scalars["Boolean"];
     isPrivatePullRequests: Scalars["Boolean"];
-    isPrivateRoles: Scalars["Boolean"];
-    isPrivateRoutines: Scalars["Boolean"];
-    isPrivateRoutinesCreated: Scalars["Boolean"];
-    isPrivateStandards: Scalars["Boolean"];
-    isPrivateStandardsCreated: Scalars["Boolean"];
+    isPrivateResources: Scalars["Boolean"];
+    isPrivateResourcesCreated: Scalars["Boolean"];
     isPrivateTeamsCreated: Scalars["Boolean"];
     isPrivateVotes: Scalars["Boolean"];
     issuesClosed?: Maybe<Array<Issue>>;
@@ -5634,9 +3341,6 @@ export type User = DbObject<"User"> & {
     membershipsCount: Scalars["Int"];
     membershipsInvited?: Maybe<Array<MemberInvite>>;
     name: Scalars["String"];
-    notes?: Maybe<Array<Note>>;
-    notesCount: Scalars["Int"];
-    notesCreated?: Maybe<Array<Note>>;
     notificationSettings?: Maybe<Scalars["String"]>;
     notificationSubscriptions?: Maybe<Array<NotificationSubscription>>;
     notifications?: Maybe<Array<Notification>>;
@@ -5644,9 +3348,7 @@ export type User = DbObject<"User"> & {
     phones?: Maybe<Array<Phone>>;
     premium?: Maybe<Premium>;
     profileImage?: Maybe<Scalars["String"]>;
-    projects?: Maybe<Array<Project>>;
-    projectsCount: Scalars["Int"];
-    projectsCreated?: Maybe<Array<Project>>;
+    publicId: Scalars["String"];
     pullRequests?: Maybe<Array<PullRequest>>;
     pushDevices?: Maybe<Array<PushDevice>>;
     reacted?: Maybe<Array<Reaction>>;
@@ -5655,16 +3357,11 @@ export type User = DbObject<"User"> & {
     reportsReceived: Array<Report>;
     reportsReceivedCount: Scalars["Int"];
     reputationHistory?: Maybe<Array<ReputationHistory>>;
-    roles?: Maybe<Array<Role>>;
-    routines?: Maybe<Array<Routine>>;
-    routinesCount: Scalars["Int"];
-    routinesCreated?: Maybe<Array<Routine>>;
-    runProjects?: Maybe<Array<RunProject>>;
-    runRoutines?: Maybe<Array<RunRoutine>>;
+    resources?: Maybe<Array<Resource>>;
+    resourcesCount: Scalars["Int"];
+    resourcesCreated?: Maybe<Array<Resource>>;
+    runs?: Maybe<Array<Run>>;
     sentReports?: Maybe<Array<Report>>;
-    standards?: Maybe<Array<Standard>>;
-    standardsCount: Scalars["Int"];
-    standardsCreated?: Maybe<Array<Standard>>;
     status?: Maybe<AccountStatus>;
     tags?: Maybe<Array<Tag>>;
     teamsCreated?: Maybe<Array<Team>>;
@@ -5774,7 +3471,7 @@ export enum ViewSortBy {
     LastViewedDesc = "LastViewedDesc"
 }
 
-export type ViewTo = Api | Code | Issue | Note | Project | Routine | Standard | Team | User;
+export type ViewTo = Issue | Resource | Team | User;
 
 export enum VisibilityType {
     Own = "Own",

@@ -1,97 +1,208 @@
-import { MaxObjects, ResourceSortBy, getTranslation, resourceValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { getLabels } from "../../getters/getLabels.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
-import { ResourceFormat } from "../formats.js";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
+import { ownerFields } from "../../utils/shapes/ownerFields.js";
+import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { RoutineFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types.js";
+import { BookmarkModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types.js";
 
-const __typename = "Resource" as const;
-export const ResourceModel: ResourceModelLogic = ({
+type RoutinePre = PreShapeRootResult;
+
+const __typename = "Routine" as const;
+export const RoutineModel: RoutineModelLogic = ({
     __typename,
-    dbTable: "resource",
-    dbTranslationTable: "resource_translation",
-    display: () => ({
-        label: {
-            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => getTranslation(select, languages).name ?? "",
-        },
-    }),
-    format: ResourceFormat,
+    dbTable: "routine",
+    display: () => rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
+    format: RoutineFormat,
     mutate: {
         shape: {
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                index: noNull(data.index),
-                link: data.link,
-                usedFor: data.usedFor,
-                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                index: noNull(data.index),
-                link: noNull(data.link),
-                usedFor: noNull(data.usedFor),
-                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
-            }),
+            // TODO for morning 2: need to create helper to handle version pre/post logic. These should 
+            // also support calling Trigger, and also version index logic. I started implementing this (the version index logic) somewhere before, 
+            // maybe models/routineVersion.
+            pre: async (params): Promise<RoutinePre> => {
+                const maps = await preShapeRoot({ ...params, objectType: __typename });
+                return { ...maps };
+            },
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as RoutinePre;
+                return {
+                    id: data.id,
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
+                };
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as RoutinePre;
+                return {
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
+                };
+            },
         },
-        yup: resourceValidation,
+        trigger: {
+            afterMutations: async (params) => {
+                await afterMutationsRoot({ ...params, objectType: __typename });
+            },
+        },
+        yup: routineValidation,
     },
     search: {
-        defaultSort: ResourceSortBy.IndexAsc,
-        sortBy: ResourceSortBy,
+        defaultSort: RoutineSortBy.ScoreDesc,
+        sortBy: RoutineSortBy,
         searchFields: {
+            createdById: true,
             createdTimeFrame: true,
-            resourceListId: true,
-            translationLanguages: true,
+            excludeIds: true,
+            hasCompleteVersion: true,
+            isInternal: true,
+            issuesId: true,
+            latestVersionRoutineType: true,
+            latestVersionRoutineTypes: true,
+            maxScore: true,
+            maxBookmarks: true,
+            maxViews: true,
+            minScore: true,
+            minBookmarks: true,
+            minViews: true,
+            ownedByTeamId: true,
+            ownedByUserId: true,
+            parentId: true,
+            pullRequestsId: true,
+            tags: true,
+            translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
             OR: [
-                "transDescriptionWrapped",
-                "transNameWrapped",
-                "linkWrapped",
+                "tagsWrapped",
+                { versions: { some: "transDescriptionWrapped" } },
+                { versions: { some: "transNameWrapped" } },
             ],
         }),
+        supplemental: {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
+                return {
+                    you: {
+                        ...(await getSingleTypePermissions<RoutineModelInfo["ApiPermission"]>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
+                    },
+                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? [DEFAULT_LANGUAGE], "project.translatedName"),
+                };
+            },
+        },
     },
     validate: () => ({
-        isTransferable: false,
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: (data) => data.isDeleted,
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            data.isDeleted === false &&
+            data.isInternal === false &&
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<RoutineModelInfo["DbSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
+        isTransferable: true,
         maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            Team: data?.ownedByTeam,
+            User: data?.ownedByUser,
+        }),
+        permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            list: "ResourceList",
+            hasCompleteVersion: true,
+            isDeleted: true,
+            isInternal: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: "User",
+            ownedByTeam: "Team",
+            ownedByUser: "User",
+            versions: ["RoutineVersion", ["root"]],
         }),
-        permissionResolvers: (params) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate().permissionResolvers({ ...params, data: params.data.list as any }),
-        owner: (data, userId) => ModelMap.get<ResourceListModelLogic>("ResourceList").validate().owner(data?.list as ResourceListModelInfo["DbModel"], userId),
-        isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ResourceModelInfo["DbSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {
-                    list: useVisibility("ResourceList", "Own", data),
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
+                    ],
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    list: useVisibility("ResourceList", "OwnOrPublic", data),
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Routine", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
-                    list: useVisibility("ResourceList", "OwnPrivate", data),
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
                 };
             },
             ownPublic: function getOwnPublic(data) {
                 return {
-                    list: useVisibility("ResourceList", "OwnPublic", data),
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Must be public
+                    OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
                 };
             },
             public: function getPublic(data) {
                 return {
-                    list: useVisibility("ResourceList", "Public", data),
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
+                    isPrivate: false, // Can't be private
+                    OR: [
+                        { ownedByTeam: null, ownedByUser: null },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
+                        { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
+                    ],
                 };
             },
         },

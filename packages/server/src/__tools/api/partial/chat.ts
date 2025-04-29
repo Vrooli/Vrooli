@@ -26,7 +26,6 @@ export const chat: ApiPartial<Chat> = {
         updated_at: true,
         openToAnyoneWithInvite: true,
         participants: async () => rel((await import("./chatParticipant.js")).chatParticipant, "list", { omit: "chat" }),
-        restrictedToRoles: async () => rel((await import("./role.js")).role, "full"),
         team: async () => rel((await import("./team.js")).team, "nav"),
         participantsCount: true,
         invitesCount: true,

@@ -50,8 +50,8 @@ export const team: ApiPartial<Team> = {
         you: () => rel(teamYou, "full"),
     },
     full: {
+        config: true,
         members: async () => rel((await import("./member.js")).member, "list", { omit: "team" }),
-        roles: async () => rel((await import("./role.js")).role, "full", { omit: "team" }),
     },
     nav: {
         id: true,

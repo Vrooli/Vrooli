@@ -1,12 +1,12 @@
-import { ModelType, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RunStepStatus } from "../api/types.js";
+import { ModelType, ResourceSubType, ResourceVersion, RunStepStatus } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
 import { InputType } from "../consts/model.js";
 import { CodeLanguage } from "../consts/ui.js";
 import { FormInputType, FormSchema } from "../forms/types.js";
-import { DUMMY_ID } from "../id/uuid.js";
+import { DUMMY_ID } from "../id/snowflake.js";
+import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
-import { RoutineVersionConfig } from "./configs/routine.js";
 import { SubroutineContextManager } from "./context.js";
 import { BranchLocationDataMap, BranchProgress, BranchStatus, ExecuteStepResult, IOMap, InitializedRunState, InputGenerationStrategy, Location, RunConfig, RunProgress, RunProgressStep, RunStateMachineServices, SubroutineExecutionStrategy, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, SubroutineOutputDisplayInfoProps } from "./types.js";
 
@@ -50,8 +50,9 @@ export abstract class SubroutineExecutor {
      * @param routine The routine to check
      * @returns True if the routine is a single-step routine, false otherwise
      */
-    public isSingleStepRoutine(routine: RoutineVersion): boolean {
-        return routine.routineType !== RoutineType.MultiStep;
+    public isSingleStepRoutine(resource: ResourceVersion): boolean {
+        return resource.resourceSubType !== ResourceSubType.RoutineMultiStep
+            && resource.resourceSubType.startsWith("Routine");
     }
 
     /**
@@ -60,8 +61,8 @@ export abstract class SubroutineExecutor {
      * @param routine The routine to check
      * @returns True if the routine is a multi-step routine, false otherwise
      */
-    public isMultiStepRoutine(routine: RoutineVersion): boolean {
-        return routine.routineType === RoutineType.MultiStep;
+    public isMultiStepRoutine(resource: ResourceVersion): boolean {
+        return resource.resourceSubType === ResourceSubType.RoutineMultiStep;
     }
 
     /**

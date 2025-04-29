@@ -72,8 +72,6 @@ function main(input) {
     created_at: new Date().toISOString(),
     data: serializedData,
     default: null,
-    directoryListings: [],
-    directoryListingsCount: 0,
     forks: [],
     forksCount: 0,
     isComplete: true,

@@ -1711,7 +1711,6 @@ describe("inputToMaps", () => {
                 code: "Code",
                 project: "Project",
                 reports: "Report",
-                roles: "Role",
                 routine: "Routine",
                 standard: "Standard",
             },

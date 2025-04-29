@@ -39,8 +39,6 @@ export const SortMap = {
     DateUpdatedDesc: { updated_at: Order.Desc },
     DueDateAsc: { dueDate: Order.Asc },
     DueDateDesc: { dueDate: Order.Desc },
-    DirectoryListingsAsc: { directoryListings: { _count: Order.Asc } },
-    DirectoryListingsDesc: { directoryListings: { _count: Order.Desc } },
     // Embed sorts are reserved for embeddable object search, so they're not applicable here
     EmbedDateCreatedAsc: {},
     EmbedDateCreatedDesc: {},

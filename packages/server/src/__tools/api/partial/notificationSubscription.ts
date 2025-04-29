@@ -18,7 +18,7 @@ export const notificationSubscription: ApiPartial<NotificationSubscription> = {
                 Project: async () => rel((await import("./project.js")).project, "list"),
                 PullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "list"),
                 Report: async () => rel((await import("./report.js")).report, "list"),
-                Routine: async () => rel((await import("./routine.js")).routine, "list"),
+                Routine: async () => rel((await import("./resource.js")).routine, "list"),
                 Standard: async () => rel((await import("./standard.js")).standard, "list"),
                 Team: async () => rel((await import("./team.js")).team, "list"),
             },

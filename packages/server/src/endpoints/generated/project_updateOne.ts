@@ -111,6 +111,7 @@ export const project_updateOne = {
             "canUse": true,
             "canRead": true
         },
+        "config": true,
         "directories": {
             "id": true,
             "created_at": true,
@@ -927,5 +928,5 @@ export const project_updateOne = {
         },
         "versionNotes": true
     },
-    "__cacheKey": "-758833179"
+    "__cacheKey": "431363271"
 };

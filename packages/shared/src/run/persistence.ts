@@ -1,7 +1,7 @@
 import { RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
+import { RunProgressConfig } from "../shape/configs/run.js";
 import { RunProjectShape, RunProjectStepShape, RunRoutineShape, RunRoutineStepShape, shapeRunProject, shapeRunRoutine } from "../shape/models/models.js";
-import { RunProgressConfig } from "./configs/run.js";
 import { FINALIZE_RUN_POLL_INTERVAL_MS, FINALIZE_RUN_TIMEOUT_MS, STORE_RUN_PROGRESS_DEBOUNCE_MS } from "./consts.js";
 import { RunIdentifier, RunMetrics, RunProgress, RunProgressStep, RunTriggeredBy } from "./types.js";
 
@@ -401,10 +401,10 @@ export abstract class RunPersistence {
         runId: string,
     ): RunProjectStepShape {
         const { completedAt, complexity, contextSwitches, id, name, startedAt, status } = step;
-        const directory = step.subroutineId ?
-            { id: step.subroutineId, __typename: "ProjectVersionDirectory" as const }
+        const resource = step.subroutineId ?
+            { id: step.subroutineId, __typename: "ResourceVersion" as const }
             : null;
-        const directoryInId = step.objectId;
+        const resourceInId = step.objectId;
         const runProject = { id: runId, __typename: "RunProject" as const };
         const timeElapsed = this.calculateStepTimeElapsed(step);
 
@@ -414,8 +414,8 @@ export abstract class RunPersistence {
             completedAt,
             complexity,
             contextSwitches,
-            directory,
-            directoryInId,
+            resource,
+            resourceInId,
             name,
             order: index,
             startedAt,

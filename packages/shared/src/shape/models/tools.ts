@@ -1,5 +1,5 @@
 import { ShapeModel } from "../../consts/commonTypes.js";
-import { DUMMY_ID } from "../../id/uuid.js";
+import { DUMMY_ID } from "../../id/snowflake.js";
 import { exists } from "../../utils/exists.js";
 import { hasObjectChanged } from "../general/objectTools.js";
 

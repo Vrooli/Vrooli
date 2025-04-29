@@ -1,4 +1,4 @@
-import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser, uuidValidate } from "@local/shared";
+import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { AnyObjectSchema } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
@@ -220,7 +220,7 @@ async function buildOperations(
 
             // Verify that the "where" object is valid
             const where = { id: typeof input === "string" ? input : input.id };
-            if (typeof where.id !== "string" || !uuidValidate(where.id)) {
+            if (typeof where.id !== "string") {
                 logger.error(`[buildOperations] Invalid where object for update operation: ${JSON.stringify({ objectType, input, where })}`, { trace: "0802" });
                 throw new CustomError("0802", "InternalError", { objectType });
             }

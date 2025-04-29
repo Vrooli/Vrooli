@@ -18,7 +18,9 @@ export const MAX_PUBLIC_ID_LENGTH = 12;
 export const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 // Create a customized nanoid generator
-const nanoid = customAlphabet(ALPHABET, PUBLIC_ID_LENGTH);
+export function nanoid() {
+    return customAlphabet(ALPHABET, PUBLIC_ID_LENGTH)();
+}
 
 /**
  * Generate a human-friendly public ID for URLs

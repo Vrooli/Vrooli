@@ -47,7 +47,7 @@ export function getVisibilityFunc<
     if (visibilityFunc === null || visibilityFunc === undefined) {
         // Check if the function is explicitly null (not supported) or just missing
         const isUnsupported = funcName in validator.visibility && validator.visibility[funcName] === null;
-        const message = `Visibility function '${funcName}' ${isUnsupported ? 'is not supported' : 'not found'} for ${objectType}.`;
+        const message = `Visibility function '${funcName}' ${isUnsupported ? "is not supported" : "not found"} for ${objectType}.`;
         if (throwIfNotFound) {
             // Use "InternalError" key, pass details in meta
             throw new CustomError("0780", "InternalError", { message, objectType, funcName });
@@ -75,7 +75,7 @@ const visibilityOrder: Record<VisibilityType, number> = {
  */
 function getEffectiveVisibility(
     requestedVisibility: VisibilityType | null | undefined,
-    maxAllowedVisibility: VisibilityType
+    maxAllowedVisibility: VisibilityType,
 ): VisibilityType {
     if (!requestedVisibility) {
         return maxAllowedVisibility; // Default to the max allowed if nothing specific is requested
@@ -193,8 +193,7 @@ export function useVisibility<T extends GenericModelLogic, Throw extends boolean
 
 /**
  * Loops over an object to generate a list of visibility functions. 
- * Useful for objects that have a lot of relations, such as comments, 
- * resource lists, etc.
+ * Useful for objects that have a lot of relations, such as comments
  */
 export function useVisibilityMapper<ForMapper extends Record<string, string>>(
     which: VisibilityType | `${VisibilityType}`,

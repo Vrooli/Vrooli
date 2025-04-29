@@ -30,7 +30,6 @@ contract SimpleStorage {
         return storedData;
     }
 }`,
-    directoryListings: [],
     isComplete: true,
     isPrivate: false,
     root: {

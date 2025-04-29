@@ -1,10 +1,10 @@
 import BpmnModdle from "bpmn-moddle";
 import { DbObject } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
-import { uuid } from "../id/uuid.js";
+import { nanoid } from "../id/publicId.js";
+import { GraphBpmnConfig, GraphConfig } from "../shape/configs/routine.js";
 import { LRUCache } from "../utils/lruCache.js";
 import { RoutineGraphType } from "../utils/routineGraph.js";
-import { GraphBpmnConfig, GraphConfig } from "./configs/routine.js";
 import { BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES, BPMN_DEFINITIONS_CACHE_LIMIT, BPMN_ELEMENT_CACHE_LIMIT, BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES } from "./consts.js";
 import { PathSelectionHandler } from "./pathSelection.js";
 import { DecisionOption, DeferredDecisionData, Id, Location, RunConfig, RunStateMachineServices, SubroutineContext } from "./types.js";
@@ -375,7 +375,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         }
 
         // Assign a unique ID if missing
-        defs.id = defs.id || `definitions_${uuid()}`;
+        defs.id = defs.id || `definitions_${nanoid()}`;
 
         // Cache it
         this.definitionsCache.set(xmlData, defs);

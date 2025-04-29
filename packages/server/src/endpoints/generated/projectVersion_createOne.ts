@@ -19,6 +19,7 @@ export const projectVersion_createOne = {
         "canUse": true,
         "canRead": true
     },
+    "config": true,
     "directories": {
         "id": true,
         "created_at": true,
@@ -927,5 +928,5 @@ export const projectVersion_createOne = {
         "name": true
     },
     "versionNotes": true,
-    "__cacheKey": "-1185189244"
+    "__cacheKey": "1539483942"
 };

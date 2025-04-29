@@ -1,51 +1,6 @@
 import { ModelType } from "@local/shared";
-import { ApiKeyExternalModelInfo, ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, IssueModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineIOModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
+import { ApiKeyExternalModelInfo, ApiKeyModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CommentModelInfo, EmailModelInfo, IssueModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PremiumModelInfo, PullRequestModelInfo, PushDeviceModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunRoutineIOModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StatsSiteModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
 import { Formatter } from "./types.js";
-
-export const ApiFormat: Formatter<ApiModelInfo> = {
-    apiRelMap: {
-        __typename: "Api",
-        createdBy: "User",
-        owner: {
-            ownedByTeam: "Team",
-            ownedByUser: "User",
-        },
-        parent: "ApiVersion",
-        tags: "Tag",
-        versions: "ApiVersion",
-        issues: "Issue",
-        pullRequests: "PullRequest",
-        bookmarkedBy: "User",
-        stats: "StatsApi",
-        transfers: "Transfer",
-    },
-    unionFields: {
-        owner: {},
-    },
-    prismaRelMap: {
-        __typename: "Api",
-        createdBy: "User",
-        ownedByTeam: "Team",
-        ownedByUser: "User",
-        parent: "ApiVersion",
-        tags: "Tag",
-        issues: "Issue",
-        bookmarkedBy: "User",
-        reactions: "Reaction",
-        viewedBy: "View",
-        pullRequests: "PullRequest",
-        versions: "ApiVersion",
-        stats: "StatsApi",
-        transfers: "Transfer",
-    },
-    joinMap: { bookmarkedBy: "user", tags: "tag" },
-    countFields: {
-        issuesCount: true,
-        pullRequestsCount: true,
-        transfersCount: true,
-        versionsCount: true,
-    },
-};
 
 export const ApiKeyFormat: Formatter<ApiKeyModelInfo> = {
     apiRelMap: {
@@ -69,38 +24,6 @@ export const ApiKeyExternalFormat: Formatter<ApiKeyExternalModelInfo> = {
     hiddenFields: ["key"],
 };
 
-
-export const ApiVersionFormat: Formatter<ApiVersionModelInfo> = {
-    apiRelMap: {
-        __typename: "ApiVersion",
-        comments: "Comment",
-        directoryListings: "ProjectVersionDirectory",
-        forks: "ApiVersion",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        resourceList: "ResourceList",
-        root: "Api",
-    },
-    prismaRelMap: {
-        __typename: "ApiVersion",
-        calledByRoutineVersions: "RoutineVersion",
-        comments: "Comment",
-        reports: "Report",
-        root: "Api",
-        forks: "Api",
-        resourceList: "ResourceList",
-        pullRequest: "PullRequest",
-        directoryListings: "ProjectVersionDirectory",
-    },
-    countFields: {
-        calledByRoutineVersionsCount: true,
-        commentsCount: true,
-        directoryListingsCount: true,
-        forksCount: true,
-        reportsCount: true,
-    },
-};
-
 export const AwardFormat: Formatter<AwardModelInfo> = {
     apiRelMap: {
         __typename: "Award",
@@ -118,14 +41,10 @@ export const BookmarkFormat: Formatter<BookmarkModelInfo> = {
         by: "User",
         list: "BookmarkList",
         to: {
-            api: "Api",
-            code: "Code",
             comment: "Comment",
             issue: "Issue",
-            note: "Note",
-            project: "Project",
-            routine: "Routine",
-            standard: "Standard",
+            list: "BookmarkList",
+            resource: "Resource",
             tag: "Tag",
             team: "Team",
             user: "User",
@@ -136,15 +55,10 @@ export const BookmarkFormat: Formatter<BookmarkModelInfo> = {
     },
     prismaRelMap: {
         __typename: "Bookmark",
-        api: "Api",
-        code: "Code",
         comment: "Comment",
         issue: "Issue",
         list: "BookmarkList",
-        note: "Note",
-        project: "Project",
-        routine: "Routine",
-        standard: "Standard",
+        resource: "Resource",
         tag: "Tag",
         team: "Team",
         user: "User",
@@ -170,7 +84,6 @@ export const ChatFormat: Formatter<ChatModelInfo> = {
     apiRelMap: {
         __typename: "Chat",
         team: "Team",
-        restrictedToRoles: "Role",
         messages: "ChatMessage",
         participants: "ChatParticipant",
         invites: "ChatInvite",
@@ -179,12 +92,10 @@ export const ChatFormat: Formatter<ChatModelInfo> = {
         __typename: "Chat",
         creator: "User",
         team: "Team",
-        restrictedToRoles: "Role",
         messages: "ChatMessage",
         participants: "ChatParticipant",
         invites: "ChatInvite",
     },
-    joinMap: { restrictedToRoles: "role" },
     countFields: {
         participantsCount: true,
         invitesCount: true,
@@ -255,14 +166,9 @@ export const CommentFormat: Formatter<CommentModelInfo> = {
             ownedByUser: "User",
         },
         commentedOn: {
-            apiVersion: "ApiVersion",
-            codeVersion: "CodeVersion",
             issue: "Issue",
-            noteVersion: "NoteVersion",
-            projectVersion: "ProjectVersion",
             pullRequest: "PullRequest",
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
+            resourceVersion: "ResourceVersion",
         },
         reports: "Report",
         bookmarkedBy: "User",
@@ -275,15 +181,10 @@ export const CommentFormat: Formatter<CommentModelInfo> = {
         __typename: "Comment",
         ownedByTeam: "Team",
         ownedByUser: "User",
-        apiVersion: "ApiVersion",
-        codeVersion: "CodeVersion",
         issue: "Issue",
-        noteVersion: "NoteVersion",
         parent: "Comment",
-        projectVersion: "ProjectVersion",
         pullRequest: "PullRequest",
-        routineVersion: "RoutineVersion",
-        standardVersion: "StandardVersion",
+        resourceVersion: "ResourceVersion",
         reports: "Report",
         bookmarkedBy: "User",
         reactions: "Reaction",
@@ -316,12 +217,7 @@ export const IssueFormat: Formatter<IssueModelInfo> = {
         reports: "Report",
         bookmarkedBy: "User",
         to: {
-            api: "Api",
-            code: "Code",
-            note: "Note",
-            project: "Project",
-            routine: "Routine",
-            standard: "Standard",
+            resource: "Resource",
             team: "Team",
         },
     },
@@ -330,12 +226,7 @@ export const IssueFormat: Formatter<IssueModelInfo> = {
     },
     prismaRelMap: {
         __typename: "Issue",
-        api: "Api",
-        code: "Code",
-        note: "Note",
-        project: "Project",
-        routine: "Routine",
-        standard: "Standard",
+        resource: "Resource",
         closedBy: "User",
         comments: "Comment",
         reports: "Report",
@@ -357,7 +248,6 @@ export const MeetingFormat: Formatter<MeetingModelInfo> = {
         __typename: "Meeting",
         attendees: "User",
         invites: "MeetingInvite",
-        restrictedToRoles: "Role",
         schedule: "Schedule",
         team: "Team",
     },
@@ -365,12 +255,10 @@ export const MeetingFormat: Formatter<MeetingModelInfo> = {
         __typename: "Meeting",
         attendees: "User",
         invites: "MeetingInvite",
-        restrictedToRoles: "Role",
         schedule: "Schedule",
         team: "Team",
     },
     joinMap: {
-        restrictedToRoles: "role",
         attendees: "user",
     },
     countFields: {
@@ -397,13 +285,11 @@ export const MeetingInviteFormat: Formatter<MeetingInviteModelInfo> = {
 export const MemberFormat: Formatter<MemberModelInfo> = {
     apiRelMap: {
         __typename: "Member",
-        roles: "Role",
         team: "Team",
         user: "User",
     },
     prismaRelMap: {
         __typename: "Member",
-        roles: "Role",
         team: "Team",
         user: "User",
     },
@@ -424,73 +310,6 @@ export const MemberInviteFormat: Formatter<MemberInviteModelInfo> = {
     countFields: {},
 };
 
-export const NoteFormat: Formatter<NoteModelInfo> = {
-    apiRelMap: {
-        __typename: "Note",
-        createdBy: "User",
-        issues: "Issue",
-        owner: {
-            ownedByTeam: "Team",
-            ownedByUser: "User",
-        },
-        parent: "NoteVersion",
-        pullRequests: "PullRequest",
-        bookmarkedBy: "User",
-        tags: "Tag",
-        transfers: "Transfer",
-        versions: "NoteVersion",
-    },
-    unionFields: {
-        owner: {},
-    },
-    prismaRelMap: {
-        __typename: "Note",
-        parent: "NoteVersion",
-        createdBy: "User",
-        ownedByTeam: "Team",
-        ownedByUser: "User",
-        versions: "NoteVersion",
-        pullRequests: "PullRequest",
-        issues: "Issue",
-        tags: "Tag",
-        bookmarkedBy: "User",
-    },
-    joinMap: { bookmarkedBy: "user", tags: "tag" },
-    countFields: {
-        issuesCount: true,
-        pullRequestsCount: true,
-        transfersCount: true,
-        versionsCount: true,
-    },
-};
-
-export const NoteVersionFormat: Formatter<NoteVersionModelInfo> = {
-    apiRelMap: {
-        __typename: "NoteVersion",
-        comments: "Comment",
-        directoryListings: "ProjectVersionDirectory",
-        pullRequest: "PullRequest",
-        forks: "NoteVersion",
-        reports: "Report",
-        root: "Note",
-    },
-    prismaRelMap: {
-        __typename: "NoteVersion",
-        root: "Note",
-        forks: "Note",
-        pullRequest: "PullRequest",
-        comments: "Comment",
-        reports: "Report",
-        directoryListings: "ProjectVersionDirectory",
-    },
-    countFields: {
-        commentsCount: true,
-        directoryListingsCount: true,
-        forksCount: true,
-        reportsCount: true,
-    },
-};
-
 export const NotificationFormat: Formatter<NotificationModelInfo> = {
     apiRelMap: {
         __typename: "Notification",
@@ -505,18 +324,13 @@ export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionM
     apiRelMap: {
         __typename: "NotificationSubscription",
         object: {
-            api: "Api",
-            code: "Code",
             comment: "Comment",
             issue: "Issue",
             meeting: "Meeting",
-            note: "Note",
-            project: "Project",
             pullRequest: "PullRequest",
             report: "Report",
-            routine: "Routine",
+            resource: "Resource",
             schedule: "Schedule",
-            standard: "Standard",
             team: "Team",
         },
     },
@@ -525,18 +339,13 @@ export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionM
     },
     prismaRelMap: {
         __typename: "NotificationSubscription",
-        api: "Api",
-        code: "Code",
         comment: "Comment",
         issue: "Issue",
         meeting: "Meeting",
-        note: "Note",
-        project: "Project",
         pullRequest: "PullRequest",
         report: "Report",
-        routine: "Routine",
+        resource: "Resource",
         schedule: "Schedule",
-        standard: "Standard",
         subscriber: "User",
         team: "Team",
     },
@@ -560,8 +369,6 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
         premium: "Premium",
         projects: "Project",
         reports: "Report",
-        resourceList: "ResourceList",
-        roles: "Role",
         routines: "Routine",
         standards: "Standard",
         bookmarkedBy: "User",
@@ -587,8 +394,6 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
         memberInvites: "MemberInvite",
         projects: "Project",
         reports: "Report",
-        resourceList: "ResourceList",
-        roles: "Role",
         routines: "Routine",
         runRoutines: "RunRoutine",
         standards: "Standard",
@@ -608,7 +413,6 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
         notesCount: true,
         projectsCount: true,
         reportsCount: true,
-        rolesCount: true,
         routinesCount: true,
         standardsCount: true,
         translationsCount: true,
@@ -648,115 +452,6 @@ export const PremiumFormat: Formatter<PremiumModelInfo> = {
         __typename: "Premium",
         team: "Team",
         user: "User",
-    },
-    countFields: {},
-};
-
-export const ProjectFormat: Formatter<ProjectModelInfo> = {
-    apiRelMap: {
-        __typename: "Project",
-        createdBy: "User",
-        issues: "Issue",
-        owner: {
-            ownedByTeam: "Team",
-            ownedByUser: "User",
-        },
-        parent: "ProjectVersion",
-        pullRequests: "PullRequest",
-        bookmarkedBy: "User",
-        tags: "Tag",
-        transfers: "Transfer",
-        versions: "ProjectVersion",
-    },
-    unionFields: {
-        owner: {},
-    },
-    prismaRelMap: {
-        __typename: "Project",
-        createdBy: "User",
-        ownedByTeam: "Team",
-        ownedByUser: "User",
-        parent: "ProjectVersion",
-        issues: "Issue",
-        tags: "Tag",
-        versions: "ProjectVersion",
-        bookmarkedBy: "User",
-        pullRequests: "PullRequest",
-        stats: "StatsProject",
-        transfers: "Transfer",
-    },
-    joinMap: { bookmarkedBy: "user", tags: "tag" },
-    countFields: {
-        issuesCount: true,
-        pullRequestsCount: true,
-        transfersCount: true,
-        versionsCount: true,
-    },
-};
-
-export const ProjectVersionFormat: Formatter<ProjectVersionModelInfo> = {
-    apiRelMap: {
-        __typename: "ProjectVersion",
-        comments: "Comment",
-        directories: "ProjectVersionDirectory",
-        directoryListings: "ProjectVersionDirectory",
-        forks: "Project",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        root: "Project",
-        // 'runs.project': 'RunProject', //TODO
-    },
-    prismaRelMap: {
-        __typename: "ProjectVersion",
-        comments: "Comment",
-        directories: "ProjectVersionDirectory",
-        directoryListings: "ProjectVersionDirectory",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        resourceList: "ResourceList",
-        root: "Project",
-        forks: "Project",
-        runProjects: "RunProject",
-    },
-    countFields: {
-        commentsCount: true,
-        directoriesCount: true,
-        directoryListingsCount: true,
-        forksCount: true,
-        reportsCount: true,
-        runProjectsCount: true,
-        translationsCount: true,
-    },
-};
-
-export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryModelInfo> = {
-    apiRelMap: {
-        __typename: "ProjectVersionDirectory",
-        parentDirectory: "ProjectVersionDirectory",
-        projectVersion: "ProjectVersion",
-        children: "ProjectVersionDirectory",
-        childApiVersions: "ApiVersion",
-        childCodeVersions: "CodeVersion",
-        childNoteVersions: "NoteVersion",
-        childProjectVersions: "ProjectVersion",
-        childRoutineVersions: "RoutineVersion",
-        childStandardVersions: "StandardVersion",
-        childTeams: "Team",
-        runProjectSteps: "RunProjectStep",
-    },
-    prismaRelMap: {
-        __typename: "ProjectVersionDirectory",
-        parentDirectory: "ProjectVersionDirectory",
-        projectVersion: "ProjectVersion",
-        children: "ProjectVersionDirectory",
-        childApiVersions: "ApiVersion",
-        childCodeVersions: "CodeVersion",
-        childNoteVersions: "NoteVersion",
-        childProjectVersions: "ProjectVersion",
-        childRoutineVersions: "RoutineVersion",
-        childStandardVersions: "StandardVersion",
-        childTeams: "Team",
-        runProjectSteps: "RunProjectStep",
     },
     countFields: {},
 };
@@ -964,64 +659,6 @@ export const ReportResponseFormat: Formatter<ReportResponseModelInfo> = {
     },
 };
 
-export const ResourceFormat: Formatter<ResourceModelInfo> = {
-    apiRelMap: {
-        __typename: "Resource",
-        list: "ResourceList",
-    },
-    prismaRelMap: {
-        __typename: "Resource",
-        list: "ResourceList",
-    },
-    countFields: {},
-};
-
-export const ResourceListFormat: Formatter<ResourceListModelInfo> = {
-    apiRelMap: {
-        __typename: "ResourceList",
-        resources: "Resource",
-        listFor: {
-            apiVersion: "ApiVersion",
-            codeVersion: "CodeVersion",
-            projectVersion: "ProjectVersion",
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
-            team: "Team",
-        },
-    },
-    unionFields: {
-        listFor: { connectField: "listForConnect", typeField: "listForType" },
-    },
-    prismaRelMap: {
-        __typename: "ResourceList",
-        resources: "Resource",
-        apiVersion: "ApiVersion",
-        codeVersion: "CodeVersion",
-        projectVersion: "ProjectVersion",
-        routineVersion: "RoutineVersion",
-        standardVersion: "StandardVersion",
-        team: "Team",
-    },
-    countFields: {},
-};
-
-export const RoleFormat: Formatter<RoleModelInfo> = {
-    apiRelMap: {
-        __typename: "Role",
-        members: "Member",
-        team: "Team",
-    },
-    prismaRelMap: {
-        __typename: "Role",
-        members: "Member",
-        meetings: "Meeting",
-        team: "Team",
-    },
-    countFields: {
-        membersCount: true,
-    },
-};
-
 export const RoutineFormat: Formatter<RoutineModelInfo> = {
     apiRelMap: {
         __typename: "Routine",
@@ -1076,7 +713,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         inputs: "RoutineVersionInput",
         outputs: "RoutineVersionOutput",
         pullRequest: "PullRequest",
-        resourceList: "ResourceList",
         reports: "Report",
         root: "Routine",
         subroutineLinks: "RoutineVersion",
@@ -1088,7 +724,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         reports: "Report",
-        resourceList: "ResourceList",
         root: "Routine",
         forks: "Routine",
         inputs: "RoutineVersionInput",
@@ -1139,42 +774,6 @@ export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelInfo
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
         runIO: "RunRoutineIO",
-    },
-    countFields: {},
-};
-
-export const RunProjectFormat: Formatter<RunProjectModelInfo> = {
-    apiRelMap: {
-        __typename: "RunProject",
-        projectVersion: "ProjectVersion",
-        schedule: "Schedule",
-        steps: "RunProjectStep",
-        team: "Team",
-        user: "User",
-    },
-    prismaRelMap: {
-        __typename: "RunProject",
-        projectVersion: "ProjectVersion",
-        schedule: "Schedule",
-        steps: "RunProjectStep",
-        team: "Team",
-        user: "User",
-    },
-    countFields: {
-        stepsCount: true,
-    },
-};
-
-export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
-    apiRelMap: {
-        __typename: "RunProjectStep",
-        directory: "ProjectVersionDirectory",
-        runProject: "RunProject",
-    },
-    prismaRelMap: {
-        __typename: "RunProjectStep",
-        directory: "ProjectVersionDirectory",
-        runProject: "RunProject",
     },
     countFields: {},
 };
@@ -1278,79 +877,6 @@ export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelInfo> = 
     countFields: {},
 };
 
-export const CodeFormat: Formatter<CodeModelInfo> = {
-    apiRelMap: {
-        __typename: "Code",
-        createdBy: "User",
-        issues: "Issue",
-        owner: {
-            ownedByTeam: "Team",
-            ownedByUser: "User",
-        },
-        parent: "CodeVersion",
-        pullRequests: "PullRequest",
-        bookmarkedBy: "User",
-        tags: "Tag",
-        transfers: "Transfer",
-        versions: "CodeVersion",
-    },
-    unionFields: {
-        owner: {},
-    },
-    prismaRelMap: {
-        __typename: "Code",
-        createdBy: "User",
-        issues: "Issue",
-        ownedByTeam: "Team",
-        ownedByUser: "User",
-        parent: "CodeVersion",
-        pullRequests: "PullRequest",
-        bookmarkedBy: "User",
-        tags: "Tag",
-        transfers: "Transfer",
-        versions: "CodeVersion",
-    },
-    joinMap: { bookmarkedBy: "user", tags: "tag" },
-    countFields: {
-        issuesCount: true,
-        pullRequestsCount: true,
-        transfersCount: true,
-        versionsCount: true,
-    },
-};
-
-export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
-    apiRelMap: {
-        __typename: "CodeVersion",
-        comments: "Comment",
-        directoryListings: "ProjectVersionDirectory",
-        forks: "CodeVersion",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        resourceList: "ResourceList",
-        root: "Code",
-    },
-    prismaRelMap: {
-        __typename: "CodeVersion",
-        calledByRoutineVersions: "RoutineVersion",
-        comments: "Comment",
-        directoryListings: "ProjectVersionDirectory",
-        forks: "CodeVersion",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        resourceList: "ResourceList",
-        root: "Code",
-    },
-    countFields: {
-        calledByRoutineVersionsCount: true,
-        commentsCount: true,
-        directoryListingsCount: true,
-        forksCount: true,
-        reportsCount: true,
-        translationsCount: true,
-    },
-};
-
 export const SessionFormat: Formatter<SessionModelInfo> = {
     apiRelMap: {
         __typename: "Session",
@@ -1361,119 +887,13 @@ export const SessionFormat: Formatter<SessionModelInfo> = {
     countFields: {},
 };
 
-export const StandardFormat: Formatter<StandardModelInfo> = {
+export const StatsResourceFormat: Formatter<StatsResourceModelInfo> = {
     apiRelMap: {
-        __typename: "Standard",
-        createdBy: "User",
-        issues: "Issue",
-        owner: {
-            ownedByTeam: "Team",
-            ownedByUser: "User",
-        },
-        parent: "StandardVersion",
-        pullRequests: "PullRequest",
-        bookmarkedBy: "User",
-        tags: "Tag",
-        transfers: "Transfer",
-        versions: "StandardVersion",
-    },
-    unionFields: {
-        owner: {},
+        __typename: "StatsResource",
     },
     prismaRelMap: {
-        __typename: "Standard",
-        createdBy: "User",
-        ownedByTeam: "Team",
-        ownedByUser: "User",
-        issues: "Issue",
-        parent: "StandardVersion",
-        tags: "Tag",
-        bookmarkedBy: "User",
-        versions: "StandardVersion",
-        pullRequests: "PullRequest",
-        stats: "StatsStandard",
-        transfers: "Transfer",
-    },
-    joinMap: { tags: "tag", bookmarkedBy: "user" },
-    countFields: {
-        forksCount: true,
-        issuesCount: true,
-        pullRequestsCount: true,
-        transfersCount: true,
-        versionsCount: true,
-    },
-};
-
-export const StandardVersionFormat: Formatter<StandardVersionModelInfo> = {
-    apiRelMap: {
-        __typename: "StandardVersion",
-        comments: "Comment",
-        directoryListings: "ProjectVersionDirectory",
-        forks: "StandardVersion",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        resourceList: "ResourceList",
-        root: "Standard",
-    },
-    prismaRelMap: {
-        __typename: "StandardVersion",
-        comments: "Comment",
-        directoryListings: "ProjectVersionDirectory",
-        forks: "StandardVersion",
-        pullRequest: "PullRequest",
-        reports: "Report",
-        resourceList: "ResourceList",
-        root: "Standard",
-    },
-    countFields: {
-        commentsCount: true,
-        directoryListingsCount: true,
-        forksCount: true,
-        reportsCount: true,
-        translationsCount: true,
-    },
-};
-
-export const StatsApiFormat: Formatter<StatsApiModelInfo> = {
-    apiRelMap: {
-        __typename: "StatsApi",
-    },
-    prismaRelMap: {
-        __typename: "StatsApi",
-        api: "Api",
-    },
-    countFields: {},
-};
-
-export const StatsTeamFormat: Formatter<StatsTeamModelInfo> = {
-    apiRelMap: {
-        __typename: "StatsTeam",
-    },
-    prismaRelMap: {
-        __typename: "StatsTeam",
-        team: "Team",
-    },
-    countFields: {},
-};
-
-export const StatsProjectFormat: Formatter<StatsProjectModelInfo> = {
-    apiRelMap: {
-        __typename: "StatsProject",
-    },
-    prismaRelMap: {
-        __typename: "StatsProject",
-        project: "Api",
-    },
-    countFields: {},
-};
-
-export const StatsRoutineFormat: Formatter<StatsRoutineModelInfo> = {
-    apiRelMap: {
-        __typename: "StatsRoutine",
-    },
-    prismaRelMap: {
-        __typename: "StatsRoutine",
-        routine: "Routine",
+        __typename: "StatsResource",
+        resource: "Resource",
     },
     countFields: {},
 };
@@ -1488,24 +908,13 @@ export const StatsSiteFormat: Formatter<StatsSiteModelInfo> = {
     countFields: {},
 };
 
-export const StatsCodeFormat: Formatter<StatsCodeModelInfo> = {
+export const StatsTeamFormat: Formatter<StatsTeamModelInfo> = {
     apiRelMap: {
-        __typename: "StatsCode",
+        __typename: "StatsTeam",
     },
     prismaRelMap: {
-        __typename: "StatsCode",
-        code: "Code",
-    },
-    countFields: {},
-};
-
-export const StatsStandardFormat: Formatter<StatsStandardModelInfo> = {
-    apiRelMap: {
-        __typename: "StatsStandard",
-    },
-    prismaRelMap: {
-        __typename: "StatsStandard",
-        standard: "Standard",
+        __typename: "StatsTeam",
+        team: "Team",
     },
     countFields: {},
 };
@@ -1720,9 +1129,7 @@ export const WalletFormat: Formatter<WalletModelInfo> = {
 
 /** Maps model types to their respective formatter logic */
 export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
-    Api: ApiFormat,
     ApiKey: ApiKeyFormat,
-    ApiVersion: ApiVersionFormat,
     Award: AwardFormat,
     Bookmark: BookmarkFormat,
     BookmarkList: BookmarkListFormat,
@@ -1730,8 +1137,6 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     ChatInvite: ChatInviteFormat,
     ChatMessage: ChatMessageFormat,
     ChatParticipant: ChatParticipantFormat,
-    Code: CodeFormat,
-    CodeVersion: CodeVersionFormat,
     Comment: CommentFormat,
     Email: EmailFormat,
     Issue: IssueFormat,
@@ -1739,16 +1144,11 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     MeetingInvite: MeetingInviteFormat,
     Member: MemberFormat,
     MemberInvite: MemberInviteFormat,
-    Note: NoteFormat,
-    NoteVersion: NoteVersionFormat,
     Notification: NotificationFormat,
     NotificationSubscription: NotificationSubscriptionFormat,
     Payment: PaymentFormat,
     Phone: PhoneFormat,
     Premium: PremiumFormat,
-    Project: ProjectFormat,
-    ProjectVersion: ProjectVersionFormat,
-    ProjectVersionDirectory: ProjectVersionDirectoryFormat,
     PullRequest: PullRequestFormat,
     PushDevice: PushDeviceFormat,
     Reaction: ReactionFormat,
@@ -1759,29 +1159,18 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     Report: ReportFormat,
     ReportResponse: ReportResponseFormat,
     Resource: ResourceFormat,
-    ResourceList: ResourceListFormat,
-    Role: RoleFormat,
-    Routine: RoutineFormat,
-    RoutineVersion: RoutineVersionFormat,
+    ResourceVersion: ResourceVersionFormat,
     RoutineVersionInput: RoutineVersionInputFormat,
     RoutineVersionOutput: RoutineVersionOutputFormat,
-    RunProject: RunProjectFormat,
-    RunProjectStep: RunProjectStepFormat,
-    RunRoutine: RunRoutineFormat,
-    RunRoutineIO: RunRoutineIOFormat,
-    RunRoutineStep: RunRoutineStepFormat,
+    Run: RunFormat,
+    RunIO: RunIOFormat,
+    RunStep: RunStepFormat,
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,
     ScheduleRecurrence: ScheduleRecurrenceFormat,
     Session: SessionFormat,
-    Standard: StandardFormat,
-    StandardVersion: StandardVersionFormat,
-    StatsApi: StatsApiFormat,
-    StatsCode: StatsCodeFormat,
-    StatsProject: StatsProjectFormat,
-    StatsRoutine: StatsRoutineFormat,
+    StatsResource: StatsResourceFormat,
     StatsSite: StatsSiteFormat,
-    StatsStandard: StatsStandardFormat,
     StatsTeam: StatsTeamFormat,
     StatsUser: StatsUserFormat,
     Tag: TagFormat,

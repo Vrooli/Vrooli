@@ -1,6 +1,6 @@
 import { LlmTask } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
-import { uuid } from "../id/uuid.js";
+import { nanoid } from "../id/publicId.js";
 import { getUnstructuredTaskConfig, importAITaskConfig } from "./config.js";
 import { AITaskProperty, CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types.js";
 
@@ -1009,7 +1009,7 @@ export async function getValidTasksFromText({
     const labelledTasks = validTasks.map(command => ({
         ...command,
         label: config[command.task]().label,
-        taskId: `task-${uuid()}`,
+        taskId: `task-${nanoid()}`,
     })) as (PartialTaskInfo & { label: string, taskId: string })[];
 
 
@@ -1071,7 +1071,7 @@ export async function getValidTasksFromJson({
     const labelledTasks = validTasks.map(command => ({
         ...command,
         label: config[command.task]().label,
-        taskId: `task-${uuid()}`,
+        taskId: `task-${nanoid()}`,
     })) as (PartialTaskInfo & { label: string, taskId: string })[];
 
     // We only case about `tasksToRun` in "json" mode

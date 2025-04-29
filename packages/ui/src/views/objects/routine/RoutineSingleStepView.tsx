@@ -36,7 +36,7 @@ import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { routineTypes } from "../../../utils/search/schemas/routine.js";
+import { routineTypes } from "../../../utils/search/schemas/resource.js";
 import { routineSingleStepInitialValues } from "./RoutineSingleStepUpsert.js";
 import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "./RoutineTypeForms.js";
 import { RoutineSingleStepViewProps } from "./types.js";

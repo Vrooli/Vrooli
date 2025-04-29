@@ -13,8 +13,6 @@ const mockDataStructureVersionData: StandardVersion = {
     codeLanguage: CodeLanguage.Json,
     created_at: new Date().toISOString(),
     default: null,
-    directoryListings: [],
-    directoryListingsCount: 0,
     forks: [],
     forksCount: 0,
     isComplete: true,

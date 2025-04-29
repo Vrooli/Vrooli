@@ -20,8 +20,6 @@ const valyxaUser: User = {
     // picture: null, // Removed
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    roles: [],
-    settings: [],
     preferences: [],
     permissions: { canCreate: {}, canRead: {}, canUpdate: {}, canDelete: {} },
 };

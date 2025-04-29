@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchInput, ChatMessageSearchResult, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateWithTaskInfoInput, FindByIdInput, RegenerateResponseInput, Success, getTranslation, uuidValidate } from "@local/shared";
+import { ChatMessage, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchInput, ChatMessageSearchResult, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateWithTaskInfoInput, FindByIdInput, RegenerateResponseInput, Success, getTranslation, validatePK } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -59,7 +59,7 @@ export const chatMessage: EndpointsChatMessage = {
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
 
         const { messageId, model, task, taskContexts } = input;
-        if (!uuidValidate(messageId)) {
+        if (!validatePK(messageId)) {
             throw new CustomError("0423", "InvalidArgs", { input });
         }
         const { canDelete: canRegenerateResponse } = await getSingleTypePermissions<ChatModelInfo["ApiPermission"]>("ChatMessage", [input.messageId], userData);

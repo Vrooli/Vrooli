@@ -1,4 +1,4 @@
-import { AccountStatus, ApiKeyPermission, DAYS_1_MS, uuid } from "@local/shared";
+import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePKString } from "@local/shared";
 import { Request, Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
 import { UserDataForPasswordAuth } from "../auth/email.js";
@@ -7,7 +7,7 @@ import { SessionService } from "../auth/session.js";
 import { DbProvider } from "../db/provider.js";
 
 export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
-    id: uuid(),
+    id: generatePKString(),
     handle: "test-user",
     lastLoginAttempt: null,
     logInAttempts: 0,
@@ -16,9 +16,17 @@ export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
     theme: "dark",
     status: AccountStatus.Unlocked,
     updated_at: new Date(),
-    auths: [{ id: uuid(), provider: "Password", hashed_password: "dummy-hash" }],
-    emails: [{ emailAddress: "test-user@example.com" }],
-    languages: [{ language: "en" }],
+    auths: [{
+        id: generatePKString(),
+        provider: "Password",
+        hashed_password: "dummy-hash"
+    }],
+    emails: [{
+        emailAddress: "test-user@example.com"
+    }],
+    languages: [{
+        language: "en"
+    }],
     premium: null,
     sessions: [],
     _count: {
@@ -50,7 +58,7 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
     const future = new Date(now.getTime() + DAYS_1_MS);
 
     const sessionData: UserDataForPasswordAuth["sessions"][0] = {
-        id: uuid(),
+        id: generatePKString(),
         device_info: "test-device-info",
         ip_address: "127.0.0.1",
         last_refresh_at: now,

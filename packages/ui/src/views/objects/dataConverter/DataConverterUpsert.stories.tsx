@@ -29,8 +29,6 @@ function stringToNumberArray(input) {
     created_at: new Date().toISOString(),
     data: null,
     default: null,
-    directoryListings: [],
-    directoryListingsCount: 0,
     forks: [],
     forksCount: 0,
     isComplete: true,

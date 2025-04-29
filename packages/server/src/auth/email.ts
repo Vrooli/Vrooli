@@ -35,15 +35,6 @@ export type UserDataForPasswordAuth = {
     sessions: (Pick<session, "id" | "device_info" | "ip_address" | "last_refresh_at" | "revoked"> & {
         auth: Pick<user_auth, "id" | "provider">;
     })[];
-    _count: {
-        apis: number;
-        codes: number;
-        memberships: number;
-        notes: number;
-        projects: number;
-        routines: number;
-        standards: number;
-    }
 }
 
 export class PasswordAuthService {
@@ -107,17 +98,6 @@ export class PasswordAuthService {
                             provider: true,
                         },
                     },
-                },
-            },
-            _count: {
-                select: {
-                    apis: true,
-                    codes: true,
-                    memberships: true,
-                    notes: true,
-                    projects: true,
-                    routines: true,
-                    standards: true,
                 },
             },
         } as const;

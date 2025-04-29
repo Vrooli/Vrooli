@@ -84,8 +84,6 @@ const mockRoutineVersionData: RoutineVersion = {
         },
     }),
     created_at: new Date().toISOString(),
-    directoryListings: [],
-    directoryListingsCount: 0,
     forks: [],
     forksCount: 0,
     inputs: [],

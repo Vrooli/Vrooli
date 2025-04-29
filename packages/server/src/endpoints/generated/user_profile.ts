@@ -11,7 +11,6 @@ export const user_profile = {
     "isPrivateProjects": true,
     "isPrivateProjectsCreated": true,
     "isPrivatePullRequests": true,
-    "isPrivateRoles": true,
     "isPrivateRoutines": true,
     "isPrivateRoutinesCreated": true,
     "isPrivateStandards": true,
@@ -82,5 +81,5 @@ export const user_profile = {
         "isBookmarked": true,
         "isViewed": true
     },
-    "__cacheKey": "-66357792"
+    "__cacheKey": "-397664704"
 };
