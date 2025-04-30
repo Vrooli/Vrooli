@@ -315,15 +315,15 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
         // TODO embed field will change if versioned. Should update embedDistance, addSelect, and addWhere accordingly
         builder.embedPoints(translationObjectType, objectType, embeddings[0] as number[], sortOption);
         // Get date queries for restricting search results by time
-        const createdAtDateLimit = timeFrameToSql("created_at", input.createdTimeFrame as TimeFrame | undefined);
-        const updatedAtDateLimit = timeFrameToSql("updated_at", input.updatedTimeFrame as TimeFrame | undefined);
+        const createdAtDateLimit = timeFrameToSql("createdAt", input.createdTimeFrame as TimeFrame | undefined);
+        const updatedAtDateLimit = timeFrameToSql("updatedAt", input.updatedTimeFrame as TimeFrame | undefined);
         // Add dates to SELECT and WHERE clauses
         if (createdAtDateLimit) {
-            builder.addSelect(objectType, "created_at");
+            builder.addSelect(objectType, "createdAt");
             builder.addWhere(createdAtDateLimit);
         }
         if (updatedAtDateLimit) {
-            builder.addSelect(objectType, "updated_at");
+            builder.addSelect(objectType, "updatedAt");
             builder.addWhere(updatedAtDateLimit);
         }
         builder.buildQueryFromPrisma(visibilityQuery); //TODO

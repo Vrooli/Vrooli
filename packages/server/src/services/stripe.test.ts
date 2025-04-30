@@ -694,7 +694,7 @@ describe("getVerifiedCustomerInfo", () => {
                 },
                 premium: {
                     create: {
-                        isActive: true,
+                        enabledAt: new Date(),
                     },
                 },
             },
@@ -708,7 +708,7 @@ describe("getVerifiedCustomerInfo", () => {
                 },
                 premium: {
                     create: {
-                        isActive: false,
+                        enabledAt: new Date(),
                     },
                 },
             },
@@ -1201,7 +1201,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
                 },
                 premium: {
                     create: {
-                        isActive: true,
+                        enabledAt: new Date(),
                     },
                 },
             },

@@ -3,8 +3,9 @@ export const report_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "details": true,
             "language": true,
             "reason": true,
@@ -22,5 +23,5 @@ export const report_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "26108725"
+    "__cacheKey": "608241269"
 };

@@ -6,13 +6,8 @@ export const view: ApiPartial<View> = {
     list: {
         to: {
             __union: {
-                Api: async () => rel((await import("./api.js")).api, "list"),
-                Code: async () => rel((await import("./code.js")).code, "list"),
                 Issue: async () => rel((await import("./issue.js")).issue, "list"),
-                Note: async () => rel((await import("./note.js")).note, "list"),
-                Project: async () => rel((await import("./project.js")).project, "list"),
-                Routine: async () => rel((await import("./resource.js")).routine, "list"),
-                Standard: async () => rel((await import("./standard.js")).standard, "list"),
+                Resource: async () => rel((await import("./resource.js")).resource, "list"),
                 Team: async () => rel((await import("./team.js")).team, "list"),
                 User: async () => rel((await import("./user.js")).user, "list"),
             },

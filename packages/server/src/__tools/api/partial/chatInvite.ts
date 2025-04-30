@@ -12,8 +12,8 @@ export const chatInviteYou: ApiPartial<ChatInviteYou> = {
 export const chatInvite: ApiPartial<ChatInvite> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         message: true,
         status: true,
         user: async () => rel((await import("./user.js")).user, "nav"),

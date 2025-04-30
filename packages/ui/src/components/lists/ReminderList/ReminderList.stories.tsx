@@ -26,8 +26,8 @@ const mockReminderListId = uuid();
 const mockReminderList: ReminderListType = {
     __typename: "ReminderList",
     id: mockReminderListId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     reminders: [],
 };
 
@@ -43,8 +43,8 @@ const baseMockReminders: Reminder[] = [
         index: 0,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -56,8 +56,8 @@ const baseMockReminders: Reminder[] = [
         index: 1,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -69,8 +69,8 @@ const baseMockReminders: Reminder[] = [
         index: 2,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -82,8 +82,8 @@ const baseMockReminders: Reminder[] = [
         index: 3,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -95,8 +95,8 @@ const baseMockReminders: Reminder[] = [
         index: 4,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ];
 
@@ -113,8 +113,8 @@ const extendedMockReminders: Reminder[] = [
         index: 5,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -126,8 +126,8 @@ const extendedMockReminders: Reminder[] = [
         index: 6,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -139,8 +139,8 @@ const extendedMockReminders: Reminder[] = [
         index: 7,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -152,8 +152,8 @@ const extendedMockReminders: Reminder[] = [
         index: 8,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
@@ -165,8 +165,8 @@ const extendedMockReminders: Reminder[] = [
         index: 9,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ];
 

@@ -565,8 +565,8 @@ function ScheduleForm({
         } else {
             onCompleted?.({
                 ...values,
-                created_at: (existing as Partial<Schedule>).created_at ?? new Date().toISOString(),
-                updated_at: (existing as Partial<Schedule>).updated_at ?? new Date().toISOString(),
+                createdAt: (existing as Partial<Schedule>).createdAt ?? new Date().toISOString(),
+                updatedAt: (existing as Partial<Schedule>).updatedAt ?? new Date().toISOString(),
             } as Schedule);
         }
     }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, onCompleted, props, values]);

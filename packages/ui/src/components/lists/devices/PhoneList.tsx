@@ -109,7 +109,7 @@ export function PhoneListItem({
                 PubSub.get().publish("alertDialog", { messageKey: "PhoneVerifiedMaybeCreditsReceived", buttons: [{ labelKey: "Ok" }] });
                 PubSub.get().publish("celebration");
                 setVerificationCode("");
-                handleUpdate(index, { ...data, verified: true });
+                handleUpdate(index, { ...data, verifiedAt: new Date() });
             },
         });
     }, [data, handleUpdate, index, loadingValidateText, validateMutation, verificationCode]);

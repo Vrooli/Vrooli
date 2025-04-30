@@ -21,9 +21,9 @@ const mockMessages: ChatMessageShape[] = [
         __typename: "ChatMessage" as const,
         id: botMessage1Id,
         // eslint-disable-next-line no-magic-numbers
-        created_at: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
+        createdAt: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
         // eslint-disable-next-line no-magic-numbers
-        updated_at: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
             id: uuid(),
@@ -51,9 +51,9 @@ const mockMessages: ChatMessageShape[] = [
         __typename: "ChatMessage" as const,
         id: userMessage1Id,
         // eslint-disable-next-line no-magic-numbers
-        created_at: new Date(Date.now() - 9 * MINUTES_10_MS).toISOString(),
+        createdAt: new Date(Date.now() - 9 * MINUTES_10_MS).toISOString(),
         // eslint-disable-next-line no-magic-numbers
-        updated_at: new Date(Date.now() - 9 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 9 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
             id: uuid(),
@@ -88,9 +88,9 @@ In semper tortor ac mi condimentum rutrum. Mauris pulvinar vehicula urna sed sol
         __typename: "ChatMessage" as const,
         id: botMessage2Version1Id,
         // eslint-disable-next-line no-magic-numbers
-        created_at: new Date(Date.now() - 8 * MINUTES_10_MS).toISOString(),
+        createdAt: new Date(Date.now() - 8 * MINUTES_10_MS).toISOString(),
         // eslint-disable-next-line no-magic-numbers
-        updated_at: new Date(Date.now() - 8 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 8 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
             id: uuid(),
@@ -127,9 +127,9 @@ Suspendisse eu sodales nisi, sed malesuada augue. Morbi eget porttitor purus, eg
         __typename: "ChatMessage" as const,
         id: botMessage2Version2Id,
         // eslint-disable-next-line no-magic-numbers
-        created_at: new Date(Date.now() - 7 * MINUTES_10_MS).toISOString(),
+        createdAt: new Date(Date.now() - 7 * MINUTES_10_MS).toISOString(),
         // eslint-disable-next-line no-magic-numbers
-        updated_at: new Date(Date.now() - 7 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 7 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
             id: uuid(),
@@ -168,9 +168,9 @@ Quisque elementum mi non ligula blandit egestas. Maecenas laoreet ante urna, pul
         __typename: "ChatMessage" as const,
         id: userMessage2Id,
         // eslint-disable-next-line no-magic-numbers
-        created_at: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
+        createdAt: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
         // eslint-disable-next-line no-magic-numbers
-        updated_at: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
             id: uuid(),
@@ -290,8 +290,8 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
         const newMessage: ChatMessageShape = {
             __typename: "ChatMessage",
             id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             translations: [{
                 __typename: "ChatMessageTranslation",
                 id: uuid(),

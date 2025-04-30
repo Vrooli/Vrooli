@@ -70,8 +70,8 @@ CREATE TYPE "TransferStatus" AS ENUM ('Accepted', 'Denied', 'Pending');
 -- CreateTable
 CREATE TABLE "award" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "timeCurrentTierCompleted" TIMESTAMPTZ(6),
     "category" "AwardCategory" NOT NULL,
     "progress" INTEGER NOT NULL DEFAULT 0,
@@ -83,8 +83,8 @@ CREATE TABLE "award" (
 -- CreateTable
 CREATE TABLE "api" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
     "score" INTEGER NOT NULL DEFAULT 0,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
@@ -123,8 +123,8 @@ CREATE TABLE "api_tags" (
 -- CreateTable
 CREATE TABLE "api_version" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
     "callLink" VARCHAR(1024) NOT NULL,
     "documentationLink" VARCHAR(1024),
@@ -149,7 +149,7 @@ CREATE TABLE "api_version" (
 -- CreateTable
 CREATE TABLE "api_version_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "name" VARCHAR(128) NOT NULL,
@@ -164,8 +164,8 @@ CREATE TABLE "api_version_translation" (
 -- CreateTable
 CREATE TABLE "api_key" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "creditsUsed" BIGINT NOT NULL DEFAULT 0,
     "disabledAt" TIMESTAMPTZ(6),
     "key" VARCHAR(255) NOT NULL,
@@ -183,8 +183,8 @@ CREATE TABLE "api_key" (
 -- CreateTable
 CREATE TABLE "api_key_external" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "key" VARCHAR(255) NOT NULL,
     "disabledAt" TIMESTAMPTZ(6),
     "name" VARCHAR(128) NOT NULL,
@@ -198,8 +198,8 @@ CREATE TABLE "api_key_external" (
 -- CreateTable
 CREATE TABLE "bookmark" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "listId" UUID,
     "apiId" UUID,
     "codeId" UUID,
@@ -219,8 +219,8 @@ CREATE TABLE "bookmark" (
 -- CreateTable
 CREATE TABLE "bookmark_list" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "index" INTEGER NOT NULL,
     "label" VARCHAR(128) NOT NULL,
     "userId" UUID NOT NULL,
@@ -231,8 +231,8 @@ CREATE TABLE "bookmark_list" (
 -- CreateTable
 CREATE TABLE "chat" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "inviteId" UUID,
     "isPrivate" BOOLEAN NOT NULL DEFAULT true,
     "openToAnyoneWithInvite" BOOLEAN NOT NULL DEFAULT false,
@@ -245,7 +245,7 @@ CREATE TABLE "chat" (
 -- CreateTable
 CREATE TABLE "chat_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "chatId" UUID NOT NULL,
@@ -259,8 +259,8 @@ CREATE TABLE "chat_translation" (
 -- CreateTable
 CREATE TABLE "chat_message" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "metadata" VARCHAR(4096),
     "score" INTEGER NOT NULL DEFAULT 0,
     "sequence" SERIAL NOT NULL,
@@ -285,8 +285,8 @@ CREATE TABLE "chat_message_translation" (
 -- CreateTable
 CREATE TABLE "chat_participants" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "hasUnread" BOOLEAN NOT NULL DEFAULT true,
     "chatId" UUID NOT NULL,
     "userId" UUID NOT NULL,
@@ -297,8 +297,8 @@ CREATE TABLE "chat_participants" (
 -- CreateTable
 CREATE TABLE "chat_invite" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "ChatInviteStatus" NOT NULL DEFAULT 'Pending',
     "message" VARCHAR(4096),
     "chatId" UUID NOT NULL,
@@ -328,8 +328,8 @@ CREATE TABLE "chat_roles" (
 -- CreateTable
 CREATE TABLE "code" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
@@ -350,8 +350,8 @@ CREATE TABLE "code" (
 -- CreateTable
 CREATE TABLE "code_version" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "codeLanguage" VARCHAR(128) NOT NULL,
     "codeType" "CodeType" NOT NULL DEFAULT 'DataConvert',
     "completedAt" TIMESTAMPTZ(6),
@@ -377,7 +377,7 @@ CREATE TABLE "code_version" (
 -- CreateTable
 CREATE TABLE "code_version_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "name" VARCHAR(128) NOT NULL,
@@ -424,8 +424,8 @@ CREATE TABLE "code_labels" (
 -- CreateTable
 CREATE TABLE "comment" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ownedByTeamId" UUID,
     "ownedByUserId" UUID,
     "apiVersionId" UUID,
@@ -456,8 +456,8 @@ CREATE TABLE "comment_translation" (
 -- CreateTable
 CREATE TABLE "email" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "emailAddress" CITEXT NOT NULL,
     "verified" BOOLEAN NOT NULL DEFAULT false,
     "lastVerifiedTime" TIMESTAMPTZ(6),
@@ -473,8 +473,8 @@ CREATE TABLE "email" (
 CREATE TABLE "issue" (
     "id" UUID NOT NULL,
     "status" "IssueStatus" NOT NULL DEFAULT 'Open',
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "closedAt" TIMESTAMPTZ(6),
     "hasBeenClosedOrRejected" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
@@ -506,7 +506,7 @@ CREATE TABLE "issue_labels" (
 -- CreateTable
 CREATE TABLE "issue_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "description" VARCHAR(2048),
@@ -520,8 +520,8 @@ CREATE TABLE "issue_translation" (
 -- CreateTable
 CREATE TABLE "label" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "label" VARCHAR(128) NOT NULL,
     "color" VARCHAR(7),
     "ownedByTeamId" UUID,
@@ -543,8 +543,8 @@ CREATE TABLE "label_translation" (
 -- CreateTable
 CREATE TABLE "note" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
@@ -584,8 +584,8 @@ CREATE TABLE "note_tags" (
 -- CreateTable
 CREATE TABLE "note_version" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
     "intendToPullRequest" BOOLEAN NOT NULL DEFAULT true,
     "isComplete" BOOLEAN NOT NULL DEFAULT false,
@@ -605,7 +605,7 @@ CREATE TABLE "note_version" (
 -- CreateTable
 CREATE TABLE "note_version_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "name" VARCHAR(128) NOT NULL,
@@ -631,8 +631,8 @@ CREATE TABLE "note_page" (
 -- CreateTable
 CREATE TABLE "notification" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "category" VARCHAR(64) NOT NULL,
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "title" VARCHAR(128) NOT NULL,
@@ -661,7 +661,7 @@ CREATE TABLE "push_device" (
 -- CreateTable
 CREATE TABLE "notification_subscription" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "context" VARCHAR(2048),
     "silent" BOOLEAN NOT NULL DEFAULT false,
     "apiId" UUID,
@@ -686,8 +686,8 @@ CREATE TABLE "notification_subscription" (
 -- CreateTable
 CREATE TABLE "team" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "bannerImage" VARCHAR(2048),
     "handle" CITEXT,
     "isOpenToNewMembers" BOOLEAN NOT NULL DEFAULT false,
@@ -717,8 +717,8 @@ CREATE TABLE "team_language" (
 -- CreateTable
 CREATE TABLE "meeting" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "inviteId" UUID,
     "scheduleId" UUID,
     "openToAnyoneWithInvite" BOOLEAN NOT NULL DEFAULT false,
@@ -740,8 +740,8 @@ CREATE TABLE "meeting_attendees" (
 -- CreateTable
 CREATE TABLE "meeting_invite" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "MeetingInviteStatus" NOT NULL DEFAULT 'Pending',
     "message" VARCHAR(4096),
     "meetingId" UUID NOT NULL,
@@ -771,7 +771,7 @@ CREATE TABLE "meeting_roles" (
 -- CreateTable
 CREATE TABLE "meeting_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "meetingId" UUID NOT NULL,
@@ -786,7 +786,7 @@ CREATE TABLE "meeting_translation" (
 -- CreateTable
 CREATE TABLE "team_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "bio" VARCHAR(2048),
@@ -809,8 +809,8 @@ CREATE TABLE "team_tags" (
 -- CreateTable
 CREATE TABLE "member" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "isAdmin" BOOLEAN NOT NULL DEFAULT false,
     "permissions" VARCHAR(4096) NOT NULL,
     "teamId" UUID NOT NULL,
@@ -822,8 +822,8 @@ CREATE TABLE "member" (
 -- CreateTable
 CREATE TABLE "member_invite" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "MemberInviteStatus" NOT NULL DEFAULT 'Pending',
     "message" VARCHAR(4096),
     "willBeAdmin" BOOLEAN NOT NULL DEFAULT false,
@@ -851,8 +851,8 @@ CREATE TABLE "phone" (
 -- CreateTable
 CREATE TABLE "payment" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "amount" INTEGER NOT NULL,
     "checkoutId" VARCHAR(255) NOT NULL,
     "currency" VARCHAR(255) NOT NULL,
@@ -882,8 +882,8 @@ CREATE TABLE "premium" (
 -- CreateTable
 CREATE TABLE "project" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -905,8 +905,8 @@ CREATE TABLE "project" (
 -- CreateTable
 CREATE TABLE "project_version" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
     "complexity" INTEGER NOT NULL DEFAULT 1,
     "intendToPullRequest" BOOLEAN NOT NULL DEFAULT false,
@@ -931,8 +931,8 @@ CREATE TABLE "project_version" (
 -- CreateTable
 CREATE TABLE "project_version_directory" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "isRoot" BOOLEAN NOT NULL DEFAULT false,
     "parentDirectoryId" UUID,
     "childOrder" VARCHAR(4096),
@@ -955,7 +955,7 @@ CREATE TABLE "project_version_directory_translation" (
 -- CreateTable
 CREATE TABLE "project_version_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "description" VARCHAR(2048),
@@ -996,8 +996,8 @@ CREATE TABLE "project_labels" (
 -- CreateTable
 CREATE TABLE "pull_request" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "PullRequestStatus" NOT NULL DEFAULT 'Open',
     "hasBeenClosedOrRejected" BOOLEAN NOT NULL DEFAULT false,
     "mergedOrRejectedAt" TIMESTAMPTZ(6),
@@ -1025,8 +1025,8 @@ CREATE TABLE "pull_request_translation" (
 -- CreateTable
 CREATE TABLE "reaction" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "emoji" VARCHAR(32) NOT NULL,
     "byId" UUID NOT NULL,
     "apiId" UUID,
@@ -1045,8 +1045,8 @@ CREATE TABLE "reaction" (
 -- CreateTable
 CREATE TABLE "reaction_summary" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "emoji" VARCHAR(32) NOT NULL,
     "count" INTEGER NOT NULL DEFAULT 0,
     "apiId" UUID,
@@ -1065,8 +1065,8 @@ CREATE TABLE "reaction_summary" (
 -- CreateTable
 CREATE TABLE "reminder_list" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" UUID NOT NULL,
 
     CONSTRAINT "reminder_list_pkey" PRIMARY KEY ("id")
@@ -1075,8 +1075,8 @@ CREATE TABLE "reminder_list" (
 -- CreateTable
 CREATE TABLE "reminder" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "name" VARCHAR(128) NOT NULL,
@@ -1092,8 +1092,8 @@ CREATE TABLE "reminder" (
 -- CreateTable
 CREATE TABLE "reminder_item" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "name" VARCHAR(128) NOT NULL,
     "description" VARCHAR(2048),
     "dueDate" TIMESTAMPTZ(6),
@@ -1107,8 +1107,8 @@ CREATE TABLE "reminder_item" (
 -- CreateTable
 CREATE TABLE "report" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reason" VARCHAR(128) NOT NULL,
     "details" VARCHAR(8192),
     "language" VARCHAR(3) NOT NULL,
@@ -1133,8 +1133,8 @@ CREATE TABLE "report" (
 -- CreateTable
 CREATE TABLE "report_response" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reportId" UUID NOT NULL,
     "createdById" UUID NOT NULL,
     "actionSuggested" "ReportSuggestedAction" NOT NULL,
@@ -1147,8 +1147,8 @@ CREATE TABLE "report_response" (
 -- CreateTable
 CREATE TABLE "reputation_history" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "amount" INTEGER NOT NULL,
     "event" VARCHAR(128) NOT NULL,
     "objectId1" UUID,
@@ -1161,8 +1161,8 @@ CREATE TABLE "reputation_history" (
 -- CreateTable
 CREATE TABLE "resource" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "index" INTEGER DEFAULT 0,
     "link" VARCHAR(1024) NOT NULL,
     "usedFor" "ResourceUsedFor" NOT NULL DEFAULT 'Context',
@@ -1185,8 +1185,8 @@ CREATE TABLE "resource_translation" (
 -- CreateTable
 CREATE TABLE "resource_list" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "resource_list_pkey" PRIMARY KEY ("id")
 );
@@ -1205,8 +1205,8 @@ CREATE TABLE "resource_list_translation" (
 -- CreateTable
 CREATE TABLE "role" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "name" VARCHAR(128) NOT NULL,
     "permissions" VARCHAR(4096) NOT NULL,
     "teamId" UUID NOT NULL,
@@ -1228,8 +1228,8 @@ CREATE TABLE "role_translation" (
 -- CreateTable
 CREATE TABLE "routine" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
@@ -1251,8 +1251,8 @@ CREATE TABLE "routine" (
 -- CreateTable
 CREATE TABLE "routine_version" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
     "config" VARCHAR(32768),
     "complexity" INTEGER NOT NULL DEFAULT 1,
@@ -1291,7 +1291,7 @@ CREATE TABLE "routine_version_subroutine" (
 -- CreateTable
 CREATE TABLE "routine_version_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "description" VARCHAR(2048),
@@ -1378,8 +1378,8 @@ CREATE TABLE "routine_labels" (
 -- CreateTable
 CREATE TABLE "run_project" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "completedComplexity" INTEGER NOT NULL DEFAULT 0,
@@ -1420,8 +1420,8 @@ CREATE TABLE "run_project_step" (
 -- CreateTable
 CREATE TABLE "run_routine" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "completedComplexity" INTEGER NOT NULL DEFAULT 0,
@@ -1445,8 +1445,8 @@ CREATE TABLE "run_routine" (
 -- CreateTable
 CREATE TABLE "run_routine_io" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "data" VARCHAR(8192) NOT NULL,
     "nodeInputName" VARCHAR(128) NOT NULL,
     "nodeName" VARCHAR(128) NOT NULL,
@@ -1479,8 +1479,8 @@ CREATE TABLE "run_routine_step" (
 -- CreateTable
 CREATE TABLE "schedule" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "startTime" TIMESTAMP(3) NOT NULL,
     "endTime" TIMESTAMP(3) NOT NULL,
     "timezone" TEXT NOT NULL,
@@ -1526,8 +1526,8 @@ CREATE TABLE "schedule_recurrence" (
 -- CreateTable
 CREATE TABLE "standard" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "hasBeenTransferred" BOOLEAN NOT NULL DEFAULT false,
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
@@ -1549,8 +1549,8 @@ CREATE TABLE "standard" (
 -- CreateTable
 CREATE TABLE "standard_version" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMPTZ(6),
     "codeLanguage" VARCHAR(128) NOT NULL DEFAULT 'json',
     "default" VARCHAR(2048),
@@ -1577,7 +1577,7 @@ CREATE TABLE "standard_version" (
 -- CreateTable
 CREATE TABLE "standard_version_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "name" VARCHAR(128) NOT NULL,
@@ -1781,8 +1781,8 @@ CREATE TABLE "stats_user" (
 -- CreateTable
 CREATE TABLE "tag" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "tag" VARCHAR(128) NOT NULL,
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "createdById" UUID,
@@ -1793,7 +1793,7 @@ CREATE TABLE "tag" (
 -- CreateTable
 CREATE TABLE "tag_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "description" VARCHAR(2048),
@@ -1806,8 +1806,8 @@ CREATE TABLE "tag_translation" (
 -- CreateTable
 CREATE TABLE "transfer" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "TransferStatus" NOT NULL DEFAULT 'Pending',
     "initializedByReceiver" BOOLEAN NOT NULL DEFAULT false,
     "message" VARCHAR(4096),
@@ -1829,8 +1829,8 @@ CREATE TABLE "transfer" (
 -- CreateTable
 CREATE TABLE "user" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "bannerImage" VARCHAR(2048),
     "confirmationCode" VARCHAR(256),
     "confirmationCodeDate" TIMESTAMPTZ(6),
@@ -1888,8 +1888,8 @@ CREATE TABLE "user_auth" (
     "hashed_password" TEXT,
     "resetPasswordCode" VARCHAR(256),
     "lastResetPasswordRequestAttempt" TIMESTAMPTZ(6),
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "user_auth_pkey" PRIMARY KEY ("id")
 );
@@ -1900,8 +1900,8 @@ CREATE TABLE "session" (
     "user_id" UUID NOT NULL,
     "auth_id" UUID NOT NULL,
     "last_refresh_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "expires_at" TIMESTAMPTZ(6) NOT NULL,
     "revoked" BOOLEAN NOT NULL DEFAULT false,
     "device_info" VARCHAR(1024),
@@ -1913,7 +1913,7 @@ CREATE TABLE "session" (
 -- CreateTable
 CREATE TABLE "user_translation" (
     "id" UUID NOT NULL,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "embedding" vector(768),
     "embeddingNeedsUpdate" BOOLEAN NOT NULL DEFAULT true,
     "bio" VARCHAR(2048),
@@ -1954,8 +1954,8 @@ CREATE TABLE "view" (
 -- CreateTable
 CREATE TABLE "wallet" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "stakingAddress" VARCHAR(128) NOT NULL,
     "publicAddress" VARCHAR(128),
     "name" VARCHAR(128),

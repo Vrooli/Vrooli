@@ -45,14 +45,12 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                     create: {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
-                        isActive: true,
                         // eslint-disable-next-line no-magic-numbers
                         credits: BigInt(10_000_000_000),
                     },
                     update: {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
-                        isActive: true,
                         // eslint-disable-next-line no-magic-numbers
                         credits: BigInt(10_000_000_000),
                     },
@@ -73,12 +71,18 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
             },
             emails: {
                 create: [
-                    { emailAddress: process.env.SITE_EMAIL_USERNAME ?? "", verified: true },
+                    {
+                        emailAddress: process.env.SITE_EMAIL_USERNAME ?? "",
+                        verifiedAt: new Date(),
+                    },
                 ],
             },
             wallets: {
                 create: [
-                    { stakingAddress: process.env.ADMIN_WALLET ?? "", verified: true } as any,
+                    {
+                        stakingAddress: process.env.ADMIN_WALLET ?? "",
+                        verifiedAt: new Date(),
+                    },
                 ],
             },
             languages: {
@@ -86,7 +90,7 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
             },
             awards: {
                 create: [{
-                    timeCurrentTierCompleted: new Date(),
+                    tierCompletedAt: new Date(),
                     category: "AccountNew",
                     progress: 1,
                 }],
@@ -95,7 +99,6 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                 create: {
                     enabledAt: new Date(),
                     expiresAt: new Date("2069-04-20"),
-                    isActive: true,
                     // eslint-disable-next-line no-magic-numbers
                     credits: BigInt(10_000_000_000),
                 },
@@ -138,7 +141,7 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
             },
             awards: {
                 create: [{
-                    timeCurrentTierCompleted: new Date(),
+                    tierCompletedAt: new Date(),
                     category: "AccountNew",
                     progress: 1,
                 }],
@@ -147,7 +150,6 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                 create: {
                     enabledAt: new Date(),
                     expiresAt: new Date("9999-12-31"),
-                    isActive: true,
                 },
             },
         },

@@ -44,8 +44,8 @@ const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
 const resourceListFallback = {
     __typename: "ResourceList",
-    created_at: 0,
-    updated_at: 0,
+    createdAt: 0,
+    updatedAt: 0,
     id: DUMMY_ID,
     resources: [],
     translations: [],
@@ -306,8 +306,8 @@ export function DashboardView({
                             __typename: "ReminderList",
                             id: DUMMY_ID,
                             reminders: reminders,
-                            created_at: Date.now(),
-                            updated_at: Date.now(),
+                            createdAt: Date.now(),
+                            updatedAt: Date.now(),
                         } as ReminderListShape}
                         canUpdate={true}
                         handleUpdate={(updatedList: ReminderListShape) => setReminders(updatedList.reminders)}

@@ -1,4 +1,4 @@
-import { ModelType, RoutineVersion, RunStatus } from "../api/types.js";
+import { RunStatus } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
 import { generatePKString } from "../id/snowflake.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
@@ -168,8 +168,8 @@ export class RunStateMachine {
         }
 
         // Make sure all start locations are in the same object
-        const startingAt = { __typename: firstLocation.__typename, objectId: firstLocation.objectId };
-        if (startLocations.some(loc => loc.__typename !== startingAt.__typename || loc.objectId !== startingAt.objectId)) {
+        const startingAt = { objectType: firstLocation.objectType, objectId: firstLocation.objectId };
+        if (startLocations.some(loc => loc.objectType !== startingAt.objectType || loc.objectId !== startingAt.objectId)) {
             throw new Error("All start locations must be in the same object");
         }
 
@@ -208,14 +208,11 @@ export class RunStateMachine {
             steps: [],
             status: RunStatus.InProgress,
             subcontexts: { [subroutineInstanceId]: subcontext },
-            type: startObject.__typename === "ProjectVersion"
-                ? "RunProject" as const
-                : "RunRoutine" as const,
         };
         // Determine if parallel execution is allowed
         let supportsParallelExecution = false;
-        if (startObject.__typename === ModelType.RoutineVersion) {
-            const routineConfig = RoutineVersionConfig.deserialize(startObject as RoutineVersion, this.services.logger, { useFallbacks: true });
+        if (startObject.resourceSubType.startsWith("Routine")) {
+            const routineConfig = RoutineVersionConfig.deserialize(startObject, this.services.logger, { useFallbacks: true });
             const graphConfig = routineConfig.graph;
             const navigator = graphConfig ? this.services.navigatorFactory.getNavigator(graphConfig.__type) : null;
             supportsParallelExecution = navigator?.supportsParallelExecution ?? false;
@@ -271,7 +268,7 @@ export class RunStateMachine {
      */
     private async finalizeInit(run: RunProgress, userData: RunTriggeredBy): Promise<RunProgress> {
         // Update the state machine's state
-        this.state.runIdentifier = { type: run.type, runId: run.runId };
+        this.state.runIdentifier = { runId: run.runId };
         this.state.userData = userData;
 
         // Store the run in the database
@@ -646,7 +643,7 @@ export class RunStateMachine {
         // Collect estimated max credits for each branch
         const costArray = await Promise.all(run.branches.map(async (branch) => {
             const currentObject = branchLocationDataMap[branch.branchId]?.object;
-            if (!currentObject || currentObject.__typename !== ModelType.RoutineVersion) {
+            if (!currentObject || !currentObject.resourceSubType.startsWith("Routine")) {
                 return BigInt(0);
             }
 

@@ -86,7 +86,7 @@ export class AuthTokensService {
             select: {
                 expires_at: true,
                 last_refresh_at: true,
-                revoked: true,
+                revokedAt: true,
             },
         });
         // Make sure session exists
@@ -94,7 +94,7 @@ export class AuthTokensService {
             return false;
         }
         // Make sure session is not revoked
-        if (storedSession.revoked) {
+        if (!!storedSession.revokedAt) {
             return false;
         }
         // Make sure refresh times match

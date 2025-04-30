@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, TeamCreateInput, TeamSearchInput, TeamUpdateInput, User, UserSearchInput, UserTranslation, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, ResourceCreateInput, ResourceSearchInput, ResourceUpdateInput, RunCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, TeamCreateInput, TeamSearchInput, TeamUpdateInput, User, UserSearchInput, UserTranslation, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -119,49 +119,6 @@ const SuccessInfo = { __typename: "Success" as const, success: true } as unknown
 const CountInfo = { __typename: "Count" as const, count: true } as unknown as PartialApiInfo;
 
 const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskHandlerHelperFuncs<Task>) => Promise<LlmTaskExec> } = {
-    "ApiAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const Endpoints = await import("../../endpoints/logic/api.js");
-        const info = await import("../../endpoints/generated/api_findOne.js");
-        return async (data) => {
-            const input = converter[task](data, language);
-            const payload = await Endpoints.api.createOne({ input }, context, info);
-            const label = getObjectLabel(payload);
-            const link = getObjectLink(payload);
-            return { label, link, payload };
-        };
-    },
-    "ApiDelete": async ({ context, converter, language, task }) => {
-        const Endpoints = await import("../../endpoints/logic/actions.js");
-        const info = SuccessInfo;
-        return async (data) => {
-            const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
-            return { label: null, link: null, payload };
-        };
-    },
-    "ApiFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
-        const info = await import("../../endpoints/generated/api_findMany.js");
-        return async (data) => {
-            const input = converter[task](data, language);
-            const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "ApiVersion", req: context.req });
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
-            return { label, link, payload };
-        };
-        //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more. This means we should probably be running a routine instead
-    },
-    "ApiUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
-        const Endpoints = await import("../../endpoints/logic/api.js");
-        const info = await import("../../endpoints/generated/api_findOne.js");
-        return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
-            const input = converter[task](data, language);
-            const payload = await Endpoints.api.updateOne({ input }, context, info);
-            const label = getObjectLabel(payload);
-            const link = getObjectLink(payload);
-            return { label, link, payload };
-        };
-    },
     "BotAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
         const Endpoints = await import("../../endpoints/logic/user.js");
         const info = await import("../../endpoints/generated/user_findOne.js");

@@ -3,8 +3,9 @@ export const member_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "isAdmin": true,
             "permissions": true,
             "you": {
@@ -13,10 +14,11 @@ export const member_findMany = {
             },
             "team": {
                 "id": true,
+                "publicId": true,
                 "bannerImage": true,
                 "handle": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "isOpenToNewMembers": true,
                 "isPrivate": true,
                 "commentsCount": true,
@@ -26,7 +28,7 @@ export const member_findMany = {
                 "bookmarks": true,
                 "tags": {
                     "id": true,
-                    "created_at": true,
+                    "createdAt": true,
                     "tag": true,
                     "bookmarks": true,
                     "translations": {
@@ -56,8 +58,8 @@ export const member_findMany = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
                     }
@@ -65,8 +67,9 @@ export const member_findMany = {
             },
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -94,5 +97,5 @@ export const member_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-340141921"
+    "__cacheKey": "-851889953"
 };

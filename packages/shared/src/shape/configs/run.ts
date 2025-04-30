@@ -1,4 +1,4 @@
-import { RunProject, type RunRoutine } from "../../api/types.js";
+import { type Run } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { InputGenerationStrategy, PathSelectionStrategy, RunProgress, SubroutineExecutionStrategy } from "../../run/types.js";
 import { LATEST_CONFIG_VERSION, parseObject, stringifyObject, type StringifyMode } from "./utils.js";
@@ -52,7 +52,7 @@ export class RunProgressConfig {
     }
 
     static deserialize(
-        { data }: Pick<RunRoutine | RunProject, "data">,
+        { data }: Pick<Run, "data">,
         logger: PassableLogger, // or whichever logger you use
         { mode = DEFAULT_STRINGIFY_MODE }: { mode?: StringifyMode } = {},
     ): RunProgressConfig {

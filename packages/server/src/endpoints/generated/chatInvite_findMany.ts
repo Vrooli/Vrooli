@@ -3,14 +3,14 @@ export const chatInvite_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "message": true,
             "status": true,
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -24,17 +24,19 @@ export const chatInvite_findMany = {
             },
             "chat": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "openToAnyoneWithInvite": true,
                 "participants": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "user": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "publicId": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "bannerImage": true,
                         "handle": true,
                         "isBot": true,
@@ -73,8 +75,8 @@ export const chatInvite_findMany = {
                         "isViewed": true,
                         "yourMembership": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "isAdmin": true,
                             "permissions": true
                         }
@@ -100,5 +102,5 @@ export const chatInvite_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "141170814"
+    "__cacheKey": "-1316017922"
 };

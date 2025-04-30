@@ -328,7 +328,7 @@ export function getDisplay(
     if (isOfType(object, "Chat", "Meeting")) {
         const participants = (object as Partial<Meeting>).attendees ?? (object as Partial<Chat>).participants ?? [];
         const participantsCount = (object as Partial<Meeting>).attendeesCount ?? (object as Partial<Chat>).participantsCount;
-        const updated_at = (object as Partial<Chat | Meeting>).updated_at;
+        const updatedAt = (object as Partial<Chat | Meeting>).updatedAt;
         const { name, description } = getTranslation(object as Partial<Chat>, langs, true);
         const isGroup = Number.isInteger(participantsCount) && (participantsCount as number) > 2;
         const firstUser = (participants as unknown as Meeting["attendees"])[0] ?? (participants as unknown as Chat["participants"])[0]?.user;
@@ -338,7 +338,7 @@ export function getDisplay(
                 `Chat with ${getDisplay(firstUser).title}` :
                 "Chat",
         );
-        const subtitle = firstString(description, displayDate(updated_at));
+        const subtitle = firstString(description, displayDate(updatedAt));
         return { title, subtitle, adornments };
     }
     // If a member or chat participant, use the user's display

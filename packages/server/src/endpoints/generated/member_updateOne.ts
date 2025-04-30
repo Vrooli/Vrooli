@@ -1,7 +1,8 @@
 export const member_updateOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "publicId": true,
+    "createdAt": true,
+    "updatedAt": true,
     "isAdmin": true,
     "permissions": true,
     "you": {
@@ -10,10 +11,11 @@ export const member_updateOne = {
     },
     "team": {
         "id": true,
+        "publicId": true,
         "bannerImage": true,
         "handle": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "isOpenToNewMembers": true,
         "isPrivate": true,
         "commentsCount": true,
@@ -23,7 +25,7 @@ export const member_updateOne = {
         "bookmarks": true,
         "tags": {
             "id": true,
-            "created_at": true,
+            "createdAt": true,
             "tag": true,
             "bookmarks": true,
             "translations": {
@@ -53,8 +55,8 @@ export const member_updateOne = {
             "isViewed": true,
             "yourMembership": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "isAdmin": true,
                 "permissions": true
             }
@@ -62,8 +64,9 @@ export const member_updateOne = {
         "config": true,
         "members": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "isAdmin": true,
             "permissions": true,
             "you": {
@@ -72,8 +75,9 @@ export const member_updateOne = {
             },
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -99,8 +103,9 @@ export const member_updateOne = {
     },
     "user": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "publicId": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -123,5 +128,5 @@ export const member_updateOne = {
             "bio": true
         }
     },
-    "__cacheKey": "2106988560"
+    "__cacheKey": "455591376"
 };

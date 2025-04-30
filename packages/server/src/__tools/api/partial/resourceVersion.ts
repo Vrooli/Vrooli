@@ -1,18 +1,19 @@
-import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@local/shared";
+import { ResourceVersion, ResourceVersionTranslation, ResourceVersionYou } from "@local/shared";
 import { ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
-export const routineVersionTranslation: ApiPartial<RoutineVersionTranslation> = {
+export const resourceVersionTranslation: ApiPartial<ResourceVersionTranslation> = {
     common: {
         id: true,
         language: true,
         description: true,
+        details: true,
         instructions: true,
         name: true,
     },
 };
 
-export const routineVersionYou: ApiPartial<RoutineVersionYou> = {
+export const routineVersionYou: ApiPartial<ResourceVersionYou> = {
     common: {
         canComment: true,
         canCopy: true,
@@ -26,18 +27,19 @@ export const routineVersionYou: ApiPartial<RoutineVersionYou> = {
     },
 };
 
-export const routineVersion: ApiPartial<RoutineVersion> = {
+export const resourceVersion: ApiPartial<ResourceVersion> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
+        codeLanguage: true,
         completedAt: true,
         isAutomatable: true,
         isComplete: true,
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        routineType: true,
+        resourceSubType: true,
         simplicity: true,
         timesStarted: true,
         timesCompleted: true,
@@ -45,38 +47,32 @@ export const routineVersion: ApiPartial<RoutineVersion> = {
         versionLabel: true,
         commentsCount: true,
         forksCount: true,
-        inputsCount: true,
-        outputsCount: true,
         reportsCount: true,
         you: () => rel(routineVersionYou, "common"),
     },
     full: {
         config: true,
         versionNotes: true,
-        apiVersion: async () => rel((await import("./apiVersion.js")).apiVersion, "full"),
-        codeVersion: async () => rel((await import("./codeVersion.js")).codeVersion, "full"),
-        inputs: async () => rel((await import("./routineVersionInput.js")).routineVersionInput, "full"),
-        outputs: async () => rel((await import("./routineVersionOutput.js")).routineVersionOutput, "full"),
         pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
-        root: async () => rel((await import("./resource.js")).routine, "full", { omit: "versions" }),
-        subroutineLinks: async () => rel(routineVersion, "list"),
-        translations: () => rel(routineVersionTranslation, "full"),
+        root: async () => rel((await import("./resource.js")).resource, "full", { omit: "versions" }),
+        relatedVersions: async () => rel((await import("./resourceVersionRelation.js")).resourceVersionRelation, "full"),
+        translations: () => rel(resourceVersionTranslation, "full"),
     },
     list: {
-        root: async () => rel((await import("./resource.js")).routine, "list", { omit: "versions" }),
-        translations: () => rel(routineVersionTranslation, "list"),
+        root: async () => rel((await import("./resource.js")).resource, "list", { omit: "versions" }),
+        translations: () => rel(resourceVersionTranslation, "list"),
     },
     nav: {
         id: true,
-        complexity: true, // Used by RunRoutine
+        complexity: true,
         isAutomatable: true,
         isComplete: true,
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        root: async () => rel((await import("./resource.js")).routine, "nav", { omit: "versions" }),
-        routineType: true,
-        translations: () => rel(routineVersionTranslation, "list"),
+        root: async () => rel((await import("./resource.js")).resource, "nav", { omit: "versions" }),
+        resourceSubType: true,
+        translations: () => rel(resourceVersionTranslation, "list"),
         versionIndex: true,
         versionLabel: true,
     },

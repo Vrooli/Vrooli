@@ -1,4 +1,4 @@
-import { ModelType, SessionUser, uuidValidate } from "@local/shared";
+import { ModelType, SessionUser, validatePK } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { PrismaDelegate, PrismaSelect } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -31,10 +31,10 @@ export async function getAuthenticatedData(
             where = { id: { in: ids } };
         } else {
             // We may have "id" values mixed with idField values
-            const uuids = ids.filter(uuidValidate);
-            const otherIds = ids.filter(x => !uuidValidate(x));
-            if (uuids.length) {
-                where = { OR: [{ [idField]: { in: otherIds } }, { id: { in: uuids } }] };
+            const validPks = ids.filter(validatePK);
+            const otherIds = ids.filter(x => !validatePK(x));
+            if (validPks.length) {
+                where = { OR: [{ [idField]: { in: otherIds } }, { id: { in: validPks } }] };
             } else {
                 where = { [idField]: { in: ids } };
             }

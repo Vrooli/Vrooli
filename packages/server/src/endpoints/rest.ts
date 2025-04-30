@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiKeyExternal, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineIO, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsSchedule, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
 import { Express, NextFunction, Request, Response, Router } from "express";
 import { SessionService } from "../auth/session.js";
@@ -320,11 +320,6 @@ export async function initRestApi(app: Express) {
         [endpointsActions.deleteMany, Logic.actions.deleteMany, Select.actions_deleteMany],
         [endpointsActions.deleteAll, Logic.actions.deleteAll, Select.actions_deleteAll],
         [endpointsActions.deleteAccount, Logic.actions.deleteAccount, Select.actions_deleteAccount],
-        // API
-        [endpointsApi.findOne, Logic.api.findOne, Select.api_findOne],
-        [endpointsApi.findMany, Logic.api.findMany, Select.api_findMany],
-        [endpointsApi.createOne, Logic.api.createOne, Select.api_createOne],
-        [endpointsApi.updateOne, Logic.api.updateOne, Select.api_updateOne],
         // API key
         [endpointsApiKey.createOne, Logic.apiKey.createOne, Select.apiKey_createOne],
         [endpointsApiKey.updateOne, Logic.apiKey.updateOne, Select.apiKey_updateOne],
@@ -332,11 +327,6 @@ export async function initRestApi(app: Express) {
         // API key external
         [endpointsApiKeyExternal.createOne, Logic.apiKeyExternal.createOne, Select.apiKeyExternal_createOne],
         [endpointsApiKeyExternal.updateOne, Logic.apiKeyExternal.updateOne, Select.apiKeyExternal_updateOne],
-        // API version
-        [endpointsApiVersion.findOne, Logic.apiVersion.findOne, Select.apiVersion_findOne],
-        [endpointsApiVersion.findMany, Logic.apiVersion.findMany, Select.apiVersion_findMany],
-        [endpointsApiVersion.createOne, Logic.apiVersion.createOne, Select.apiVersion_createOne],
-        [endpointsApiVersion.updateOne, Logic.apiVersion.updateOne, Select.apiVersion_updateOne],
         // Auth
         [endpointsAuth.emailLogin, Logic.auth.emailLogIn, Select.auth_emailLogIn],
         [endpointsAuth.emailSignup, Logic.auth.emailSignUp, Select.auth_emailSignUp],
@@ -386,16 +376,6 @@ export async function initRestApi(app: Express) {
         [endpointsChatParticipant.findOne, Logic.chatParticipant.findOne, Select.chatParticipant_findOne],
         [endpointsChatParticipant.findMany, Logic.chatParticipant.findMany, Select.chatParticipant_findMany],
         [endpointsChatParticipant.updateOne, Logic.chatParticipant.updateOne, Select.chatParticipant_updateOne],
-        // Code
-        [endpointsCode.findOne, Logic.code.findOne, Select.code_findOne],
-        [endpointsCode.findMany, Logic.code.findMany, Select.code_findMany],
-        [endpointsCode.createOne, Logic.code.createOne, Select.code_createOne],
-        [endpointsCode.updateOne, Logic.code.updateOne, Select.code_updateOne],
-        // Code version
-        [endpointsCodeVersion.findOne, Logic.codeVersion.findOne, Select.codeVersion_findOne],
-        [endpointsCodeVersion.findMany, Logic.codeVersion.findMany, Select.codeVersion_findMany],
-        [endpointsCodeVersion.createOne, Logic.codeVersion.createOne, Select.codeVersion_createOne],
-        [endpointsCodeVersion.updateOne, Logic.codeVersion.updateOne, Select.codeVersion_updateOne],
         // Comment
         [endpointsComment.findOne, Logic.comment.findOne, Select.comment_findOne],
         [endpointsComment.findMany, Logic.comment.findMany, Select.comment_findMany],
@@ -440,16 +420,6 @@ export async function initRestApi(app: Express) {
         [endpointsMemberInvite.updateMany, Logic.memberInvite.updateMany, Select.memberInvite_updateMany],
         [endpointsMemberInvite.acceptOne, Logic.memberInvite.acceptOne, Select.memberInvite_acceptOne],
         [endpointsMemberInvite.declineOne, Logic.memberInvite.declineOne, Select.memberInvite_declineOne],
-        // Note
-        [endpointsNote.findOne, Logic.note.findOne, Select.note_findOne],
-        [endpointsNote.findMany, Logic.note.findMany, Select.note_findMany],
-        [endpointsNote.createOne, Logic.note.createOne, Select.note_createOne],
-        [endpointsNote.updateOne, Logic.note.updateOne, Select.note_updateOne],
-        // Note version
-        [endpointsNoteVersion.findOne, Logic.noteVersion.findOne, Select.noteVersion_findOne],
-        [endpointsNoteVersion.findMany, Logic.noteVersion.findMany, Select.noteVersion_findMany],
-        [endpointsNoteVersion.createOne, Logic.noteVersion.createOne, Select.noteVersion_createOne],
-        [endpointsNoteVersion.updateOne, Logic.noteVersion.updateOne, Select.noteVersion_updateOne],
         // Notification
         [endpointsNotification.findOne, Logic.notification.findOne, Select.notification_findOne],
         [endpointsNotification.findMany, Logic.notification.findMany, Select.notification_findMany],
@@ -466,22 +436,6 @@ export async function initRestApi(app: Express) {
         [endpointsPhone.createOne, Logic.phone.createOne, Select.phone_createOne],
         [endpointsPhone.verify, Logic.phone.verify, Select.phone_verify],
         [endpointsPhone.validate, Logic.phone.validate, Select.phone_validate],
-        // Project
-        [endpointsProject.findOne, Logic.project.findOne, Select.project_findOne],
-        [endpointsProject.findMany, Logic.project.findMany, Select.project_findMany],
-        [endpointsProject.createOne, Logic.project.createOne, Select.project_createOne],
-        [endpointsProject.updateOne, Logic.project.updateOne, Select.project_updateOne],
-        // Project version
-        [endpointsProjectVersion.findOne, Logic.projectVersion.findOne, Select.projectVersion_findOne],
-        [endpointsProjectVersion.findMany, Logic.projectVersion.findMany, Select.projectVersion_findMany],
-        [endpointsProjectVersion.createOne, Logic.projectVersion.createOne, Select.projectVersion_createOne],
-        [endpointsProjectVersion.updateOne, Logic.projectVersion.updateOne, Select.projectVersion_updateOne],
-        [endpointsProjectVersion.contents, Logic.projectVersion.contents, Select.projectVersion_findMany], //TODO selection not right
-        // Project version directory
-        [endpointsProjectVersionDirectory.findOne, Logic.projectVersionDirectory.findOne, Select.projectVersionDirectory_findOne],
-        [endpointsProjectVersionDirectory.findMany, Logic.projectVersionDirectory.findMany, Select.projectVersionDirectory_findMany],
-        [endpointsProjectVersionDirectory.createOne, Logic.projectVersionDirectory.createOne, Select.projectVersionDirectory_createOne],
-        [endpointsProjectVersionDirectory.updateOne, Logic.projectVersionDirectory.updateOne, Select.projectVersionDirectory_updateOne],
         // Pull request
         [endpointsPullRequest.findOne, Logic.pullRequest.findOne, Select.pullRequest_findOne],
         [endpointsPullRequest.findMany, Logic.pullRequest.findMany, Select.pullRequest_findMany],
@@ -516,60 +470,32 @@ export async function initRestApi(app: Express) {
         // Reputation history
         [endpointsReputationHistory.findOne, Logic.reputationHistory.findOne, Select.reputationHistory_findOne],
         [endpointsReputationHistory.findMany, Logic.reputationHistory.findMany, Select.reputationHistory_findMany],
-        // Role
-        [endpointsRole.findOne, Logic.role.findOne, Select.role_findOne],
-        [endpointsRole.findMany, Logic.role.findMany, Select.role_findMany],
-        [endpointsRole.createOne, Logic.role.createOne, Select.role_createOne],
-        [endpointsRole.updateOne, Logic.role.updateOne, Select.role_updateOne],
-        // Routine
-        [endpointsRoutine.findOne, Logic.routine.findOne, Select.routine_findOne],
-        [endpointsRoutine.findMany, Logic.routine.findMany, Select.routine_findMany],
-        [endpointsRoutine.createOne, Logic.routine.createOne, Select.routine_createOne],
-        [endpointsRoutine.updateOne, Logic.routine.updateOne, Select.routine_updateOne],
-        // Routine version
-        [endpointsRoutineVersion.findOne, Logic.routineVersion.findOne, Select.routineVersion_findOne],
-        [endpointsRoutineVersion.findMany, Logic.routineVersion.findMany, Select.routineVersion_findMany],
-        [endpointsRoutineVersion.createOne, Logic.routineVersion.createOne, Select.routineVersion_createOne],
-        [endpointsRoutineVersion.updateOne, Logic.routineVersion.updateOne, Select.routineVersion_updateOne],
-        // Run project
-        [endpointsRunProject.findOne, Logic.runProject.findOne, Select.runProject_findOne],
-        [endpointsRunProject.findMany, Logic.runProject.findMany, Select.runProject_findMany],
-        [endpointsRunProject.createOne, Logic.runProject.createOne, Select.runProject_createOne],
-        [endpointsRunProject.updateOne, Logic.runProject.updateOne, Select.runProject_updateOne],
-        // Run routine
-        [endpointsRunRoutine.findOne, Logic.runRoutine.findOne, Select.runRoutine_findOne],
-        [endpointsRunRoutine.findMany, Logic.runRoutine.findMany, Select.runRoutine_findMany],
-        [endpointsRunRoutine.createOne, Logic.runRoutine.createOne, Select.runRoutine_createOne],
-        [endpointsRunRoutine.updateOne, Logic.runRoutine.updateOne, Select.runRoutine_updateOne],
-        // Run routine io
-        [endpointsRunRoutineIO.findMany, Logic.runRoutineIO.findMany, Select.runRoutineIO_findMany],
+        // Resource
+        [endpointsResource.findOne, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findMany, Logic.resource.findMany, Select.resource_findMany],
+        [endpointsResource.createOne, Logic.resource.createOne, Select.resource_createOne],
+        [endpointsResource.updateOne, Logic.resource.updateOne, Select.resource_updateOne],
+        // Resource version
+        [endpointsResourceVersion.findOne, Logic.resourceVersion.findOne, Select.resourceVersion_findOne],
+        [endpointsResourceVersion.findMany, Logic.resourceVersion.findMany, Select.resourceVersion_findMany],
+        [endpointsResourceVersion.createOne, Logic.resourceVersion.createOne, Select.resourceVersion_createOne],
+        [endpointsResourceVersion.updateOne, Logic.resourceVersion.updateOne, Select.resourceVersion_updateOne],
+        // Run
+        [endpointsRun.findOne, Logic.run.findOne, Select.run_findOne],
+        [endpointsRun.findMany, Logic.run.findMany, Select.run_findMany],
+        [endpointsRun.createOne, Logic.run.createOne, Select.run_createOne],
+        [endpointsRun.updateOne, Logic.run.updateOne, Select.run_updateOne],
+        // Run io
+        [endpointsRunIO.findMany, Logic.runIO.findMany, Select.runIO_findMany],
         // Schedule
         [endpointsSchedule.findOne, Logic.schedule.findOne, Select.schedule_findOne],
         [endpointsSchedule.findMany, Logic.schedule.findMany, Select.schedule_findMany],
         [endpointsSchedule.createOne, Logic.schedule.createOne, Select.schedule_createOne],
         [endpointsSchedule.updateOne, Logic.schedule.updateOne, Select.schedule_updateOne],
-        // Standard
-        [endpointsStandard.findOne, Logic.standard.findOne, Select.standard_findOne],
-        [endpointsStandard.findMany, Logic.standard.findMany, Select.standard_findMany],
-        [endpointsStandard.createOne, Logic.standard.createOne, Select.standard_createOne],
-        [endpointsStandard.updateOne, Logic.standard.updateOne, Select.standard_updateOne],
-        // Standard version
-        [endpointsStandardVersion.findOne, Logic.standardVersion.findOne, Select.standardVersion_findOne],
-        [endpointsStandardVersion.findMany, Logic.standardVersion.findMany, Select.standardVersion_findMany],
-        [endpointsStandardVersion.createOne, Logic.standardVersion.createOne, Select.standardVersion_createOne],
-        [endpointsStandardVersion.updateOne, Logic.standardVersion.updateOne, Select.standardVersion_updateOne],
-        // Stats API
-        [endpointsStatsApi.findMany, Logic.statsApi.findMany, Select.statsApi_findMany],
-        // Stats code
-        [endpointsStatsCode.findMany, Logic.statsCode.findMany, Select.statsCode_findMany],
-        // Stats project
-        [endpointsStatsProject.findMany, Logic.statsProject.findMany, Select.statsProject_findMany],
-        // Stats routine
-        [endpointsStatsRoutine.findMany, Logic.statsRoutine.findMany, Select.statsRoutine_findMany],
+        // Stats resource
+        [endpointsStatsResource.findMany, Logic.statsResource.findMany, Select.statsResource_findMany],
         // Stats site
         [endpointsStatsSite.findMany, Logic.statsSite.findMany, Select.statsSite_findMany],
-        // Stats standard
-        [endpointsStatsStandard.findMany, Logic.statsStandard.findMany, Select.statsStandard_findMany],
         // Stats team
         [endpointsStatsTeam.findMany, Logic.statsTeam.findMany, Select.statsTeam_findMany],
         // Stats user
@@ -600,10 +526,6 @@ export async function initRestApi(app: Express) {
         [endpointsTransfer.denyOne, Logic.transfer.denyOne, Select.transfer_denyOne],
         // Translate
         [endpointsTranslate.translate, Logic.translate.translate, Select.translate_translate],
-        // Unions
-        [endpointsUnions.projectOrRoutines, Logic.unions.projectOrRoutines, Select.unions_projectOrRoutine],
-        [endpointsUnions.projectOrTeams, Logic.unions.projectOrTeams, Select.unions_projectOrTeam],
-        [endpointsUnions.runProjectOrRunRoutines, Logic.unions.runProjectOrRunRoutines, Select.unions_runProjectOrRunRoutine],
         // User
         [endpointsUser.botUpdateOne, Logic.user.botUpdateOne, Select.user_botUpdateOne, botImagesConfig],
         [endpointsUser.botCreateOne, Logic.user.botCreateOne, Select.user_botCreateOne, botImagesConfig],

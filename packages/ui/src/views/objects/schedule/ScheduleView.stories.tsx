@@ -9,8 +9,8 @@ import { ScheduleView } from "./ScheduleView.js";
 // Create simplified mock data for Schedule responses
 const mockScheduleData: Schedule = {
     id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     startTime: new Date().toISOString(),
     endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
     timezone: "America/New_York",
@@ -32,8 +32,8 @@ const mockScheduleData: Schedule = {
     meetings: [{
         __typename: "Meeting" as const,
         id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         translations: [{
             __typename: "MeetingTranslation" as const,
             id: uuid(),

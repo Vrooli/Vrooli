@@ -83,7 +83,7 @@ const originalDataSelect = {
             isPrivate: true,
         },
     },
-};
+} as const;
 
 /**
  * Used in mutate.shape.pre of root objects. Has three purposes:

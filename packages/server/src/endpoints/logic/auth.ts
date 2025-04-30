@@ -184,7 +184,7 @@ export const auth: EndpointsAuth = {
                     expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                     last_refresh_at: new Date(),
                     ip_address: ipAddress,
-                    revoked: false,
+                    revokedAt: null,
                     user: {
                         connect: { id: userId },
                     },
@@ -301,10 +301,10 @@ export const auth: EndpointsAuth = {
                     user: {
                         id: user.id,
                     },
-                    revoked: false,
+                    revokedAt: null,
                 },
                 data: {
-                    revoked: true,
+                    revokedAt: new Date(),
                 },
             }),
             // Create new session
@@ -314,7 +314,7 @@ export const auth: EndpointsAuth = {
                     expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                     last_refresh_at: new Date(),
                     ip_address: ipAddress,
-                    revoked: false,
+                    revokedAt: null,
                     user: {
                         connect: { id: user.id },
                     },
@@ -375,7 +375,7 @@ export const auth: EndpointsAuth = {
                 id: { in: sessionIdsToRevoke },
             },
             data: {
-                revoked: true,
+                revokedAt: new Date(),
             },
         });
 
@@ -408,7 +408,7 @@ export const auth: EndpointsAuth = {
         // Use raw query to revoke sessions and return their IDs
         const sessions = await DbProvider.get().$queryRaw`
                 UPDATE "session"
-                SET revoked = true
+                SET revokedAt = now()
                 WHERE "user_id" = ${userId}::uuid
                 RETURNING id;
             `;
@@ -500,7 +500,7 @@ export const auth: EndpointsAuth = {
             },
             select: {
                 id: true,
-                verified: true,
+                verifiedAt: true,
                 userId: true,
             },
         });
@@ -524,7 +524,7 @@ export const auth: EndpointsAuth = {
                 },
                 select: {
                     id: true,
-                    verified: true,
+                    verifiedAt: true,
                     userId: true,
                 },
             });
@@ -548,7 +548,7 @@ export const auth: EndpointsAuth = {
                 user: {
                     select: { id: true },
                 },
-                verified: true,
+                verifiedAt: true,
             },
         });
         // If wallet doesn't exist, throw error
@@ -603,17 +603,16 @@ export const auth: EndpointsAuth = {
         const wallet = await DbProvider.get().wallet.update({
             where: { id: walletData.id },
             data: {
-                verified: true,
-                lastVerifiedTime: new Date().toISOString(),
+                verifiedAt: new Date().toISOString(),
                 nonce: null,
                 nonceCreationTime: null,
             },
             select: {
                 id: true,
+                verifiedAt: true,
                 name: true,
                 publicAddress: true,
                 stakingAddress: true,
-                verified: true,
             },
         });
         // Create session token

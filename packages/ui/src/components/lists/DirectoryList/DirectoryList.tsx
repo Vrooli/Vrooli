@@ -67,7 +67,7 @@ export function initializeDirectoryList(
         const beforeTime = timeFrame?.before ? parseDate(timeFrame.before) : Infinity;
 
         items = items.filter(item => {
-            const itemTime = parseDate(item.created_at); // Assuming filtering by creation date
+            const itemTime = parseDate(item.createdAt); // Assuming filtering by creation date
             return itemTime > afterTime && itemTime < beforeTime;
         });
     }
@@ -79,13 +79,13 @@ export function initializeDirectoryList(
 
         switch (sortBy) {
             case "DateCreatedAsc":
-                return parseDate(a.created_at) - parseDate(b.created_at);
+                return parseDate(a.createdAt) - parseDate(b.createdAt);
             case "DateCreatedDesc":
-                return parseDate(b.created_at) - parseDate(a.created_at);
+                return parseDate(b.createdAt) - parseDate(a.createdAt);
             case "DateUpdatedAsc":
-                return parseDate(a.updated_at) - parseDate(b.updated_at);
+                return parseDate(a.updatedAt) - parseDate(b.updatedAt);
             case "DateUpdatedDesc":
-                return parseDate(b.updated_at) - parseDate(a.updated_at);
+                return parseDate(b.updatedAt) - parseDate(a.updatedAt);
             case "NameAsc":
                 return aTitle.localeCompare(bTitle);
             case "NameDesc":

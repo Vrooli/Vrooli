@@ -1,7 +1,8 @@
 export const schedule_findOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "publicId": true,
+    "createdAt": true,
+    "updatedAt": true,
     "startTime": true,
     "endTime": true,
     "timezone": true,
@@ -22,8 +23,9 @@ export const schedule_findOne = {
     },
     "meetings": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "publicId": true,
+        "createdAt": true,
+        "updatedAt": true,
         "openToAnyoneWithInvite": true,
         "showOnTeamProfile": true,
         "team": {
@@ -42,8 +44,8 @@ export const schedule_findOne = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
@@ -58,8 +60,8 @@ export const schedule_findOne = {
         },
         "attendees": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -69,8 +71,8 @@ export const schedule_findOne = {
         },
         "invites": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "message": true,
             "status": true,
             "you": {
@@ -86,188 +88,7 @@ export const schedule_findOne = {
             "name": true
         }
     },
-    "runProjects": {
-        "id": true,
-        "isPrivate": true,
-        "completedComplexity": true,
-        "contextSwitches": true,
-        "startedAt": true,
-        "timeElapsed": true,
-        "completedAt": true,
-        "name": true,
-        "projectVersion": {
-            "id": true,
-            "complexity": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "root": {
-                "id": true,
-                "isPrivate": true,
-                "created_at": true,
-                "updated_at": true,
-                "issuesCount": true,
-                "owner": {
-                    "Team": {
-                        "id": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "profileImage": true,
-                        "you": {
-                            "canAddMembers": true,
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canReport": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "yourMembership": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
-                    },
-                    "User": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true
-                    }
-                },
-                "permissions": true,
-                "score": true,
-                "bookmarks": true,
-                "tags": {
-                    "id": true,
-                    "created_at": true,
-                    "tag": true,
-                    "bookmarks": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true
-                    },
-                    "you": {
-                        "isOwn": true,
-                        "isBookmarked": true
-                    }
-                },
-                "transfersCount": true,
-                "views": true,
-                "you": {
-                    "canDelete": true,
-                    "canBookmark": true,
-                    "canTransfer": true,
-                    "canUpdate": true,
-                    "canRead": true,
-                    "canReact": true,
-                    "isBookmarked": true,
-                    "isViewed": true,
-                    "reaction": true
-                }
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            },
-            "created_at": true,
-            "updated_at": true,
-            "directoriesCount": true,
-            "reportsCount": true,
-            "runProjectsCount": true,
-            "simplicity": true
-        },
-        "status": true,
-        "stepsCount": true,
-        "team": {
-            "id": true,
-            "bannerImage": true,
-            "handle": true,
-            "profileImage": true,
-            "you": {
-                "canAddMembers": true,
-                "canDelete": true,
-                "canBookmark": true,
-                "canReport": true,
-                "canUpdate": true,
-                "canRead": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "yourMembership": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isAdmin": true,
-                    "permissions": true
-                }
-            }
-        },
-        "user": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true
-        },
-        "you": {
-            "canDelete": true,
-            "canUpdate": true,
-            "canRead": true
-        },
-        "lastStep": true,
-        "steps": {
-            "id": true,
-            "order": true,
-            "contextSwitches": true,
-            "startedAt": true,
-            "timeElapsed": true,
-            "completedAt": true,
-            "name": true,
-            "status": true,
-            "directory": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "childOrder": true,
-                "isRoot": true,
-                "projectVersion": {
-                    "id": true,
-                    "complexity": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "versionIndex": true,
-                    "versionLabel": true,
-                    "root": {
-                        "id": true,
-                        "isPrivate": true
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    }
-                }
-            }
-        }
-    },
-    "runRoutines": {
+    "runs": {
         "id": true,
         "isPrivate": true,
         "completedComplexity": true,
@@ -281,7 +102,7 @@ export const schedule_findOne = {
         "ioCount": true,
         "stepsCount": true,
         "wasRunAutomatically": true,
-        "routineVersion": {
+        "resourceVersion": {
             "id": true,
             "complexity": true,
             "isAutomatable": true,
@@ -293,8 +114,10 @@ export const schedule_findOne = {
                 "id": true,
                 "isInternal": true,
                 "isPrivate": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
+                "bookmarks": true,
                 "issuesCount": true,
                 "owner": {
                     "Team": {
@@ -313,8 +136,8 @@ export const schedule_findOne = {
                             "isViewed": true,
                             "yourMembership": {
                                 "id": true,
-                                "created_at": true,
-                                "updated_at": true,
+                                "createdAt": true,
+                                "updatedAt": true,
                                 "isAdmin": true,
                                 "permissions": true
                             }
@@ -322,8 +145,8 @@ export const schedule_findOne = {
                     },
                     "User": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "bannerImage": true,
                         "handle": true,
                         "isBot": true,
@@ -333,11 +156,11 @@ export const schedule_findOne = {
                     }
                 },
                 "permissions": true,
+                "resourceType": true,
                 "score": true,
-                "bookmarks": true,
                 "tags": {
                     "id": true,
-                    "created_at": true,
+                    "createdAt": true,
                     "tag": true,
                     "bookmarks": true,
                     "translations": {
@@ -377,11 +200,12 @@ export const schedule_findOne = {
                         "isInternal": true,
                         "isPrivate": true
                     },
-                    "routineType": true,
+                    "resourceSubType": true,
                     "translations": {
                         "id": true,
                         "language": true,
                         "description": true,
+                        "details": true,
                         "instructions": true,
                         "name": true
                     },
@@ -389,603 +213,41 @@ export const schedule_findOne = {
                     "versionLabel": true
                 }
             },
-            "routineType": true,
+            "resourceSubType": true,
             "translations": {
                 "id": true,
                 "language": true,
                 "description": true,
+                "details": true,
                 "instructions": true,
                 "name": true
             },
             "versionIndex": true,
             "versionLabel": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
+            "codeLanguage": true,
             "completedAt": true,
             "simplicity": true,
             "timesStarted": true,
             "timesCompleted": true,
             "commentsCount": true,
-            "directoryListingsCount": true,
             "forksCount": true,
-            "inputsCount": true,
-            "outputsCount": true,
             "reportsCount": true,
             "config": true,
             "versionNotes": true,
-            "apiVersion": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "callLink": true,
-                "commentsCount": true,
-                "documentationLink": true,
-                "forksCount": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "reportsCount": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "calledByRoutineVersionsCount": true,
-                "config": true,
-                "schemaLanguage": true,
-                "schemaText": true,
-                "versionNotes": true,
-                "pullRequest": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "mergedOrRejectedAt": true,
-                    "commentsCount": true,
-                    "status": true,
-                    "createdBy": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true
-                    },
-                    "you": {
-                        "canComment": true,
-                        "canDelete": true,
-                        "canReport": true,
-                        "canUpdate": true
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "text": true
-                    }
-                },
-                "root": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isPrivate": true,
-                    "issuesCount": true,
-                    "owner": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
-                        }
-                    },
-                    "permissions": true,
-                    "score": true,
-                    "bookmarks": true,
-                    "tags": {
-                        "id": true,
-                        "created_at": true,
-                        "tag": true,
-                        "bookmarks": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        },
-                        "you": {
-                            "isOwn": true,
-                            "isBookmarked": true
-                        }
-                    },
-                    "transfersCount": true,
-                    "views": true,
-                    "you": {
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canTransfer": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "canReact": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "reaction": true
-                    },
-                    "versionsCount": true,
-                    "parent": {
-                        "id": true,
-                        "isLatest": true,
-                        "isPrivate": true,
-                        "versionIndex": true,
-                        "versionLabel": true,
-                        "root": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "details": true,
-                            "name": true,
-                            "summary": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "details": true,
-                    "name": true,
-                    "summary": true
-                }
-            },
-            "codeVersion": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isComplete": true,
-                "isDeleted": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "codeLanguage": true,
-                "codeType": true,
-                "default": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "commentsCount": true,
-                "directoryListingsCount": true,
-                "forksCount": true,
-                "reportsCount": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "calledByRoutineVersionsCount": true,
-                "config": true,
-                "content": true,
-                "versionNotes": true,
-                "pullRequest": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "mergedOrRejectedAt": true,
-                    "commentsCount": true,
-                    "status": true,
-                    "createdBy": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true
-                    },
-                    "you": {
-                        "canComment": true,
-                        "canDelete": true,
-                        "canReport": true,
-                        "canUpdate": true
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "text": true
-                    }
-                },
-                "root": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isPrivate": true,
-                    "issuesCount": true,
-                    "owner": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
-                        }
-                    },
-                    "permissions": true,
-                    "score": true,
-                    "bookmarks": true,
-                    "tags": {
-                        "id": true,
-                        "created_at": true,
-                        "tag": true,
-                        "bookmarks": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        },
-                        "you": {
-                            "isOwn": true,
-                            "isBookmarked": true
-                        }
-                    },
-                    "transfersCount": true,
-                    "views": true,
-                    "you": {
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canTransfer": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "canReact": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "reaction": true
-                    },
-                    "versionsCount": true,
-                    "parent": {
-                        "id": true,
-                        "isLatest": true,
-                        "isPrivate": true,
-                        "versionIndex": true,
-                        "versionLabel": true,
-                        "root": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "jsonVariable": true,
-                            "name": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "jsonVariable": true,
-                    "name": true
-                }
-            },
-            "inputs": {
-                "id": true,
-                "index": true,
-                "isRequired": true,
-                "name": true,
-                "standardVersion": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "codeLanguage": true,
-                    "default": true,
-                    "isComplete": true,
-                    "isFile": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "props": true,
-                    "variant": true,
-                    "versionIndex": true,
-                    "versionLabel": true,
-                    "yup": true,
-                    "commentsCount": true,
-                    "directoryListingsCount": true,
-                    "forksCount": true,
-                    "reportsCount": true,
-                    "you": {
-                        "canComment": true,
-                        "canCopy": true,
-                        "canDelete": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canUse": true,
-                        "canRead": true
-                    },
-                    "root": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "isPrivate": true,
-                        "issuesCount": true,
-                        "owner": {
-                            "Team": {
-                                "id": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "profileImage": true,
-                                "you": {
-                                    "canAddMembers": true,
-                                    "canDelete": true,
-                                    "canBookmark": true,
-                                    "canReport": true,
-                                    "canUpdate": true,
-                                    "canRead": true,
-                                    "isBookmarked": true,
-                                    "isViewed": true,
-                                    "yourMembership": {
-                                        "id": true,
-                                        "created_at": true,
-                                        "updated_at": true,
-                                        "isAdmin": true,
-                                        "permissions": true
-                                    }
-                                }
-                            },
-                            "User": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "isBot": true,
-                                "isBotDepictingPerson": true,
-                                "name": true,
-                                "profileImage": true
-                            }
-                        },
-                        "permissions": true,
-                        "score": true,
-                        "bookmarks": true,
-                        "tags": {
-                            "id": true,
-                            "created_at": true,
-                            "tag": true,
-                            "bookmarks": true,
-                            "translations": {
-                                "id": true,
-                                "language": true,
-                                "description": true
-                            },
-                            "you": {
-                                "isOwn": true,
-                                "isBookmarked": true
-                            }
-                        },
-                        "transfersCount": true,
-                        "views": true,
-                        "you": {
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canTransfer": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "canReact": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "reaction": true
-                        }
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "jsonVariable": true,
-                        "name": true
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "helpText": true
-                }
-            },
-            "outputs": {
-                "id": true,
-                "index": true,
-                "name": true,
-                "standardVersion": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "codeLanguage": true,
-                    "default": true,
-                    "isComplete": true,
-                    "isFile": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "props": true,
-                    "variant": true,
-                    "versionIndex": true,
-                    "versionLabel": true,
-                    "yup": true,
-                    "commentsCount": true,
-                    "directoryListingsCount": true,
-                    "forksCount": true,
-                    "reportsCount": true,
-                    "you": {
-                        "canComment": true,
-                        "canCopy": true,
-                        "canDelete": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canUse": true,
-                        "canRead": true
-                    },
-                    "root": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "isPrivate": true,
-                        "issuesCount": true,
-                        "owner": {
-                            "Team": {
-                                "id": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "profileImage": true,
-                                "you": {
-                                    "canAddMembers": true,
-                                    "canDelete": true,
-                                    "canBookmark": true,
-                                    "canReport": true,
-                                    "canUpdate": true,
-                                    "canRead": true,
-                                    "isBookmarked": true,
-                                    "isViewed": true,
-                                    "yourMembership": {
-                                        "id": true,
-                                        "created_at": true,
-                                        "updated_at": true,
-                                        "isAdmin": true,
-                                        "permissions": true
-                                    }
-                                }
-                            },
-                            "User": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "isBot": true,
-                                "isBotDepictingPerson": true,
-                                "name": true,
-                                "profileImage": true
-                            }
-                        },
-                        "permissions": true,
-                        "score": true,
-                        "bookmarks": true,
-                        "tags": {
-                            "id": true,
-                            "created_at": true,
-                            "tag": true,
-                            "bookmarks": true,
-                            "translations": {
-                                "id": true,
-                                "language": true,
-                                "description": true
-                            },
-                            "you": {
-                                "isOwn": true,
-                                "isBookmarked": true
-                            }
-                        },
-                        "transfersCount": true,
-                        "views": true,
-                        "you": {
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canTransfer": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "canReact": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "reaction": true
-                        }
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "jsonVariable": true,
-                        "name": true
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "helpText": true
-                }
-            },
             "pullRequest": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "mergedOrRejectedAt": true,
                 "commentsCount": true,
                 "status": true,
                 "createdBy": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "bannerImage": true,
                     "handle": true,
                     "isBot": true,
@@ -1005,109 +267,32 @@ export const schedule_findOne = {
                     "text": true
                 }
             },
-            "subroutineLinks": {
+            "relatedVersions": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "completedAt": true,
-                "isAutomatable": true,
-                "isComplete": true,
-                "isDeleted": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "routineType": true,
-                "simplicity": true,
-                "timesStarted": true,
-                "timesCompleted": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "commentsCount": true,
-                "directoryListingsCount": true,
-                "forksCount": true,
-                "inputsCount": true,
-                "outputsCount": true,
-                "reportsCount": true,
-                "root": {
+                "toVersion": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isInternal": true,
+                    "complexity": true,
+                    "isAutomatable": true,
+                    "isComplete": true,
+                    "isDeleted": true,
+                    "isLatest": true,
                     "isPrivate": true,
-                    "issuesCount": true,
-                    "owner": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
-                        }
-                    },
-                    "permissions": true,
-                    "score": true,
-                    "bookmarks": true,
-                    "tags": {
+                    "root": {
                         "id": true,
-                        "created_at": true,
-                        "tag": true,
-                        "bookmarks": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        },
-                        "you": {
-                            "isOwn": true,
-                            "isBookmarked": true
-                        }
+                        "isInternal": true,
+                        "isPrivate": true
                     },
-                    "transfersCount": true,
-                    "views": true,
-                    "you": {
-                        "canComment": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "canReact": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "reaction": true
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "instructions": true,
-                    "name": true
+                    "resourceSubType": true,
+                    "translations": {
+                        "id": true,
+                        "language": true,
+                        "description": true,
+                        "details": true,
+                        "instructions": true,
+                        "name": true
+                    },
+                    "versionIndex": true,
+                    "versionLabel": true
                 }
             }
         },
@@ -1127,8 +312,8 @@ export const schedule_findOne = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
@@ -1136,8 +321,8 @@ export const schedule_findOne = {
         },
         "user": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -1154,261 +339,8 @@ export const schedule_findOne = {
         "io": {
             "id": true,
             "data": true,
-            "routineVersionInput": {
-                "id": true,
-                "index": true,
-                "isRequired": true,
-                "name": true,
-                "standardVersion": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "codeLanguage": true,
-                    "default": true,
-                    "isComplete": true,
-                    "isFile": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "props": true,
-                    "variant": true,
-                    "versionIndex": true,
-                    "versionLabel": true,
-                    "yup": true,
-                    "commentsCount": true,
-                    "directoryListingsCount": true,
-                    "forksCount": true,
-                    "reportsCount": true,
-                    "you": {
-                        "canComment": true,
-                        "canCopy": true,
-                        "canDelete": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canUse": true,
-                        "canRead": true
-                    },
-                    "root": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "isPrivate": true,
-                        "issuesCount": true,
-                        "owner": {
-                            "Team": {
-                                "id": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "profileImage": true,
-                                "you": {
-                                    "canAddMembers": true,
-                                    "canDelete": true,
-                                    "canBookmark": true,
-                                    "canReport": true,
-                                    "canUpdate": true,
-                                    "canRead": true,
-                                    "isBookmarked": true,
-                                    "isViewed": true,
-                                    "yourMembership": {
-                                        "id": true,
-                                        "created_at": true,
-                                        "updated_at": true,
-                                        "isAdmin": true,
-                                        "permissions": true
-                                    }
-                                }
-                            },
-                            "User": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "isBot": true,
-                                "isBotDepictingPerson": true,
-                                "name": true,
-                                "profileImage": true
-                            }
-                        },
-                        "permissions": true,
-                        "score": true,
-                        "bookmarks": true,
-                        "tags": {
-                            "id": true,
-                            "created_at": true,
-                            "tag": true,
-                            "bookmarks": true,
-                            "translations": {
-                                "id": true,
-                                "language": true,
-                                "description": true
-                            },
-                            "you": {
-                                "isOwn": true,
-                                "isBookmarked": true
-                            }
-                        },
-                        "transfersCount": true,
-                        "views": true,
-                        "you": {
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canTransfer": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "canReact": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "reaction": true
-                        }
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "jsonVariable": true,
-                        "name": true
-                    }
-                }
-            },
-            "routineVersionOutput": {
-                "id": true,
-                "index": true,
-                "name": true,
-                "routineVersion": {
-                    "id": true,
-                    "complexity": true,
-                    "isAutomatable": true,
-                    "isComplete": true,
-                    "isDeleted": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "root": {
-                        "id": true,
-                        "isInternal": true,
-                        "isPrivate": true
-                    },
-                    "routineType": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "instructions": true,
-                        "name": true
-                    },
-                    "versionIndex": true,
-                    "versionLabel": true
-                },
-                "standardVersion": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "codeLanguage": true,
-                    "default": true,
-                    "isComplete": true,
-                    "isFile": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "props": true,
-                    "variant": true,
-                    "versionIndex": true,
-                    "versionLabel": true,
-                    "yup": true,
-                    "commentsCount": true,
-                    "directoryListingsCount": true,
-                    "forksCount": true,
-                    "reportsCount": true,
-                    "you": {
-                        "canComment": true,
-                        "canCopy": true,
-                        "canDelete": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canUse": true,
-                        "canRead": true
-                    },
-                    "root": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "isPrivate": true,
-                        "issuesCount": true,
-                        "owner": {
-                            "Team": {
-                                "id": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "profileImage": true,
-                                "you": {
-                                    "canAddMembers": true,
-                                    "canDelete": true,
-                                    "canBookmark": true,
-                                    "canReport": true,
-                                    "canUpdate": true,
-                                    "canRead": true,
-                                    "isBookmarked": true,
-                                    "isViewed": true,
-                                    "yourMembership": {
-                                        "id": true,
-                                        "created_at": true,
-                                        "updated_at": true,
-                                        "isAdmin": true,
-                                        "permissions": true
-                                    }
-                                }
-                            },
-                            "User": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "bannerImage": true,
-                                "handle": true,
-                                "isBot": true,
-                                "isBotDepictingPerson": true,
-                                "name": true,
-                                "profileImage": true
-                            }
-                        },
-                        "permissions": true,
-                        "score": true,
-                        "bookmarks": true,
-                        "tags": {
-                            "id": true,
-                            "created_at": true,
-                            "tag": true,
-                            "bookmarks": true,
-                            "translations": {
-                                "id": true,
-                                "language": true,
-                                "description": true
-                            },
-                            "you": {
-                                "isOwn": true,
-                                "isBookmarked": true
-                            }
-                        },
-                        "transfersCount": true,
-                        "views": true,
-                        "you": {
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canTransfer": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "canReact": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "reaction": true
-                        }
-                    },
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "jsonVariable": true,
-                        "name": true
-                    }
-                }
-            }
+            "nodeInputName": true,
+            "nodeName": true
         },
         "steps": {
             "id": true,
@@ -1419,7 +351,8 @@ export const schedule_findOne = {
             "completedAt": true,
             "name": true,
             "status": true,
-            "subroutine": {
+            "resourceInId": true,
+            "resourceVersion": {
                 "id": true,
                 "complexity": true,
                 "isAutomatable": true,
@@ -1432,11 +365,12 @@ export const schedule_findOne = {
                     "isInternal": true,
                     "isPrivate": true
                 },
-                "routineType": true,
+                "resourceSubType": true,
                 "translations": {
                     "id": true,
                     "language": true,
                     "description": true,
+                    "details": true,
                     "instructions": true,
                     "name": true
                 },
@@ -1445,5 +379,5 @@ export const schedule_findOne = {
             }
         }
     },
-    "__cacheKey": "1911592049"
+    "__cacheKey": "-931380827"
 };

@@ -1,6 +1,6 @@
 export const tag_updateOne = {
     "id": true,
-    "created_at": true,
+    "createdAt": true,
     "tag": true,
     "bookmarks": true,
     "translations": {

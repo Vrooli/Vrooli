@@ -22,8 +22,9 @@ export const chatYou: ApiPartial<ChatYou> = {
 export const chat: ApiPartial<Chat> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         openToAnyoneWithInvite: true,
         participants: async () => rel((await import("./chatParticipant.js")).chatParticipant, "list", { omit: "chat" }),
         team: async () => rel((await import("./team.js")).team, "nav"),

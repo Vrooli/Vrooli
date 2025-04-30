@@ -148,12 +148,12 @@ export type ApiKeyExternalUpdateInput = {
 
 export type Award = DbObject<"Award"> & {
     category: AwardCategory;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     description?: Maybe<Scalars["String"]>;
     progress: Scalars["Int"];
-    timeCurrentTierCompleted?: Maybe<Scalars["Date"]>;
+    tierCompletedAt?: Maybe<Scalars["Date"]>;
     title?: Maybe<Scalars["String"]>;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export enum AwardCategory {
@@ -198,10 +198,10 @@ export enum AwardSortBy {
 
 export type Bookmark = DbObject<"Bookmark"> & {
     by: User;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     list: BookmarkList;
     to: BookmarkTo;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type BookmarkCreateInput = {
@@ -226,9 +226,9 @@ export enum BookmarkFor {
 export type BookmarkList = DbObject<"BookmarkList"> & {
     bookmarks: Array<Bookmark>;
     bookmarksCount: Scalars["Int"];
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     label: Scalars["String"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type BookmarkListCreateInput = {
@@ -324,7 +324,7 @@ export type CancelTaskInput = {
 };
 
 export type Chat = DbObject<"Chat"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     invites: Array<ChatInvite>;
     invitesCount: Scalars["Int"];
     messages: Array<ChatMessage>;
@@ -335,7 +335,7 @@ export type Chat = DbObject<"Chat"> & {
     team?: Maybe<Team>;
     translations: Array<ChatTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: ChatYou;
 };
 
@@ -352,10 +352,10 @@ export type ChatEdge = Edge<Chat, "ChatEdge">;
 
 export type ChatInvite = DbObject<"ChatInvite"> & {
     chat: Chat;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     message?: Maybe<Scalars["String"]>;
     status: ChatInviteStatus;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
     you: ChatInviteYou;
 };
@@ -410,7 +410,7 @@ export type ChatInviteYou = {
 
 export type ChatMessage = DbObject<"ChatMessage"> & {
     chat: Chat;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     parent?: Maybe<ChatMessageParent>;
     reactionSummaries: Array<ReactionSummary>;
     reports: Array<Report>;
@@ -419,7 +419,7 @@ export type ChatMessage = DbObject<"ChatMessage"> & {
     sequence: Scalars["Int"];
     translations: Array<ChatMessageTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
     versionIndex: Scalars["Int"];
     you: ChatMessageYou;
@@ -444,7 +444,7 @@ export type ChatMessageEdge = Edge<ChatMessage, "ChatMessageEdge">;
 
 export type ChatMessageParent = {
     __typename: "ChatMessageParent";
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     id: Scalars["ID"];
 };
 
@@ -517,8 +517,8 @@ export type ChatMessageedOn = Issue | PullRequest | ResourceVersion;
 
 export type ChatParticipant = DbObject<"ChatParticipant"> & {
     chat: Chat;
-    created_at: Scalars["Date"];
-    updated_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
 };
 
@@ -623,14 +623,14 @@ export type Comment = DbObject<"Comment"> & {
     bookmarkedBy?: Maybe<Array<User>>;
     bookmarks: Scalars["Int"];
     commentedOn: CommentedOn;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     owner?: Maybe<Owner>;
     reports: Array<Report>;
     reportsCount: Scalars["Int"];
     score: Scalars["Int"];
     translations: Array<CommentTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: CommentYou;
 };
 
@@ -794,7 +794,7 @@ export type Email = {
     __typename: "Email";
     emailAddress: Scalars["String"];
     id: Scalars["ID"];
-    verified: Scalars["Boolean"];
+    verifiedAt: Scalars["Date"];
 };
 
 export type EmailCreateInput = {
@@ -921,7 +921,7 @@ export type Issue = DbObject<"Issue"> & {
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
     createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     publicId: Scalars["String"];
     referencedVersionId?: Maybe<Scalars["String"]>;
     reports: Array<Report>;
@@ -931,7 +931,7 @@ export type Issue = DbObject<"Issue"> & {
     to: IssueTo;
     translations: Array<IssueTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     views: Scalars["Int"];
     you: IssueYou;
 };
@@ -1050,7 +1050,7 @@ export enum LlmTask {
     ResourceDelete = "ResourceDelete",
     ResourceFind = "ResourceFind",
     ResourceUpdate = "ResourceUpdate",
-    RuntStart = "RuntStart",
+    RunStart = "RunStart",
     ScheduleAdd = "ScheduleAdd",
     ScheduleDelete = "ScheduleDelete",
     ScheduleFind = "ScheduleFind",
@@ -1065,7 +1065,7 @@ export enum LlmTask {
 export type Meeting = DbObject<"Meeting"> & {
     attendees: Array<User>;
     attendeesCount: Scalars["Int"];
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     invites: Array<MeetingInvite>;
     invitesCount: Scalars["Int"];
     openToAnyoneWithInvite: Scalars["Boolean"];
@@ -1075,7 +1075,7 @@ export type Meeting = DbObject<"Meeting"> & {
     team: Team;
     translations: Array<MeetingTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: MeetingYou;
 };
 
@@ -1091,11 +1091,11 @@ export type MeetingCreateInput = BaseTranslatableCreateInput<MeetingTranslationC
 export type MeetingEdge = Edge<Meeting, "MeetingEdge">;
 
 export type MeetingInvite = DbObject<"MeetingInvite"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     meeting: Meeting;
     message?: Maybe<Scalars["String"]>;
     status: MeetingInviteStatus;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
     you: MeetingInviteYou;
 };
@@ -1212,12 +1212,12 @@ export type MeetingYou = {
 };
 
 export type Member = DbObject<"Member"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     isAdmin: Scalars["Boolean"];
     permissions: Scalars["String"];
     publicId: Scalars["String"];
     team: Team;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
     you: MemberYou;
 };
@@ -1225,11 +1225,11 @@ export type Member = DbObject<"Member"> & {
 export type MemberEdge = Edge<Member, "MemberEdge">;
 
 export type MemberInvite = DbObject<"MemberInvite"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     message?: Maybe<Scalars["String"]>;
     status: MemberInviteStatus;
     team: Team;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
     willBeAdmin: Scalars["Boolean"];
     willHavePermissions?: Maybe<Scalars["String"]>;
@@ -1321,7 +1321,7 @@ export type MemberYou = {
 
 export type Notification = DbObject<"Notification"> & {
     category: Scalars["String"];
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     description?: Maybe<Scalars["String"]>;
     imgLink?: Maybe<Scalars["String"]>;
     isRead: Scalars["Boolean"];
@@ -1394,7 +1394,7 @@ export enum NotificationSortBy {
 export type NotificationSubscription = {
     __typename: "NotificationSubscription";
     context?: Maybe<Scalars["String"]>;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     id: Scalars["ID"];
     object: SubscribedObject;
     silent: Scalars["Boolean"];
@@ -1446,14 +1446,14 @@ export type Payment = DbObject<"Payment"> & {
     cardLast4?: Maybe<Scalars["String"]>;
     cardType?: Maybe<Scalars["String"]>;
     checkoutId: Scalars["String"];
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     currency: Scalars["String"];
     description: Scalars["String"];
     paymentMethod: Scalars["String"];
     paymentType: PaymentType;
     status: PaymentStatus;
     team: Team;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     user: User;
 };
 
@@ -1497,7 +1497,7 @@ export type Phone = {
     __typename: "Phone";
     id: Scalars["ID"];
     phoneNumber: Scalars["String"];
-    verified: Scalars["Boolean"];
+    verifiedAt: Scalars["Date"];
 };
 
 export type PhoneCreateInput = {
@@ -1550,7 +1550,6 @@ export type Premium = DbObject<"Premium"> & {
     customPlan?: Maybe<Scalars["String"]>;
     enabledAt?: Maybe<Scalars["Date"]>;
     expiresAt?: Maybe<Scalars["Date"]>;
-    isActive: Scalars["Boolean"];
 };
 
 export type ProfileEmailUpdateInput = {
@@ -1583,7 +1582,7 @@ export type PullRequest = DbObject<"PullRequest"> & {
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
     createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     from: PullRequestFrom;
     mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
     publicId: Scalars["String"];
@@ -1591,7 +1590,7 @@ export type PullRequest = DbObject<"PullRequest"> & {
     to: PullRequestTo;
     translations: Array<CommentTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: PullRequestYou;
 };
 
@@ -1758,7 +1757,7 @@ export type RegenerateResponseInput = {
 };
 
 export type Reminder = DbObject<"Reminder"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     description?: Maybe<Scalars["String"]>;
     dueDate?: Maybe<Scalars["Date"]>;
     index: Scalars["Int"];
@@ -1766,7 +1765,7 @@ export type Reminder = DbObject<"Reminder"> & {
     name: Scalars["String"];
     reminderItems: Array<ReminderItem>;
     reminderList: ReminderList;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type ReminderCreateInput = {
@@ -1783,14 +1782,14 @@ export type ReminderCreateInput = {
 export type ReminderEdge = Edge<Reminder, "ReminderEdge">;
 
 export type ReminderItem = DbObject<"ReminderItem"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     description?: Maybe<Scalars["String"]>;
     dueDate?: Maybe<Scalars["Date"]>;
     index: Scalars["Int"];
     isComplete: Scalars["Boolean"];
     name: Scalars["String"];
     reminder: Reminder;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type ReminderItemCreateInput = {
@@ -1813,9 +1812,9 @@ export type ReminderItemUpdateInput = {
 };
 
 export type ReminderList = DbObject<"ReminderList"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     reminders: Array<Reminder>;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type ReminderListCreateInput = {
@@ -1866,7 +1865,7 @@ export type ReminderUpdateInput = {
 
 export type Report = DbObject<"Report"> & {
     createdFor: ReportFor;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     details?: Maybe<Scalars["String"]>;
     language: Scalars["String"];
     publicId: Scalars["String"];
@@ -1874,7 +1873,7 @@ export type Report = DbObject<"Report"> & {
     responses: Array<ReportResponse>;
     responsesCount: Scalars["Int"];
     status: ReportStatus;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: ReportYou;
 };
 
@@ -1901,11 +1900,11 @@ export enum ReportFor {
 
 export type ReportResponse = DbObject<"ReportResponse"> & {
     actionSuggested: ReportSuggestedAction;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     details?: Maybe<Scalars["String"]>;
     language?: Maybe<Scalars["String"]>;
     report: Report;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: ReportResponseYou;
 };
 
@@ -2008,11 +2007,11 @@ export type ReportYou = {
 
 export type ReputationHistory = DbObject<"ReputationHistory"> & {
     amount: Scalars["Int"];
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     event: Scalars["String"];
     objectId1?: Maybe<Scalars["ID"]>;
     objectId2?: Maybe<Scalars["ID"]>;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type ReputationHistoryEdge = Edge<ReputationHistory, "ReputationHistoryEdge">;
@@ -2045,9 +2044,7 @@ export type Resource = DbObject<"Resource"> & {
     bookmarks: Scalars["Int"];
     completedAt?: Maybe<Scalars["Date"]>;
     createdBy?: Maybe<User>;
-    created_at: Scalars["Date"];
-    forks: Array<Resource>;
-    forksCount: Scalars["Int"];
+    createdAt: Scalars["Date"];
     hasCompleteVersion: Scalars["Boolean"];
     isDeleted: Scalars["Boolean"];
     isInternal?: Maybe<Scalars["Boolean"]>;
@@ -2060,13 +2057,14 @@ export type Resource = DbObject<"Resource"> & {
     publicId: Scalars["String"];
     pullRequests: Array<PullRequest>;
     pullRequestsCount: Scalars["Int"];
+    resourceType: ResourceType;
     score: Scalars["Int"];
     stats: Array<StatsResource>;
     tags: Array<Tag>;
     transfers: Array<Transfer>;
     transfersCount: Scalars["Int"];
     translatedName: Scalars["String"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     versions: Array<ResourceVersion>;
     versionsCount?: Maybe<Scalars["Int"]>;
     views: Scalars["Int"];
@@ -2208,12 +2206,15 @@ export type ResourceVersion = DbObject<"ResourceVersion"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     complexity: Scalars["Int"];
     config?: Maybe<Scalars["String"]>;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
+    forks: Array<Resource>;
+    forksCount: Scalars["Int"];
     isAutomatable?: Maybe<Scalars["Boolean"]>;
     isComplete: Scalars["Boolean"];
     isDeleted: Scalars["Boolean"];
     isLatest: Scalars["Boolean"];
     isPrivate: Scalars["Boolean"];
+    publicId: Scalars["String"];
     pullRequest?: Maybe<PullRequest>;
     relatedVersions: Array<ResourceVersionRelation>;
     reports: Array<Report>;
@@ -2225,7 +2226,7 @@ export type ResourceVersion = DbObject<"ResourceVersion"> & {
     timesStarted: Scalars["Int"];
     translations: Array<ResourceVersionTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     versionIndex: Scalars["Int"];
     versionLabel: Scalars["String"];
     versionNotes?: Maybe<Scalars["String"]>;
@@ -2327,6 +2328,7 @@ export enum ResourceVersionSortBy {
 
 export type ResourceVersionTranslation = BaseTranslation<"ResourceVersionTranslation"> & {
     description?: Maybe<Scalars["String"]>;
+    details?: Maybe<Scalars["String"]>;
     instructions?: Maybe<Scalars["String"]>;
     name: Scalars["String"];
 };
@@ -2599,7 +2601,7 @@ export enum SandboxTask {
 }
 
 export type Schedule = DbObject<"Schedule"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     endTime: Scalars["Date"];
     exceptions: Array<ScheduleException>;
     meetings: Array<Meeting>;
@@ -2608,7 +2610,7 @@ export type Schedule = DbObject<"Schedule"> & {
     runs: Array<Run>;
     startTime: Scalars["Date"];
     timezone: Scalars["String"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type ScheduleCreateInput = {
@@ -2806,7 +2808,7 @@ export type SessionUser = {
     profileImage?: Maybe<Scalars["String"]>;
     session: SessionUserSession;
     theme?: Maybe<Scalars["String"]>;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
 };
 
 export type SessionUserSession = {
@@ -2984,13 +2986,13 @@ export type SwitchCurrentAccountInput = {
 export type Tag = DbObject<"Tag"> & {
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     reports: Array<Report>;
     resources: Array<Resource>;
     tag: Scalars["String"];
     teams: Array<Team>;
     translations: Array<TagTranslation>;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: TagYou;
 };
 
@@ -3091,7 +3093,7 @@ export type Team = DbObject<"Team"> & {
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
     config?: Maybe<Scalars["String"]>;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     forks: Array<Team>;
     handle?: Maybe<Scalars["String"]>;
     isOpenToNewMembers: Scalars["Boolean"];
@@ -3119,7 +3121,7 @@ export type Team = DbObject<"Team"> & {
     translatedName: Scalars["String"];
     translations: Array<TeamTranslation>;
     translationsCount: Scalars["Int"];
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     views: Scalars["Int"];
     wallets: Array<Wallet>;
     you: TeamYou;
@@ -3220,13 +3222,13 @@ export type TimeFrame = {
 };
 
 export type Transfer = DbObject<"Transfer"> & {
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     fromOwner?: Maybe<Owner>;
     mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
     object: TransferObject;
     status: TransferStatus;
     toOwner?: Maybe<Owner>;
-    updated_at: Scalars["Date"];
+    updatedAt: Scalars["Date"];
     you: TransferYou;
 };
 
@@ -3318,7 +3320,7 @@ export type User = DbObject<"User"> & {
     bookmarks: Scalars["Int"];
     botSettings?: Maybe<Scalars["String"]>;
     comments?: Maybe<Array<Comment>>;
-    created_at: Scalars["Date"];
+    createdAt: Scalars["Date"];
     emails?: Maybe<Array<Email>>;
     handle?: Maybe<Scalars["String"]>;
     invitedByUser?: Maybe<User>;
@@ -3370,7 +3372,7 @@ export type User = DbObject<"User"> & {
     transfersOutgoing?: Maybe<Array<Transfer>>;
     translationLanguages?: Maybe<Array<Scalars["String"]>>;
     translations: Array<UserTranslation>;
-    updated_at?: Maybe<Scalars["Date"]>;
+    updatedAt?: Maybe<Scalars["Date"]>;
     viewed?: Maybe<Array<View>>;
     viewedBy?: Maybe<Array<View>>;
     views: Scalars["Int"];
@@ -3487,7 +3489,7 @@ export type Wallet = DbObject<"Wallet"> & {
     stakingAddress: Scalars["String"];
     team?: Maybe<Team>;
     user?: Maybe<User>;
-    verified: Scalars["Boolean"];
+    verifiedAt: Scalars["Date"];
 };
 
 export type WalletInit = {

@@ -16,27 +16,27 @@ const mockApiVersionData: ApiVersion = {
     resourceList: {
         __typename: "ResourceList" as const,
         id: uuid(),
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
             id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
             link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
                 id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 language: "en",
                 name: `Resource ${Math.floor(Math.random() * 1000)}`,
                 description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
             }],
         })) as unknown as Resource[], // Use unknown to bypass type checking until runtime
         translations: [],
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     } as unknown as ResourceList,
     schemaLanguage: CodeLanguage.Yaml,
     schemaText: `openapi: 3.0.0
@@ -173,8 +173,8 @@ components:
         - text
         - author`,
     versionLabel: `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     root: {
         __typename: "Api" as const,
         id: uuid(),
@@ -184,8 +184,8 @@ components:
             __typename: "Tag" as const,
             id: uuid(),
             tag: ["Automation", "AI Agents", "Software Development", "Agriculture", "Healthcare", "Finance", "Education", "Government", "Retail", "Manufacturing", "Energy", "Transportation", "Entertainment", "Other"][Math.floor(Math.random() * 14)],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         })) as Tag[],
         versions: [],
         views: Math.floor(Math.random() * 100_000),

@@ -116,8 +116,8 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                 }
             }] : [],
             labels: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             translations: [
                 {
                     __typename: "ScheduleTranslation",
@@ -227,8 +227,8 @@ const processScheduleDate = (scheduleData) => {
         // Convert ISO strings to Date objects where needed
         node.startTime = new Date(node.startTime);
         node.endTime = new Date(node.endTime);
-        node.created_at = new Date(node.created_at);
-        node.updated_at = new Date(node.updated_at);
+        node.createdAt = new Date(node.createdAt);
+        node.updatedAt = new Date(node.updatedAt);
 
         // Process recurrences if any
         if (node.recurrences && node.recurrences.length > 0) {

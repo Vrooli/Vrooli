@@ -4,8 +4,8 @@ import { ApiPartial } from "../types.js";
 export const reputationHistory: ApiPartial<ReputationHistory> = {
     full: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         amount: true,
         event: true,
         objectId1: true,

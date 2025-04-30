@@ -34,6 +34,5 @@ export const issue: EndpointsIssue = {
     },
     closeOne: async ({ input }, { req }, info) => {
         throw new CustomError("0000", "NotImplemented");
-        // TODO make sure to set hasBeenClosedOrRejected to true
     },
 };

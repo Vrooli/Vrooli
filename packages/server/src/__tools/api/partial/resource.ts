@@ -1,8 +1,8 @@
-import { Routine, RoutineYou } from "@local/shared";
+import { Resource, ResourceYou } from "@local/shared";
 import { ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
-export const routineYou: ApiPartial<RoutineYou> = {
+export const resourceYou: ApiPartial<ResourceYou> = {
     common: {
         canComment: true,
         canDelete: true,
@@ -16,11 +16,13 @@ export const routineYou: ApiPartial<RoutineYou> = {
     },
 };
 
-export const routine: ApiPartial<Routine> = {
+export const resource: ApiPartial<Resource> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
+        bookmarks: true,
         isInternal: true,
         isPrivate: true,
         issuesCount: true,
@@ -31,20 +33,20 @@ export const routine: ApiPartial<Routine> = {
             },
         },
         permissions: true,
+        resourceType: true,
         score: true,
-        bookmarks: true,
         tags: async () => rel((await import("./tag.js")).tag, "list"),
         transfersCount: true,
         views: true,
-        you: () => rel(routineYou, "full"),
+        you: () => rel(resourceYou, "full"),
     },
     full: {
         versionsCount: true,
-        parent: async () => rel((await import("./resourceVersion.js")).routineVersion, "nav"),
-        versions: async () => rel((await import("./resourceVersion.js")).routineVersion, "full", { omit: "root" }),
+        parent: async () => rel((await import("./resourceVersion.js")).resourceVersion, "nav"),
+        versions: async () => rel((await import("./resourceVersion.js")).resourceVersion, "full", { omit: "root" }),
     },
     list: {
-        versions: async () => rel((await import("./resourceVersion.js")).routineVersion, "list", { omit: "root" }),
+        versions: async () => rel((await import("./resourceVersion.js")).resourceVersion, "list", { omit: "root" }),
     },
     nav: {
         id: true,

@@ -1,11 +1,11 @@
 export const reminderList_updateOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "reminders": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "name": true,
         "description": true,
         "dueDate": true,
@@ -13,8 +13,8 @@ export const reminderList_updateOne = {
         "isComplete": true,
         "reminderItems": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "name": true,
             "description": true,
             "dueDate": true,

@@ -1,8 +1,8 @@
 export const feed_home = {
     "reminders": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "name": true,
         "description": true,
         "dueDate": true,
@@ -10,8 +10,8 @@ export const feed_home = {
         "isComplete": true,
         "reminderItems": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "name": true,
             "description": true,
             "dueDate": true,
@@ -20,14 +20,15 @@ export const feed_home = {
         },
         "reminderList": {
             "id": true,
-            "created_at": true,
-            "updated_at": true
+            "createdAt": true,
+            "updatedAt": true
         }
     },
     "schedules": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "publicId": true,
+        "createdAt": true,
+        "updatedAt": true,
         "startTime": true,
         "endTime": true,
         "timezone": true,
@@ -48,8 +49,9 @@ export const feed_home = {
         },
         "meetings": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "openToAnyoneWithInvite": true,
             "showOnTeamProfile": true,
             "team": {
@@ -68,8 +70,8 @@ export const feed_home = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
                     }
@@ -90,77 +92,7 @@ export const feed_home = {
                 "name": true
             }
         },
-        "runProjects": {
-            "id": true,
-            "isPrivate": true,
-            "completedComplexity": true,
-            "contextSwitches": true,
-            "startedAt": true,
-            "timeElapsed": true,
-            "completedAt": true,
-            "name": true,
-            "projectVersion": {
-                "id": true,
-                "complexity": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "root": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                }
-            },
-            "status": true,
-            "stepsCount": true,
-            "team": {
-                "id": true,
-                "bannerImage": true,
-                "handle": true,
-                "profileImage": true,
-                "you": {
-                    "canAddMembers": true,
-                    "canDelete": true,
-                    "canBookmark": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canRead": true,
-                    "isBookmarked": true,
-                    "isViewed": true,
-                    "yourMembership": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "isAdmin": true,
-                        "permissions": true
-                    }
-                }
-            },
-            "user": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-            },
-            "you": {
-                "canDelete": true,
-                "canUpdate": true,
-                "canRead": true
-            },
-            "lastStep": true
-        },
-        "runRoutines": {
+        "runs": {
             "id": true,
             "isPrivate": true,
             "completedComplexity": true,
@@ -174,7 +106,7 @@ export const feed_home = {
             "ioCount": true,
             "stepsCount": true,
             "wasRunAutomatically": true,
-            "routineVersion": {
+            "resourceVersion": {
                 "id": true,
                 "complexity": true,
                 "isAutomatable": true,
@@ -187,11 +119,12 @@ export const feed_home = {
                     "isInternal": true,
                     "isPrivate": true
                 },
-                "routineType": true,
+                "resourceSubType": true,
                 "translations": {
                     "id": true,
                     "language": true,
                     "description": true,
+                    "details": true,
                     "instructions": true,
                     "name": true
                 },
@@ -214,8 +147,8 @@ export const feed_home = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
                     }
@@ -223,8 +156,8 @@ export const feed_home = {
             },
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -240,5 +173,5 @@ export const feed_home = {
             "lastStep": true
         }
     },
-    "__cacheKey": "-1559111804"
+    "__cacheKey": "-1705396732"
 };

@@ -39,8 +39,8 @@ const user1Message1 = {
         },
     ],
     versionIndex: 0,
-    created_at: new Date("2023-03-01"),
-    updated_at: new Date("2023-03-01"),
+    createdAt: new Date("2023-03-01"),
+    updatedAt: new Date("2023-03-01"),
     parent: null,
 };
 
@@ -56,8 +56,8 @@ const botMessage1 = {
         },
     ],
     versionIndex: 0,
-    created_at: new Date("2023-03-01T00:01:00"),
-    updated_at: new Date("2023-03-01T00:01:00"),
+    createdAt: new Date("2023-03-01T00:01:00"),
+    updatedAt: new Date("2023-03-01T00:01:00"),
     parentId: user1Message1.id,
 };
 
@@ -73,8 +73,8 @@ const user2Message1 = {
         },
     ],
     versionIndex: 0,
-    created_at: new Date("2023-03-02"),
-    updated_at: new Date("2023-03-02"),
+    createdAt: new Date("2023-03-02"),
+    updatedAt: new Date("2023-03-02"),
     parentId: botMessage1.id,
 };
 
@@ -91,8 +91,8 @@ const publicChatMessage = {
         },
     ],
     versionIndex: 0,
-    created_at: new Date("2023-03-03"),
-    updated_at: new Date("2023-03-03"),
+    createdAt: new Date("2023-03-03"),
+    updatedAt: new Date("2023-03-03"),
     parent: null,
 };
 
@@ -109,8 +109,8 @@ const privateChatMessage = {
         },
     ],
     versionIndex: 0,
-    created_at: new Date("2023-03-04"),
-    updated_at: new Date("2023-03-04"),
+    createdAt: new Date("2023-03-04"),
+    updatedAt: new Date("2023-03-04"),
     parent: null,
 };
 
@@ -120,21 +120,21 @@ const seqMsgA = {
     chatId: seqChatId,
     userId: user1Id,
     translations: [{ id: uuid(), language: "en", text: "Seq A" }],
-    versionIndex: 0, created_at: new Date("2023-04-01"), updated_at: new Date("2023-04-01"), parentId: null,
+    versionIndex: 0, createdAt: new Date("2023-04-01"), updatedAt: new Date("2023-04-01"), parentId: null,
 };
 const seqMsgB = {
     id: uuid(),
     chatId: seqChatId,
     userId: botId,
     translations: [{ id: uuid(), language: "en", text: "Seq B" }],
-    versionIndex: 0, created_at: new Date("2023-04-01T00:01:00"), updated_at: new Date("2023-04-01T00:01:00"), parentId: seqMsgA.id,
+    versionIndex: 0, createdAt: new Date("2023-04-01T00:01:00"), updatedAt: new Date("2023-04-01T00:01:00"), parentId: seqMsgA.id,
 };
 const seqMsgC = {
     id: uuid(),
     chatId: seqChatId,
     userId: user1Id,
     translations: [{ id: uuid(), language: "en", text: "Seq C" }],
-    versionIndex: 0, created_at: new Date("2023-04-01T00:02:00"), updated_at: new Date("2023-04-01T00:02:00"), parentId: seqMsgB.id,
+    versionIndex: 0, createdAt: new Date("2023-04-01T00:02:00"), updatedAt: new Date("2023-04-01T00:02:00"), parentId: seqMsgB.id,
 };
 
 // Branching chat messages
@@ -143,21 +143,21 @@ const branchMsgA = {
     chatId: branchChatId,
     userId: user1Id,
     translations: [{ id: uuid(), language: "en", text: "Branch A" }],
-    versionIndex: 0, created_at: new Date("2023-04-02"), updated_at: new Date("2023-04-02"), parentId: null,
+    versionIndex: 0, createdAt: new Date("2023-04-02"), updatedAt: new Date("2023-04-02"), parentId: null,
 };
 const branchMsgB = {
     id: uuid(),
     chatId: branchChatId,
     userId: botId,
     translations: [{ id: uuid(), language: "en", text: "Branch B" }],
-    versionIndex: 0, created_at: new Date("2023-04-02T00:01:00"), updated_at: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
+    versionIndex: 0, createdAt: new Date("2023-04-02T00:01:00"), updatedAt: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
 };
 const branchMsgC = {
     id: uuid(),
     chatId: branchChatId,
     userId: user2Id,
     translations: [{ id: uuid(), language: "en", text: "Branch C" }],
-    versionIndex: 0, created_at: new Date("2023-04-02T00:01:00"), updated_at: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
+    versionIndex: 0, createdAt: new Date("2023-04-02T00:01:00"), updatedAt: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
 };
 
 // Gap chat messages (MsgA will be deleted to create a gap)
@@ -166,21 +166,21 @@ const gapMsgA = { // This message will be deleted
     chatId: gapChatId,
     userId: user1Id,
     translations: [{ id: uuid(), language: "en", text: "Gap A (to be deleted)" }],
-    versionIndex: 0, created_at: new Date("2023-04-03"), updated_at: new Date("2023-04-03"), parentId: null,
+    versionIndex: 0, createdAt: new Date("2023-04-03"), updatedAt: new Date("2023-04-03"), parentId: null,
 };
 const gapMsgB = {
     id: uuid(),
     chatId: gapChatId,
     userId: botId,
     translations: [{ id: uuid(), language: "en", text: "Gap B (orphan)" }],
-    versionIndex: 0, created_at: new Date("2023-04-03T00:01:00"), updated_at: new Date("2023-04-03T00:01:00"), parentId: gapMsgA.id,
+    versionIndex: 0, createdAt: new Date("2023-04-03T00:01:00"), updatedAt: new Date("2023-04-03T00:01:00"), parentId: gapMsgA.id,
 };
 const gapMsgC = { // Another root message
     id: uuid(),
     chatId: gapChatId,
     userId: user1Id,
     translations: [{ id: uuid(), language: "en", text: "Gap C (root)" }],
-    versionIndex: 0, created_at: new Date("2023-04-03T00:02:00"), updated_at: new Date("2023-04-03T00:02:00"), parentId: null,
+    versionIndex: 0, createdAt: new Date("2023-04-03T00:02:00"), updatedAt: new Date("2023-04-03T00:02:00"), parentId: null,
 };
 
 describe("EndpointsChatMessage", () => {
@@ -359,8 +359,8 @@ describe("EndpointsChatMessage", () => {
                         text: t.text,
                     })),
                 },
-                created_at: user1Message1.created_at,
-                updated_at: user1Message1.updated_at,
+                createdAt: user1Message1.createdAt,
+                updatedAt: user1Message1.updatedAt,
             },
         });
 
@@ -378,8 +378,8 @@ describe("EndpointsChatMessage", () => {
                         text: t.text,
                     })),
                 },
-                created_at: botMessage1.created_at,
-                updated_at: botMessage1.updated_at,
+                createdAt: botMessage1.createdAt,
+                updatedAt: botMessage1.updatedAt,
             },
         });
 
@@ -397,8 +397,8 @@ describe("EndpointsChatMessage", () => {
                         text: t.text,
                     })),
                 },
-                created_at: user2Message1.created_at,
-                updated_at: user2Message1.updated_at,
+                createdAt: user2Message1.createdAt,
+                updatedAt: user2Message1.updatedAt,
             },
         });
 
@@ -416,8 +416,8 @@ describe("EndpointsChatMessage", () => {
                         text: t.text,
                     })),
                 },
-                created_at: publicChatMessage.created_at,
-                updated_at: publicChatMessage.updated_at,
+                createdAt: publicChatMessage.createdAt,
+                updatedAt: publicChatMessage.updatedAt,
             },
         });
 
@@ -435,8 +435,8 @@ describe("EndpointsChatMessage", () => {
                         text: t.text,
                     })),
                 },
-                created_at: privateChatMessage.created_at,
-                updated_at: privateChatMessage.updated_at,
+                createdAt: privateChatMessage.createdAt,
+                updatedAt: privateChatMessage.updatedAt,
             },
         });
 

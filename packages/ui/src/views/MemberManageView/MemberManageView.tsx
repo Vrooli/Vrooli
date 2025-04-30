@@ -99,8 +99,8 @@ export function MemberManageView({
     //        const asInvites: MemberInviteShape[] = (selectedData as User[]).map(user => ({
     //            __typename: "Invites",
     //            id: DUMMY_ID,
-    //            created_at: new Date().toISOString(),
-    //            updated_at: new Date().toISOString(),
+    //            createdAt: new Date().toISOString(),
+    //            updatedAt: new Date().toISOString(),
     //            status: MemberInviteStatus.Pending,
     //            team: { __typename: "Team", id: team.id },
     //            user,

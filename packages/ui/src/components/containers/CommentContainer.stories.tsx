@@ -79,8 +79,8 @@ interface MockCommentYou {
 interface MockComment extends Partial<Comment> {
     __typename: "Comment";
     id: string;
-    created_at: string;
-    updated_at: string;
+    createdAt: string;
+    updatedAt: string;
     translations: MockCommentTranslation[];
     owner: MockCommentOwner;
     you: MockCommentYou;
@@ -97,8 +97,8 @@ interface MockCommentThread extends Partial<CommentThread> {
 const createMockComment = (id: string, text: string, owner: string = "John Doe", isCurrentUser: boolean = false): MockComment => ({
     __typename: "Comment" as const,
     id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     translations: [{
         __typename: "CommentTranslation" as const,
         id: `${id}-translation`,

@@ -211,7 +211,7 @@ export function transfer() {
                     },
                 },
             });
-            //TODO update object's hasBeenTransferred flag
+            //TODO update object's transferredAt flag
             // TODO Notify user/org that sent the transfer request
             //const pushNotification = Notify(userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
             // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);

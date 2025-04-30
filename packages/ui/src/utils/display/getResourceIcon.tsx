@@ -124,7 +124,7 @@ export function getResourceIcon({ fill, link, palette, usedFor }: GetResourceIco
             const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
             // Check if it corresponds to a cached item
             const urlParams = parseSingleItemUrl({ href: link });
-            const cachedItem = getCookiePartialData({ __typename: routeKey as ModelType, ...urlParams }) as { __typename: ModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
+            const cachedItem = getCookiePartialData({ __typename: routeKey as ModelType, ...urlParams }) as { __typename: ModelType, isBot?: boolean, profileImage?: string, updatedAt?: string };
             const profileIconInfo: IconInfo = cachedItem.isBot ?
                 { name: "Bot", type: "Common" }
                 : routeKey === "User"
@@ -135,7 +135,7 @@ export function getResourceIcon({ fill, link, palette, usedFor }: GetResourceIco
             if (cachedItem.profileImage) {
                 return (<Avatar
                     alt={`${getDisplay(cachedItem).title}'s profile picture`}
-                    src={extractImageUrl(cachedItem.profileImage, cachedItem.updated_at, AVATAR_SIZE)}
+                    src={extractImageUrl(cachedItem.profileImage, cachedItem.updatedAt, AVATAR_SIZE)}
                     sx={{
                         backgroundColor: placeholderColor()[0],
                         width: "24px",

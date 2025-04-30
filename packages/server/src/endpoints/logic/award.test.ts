@@ -18,9 +18,9 @@ const userAward1 = {
     id: uuid(),
     category: AwardCategory.RoutineCreate,
     progress: 75,
-    created_at: new Date("2023-03-01"),
-    updated_at: new Date("2023-03-01"),
-    timeCurrentTierCompleted: null,
+    createdAt: new Date("2023-03-01"),
+    updatedAt: new Date("2023-03-01"),
+    tierCompletedAt: null,
     userId: user1Id,
 };
 
@@ -28,9 +28,9 @@ const userAward2 = {
     id: uuid(),
     category: AwardCategory.ProjectCreate,
     progress: 25,
-    created_at: new Date("2023-03-15"),
-    updated_at: new Date("2023-03-15"),
-    timeCurrentTierCompleted: null,
+    createdAt: new Date("2023-03-15"),
+    updatedAt: new Date("2023-03-15"),
+    tierCompletedAt: null,
     userId: user2Id,
 };
 

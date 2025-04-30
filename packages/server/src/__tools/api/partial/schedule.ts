@@ -5,8 +5,9 @@ import { rel } from "../utils.js";
 export const schedule: ApiPartial<Schedule> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         startTime: true,
         endTime: true,
         timezone: true,
@@ -15,12 +16,10 @@ export const schedule: ApiPartial<Schedule> = {
     },
     full: {
         meetings: async () => rel((await import("./meeting.js")).meeting, "full", { omit: "schedule" }),
-        runProjects: async () => rel((await import("./runProject.js")).runProject, "full", { omit: "schedule" }),
-        runRoutines: async () => rel((await import("./run.js")).runRoutine, "full", { omit: "schedule" }),
+        runs: async () => rel((await import("./run.js")).run, "full", { omit: "schedule" }),
     },
     list: {
         meetings: async () => rel((await import("./meeting.js")).meeting, "list", { omit: "schedule" }),
-        runProjects: async () => rel((await import("./runProject.js")).runProject, "list", { omit: "schedule" }),
-        runRoutines: async () => rel((await import("./run.js")).runRoutine, "list", { omit: "schedule" }),
+        runs: async () => rel((await import("./run.js")).run, "list", { omit: "schedule" }),
     },
 };

@@ -1,4 +1,4 @@
-import { uuidValidate } from "@local/shared";
+import { validatePK } from "@local/shared";
 
 /**
  * Filters out any invalid handles from an array of handles.
@@ -16,5 +16,5 @@ export function onlyValidHandles(handles: (string | null | undefined)[]): string
  * @returns Array of valid IDs
  */
 export function onlyValidIds(ids: (string | null | undefined)[]): string[] {
-    return ids.filter(id => typeof id === "string" && uuidValidate(id)) as string[];
+    return ids.filter(id => typeof id === "string" && validatePK(id)) as string[];
 }

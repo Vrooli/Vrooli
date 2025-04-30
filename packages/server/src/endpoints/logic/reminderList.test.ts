@@ -62,16 +62,16 @@ describe("EndpointsReminderList", () => {
         await DbProvider.get().reminder_list.create({
             data: {
                 id: reminderListUser1Id,
-                created_at: new Date("2023-03-01"),
-                updated_at: new Date("2023-03-01"),
+                createdAt: new Date("2023-03-01"),
+                updatedAt: new Date("2023-03-01"),
                 user: { connect: { id: user1Id } },
             },
         });
         await DbProvider.get().reminder_list.create({
             data: {
                 id: reminderListUser2Id,
-                created_at: new Date("2023-03-05"),
-                updated_at: new Date("2023-03-05"),
+                createdAt: new Date("2023-03-05"),
+                updatedAt: new Date("2023-03-05"),
                 user: { connect: { id: user2Id } },
             },
         });

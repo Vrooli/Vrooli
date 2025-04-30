@@ -18,9 +18,9 @@ export async function countHelper<CountInput extends CountInputBase>({
     visibility,
 }: CountHelperProps<CountInput>): Promise<number> {
     // Create query for created metric
-    const createdQuery = timeFrameToPrisma("created_at", input.createdTimeFrame);
+    const createdQuery = timeFrameToPrisma("createdAt", input.createdTimeFrame);
     // Create query for created metric
-    const updatedQuery = timeFrameToPrisma("updated_at", input.updatedTimeFrame);
+    const updatedQuery = timeFrameToPrisma("updatedAt", input.updatedTimeFrame);
     // Create query for visibility, if supported
     const { query: visibilityQuery } = visibilityBuilderPrisma({ objectType, searchInput: input, req, visibility });
     // Count objects that match queries

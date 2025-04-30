@@ -3,10 +3,11 @@ export const team_findMany = {
         "cursor": true,
         "node": {
             "id": true,
+            "publicId": true,
             "bannerImage": true,
             "handle": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "isOpenToNewMembers": true,
             "isPrivate": true,
             "commentsCount": true,
@@ -16,7 +17,7 @@ export const team_findMany = {
             "bookmarks": true,
             "tags": {
                 "id": true,
-                "created_at": true,
+                "createdAt": true,
                 "tag": true,
                 "bookmarks": true,
                 "translations": {
@@ -46,8 +47,8 @@ export const team_findMany = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
@@ -58,5 +59,5 @@ export const team_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-632537794"
+    "__cacheKey": "730395134"
 };

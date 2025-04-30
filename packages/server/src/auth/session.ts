@@ -66,7 +66,7 @@ export class SessionService {
                 lastRefreshAt: sessionData.last_refresh_at,
             },
             theme: userData.theme,
-            updated_at: userData.updated_at,
+            updatedAt: userData.updatedAt,
         };
         return result;
     }

@@ -13,7 +13,7 @@ const commonSelect = {
 
 const commonWhere = {
     premium: {
-        isActive: true,
+        enabledAt: { lte: new Date() },
         OR: [
             { expiresAt: null },
             { expiresAt: { lte: new Date() } },
@@ -33,7 +33,11 @@ export async function paymentsExpirePremium() {
                 // Remove premium status for teams
                 const premiumIds = batch.map(team => team.premium?.id).filter(id => id !== null) as string[];
                 await DbProvider.get().premium.updateMany({
-                    data: { isActive: false }, // Don't remove credits, as they may have paid for them
+                    // Don't remove credits, as they may have paid for them
+                    data: {
+                        enabledAt: null,
+                        expiresAt: new Date(),
+                    },
                     where: { id: { in: premiumIds } },
                 });
                 // Send notifications
@@ -56,7 +60,11 @@ export async function paymentsExpirePremium() {
                 // Remove premium status for users
                 const premiumIds = batch.map(user => user.premium?.id).filter(id => id !== null) as string[];
                 await DbProvider.get().premium.updateMany({
-                    data: { isActive: false }, // Don't remove credits, as they may have paid for them
+                    // Don't remove credits, as they may have paid for them
+                    data: {
+                        enabledAt: null,
+                        expiresAt: new Date(),
+                    },
                     where: { id: { in: premiumIds } },
                 });
                 // Send notifications

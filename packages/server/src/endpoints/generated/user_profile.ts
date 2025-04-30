@@ -1,20 +1,14 @@
 export const user_profile = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "bannerImage": true,
     "handle": true,
     "isPrivate": true,
-    "isPrivateApis": true,
-    "isPrivateApisCreated": true,
     "isPrivateMemberships": true,
-    "isPrivateProjects": true,
-    "isPrivateProjectsCreated": true,
     "isPrivatePullRequests": true,
-    "isPrivateRoutines": true,
-    "isPrivateRoutinesCreated": true,
-    "isPrivateStandards": true,
-    "isPrivateStandardsCreated": true,
+    "isPrivateResources": true,
+    "isPrivateResourcesCreated": true,
     "isPrivateTeamsCreated": true,
     "isPrivateBookmarks": true,
     "isPrivateVotes": true,
@@ -40,12 +34,12 @@ export const user_profile = {
     "emails": {
         "id": true,
         "emailAddress": true,
-        "verified": true
+        "verifiedAt": true
     },
     "phones": {
         "id": true,
         "phoneNumber": true,
-        "verified": true
+        "verifiedAt": true
     },
     "pushDevices": {
         "id": true,
@@ -57,11 +51,11 @@ export const user_profile = {
         "name": true,
         "publicAddress": true,
         "stakingAddress": true,
-        "verified": true
+        "verifiedAt": true
     },
     "notifications": {
         "id": true,
-        "created_at": true,
+        "createdAt": true,
         "category": true,
         "isRead": true,
         "title": true,
@@ -81,5 +75,5 @@ export const user_profile = {
         "isBookmarked": true,
         "isViewed": true
     },
-    "__cacheKey": "-397664704"
+    "__cacheKey": "-305011879"
 };

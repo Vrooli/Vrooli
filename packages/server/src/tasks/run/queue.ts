@@ -47,7 +47,7 @@ const JOB_TIMEOUT_MS = RUN_TIMEOUT_MS + MINUTES_1_MS;
 /**
  * Base object for requesting a run from the server
  */
-export type RunRequestPayloadBase = Pick<RunProgress, "runId" | "type"> & {
+export type RunRequestPayloadBase = Pick<RunProgress, "runId"> & {
     /**
      * The configuration for the run.
      * 
@@ -89,7 +89,7 @@ export type RunRoutinePayload = RunRequestPayloadBase & {
     __process: "Routine";
     /** Inputs and outputs to use on current step, if not already in run object */
     formValues?: Record<string, unknown>;
-    routineVersionId: string;
+    resourceVersionId: string;
     /** The user who's running the command (not the bot) */
     userData: SessionUser;
 };

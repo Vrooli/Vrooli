@@ -33,14 +33,14 @@ export const EmailModel: EmailModelLogic = ({
                 if (Delete.length) {
                     const allEmails = await DbProvider.get().email.findMany({
                         where: { user: { id: userData.id } },
-                        select: { id: true, verified: true },
+                        select: { id: true, verifiedAt: true },
                     });
                     const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
                     const verifiedPhonesCount = await DbProvider.get().phone.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: userData.id }, verifiedAt: true },
                     });
                     const verifiedWalletsCount = await DbProvider.get().wallet.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: userData.id }, verifiedAt: true },
                     });
                     if (remainingVerifiedEmailsCount + verifiedPhonesCount + verifiedWalletsCount < 1)
                         throw new CustomError("0049", "MustLeaveVerificationMethod");

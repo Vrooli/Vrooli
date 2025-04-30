@@ -5,8 +5,8 @@ export const comment_findMany = {
             "childThreads": {
                 "comment": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "owner": {
                         "Team": {
                             "id": true,
@@ -24,8 +24,8 @@ export const comment_findMany = {
                                 "isViewed": true,
                                 "yourMembership": {
                                     "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
+                                    "createdAt": true,
+                                    "updatedAt": true,
                                     "isAdmin": true,
                                     "permissions": true
                                 }
@@ -33,8 +33,8 @@ export const comment_findMany = {
                         },
                         "User": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "bannerImage": true,
                             "handle": true,
                             "isBot": true,
@@ -67,8 +67,8 @@ export const comment_findMany = {
             },
             "comment": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "owner": {
                     "Team": {
                         "id": true,
@@ -86,8 +86,8 @@ export const comment_findMany = {
                             "isViewed": true,
                             "yourMembership": {
                                 "id": true,
-                                "created_at": true,
-                                "updated_at": true,
+                                "createdAt": true,
+                                "updatedAt": true,
                                 "isAdmin": true,
                                 "permissions": true
                             }
@@ -95,8 +95,8 @@ export const comment_findMany = {
                     },
                     "User": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "bannerImage": true,
                         "handle": true,
                         "isBot": true,
@@ -129,8 +129,8 @@ export const comment_findMany = {
         },
         "comment": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "owner": {
                 "Team": {
                     "id": true,
@@ -148,8 +148,8 @@ export const comment_findMany = {
                         "isViewed": true,
                         "yourMembership": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "isAdmin": true,
                             "permissions": true
                         }
@@ -157,8 +157,8 @@ export const comment_findMany = {
                 },
                 "User": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "bannerImage": true,
                     "handle": true,
                     "isBot": true,

@@ -13,8 +13,8 @@ export const reportResponseYou: ApiPartial<ReportResponseYou> = {
 export const reportResponse: ApiPartial<ReportResponse> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         actionSuggested: true,
         details: true,
         language: true,

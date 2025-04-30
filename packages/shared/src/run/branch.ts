@@ -1,4 +1,4 @@
-import { ModelType, RoutineVersion, RunStepStatus } from "../api/types.js";
+import { RunStepStatus } from "../api/types.js";
 import { nanoid } from "../id/publicId.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { SubroutineContextManager } from "./context.js";
@@ -39,10 +39,10 @@ export class BranchManager {
 
             // Get the appropriate graph config, io data, and navigator for the current object
             // TODO support projects and project directories
-            if (object.__typename !== ModelType.RoutineVersion) {
-                services.logger.error(`moveBranchesForward: Unsupported object type: ${(object as { __typename: unknown }).__typename}`);
+            if (!object.resourceSubType.startsWith("Routine")) {
+                services.logger.error(`moveBranchesForward: Unsupported object type: ${object.resourceSubType}`);
                 branch.status = BranchStatus.Failed;
-                throw new Error(`Unsupported object type: ${object.__typename}`);
+                continue;
             }
             const { graph: config } = RoutineVersionConfig.deserialize(object, services.logger, { useFallbacks: true });
             if (!config) {
@@ -87,7 +87,7 @@ export class BranchManager {
                 run.decisions = updatedDecisions;
                 // Send a decision request to the client
                 for (const decision of nextDecision.deferredDecisions) {
-                    services.notifier?.sendDecisionRequest(run.runId, run.type, decision);
+                    services.notifier?.sendDecisionRequest(run.runId, decision);
                 }
                 // Put the branch in a waiting state
                 branch.status = BranchStatus.Waiting;

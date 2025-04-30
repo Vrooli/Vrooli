@@ -241,7 +241,7 @@ export function SmartContractView({
 
                                             <DateDisplay
                                                 loading={isLoading}
-                                                timestamp={codeVersion?.created_at}
+                                                timestamp={codeVersion?.createdAt}
                                             />
                                         </Stack>
 

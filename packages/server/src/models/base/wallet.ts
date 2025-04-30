@@ -25,14 +25,14 @@ export const WalletModel: WalletModelLogic = ({
                 if (Delete.length) {
                     const allWallets = await DbProvider.get().wallet.findMany({
                         where: { user: { id: userData.id } },
-                        select: { id: true, verified: true },
+                        select: { id: true, verifiedAt: true },
                     });
                     const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
                     const verifiedPhonesCount = await DbProvider.get().phone.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: userData.id }, verifiedAt: true },
                     });
                     const verifiedEmailsCount = await DbProvider.get().email.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: userData.id }, verifiedAt: true },
                     });
                     if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)
                         throw new CustomError("0275", "MustLeaveVerificationMethod");

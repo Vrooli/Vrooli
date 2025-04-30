@@ -19,7 +19,7 @@ export type UserSocketEventPayloads = {
     notification: Notification;
 }
 export type RunSocketEventPayloads = {
-    joinRunRoom: { runId: string, runType: "RunProject" | "RunRoutine" };
+    joinRunRoom: { runId: string };
     leaveRunRoom: { runId: string };
     /** Runs that can or have been performed */
     runTask: RunTaskInfo;

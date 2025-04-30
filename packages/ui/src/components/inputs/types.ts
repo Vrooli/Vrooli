@@ -236,7 +236,7 @@ export interface ProfilePictureInputProps {
         bannerImage?: string | File | null;
         profileImage?: string | File | null;
         /** Used for cache busting */
-        updated_at?: string;
+        updatedAt?: string;
     } | null | undefined;
 }
 

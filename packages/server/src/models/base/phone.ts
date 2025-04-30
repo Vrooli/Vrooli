@@ -42,14 +42,14 @@ export const PhoneModel: PhoneModelLogic = ({
                 if (Delete.length) {
                     const allPhones = await DbProvider.get().phone.findMany({
                         where: { user: { id: userData.id } },
-                        select: { id: true, verified: true },
+                        select: { id: true, verifiedAt: true },
                     });
                     const remainingVerifiedPhonesCount = allPhones.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
                     const verifiedEmailsCount = await DbProvider.get().email.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: userData.id }, verifiedAt: true },
                     });
                     const verifiedWalletsCount = await DbProvider.get().wallet.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: userData.id }, verifiedAt: true },
                     });
                     if (remainingVerifiedPhonesCount + verifiedEmailsCount + verifiedWalletsCount < 1)
                         throw new CustomError("0153", "MustLeaveVerificationMethod");

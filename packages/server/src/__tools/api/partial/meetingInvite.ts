@@ -12,8 +12,8 @@ export const meetingInviteYou: ApiPartial<MeetingInviteYou> = {
 export const meetingInvite: ApiPartial<MeetingInvite> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         message: true,
         status: true,
         you: () => rel(meetingInviteYou, "full"),

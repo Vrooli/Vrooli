@@ -10,11 +10,11 @@ export function ChatParticipantListItem({
         <ObjectListItemBase
             {...props}
             belowTags={
-                data?.created_at ?
+                data?.createdAt ?
                     <DateDisplay
                         showIcon={true}
                         textBeforeDate="Joined"
-                        timestamp={data?.created_at}
+                        timestamp={data?.createdAt}
                     /> : null
             }
             data={data}

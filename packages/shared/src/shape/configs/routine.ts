@@ -1,5 +1,5 @@
 import i18next from "i18next";
-import { LlmTask, ResourceSubTypeRoutine, type RoutineVersion } from "../../api/types.js";
+import { LlmTask, ResourceSubType, type ResourceVersion } from "../../api/types.js";
 import { HttpMethod } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { InputType } from "../../consts/model.js";
@@ -8,11 +8,12 @@ import { type FormInputBase, type FormSchema } from "../../forms/types.js";
 import { generatePKString } from "../../id/snowflake.js";
 import { BotStyle, Id, type SubroutineIOMapping } from "../../run/types.js";
 import { getDotNotationValue } from "../../utils/objects.js";
+import { BaseConfig } from "./baseConfig.js";
 import { type LlmModel } from "./bot.js";
 import { CodeVersionConfigObject, JsonSchema } from "./code.js";
 import { parseObject, stringifyObject, type StringifyMode } from "./utils.js";
 
-export const LATEST_ROUTINE_CONFIG_VERSION = "1.0";
+const LATEST_CONFIG_VERSION = "1.0";
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
 /**
@@ -363,7 +364,7 @@ export type RoutineVersionConfigObject = {
 
 function defaultConfigCallDataAction(): CallDataActionConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             task: LlmTask.RoutineFind,
             inputTemplate: "",
@@ -373,7 +374,7 @@ function defaultConfigCallDataAction(): CallDataActionConfigObject {
 }
 function defaultConfigCallDataApi(): CallDataApiConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             endpoint: "",
             method: "GET",
@@ -382,7 +383,7 @@ function defaultConfigCallDataApi(): CallDataApiConfigObject {
 }
 function defaultConfigCallDataCode(): CallDataCodeConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             inputTemplate: {},
             outputMappings: [],
@@ -391,7 +392,7 @@ function defaultConfigCallDataCode(): CallDataCodeConfigObject {
 }
 function defaultConfigCallDataGenerate(): CallDataGenerateConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             botStyle: BotStyle.Default,
             maxTokens: null,
@@ -403,7 +404,7 @@ function defaultConfigCallDataGenerate(): CallDataGenerateConfigObject {
 }
 function defaultConfigCallDataSmartContract(): CallDataSmartContractConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             contractAddress: "",
             chain: "ethereum",
@@ -414,7 +415,7 @@ function defaultConfigCallDataSmartContract(): CallDataSmartContractConfigObject
 
 function defaultSchemaInput(): FormInputConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             containers: [],
             elements: [],
@@ -424,7 +425,7 @@ function defaultSchemaInput(): FormInputConfigObject {
 
 function defaultSchemaOutput(): FormOutputConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             containers: [],
             elements: [],
@@ -438,7 +439,7 @@ function defaultSchemaOutput(): FormOutputConfigObject {
  */
 function defaultSchemaOutputGenerate(): FormOutputConfigObject {
     return {
-        __version: LATEST_ROUTINE_CONFIG_VERSION,
+        __version: LATEST_CONFIG_VERSION,
         schema: {
             containers: [],
             elements: [
@@ -457,25 +458,25 @@ function defaultSchemaOutputGenerate(): FormOutputConfigObject {
 }
 
 export const defaultConfigFormInputMap = {
-    [ResourceSubTypeRoutine.Action]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.Api]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.Code]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.Data]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.Generate]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.Informational]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.MultiStep]: () => defaultSchemaInput(),
-    [ResourceSubTypeRoutine.SmartContract]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineAction]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineData]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineGenerate]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineInformational]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineMultiStep]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineSmartContract]: () => defaultSchemaInput(),
 };
 
 export const defaultConfigFormOutputMap = {
-    [ResourceSubTypeRoutine.Action]: () => defaultSchemaOutput(),
-    [ResourceSubTypeRoutine.Api]: () => defaultSchemaOutput(),
-    [ResourceSubTypeRoutine.Code]: () => defaultSchemaOutput(),
-    [ResourceSubTypeRoutine.Data]: () => defaultSchemaOutput(),
-    [ResourceSubTypeRoutine.Generate]: () => defaultSchemaOutputGenerate(),
-    [ResourceSubTypeRoutine.Informational]: () => defaultSchemaOutput(),
-    [ResourceSubTypeRoutine.MultiStep]: () => defaultSchemaOutput(),
-    [ResourceSubTypeRoutine.SmartContract]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineAction]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineData]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineGenerate]: () => defaultSchemaOutputGenerate(),
+    [ResourceSubType.RoutineInformational]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineMultiStep]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineSmartContract]: () => defaultSchemaOutput(),
 };
 
 function isValidFormSchema(schema: FormSchema): boolean {
@@ -490,8 +491,7 @@ function isValidFormSchema(schema: FormSchema): boolean {
 /**
  * Top-level routine config that encapsulates all sub-config sections.
  */
-export class RoutineVersionConfig {
-    __version: string;
+export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject> {
     callDataAction?: CallDataActionConfig;
     callDataApi?: CallDataApiConfig;
     callDataCode?: CallDataCodeConfig;
@@ -502,7 +502,8 @@ export class RoutineVersionConfig {
     graph?: GraphConfig;
 
     constructor(data: RoutineVersionConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        super(data);
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.callDataAction = data.callDataAction ? new CallDataActionConfig(data.callDataAction) : undefined;
         this.callDataApi = data.callDataApi ? new CallDataApiConfig(data.callDataApi) : undefined;
         this.callDataCode = data.callDataCode ? new CallDataCodeConfig(data.callDataCode) : undefined;
@@ -514,35 +515,35 @@ export class RoutineVersionConfig {
     }
 
     static deserialize(
-        { config, routineType }: Pick<RoutineVersion, "config" | "routineType">,
+        { config, resourceSubType }: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
         { mode = DEFAULT_STRINGIFY_MODE, useFallbacks = true }: { mode?: StringifyMode, useFallbacks?: boolean } = {},
     ): RoutineVersionConfig {
         let obj = config ? parseObject<RoutineVersionConfigObject>(config, mode, logger) : null;
         if (!obj) {
-            obj = { __version: LATEST_ROUTINE_CONFIG_VERSION };
+            obj = { __version: LATEST_CONFIG_VERSION };
         }
         if (useFallbacks) {
-            if (!obj.callDataAction && routineType === ResourceSubTypeRoutine.Action) {
+            if (!obj.callDataAction && resourceSubType === ResourceSubType.RoutineAction) {
                 obj.callDataAction = defaultConfigCallDataAction();
             }
-            if (!obj.callDataApi && routineType === ResourceSubTypeRoutine.Api) {
+            if (!obj.callDataApi && resourceSubType === ResourceSubType.RoutineApi) {
                 obj.callDataApi = defaultConfigCallDataApi();
             }
-            if (!obj.callDataCode && routineType === ResourceSubTypeRoutine.Code) {
+            if (!obj.callDataCode && resourceSubType === ResourceSubType.RoutineCode) {
                 obj.callDataCode = defaultConfigCallDataCode();
             }
-            if (!obj.callDataGenerate && routineType === ResourceSubTypeRoutine.Generate) {
+            if (!obj.callDataGenerate && resourceSubType === ResourceSubType.RoutineGenerate) {
                 obj.callDataGenerate = defaultConfigCallDataGenerate();
             }
-            if (!obj.callDataSmartContract && routineType === ResourceSubTypeRoutine.SmartContract) {
+            if (!obj.callDataSmartContract && resourceSubType === ResourceSubType.RoutineSmartContract) {
                 obj.callDataSmartContract = defaultConfigCallDataSmartContract();
             }
-            if ((!obj.formInput || !isValidFormSchema(obj.formInput.schema)) && routineType in defaultConfigFormInputMap) {
-                obj.formInput = defaultConfigFormInputMap[routineType]();
+            if ((!obj.formInput || !isValidFormSchema(obj.formInput.schema)) && resourceSubType in defaultConfigFormInputMap) {
+                obj.formInput = defaultConfigFormInputMap[resourceSubType]();
             }
-            if ((!obj.formOutput || !isValidFormSchema(obj.formOutput.schema)) && routineType in defaultConfigFormOutputMap) {
-                obj.formOutput = defaultConfigFormOutputMap[routineType]();
+            if ((!obj.formOutput || !isValidFormSchema(obj.formOutput.schema)) && resourceSubType in defaultConfigFormOutputMap) {
+                obj.formOutput = defaultConfigFormOutputMap[resourceSubType]();
             }
             if (!obj.graph) {
                 // Add if needed
@@ -584,7 +585,7 @@ export class CallDataActionConfig {
     schema: ConfigCallDataAction;
 
     constructor(data: CallDataActionConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -775,7 +776,7 @@ class CallDataApiConfig {
     schema: ConfigCallDataApi;
 
     constructor(data: CallDataApiConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -799,7 +800,7 @@ export class CallDataCodeConfig {
     schema: ConfigCallDataCode;
 
     constructor(data: CallDataCodeConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -1032,7 +1033,7 @@ export class CallDataGenerateConfig {
     schema: ConfigCallDataGenerate;
 
     constructor(data: CallDataGenerateConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -1051,7 +1052,7 @@ class CallDataSmartContractConfig {
     schema: ConfigCallDataSmartContract;
 
     constructor(data: CallDataSmartContractConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -1073,7 +1074,7 @@ class FormInputConfig {
     schema: FormSchema;
 
     constructor(data: FormInputConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -1103,7 +1104,7 @@ class FormOutputConfig {
     schema: FormSchema;
 
     constructor(data: FormOutputConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.schema = data.schema;
     }
 
@@ -1133,7 +1134,7 @@ export abstract class GraphConfig {
     __type: GraphType;
 
     constructor(data: GraphBaseConfigObject) {
-        this.__version = data.__version ?? LATEST_ROUTINE_CONFIG_VERSION;
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.__type = data.__type;
     }
 

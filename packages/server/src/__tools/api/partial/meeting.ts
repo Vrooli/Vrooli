@@ -23,8 +23,9 @@ export const meetingYou: ApiPartial<MeetingYou> = {
 export const meeting: ApiPartial<Meeting> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         openToAnyoneWithInvite: true,
         showOnTeamProfile: true,
         team: async () => rel((await import("./team.js")).team, "nav"),

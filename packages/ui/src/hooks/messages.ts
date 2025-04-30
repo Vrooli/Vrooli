@@ -12,7 +12,7 @@ import { useLazyFetch } from "./useLazyFetch.js";
 
 export type MinimumChatMessage = {
     id: string;
-    created_at?: string;
+    createdAt?: string;
     parent?: {
         id: string;
         parent?: {
@@ -171,7 +171,7 @@ export class MessageTree<T extends MinimumChatMessage> {
         if (closestBySequence) return closestBySequence;
 
         // If no sequence match, find the closest lesser timestamp
-        const closestByTimestamp = this.findClosestByTimestamp(orphan.message.created_at);
+        const closestByTimestamp = this.findClosestByTimestamp(orphan.message.createdAt);
         if (closestByTimestamp) return closestByTimestamp;
 
         // If all else fails, the node will remain a root
@@ -214,7 +214,7 @@ export class MessageTree<T extends MinimumChatMessage> {
         let closestTimestamp = -Infinity;
 
         this.map.forEach((node, id) => {
-            const nodeCreatedAt = node.message.created_at;
+            const nodeCreatedAt = node.message.createdAt;
             if (!nodeCreatedAt) return;
 
             const nodeTimestamp = new Date(nodeCreatedAt).getTime();

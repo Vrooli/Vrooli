@@ -1,8 +1,6 @@
-import { CalendarPageTabOption, ChatInviteStatus, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { IconInfo } from "../../icons/Icons.js";
-import { apiSearchParams } from "./schemas/api.js";
-import { apiVersionSearchParams } from "./schemas/apiVersion.js";
 import { SearchParams } from "./schemas/base.js";
 import { bookmarkSearchParams } from "./schemas/bookmark.js";
 import { bookmarkListSearchParams } from "./schemas/bookmarkList.js";
@@ -10,45 +8,23 @@ import { chatSearchParams } from "./schemas/chat.js";
 import { chatInviteSearchParams } from "./schemas/chatInvite.js";
 import { chatMessageSearchParams } from "./schemas/chatMessage.js";
 import { chatParticipantSearchParams } from "./schemas/chatParticipant.js";
-import { codeSearchParams } from "./schemas/code.js";
-import { codeVersionSearchParams } from "./schemas/codeVersion.js";
 import { commentSearchParams } from "./schemas/comment.js";
 import { issueSearchParams } from "./schemas/issue.js";
-import { labelSearchParams } from "./schemas/label.js";
 import { meetingSearchParams } from "./schemas/meeting.js";
 import { meetingInviteSearchParams } from "./schemas/meetingInvite.js";
 import { memberSearchParams } from "./schemas/member.js";
 import { memberInviteSearchParams } from "./schemas/memberInvite.js";
-import { noteSearchParams } from "./schemas/note.js";
-import { noteVersionSearchParams } from "./schemas/noteVersion.js";
 import { notificationSearchParams } from "./schemas/notification.js";
 import { notificationSubscriptionSearchParams } from "./schemas/notificationSubscription.js";
 import { popularSearchParams } from "./schemas/popular.js";
-import { projectSearchParams } from "./schemas/project.js";
-import { projectOrRoutineSearchParams } from "./schemas/projectOrRoutine.js";
-import { projectOrTeamSearchParams } from "./schemas/projectOrTeam.js";
-import { projectVersionSearchParams } from "./schemas/projectVersion.js";
 import { pullRequestSearchParams } from "./schemas/pullRequest.js";
 import { reactionSearchParams } from "./schemas/reaction.js";
 import { reminderSearchParams } from "./schemas/reminder.js";
 import { reportSearchParams } from "./schemas/report.js";
 import { reportResponseSearchParams } from "./schemas/reportResponse.js";
 import { reputationHistorySearchParams } from "./schemas/reputationHistory.js";
-import { routineSearchParams } from "./schemas/resource.js";
-import { routineVersionSearchParams } from "./schemas/resourceVersion.js";
-import { runRoutineSearchParams } from "./schemas/run.js";
-import { runRoutineIOSearchParams } from "./schemas/runIO.js";
-import { runProjectSearchParams } from "./schemas/runProject.js";
-import { runProjectOrRunRoutineSearchParams } from "./schemas/runProjectOrRunRoutine.js";
 import { scheduleSearchParams } from "./schemas/schedule.js";
-import { standardSearchParams } from "./schemas/standard.js";
-import { standardVersionSearchParams } from "./schemas/standardVersion.js";
-import { statsApiSearchParams } from "./schemas/statsApi.js";
-import { statsCodeSearchParams } from "./schemas/statsCode.js";
-import { statsProjectSearchParams } from "./schemas/statsProject.js";
-import { statsRoutineSearchParams } from "./schemas/statsResource.js";
 import { statsSiteSearchParams } from "./schemas/statsSite.js";
-import { statsStandardSearchParams } from "./schemas/statsStandard.js";
 import { statsTeamSearchParams } from "./schemas/statsTeam.js";
 import { statsUserSearchParams } from "./schemas/statsUser.js";
 import { tagSearchParams } from "./schemas/tag.js";
@@ -287,16 +263,10 @@ export const calendarTabParams: TabParamSearchableList<CalendarTabsInfo, ["Sched
         where: () => ({ scheduleFor: ScheduleFor.Meeting }),
     },
     {
-        key: CalendarPageTabOption.RunRoutine,
-        titleKey: "Routine",
+        key: CalendarPageTabOption.Run,
+        titleKey: "Run",
         searchType: "Schedule",
-        where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
-    },
-    {
-        key: CalendarPageTabOption.RunProject,
-        titleKey: "Project",
-        searchType: "Schedule",
-        where: () => ({ scheduleFor: ScheduleFor.RunProject }),
+        where: () => ({ scheduleFor: ScheduleFor.Run }),
     },
 ];
 
@@ -306,7 +276,7 @@ export type HistoryTabsInfo = {
     WhereParams: undefined;
 }
 
-export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", "BookmarkList", "RunProjectOrRunRoutine"]> = [
+export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", "BookmarkList", "Run"]> = [
     {
         key: HistoryPageTabOption.Viewed,
         titleKey: "View",
@@ -322,7 +292,7 @@ export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", 
     {
         key: HistoryPageTabOption.RunsActive,
         titleKey: "Active",
-        searchType: "RunProjectOrRunRoutine",
+        searchType: "Run",
         where: () => ({
             statuses: [RunStatus.InProgress, RunStatus.Scheduled],
             visibility: VisibilityType.Own,
@@ -331,7 +301,7 @@ export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", 
     {
         key: HistoryPageTabOption.RunsCompleted,
         titleKey: "Complete",
-        searchType: "RunProjectOrRunRoutine",
+        searchType: "Run",
         where: () => ({
             statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed],
             visibility: VisibilityType.Own,
@@ -656,33 +626,21 @@ export const policyTabParams: TabParamBase<PolicyTabsInfo>[] = [
 
 /** Maps search types to values needed to query and display results */
 export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
-    Api: apiSearchParams,
-    ApiVersion: apiVersionSearchParams,
     Bookmark: bookmarkSearchParams,
     BookmarkList: bookmarkListSearchParams,
     Chat: chatSearchParams,
     ChatInvite: chatInviteSearchParams,
     ChatMessage: chatMessageSearchParams,
     ChatParticipant: chatParticipantSearchParams,
-    Code: codeSearchParams,
-    CodeVersion: codeVersionSearchParams,
     Comment: commentSearchParams,
     Issue: issueSearchParams,
-    Label: labelSearchParams,
     Meeting: meetingSearchParams,
     MeetingInvite: meetingInviteSearchParams,
     Member: memberSearchParams,
     MemberInvite: memberInviteSearchParams,
-    Note: noteSearchParams,
-    NoteVersion: noteVersionSearchParams,
     Notification: notificationSearchParams,
     NotificationSubscription: notificationSubscriptionSearchParams,
     Popular: popularSearchParams,
-    Project: projectSearchParams,
-    ProjectOrRoutine: projectOrRoutineSearchParams,
-    ProjectOrTeam: projectOrTeamSearchParams,
-    ProjectVersion: projectVersionSearchParams,
-    // ProjectVersionDirectory: projectVersionDirectorySearchParams,
     PullRequest: pullRequestSearchParams,
     Reaction: reactionSearchParams,
     Reminder: reminderSearchParams,
@@ -690,23 +648,12 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     ReportResponse: reportResponseSearchParams,
     ReputationHistory: reputationHistorySearchParams,
     Resource: resourceSearchParams,
-    ResourceList: resourceListSearchParams,
-    Role: roleSearchParams,
-    Routine: routineSearchParams,
-    RoutineVersion: routineVersionSearchParams,
-    RunProject: runProjectSearchParams,
-    RunProjectOrRunRoutine: runProjectOrRunRoutineSearchParams,
-    RunRoutine: runRoutineSearchParams,
-    RunRoutineIO: runRoutineIOSearchParams,
+    ResourceVersion: resourceVersionSearchParams,
+    Run: runSearchParams,
+    RunIO: runIOSearchParams,
     Schedule: scheduleSearchParams,
-    Standard: standardSearchParams,
-    StandardVersion: standardVersionSearchParams,
-    StatsApi: statsApiSearchParams,
-    StatsCode: statsCodeSearchParams,
-    StatsProject: statsProjectSearchParams,
-    StatsRoutine: statsRoutineSearchParams,
+    StatsResource: statsResourceSearchParams,
     StatsSite: statsSiteSearchParams,
-    StatsStandard: statsStandardSearchParams,
     StatsTeam: statsTeamSearchParams,
     StatsUser: statsUserSearchParams,
     Tag: tagSearchParams,

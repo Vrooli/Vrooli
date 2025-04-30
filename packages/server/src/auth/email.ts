@@ -27,7 +27,7 @@ export type UserDataForPasswordAuth = {
     profileImage: string | null;
     theme: string;
     status: AccountStatus;
-    updated_at: Date;
+    updatedAt: Date;
     auths: Pick<user_auth, "id" | "provider" | "hashed_password">[];
     emails: Pick<email, "emailAddress">[];
     languages: Pick<user_language, "language">[];
@@ -59,7 +59,7 @@ export class PasswordAuthService {
             profileImage: true,
             status: true,
             theme: true,
-            updated_at: true,
+            updatedAt: true,
             auths: {
                 select: {
                     id: true,
@@ -195,7 +195,7 @@ export class PasswordAuthService {
         const matchingSession = user.sessions.find((s) =>
             s.device_info === deviceInfo
             && s.auth.provider === AUTH_PROVIDERS.Password
-            && s.revoked === false,
+            && !s.revokedAt,
         );
 
         // Find matching auth
@@ -248,7 +248,7 @@ export class PasswordAuthService {
                             expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                             last_refresh_at: new Date(),
                             ip_address: ipAddress,
-                            revoked: false,
+                            revokedAt: null,
                             user: {
                                 connect: { id: user.id },
                             },
@@ -359,7 +359,7 @@ export class PasswordAuthService {
         return {
             id: true,
             lastVerificationCodeRequestAttempt: true,
-            verified: true,
+            verifiedAt: true,
             user: {
                 select: {
                     id: true,
@@ -438,7 +438,7 @@ export class PasswordAuthService {
             select: {
                 id: true,
                 userId: true,
-                verified: true,
+                verifiedAt: true,
                 verificationCode: true,
                 lastVerificationCodeRequestAttempt: true,
             },
@@ -469,8 +469,7 @@ export class PasswordAuthService {
                 await DbProvider.get().email.update({
                     where: { id: email.id },
                     data: {
-                        verified: true,
-                        lastVerifiedTime: new Date(),
+                        verifiedAt: new Date(),
                         verificationCode: null,
                         lastVerificationCodeRequestAttempt: null,
                     },

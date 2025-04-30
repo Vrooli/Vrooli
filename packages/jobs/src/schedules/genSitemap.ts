@@ -1,5 +1,5 @@
 import { DbProvider, ModelMap, PrismaDelegate, UI_URL_REMOTE, logger } from "@local/server";
-import { LINKS, ResourceSubTypeCode, ResourceSubTypeRoutine, ResourceSubTypeStandard, ResourceType, SitemapEntryContent, generateSitemap, generateSitemapIndex } from "@local/shared";
+import { LINKS, ResourceSubType, ResourceType, SitemapEntryContent, generateSitemap, generateSitemapIndex } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -24,15 +24,15 @@ function getLink(objectType: typeof sitemapObjectTypes[number], properties: any)
         case "ResourceVersion":
             const resourceSubType = properties.resourceSubType;
             switch (resourceSubType) {
-                case ResourceSubTypeCode.DataConverter:
+                case ResourceSubType.CodeDataConverter:
                     return LINKS.DataConverter;
-                case ResourceSubTypeCode.SmartContract:
+                case ResourceSubType.CodeSmartContract:
                     return LINKS.SmartContract;
-                case ResourceSubTypeStandard.Prompt:
+                case ResourceSubType.StandardPrompt:
                     return LINKS.Prompt;
-                case ResourceSubTypeStandard.DataStructure:
+                case ResourceSubType.StandardDataStructure:
                     return LINKS.DataStructure;
-                case ResourceSubTypeRoutine.MultiStep:
+                case ResourceSubType.RoutineMultiStep:
                     return LINKS.RoutineMultiStep;
             }
             const resourceType = properties.root?.resourceType;

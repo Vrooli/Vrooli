@@ -3,6 +3,6 @@ export const wallet_updateOne = {
     "name": true,
     "publicAddress": true,
     "stakingAddress": true,
-    "verified": true,
-    "__cacheKey": "1469146612"
+    "verifiedAt": true,
+    "__cacheKey": "-456739071"
 };

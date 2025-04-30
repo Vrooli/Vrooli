@@ -27,10 +27,10 @@ export function ReportResponseListItem({
             titleOverride={title}
             belowTags={
                 <Box display="flex" flexDirection="row" alignItems="center" gap={1}>
-                    {data?.created_at && (
+                    {data?.createdAt && (
                         <DateDisplay
                             showIcon={true}
-                            timestamp={data.created_at}
+                            timestamp={data.createdAt}
                         />
                     )}
                     {data?.actionSuggested && (

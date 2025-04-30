@@ -146,7 +146,7 @@ describe("EndpointsReport", () => {
         it("supports updatedTimeFrame filter", async () => {
             // Make report1 old
             const old = new Date("2020-01-01");
-            await DbProvider.get().report.update({ where: { id: seededReport1.id }, data: { updated_at: old } });
+            await DbProvider.get().report.update({ where: { id: seededReport1.id }, data: { updatedAt: old } });
             const input: ReportSearchInput = {
                 take: 10,
                 updatedTimeFrame: { after: new Date("2019-12-31"), before: new Date("2020-01-02") },

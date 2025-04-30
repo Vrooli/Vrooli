@@ -1,9 +1,10 @@
 export const team_updateOne = {
     "id": true,
+    "publicId": true,
     "bannerImage": true,
     "handle": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "isOpenToNewMembers": true,
     "isPrivate": true,
     "commentsCount": true,
@@ -13,7 +14,7 @@ export const team_updateOne = {
     "bookmarks": true,
     "tags": {
         "id": true,
-        "created_at": true,
+        "createdAt": true,
         "tag": true,
         "bookmarks": true,
         "translations": {
@@ -43,8 +44,8 @@ export const team_updateOne = {
         "isViewed": true,
         "yourMembership": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "isAdmin": true,
             "permissions": true
         }
@@ -52,8 +53,9 @@ export const team_updateOne = {
     "config": true,
     "members": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "publicId": true,
+        "createdAt": true,
+        "updatedAt": true,
         "isAdmin": true,
         "permissions": true,
         "you": {
@@ -62,8 +64,9 @@ export const team_updateOne = {
         },
         "user": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -86,5 +89,5 @@ export const team_updateOne = {
             }
         }
     },
-    "__cacheKey": "-1500353955"
+    "__cacheKey": "-513591139"
 };

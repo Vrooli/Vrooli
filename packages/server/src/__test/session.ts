@@ -15,7 +15,7 @@ export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
     profileImage: null,
     theme: "dark",
     status: AccountStatus.Unlocked,
-    updated_at: new Date(),
+    updatedAt: new Date(),
     auths: [{
         id: generatePKString(),
         provider: "Password",
@@ -29,15 +29,6 @@ export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
     }],
     premium: null,
     sessions: [],
-    _count: {
-        apis: 0,
-        codes: 0,
-        memberships: 0,
-        notes: 0,
-        projects: 0,
-        routines: 0,
-        standards: 0,
-    },
 };
 
 /**
@@ -62,7 +53,7 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
         device_info: "test-device-info",
         ip_address: "127.0.0.1",
         last_refresh_at: now,
-        revoked: false,
+        revokedAt: null,
         auth: { id: authId, provider: "Password" },
     };
     await DbProvider.get().user_auth.upsert({

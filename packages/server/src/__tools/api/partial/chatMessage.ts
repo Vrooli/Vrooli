@@ -24,10 +24,10 @@ export const chatMessageYou: ApiPartial<ChatMessageYou> = {
 export const chatMessage: ApiPartial<ChatMessage> = {
     common: {
         id: true,
-        created_at: true,
+        createdAt: true,
         sequence: true,
         versionIndex: true,
-        parent: { id: true, created_at: true },
+        parent: { id: true, createdAt: true },
         user: async () => rel((await import("./user.js")).user, "nav"),
         score: true,
         reactionSummaries: async () => rel((await import("./reaction.js")).reactionSummary, "list"),

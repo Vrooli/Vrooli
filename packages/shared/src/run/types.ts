@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { ModelType, ProjectVersion, RoutineVersion, RunStatus, RunStepStatus, SessionUser } from "../api/types.js";
+import { ResourceType, ResourceVersion, RunStatus, RunStepStatus, SessionUser } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
 import { LlmModel } from "../shape/configs/bot.js";
 import { ScheduleShape } from "../shape/models/models.js";
@@ -11,11 +11,8 @@ import { type RunNotifier } from "./notifier.js";
 import { type PathSelectionHandler } from "./pathSelection.js";
 import { type RunPersistence } from "./persistence.js";
 
-/** The type of the run */
-export type RunType = "RunProject" | "RunRoutine";
-
 /** The minimum information required to identify a run. */
-export type RunIdentifier = Pick<RunProgress, "type" | "runId">;
+export type RunIdentifier = Pick<RunProgress, "runId">;
 
 /**
  * Information required about the user who triggered the run.
@@ -29,19 +26,21 @@ export type RunTriggeredBy = Pick<SessionUser, "hasPremium" | "id" | "languages"
  * load previous locations in the stack.
  */
 export type Location = {
-    /** The type of object */
-    __typename: `${ModelType.RoutineVersion | ModelType.ProjectVersion}`;
-    /** 
-     * The object ID. 
-     * For example, if this location is for a node in a routine, this would be the routine ID 
-     * (and not the node ID or subroutine ID).
-     */
-    objectId: Id;
     /** 
      * The ID of the location within the object.
      * Typically this is a node ID within a routine
      */
     locationId: Id;
+    /** 
+     * The ID of the object being run.
+     * For example, if this location is for a node in a routine, this would be the routine ID 
+     * (and not the node ID or subroutine ID).
+     */
+    objectId: Id;
+    /** 
+     * The type of object being run
+     */
+    objectType: `${ResourceType.Project | ResourceType.Routine}`;
     /**
      * The ID of the subroutine, if this location refers to a graph node that points to a subroutine.
      * Can also be the directory ID if running a project.
@@ -54,9 +53,9 @@ export type Location = {
  */
 export type LocationData = {
     /** The object being run */
-    object: ProjectVersion | RoutineVersion;
+    object: ResourceVersion;
     /** The subroutine in the object being run, if any */
-    subroutine: RoutineVersion | null;
+    subroutine: ResourceVersion | null;
 }
 
 /**
@@ -360,8 +359,6 @@ export type RunProgress = {
      * may be triggered multiple times in the same run, and we want to keep the contexts separate.
      */
     subcontexts: Record<string, SubroutineContext>;
-    /** The type of the run */
-    type: RunType;
 }
 
 /**

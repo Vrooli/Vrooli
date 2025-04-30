@@ -1,13 +1,13 @@
 export const chatInvite_updateMany = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "message": true,
     "status": true,
     "user": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -21,17 +21,19 @@ export const chatInvite_updateMany = {
     },
     "chat": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "publicId": true,
+        "createdAt": true,
+        "updatedAt": true,
         "openToAnyoneWithInvite": true,
         "participants": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -70,8 +72,8 @@ export const chatInvite_updateMany = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
@@ -91,5 +93,5 @@ export const chatInvite_updateMany = {
             "name": true
         }
     },
-    "__cacheKey": "-1162569504"
+    "__cacheKey": "-1288146848"
 };

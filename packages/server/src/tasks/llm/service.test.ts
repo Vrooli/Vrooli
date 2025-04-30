@@ -264,7 +264,7 @@ describe("LanguageModelService implementations", () => {
         hasPremium: false,
         languages: ["en"],
         profileImage: "https://example.com/image.png",
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     };
 
     const chatId1 = "chat_1";

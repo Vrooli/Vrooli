@@ -3,7 +3,7 @@ export const notification_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
+            "createdAt": true,
             "category": true,
             "isRead": true,
             "title": true,

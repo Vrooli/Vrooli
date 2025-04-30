@@ -8,16 +8,16 @@ import { MeetingView } from "./MeetingView.js";
 const mockMeetingData: Meeting = {
     __typename: "Meeting" as const,
     id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     attendees: [],
     attendeesCount: 0,
     invites: [
         {
             __typename: "MeetingInvite" as const,
             id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             status: MeetingInviteStatus.Pending,
             message: "Please join our weekly planning meeting",
             meeting: {} as any, // This will be set by the circular reference
@@ -69,8 +69,8 @@ const mockMeetingData: Meeting = {
                 schedule: {} as any, // This will be set by the circular reference
             },
         ],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     } as any,
     showOnTeamProfile: true,
     team: {

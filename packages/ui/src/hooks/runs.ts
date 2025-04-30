@@ -130,7 +130,6 @@ export function useUpsertRunProject() {
 type UseSocketRunProps = {
     applyRunUpdate: (callback: (existingRun: RunProject | RunRoutine | null) => RunProject | RunRoutine | null) => void;
     runId: string | undefined;
-    runType: "RunProject" | "RunRoutine" | undefined;
 }
 
 export function processRunTaskUpdate(
@@ -164,19 +163,18 @@ export function processRunTaskUpdate(
 export function useSocketRun({
     applyRunUpdate,
     runId,
-    runType,
 }: UseSocketRunProps) {
 
     // Handle connection/disconnection
     const prevRunId = useRef<string | undefined>(undefined);
     useEffect(function connectToRunEffect() {
         // Make sure we have sufficient data to connect to the run room
-        if (!runId || runId === DUMMY_ID || !runType) return;
+        if (!runId || runId === DUMMY_ID) return;
         // Prevent reconnection if the run ID hasn't changed
         if (prevRunId.current === runId) return;
         prevRunId.current = runId;
 
-        SocketService.get().emitEvent("joinRunRoom", { runId, runType }, (response) => {
+        SocketService.get().emitEvent("joinRunRoom", { runId }, (response) => {
             if (response.error) {
                 PubSub.get().publish("snack", { messageKey: "RunRoomJoinFailed", severity: "Error" });
             }
@@ -189,7 +187,7 @@ export function useSocketRun({
                 }
             });
         };
-    }, [runId, runType]);
+    }, [runId]);
 
     // Handle incoming data
     useEffect(() => SocketService.get().onEvent("runTask", (payload) => processRunTaskUpdate(applyRunUpdate, payload)), [applyRunUpdate]);

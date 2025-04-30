@@ -387,7 +387,7 @@ export function UserMenu() {
                                 onClick={handleClick}
                             >
                                 <ProfileAvatar
-                                    src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                                    src={extractImageUrl(account.profileImage, account.updatedAt, AVATAR_SIZE_PX)}
                                     isBot={false}
                                     profileColors={profileColors}
                                     sx={profileAvatarStyle}
@@ -514,7 +514,7 @@ export function UserMenu() {
                                 onClick={handleClick}
                             >
                                 <ProfileAvatar
-                                    src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                                    src={extractImageUrl(account.profileImage, account.updatedAt, AVATAR_SIZE_PX)}
                                     isBot={false}
                                     profileColors={profileColors}
                                     sx={profileAvatarStyle}

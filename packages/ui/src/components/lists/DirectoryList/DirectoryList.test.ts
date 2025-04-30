@@ -2,8 +2,8 @@ import { expect } from "chai";
 import { initializeDirectoryList } from "./DirectoryList.js";
 
 type SimpleObject = {
-    created_at: string;
-    updated_at: string;
+    createdAt: string;
+    updatedAt: string;
     title: string;
 }
 
@@ -22,10 +22,10 @@ const mockDirectory: {
     childStandardVersions: SimpleObject[];
     childTeams: SimpleObject[];
 } = {
-    childApiVersions: [{ created_at: "2023-12-22T01:52:51.304Z", updated_at: "2023-12-23T05:00:00.000Z", title: "API A" }],
+    childApiVersions: [{ createdAt: "2023-12-22T01:52:51.304Z", updatedAt: "2023-12-23T05:00:00.000Z", title: "API A" }],
     childCodeVersions: [],
-    childNoteVersions: [{ created_at: "2023-12-20T01:52:51.304Z", updated_at: "2023-12-21T05:00:00.000Z", title: "Note B" }],
-    childProjectVersions: [{ created_at: "2023-12-21T01:52:51.304Z", updated_at: "2023-12-22T05:00:00.000Z", title: "Project C" }],
+    childNoteVersions: [{ createdAt: "2023-12-20T01:52:51.304Z", updatedAt: "2023-12-21T05:00:00.000Z", title: "Note B" }],
+    childProjectVersions: [{ createdAt: "2023-12-21T01:52:51.304Z", updatedAt: "2023-12-22T05:00:00.000Z", title: "Project C" }],
     childRoutineVersions: [],
     childStandardVersions: [],
     childTeams: [],
@@ -82,7 +82,7 @@ describe("initializeDirectoryList", () => {
     it("handles invalid dates gracefully", () => {
         const invalidDateDirectory = {
             ...mockDirectory,
-            childApiVersions: [{ ...mockDirectory.childApiVersions[0], created_at: "invalid-date" }],
+            childApiVersions: [{ ...mockDirectory.childApiVersions[0], createdAt: "invalid-date" }],
         };
         const result = initializeDirectoryList(invalidDateDirectory as any, "DateCreatedAsc", "Daily", mockSession) as unknown as SimpleObject[];
         // The item with the invalid date should be treated as if it has the earliest possible date

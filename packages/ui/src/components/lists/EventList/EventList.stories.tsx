@@ -27,8 +27,8 @@ const mockMeetingTranslationId = uuid();
 const mockMeeting: Meeting = {
     __typename: "Meeting",
     id: mockMeetingId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     translations: [{
         __typename: "MeetingTranslation",
         id: mockMeetingTranslationId,
@@ -97,8 +97,8 @@ const baseMockSchedules: Schedule[] = [
         }],
         runProjects: [],
         runRoutines: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Schedule",
@@ -120,8 +120,8 @@ const baseMockSchedules: Schedule[] = [
         }],
         runProjects: [],
         runRoutines: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Schedule",
@@ -143,8 +143,8 @@ const baseMockSchedules: Schedule[] = [
         }],
         runProjects: [],
         runRoutines: [mockRunRoutine],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ];
 

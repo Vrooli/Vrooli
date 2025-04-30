@@ -126,7 +126,7 @@ async function moderateReport(
     // Try to find a valid action
     acceptedAction = bestAction(Object.entries(sumsMap) as [ReportSuggestedAction, number][]);
     // If no action was found, check if the report has been open for too long
-    if (!acceptedAction && (Date.now() - report.created_at.getTime()) > DEFAULT_TIMEOUT) {
+    if (!acceptedAction && (Date.now() - report.createdAt.getTime()) > DEFAULT_TIMEOUT) {
         // Add a constant to each reputation score so that they all meet the minimum reputation requirement
         const amountToAdd = Object.values(MIN_REP).reduce((acc, cur) => Math.max(acc, cur), 0);
         const bumpedActionsList = Object.entries(sumsMap).map(([action, rep]) => [action, rep + amountToAdd]) as [ReportSuggestedAction, number][];
@@ -333,7 +333,7 @@ export async function moderateReports() {
             },
             select: {
                 id: true,
-                created_at: true,
+                createdAt: true,
                 apiVersion: { select: versionedObjectQuery },
                 comment: { select: nonVersionedObjectQuery },
                 codeVersion: { select: versionedObjectQuery },

@@ -51,10 +51,10 @@ export async function logSiteStats(
         // Find all users active in the past 90 days
         data.activeUsers = await DbProvider.get().user.count({
             where: {
-                // updated_at should be sufficient to calculate active users, 
+                // updatedAt should be sufficient to calculate active users, 
                 // since even if they don't explicitly update their profile, 
                 // their streak will be updated daily
-                updated_at: {
+                updatedAt: {
                     gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
                 },
                 // Make sure not to include bots
@@ -64,20 +64,20 @@ export async function logSiteStats(
         // Find all apis created within the period
         data.apisCreated = await DbProvider.get().api.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
+                createdAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
         // Find all teams created within the period
         data.teamsCreated = await DbProvider.get().team.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
+                createdAt: { gte: periodStart, lte: periodEnd },
             },
         });
         // Find all projects created within the period
         data.projectsCreated = await DbProvider.get().project.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
+                createdAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
@@ -88,12 +88,12 @@ export async function logSiteStats(
                 isDeleted: false,
             },
         });
-        // Find the sum of all completion intervals (completedAt - created_at) 
+        // Find the sum of all completion intervals (completedAt - createdAt) 
         // for projects completed within the period 
         // NOTE: Prisma does not support aggregating by DateTime fields, 
         // so we must use a raw query.
         const projectsCompletedSum: number = data.projectsCompleted > 0 ? await DbProvider.get().$queryRaw`
-        SELECT SUM(completedAt - created_at) AS time
+        SELECT SUM(completedAt - createdAt) AS time
         FROM project
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd} AND isDeleted = false
 ` : 0;
@@ -102,7 +102,7 @@ export async function logSiteStats(
         // Find all routines created within the period
         data.routinesCreated = await DbProvider.get().routine.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
+                createdAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
                 isInternal: false, // Exclude routines only used within other routines
             },
@@ -115,12 +115,12 @@ export async function logSiteStats(
                 isInternal: false, // Exclude routines only used within other routines
             },
         });
-        // Find the sum of all completion intervals (completedAt - created_at)
+        // Find the sum of all completion intervals (completedAt - createdAt)
         // for routines completed within the period
         // NOTE: Prisma does not support aggregating by DateTime fields,
         // so we must use a raw query.
         const routinesCompletedSum: number = routinesCompleted > 0 ? await DbProvider.get().$queryRaw`
-        SELECT SUM(completedAt - created_at) AS time
+        SELECT SUM(completedAt - createdAt) AS time
         FROM routine
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd} AND isDeleted = false
 ` : 0;
@@ -213,7 +213,7 @@ export async function logSiteStats(
         // Find all codes created within the period
         data.codesCreated = await DbProvider.get().code.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
+                createdAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
@@ -224,12 +224,12 @@ export async function logSiteStats(
                 isDeleted: false,
             },
         });
-        // Find the sum of all completion intervals (completedAt - created_at)
+        // Find the sum of all completion intervals (completedAt - createdAt)
         // for codes completed within the period
         // NOTE: Prisma does not support aggregating by DateTime fields,
         // so we must use a raw query.
         const codesCompletedSum: number = codesCompleted > 0 ? await DbProvider.get().$queryRaw`
-        SELECT SUM(completedAt - created_at) AS time
+        SELECT SUM(completedAt - createdAt) AS time
         FROM code
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
 ` : 0;
@@ -238,7 +238,7 @@ export async function logSiteStats(
         // Find all standards created within the period
         data.standardsCreated = await DbProvider.get().standard.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
+                createdAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
                 isInternal: false, // Exclude standards only used within routines
             },
@@ -251,12 +251,12 @@ export async function logSiteStats(
                 isInternal: false, // Exclude standards only used within routines
             },
         });
-        // Find the sum of all completion intervals (completedAt - created_at)
+        // Find the sum of all completion intervals (completedAt - createdAt)
         // for standards completed within the period
         // NOTE: Prisma does not support aggregating by DateTime fields,
         // so we must use a raw query.
         const standardsCompletedSum: number = standardsCompleted > 0 ? await DbProvider.get().$queryRaw`
-        SELECT SUM(completedAt - created_at) AS time
+        SELECT SUM(completedAt - createdAt) AS time
         FROM standard
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
 ` : 0;
@@ -265,15 +265,15 @@ export async function logSiteStats(
         // Find all verified emails created within the period
         data.verifiedEmailsCreated = await DbProvider.get().email.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
-                verified: true,
+                createdAt: { gte: periodStart, lte: periodEnd },
+                verifiedAt: { not: null },
             },
         });
         // Find all verified wallets created within the period
         data.verifiedWalletsCreated = await DbProvider.get().wallet.count({
             where: {
-                created_at: { gte: periodStart, lte: periodEnd },
-                verified: true,
+                createdAt: { gte: periodStart, lte: periodEnd },
+                verifiedAt: { not: null },
             },
         });
         // Store in database

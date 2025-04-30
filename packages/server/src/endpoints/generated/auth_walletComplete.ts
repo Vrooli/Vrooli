@@ -4,18 +4,11 @@ export const auth_walletComplete = {
         "isLoggedIn": true,
         "timeZone": true,
         "users": {
-            "apisCount": true,
-            "codesCount": true,
             "handle": true,
             "hasPremium": true,
             "id": true,
             "languages": true,
-            "membershipsCount": true,
             "name": true,
-            "notesCount": true,
-            "projectsCount": true,
-            "routinesCount": true,
-            "standardsCount": true,
             "theme": true
         }
     },
@@ -24,7 +17,7 @@ export const auth_walletComplete = {
         "name": true,
         "publicAddress": true,
         "stakingAddress": true,
-        "verified": true
+        "verifiedAt": true
     },
-    "__cacheKey": "-951826486"
+    "__cacheKey": "2062394276"
 };

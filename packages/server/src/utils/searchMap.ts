@@ -126,7 +126,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     closedById: (id: string) => oneToOneId(id, "closedBy"),
     createdById: (id: string) => oneToOneId(id, "createdBy"),
     createdByIdRoot: (id: string) => ({ root: oneToOneId(id, "createdBy") }),
-    createdTimeFrame: (time: TimeFrame) => timeFrameToPrisma("created_at", time),
+    createdTimeFrame: (time: TimeFrame) => timeFrameToPrisma("createdAt", time),
     creatorId: (id: string) => oneToOneId(id, "creator"),
     currency: (currency: string) => ({ currency }),
     endTimeFrame: (time: TimeFrame) => timeFrameToPrisma("endTime", time),
@@ -417,7 +417,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         },
     }),
-    updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updated_at", time),
+    updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updatedAt", time),
     userId: (id: string) => oneToOneId(id, "user"),
     usersId: (id: string) => oneToManyId(id, "users"),
     variant: (variant: string) => variant ? ({ variant: { equals: variant } }) : {}, // Treated as an emum

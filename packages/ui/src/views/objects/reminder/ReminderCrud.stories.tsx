@@ -10,8 +10,8 @@ import { ReminderCrud } from "./ReminderCrud.js";
 const mockReminderData = {
     __typename: "Reminder" as const,
     id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
     index: 0,
     isComplete: false,
@@ -20,8 +20,8 @@ const mockReminderData = {
     reminderItems: Array.from({ length: 3 }, (_, i) => ({
         __typename: "ReminderItem" as const,
         id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         dueDate: new Date(Date.now() + (i + 1) * 43200000).toISOString(), // Staggered due dates
         index: i,
         isComplete: i === 0, // First item is complete
@@ -31,8 +31,8 @@ const mockReminderData = {
     reminderList: {
         __typename: "ReminderList" as const,
         id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         reminders: [],
     },
 } as unknown as Reminder;

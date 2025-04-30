@@ -1,8 +1,8 @@
-import { RunRoutine, RunRoutineYou } from "@local/shared";
+import { Run, RunYou } from "@local/shared";
 import { ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
-export const runRoutineYou: ApiPartial<RunRoutineYou> = {
+export const runYou: ApiPartial<RunYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
@@ -10,7 +10,7 @@ export const runRoutineYou: ApiPartial<RunRoutineYou> = {
     },
 };
 
-export const runRoutine: ApiPartial<RunRoutine> = {
+export const run: ApiPartial<Run> = {
     common: {
         id: true,
         isPrivate: true,
@@ -25,17 +25,17 @@ export const runRoutine: ApiPartial<RunRoutine> = {
         ioCount: true,
         stepsCount: true,
         wasRunAutomatically: true,
-        routineVersion: async () => rel((await import("./resourceVersion.js")).routineVersion, "nav", { omit: "you" }),
-        schedule: async () => rel((await import("./schedule.js")).schedule, "full", { omit: "runRoutine" }),
+        resourceVersion: async () => rel((await import("./resourceVersion.js")).resourceVersion, "nav", { omit: "you" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "full", { omit: "run" }),
         team: async () => rel((await import("./team.js")).team, "nav"),
         user: async () => rel((await import("./user.js")).user, "nav"),
-        you: () => rel(runRoutineYou, "full"),
+        you: () => rel(runYou, "full"),
     },
     full: {
         lastStep: true,
-        io: async () => rel((await import("./runIO.js")).runRoutineIO, "list", { omit: ["runRoutine", "routineVersionInput.routineVersion", "routineVersionInput.routineVersion"] }),
-        routineVersion: async () => rel((await import("./resourceVersion.js")).routineVersion, "full", { omit: "you" }),
-        steps: async () => rel((await import("./runStep.js")).runRoutineStep, "list"),
+        io: async () => rel((await import("./runIO.js")).runIO, "list", { omit: ["run"] }),
+        resourceVersion: async () => rel((await import("./resourceVersion.js")).resourceVersion, "full", { omit: "you" }),
+        steps: async () => rel((await import("./runStep.js")).runStep, "list"),
     },
     list: {
         lastStep: true,

@@ -78,8 +78,8 @@ export function ParticipantManageView({
         const asInvites: ChatInviteShape[] = (selectedData as User[]).map(user => ({
             __typename: "ChatInvite",
             id: DUMMY_ID,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             status: ChatInviteStatus.Pending,
             chat: { __typename: "Chat", id: chat.id },
             user,

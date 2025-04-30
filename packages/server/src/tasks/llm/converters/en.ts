@@ -1,4 +1,4 @@
-import { BotSettingsConfig, BotSettingsTranslation, DeleteType, generatePKString, generatePublicId } from "@local/shared";
+import { BotSettingsConfig, BotSettingsTranslation, DeleteType, generatePKString, generatePublicId, validatePK } from "@local/shared";
 import { noEmptyString, toBool, validNumber } from "../../../builders/noNull.js";
 import { logger } from "../../../events/logger.js";
 import { LlmTaskConverters } from "../converter.js";
@@ -108,7 +108,7 @@ export const convert: LlmTaskConverters = {
             typeof data.ids === "string" ?
                 [data.ids] :
                 [];
-        ids = ids.filter(uuidValidate);
+        ids = ids.filter(validatePK);
         const objects = ids.map(id => ({
             id,
             objectType: DeleteType.Member,

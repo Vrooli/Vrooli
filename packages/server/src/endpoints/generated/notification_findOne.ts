@@ -1,6 +1,6 @@
 export const notification_findOne = {
     "id": true,
-    "created_at": true,
+    "createdAt": true,
     "category": true,
     "isRead": true,
     "title": true,

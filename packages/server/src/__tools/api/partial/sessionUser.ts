@@ -3,18 +3,11 @@ import { ApiPartial } from "../types.js";
 
 export const sessionUser: ApiPartial<SessionUser> = {
     full: {
-        apisCount: true,
-        codesCount: true,
         handle: true,
         hasPremium: true,
         id: true,
         languages: true,
-        membershipsCount: true,
         name: true,
-        notesCount: true,
-        projectsCount: true,
-        routinesCount: true,
-        standardsCount: true,
         theme: true,
     },
 };

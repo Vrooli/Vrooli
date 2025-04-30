@@ -164,7 +164,7 @@ export function UserView({
         const { model, creativity, verbosity, translations } = findBotDataForForm(language, availableModels, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
-        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, BANNER_IMAGE_TARGET_SIZE_PX);
+        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updatedAt, BANNER_IMAGE_TARGET_SIZE_PX);
         if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
         return {
             adornments,
@@ -332,7 +332,7 @@ export function UserView({
                     <OverviewProfileAvatar
                         isBot={user?.isBot ?? false}
                         profileColors={profileColors}
-                        src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
+                        src={extractImageUrl(user?.profileImage, user?.updatedAt, 100)}
                     >
                         <IconCommon name={user?.isBot ? "Bot" : "User"} />
                     </OverviewProfileAvatar>
@@ -402,7 +402,7 @@ export function UserView({
                             loading={isLoading}
                             showIcon={true}
                             textBeforeDate="Joined"
-                            timestamp={user?.created_at}
+                            timestamp={user?.createdAt}
                         />
                         <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                     </Stack>

@@ -11,8 +11,8 @@ import { SmartContractView } from "./SmartContractView.js";
 const mockCodeVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
     id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     calledByRoutineVersionsCount: 2,
     codeLanguage: CodeLanguage.Solidity,
     codeType: CodeType.SmartContract,
@@ -35,8 +35,8 @@ contract SimpleStorage {
     root: {
         __typename: "Code" as const,
         id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         owner: {
             __typename: "User" as const,
             id: uuid(),
@@ -72,15 +72,15 @@ contract SimpleStorage {
     resourceList: {
         __typename: "ResourceList" as const,
         id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         listFor: {} as any, // Circular reference
         resources: [
             {
                 __typename: "Resource" as const,
                 id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
                 link: "https://ethereum.org/en/developers/docs/smart-contracts/",
                 list: {} as any, // Circular reference
@@ -95,8 +95,8 @@ contract SimpleStorage {
             {
                 __typename: "Resource" as const,
                 id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
                 link: "https://solidity.readthedocs.io/",
                 list: {} as any, // Circular reference

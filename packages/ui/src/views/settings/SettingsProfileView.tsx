@@ -85,8 +85,8 @@ function SettingsProfileForm({
         handle: values.handle,
         profileImage: values.profileImage,
         bannerImage: values.bannerImage,
-        updated_at: values.updated_at,
-    }), [values.id, values.name, values.handle, values.profileImage, values.bannerImage, values.updated_at]);
+        updatedAt: values.updatedAt,
+    }), [values.id, values.name, values.handle, values.profileImage, values.bannerImage, values.updatedAt]);
 
     return (
         <OuterForm display={display}>
@@ -175,7 +175,7 @@ export function SettingsProfileView({
             language: getUserLanguages(session)[0],
             bio: "",
         }],
-        updated_at: profile?.updated_at ?? null, // Used for cache busting on profile image
+        updatedAt: profile?.updatedAt ?? null, // Used for cache busting on profile image
     } as const), [profile, session]);
 
     // Form submission handler

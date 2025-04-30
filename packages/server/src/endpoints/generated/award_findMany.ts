@@ -3,9 +3,9 @@ export const award_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "timeCurrentTierCompleted": true,
+            "createdAt": true,
+            "updatedAt": true,
+            "tierCompletedAt": true,
             "category": true,
             "progress": true,
             "title": true,

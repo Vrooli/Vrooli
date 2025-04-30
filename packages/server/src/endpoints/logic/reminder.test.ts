@@ -29,8 +29,8 @@ const userReminder1 = {
     dueDate: new Date("2023-03-15"),
     index: 0,
     isComplete: false,
-    created_at: new Date("2023-03-01"),
-    updated_at: new Date("2023-03-12"),
+    createdAt: new Date("2023-03-01"),
+    updatedAt: new Date("2023-03-12"),
 };
 
 const userReminder2 = {
@@ -40,8 +40,8 @@ const userReminder2 = {
     dueDate: new Date("2023-03-20"),
     index: 1,
     isComplete: false,
-    created_at: new Date("2023-03-05"),
-    updated_at: new Date("2023-03-05"),
+    createdAt: new Date("2023-03-05"),
+    updatedAt: new Date("2023-03-05"),
 };
 
 describe("EndpointsReminder", () => {
@@ -100,8 +100,8 @@ describe("EndpointsReminder", () => {
                 reminderList: {
                     create: {
                         id: reminderListUser1Id,
-                        created_at: new Date("2023-03-01"),
-                        updated_at: new Date("2023-03-01"),
+                        createdAt: new Date("2023-03-01"),
+                        updatedAt: new Date("2023-03-01"),
                         user: {
                             connect: { id: user1Id },
                         },
@@ -115,8 +115,8 @@ describe("EndpointsReminder", () => {
                 reminderList: {
                     create: {
                         id: reminderListUser2Id,
-                        created_at: new Date("2023-03-05"),
-                        updated_at: new Date("2023-03-05"),
+                        createdAt: new Date("2023-03-05"),
+                        updatedAt: new Date("2023-03-05"),
                         user: {
                             connect: { id: user2Id },
                         },

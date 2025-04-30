@@ -3,8 +3,8 @@ export const memberInvite_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "message": true,
             "status": true,
             "willBeAdmin": true,
@@ -25,8 +25,8 @@ export const memberInvite_findMany = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
                     }
@@ -34,8 +34,8 @@ export const memberInvite_findMany = {
             },
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,

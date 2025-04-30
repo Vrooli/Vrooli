@@ -21,14 +21,14 @@ const user2Id = uuid();
 const userTag1 = {
     id: uuid(),
     tag: "Test Tag 1",
-    created_at: new Date("2023-03-01"),
-    updated_at: new Date("2023-03-12"),
+    createdAt: new Date("2023-03-01"),
+    updatedAt: new Date("2023-03-12"),
 };
 const userTag2 = {
     id: uuid(),
     tag: "Test Tag 2",
-    created_at: new Date("2023-03-05"),
-    updated_at: new Date("2023-03-05"),
+    createdAt: new Date("2023-03-05"),
+    updatedAt: new Date("2023-03-05"),
 };
 
 // Array of all tag IDs for easier cleanup

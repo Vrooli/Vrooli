@@ -439,7 +439,7 @@ export function RoutineSingleStepView({
                                 <DateDisplay
                                     loading={isGetRoutineLoading}
                                     showIcon={true}
-                                    timestamp={existing?.created_at}
+                                    timestamp={existing?.createdAt}
                                 />
                                 <VersionDisplay
                                     currentVersion={existing}

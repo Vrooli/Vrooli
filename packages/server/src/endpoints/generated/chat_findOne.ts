@@ -1,16 +1,18 @@
 export const chat_findOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "publicId": true,
+    "createdAt": true,
+    "updatedAt": true,
     "openToAnyoneWithInvite": true,
     "participants": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "user": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -49,8 +51,8 @@ export const chat_findOne = {
             "isViewed": true,
             "yourMembership": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "isAdmin": true,
                 "permissions": true
             }
@@ -65,14 +67,14 @@ export const chat_findOne = {
     },
     "invites": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "message": true,
         "status": true,
         "user": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -91,5 +93,5 @@ export const chat_findOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "-993176026"
+    "__cacheKey": "-1726542170"
 };

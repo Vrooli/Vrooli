@@ -1,11 +1,12 @@
 export const chatParticipant_findOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "user": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "publicId": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -27,5 +28,5 @@ export const chatParticipant_findOne = {
             "bio": true
         }
     },
-    "__cacheKey": "-349142520"
+    "__cacheKey": "-1985157816"
 };

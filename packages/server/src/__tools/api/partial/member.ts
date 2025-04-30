@@ -12,8 +12,9 @@ export const memberYou: ApiPartial<MemberYou> = {
 export const member: ApiPartial<Member> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         isAdmin: true,
         permissions: true,
         you: () => rel(memberYou, "full"),

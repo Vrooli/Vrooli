@@ -471,7 +471,7 @@ export function SiteNavigator() {
                                 <ProfileAvatar
                                     id={ELEMENT_IDS.UserMenuProfileIcon}
                                     isBot={false}
-                                    src={isLoggedIn ? extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX) : undefined}
+                                    src={isLoggedIn ? extractImageUrl(user.profileImage, user.updatedAt, AVATAR_SIZE_PX) : undefined}
                                     onClick={openUserMenu}
                                     profileColors={placeholderColor(user.id)}
                                 >

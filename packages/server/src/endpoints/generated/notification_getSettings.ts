@@ -2,12 +2,12 @@ export const notification_getSettings = {
     "includedEmails": {
         "id": true,
         "emailAddress": true,
-        "verified": true
+        "verifiedAt": true
     },
     "includedSms": {
         "id": true,
         "phoneNumber": true,
-        "verified": true
+        "verifiedAt": true
     },
     "includedPush": {
         "id": true,
@@ -27,5 +27,5 @@ export const notification_getSettings = {
         "toSms": true,
         "toPush": true
     },
-    "__cacheKey": "1235356773"
+    "__cacheKey": "-1403186683"
 };

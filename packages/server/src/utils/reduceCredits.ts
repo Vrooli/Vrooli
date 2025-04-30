@@ -20,10 +20,7 @@ export async function reduceUserCredits(userId: string, decrement: number | bigi
         data: {
             premium: {
                 upsert: {
-                    // Shouldn't call this when the user doesn't have a premium relation 
-                    // (i.e. never paid for or received free credits), but just in case
-                    create: { credits: 0, hasReceivedFreeTrial: false, isActive: false },
-                    // The actual update for most users
+                    create: { credits: 0 },
                     update: { credits: { decrement } },
                 },
             },

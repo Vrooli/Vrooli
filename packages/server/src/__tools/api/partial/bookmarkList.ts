@@ -5,8 +5,8 @@ import { rel } from "../utils.js";
 export const bookmarkList: ApiPartial<BookmarkList> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         label: true,
         bookmarksCount: true,
     },

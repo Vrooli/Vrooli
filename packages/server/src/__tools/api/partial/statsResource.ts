@@ -1,12 +1,14 @@
-import { StatsRoutine } from "@local/shared";
+import { StatsResource } from "@local/shared";
 import { ApiPartial } from "../types.js";
 
-export const statsRoutine: ApiPartial<StatsRoutine> = {
+export const statsResource: ApiPartial<StatsResource> = {
     full: {
         id: true,
         periodStart: true,
         periodEnd: true,
         periodType: true,
+        references: true,
+        referencedBy: true,
         runsStarted: true,
         runsCompleted: true,
         runCompletionTimeAverage: true,

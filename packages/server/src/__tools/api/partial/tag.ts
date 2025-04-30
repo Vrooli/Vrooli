@@ -20,7 +20,7 @@ export const tagYou: ApiPartial<TagYou> = {
 export const tag: ApiPartial<Tag> = {
     common: {
         id: true,
-        created_at: true,
+        createdAt: true,
         tag: true,
         bookmarks: true,
         translations: () => rel(tagTranslation, "full"),

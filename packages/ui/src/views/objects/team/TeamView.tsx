@@ -59,7 +59,7 @@ export function TeamView({
         const resourceList: ResourceListType | null | undefined = team?.resourceList;
         const { bio, name } = getTranslation(team, [language]);
         return {
-            bannerImageUrl: extractImageUrl(team?.bannerImage, team?.updated_at, 1000),
+            bannerImageUrl: extractImageUrl(team?.bannerImage, team?.updatedAt, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             handle: team?.handle,
             name,
@@ -162,7 +162,7 @@ export function TeamView({
                     <OverviewProfileAvatar
                         isBot={false}
                         profileColors={profileColors}
-                        src={extractImageUrl(team?.profileImage, team?.updated_at, 100)}
+                        src={extractImageUrl(team?.profileImage, team?.updatedAt, 100)}
                     >
                         <IconCommon name="Team" />
                     </OverviewProfileAvatar>
@@ -240,7 +240,7 @@ export function TeamView({
                             loading={isLoading}
                             showIcon={true}
                             textBeforeDate="Created"
-                            timestamp={team?.created_at}
+                            timestamp={team?.createdAt}
                         />
                         <ReportsLink object={team} />
                     </Stack>

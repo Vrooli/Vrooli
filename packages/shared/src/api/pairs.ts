@@ -70,8 +70,6 @@ function standardCRUD(one: string, many: string) {
     };
 }
 
-export const endpointsApi = standardCRUD("api", "apis");
-
 export const endpointsApiKey = {
     ...createOne("apiKey"),
     ...updateOne("apiKey"),
@@ -85,8 +83,6 @@ export const endpointsApiKeyExternal = {
     ...createOne("apiKeyExternal"),
     ...updateOne("apiKeyExternal"),
 } as const;
-
-export const endpointsApiVersion = standardCRUD("apiVersion", "apiVersions");
 
 export const endpointsAuth = {
     emailLogin: {
@@ -177,10 +173,6 @@ export const endpointsChatParticipant = {
     ...updateOne("chatParticipant"),
 } as const;
 
-export const endpointsCode = standardCRUD("code", "codes");
-
-export const endpointsCodeVersion = standardCRUD("codeVersion", "codeVersions");
-
 export const endpointsComment = standardCRUD("comment", "comments");
 
 export const endpointsActions = {
@@ -233,8 +225,6 @@ export const endpointsIssue = {
     },
 } as const;
 
-export const endpointsLabel = standardCRUD("label", "labels");
-
 export const endpointsMeeting = standardCRUD("meeting", "meetings");
 
 export const endpointsMeetingInvite = {
@@ -271,10 +261,6 @@ export const endpointsMemberInvite = {
     },
 } as const;
 
-export const endpointsNote = standardCRUD("note", "notes");
-
-export const endpointsNoteVersion = standardCRUD("noteVersion", "noteVersions");
-
 export const endpointsNotification = {
     ...findOne("notification"),
     ...findMany("notifications"),
@@ -310,18 +296,6 @@ export const endpointsPhone = {
     },
 } as const;
 
-export const endpointsProject = standardCRUD("project", "projects");
-
-export const endpointsProjectVersion = {
-    ...standardCRUD("projectVersion", "projectVersions"),
-    contents: {
-        endpoint: "/projectVersionContents",
-        method: "GET" as const,
-    },
-} as const;
-
-export const endpointsProjectVersionDirectory = standardCRUD("projectVersionDirectory", "projectVersionDirectories");
-
 export const endpointsPullRequest = standardCRUD("pullRequest", "pullRequests");
 
 export const endpointsPushDevice = {
@@ -355,46 +329,24 @@ export const endpointsReputationHistory = {
     ...findMany("reputationHistories"),
 } as const;
 
-export const endpointsRoutine = standardCRUD("routine", "routines");
+export const endpointsResource = standardCRUD("resource", "resources");
 
-export const endpointsRoutineVersion = standardCRUD("routineVersion", "routineVersions");
+export const endpointsResourceVersion = standardCRUD("resourceVersion", "resourceVersions");
 
-export const endpointsRunProject = standardCRUD("run/project", "run/projects");
+export const endpointsRun = standardCRUD("run", "runs");
 
-export const endpointsRunRoutine = standardCRUD("run/routine", "run/routines");
-
-export const endpointsRunRoutineIO = {
-    ...findMany("run/routine/io"),
+export const endpointsRunIO = {
+    ...findMany("run/io"),
 } as const;
 
 export const endpointsSchedule = standardCRUD("schedule", "schedules");
 
-export const endpointsStandard = standardCRUD("standard", "standards");
-
-export const endpointsStandardVersion = standardCRUD("standardVersion", "standardVersions");
-
-export const endpointsStatsApi = {
-    ...findMany("stats/api"),
-} as const;
-
-export const endpointsStatsCode = {
-    ...findMany("stats/code"),
-} as const;
-
-export const endpointsStatsProject = {
-    ...findMany("stats/projects"),
-} as const;
-
-export const endpointsStatsRoutine = {
-    ...findMany("stats/routine"),
+export const endpointsStatsResource = {
+    ...findMany("stats/resource"),
 } as const;
 
 export const endpointsStatsSite = {
     ...findMany("stats/site"),
-} as const;
-
-export const endpointsStatsStandard = {
-    ...findMany("stats/standard"),
 } as const;
 
 export const endpointsStatsTeam = {
@@ -457,21 +409,6 @@ export const endpointsTransfer = {
 export const endpointsTranslate = {
     translate: {
         endpoint: "/translate",
-        method: "GET" as const,
-    },
-} as const;
-
-export const endpointsUnions = {
-    projectOrRoutines: {
-        endpoint: "/unions/projectOrRoutines",
-        method: "GET" as const,
-    },
-    projectOrTeams: {
-        endpoint: "/unions/projectOrTeams",
-        method: "GET" as const,
-    },
-    runProjectOrRunRoutines: {
-        endpoint: "/unions/runProjectOrRunRoutines",
         method: "GET" as const,
     },
 } as const;

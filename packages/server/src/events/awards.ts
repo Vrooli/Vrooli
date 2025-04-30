@@ -87,10 +87,10 @@ export function Award(userId: string, languages: string[] | undefined) {
                 if (transTitle && transBody) {
                     await Notify(languages).pushAward(transTitle, transBody).toUser(userId);
                 }
-                // Set "timeCurrentTierCompleted" to the current time
+                // Set "tierCompletedAt" to the current time
                 await DbProvider.get().award.update({
                     where: { userId_category: { userId, category } },
-                    data: { timeCurrentTierCompleted: new Date() },
+                    data: { tierCompletedAt: new Date() },
                 });
             }
             return award;

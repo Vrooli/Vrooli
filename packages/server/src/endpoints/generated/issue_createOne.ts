@@ -1,34 +1,15 @@
 export const issue_createOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "publicId": true,
+    "createdAt": true,
+    "updatedAt": true,
     "closedAt": true,
     "referencedVersionId": true,
     "status": true,
     "to": {
-        "Api": {
-            "id": true,
-            "isPrivate": true
-        },
-        "Code": {
-            "id": true,
-            "isPrivate": true
-        },
-        "Note": {
-            "id": true,
-            "isPrivate": true
-        },
-        "Project": {
-            "id": true,
-            "isPrivate": true
-        },
-        "Routine": {
+        "Resource": {
             "id": true,
             "isInternal": true,
-            "isPrivate": true
-        },
-        "Standard": {
-            "id": true,
             "isPrivate": true
         },
         "Team": {
@@ -47,8 +28,8 @@ export const issue_createOne = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
@@ -73,8 +54,8 @@ export const issue_createOne = {
     },
     "closedBy": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -84,8 +65,8 @@ export const issue_createOne = {
     },
     "createdBy": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -99,5 +80,5 @@ export const issue_createOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "348842810"
+    "__cacheKey": "2055094707"
 };

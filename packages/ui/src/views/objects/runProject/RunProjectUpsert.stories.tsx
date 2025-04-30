@@ -13,8 +13,8 @@ const mockScheduleId = uuid();
 const mockScheduleData = {
     __typename: "Schedule",
     id: mockScheduleId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     startTime: new Date().toISOString(),
     endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
     timezone: "America/New_York",
@@ -48,8 +48,8 @@ const mockRunProjectId = uuid();
 const mockRunProjectData = {
     __typename: "RunProject",
     id: mockRunProjectId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     completedComplexity: 0,
     contextSwitches: 0,
     isPrivate: true,

@@ -231,7 +231,7 @@ export function WalletList({
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],
-                verified: true,
+                verifiedAt: new Date(),
             }));
         }
     }, [handleUpdate, list, openWalletInstallDialog, selectedIndex]);

@@ -1,7 +1,7 @@
-import { RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "../api/types.js";
+import { Run, RunCreateInput, RunUpdateInput } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
 import { RunProgressConfig } from "../shape/configs/run.js";
-import { RunProjectShape, RunProjectStepShape, RunRoutineShape, RunRoutineStepShape, shapeRunProject, shapeRunRoutine } from "../shape/models/models.js";
+import { RunShape, RunStepShape, shapeRun } from "../shape/models/models.js";
 import { FINALIZE_RUN_POLL_INTERVAL_MS, FINALIZE_RUN_TIMEOUT_MS, STORE_RUN_PROGRESS_DEBOUNCE_MS } from "./consts.js";
 import { RunIdentifier, RunMetrics, RunProgress, RunProgressStep, RunTriggeredBy } from "./types.js";
 
@@ -10,7 +10,7 @@ import { RunIdentifier, RunMetrics, RunProgress, RunProgressStep, RunTriggeredBy
  * - Debouncing multiple `saveProgress` calls to avoid redundant DB writes
  * - Caching the current run in memory to avoid re-fetching
  * - Converting between a shape useful to the state machine (RunProgress) and 
- *   the shape needed to store in the database (RunProjectShape or RunRoutineShape)
+ *   the shape needed to store in the database (RunShape)
  * 
  * NOTE: This class assumes that only one run is being worked on at a time.
  * 
@@ -28,7 +28,7 @@ export abstract class RunPersistence {
      * The last shape we persisted to the DB (or null if we haven't yet).
      * This helps us know if we need to 'create' or 'update', and to generate diffs.
      */
-    private _lastStoredShape: RunProjectShape | RunRoutineShape | null = null;
+    private _lastStoredShape: RunShape | null = null;
 
     /**
      * We only keep a single "pending" run in memory. If `saveProgress` is called repeatedly,
@@ -52,40 +52,22 @@ export abstract class RunPersistence {
      */
 
     /**
-     * Low-level database or API call that CREATEs a new RunProject
+     * Low-level database or API call that CREATEs a new Run
      * and returns the *final* shape (including any DB-assigned IDs).
      * 
-     * @param input The input to create the run project
-     * @returns The final shape of the created run project, or null if it failed
+     * @param input The input to create the run
+     * @returns The final shape of the created run, or null if it failed
      */
-    protected abstract createRunProject(input: RunProjectCreateInput): Promise<RunProject | null>;
+    protected abstract postRun(input: RunCreateInput): Promise<Run | null>;
 
     /**
-     * Low-level database or API call that CREATEs a new RunRoutine
-     * and returns the *final* shape (including any DB-assigned IDs).
-     * 
-     * @param input The input to create the run routine
-     * @returns The final shape of the created run routine, or null if it failed
-     */
-    protected abstract createRunRoutine(input: RunRoutineCreateInput): Promise<RunRoutine | null>;
-
-    /**
-     * Low-level database or API call that UPDATEs an existing RunProject.
+     * Low-level database or API call that UPDATEs an existing Run.
      * Returns the *final* shape after the update.
      * 
-     * @param input The input to update the run project
-     * @returns The final shape of the updated run project, or null if it failed
+     * @param input The input to update the run
+     * @returns The final shape of the updated run, or null if it failed
      */
-    protected abstract updateRunProject(input: RunProjectUpdateInput): Promise<RunProject | null>;
-
-    /**
-     * Low-level database or API call that UPDATEs an existing RunRoutine.
-     * Returns the *final* shape after the update.
-     * 
-     * @param input The input to update the run routine
-     * @returns The final shape of the updated run routine, or null if it failed
-     */
-    protected abstract updateRunRoutine(input: RunRoutineUpdateInput): Promise<RunRoutine | null>;
+    protected abstract putRun(input: RunUpdateInput): Promise<Run | null>;
 
     /**
      * Fetch the run progress from the database or call an API to do so.
@@ -93,7 +75,7 @@ export abstract class RunPersistence {
      * @param run Information required to fetch the run
      * @returns The fetched run data, or null if not found or an error occurred
      */
-    protected abstract fetchRunProgress(run: RunIdentifier): Promise<RunProject | RunRoutine | null>;
+    protected abstract fetchRun(run: RunIdentifier): Promise<Run | null>;
 
     /**
      * -------------------------------------------------------------------------
@@ -124,11 +106,9 @@ export abstract class RunPersistence {
         }
 
         // Otherwise, fetch fresh
-        const loaded = await this.fetchRunProgress(run);
+        const loaded = await this.fetchRun(run);
         if (loaded) {
-            const shaped = loaded.__typename === "RunProject"
-                ? this.fromFetchedProject(loaded, userData, logger)
-                : this.fromFetchedRoutine(loaded, userData, logger);
+            const shaped = this.fromFetchedRun(loaded, userData, logger);
             this._currentRun = shaped;
         }
         if (throwIfNotLoaded && !this._currentRun) {
@@ -235,56 +215,33 @@ export abstract class RunPersistence {
     }
 
     /**
-     * Helper to call the correct shape conversion
-     * 
-     * @param run The run to store
-     * @returns The shape to store
-     */
-    private toShape(run: RunProgress): RunProjectShape | RunRoutineShape {
-        return run.type === "RunProject"
-            ? this.toProjectShape(run)
-            : this.toRoutineShape(run);
-    }
-
-    /**
-     * Helper to call the correct store method for creating a run.
+     * Helper for shaping and creating a run.
      * 
      * @param runShape The shape to store
      * @returns The result of the store operation, or null if it failed
      */
-    private async createRun(runShape: RunProjectShape | RunRoutineShape): Promise<RunProject | RunRoutine | null> {
-        if (runShape.__typename === "RunProject") {
-            const input = shapeRunProject.create(runShape as RunProjectShape);
-            return await this.createRunProject(input);
-        }
-        const input = shapeRunRoutine.create(runShape as RunRoutineShape);
-        return await this.createRunRoutine(input);
+    private async createRun(runShape: RunShape): Promise<Run | null> {
+        const input = shapeRun.create(runShape);
+        return await this.postRun(input);
     }
 
     /**
-     * Helper to call the correct store method for updating a run.
+     * Helper for shaping and updating a run.
      * 
      * @param runShape The shape to store
      * @returns The result of the store operation, or null if no shape was stored 
      * (due to no changes or other reasons)
      */
-    private async updateRun(runShape: RunProjectShape | RunRoutineShape): Promise<RunProject | RunRoutine | null> {
+    private async updateRun(runShape: RunShape): Promise<Run | null> {
         const originalShape = this._lastStoredShape;
         if (!originalShape) {
             return null;
         }
-        if (runShape.__typename === "RunProject") {
-            const input = shapeRunProject.update(originalShape as RunProjectShape, runShape as RunProjectShape);
-            if (!input) {
-                return null;
-            }
-            return await this.updateRunProject(input);
-        }
-        const input = shapeRunRoutine.update(originalShape as RunRoutineShape, runShape as RunRoutineShape);
+        const input = shapeRun.update(originalShape, runShape);
         if (!input) {
             return null;
         }
-        return await this.updateRunRoutine(input);
+        return await this.putRun(input);
     }
 
     /**
@@ -299,7 +256,7 @@ export abstract class RunPersistence {
         this._storeInProgress = true;
 
         try {
-            const shapeToStore = this.toShape(run);
+            const shapeToStore = this.toRunShape(run);
 
             const isCreate =
                 !this._lastStoredShape ||  // haven't stored anything yet
@@ -389,65 +346,28 @@ export abstract class RunPersistence {
     }
 
     /**
-     * Shapes a RunProgressStep into a RunProjectStepShape.
+     * Shapes a RunProgressStep into a RunStepShape.
      * @param step The run step to shape
      * @param index The index of the step in the run
      * @param runId The ID of the run
      * @returns The shaped step
      */
-    private toProjectStepShape(
+    private toRunStepShape(
         step: RunProgressStep,
         index: number,
         runId: string,
-    ): RunProjectStepShape {
+    ): RunStepShape {
         const { completedAt, complexity, contextSwitches, id, name, startedAt, status } = step;
-        const resource = step.subroutineId ?
+        const nodeId = step.locationId;
+        const run = { id: runId, __typename: "Run" as const };
+        const resourceVersion = step.subroutineId ?
             { id: step.subroutineId, __typename: "ResourceVersion" as const }
             : null;
         const resourceInId = step.objectId;
-        const runProject = { id: runId, __typename: "RunProject" as const };
         const timeElapsed = this.calculateStepTimeElapsed(step);
 
         return {
-            __typename: "RunProjectStep" as const,
-            id,
-            completedAt,
-            complexity,
-            contextSwitches,
-            resource,
-            resourceInId,
-            name,
-            order: index,
-            startedAt,
-            status,
-            timeElapsed,
-            runProject,
-        };
-    }
-
-    /**
-     * Shapes a RunProgressStep into a RunRoutineStepShape.
-     * @param step The run step to shape
-     * @param index The index of the step in the run
-     * @param runId The ID of the run
-     * @returns The shaped step
-     */
-    private toRoutineStepShape(
-        step: RunProgressStep,
-        index: number,
-        runId: string,
-    ): RunRoutineStepShape {
-        const { completedAt, complexity, contextSwitches, id, name, startedAt, status } = step;
-        const nodeId = step.locationId;
-        const runRoutine = { id: runId, __typename: "RunRoutine" as const };
-        const subroutine = step.subroutineId ?
-            { id: step.subroutineId, __typename: "RoutineVersion" as const }
-            : null;
-        const subroutineInId = step.objectId;
-        const timeElapsed = this.calculateStepTimeElapsed(step);
-
-        return {
-            __typename: "RunRoutineStep" as const,
+            __typename: "RunStep" as const,
             id,
             completedAt,
             complexity,
@@ -455,16 +375,22 @@ export abstract class RunPersistence {
             name,
             nodeId,
             order: index,
+            run,
             startedAt,
             status,
+            resourceInId,
+            resourceVersion,
             timeElapsed,
-            runRoutine,
-            subroutine,
-            subroutineInId,
         };
     }
 
-    private toProjectShape(run: RunProgress): RunProjectShape {
+    /**
+     * Converts run progress into a shape to store in the database.
+     * 
+     * @param run The run to store
+     * @returns The shape to store
+     */
+    private toRunShape(run: RunProgress): RunShape {
         // Build the config object to store in the "data" field
         const config = new RunProgressConfig(run);
         const dataString = config.serialize("json");
@@ -473,46 +399,11 @@ export abstract class RunPersistence {
         const completedComplexity = this.calculateTotalCompletedComplexity(run);
         const timeElapsed = run.metrics.timeElapsed || 0;
 
-        const projectVersion = run.runOnObjectId
-            ? { id: run.runOnObjectId, __typename: "ProjectVersion" as const }
+        const resourceVersion = run.runOnObjectId
+            ? { id: run.runOnObjectId, __typename: "ResourceVersion" as const }
             : null;
         const schedule = run.schedule ?? null;
-        const steps = run.steps.map((step, index) => this.toProjectStepShape(step, index, run.runId));
-        const team = this.getRunTeam(run);
-
-        const shape: RunProjectShape = {
-            __typename: "RunProject" as const,
-            id: run.runId,
-            isPrivate: run.config.isPrivate,
-            completedComplexity,
-            contextSwitches,
-            data: dataString,
-            name: run.name,
-            startedAt: run.metrics.startedAt,
-            status: run.status,
-            timeElapsed,
-            steps,
-            schedule,
-            projectVersion,
-            team,
-        };
-        return shape;
-    }
-
-    private toRoutineShape(run: RunProgress): RunRoutineShape {
-        // Build the config object to store in the "data" field
-        const config = new RunProgressConfig(run);
-        const dataString = config.serialize("json");
-
-        const contextSwitches = this.calculateTotalContextSwitches(run);
-        const completedComplexity = this.calculateTotalCompletedComplexity(run);
-        const timeElapsed = run.metrics.timeElapsed || 0;
-
-        const routineVersion = run.runOnObjectId
-            ? { id: run.runOnObjectId, __typename: "RoutineVersion" as const }
-            : null;
-        const schedule = run.schedule ?? null;
-        const steps = run.steps.map((step, index) => this.toRoutineStepShape(step, index, run.runId));
+        const steps = run.steps.map((step, index) => this.toRunStepShape(step, index, run.runId));
         const team = this.getRunTeam(run);
 
         //TODO
@@ -529,40 +420,35 @@ export abstract class RunPersistence {
             });
         }
 
-        const shape: RunRoutineShape = {
-            __typename: "RunRoutine" as const,
+        const shape: RunShape = {
+            __typename: "Run" as const,
             id: run.runId,
-            isPrivate: run.config.isPrivate,
             completedComplexity,
             contextSwitches,
             data: dataString,
+            io,
+            isPrivate: run.config.isPrivate,
             name: run.name,
+            resourceVersion,
+            schedule,
             startedAt: run.metrics.startedAt,
             status: run.status,
-            timeElapsed,
             steps,
-            io,
-            schedule,
-            routineVersion,
             team,
+            timeElapsed,
         };
         return shape;
     }
 
     /**
-     * Converts a stored RunProject or RunRoutine into a RunMetrics object.
+     * Converts a stored Run into a RunMetrics object.
      * 
      * @param storedData The stored data to convert
      * @param creditsSpent The credits spent on the run so far
      * @returns The metrics object
      */
-    private storedDataToMetrics(storedData: RunProject | RunRoutine, creditsSpent: string): RunMetrics {
-        let complexityTotal = 0;
-        if (storedData.__typename === "RunRoutine") {
-            complexityTotal = (storedData as RunRoutine).routineVersion?.complexity || 0;
-        } else if (storedData.__typename === "RunProject") {
-            complexityTotal = (storedData as RunProject).projectVersion?.complexity || 0;
-        }
+    private storedDataToMetrics(storedData: Run, creditsSpent: string): RunMetrics {
+        const complexityTotal = storedData.resourceVersion?.complexity || 0;
 
         const metrics: RunMetrics = {
             complexityCompleted: Math.max(storedData.completedComplexity || 0, 0),
@@ -576,14 +462,14 @@ export abstract class RunPersistence {
     }
 
     /**
-     * Converts a stored RunProject or RunRoutine into an owner object.
+     * Converts a stored Run into an owner object.
      * 
      * @param storedData The stored data to convert
      * @param userData Session data for the user running the routine
      * @returns The owner object
      */
     private storedDataToOwner(
-        storedData: RunProject | RunRoutine,
+        storedData: Run,
         userData: RunTriggeredBy,
     ): RunProgress["owner"] {
         if (storedData.team) {
@@ -593,113 +479,42 @@ export abstract class RunPersistence {
     }
 
     /**
-     * Shapes a RunProjectStepShape into a RunProgressStep.
+     * Shapes a RunStepShape into a RunProgressStep.
      * @param step The run step shape to convert
      * @returns The reconstructed run progress step
      */
-    private fromProjectStepShape(step: RunProjectStepShape): RunProgressStep {
+    private fromRunStepShape(step: Run["steps"][number]): RunProgressStep {
+        let objectType = "Project" as "Project" | "Routine";
+        if (step.resourceVersion?.resourceSubType.startsWith("Routine")) {
+            objectType = "Routine";
+        }
         return {
-            __typename: "ProjectVersion" as const,
-            completedAt: step.completedAt || undefined,
-            complexity: step.complexity || 0,
-            contextSwitches: step.contextSwitches || 0,
-            id: step.id,
-            locationId: "", // Not used for project steps
-            name: step.name,
-            objectId: step.directoryInId, // The ID of the project version the directory is a part of. May be different than the project version being run if we step into a nested project
-            order: step.order,
-            startedAt: step.startedAt,
-            status: step.status,
-            subroutineId: step.directory?.id || null,
-        };
-    }
-
-    /**
-     * Shapes the steps in a stored RunProject into RunProgressSteps, 
-     * and sorts them by order.
-     * 
-     * @param storedData The stored project to convert
-     * @returns The reconstructed run progress steps
-     */
-    private fromProjectSteps(storedData: RunProject): RunProgressStep[] {
-        return storedData.steps
-            .sort((a, b) => a.order - b.order)
-            .map(this.fromProjectStepShape);
-    }
-
-    /**
-     * Shapes a RunRoutineStepShape into a RunProgressStep.
-     * @param step The run step shape to convert
-     * @returns The reconstructed run progress step
-     */
-    private fromRoutineStepShape(step: RunRoutineStepShape): RunProgressStep {
-        return {
-            __typename: "RoutineVersion" as const,
             completedAt: step.completedAt || undefined,
             complexity: step.complexity || 0,
             contextSwitches: step.contextSwitches || 0,
             id: step.id,
             locationId: step.nodeId,
             name: step.name,
-            objectId: step.subroutineInId, // The ID of the routine version the node is a part of. May be different than the routine version being run if we step into a nested routine
+            objectId: step.resourceInId, // The ID of the routine version the node is a part of. May be different than the routine version being run if we step into a nested routine
+            objectType,
             order: step.order,
             startedAt: step.startedAt,
             status: step.status,
-            subroutineId: step.subroutine?.id || null,
+            subroutineId: step.resourceVersion?.id || null,
         };
     }
 
     /**
-     * Shapes the steps in a stored RunRoutine into RunProgressSteps,
+     * Shapes the steps in a stored Run into RunProgressSteps,
      * and sorts them by order.
      * 
-     * @param storedData The stored routine to convert
+     * @param storedData The stored run to convert
      * @returns The reconstructed run progress steps
      */
-    private fromRoutineSteps(storedData: RunRoutine): RunProgressStep[] {
+    private fromRunSteps(storedData: Run): RunProgressStep[] {
         return storedData.steps
             .sort((a, b) => a.order - b.order)
-            .map(this.fromRoutineStepShape);
-    }
-
-    /**
-     * Converts a stored RunProject into a RunProgress object.
-     * 
-     * @param storedData The stored project to convert
-     * @param userData Session data for the user running the routine
-     * @param logger The logger to use for any errors
-     */
-    private fromFetchedProject(
-        storedData: RunProject,
-        userData: RunTriggeredBy,
-        logger: PassableLogger,
-    ): RunProgress {
-        const { name, id: runId, status } = storedData;
-        const { __version, branches, config, decisions, metrics: partialMetrics, subcontexts } = storedData.data
-            ? RunProgressConfig.deserialize(storedData, logger)
-            : RunProgressConfig.default();
-        const metrics = this.storedDataToMetrics(storedData, partialMetrics.creditsSpent);
-        const owner = this.storedDataToOwner(storedData, userData);
-        const schedule = storedData.schedule ?? null;
-        const steps = this.fromProjectSteps(storedData);
-
-        const progress: RunProgress = {
-            __version,
-            branches,
-            config: { ...config, isPrivate: storedData.isPrivate },
-            decisions,
-            name,
-            owner,
-            runId,
-            runOnObjectId: storedData.projectVersion?.id || null,
-            schedule,
-            steps,
-            metrics,
-            status,
-            subcontexts,
-            type: "RunProject" as const,
-        };
-        return progress;
+            .map(this.fromRunStepShape);
     }
 
     /**
@@ -709,8 +524,8 @@ export abstract class RunPersistence {
      * @param userData Session data for the user running the routine
      * @param logger The logger to use for any errors
      */
-    private fromFetchedRoutine(
-        storedData: RunRoutine,
+    private fromFetchedRun(
+        storedData: Run,
         userData: RunTriggeredBy,
         logger: PassableLogger,
     ): RunProgress {
@@ -721,7 +536,7 @@ export abstract class RunPersistence {
         const metrics = this.storedDataToMetrics(storedData, partialMetrics.creditsSpent);
         const owner = this.storedDataToOwner(storedData, userData);
         const schedule = storedData.schedule ?? null;
-        const steps = this.fromRoutineSteps(storedData);
+        const steps = this.fromRunSteps(storedData);
 
         const progress: RunProgress = {
             __version,
@@ -731,13 +546,12 @@ export abstract class RunPersistence {
             name,
             owner,
             runId,
-            runOnObjectId: storedData.routineVersion?.id || null,
+            runOnObjectId: storedData.resourceVersion?.id || null,
             schedule,
             steps,
             metrics,
             status,
             subcontexts,
-            type: "RunRoutine" as const,
         };
         return progress;
     }

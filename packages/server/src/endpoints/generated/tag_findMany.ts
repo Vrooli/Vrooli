@@ -3,7 +3,7 @@ export const tag_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
+            "createdAt": true,
             "tag": true,
             "bookmarks": true,
             "translations": {

@@ -4,6 +4,7 @@ import { CodeLanguage } from "../../consts/ui.js";
 import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
 import { LATEST_CONFIG_VERSION, parseObject, type StringifyMode } from "./utils.js";
 
+const LATEST_CONFIG_VERSION = "1.0";
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
 /**
@@ -151,16 +152,16 @@ type CodeVersionTestCaseResult = {
  */
 export interface CodeVersionConfigObject extends BaseConfigObject {
     /** How to pass input to the code */
-    inputConfig: CodeVersionInputDefinition;
+    inputConfig?: CodeVersionInputDefinition;
     /** 
      * How to parse output from the code.
      * 
      * Supports multiple schemas for different output types, 
      * such as a function that sometimes returns an object and sometimes return null.
      */
-    outputConfig: JsonSchema | JsonSchema[];
+    outputConfig?: JsonSchema | JsonSchema[];
     /** Test cases to validate the code */
-    testCases: CodeVersionTestCase[];
+    testCases?: CodeVersionTestCase[];
     /** The code itself */
     content: string;
     /** Optional blockchain contract details */
@@ -171,16 +172,17 @@ export interface CodeVersionConfigObject extends BaseConfigObject {
  * Top-level Code config that encapsulates all code-related data.
  */
 export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
-    inputConfig: CodeVersionConfigObject["inputConfig"];
-    outputConfig: CodeVersionConfigObject["outputConfig"];
-    testCases: CodeVersionTestCase[];
+    inputConfig?: CodeVersionConfigObject["inputConfig"];
+    outputConfig?: CodeVersionConfigObject["outputConfig"];
+    testCases?: CodeVersionConfigObject["testCases"];
     content: CodeVersionConfigObject["content"];
-    contractDetails: CodeVersionConfigObject["contractDetails"];
+    contractDetails?: CodeVersionConfigObject["contractDetails"];
 
     codeLanguage: ResourceVersion["codeLanguage"];
 
     constructor({ config, codeLanguage }: { config: CodeVersionConfigObject, codeLanguage: ResourceVersion["codeLanguage"] }) {
         super(config);
+        this.__version = config.__version ?? LATEST_CONFIG_VERSION;
         this.inputConfig = config.inputConfig ?? CodeVersionConfig.defaultInputConfig();
         this.outputConfig = config.outputConfig ?? CodeVersionConfig.defaultOutputConfig();
         this.testCases = config.testCases ?? CodeVersionConfig.defaultTestCases();
@@ -189,19 +191,30 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
         this.codeLanguage = codeLanguage;
     }
 
-    /**
-     * Create a CodeVersionConfig from a code version object
-     */
-    static createFromCodeVersion(
-        codeVersion: Pick<ResourceVersion, "config" | "codeLanguage">,
+    static deserialize(
+        { codeLanguage, config }: Pick<ResourceVersion, "codeLanguage" | "config">,
         logger: PassableLogger,
-        options: { mode?: StringifyMode } = {},
+        { mode = DEFAULT_STRINGIFY_MODE, useFallbacks = true }: { mode?: StringifyMode, useFallbacks?: boolean } = {},
     ): CodeVersionConfig {
-        const obj = codeVersion.config ? parseObject<CodeVersionConfigObject>(codeVersion.config, options.mode || DEFAULT_STRINGIFY_MODE, logger) : null;
+        let obj = config ? parseObject<CodeVersionConfigObject>(config, mode, logger) : null;
         if (!obj) {
-            return CodeVersionConfig.default({ codeLanguage: codeVersion.codeLanguage });
+            obj = { content: "", __version: LATEST_CONFIG_VERSION };
         }
-        return new CodeVersionConfig({ config: obj, codeLanguage: codeVersion.codeLanguage });
+        if (useFallbacks) {
+            if (!obj.inputConfig) {
+                obj.inputConfig = CodeVersionConfig.defaultInputConfig();
+            }
+            if (!obj.outputConfig) {
+                obj.outputConfig = CodeVersionConfig.defaultOutputConfig();
+            }
+            if (!obj.testCases) {
+                obj.testCases = CodeVersionConfig.defaultTestCases();
+            }
+            if (!obj.contractDetails) {
+                // Add if needed
+            }
+        }
+        return new CodeVersionConfig({ config: obj, codeLanguage });
     }
 
     static default({ codeLanguage }: { codeLanguage: ResourceVersion["codeLanguage"] }): CodeVersionConfig {

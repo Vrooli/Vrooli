@@ -9,7 +9,7 @@ import { onSocketEvent } from "../events.js";
 
 /** Socket room for run events */
 export function runSocketRoomHandlers(socket: Socket) {
-    onSocketEvent(socket, "joinRunRoom", async ({ runId, runType }, callback) => {
+    onSocketEvent(socket, "joinRunRoom", async ({ runId }, callback) => {
         try {
             if (AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_RUN_ROOM_ERRORS.SessionExpired });
@@ -22,7 +22,7 @@ export function runSocketRoomHandlers(socket: Socket) {
             // Check if user is authenticated
             const userData = RequestService.assertRequestFrom(socket, { isUser: true });
             // Find run only if permitted
-            const { canDelete: canRun } = await getSingleTypePermissions<(RunRoutineModelInfo | RunProjectModelInfo)["ApiPermission"]>(runType, [runId], userData);
+            const { canDelete: canRun } = await getSingleTypePermissions<(RunRoutineModelInfo | RunProjectModelInfo)["ApiPermission"]>("Run", [runId], userData);
             if (!Array.isArray(canRun) || !canRun.every(Boolean)) {
                 const message = JOIN_RUN_ROOM_ERRORS.RunNotFoundOrUnauthorized;
                 logger.error(message, { trace: "0623" });

@@ -332,7 +332,7 @@ export function CommentThreadItem({
                             variant="caption"
                             color="background.textSecondary"
                         >
-                            {displayDate(data?.created_at, false)}
+                            {displayDate(data?.createdAt, false)}
                         </Typography>
                     </Stack>
                     {/* Text */}

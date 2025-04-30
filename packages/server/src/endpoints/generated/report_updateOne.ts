@@ -1,7 +1,8 @@
 export const report_updateOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "publicId": true,
+    "createdAt": true,
+    "updatedAt": true,
     "details": true,
     "language": true,
     "reason": true,
@@ -15,8 +16,8 @@ export const report_updateOne = {
     },
     "responses": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "actionSuggested": true,
         "details": true,
         "language": true,
@@ -25,5 +26,5 @@ export const report_updateOne = {
             "canUpdate": true
         }
     },
-    "__cacheKey": "-1921025353"
+    "__cacheKey": "1420069751"
 };

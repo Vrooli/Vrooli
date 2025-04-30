@@ -1,4 +1,4 @@
-import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success, uuid } from "@local/shared";
+import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, generatePKString, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { type TFuncKey } from "i18next";
 import { InfoConverter } from "../builders/infoConverter.js";
@@ -197,7 +197,7 @@ async function push({
             const notificationsData = users.map(({ userId }) => ({
                 category,
                 description: userBodies[userId],
-                id: uuid(),
+                id: generatePKString(),
                 imgLink: APP_ICON,
                 link,
                 title: userTitles[userId],
@@ -218,7 +218,7 @@ async function push({
                         emitSocketEvent("notification", user.userId, {
                             ...notification,
                             __typename: "Notification",
-                            created_at: new Date().toISOString(),
+                            createdAt: new Date().toISOString(),
                             isRead: false,
                         });
                     }
@@ -642,10 +642,10 @@ export function Notify(languages: string[] | undefined) {
             link: `/messages/${messageId}`,
             titleKey: "MessageReceived_Title",
         }),
-        pushNewDecisionRequest: (decision: DeferredDecisionData, runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushNewDecisionRequest: (decision: DeferredDecisionData, runId: string): NotifyResultType => NotifyResult({
             body: decision.message,
             bodyKey: "NewDecisionRequest_Body",
-            bodyVariables: { objectName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { objectName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             titleKey: "NewDecisionRequest_Title",
@@ -741,25 +741,25 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}/pulls/${reportId}`,
             titleKey: `PullRequestStatus${status}_Title`,
         }),
-        pushRunStartedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushRunStartedAutomatically: (runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunStartedAutomatically_Body",
-            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { runName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,
             titleKey: "RunStartedAutomatically_Title",
         }),
-        pushRunCompletedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushRunCompletedAutomatically: (runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunCompletedAutomatically_Body",
-            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { runName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,
             titleKey: "RunCompletedAutomatically_Title",
         }),
-        pushRunFailedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushRunFailedAutomatically: (runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunFailedAutomatically_Body",
-            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { runName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,

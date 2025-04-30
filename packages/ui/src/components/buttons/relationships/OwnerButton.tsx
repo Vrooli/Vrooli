@@ -104,7 +104,7 @@ export function OwnerButton({
             : (owner as RelationshipItemUser).name;
         const isSelf = !isTeam && owner.id === getCurrentUser(session).id;
         const isBot = !isTeam && (owner as Partial<User>).isBot === true;
-        const imageUrl = extractImageUrl(owner.profileImage, owner.updated_at, TARGET_IMAGE_SIZE);
+        const imageUrl = extractImageUrl(owner.profileImage, owner.updatedAt, TARGET_IMAGE_SIZE);
         const label = `By: ${isSelf ? t("Self") : ownerName}`;
         const truncatedLabel = label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;
 

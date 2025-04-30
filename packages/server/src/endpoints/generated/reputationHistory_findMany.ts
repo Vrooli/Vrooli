@@ -3,8 +3,8 @@ export const reputationHistory_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "amount": true,
             "event": true,
             "objectId1": true,

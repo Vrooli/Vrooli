@@ -3,12 +3,13 @@ export const chatParticipant_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -36,5 +37,5 @@ export const chatParticipant_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1046160542"
+    "__cacheKey": "-686480350"
 };

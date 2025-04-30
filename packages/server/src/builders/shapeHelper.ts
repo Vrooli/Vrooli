@@ -1,4 +1,4 @@
-import { ModelType, SessionUser, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { ModelType, SessionUser, lowercaseFirstLetter, validatePK } from "@local/shared";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { PreMap } from "../models/types.js";
@@ -124,8 +124,8 @@ export async function shapeHelper<
     if (Array.isArray(result.create) && result.create.length > 0 && Object.keys(idsCreateToConnect).length > 0) {
         const connected = result.create.map((e: { [x: string]: any }) => {
             const id = idsCreateToConnect[e[idField]] ?? idsCreateToConnect[e.id];
-            const isUuid = typeof id === "string" && uuidValidate(id);
-            return id ? { [isUuid ? "id" : idField]: id } : null;
+            const isValidPK = typeof id === "string" && validatePK(id);
+            return id ? { [isValidPK ? "id" : idField]: id } : null;
         }).filter((e) => e);
         if (connected.length) {
             result.connect = Array.isArray(result.connect) ? [...result.connect, ...connected] : connected;

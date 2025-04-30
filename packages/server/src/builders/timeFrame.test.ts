@@ -55,7 +55,7 @@ describe("timeFrameToPrisma", () => {
 });
 
 describe("timeFrameToSql", () => {
-    const fieldName = "created_at";  // Change as needed for additional field tests
+    const fieldName = "createdAt";  // Change as needed for additional field tests
 
     it("returns null when timeFrame is undefined", () => {
         expect(timeFrameToSql(fieldName, undefined)).to.be.null;
@@ -87,7 +87,7 @@ describe("timeFrameToSql", () => {
     it("handles different field names", () => {
         const afterDate = new Date("2021-01-01");
         const expectedSeconds = Math.floor(afterDate.getTime() / 1000);
-        const updatedFieldName = "updated_at";
+        const updatedFieldName = "updatedAt";
         expect(timeFrameToSql(updatedFieldName, { after: afterDate }))
             .to.equal(`EXTRACT(EPOCH FROM t."${updatedFieldName}") >= ${expectedSeconds}`);
     });

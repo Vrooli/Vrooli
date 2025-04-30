@@ -81,7 +81,7 @@ const batchApis = async (
                 createdById: true,
             },
             where: {
-                created_at: { gte: periodStart, lt: periodEnd },
+                createdAt: { gte: periodStart, lt: periodEnd },
                 createdById: { in: userIds },
                 isDeleted: false,
             },
@@ -126,7 +126,7 @@ const batchTeams = async (
                 createdById: true,
             },
             where: {
-                created_at: { gte: periodStart, lt: periodEnd },
+                createdAt: { gte: periodStart, lt: periodEnd },
                 createdById: { in: userIds },
             },
         });
@@ -166,7 +166,7 @@ const batchProjects = async (
                     currResult.projectsCreated += 1;
                     if (project.hasCompleteVersion) {
                         currResult.projectsCompleted += 1;
-                        if (project.completedAt) currResult.projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.created_at).getTime());
+                        if (project.completedAt) currResult.projectCompletionTimeAverage += (new Date(project.completedAt).getTime() - new Date(project.createdAt).getTime());
                     }
                 });
             },
@@ -185,7 +185,7 @@ const batchProjects = async (
             select: {
                 id: true,
                 completedAt: true,
-                created_at: true,
+                createdAt: true,
                 createdById: true,
                 hasCompleteVersion: true,
             },
@@ -193,7 +193,7 @@ const batchProjects = async (
                 createdById: { in: userIds },
                 isDeleted: false,
                 OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
+                    { createdAt: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
                 ],
             },
@@ -234,7 +234,7 @@ const batchRoutines = async (
                     currResult.routinesCreated += 1;
                     if (routine.hasCompleteVersion) {
                         currResult.routinesCompleted += 1;
-                        if (routine.completedAt) currResult.routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.created_at).getTime());
+                        if (routine.completedAt) currResult.routineCompletionTimeAverage += (new Date(routine.completedAt).getTime() - new Date(routine.createdAt).getTime());
                     }
                 });
             },
@@ -253,7 +253,7 @@ const batchRoutines = async (
             select: {
                 id: true,
                 completedAt: true,
-                created_at: true,
+                createdAt: true,
                 createdById: true,
                 hasCompleteVersion: true,
             },
@@ -261,7 +261,7 @@ const batchRoutines = async (
                 createdById: { in: userIds },
                 isDeleted: false,
                 OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
+                    { createdAt: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
                 ],
             },
@@ -458,7 +458,7 @@ const batchCodes = async (
                     currResult.codesCreated += 1;
                     if (code.hasCompleteVersion) {
                         currResult.codesCompleted += 1;
-                        if (code.completedAt) currResult.codeCompletionTimeAverage += (new Date(code.completedAt).getTime() - new Date(code.created_at).getTime());
+                        if (code.completedAt) currResult.codeCompletionTimeAverage += (new Date(code.completedAt).getTime() - new Date(code.createdAt).getTime());
                     }
                 });
             },
@@ -477,7 +477,7 @@ const batchCodes = async (
             select: {
                 id: true,
                 completedAt: true,
-                created_at: true,
+                createdAt: true,
                 createdById: true,
                 hasCompleteVersion: true,
             },
@@ -485,7 +485,7 @@ const batchCodes = async (
                 createdById: { in: userIds },
                 isDeleted: false,
                 OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
+                    { createdAt: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
                 ],
             },
@@ -526,7 +526,7 @@ const batchStandards = async (
                     currResult.standardsCreated += 1;
                     if (standard.hasCompleteVersion) {
                         currResult.standardsCompleted += 1;
-                        if (standard.completedAt) currResult.standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.created_at).getTime());
+                        if (standard.completedAt) currResult.standardCompletionTimeAverage += (new Date(standard.completedAt).getTime() - new Date(standard.createdAt).getTime());
                     }
                 });
             },
@@ -545,7 +545,7 @@ const batchStandards = async (
             select: {
                 id: true,
                 completedAt: true,
-                created_at: true,
+                createdAt: true,
                 createdById: true,
                 hasCompleteVersion: true,
             },
@@ -553,7 +553,7 @@ const batchStandards = async (
                 createdById: { in: userIds },
                 isDeleted: false,
                 OR: [
-                    { created_at: { gte: periodStart, lt: periodEnd } },
+                    { createdAt: { gte: periodStart, lt: periodEnd } },
                     { completedAt: { gte: periodStart, lt: periodEnd } },
                 ],
             },
@@ -612,7 +612,7 @@ export async function logUserStats(
                 id: true,
             },
             where: {
-                updated_at: {
+                updatedAt: {
                     gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
                 },
             },

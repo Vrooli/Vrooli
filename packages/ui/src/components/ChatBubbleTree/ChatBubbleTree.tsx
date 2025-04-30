@@ -589,7 +589,7 @@ export function ChatBubble({
                 <Stack direction="row" justifyContent={isOwn ? "flex-end" : "flex-start"}>
                     {!isOwn && !isMobile && (
                         <ProfileAvatar
-                            src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, TARGET_PROFILE_IMAGE_SIZE_PX)}
+                            src={extractImageUrl(message.user?.profileImage, message.user?.updatedAt, TARGET_PROFILE_IMAGE_SIZE_PX)}
                             alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
                             isBot={message.user?.isBot === true}
                             onClick={openProfile}
@@ -626,7 +626,7 @@ export function ChatBubble({
                     isOwn={isOwn}
                     numSiblings={numSiblings}
                     messageId={message.id}
-                    messageCreatedAt={message.created_at}
+                    messageCreatedAt={message.createdAt}
                     reactions={message.reactionSummaries}
                     status={message.status ?? "sent"}
                     onDelete={handleDelete}

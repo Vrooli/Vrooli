@@ -19,7 +19,7 @@ const mockNotifications: Notification[] = [
     {
         __typename: "Notification",
         id: uuidv4(),
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         title: "Agent Task Completed",
         description: "Your agent 'Alpha' completed its task successfully.",
         category: "AGENT",
@@ -30,7 +30,7 @@ const mockNotifications: Notification[] = [
     {
         __typename: "Notification",
         id: uuidv4(),
-        created_at: new Date(Date.now() - ONE_DAY_MS).toISOString(),
+        createdAt: new Date(Date.now() - ONE_DAY_MS).toISOString(),
         title: "New Comment",
         description: "New comment on your document 'Project Proposal'.",
         category: "DOCUMENT",
@@ -41,7 +41,7 @@ const mockNotifications: Notification[] = [
     {
         __typename: "Notification",
         id: uuidv4(),
-        created_at: new Date(Date.now() - TWO_DAYS_MS).toISOString(),
+        createdAt: new Date(Date.now() - TWO_DAYS_MS).toISOString(),
         title: "Low Credit Balance",
         description: "Credit balance is low. Please top up.",
         category: "BILLING",

@@ -1,16 +1,16 @@
 export const chatMessage_findOne = {
     "id": true,
-    "created_at": true,
+    "createdAt": true,
     "sequence": true,
     "versionIndex": true,
     "parent": {
         "id": true,
-        "created_at": true
+        "createdAt": true
     },
     "user": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,

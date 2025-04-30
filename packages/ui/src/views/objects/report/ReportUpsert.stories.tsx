@@ -10,8 +10,8 @@ import { ReportUpsert } from "./ReportUpsert.js";
 const mockReportData: Report = {
     __typename: "Report" as const,
     id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     reason: "Inappropriate",
     otherReason: "",
     details: "This is a detailed explanation of why this content was reported as inappropriate. The content contains material that violates community guidelines.",

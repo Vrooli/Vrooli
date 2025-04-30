@@ -14,8 +14,9 @@ export const reportYou: ApiPartial<ReportYou> = {
 export const report: ApiPartial<Report> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         details: true,
         language: true,
         reason: true,

@@ -26,8 +26,8 @@ const scheduleUser1Data = {
     startTime: new Date("2024-01-10T09:00:00Z"),
     endTime: new Date("2024-01-10T10:00:00Z"),
     timezone: "UTC",
-    created_at: new Date("2024-01-01T00:00:00Z"),
-    updated_at: new Date("2024-01-01T00:00:00Z"),
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    updatedAt: new Date("2024-01-01T00:00:00Z"),
 };
 
 const scheduleUser2Data = {
@@ -35,8 +35,8 @@ const scheduleUser2Data = {
     startTime: new Date("2024-01-11T14:00:00Z"),
     endTime: new Date("2024-01-11T15:30:00Z"),
     timezone: "America/New_York",
-    created_at: new Date("2024-01-02T00:00:00Z"),
-    updated_at: new Date("2024-01-02T00:00:00Z"),
+    createdAt: new Date("2024-01-02T00:00:00Z"),
+    updatedAt: new Date("2024-01-02T00:00:00Z"),
 };
 
 describe("EndpointsSchedule", () => {
