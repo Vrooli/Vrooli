@@ -23,7 +23,6 @@
         }
     ],
     "vars": {
-        "BOT_UA": "(facebookexternalhit|Twitterbot|Slackbot-LinkExpanding|Discordbot|LinkedInBot|Pinterest|BingPreview)",
         "ORIGIN_HOST": "do-origin.vrooli.com"
     }
 }
