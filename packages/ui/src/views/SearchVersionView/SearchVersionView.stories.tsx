@@ -8,7 +8,7 @@ export default {
 
 export function LoggedOut() {
     return (
-        <SearchVersionView display="page" />
+        <SearchVersionView display="Page" />
     );
 }
 LoggedOut.parameters = {
@@ -17,7 +17,7 @@ LoggedOut.parameters = {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <SearchVersionView display="page" />
+        <SearchVersionView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -26,7 +26,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <SearchVersionView display="page" />
+        <SearchVersionView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -35,7 +35,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <SearchVersionView display="page" />
+        <SearchVersionView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -44,7 +44,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <SearchVersionView display="page" />
+        <SearchVersionView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

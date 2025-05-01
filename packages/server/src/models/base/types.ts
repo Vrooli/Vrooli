@@ -1,28 +1,9 @@
-import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Code, CodeCreateInput, CodeSearchInput, CodeSortBy, CodeUpdateInput, CodeVersion, CodeVersionCreateInput, CodeVersionSearchInput, CodeVersionSortBy, CodeVersionUpdateInput, CodeYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, MemberYou, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, Notification, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, ReactInput, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineIO, RunRoutineIOCreateInput, RunRoutineIOSearchInput, RunRoutineIOSortBy, RunRoutineIOUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, Session, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsCode, StatsCodeSearchInput, StatsCodeSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsTeam, StatsTeamSearchInput, StatsTeamSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Team, TeamCreateInput, TeamSearchInput, TeamSortBy, TeamUpdateInput, TeamYou, Transfer, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
+import { ApiKey, ApiKeyCreateInput, ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput, ApiKeyUpdateInput, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, MemberYou, Notification, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Premium, ProfileUpdateInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, ReactInput, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, ResourceVersion, ResourceVersionCreateInput, ResourceVersionSearchInput, ResourceVersionSortBy, ResourceVersionUpdateInput, ResourceVersionYou, ResourceYou, Run, RunCreateInput, RunIO, RunIOCreateInput, RunIOSearchInput, RunIOSortBy, RunIOUpdateInput, RunSearchInput, RunSortBy, RunStep, RunStepCreateInput, RunStepUpdateInput, RunUpdateInput, RunYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionSearchInput, ScheduleExceptionSortBy, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceSearchInput, ScheduleRecurrenceSortBy, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, Session, StatsResource, StatsResourceSearchInput, StatsResourceSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsTeam, StatsTeamSearchInput, StatsTeamSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Team, TeamCreateInput, TeamSearchInput, TeamSortBy, TeamUpdateInput, TeamYou, Transfer, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Resource } from "i18next";
 import { SelectWrap } from "../../builders/types.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelLogic } from "../types.js";
-
-export type ApiPermissions = Omit<ApiYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
-export type ApiModelInfo = {
-    __typename: "Api",
-    IsTransferable: true,
-    IsVersioned: true,
-    ApiCreate: ApiCreateInput,
-    ApiUpdate: ApiUpdateInput,
-    ApiModel: Api,
-    ApiPermission: ApiPermissions,
-    ApiSearch: ApiSearchInput,
-    ApiSort: ApiSortBy,
-    DbCreate: Prisma.apiUpsertArgs["create"],
-    DbUpdate: Prisma.apiUpsertArgs["update"],
-    DbModel: Prisma.apiGetPayload<SelectWrap<Prisma.apiSelect>>,
-    DbSelect: Prisma.apiSelect,
-    DbWhere: Prisma.apiWhereInput,
-}
-export type ApiModelLogic = ModelLogic<ApiModelInfo, typeof SuppFields.Api>;
 
 export type ApiKeyModelInfo = {
     __typename: "ApiKey",
@@ -59,25 +40,6 @@ export type ApiKeyExternalModelInfo = {
     DbWhere: Prisma.api_key_externalWhereInput,
 }
 export type ApiKeyExternalModelLogic = ModelLogic<ApiKeyExternalModelInfo, typeof SuppFields.ApiKeyExternal>;
-
-export type ApiVersionPermissions = Omit<VersionYou, "__typename">;
-export type ApiVersionModelInfo = {
-    __typename: "ApiVersion",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: ApiVersionCreateInput,
-    ApiUpdate: ApiVersionUpdateInput,
-    ApiPermission: ApiVersionPermissions,
-    ApiModel: ApiVersion,
-    ApiSearch: ApiVersionSearchInput,
-    ApiSort: ApiVersionSortBy,
-    DbCreate: Prisma.api_versionUpsertArgs["create"],
-    DbUpdate: Prisma.api_versionUpsertArgs["update"],
-    DbModel: Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>,
-    DbSelect: Prisma.api_versionSelect,
-    DbWhere: Prisma.api_versionWhereInput,
-}
-export type ApiVersionModelLogic = ModelLogic<ApiVersionModelInfo, typeof SuppFields.ApiVersion>;
 
 export type AwardModelInfo = {
     __typename: "Award",
@@ -207,44 +169,6 @@ export type ChatParticipantModelInfo = {
     DbWhere: Prisma.chat_participantsWhereInput,
 }
 export type ChatParticipantModelLogic = ModelLogic<ChatParticipantModelInfo, typeof SuppFields.ChatParticipant>;
-
-export type CodePermissions = Omit<CodeYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
-export type CodeModelInfo = {
-    __typename: "Code",
-    IsTransferable: true,
-    IsVersioned: true,
-    ApiCreate: CodeCreateInput,
-    ApiUpdate: CodeUpdateInput,
-    ApiModel: Code,
-    ApiSearch: CodeSearchInput,
-    ApiSort: CodeSortBy,
-    ApiPermission: CodePermissions,
-    DbCreate: Prisma.codeUpsertArgs["create"],
-    DbUpdate: Prisma.codeUpsertArgs["update"],
-    DbModel: Prisma.codeGetPayload<SelectWrap<Prisma.codeSelect>>,
-    DbSelect: Prisma.codeSelect,
-    DbWhere: Prisma.codeWhereInput,
-}
-export type CodeModelLogic = ModelLogic<CodeModelInfo, typeof SuppFields.Code>;
-
-export type CodeVersionPermissions = Omit<VersionYou, "__typename">;
-export type CodeVersionModelInfo = {
-    __typename: "CodeVersion",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: CodeVersionCreateInput,
-    ApiUpdate: CodeVersionUpdateInput,
-    ApiModel: CodeVersion,
-    ApiSearch: CodeVersionSearchInput,
-    ApiSort: CodeVersionSortBy,
-    ApiPermission: CodeVersionPermissions,
-    DbCreate: Prisma.code_versionUpsertArgs["create"],
-    DbUpdate: Prisma.code_versionUpsertArgs["update"],
-    DbModel: Prisma.code_versionGetPayload<SelectWrap<Prisma.code_versionSelect>>,
-    DbSelect: Prisma.code_versionSelect,
-    DbWhere: Prisma.code_versionWhereInput,
-}
-export type CodeVersionModelLogic = ModelLogic<CodeVersionModelInfo, typeof SuppFields.CodeVersion>;
 
 export type CommentPermissions = Omit<CommentYou, "__typename" | "isBookmarked" | "reaction">;
 export type CommentModelInfo = {
@@ -378,44 +302,6 @@ export type MemberInviteModelInfo = {
 }
 export type MemberInviteModelLogic = ModelLogic<MemberInviteModelInfo, typeof SuppFields.MemberInvite>;
 
-export type NotePermissions = Omit<NoteYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
-export type NoteModelInfo = {
-    __typename: "Note",
-    IsTransferable: true,
-    IsVersioned: true,
-    ApiCreate: NoteCreateInput,
-    ApiUpdate: NoteUpdateInput,
-    ApiModel: Note,
-    ApiSearch: NoteSearchInput,
-    ApiSort: NoteSortBy,
-    ApiPermission: NotePermissions,
-    DbCreate: Prisma.noteUpsertArgs["create"],
-    DbUpdate: Prisma.noteUpsertArgs["update"],
-    DbModel: Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>,
-    DbSelect: Prisma.noteSelect,
-    DbWhere: Prisma.noteWhereInput,
-}
-export type NoteModelLogic = ModelLogic<NoteModelInfo, typeof SuppFields.Note>;
-
-export type NoteVersionPermissions = Omit<VersionYou, "__typename">;
-export type NoteVersionModelInfo = {
-    __typename: "NoteVersion",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: NoteVersionCreateInput,
-    ApiUpdate: NoteVersionUpdateInput,
-    ApiModel: NoteVersion,
-    ApiSearch: NoteVersionSearchInput,
-    ApiSort: NoteVersionSortBy,
-    ApiPermission: NoteVersionPermissions,
-    DbCreate: Prisma.note_versionUpsertArgs["create"],
-    DbUpdate: Prisma.note_versionUpsertArgs["update"],
-    DbModel: Prisma.note_versionGetPayload<SelectWrap<Prisma.note_versionSelect>>,
-    DbSelect: Prisma.note_versionSelect,
-    DbWhere: Prisma.note_versionWhereInput,
-}
-export type NoteVersionModelLogic = ModelLogic<NoteVersionModelInfo, typeof SuppFields.NoteVersion>;
-
 export type NotificationModelInfo = {
     __typename: "Notification",
     IsTransferable: false,
@@ -505,62 +391,6 @@ export type PremiumModelInfo = {
     DbWhere: Prisma.premiumWhereInput,
 }
 export type PremiumModelLogic = ModelLogic<PremiumModelInfo, typeof SuppFields.Premium>;
-
-export type ProjectPermissions = Omit<ProjectYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
-export type ProjectModelInfo = {
-    __typename: "Project",
-    IsTransferable: true,
-    IsVersioned: true,
-    ApiCreate: ProjectCreateInput,
-    ApiUpdate: ProjectUpdateInput,
-    ApiModel: Project,
-    ApiSearch: ProjectSearchInput,
-    ApiSort: ProjectSortBy,
-    ApiPermission: ProjectPermissions,
-    DbCreate: Prisma.projectUpsertArgs["create"],
-    DbUpdate: Prisma.projectUpsertArgs["update"],
-    DbModel: Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
-    DbSelect: Prisma.projectSelect,
-    DbWhere: Prisma.projectWhereInput,
-}
-export type ProjectModelLogic = ModelLogic<ProjectModelInfo, typeof SuppFields.Project>;
-
-export type ProjectVersionPermissions = Omit<VersionYou, "__typename">;
-export type ProjectVersionModelInfo = {
-    __typename: "ProjectVersion",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: ProjectVersionCreateInput,
-    ApiUpdate: ProjectVersionUpdateInput,
-    ApiModel: ProjectVersion,
-    ApiSearch: ProjectVersionSearchInput,
-    ApiSort: ProjectVersionSortBy,
-    ApiPermission: ProjectVersionPermissions,
-    DbCreate: Prisma.project_versionUpsertArgs["create"],
-    DbUpdate: Prisma.project_versionUpsertArgs["update"],
-    DbModel: Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>,
-    DbSelect: Prisma.project_versionSelect,
-    DbWhere: Prisma.project_versionWhereInput,
-}
-export type ProjectVersionModelLogic = ModelLogic<ProjectVersionModelInfo, typeof SuppFields.ProjectVersion>;
-
-export type ProjectVersionDirectoryModelInfo = {
-    __typename: "ProjectVersionDirectory",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: ProjectVersionDirectoryCreateInput,
-    ApiUpdate: ProjectVersionDirectoryUpdateInput,
-    ApiModel: ProjectVersionDirectory,
-    ApiPermission: never,
-    ApiSearch: ProjectVersionDirectorySearchInput,
-    ApiSort: ProjectVersionDirectorySortBy,
-    DbCreate: Prisma.project_version_directoryUpsertArgs["create"],
-    DbUpdate: Prisma.project_version_directoryUpsertArgs["update"],
-    DbModel: Prisma.project_version_directoryGetPayload<SelectWrap<Prisma.project_version_directorySelect>>,
-    DbSelect: Prisma.project_version_directorySelect,
-    DbWhere: Prisma.project_version_directoryWhereInput,
-}
-export type ProjectVersionDirectoryModelLogic = ModelLogic<ProjectVersionDirectoryModelInfo, typeof SuppFields.ProjectVersionDirectory>;
 
 export type PullRequestPermissions = Omit<PullRequestYou, "__typename">;
 export type PullRequestModelInfo = {
@@ -727,16 +557,17 @@ export type ReportResponseModelInfo = {
 }
 export type ReportResponseModelLogic = ModelLogic<ReportResponseModelInfo, typeof SuppFields.ReportResponse>;
 
+type ResourcePermissions = Omit<ResourceYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
 export type ResourceModelInfo = {
     __typename: "Resource",
-    IsTransferable: false,
-    IsVersioned: false,
+    IsTransferable: true,
+    IsVersioned: true,
     ApiCreate: ResourceCreateInput,
     ApiUpdate: ResourceUpdateInput,
     ApiModel: Resource,
     ApiSearch: ResourceSearchInput,
     ApiSort: ResourceSortBy,
-    ApiPermission: never,
+    ApiPermission: ResourcePermissions,
     DbCreate: Prisma.resourceUpsertArgs["create"],
     DbUpdate: Prisma.resourceUpsertArgs["update"],
     DbModel: Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,
@@ -745,207 +576,79 @@ export type ResourceModelInfo = {
 }
 export type ResourceModelLogic = ModelLogic<ResourceModelInfo, typeof SuppFields.Resource>;
 
-export type ResourceListModelInfo = {
-    __typename: "ResourceList",
+export type ResourceVersionPermissions = Omit<ResourceVersionYou, "__typename">;
+export type ResourceVersionModelInfo = {
+    __typename: "ResourceVersion",
     IsTransferable: false,
     IsVersioned: false,
-    ApiCreate: ResourceListCreateInput,
-    ApiUpdate: ResourceListUpdateInput,
-    ApiModel: ResourceList,
-    ApiSearch: ResourceListSearchInput,
-    ApiSort: ResourceListSortBy,
+    ApiCreate: ResourceVersionCreateInput,
+    ApiUpdate: ResourceVersionUpdateInput,
+    ApiModel: ResourceVersion,
+    ApiSearch: ResourceVersionSearchInput,
+    ApiSort: ResourceVersionSortBy,
+    ApiPermission: ResourceVersionPermissions,
+    DbCreate: Prisma.resource_versionUpsertArgs["create"],
+    DbUpdate: Prisma.resource_versionUpsertArgs["update"],
+    DbModel: Prisma.resource_versionGetPayload<SelectWrap<Prisma.resource_versionSelect>>,
+    DbSelect: Prisma.resource_versionSelect,
+    DbWhere: Prisma.resource_versionWhereInput,
+}
+export type ResourceVersionModelLogic = ModelLogic<ResourceVersionModelInfo, typeof SuppFields.ResourceVersion>;
+
+export type RunPermissions = Omit<RunYou, "__typename">;
+export type RunModelInfo = {
+    __typename: "Run",
+    IsTransferable: false,
+    IsVersioned: false,
+    ApiCreate: RunCreateInput,
+    ApiUpdate: RunUpdateInput,
+    ApiModel: Run,
+    ApiSearch: RunSearchInput,
+    ApiSort: RunSortBy,
+    ApiPermission: RunPermissions,
+    DbCreate: Prisma.runUpsertArgs["create"],
+    DbUpdate: Prisma.runUpsertArgs["update"],
+    DbModel: Prisma.runGetPayload<SelectWrap<Prisma.runSelect>>,
+    DbSelect: Prisma.runSelect,
+    DbWhere: Prisma.runWhereInput,
+}
+export type RunModelLogic = ModelLogic<RunModelInfo, typeof SuppFields.Run>;
+
+export type RunIOModelInfo = {
+    __typename: "RunIO",
+    IsTransferable: false,
+    IsVersioned: false,
+    ApiCreate: RunIOCreateInput,
+    ApiUpdate: RunIOUpdateInput,
+    ApiModel: RunIO,
+    ApiSearch: RunIOSearchInput,
+    ApiSort: RunIOSortBy,
     ApiPermission: never,
-    DbCreate: Prisma.resource_listUpsertArgs["create"],
-    DbUpdate: Prisma.resource_listUpsertArgs["update"],
-    DbModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
-    DbSelect: Prisma.resource_listSelect,
-    DbWhere: Prisma.resource_listWhereInput,
+    DbCreate: Prisma.run_ioUpsertArgs["create"],
+    DbUpdate: Prisma.run_ioUpsertArgs["update"],
+    DbModel: Prisma.run_ioGetPayload<SelectWrap<Prisma.run_ioSelect>>,
+    DbSelect: Prisma.run_ioSelect,
+    DbWhere: Prisma.run_ioWhereInput,
 }
-export type ResourceListModelLogic = ModelLogic<ResourceListModelInfo, typeof SuppFields.ResourceList>;
+export type RunIOModelLogic = ModelLogic<RunIOModelInfo, typeof SuppFields.RunIO>;
 
-export type RoleModelInfo = {
-    __typename: "Role",
+export type RunStepModelInfo = {
+    __typename: "RunStep",
     IsTransferable: false,
     IsVersioned: false,
-    ApiCreate: RoleCreateInput,
-    ApiUpdate: RoleUpdateInput,
-    ApiModel: Role,
-    ApiPermission: never,
-    ApiSearch: RoleSearchInput,
-    ApiSort: RoleSortBy,
-    DbCreate: Prisma.roleUpsertArgs["create"],
-    DbUpdate: Prisma.roleUpsertArgs["update"],
-    DbModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
-    DbSelect: Prisma.roleSelect,
-    DbWhere: Prisma.roleWhereInput,
-}
-export type RoleModelLogic = ModelLogic<RoleModelInfo, typeof SuppFields.Role>;
-
-type RoutinePermissions = Omit<RoutineYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
-export type RoutineModelInfo = {
-    __typename: "Routine",
-    IsTransferable: true,
-    IsVersioned: true,
-    ApiCreate: RoutineCreateInput,
-    ApiUpdate: RoutineUpdateInput,
-    ApiModel: Routine,
-    ApiSearch: RoutineSearchInput,
-    ApiSort: RoutineSortBy,
-    ApiPermission: RoutinePermissions,
-    DbCreate: Prisma.routineUpsertArgs["create"],
-    DbUpdate: Prisma.routineUpsertArgs["update"],
-    DbModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
-    DbSelect: Prisma.routineSelect,
-    DbWhere: Prisma.routineWhereInput,
-}
-export type RoutineModelLogic = ModelLogic<RoutineModelInfo, typeof SuppFields.Routine>;
-
-export type RoutineVersionPermissions = Omit<RoutineVersionYou, "__typename">;
-export type RoutineVersionModelInfo = {
-    __typename: "RoutineVersion",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RoutineVersionCreateInput,
-    ApiUpdate: RoutineVersionUpdateInput,
-    ApiModel: RoutineVersion,
-    ApiSearch: RoutineVersionSearchInput,
-    ApiSort: RoutineVersionSortBy,
-    ApiPermission: RoutineVersionPermissions,
-    DbCreate: Prisma.routine_versionUpsertArgs["create"],
-    DbUpdate: Prisma.routine_versionUpsertArgs["update"],
-    DbModel: Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>,
-    DbSelect: Prisma.routine_versionSelect,
-    DbWhere: Prisma.routine_versionWhereInput,
-}
-export type RoutineVersionModelLogic = ModelLogic<RoutineVersionModelInfo, typeof SuppFields.RoutineVersion>;
-
-export type RoutineVersionInputModelInfo = {
-    __typename: "RoutineVersionInput",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RoutineVersionInputCreateInput,
-    ApiUpdate: RoutineVersionInputUpdateInput,
-    ApiModel: RoutineVersionInput,
+    ApiCreate: RunStepCreateInput,
+    ApiUpdate: RunStepUpdateInput,
+    ApiModel: RunStep,
     ApiPermission: never,
     ApiSearch: undefined,
     ApiSort: undefined,
-    DbCreate: Prisma.routine_version_inputUpsertArgs["create"],
-    DbUpdate: Prisma.routine_version_inputUpsertArgs["update"],
-    DbModel: Prisma.routine_version_inputGetPayload<SelectWrap<Prisma.routine_version_inputSelect>>,
-    DbSelect: Prisma.routine_version_inputSelect,
-    DbWhere: Prisma.routine_version_inputWhereInput,
+    DbCreate: Prisma.run_stepUpsertArgs["create"],
+    DbUpdate: Prisma.run_stepUpsertArgs["update"],
+    DbModel: Prisma.run_stepGetPayload<SelectWrap<Prisma.run_stepSelect>>,
+    DbSelect: Prisma.run_stepSelect,
+    DbWhere: Prisma.run_stepWhereInput,
 }
-export type RoutineVersionInputModelLogic = ModelLogic<RoutineVersionInputModelInfo, typeof SuppFields.RoutineVersionInput>;
-
-export type RoutineVersionOutputModelInfo = {
-    __typename: "RoutineVersionOutput",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RoutineVersionOutputCreateInput,
-    ApiUpdate: RoutineVersionOutputUpdateInput,
-    ApiModel: RoutineVersionOutput,
-    ApiPermission: never,
-    ApiSearch: undefined,
-    ApiSort: undefined,
-    DbCreate: Prisma.routine_version_outputUpsertArgs["create"],
-    DbUpdate: Prisma.routine_version_outputUpsertArgs["update"],
-    DbModel: Prisma.routine_version_outputGetPayload<SelectWrap<Prisma.routine_version_outputSelect>>,
-    DbSelect: Prisma.routine_version_outputSelect,
-    DbWhere: Prisma.routine_version_outputWhereInput,
-}
-export type RoutineVersionOutputModelLogic = ModelLogic<RoutineVersionOutputModelInfo, typeof SuppFields.RoutineVersionOutput>;
-
-export type RunProjectPermissions = Omit<RunProjectYou, "__typename">;
-export type RunProjectModelInfo = {
-    __typename: "RunProject",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RunProjectCreateInput,
-    ApiUpdate: RunProjectUpdateInput,
-    ApiModel: RunProject,
-    ApiSearch: RunProjectSearchInput,
-    ApiSort: RunProjectSortBy,
-    ApiPermission: RunProjectPermissions,
-    DbCreate: Prisma.run_projectUpsertArgs["create"],
-    DbUpdate: Prisma.run_projectUpsertArgs["update"],
-    DbModel: Prisma.run_projectGetPayload<SelectWrap<Prisma.run_projectSelect>>,
-    DbSelect: Prisma.run_projectSelect,
-    DbWhere: Prisma.run_projectWhereInput,
-}
-export type RunProjectModelLogic = ModelLogic<RunProjectModelInfo, typeof SuppFields.RunProject>;
-
-export type RunProjectStepModelInfo = {
-    __typename: "RunProjectStep",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RunProjectStepCreateInput,
-    ApiUpdate: RunProjectStepUpdateInput,
-    ApiModel: RunProjectStep,
-    ApiPermission: never,
-    ApiSearch: undefined,
-    ApiSort: undefined,
-    DbCreate: Prisma.run_project_stepUpsertArgs["create"],
-    DbUpdate: Prisma.run_project_stepUpsertArgs["update"],
-    DbModel: Prisma.run_project_stepGetPayload<SelectWrap<Prisma.run_project_stepSelect>>,
-    DbSelect: Prisma.run_project_stepSelect,
-    DbWhere: Prisma.run_project_stepWhereInput,
-}
-export type RunProjectStepModelLogic = ModelLogic<RunProjectStepModelInfo, typeof SuppFields.RunProjectStep>;
-
-export type RunRoutinePermissions = Omit<RunRoutineYou, "__typename">;
-export type RunRoutineModelInfo = {
-    __typename: "RunRoutine",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RunRoutineCreateInput,
-    ApiUpdate: RunRoutineUpdateInput,
-    ApiModel: RunRoutine,
-    ApiSearch: RunRoutineSearchInput,
-    ApiSort: RunRoutineSortBy,
-    ApiPermission: RunRoutinePermissions,
-    DbCreate: Prisma.run_routineUpsertArgs["create"],
-    DbUpdate: Prisma.run_routineUpsertArgs["update"],
-    DbModel: Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
-    DbSelect: Prisma.run_routineSelect,
-    DbWhere: Prisma.run_routineWhereInput,
-}
-export type RunRoutineModelLogic = ModelLogic<RunRoutineModelInfo, typeof SuppFields.RunRoutine>;
-
-export type RunRoutineIOModelInfo = {
-    __typename: "RunRoutineIO",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RunRoutineIOCreateInput,
-    ApiUpdate: RunRoutineIOUpdateInput,
-    ApiModel: RunRoutineIO,
-    ApiSearch: RunRoutineIOSearchInput,
-    ApiSort: RunRoutineIOSortBy,
-    ApiPermission: never,
-    DbCreate: Prisma.run_routine_ioUpsertArgs["create"],
-    DbUpdate: Prisma.run_routine_ioUpsertArgs["update"],
-    DbModel: Prisma.run_routine_ioGetPayload<SelectWrap<Prisma.run_routine_ioSelect>>,
-    DbSelect: Prisma.run_routine_ioSelect,
-    DbWhere: Prisma.run_routine_ioWhereInput,
-}
-export type RunRoutineIOModelLogic = ModelLogic<RunRoutineIOModelInfo, typeof SuppFields.RunRoutineIO>;
-
-export type RunRoutineStepModelInfo = {
-    __typename: "RunRoutineStep",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: RunRoutineStepCreateInput,
-    ApiUpdate: RunRoutineStepUpdateInput,
-    ApiModel: RunRoutineStep,
-    ApiPermission: never,
-    ApiSearch: undefined,
-    ApiSort: undefined,
-    DbCreate: Prisma.run_routine_stepUpsertArgs["create"],
-    DbUpdate: Prisma.run_routine_stepUpsertArgs["update"],
-    DbModel: Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>,
-    DbSelect: Prisma.run_routine_stepSelect,
-    DbWhere: Prisma.run_routine_stepWhereInput,
-}
-export type RunRoutineStepModelLogic = ModelLogic<RunRoutineStepModelInfo, typeof SuppFields.RunRoutineStep>;
+export type RunStepModelLogic = ModelLogic<RunStepModelInfo, typeof SuppFields.RunStep>;
 
 export type ScheduleModelInfo = {
     __typename: "Schedule",
@@ -973,8 +676,8 @@ export type ScheduleExceptionModelInfo = {
     ApiUpdate: ScheduleExceptionUpdateInput,
     ApiModel: ScheduleException,
     ApiPermission: never,
-    ApiSearch: RunRoutineSearchInput,
-    ApiSort: RunRoutineSortBy,
+    ApiSearch: ScheduleExceptionSearchInput,
+    ApiSort: ScheduleExceptionSortBy,
     DbCreate: Prisma.schedule_exceptionUpsertArgs["create"],
     DbUpdate: Prisma.schedule_exceptionUpsertArgs["update"],
     DbModel: Prisma.schedule_exceptionGetPayload<SelectWrap<Prisma.schedule_exceptionSelect>>,
@@ -991,8 +694,8 @@ export type ScheduleRecurrenceModelInfo = {
     ApiUpdate: ScheduleRecurrenceUpdateInput,
     ApiModel: ScheduleRecurrence,
     ApiPermission: never,
-    ApiSearch: RunRoutineSearchInput,
-    ApiSort: RunRoutineSortBy,
+    ApiSearch: ScheduleRecurrenceSearchInput,
+    ApiSort: ScheduleRecurrenceSortBy,
     DbCreate: Prisma.schedule_recurrenceUpsertArgs["create"],
     DbUpdate: Prisma.schedule_recurrenceUpsertArgs["update"],
     DbModel: Prisma.schedule_recurrenceGetPayload<SelectWrap<Prisma.schedule_recurrenceSelect>>,
@@ -1019,80 +722,6 @@ export type SessionModelInfo = {
 }
 export type SessionModelLogic = ModelLogic<SessionModelInfo, typeof SuppFields.Session>;
 
-export type StandardPermissions = Omit<StandardYou, "__typename" | "isBookmarked" | "isViewed" | "reaction">;
-export type StandardModelInfo = {
-    __typename: "Standard",
-    IsTransferable: true,
-    IsVersioned: true,
-    ApiCreate: StandardCreateInput,
-    ApiUpdate: StandardUpdateInput,
-    ApiModel: Standard,
-    ApiSearch: StandardSearchInput,
-    ApiSort: StandardSortBy,
-    ApiPermission: StandardPermissions,
-    DbCreate: Prisma.standardUpsertArgs["create"],
-    DbUpdate: Prisma.standardUpsertArgs["update"],
-    DbModel: Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
-    DbSelect: Prisma.standardSelect,
-    DbWhere: Prisma.standardWhereInput,
-}
-export type StandardModelLogic = ModelLogic<StandardModelInfo, typeof SuppFields.Standard>;
-
-export type StandardVersionPermissions = Omit<VersionYou, "__typename">;
-export type StandardVersionModelInfo = {
-    __typename: "StandardVersion",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: StandardVersionCreateInput,
-    ApiUpdate: StandardVersionUpdateInput,
-    ApiModel: StandardVersion,
-    ApiSearch: StandardVersionSearchInput,
-    ApiSort: StandardVersionSortBy,
-    ApiPermission: StandardVersionPermissions,
-    DbCreate: Prisma.standard_versionUpsertArgs["create"],
-    DbUpdate: Prisma.standard_versionUpsertArgs["update"],
-    DbModel: Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>,
-    DbSelect: Prisma.standard_versionSelect,
-    DbWhere: Prisma.standard_versionWhereInput,
-}
-export type StandardVersionModelLogic = ModelLogic<StandardVersionModelInfo, typeof SuppFields.StandardVersion>;
-
-export type StatsApiModelInfo = {
-    __typename: "StatsApi",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: undefined,
-    ApiUpdate: undefined,
-    ApiModel: StatsApi,
-    ApiSearch: StatsApiSearchInput,
-    ApiSort: StatsApiSortBy,
-    ApiPermission: never,
-    DbCreate: Prisma.stats_apiUpsertArgs["create"],
-    DbUpdate: Prisma.stats_apiUpsertArgs["update"],
-    DbModel: Prisma.stats_apiGetPayload<SelectWrap<Prisma.stats_apiSelect>>,
-    DbSelect: Prisma.stats_apiSelect,
-    DbWhere: Prisma.stats_apiWhereInput,
-}
-export type StatsApiModelLogic = ModelLogic<StatsApiModelInfo, typeof SuppFields.StatsApi>;
-
-export type StatsCodeModelInfo = {
-    __typename: "StatsCode",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: undefined,
-    ApiUpdate: undefined,
-    ApiModel: StatsCode,
-    ApiSearch: StatsCodeSearchInput,
-    ApiSort: StatsCodeSortBy,
-    ApiPermission: never,
-    DbCreate: Prisma.stats_codeUpsertArgs["create"],
-    DbUpdate: Prisma.stats_codeUpsertArgs["update"],
-    DbModel: Prisma.stats_codeGetPayload<SelectWrap<Prisma.stats_codeSelect>>,
-    DbSelect: Prisma.stats_codeSelect,
-    DbWhere: Prisma.stats_codeWhereInput,
-}
-export type StatsCodeModelLogic = ModelLogic<StatsCodeModelInfo, typeof SuppFields.StatsCode>;
-
 export type StatsTeamModelInfo = {
     __typename: "StatsTeam",
     IsTransferable: false,
@@ -1111,41 +740,23 @@ export type StatsTeamModelInfo = {
 }
 export type StatsTeamModelLogic = ModelLogic<StatsTeamModelInfo, typeof SuppFields.StatsTeam>;
 
-export type StatsProjectModelInfo = {
-    __typename: "StatsProject",
+export type StatsResourceModelInfo = {
+    __typename: "StatsResource",
     IsTransferable: false,
     IsVersioned: false,
     ApiCreate: undefined,
     ApiUpdate: undefined,
-    ApiModel: StatsProject,
-    ApiSearch: StatsProjectSearchInput,
-    ApiSort: StatsProjectSortBy,
+    ApiModel: StatsResource,
+    ApiSearch: StatsResourceSearchInput,
+    ApiSort: StatsResourceSortBy,
     ApiPermission: never,
-    DbCreate: Prisma.stats_projectUpsertArgs["create"],
-    DbUpdate: Prisma.stats_projectUpsertArgs["update"],
-    DbModel: Prisma.stats_projectGetPayload<SelectWrap<Prisma.stats_projectSelect>>,
-    DbSelect: Prisma.stats_projectSelect,
-    DbWhere: Prisma.stats_projectWhereInput,
+    DbCreate: Prisma.stats_resourceUpsertArgs["create"],
+    DbUpdate: Prisma.stats_resourceUpsertArgs["update"],
+    DbModel: Prisma.stats_resourceGetPayload<SelectWrap<Prisma.stats_resourceSelect>>,
+    DbSelect: Prisma.stats_resourceSelect,
+    DbWhere: Prisma.stats_resourceWhereInput,
 }
-export type StatsProjectModelLogic = ModelLogic<StatsProjectModelInfo, typeof SuppFields.StatsProject>;
-
-export type StatsRoutineModelInfo = {
-    __typename: "StatsRoutine",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: undefined,
-    ApiUpdate: undefined,
-    ApiModel: StatsRoutine,
-    ApiSearch: StatsRoutineSearchInput,
-    ApiSort: StatsRoutineSortBy,
-    ApiPermission: never,
-    DbCreate: Prisma.stats_routineUpsertArgs["create"],
-    DbUpdate: Prisma.stats_routineUpsertArgs["update"],
-    DbModel: Prisma.stats_routineGetPayload<SelectWrap<Prisma.stats_routineSelect>>,
-    DbSelect: Prisma.stats_routineSelect,
-    DbWhere: Prisma.stats_routineWhereInput,
-}
-export type StatsRoutineModelLogic = ModelLogic<StatsRoutineModelInfo, typeof SuppFields.StatsRoutine>;
+export type StatsResourceModelLogic = ModelLogic<StatsResourceModelInfo, typeof SuppFields.StatsResource>;
 
 export type StatsSiteModelInfo = {
     __typename: "StatsSite",
@@ -1164,24 +775,6 @@ export type StatsSiteModelInfo = {
     DbWhere: Prisma.stats_siteWhereInput,
 }
 export type StatsSiteModelLogic = ModelLogic<StatsSiteModelInfo, typeof SuppFields.StatsSite>;
-
-export type StatsStandardModelInfo = {
-    __typename: "StatsStandard",
-    IsTransferable: false,
-    IsVersioned: false,
-    ApiCreate: undefined,
-    ApiUpdate: undefined,
-    ApiModel: StatsStandard,
-    ApiSearch: StatsStandardSearchInput,
-    ApiSort: StatsStandardSortBy,
-    ApiPermission: never,
-    DbCreate: Prisma.stats_standardUpsertArgs["create"],
-    DbUpdate: Prisma.stats_standardUpsertArgs["update"],
-    DbModel: Prisma.stats_standardGetPayload<SelectWrap<Prisma.stats_standardSelect>>,
-    DbSelect: Prisma.stats_standardSelect,
-    DbWhere: Prisma.stats_standardWhereInput,
-}
-export type StatsStandardModelLogic = ModelLogic<StatsStandardModelInfo, typeof SuppFields.StatsStandard>;
 
 export type StatsUserModelInfo = {
     __typename: "StatsUser",

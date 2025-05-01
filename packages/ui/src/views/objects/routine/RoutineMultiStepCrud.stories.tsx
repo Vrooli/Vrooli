@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RoutineVersionYou, endpointsRoutineVersion, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RoutineVersionYou, endpointsRoutineVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineMultiStepCrud } from "./RoutineMultiStepCrud.js";
 
 // Create node IDs in advance to reference in the links
-const nodeId1 = uuid();
-const nodeId2 = uuid();
-const nodeId3 = uuid();
+const nodeId1 = generatePKString();
+const nodeId2 = generatePKString();
+const nodeId3 = generatePKString();
 
 // Create simplified mock data for Routine responses with nodes and nodeLinks
 const mockRoutineVersionData: RoutineVersion = {
     __typename: "RoutineVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     apiVersion: null,
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "",
@@ -97,20 +97,20 @@ const mockRoutineVersionData: RoutineVersion = {
             columnIndex: 0,
             routineList: {
                 __typename: "NodeRoutineList" as const,
-                id: uuid(),
+                id: generatePKString(),
                 isOrdered: true,
                 isOptional: false,
                 items: [
                     {
                         __typename: "NodeRoutineListItem" as const,
-                        id: uuid(),
+                        id: generatePKString(),
                         index: 0,
                         isOptional: false,
                         routineVersion: null,
                         translations: [
                             {
                                 __typename: "NodeRoutineListItemTranslation" as const,
-                                id: uuid(),
+                                id: generatePKString(),
                                 language: "en",
                                 description: "Process user input",
                                 name: "Process Input",
@@ -119,14 +119,14 @@ const mockRoutineVersionData: RoutineVersion = {
                     },
                     {
                         __typename: "NodeRoutineListItem" as const,
-                        id: uuid(),
+                        id: generatePKString(),
                         index: 1,
                         isOptional: false,
                         routineVersion: null,
                         translations: [
                             {
                                 __typename: "NodeRoutineListItemTranslation" as const,
-                                id: uuid(),
+                                id: generatePKString(),
                                 language: "en",
                                 description: "Generate response based on processed input",
                                 name: "Generate Response",
@@ -138,7 +138,7 @@ const mockRoutineVersionData: RoutineVersion = {
             translations: [
                 {
                     __typename: "NodeTranslation" as const,
-                    id: uuid(),
+                    id: generatePKString(),
                     language: "en",
                     name: "Process and Generate",
                     description: "First node in the workflow",
@@ -153,20 +153,20 @@ const mockRoutineVersionData: RoutineVersion = {
             columnIndex: 0,
             routineList: {
                 __typename: "NodeRoutineList" as const,
-                id: uuid(),
+                id: generatePKString(),
                 isOrdered: true,
                 isOptional: false,
                 items: [
                     {
                         __typename: "NodeRoutineListItem" as const,
-                        id: uuid(),
+                        id: generatePKString(),
                         index: 0,
                         isOptional: false,
                         routineVersion: null,
                         translations: [
                             {
                                 __typename: "NodeRoutineListItemTranslation" as const,
-                                id: uuid(),
+                                id: generatePKString(),
                                 language: "en",
                                 description: "Format the generated response",
                                 name: "Format Response",
@@ -178,7 +178,7 @@ const mockRoutineVersionData: RoutineVersion = {
             translations: [
                 {
                     __typename: "NodeTranslation" as const,
-                    id: uuid(),
+                    id: generatePKString(),
                     language: "en",
                     name: "Format Output",
                     description: "Format the final output",
@@ -193,13 +193,13 @@ const mockRoutineVersionData: RoutineVersion = {
             columnIndex: 0,
             end: {
                 __typename: "NodeEnd" as const,
-                id: uuid(),
+                id: generatePKString(),
                 wasSuccessful: true,
             },
             translations: [
                 {
                     __typename: "NodeTranslation" as const,
-                    id: uuid(),
+                    id: generatePKString(),
                     language: "en",
                     name: "End",
                     description: "Workflow completed successfully",
@@ -210,7 +210,7 @@ const mockRoutineVersionData: RoutineVersion = {
     nodeLinks: [
         {
             __typename: "NodeLink" as const,
-            id: uuid(),
+            id: generatePKString(),
             from: {
                 __typename: "Node" as const,
                 id: nodeId1,
@@ -222,7 +222,7 @@ const mockRoutineVersionData: RoutineVersion = {
         },
         {
             __typename: "NodeLink" as const,
-            id: uuid(),
+            id: generatePKString(),
             from: {
                 __typename: "Node" as const,
                 id: nodeId2,
@@ -239,15 +239,15 @@ const mockRoutineVersionData: RoutineVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         listFor: {
             __typename: "RoutineVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
         },
         resources: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
+            id: generatePKString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -255,7 +255,7 @@ const mockRoutineVersionData: RoutineVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -268,12 +268,12 @@ const mockRoutineVersionData: RoutineVersion = {
     },
     root: {
         __typename: "Routine" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() },
+        owner: { __typename: "User" as const, id: generatePKString() },
         tags: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["Workflow", "Multi-step", "Process", "Automation", "AI", "Business Logic", "ETL", "Data Processing"][Math.floor(Math.random() * 8)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -315,7 +315,7 @@ export default {
 // Create a new Routine
 export function Create() {
     return (
-        <RoutineMultiStepCrud display="page" isCreate={true} />
+        <RoutineMultiStepCrud display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -343,7 +343,7 @@ CreateDialog.parameters = {
 // Update an existing Routine
 export function Update() {
     return (
-        <RoutineMultiStepCrud display="page" isCreate={false} />
+        <RoutineMultiStepCrud display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -391,7 +391,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <RoutineMultiStepCrud display="page" isCreate={false} />
+        <RoutineMultiStepCrud display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -413,7 +413,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <RoutineMultiStepCrud display="page" isCreate={true} />
+        <RoutineMultiStepCrud display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {
@@ -442,7 +442,7 @@ WithOverrideObject.parameters = {
 // With Owner Permissions
 export function Own() {
     return (
-        <RoutineMultiStepCrud display="page" isCreate={false} />
+        <RoutineMultiStepCrud display="Page" isCreate={false} />
     );
 }
 Own.parameters = {

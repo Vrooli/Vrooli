@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { findFirstRel } from "../../builders/findFirstRel.js";
@@ -13,8 +13,7 @@ import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./type
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
     Meeting: "meetings",
-    RunProject: "runProjects",
-    RunRoutine: "runRoutines",
+    Run: "runs",
 };
 
 const __typename = "Schedule" as const;
@@ -41,7 +40,8 @@ export const ScheduleModel: ScheduleModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
@@ -50,8 +50,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     // These relations are treated as one-to-one in the API, but not in the database.
                     // Therefore, the key is pural, but the "relation" passed to shapeHelper is singular.
                     meetings: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest }),
-                    runProjects: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest }),
-                    runRoutines: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest }),
+                    runs: await shapeHelper({ relation: "run", relTypes: ["Connect"], isOneToOne: true, objectType: "Run", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {

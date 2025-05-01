@@ -78,14 +78,7 @@ export type RunRequestPayloadBase = Pick<RunProgress, "runId"> & {
     taskId: string;
 }
 
-export type RunProjectPayload = RunRequestPayloadBase & {
-    __process: "Project";
-    projectVersionId: string;
-    /** The user who's running the command (not the bot) */
-    userData: SessionUser;
-};
-
-export type RunRoutinePayload = RunRequestPayloadBase & {
+export type RunPayload = RunRequestPayloadBase & {
     __process: "Routine";
     /** Inputs and outputs to use on current step, if not already in run object */
     formValues?: Record<string, unknown>;
@@ -98,7 +91,7 @@ export type RunTestPayload = {
     __process: "Test";
 };
 
-export type RunRequestPayload = RunProjectPayload | RunRoutinePayload | RunTestPayload;
+export type RunRequestPayload = RunPayload | RunTestPayload;
 
 let logger: winston.Logger;
 let runProcess: (job: Bull.Job<RunRequestPayload>) => Promise<unknown>;
@@ -184,7 +177,7 @@ function checkLongRunningRuns() {
  * @returns The priority for the run.
  */
 function determinePriority(
-    payload: Omit<RunProjectPayload, "__process" | "status"> | Omit<RunRoutinePayload, "__process" | "status">,
+    payload: Omit<RunPayload, "__process" | "status">,
 ): number {
     // Start with a base priority that is high enough to not go below 0 
     // even with all the adjustments, and leaves enough of a buffer for 
@@ -239,18 +232,8 @@ function determinePriority(
     return Math.max(0, priority);
 }
 
-export function processRunProject(
-    data: Omit<RunProjectPayload, "__process" | "status">,
-): Promise<Success> {
-    return addJobToQueue(
-        runQueue.getQueue(),
-        { ...data, __process: "Project", status: "Scheduled" },
-        { jobId: data.taskId, timeout: JOB_TIMEOUT_MS, priority: determinePriority(data) },
-    );
-}
-
-export function processRunRoutine(
-    data: Omit<RunRoutinePayload, "__process" | "status">,
+export function processRun(
+    data: Omit<RunPayload, "__process" | "status">,
 ): Promise<Success> {
     return addJobToQueue(
         runQueue.getQueue(),

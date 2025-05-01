@@ -20,10 +20,9 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
-                index: -1, //TODO
+                id: BigInt(data.id),
                 label: data.label,
-                user: { connect: { id: rest.userData.id } },
+                user: { connect: { id: BigInt(rest.userData.id) } },
                 bookmarks: await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
@@ -60,7 +59,7 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    user: { id: data.userId },
+                    user: { id: BigInt(data.userId) },
                 };
             },
             // Always private, so it's the same as "own"

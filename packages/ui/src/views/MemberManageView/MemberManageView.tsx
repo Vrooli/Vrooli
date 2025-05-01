@@ -1,4 +1,4 @@
-import { ListObject, uuidValidate } from "@local/shared";
+import { ListObject, validatePK } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { Field } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -53,7 +53,7 @@ export function MemberManageView({
     }, [handleTabChange, tabs]);
 
     const findManyData = useFindMany<ListObject>({
-        canSearch: () => uuidValidate(team.id),
+        canSearch: () => validatePK(team.id),
         controlsUrl: display === "Page",
         searchType,
         take: 20,

@@ -50,7 +50,7 @@ export const TagModel: TagModelLogic = ({
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as TagPre;
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     tag: data.tag,
                     createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.tag], data, ...rest }),
@@ -59,7 +59,6 @@ export const TagModel: TagModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as TagPre;
                 return {
-                    id: data.id,
                     createdBy: data.anonymous ? { disconnect: true } : undefined,
                     tag: noNull(data.tag),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.tag], data, ...rest }),

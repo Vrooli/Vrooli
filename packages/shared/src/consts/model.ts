@@ -27,19 +27,8 @@ export enum InputType {
 }
 
 export enum ViewFor {
-    Api = "Api",
-    ApiVersion = "ApiVersion",
-    Code = "Code",
-    CodeVersion = "CodeVersion",
-    Note = "Note",
-    NoteVersion = "NoteVersion",
-    Post = "Post",
-    Project = "Project",
-    ProjectVersion = "ProjectVersion",
-    Routine = "Routine",
-    RoutineVersion = "RoutineVersion",
-    Standard = "Standard",
-    StandardVersion = "StandardVersion",
+    Resource = "Resource",
+    ResourceVersion = "ResourceVersion",
     Team = "Team",
     User = "User",
 }

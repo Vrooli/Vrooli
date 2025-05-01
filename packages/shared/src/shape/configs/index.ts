@@ -3,6 +3,7 @@ export * from "./api.js";
 export * from "./baseConfig.js";
 export * from "./bot.js";
 export * from "./code.js";
+export * from "./note.js";
 export * from "./project.js";
 export * from "./routine.js";
 export * from "./run.js";

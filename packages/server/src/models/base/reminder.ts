@@ -29,7 +29,7 @@ export const ReminderModel: ReminderModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 embeddingNeedsUpdate: true,
                 name: data.name,
                 description: noNull(data.description),

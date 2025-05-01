@@ -6,8 +6,7 @@ import { DbProvider } from "../../db/provider.js";
 import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ApiKeyFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { ApiKeyModelLogic, TeamModelLogic } from "./types.js";
+import { ApiKeyModelLogic } from "./types.js";
 
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
@@ -88,8 +87,8 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { user: { id: data.userId } },
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: useVisibility("User", "Own", data) },
+                        { team: useVisibility("Team", "Own", data) },
                     ],
                 };
             },

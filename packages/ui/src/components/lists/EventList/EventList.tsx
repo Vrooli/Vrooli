@@ -131,8 +131,7 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
     const { title, subtitle, DisplayIcon } = useMemo(() => {
         const scheduleOn =
             data.schedule.meetings?.[0] ??
-            data.schedule.runProjects?.[0] ??
-            data.schedule.runRoutines?.[0];
+            data.schedule.runs?.[0];
 
         const scheduleDisplay = getDisplay(data.schedule, getUserLanguages(session));
         const scheduleOnDisplay = getDisplay(scheduleOn, getUserLanguages(session));

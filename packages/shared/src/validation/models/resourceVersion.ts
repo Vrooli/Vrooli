@@ -1,9 +1,11 @@
+import * as yup from "yup";
 import { ResourceSubTypeCode, ResourceSubTypeRoutine, ResourceSubTypeStandard } from "../../api/types.js";
 import { enumToYup } from "../utils/builders/convert.js";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
 import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, config, description, details, id, instructions, name, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
 import { resourceValidation } from "./resource.js";
 import { resourceVersionRelationValidation } from "./resourceVersionRelation.js";
@@ -13,6 +15,7 @@ const resourceSubType = enumToYup({
     ...ResourceSubTypeRoutine,
     ...ResourceSubTypeStandard,
 });
+const codeLanguage = yup.string().trim().removeEmptyString().max(128, maxStrErr);
 
 export const resourceVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

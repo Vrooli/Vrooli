@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, StandardType, StandardVersion, Tag, User, endpointsStandardVersion, getObjectUrl, uuid } from "@local/shared";
+import { CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, StandardType, StandardVersion, Tag, User, endpointsStandardVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { PromptUpsert } from "./PromptUpsert.js";
@@ -9,7 +9,7 @@ import { PromptUpsert } from "./PromptUpsert.js";
 // Create simplified mock data for Prompt responses
 const mockPromptVersionData: StandardVersion = {
     __typename: "StandardVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     comments: [],
     commentsCount: 0,
     codeLanguage: CodeLanguage.Javascript,
@@ -57,15 +57,15 @@ const mockPromptVersionData: StandardVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         listFor: {
             __typename: "StandardVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
+            id: generatePKString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -73,7 +73,7 @@ const mockPromptVersionData: StandardVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -86,16 +86,16 @@ const mockPromptVersionData: StandardVersion = {
     },
     root: {
         __typename: "Standard" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
         isInternal: false,
         hasCompleteVersion: true,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         parent: null,
         permissions: "{}",
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["AI Prompt", "LLM", "Chatbot", "NLP", "Template", "Instruction", "Other"][Math.floor(Math.random() * 7)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -107,7 +107,6 @@ const mockPromptVersionData: StandardVersion = {
         forksCount: 0,
         issues: [],
         issuesCount: 0,
-        labels: [],
         pullRequests: [],
         pullRequestsCount: 0,
         score: 0,
@@ -169,7 +168,7 @@ export default {
 // Create a new Prompt
 export function Create() {
     return (
-        <PromptUpsert display="page" isCreate={true} />
+        <PromptUpsert display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -197,7 +196,7 @@ CreateDialog.parameters = {
 // Update an existing Prompt
 export function Update() {
     return (
-        <PromptUpsert display="page" isCreate={false} />
+        <PromptUpsert display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -245,7 +244,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <PromptUpsert display="page" isCreate={false} />
+        <PromptUpsert display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -267,7 +266,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <PromptUpsert display="page" isCreate={true} />
+        <PromptUpsert display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

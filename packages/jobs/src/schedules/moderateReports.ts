@@ -144,15 +144,9 @@ async function moderateReport(
         // Find the object that was reported.
         // Must capitalize the first letter of the object type to match the __typename
         const [objectField, objectData] = findFirstRel(report, [
-            "apiVersion",
             "comment",
-            "codeVersion",
             "issue",
-            "noteVersion",
-            "post",
-            "projectVersion",
-            "routineVersion",
-            "standardVersion",
+            "resourceVersion",
             "tag",
             "team",
             "user",

@@ -1,4 +1,4 @@
-import { ChatInviteStatus, ChatSortBy, chatValidation, getTranslation, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatInviteStatus, ChatSortBy, chatValidation, generatePublicId, getTranslation, MaxObjects } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -11,8 +11,7 @@ import { translationShapeHelper } from "../../utils/shapes/translationShapeHelpe
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ChatFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
-import { ModelMap } from "./index.js";
-import { ChatModelInfo, ChatModelLogic, TeamModelLogic } from "./types.js";
+import { ChatModelInfo, ChatModelLogic } from "./types.js";
 
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
@@ -59,17 +58,18 @@ export const ChatModel: ChatModelLogic = ({
                 // Find all bots
                 let bots: ChatPre["bots"] = [];
                 if (invitedUsers.length) {
-                    bots = await DbProvider.get().user.findMany({
+                    const botData = await DbProvider.get().user.findMany({
                         where: {
-                            id: { in: invitedUsers },
+                            id: { in: invitedUsers.map(id => BigInt(id)) },
                             isBot: true,
                             OR: [
                                 { isPrivate: false }, // Public bots
-                                { invitedByUser: { id: userData.id } }, // Private bots you created
+                                { invitedByUser: { id: BigInt(userData.id) } }, // Private bots you created
                             ],
                         },
                         select: { id: true },
                     });
+                    bots = botData.map(b => ({ id: b.id.toString() }));
                 }
                 const updateInputs = Update.map(u => u.input);
                 const { branchInfo } = await populatePreMapForChatUpdates({ updateInputs });
@@ -83,14 +83,15 @@ export const ChatModel: ChatModelLogic = ({
                 messages = prepareChatMessageOperations(messages, preData.branchInfo[data.id]).operations;
 
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                    creator: { connect: { id: rest.userData.id } },
+                    creator: { connect: { id: BigInt(rest.userData.id) } },
                     // Create invite for non-bots and not yourself
                     invites: {
                         create: data.invitesCreate?.filter((u) => !preData.bots.some(b => b.id === u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
-                            id: u.id,
-                            user: { connect: { id: u.userConnect } },
+                            id: BigInt(u.id),
+                            user: { connect: { id: BigInt(u.userConnect) } },
                             status: preData.bots.some((b) => b.id === u.userConnect) ? ChatInviteStatus.Accepted : ChatInviteStatus.Pending,
                             message: noNull(u.message),
                         })),
@@ -100,24 +101,15 @@ export const ChatModel: ChatModelLogic = ({
                         // Automatically accept bots, and add yourself
                         create: [
                             ...(preData.bots.map((u) => ({
-                                user: { connect: { id: u.id } },
+                                user: { connect: { id: BigInt(u.id) } },
                             }))),
                             {
-                                user: { connect: { id: rest.userData.id } },
+                                user: { connect: { id: BigInt(rest.userData.id) } },
                             },
                         ],
                     },
                     messages,
                     team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "chats", data, ...rest }),
-                    restrictedToRoles: await shapeHelper({
-                        relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
-                            fieldName: "role",
-                            uniqueFieldName: "chat_roles_chatid_roleid_unique",
-                            childIdFieldName: "roleId",
-                            parentIdFieldName: "chatId",
-                            parentId: data.id ?? null,
-                        }, data, ...rest,
-                    }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -131,39 +123,30 @@ export const ChatModel: ChatModelLogic = ({
                     // Handle invites
                     invites: {
                         create: data.invitesCreate?.filter((u) => !preData.bots.some(b => b.id === u.userConnect) && u.userConnect !== rest.userData.id).map((u) => ({
-                            id: u.id,
-                            user: { connect: { id: u.userConnect } },
+                            id: BigInt(u.id),
+                            user: { connect: { id: BigInt(u.userConnect) } },
                             status: ChatInviteStatus.Pending,
                             message: noNull(u.message),
                         })),
                         update: data.invitesUpdate?.map((u) => ({
-                            where: { id: u.id },
+                            where: { id: BigInt(u.id) },
                             data: {
                                 message: noNull(u.message),
                             },
                         })),
-                        delete: data.invitesDelete?.map((id) => ({ id })),
+                        delete: data.invitesDelete?.map((id) => ({ id: BigInt(id) })),
                     },
                     // Handle participants
                     participants: {
                         // Automatically accept bots. You should already be a participant, so no need to add yourself
                         create: [
                             ...(preData.bots.map((u) => ({
-                                user: { connect: { id: u.id } },
+                                user: { connect: { id: BigInt(u.id) } },
                             }))),
                         ],
-                        delete: data.participantsDelete?.map((id) => ({ id })),
+                        delete: data.participantsDelete?.map((id) => ({ id: BigInt(id) })),
                     },
                     messages,
-                    restrictedToRoles: await shapeHelper({
-                        relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
-                            fieldName: "role",
-                            uniqueFieldName: "chat_roles_chatid_roleid_unique",
-                            childIdFieldName: "roleId",
-                            parentIdFieldName: "chatId",
-                            parentId: data.id ?? null,
-                        }, data, ...rest,
-                    }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -230,7 +213,7 @@ export const ChatModel: ChatModelLogic = ({
             ...(userId ? {
                 participants: {
                     where: {
-                        userId,
+                        userId: BigInt(userId),
                     },
                     select: {
                         id: true,
@@ -243,7 +226,7 @@ export const ChatModel: ChatModelLogic = ({
                 },
                 invites: {
                     where: {
-                        userId,
+                        userId: BigInt(userId),
                     },
                     select: {
                         id: true,
@@ -262,13 +245,13 @@ export const ChatModel: ChatModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { creator: { id: data.userId } },
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { creator: { id: BigInt(data.userId) } },
+                        { team: useVisibility("Team", "Own", data) },
                         {
                             participants: {
                                 some: {
                                     user: {
-                                        id: data.userId,
+                                        id: BigInt(data.userId),
                                     },
                                 },
                             },

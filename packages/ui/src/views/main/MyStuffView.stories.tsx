@@ -8,7 +8,7 @@ export default {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <MyStuffView display="page" />
+        <MyStuffView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -17,7 +17,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <MyStuffView display="page" />
+        <MyStuffView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -26,7 +26,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <MyStuffView display="page" />
+        <MyStuffView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -35,7 +35,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <MyStuffView display="page" />
+        <MyStuffView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

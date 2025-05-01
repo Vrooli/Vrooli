@@ -74,11 +74,7 @@ export class PasswordAuthService {
                     emailAddress: true,
                 },
             },
-            languages: {
-                select: {
-                    language: true,
-                },
-            },
+            languages: true,
             premium: {
                 select: {
                     credits: true,

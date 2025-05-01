@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { FormStructureType, LINKS, uuid } from "@local/shared";
+import { FormStructureType, LINKS, nanoid } from "@local/shared";
 import { expect } from "chai";
 import { TutorialSection, getCurrentElement, getCurrentStep, getNextPlace, getPrevPlace, getTutorialStepInfo, isValidPlace } from "./TutorialDialog.js";
 
@@ -13,7 +13,7 @@ const mockSections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Step 1.1",
@@ -30,7 +30,7 @@ const mockSections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Step 1.2",
@@ -51,7 +51,7 @@ const mockSections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Step 2.1",
@@ -68,7 +68,7 @@ const mockSections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Step 2.2",
@@ -84,7 +84,7 @@ const mockSections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Step 2.3",
@@ -105,7 +105,7 @@ const mockSections: TutorialSection[] = [
                     {
                         type: FormStructureType.Header,
                         color: "primary",
-                        id: uuid(),
+                        id: nanoid(),
                         isCollapsible: false,
                         isMarkdown: true,
                         label: "Step 3.1",

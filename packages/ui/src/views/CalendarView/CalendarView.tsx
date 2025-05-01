@@ -491,10 +491,8 @@ export function CalendarView({
                             title = schedule.meetings[0].translations[0].title;
                         } else if (schedule.meetings?.[0]?.translations?.[0]?.name) {
                             title = schedule.meetings[0].translations[0].name;
-                        } else if (schedule.runProjects?.[0]?.name) {
-                            title = schedule.runProjects[0].name;
-                        } else if (schedule.runRoutines?.[0]?.name) {
-                            title = schedule.runRoutines[0].name;
+                        } else if (schedule.runs?.[0]?.name) {
+                            title = schedule.runs[0].name;
                         }
                     }
 

@@ -45,14 +45,8 @@ async function processTableViewsInBatches(
 
 export async function countViews(): Promise<void> {
     const tableNames = [
-        "api",
-        "code",
         "issue",
-        "note",
-        "post",
-        "project",
-        "routine",
-        "standard",
+        "resource",
         "team",
         "user",
     ] as const;

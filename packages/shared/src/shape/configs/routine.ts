@@ -11,7 +11,7 @@ import { getDotNotationValue } from "../../utils/objects.js";
 import { BaseConfig } from "./baseConfig.js";
 import { type LlmModel } from "./bot.js";
 import { CodeVersionConfigObject, JsonSchema } from "./code.js";
-import { parseObject, stringifyObject, type StringifyMode } from "./utils.js";
+import { stringifyObject, type StringifyMode } from "./utils.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
@@ -169,9 +169,9 @@ export type ConfigCallDataGenerate = {
      */
     prompt?: string | null;
     /**
-     * The bot ID to use for the LLM.
+     * The bot to use for the LLM.
      */
-    respondingBot?: Id | null;
+    respondingBot?: { id?: Id, publicId?: string, handle?: string } | null;
 };
 
 /**
@@ -366,7 +366,7 @@ function defaultConfigCallDataAction(): CallDataActionConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
         schema: {
-            task: LlmTask.RoutineFind,
+            task: LlmTask.ResourceFind,
             inputTemplate: "",
             outputMapping: {},
         },
@@ -501,55 +501,42 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
     formOutput?: FormOutputConfig;
     graph?: GraphConfig;
 
-    constructor(data: RoutineVersionConfigObject) {
-        super(data);
-        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
-        this.callDataAction = data.callDataAction ? new CallDataActionConfig(data.callDataAction) : undefined;
-        this.callDataApi = data.callDataApi ? new CallDataApiConfig(data.callDataApi) : undefined;
-        this.callDataCode = data.callDataCode ? new CallDataCodeConfig(data.callDataCode) : undefined;
-        this.callDataGenerate = data.callDataGenerate ? new CallDataGenerateConfig(data.callDataGenerate) : undefined;
-        this.callDataSmartContract = data.callDataSmartContract ? new CallDataSmartContractConfig(data.callDataSmartContract) : undefined;
-        this.formInput = data.formInput ? new FormInputConfig(data.formInput) : undefined;
-        this.formOutput = data.formOutput ? new FormOutputConfig(data.formOutput) : undefined;
-        this.graph = data.graph ? GraphConfig.create(data.graph) : undefined;
+    constructor({ config, resourceSubType }: { config: RoutineVersionConfigObject, resourceSubType: ResourceSubType }) {
+        super(config);
+        this.__version = config.__version ?? LATEST_CONFIG_VERSION;
+        this.callDataAction = config.callDataAction ? new CallDataActionConfig(config.callDataAction) : undefined;
+        this.callDataApi = config.callDataApi ? new CallDataApiConfig(config.callDataApi) : undefined;
+        this.callDataCode = config.callDataCode ? new CallDataCodeConfig(config.callDataCode) : undefined;
+        this.callDataGenerate = config.callDataGenerate ? new CallDataGenerateConfig(config.callDataGenerate) : undefined;
+        this.callDataSmartContract = config.callDataSmartContract ? new CallDataSmartContractConfig(config.callDataSmartContract) : undefined;
+        this.formInput = config.formInput ? new FormInputConfig(config.formInput) : undefined;
+        this.formOutput = config.formOutput ? new FormOutputConfig(config.formOutput) : undefined;
+        this.graph = config.graph ? GraphConfig.create(config.graph) : undefined;
     }
 
     static deserialize(
-        { config, resourceSubType }: Pick<ResourceVersion, "config" | "resourceSubType">,
+        version: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
-        { mode = DEFAULT_STRINGIFY_MODE, useFallbacks = true }: { mode?: StringifyMode, useFallbacks?: boolean } = {},
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): RoutineVersionConfig {
-        let obj = config ? parseObject<RoutineVersionConfigObject>(config, mode, logger) : null;
-        if (!obj) {
-            obj = { __version: LATEST_CONFIG_VERSION };
-        }
-        if (useFallbacks) {
-            if (!obj.callDataAction && resourceSubType === ResourceSubType.RoutineAction) {
-                obj.callDataAction = defaultConfigCallDataAction();
-            }
-            if (!obj.callDataApi && resourceSubType === ResourceSubType.RoutineApi) {
-                obj.callDataApi = defaultConfigCallDataApi();
-            }
-            if (!obj.callDataCode && resourceSubType === ResourceSubType.RoutineCode) {
-                obj.callDataCode = defaultConfigCallDataCode();
-            }
-            if (!obj.callDataGenerate && resourceSubType === ResourceSubType.RoutineGenerate) {
-                obj.callDataGenerate = defaultConfigCallDataGenerate();
-            }
-            if (!obj.callDataSmartContract && resourceSubType === ResourceSubType.RoutineSmartContract) {
-                obj.callDataSmartContract = defaultConfigCallDataSmartContract();
-            }
-            if ((!obj.formInput || !isValidFormSchema(obj.formInput.schema)) && resourceSubType in defaultConfigFormInputMap) {
-                obj.formInput = defaultConfigFormInputMap[resourceSubType]();
-            }
-            if ((!obj.formOutput || !isValidFormSchema(obj.formOutput.schema)) && resourceSubType in defaultConfigFormOutputMap) {
-                obj.formOutput = defaultConfigFormOutputMap[resourceSubType]();
-            }
-            if (!obj.graph) {
-                // Add if needed
-            }
-        }
-        return new RoutineVersionConfig(obj);
+        return this.parseConfig<RoutineVersionConfigObject, RoutineVersionConfig>(
+            version.config,
+            logger,
+            (cfg) => {
+                // ensure defaults for input/output/testcases
+                if (opts?.useFallbacks ?? true) {
+                    cfg.callDataAction ??= defaultConfigCallDataAction();
+                    cfg.callDataApi ??= defaultConfigCallDataApi();
+                    cfg.callDataCode ??= defaultConfigCallDataCode();
+                    cfg.callDataGenerate ??= defaultConfigCallDataGenerate();
+                    cfg.callDataSmartContract ??= defaultConfigCallDataSmartContract();
+                    cfg.formInput ??= defaultConfigFormInputMap[version.resourceSubType]();
+                    cfg.formOutput ??= defaultConfigFormOutputMap[version.resourceSubType]();
+                }
+                return new RoutineVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
+            },
+            { mode: opts?.mode }
+        );
     }
 
     serialize(mode: StringifyMode): string {
@@ -819,7 +806,7 @@ export class CallDataCodeConfig {
         const template = this.schema.inputTemplate;
         let input: unknown;
 
-        if (inputConfig.shouldSpread) {
+        if (inputConfig?.shouldSpread) {
             // When shouldSpread is true, template must be an array
             if (!Array.isArray(template)) {
                 throw new Error("Input template must be an array when shouldSpread is true");
@@ -833,7 +820,7 @@ export class CallDataCodeConfig {
 
         return {
             input,
-            shouldSpreadInput: inputConfig.shouldSpread,
+            shouldSpreadInput: inputConfig?.shouldSpread ?? false,
         };
     }
 

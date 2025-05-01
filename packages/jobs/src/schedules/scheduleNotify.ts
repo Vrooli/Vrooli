@@ -20,23 +20,24 @@ async function scheduleNotifications(
                     // If no subscriptions, continue
                     if (batch.length === 0) return;
                     // Find objectType and id of the object that has a schedule. Assume there is only one runRoutine, meeting, etc.
-                    const [objectField, objectData] = findFirstRel(batch[0].schedule!, ["meetings", "runProjects", "runRoutines"]);
+                    const [objectField, objectData] = findFirstRel(batch[0].schedule!, ["meetings", "runs"]);
                     if (!objectField || !objectData || objectData.length === 0) {
                         logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: "0433" });
                         return;
                     }
-                    const scheduleForId = objectData[0].id;
+                    const scheduleForId: string = objectData[0].id.toString();
                     const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as ModelType;
                     // Find notification preferences for each subscriber
                     const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                     for (const subscription of batch) {
+                        const subscriberId = subscription.subscriber.id.toString();
                         const context = parseJsonOrDefault<ScheduleSubscriptionContext>(subscription.context, {} as ScheduleSubscriptionContext);
                         if (!context) continue;
                         for (const reminder of context.reminders) {
-                            if (!subscriberPrefs[subscription.subscriber.id]) {
-                                subscriberPrefs[subscription.subscriber.id] = [];
+                            if (!subscriberPrefs[subscriberId]) {
+                                subscriberPrefs[subscriberId] = [];
                             }
-                            subscriberPrefs[subscription.subscriber.id].push(reminder);
+                            subscriberPrefs[subscriberId].push(reminder);
                         }
                     }
                     // For each occurrence
@@ -89,8 +90,7 @@ async function scheduleNotifications(
                         select: {
                             id: true,
                             meetings: { select: { id: true } },
-                            runProjects: { select: { id: true } },
-                            runRoutines: { select: { id: true } },
+                            runs: { select: { id: true } },
                         },
                     },
                     subscriber: {
@@ -98,7 +98,7 @@ async function scheduleNotifications(
                     },
                 },
                 where: {
-                    schedule: { id: scheduleId },
+                    schedule: { id: BigInt(scheduleId) },
                 },
             });
         },
@@ -121,10 +121,11 @@ export async function scheduleNotify() {
             objectType: "Schedule",
             processBatch: async (batch) => {
                 Promise.all(batch.map(async (schedule) => {
+                    const scheduleId = schedule.id.toString();
                     // Find all occurrences of the schedule within the next 25 hours
                     const occurrences = await calculateOccurrences(schedule, startDate, endDate);
                     // For each occurrence, schedule notifications for subscribers of the schedule
-                    await scheduleNotifications(schedule.id, occurrences);
+                    await scheduleNotifications(scheduleId, occurrences);
                 }));
             },
             select: {

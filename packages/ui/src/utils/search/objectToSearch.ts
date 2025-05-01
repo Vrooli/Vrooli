@@ -1,4 +1,4 @@
-import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { IconInfo } from "../../icons/Icons.js";
 import { SearchParams } from "./schemas/base.js";
@@ -23,7 +23,12 @@ import { reminderSearchParams } from "./schemas/reminder.js";
 import { reportSearchParams } from "./schemas/report.js";
 import { reportResponseSearchParams } from "./schemas/reportResponse.js";
 import { reputationHistorySearchParams } from "./schemas/reputationHistory.js";
+import { resourceSearchParams } from "./schemas/resource.js";
+import { resourceVersionSearchParams } from "./schemas/resourceVersion.js";
+import { runSearchParams } from "./schemas/run.js";
+import { runIOSearchParams } from "./schemas/runIO.js";
 import { scheduleSearchParams } from "./schemas/schedule.js";
+import { statsResourceSearchParams } from "./schemas/statsResource.js";
 import { statsSiteSearchParams } from "./schemas/statsSite.js";
 import { statsTeamSearchParams } from "./schemas/statsTeam.js";
 import { statsUserSearchParams } from "./schemas/statsUser.js";
@@ -84,7 +89,7 @@ export type SearchViewTabsInfo = {
     WhereParams: undefined;
 }
 
-export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
+export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Resource", "Team", "User"]> = [
     {
         iconInfo: { name: "Visible", type: "Common" } as const,
         key: SearchPageTabOption.All,
@@ -96,29 +101,43 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         iconInfo: { name: "Routine", type: "Routine" } as const,
         key: SearchPageTabOption.RoutineMultiStep,
         titleKey: "RoutineMultiStep",
-        searchType: "Routine",
-        where: () => ({ isInternal: false, latestVersionRoutineType: RoutineType.MultiStep } as const),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.RoutineMultiStep,
+            resourceType: ResourceType.Routine,
+        } as const),
     },
     {
         iconInfo: { name: "Action", type: "Common" } as const,
         key: SearchPageTabOption.RoutineSingleStep,
         titleKey: "RoutineSingleStep",
-        searchType: "Routine",
-        where: () => ({ isInternal: false, latestVersionRoutineTypes: Object.values(RoutineType).filter(type => type !== RoutineType.MultiStep) }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceTypes: Object.values(ResourceSubTypeRoutine).filter(type => type.toString() !== ResourceSubType.RoutineMultiStep.toString()) as unknown as ResourceSubType[],
+            resourceType: ResourceType.Routine,
+        } as const),
     },
     {
         iconInfo: { name: "Project", type: "Common" } as const,
         key: SearchPageTabOption.Project,
         titleKey: "Project",
-        searchType: "Project",
-        where: () => ({}),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            resourceType: ResourceType.Project,
+        }),
     },
     {
         iconInfo: { name: "Note", type: "Common" } as const,
         key: SearchPageTabOption.Note,
         titleKey: "Note",
-        searchType: "Note",
-        where: () => ({}),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            resourceType: ResourceType.Note,
+        }),
     },
     {
         iconInfo: { name: "Team", type: "Common" } as const,
@@ -138,15 +157,23 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         iconInfo: { name: "Article", type: "Common" } as const,
         key: SearchPageTabOption.Prompt,
         titleKey: "Prompt",
-        searchType: "Standard",
-        where: () => ({ isInternal: false, variantLatestVersion: StandardType.Prompt }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.StandardPrompt,
+            resourceType: ResourceType.Standard,
+        } as const),
     },
     {
         iconInfo: { name: "Object", type: "Common" } as const,
         key: SearchPageTabOption.DataStructure,
         titleKey: "DataStructure",
-        searchType: "Standard",
-        where: () => ({ isInternal: false, variantLatestVersion: StandardType.DataStructure }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.StandardDataStructure,
+            resourceType: ResourceType.Standard,
+        } as const),
     },
     // {
     //     iconInfo: { name: "Api", type: "Common" } as const,
@@ -159,8 +186,12 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         iconInfo: { name: "Terminal", type: "Common" } as const,
         key: SearchPageTabOption.DataConverter,
         titleKey: "DataConverter",
-        searchType: "Code",
-        where: () => ({ codeTypeLatestVersion: CodeType.DataConvert }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.CodeDataConverter,
+            resourceType: ResourceType.Code,
+        } as const),
     },
     // {
     //     iconInfo: { name: "SmartContract", type: "Common" } as const,

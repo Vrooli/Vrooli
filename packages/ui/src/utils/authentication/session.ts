@@ -1,4 +1,4 @@
-import { Session, SessionUser, uuidValidate } from "@local/shared";
+import { Session, SessionUser, validatePK } from "@local/shared";
 import { SocketService } from "../../api/socket.js";
 import { getUserLanguages } from "../display/translationTools.js";
 import { getCookie, removeCookie } from "../localStorage.js";
@@ -25,7 +25,7 @@ export function getCurrentUser(session: Session | null | undefined): Partial<Ses
     const userData = session.users[0];
     // Make sure that user data is valid, by checking ID. 
     // Can add more checks in the future
-    return uuidValidate(userData.id) ? userData : {};
+    return validatePK(userData.id) ? userData : {};
 }
 
 /**

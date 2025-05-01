@@ -405,12 +405,6 @@ export const endpoints = {
             denyOne: await toObject(transfer, "full"),
         };
     },
-    translate: async () => {
-        const { translate } = await import("./partial/translate.js");
-        return {
-            translate: await toObject(translate, "full"),
-        };
-    },
     user: async () => {
         const { user, profile } = await import("./partial/user.js");
         return {

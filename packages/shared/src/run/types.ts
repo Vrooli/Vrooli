@@ -193,8 +193,8 @@ export type RunBotConfig = {
      * `Override` - Use only this config's prompt for the subroutine
      */
     promptHandling?: "Combine" | "Override";
-    /** The bot ID to use for the LLM */
-    respondingBot?: Id | null;
+    /** The bot to use for the LLM */
+    respondingBot?: { id?: Id, publicId?: string, handle?: string } | null;
     /**
      * How to handle the responding bot for subroutines.
      * 

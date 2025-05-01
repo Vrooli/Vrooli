@@ -6,18 +6,18 @@ import { type StringifyMode } from "./utils.js";
 const LATEST_CONFIG_VERSION = "1.0";
 
 /**
- * Represents all data that can be stored in a Project's stringified config.
+ * Represents all data that can be stored in a note's stringified config.
  */
-export interface ProjectVersionConfigObject extends BaseConfigObject {
+export interface NoteVersionConfigObject extends BaseConfigObject {
     // Add properties as needed
 }
 
 /**
  * Top-level API config that encapsulates all API-related configuration data.
  */
-export class ProjectVersionConfig extends BaseConfig<ProjectVersionConfigObject> {
+export class NoteVersionConfig extends BaseConfig<NoteVersionConfigObject> {
 
-    constructor({ config }: { config: ProjectVersionConfigObject }) {
+    constructor({ config }: { config: NoteVersionConfigObject }) {
         super(config);
     }
 
@@ -25,33 +25,33 @@ export class ProjectVersionConfig extends BaseConfig<ProjectVersionConfigObject>
         version: Pick<ResourceVersion, "config">,
         logger: PassableLogger,
         opts?: { mode?: StringifyMode; useFallbacks?: boolean }
-    ): ProjectVersionConfig {
-        return this.parseConfig<ProjectVersionConfigObject, ProjectVersionConfig>(
+    ): NoteVersionConfig {
+        return this.parseConfig<NoteVersionConfigObject, NoteVersionConfig>(
             version.config,
             logger,
             (cfg) => {
                 // Add fallback properties as needed
-                return new ProjectVersionConfig({ config: cfg });
+                return new NoteVersionConfig({ config: cfg });
             },
             { mode: opts?.mode }
         );
     }
 
     /**
-     * Creates a default ProjectVersionConfig
+     * Creates a default NoteVersionConfig
      */
-    static default(): ProjectVersionConfig {
-        const config: ProjectVersionConfigObject = {
+    static default(): NoteVersionConfig {
+        const config: NoteVersionConfigObject = {
             __version: LATEST_CONFIG_VERSION,
             resources: [],
         };
-        return new ProjectVersionConfig({ config });
+        return new NoteVersionConfig({ config });
     }
 
     /**
      * Exports the config to a plain object
      */
-    override export(): ProjectVersionConfigObject {
+    override export(): NoteVersionConfigObject {
         return {
             ...super.export(),
         };

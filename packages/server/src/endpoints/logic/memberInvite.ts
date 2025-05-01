@@ -1,4 +1,4 @@
-import { FindByIdInput, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSearchResult, MemberInviteUpdateInput, uuidValidate } from "@local/shared";
+import { FindByIdInput, generatePublicId, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSearchResult, MemberInviteUpdateInput, validatePK } from "@local/shared";
 import { createManyHelper, createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";
@@ -57,7 +57,7 @@ export const memberInvite: EndpointsMemberInvite = {
     acceptOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        if (!input || !input.id || !uuidValidate(input.id)) {
+        if (!input || !input.id || !validatePK(input.id)) {
             throw new CustomError("0400", "InvalidArgs");
         }
         const userData = SessionService.getUser(req);
@@ -67,12 +67,12 @@ export const memberInvite: EndpointsMemberInvite = {
         const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
 
         const invite = await DbProvider.get().member_invite.findUnique({
-            where: { id: input.id },
+            where: { id: BigInt(input.id) },
             select: { id: true, userId: true, teamId: true, status: true },
         });
 
         if (!invite) throw new CustomError("0404", "NotFound", { objectType });
-        if (invite.userId !== userData.id) throw new CustomError("0803", "Unauthorized");
+        if (invite.userId.toString() !== userData.id) throw new CustomError("0803", "Unauthorized");
         if (invite.status !== "Pending") throw new CustomError("0809", "InternalError");
 
         await DbProvider.get().$transaction([
@@ -88,7 +88,7 @@ export const memberInvite: EndpointsMemberInvite = {
                     },
                 },
                 create: {
-                    permissions: JSON.stringify({}),
+                    publicId: generatePublicId(),
                     teamId: invite.teamId,
                     userId: invite.userId,
                 },
@@ -97,13 +97,13 @@ export const memberInvite: EndpointsMemberInvite = {
             }),
         ]);
 
-        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id }, objectType, req });
+        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
         return result as MemberInvite;
     },
     declineOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        if (!input || !input.id || !uuidValidate(input.id)) {
+        if (!input || !input.id || !validatePK(input.id)) {
             throw new CustomError("0400", "InvalidArgs");
         }
         const userData = SessionService.getUser(req);
@@ -113,12 +113,12 @@ export const memberInvite: EndpointsMemberInvite = {
         const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
 
         const invite = await DbProvider.get().member_invite.findUnique({
-            where: { id: input.id },
+            where: { id: BigInt(input.id) },
             select: { id: true, userId: true, teamId: true, status: true },
         });
 
         if (!invite) throw new CustomError("0404", "NotFound", { objectType });
-        if (invite.userId !== userData.id) throw new CustomError("0803", "Unauthorized");
+        if (invite.userId.toString() !== userData.id) throw new CustomError("0803", "Unauthorized");
         if (invite.status !== "Pending") throw new CustomError("0809", "InternalError");
 
         await DbProvider.get().member_invite.update({
@@ -126,7 +126,7 @@ export const memberInvite: EndpointsMemberInvite = {
             data: { status: "Declined" },
         });
 
-        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id }, objectType, req });
+        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
         return result as MemberInvite;
     },
 };

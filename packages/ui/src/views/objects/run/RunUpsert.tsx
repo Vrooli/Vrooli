@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointsRunRoutine, noopSubmit, RunRoutine, RunRoutineCreateInput, RunRoutineShape, RunRoutineUpdateInput, runRoutineValidation, RunStatus, Schedule, Session, shapeRunRoutine } from "@local/shared";
+import { DUMMY_ID, endpointsRun, noopSubmit, Run, RunCreateInput, RunRoutine, RunRoutineShape, RunShape, RunStatus, RunUpdateInput, runValidation, Schedule, Session, shapeRun } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useContext, useMemo, useState } from "react";
@@ -18,19 +18,19 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ScheduleUpsert } from "../schedule/ScheduleUpsert.js";
-import { RunRoutineFormProps, RunRoutineUpsertProps } from "./types.js";
+import { RunFormProps, RunUpsertProps } from "./types.js";
 
-export function runRoutineInitialValues(
+export function runInitialValues(
     session: Session | undefined,
-    existing?: Partial<RunRoutine> | null | undefined,
-): RunRoutineShape {
+    existing?: Partial<Run> | null | undefined,
+): RunShape {
     return {
-        __typename: "RunRoutine" as const,
+        __typename: "Run" as const,
         id: DUMMY_ID,
         completedComplexity: 0,
         contextSwitches: 0,
         isPrivate: true,
-        name: existing?.name ?? getDisplay(existing?.routineVersion, getUserLanguages(session)).title ?? "Run",
+        name: existing?.name ?? getDisplay(existing?.resourceVersion, getUserLanguages(session)).title ?? "Run",
         schedule: null,
         status: RunStatus.Scheduled,
         steps: [],
@@ -39,11 +39,11 @@ export function runRoutineInitialValues(
     };
 }
 
-export function transformRunRoutineValues(values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) {
-    return isCreate ? shapeRunRoutine.create(values) : shapeRunRoutine.update(existing, values);
+export function transformRunValues(values: RunShape, existing: RunShape, isCreate: boolean) {
+    return isCreate ? shapeRun.create(values) : shapeRun.update(existing, values);
 }
 
-function RunRoutineForm({
+function RunForm({
     disabled,
     dirty,
     display,
@@ -58,7 +58,7 @@ function RunRoutineForm({
     onDeleted,
     values,
     ...props
-}: RunRoutineFormProps) {
+}: RunFormProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -85,32 +85,32 @@ function RunRoutineForm({
         setIsScheduleDialogOpen(false);
     }
 
-    const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Run>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "RunRoutine",
+        objectType: "Run",
         ...props,
     });
     const {
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput>({
+    } = useUpsertFetch<Run, RunCreateInput, RunUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsRunRoutine.createOne,
-        endpointUpdate: endpointsRunRoutine.updateOne,
+        endpointCreate: endpointsRun.createOne,
+        endpointUpdate: endpointsRun.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunRoutine" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Run" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<RunRoutineCreateInput | RunRoutineUpdateInput, RunRoutine>({
+    const onSubmit = useSubmitHelper<RunCreateInput | RunUpdateInput, Run>({
         disabled,
         existing,
         fetch,
-        inputs: transformRunRoutineValues(values, existing, isCreate),
+        inputs: transformRunValues(values, existing, isCreate),
         isCreate,
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
@@ -235,26 +235,26 @@ function RunRoutineForm({
     );
 }
 
-export function RunRoutineUpsert({
+export function RunUpsert({
     display,
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: RunRoutineUpsertProps) {
+}: RunUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunRoutine, RunRoutineShape>({
-        ...endpointsRunRoutine.findOne,
+        ...endpointsRun.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "RunRoutine",
+        objectType: "Run",
         overrideObject,
-        transform: (existing) => runRoutineInitialValues(session, existing),
+        transform: (existing) => runInitialValues(session, existing),
     });
 
-    async function validateValues(values: RunRoutineShape) {
-        return await validateFormValues(values, existing, isCreate, transformRunRoutineValues, runRoutineValidation);
+    async function validateValues(values: RunShape) {
+        return await validateFormValues(values, existing, isCreate, transformRunValues, runValidation);
     }
 
     return (
@@ -264,7 +264,7 @@ export function RunRoutineUpsert({
             onSubmit={noopSubmit}
             validate={validateValues}
         >
-            {(formik) => <RunRoutineForm
+            {(formik) => <RunForm
                 disabled={!(isCreate || permissions.canUpdate)}
                 display={display}
                 existing={existing}

@@ -1,5 +1,5 @@
 /* eslint-disable import/extensions */
-import { Session, TranslationKeyCommon, TranslationKeyError, uuid } from "@local/shared";
+import { Session, TranslationKeyCommon, TranslationKeyError, generatePKString } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import { ObjectSchema, ValidationError } from "yup";
@@ -500,7 +500,7 @@ export function updateTranslationFields<
     // If no translation was found, add a new one
     if (!translationFound) {
         translations.push({
-            id: uuid(),
+            id: generatePKString(),
             ...changes,
             language,
         } as Translation);
@@ -700,7 +700,7 @@ export function handleTranslationChange(
     const translationArray = Array.isArray(field.value) ? [...field.value] : [];
     // If the language does not exist, create a new entry
     if (index === -1) {
-        const newTranslation = { id: uuid(), language, [changedField]: changedValue };
+        const newTranslation = { id: generatePKString(), language, [changedField]: changedValue };
         helpers.setValue([...translationArray, newTranslation]);
     }
     // If the language exists, update the existing entry
@@ -792,11 +792,11 @@ export function addEmptyTranslation(
         return;
     }
     // Create new translation object with all fields empty
-    const newTranslation: TranslationObject = { id: uuid(), language };
+    const newTranslation: TranslationObject = { id: generatePKString(), language };
     for (const field of Object.keys(initialTranslations[0])) {
         if (!["id", "language"].includes(field)) newTranslation[field] = "";
     }
-    newTranslation.id = uuid();
+    newTranslation.id = generatePKString();
     newTranslation.language = language;
     // Add new translation object to translations
     translations.push(newTranslation);

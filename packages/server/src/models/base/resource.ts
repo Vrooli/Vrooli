@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -11,52 +11,53 @@ import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preSha
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
 import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
-import { RoutineFormat } from "../formats.js";
+import { ResourceFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types.js";
+import { BookmarkModelLogic, ReactionModelLogic, ResourceModelInfo, ResourceModelLogic, ResourceVersionModelLogic, ViewModelLogic } from "./types.js";
 
-type RoutinePre = PreShapeRootResult;
+type ResourcePre = PreShapeRootResult;
 
-const __typename = "Routine" as const;
-export const RoutineModel: RoutineModelLogic = ({
+const __typename = "Resource" as const;
+export const ResourceModel: ResourceModelLogic = ({
     __typename,
-    dbTable: "routine",
-    display: () => rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
-    format: RoutineFormat,
+    dbTable: "resource",
+    display: () => rootObjectDisplay(ModelMap.get<ResourceVersionModelLogic>("ResourceVersion")),
+    format: ResourceFormat,
     mutate: {
         shape: {
             // TODO for morning 2: need to create helper to handle version pre/post logic. These should 
             // also support calling Trigger, and also version index logic. I started implementing this (the version index logic) somewhere before, 
-            // maybe models/routineVersion.
-            pre: async (params): Promise<RoutinePre> => {
+            // maybe models/resourceVersion.
+            pre: async (params): Promise<ResourcePre> => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
-                const preData = rest.preMap[__typename] as RoutinePre;
+                const preData = rest.preMap[__typename] as ResourcePre;
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     isInternal: noNull(data.isInternal),
                     isPrivate: data.isPrivate,
                     permissions: noNull(data.permissions) ?? JSON.stringify({}),
                     createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                     ...preData.versionMap[data.id],
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
-                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest }),
-                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
-                const preData = rest.preMap[__typename] as RoutinePre;
+                const preData = rest.preMap[__typename] as ResourcePre;
                 return {
                     isInternal: noNull(data.isInternal),
                     isPrivate: noNull(data.isPrivate),
                     permissions: noNull(data.permissions),
                     ...preData.versionMap[data.id],
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
-                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
                 };
             },
@@ -78,8 +79,8 @@ export const RoutineModel: RoutineModelLogic = ({
             hasCompleteVersion: true,
             isInternal: true,
             issuesId: true,
-            latestVersionRoutineType: true,
-            latestVersionRoutineTypes: true,
+            latestVersionResourceSubType: true,
+            latestVersionResourceSubTypes: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,
@@ -90,6 +91,7 @@ export const RoutineModel: RoutineModelLogic = ({
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
+            resourceType: true,
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
@@ -106,12 +108,12 @@ export const RoutineModel: RoutineModelLogic = ({
             getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<RoutineModelInfo["ApiPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ResourceModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? [DEFAULT_LANGUAGE], "project.translatedName"),
+                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? [DEFAULT_LANGUAGE], "resource.translatedName"),
                 };
             },
         },
@@ -126,7 +128,7 @@ export const RoutineModel: RoutineModelLogic = ({
             data.isInternal === false &&
             (
                 (data.ownedByUser === null && data.ownedByTeam === null) ||
-                oneIsPublic<RoutineModelInfo["DbSelect"]>([
+                oneIsPublic<ResourceModelInfo["DbSelect"]>([
                     ["ownedByTeam", "Team"],
                     ["ownedByUser", "User"],
                 ], data, ...rest)
@@ -148,7 +150,7 @@ export const RoutineModel: RoutineModelLogic = ({
             createdBy: "User",
             ownedByTeam: "Team",
             ownedByUser: "User",
-            versions: ["RoutineVersion", ["root"]],
+            versions: ["ResourceVersion", ["root"]],
         }),
         visibility: {
             own: function getOwn(data) {
@@ -156,8 +158,8 @@ export const RoutineModel: RoutineModelLogic = ({
                     isDeleted: false, // Can't be deleted
                     isInternal: false, // Internal routines should never be in search results
                     OR: [
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
-                        { ownedByUser: { id: data.userId } },
+                        { ownedByTeam: useVisibility("Team", "Own", data) },
+                        { ownedByUser: useVisibility("User", "Own", data) },
                     ],
                 };
             },
@@ -166,15 +168,11 @@ export const RoutineModel: RoutineModelLogic = ({
                     isDeleted: false, // Can't be deleted
                     isInternal: false, // Internal routines should never be in search results
                     OR: [
-                        // Owned objects
-                        {
-                            OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
-                        },
-                        // Public objects
-                        {
-                            isPrivate: false, // Can't be private
-                            OR: (useVisibility("Routine", "Public", data) as { OR: object[] }).OR,
-                        },
+                        { ownedByTeam: null, ownedByUser: null },
+                        { ownedByTeam: useVisibility("Team", "Own", data) },
+                        { ownedByUser: useVisibility("User", "Own", data) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
+                        { ownedByUser: useVisibility("User", "Public", data) },
                     ],
                 };
             },
@@ -183,14 +181,14 @@ export const RoutineModel: RoutineModelLogic = ({
                     isDeleted: false, // Can't be deleted
                     isInternal: false, // Internal routines should never be in search results
                     isPrivate: true,  // Must be private
-                    OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
+                    OR: (useVisibility("Resource", "Own", data) as { OR: object[] }).OR,
                 };
             },
             ownPublic: function getOwnPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
                     isPrivate: false, // Must be public
-                    OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
+                    OR: (useVisibility("Resource", "Own", data) as { OR: object[] }).OR,
                 };
             },
             public: function getPublic(data) {
@@ -201,7 +199,7 @@ export const RoutineModel: RoutineModelLogic = ({
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },
                         { ownedByTeam: useVisibility("Team", "Public", data) },
-                        { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
+                        { ownedByUser: { isPrivate: false, isPrivateResources: false } },
                     ],
                 };
             },

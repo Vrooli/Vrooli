@@ -1,4 +1,4 @@
-import { MaxObjects, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
+import { MaxObjects, RunSortBy, runValidation } from "@local/shared";
 import { RunStatus, RunStepStatus } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
@@ -9,20 +9,20 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
-import { RunRoutineFormat } from "../formats.js";
+import { RunFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types.js";
+import { ResourceVersionModelLogic, RunModelInfo, RunModelLogic } from "./types.js";
 
-const __typename = "RunRoutine" as const;
-export const RunRoutineModel: RunRoutineModelLogic = ({
+const __typename = "Run" as const;
+export const RunModel: RunModelLogic = ({
     __typename,
     danger: {
         async anonymize(owner) {
-            await DbProvider.get().run_routine.updateMany({
+            await DbProvider.get().run.updateMany({
                 where: {
-                    teamId: owner.__typename === "Team" ? owner.id : undefined,
-                    userId: owner.__typename === "User" ? owner.id : undefined,
+                    teamId: owner.__typename === "Team" ? BigInt(owner.id) : undefined,
+                    userId: owner.__typename === "User" ? BigInt(owner.id) : undefined,
                     isPrivate: false,
                 },
                 data: {
@@ -32,16 +32,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             });
         },
         async deleteAll(owner) {
-            const result = await DbProvider.get().run_routine.deleteMany({
+            const result = await DbProvider.get().run.deleteMany({
                 where: {
-                    teamId: owner.__typename === "Team" ? owner.id : undefined,
-                    userId: owner.__typename === "User" ? owner.id : undefined,
+                    teamId: owner.__typename === "Team" ? BigInt(owner.id) : undefined,
+                    userId: owner.__typename === "User" ? BigInt(owner.id) : undefined,
                 },
             });
             return result.count;
         },
     },
-    dbTable: "run_routine",
+    dbTable: "run",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -54,7 +54,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             },
         },
     }),
-    format: RunRoutineFormat,
+    format: RunFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
@@ -63,7 +63,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 let timeElapsed = noNull(data.timeElapsed);
                 if (timeElapsed !== undefined) timeElapsed = Math.max(timeElapsed, 0);
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
                     data: noNull(data.data),
@@ -74,12 +74,12 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     timeElapsed,
                     startedAt: data.startedAt,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
-                    user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
-                    routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest }),
-                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
-                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
-                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runRoutines", data, ...rest }),
-                    io: await shapeHelper({ relation: "io", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineIO", parentRelationshipName: "runRoutine", data, ...rest }),
+                    user: data.teamConnect ? undefined : { connect: { id: BigInt(rest.userData.id) } },
+                    resourceVersion: await shapeHelper({ relation: "resourceVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "runs", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runs", data, ...rest }),
+                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunStep", parentRelationshipName: "run", data, ...rest }),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runs", data, ...rest }),
+                    io: await shapeHelper({ relation: "io", relTypes: ["Create"], isOneToOne: false, objectType: "RunIO", parentRelationshipName: "run", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -97,9 +97,9 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     // TODO should have way of checking old status, so we don't reset startedAt/completedAt
                     startedAt: data.startedAt,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
-                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
-                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
-                    io: await shapeHelper({ relation: "io", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineIO", parentRelationshipName: "runRoutine", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runs", data, ...rest }),
+                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunStep", parentRelationshipName: "run", data, ...rest }),
+                    io: await shapeHelper({ relation: "io", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunIO", parentRelationshipName: "run", data, ...rest }),
                 };
             },
         },
@@ -132,16 +132,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 }
             },
         },
-        yup: runRoutineValidation,
+        yup: runValidation,
     },
     search: {
-        defaultSort: RunRoutineSortBy.DateUpdatedDesc,
-        sortBy: RunRoutineSortBy,
+        defaultSort: RunSortBy.DateUpdatedDesc,
+        sortBy: RunSortBy,
         searchFields: {
             completedTimeFrame: true,
             createdTimeFrame: true,
             excludeIds: true,
-            routineVersionId: true,
+            resourceVersionId: true,
             scheduleEndTimeFrame: true,
             scheduleStartTimeFrame: true,
             startedTimeFrame: true,
@@ -152,7 +152,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                { routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").search.searchStringQuery() },
+                { resourceVersion: ModelMap.get<ResourceVersionModelLogic>("ResourceVersion").search.searchStringQuery() },
             ],
         }),
         supplemental: {
@@ -160,23 +160,25 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             dbFields: ["name"],
             suppFields: SuppFields[__typename],
             getSuppFields: async ({ ids, userData }) => {
+                // Convert string IDs to BigInts for the query parameter
+                const bigIntIds = ids.map(id => BigInt(id));
                 // Find the step with the highest "completedAt" Date for each run
                 const recentSteps = await DbProvider.get().$queryRaw`
-                    SELECT DISTINCT ON ("runRoutineId")
-                    "runRoutineId",
+                    SELECT DISTINCT ON ("runId")
+                    "runId",
                     step
-                    FROM run_routine_step
-                    WHERE "runRoutineId" = ANY(${ids}::uuid[])
+                    FROM run_step
+                    WHERE "runId" = ANY(${bigIntIds})
                     AND "completedAt" IS NOT NULL
                     AND status = 'Completed'
-                    ORDER BY "runRoutineId", "completedAt" DESC
-                ` as { runRoutineId: string, step: RunStepStatus }[];
-                const stepMap = new Map(recentSteps.map(step => [step.runRoutineId, step.step]));
+                    ORDER BY "runId", "completedAt" DESC
+                ` as { runId: bigint, step: RunStepStatus }[];
+                const stepMap = new Map(recentSteps.map(step => [step.runId.toString(), step.step]));
                 const lastSteps = ids.map(id => stepMap.get(id) || null);
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<RunRoutineModelInfo["ApiPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -202,7 +204,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             data.isPrivate === false &&
             (
                 (data.user === null && data.team === null) ||
-                oneIsPublic<RunRoutineModelInfo["DbSelect"]>([
+                oneIsPublic<RunModelInfo["DbSelect"]>([
                     ["team", "Team"],
                     ["user", "User"],
                 ], data, ...rest)

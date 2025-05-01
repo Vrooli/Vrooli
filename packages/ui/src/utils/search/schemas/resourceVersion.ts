@@ -1,10 +1,10 @@
-import { endpointsRoutineVersion, FormSchema, RoutineVersionSortBy } from "@local/shared";
+import { endpointsResourceVersion, FormSchema, ResourceVersionSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common.js";
 
-export function routineVersionSearchSchema(): FormSchema {
+export function resourceVersionSearchSchema(): FormSchema {
     return {
-        layout: searchFormLayout("SearchRoutineVersion"),
+        layout: searchFormLayout("SearchResourceVersion"),
         containers: [
             isCompleteWithRootContainer,
             isLatestContainer,
@@ -28,4 +28,4 @@ export function routineVersionSearchSchema(): FormSchema {
     };
 }
 
-export function routineVersionSearchParams() { return toParams(routineVersionSearchSchema(), endpointsRoutineVersion, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc); }
+export function resourceVersionSearchParams() { return toParams(resourceVersionSearchSchema(), endpointsResourceVersion, ResourceVersionSortBy, ResourceVersionSortBy.DateCreatedDesc); }

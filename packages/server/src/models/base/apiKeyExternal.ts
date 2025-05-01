@@ -4,8 +4,7 @@ import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ApiKeyExternalFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { ApiKeyExternalModelLogic, TeamModelLogic } from "./types.js";
+import { ApiKeyExternalModelLogic } from "./types.js";
 
 const __typename = "ApiKeyExternal" as const;
 export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
@@ -61,8 +60,8 @@ export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { user: { id: data.userId } },
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: useVisibility("User", "Own", data) },
+                        { team: useVisibility("Team", "Own", data) },
                     ],
                 };
             },

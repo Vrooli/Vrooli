@@ -1,4 +1,4 @@
-import { MaxObjects, ModelType, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
+import { MaxObjects, ModelType, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, generatePK, getReactionScore, lowercaseFirstLetter, removeModifiers } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
@@ -17,15 +17,10 @@ import { ModelMap } from "./index.js";
 import { ReactionModelInfo, ReactionModelLogic } from "./types.js";
 
 const forMapper: { [key in ReactionFor]?: keyof Prisma.reactionUpsertArgs["create"] } = {
-    Api: "api",
     ChatMessage: "chatMessage",
-    Code: "code",
     Comment: "comment",
     Issue: "issue",
-    Note: "note",
-    Project: "project",
-    Routine: "routine",
-    Standard: "standard",
+    Resource: "resource",
 };
 const reversedForMapper = Object.fromEntries(
     Object.entries(forMapper).map(([key, value]) => [value, key]),
@@ -77,7 +72,7 @@ export const ReactionModel: ReactionModelLogic = ({
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(reactionFor)}Id`;
             const reactionsArray = await DbProvider.get().reaction.findMany({
-                where: { byId: userId, [fieldName]: { in: idsFiltered } },
+                where: { byId: BigInt(userId), [fieldName]: { in: idsFiltered.map(id => BigInt(id)) } },
                 select: { [fieldName]: true, emoji: true },
             });
             // Replace the nulls in the result array with true or false
@@ -103,7 +98,7 @@ export const ReactionModel: ReactionModelLogic = ({
         const isChatMessage = input.reactionFor === "ChatMessage";
         // Check if object being reacted on exists, and if the user has already reacted on it
         const reactedOnObject = await (DbProvider.get()[reactedOnDbTable] as PrismaDelegate).findUnique({
-            where: { id: input.forConnect },
+            where: { id: BigInt(input.forConnect) },
             select: {
                 id: true,
                 score: true,
@@ -130,11 +125,13 @@ export const ReactionModel: ReactionModelLogic = ({
         }
         // Check if the user has permission to react on this object
         const authData = { __typename: input.reactionFor, ...reactedOnObject };
-        console.log("permissions select", JSON.stringify(permissionsSelectHelper(reactedOnValidator.permissionsSelect, userData.id)));
-        console.log("auth data", JSON.stringify(authData));
         const permissions = await calculatePermissions(authData, userData, reactedOnValidator);
         const ownerData = reactedOnValidator.owner(authData, userData.id);
-        const objectOwner = ownerData.Team ? { __typename: "Team" as const, id: ownerData.Team.id } : ownerData.User ? { __typename: "User" as const, id: ownerData.User.id } : null;
+        const objectOwner = ownerData.Team
+            ? { __typename: "Team" as const, id: ownerData.Team.id.toString() }
+            : ownerData.User
+                ? { __typename: "User" as const, id: ownerData.User.id.toString() }
+                : null;
         if (!permissions.canReact) {
             throw new CustomError("0637", "Unauthorized", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
@@ -150,15 +147,15 @@ export const ReactionModel: ReactionModelLogic = ({
         if (isSame) return true;
         // Determine reaction query
         const reactionQuery = !reaction
-            ? { create: { byId: userData.id, emoji: input.emoji || "" } } as const
+            ? { create: { byId: BigInt(userData.id), emoji: input.emoji || "" } } as const
             : isRemove
-                ? { delete: { id: reaction.id } } as const
-                : { update: { where: { id: reaction.id }, data: { emoji: input.emoji || "" } } } as const;
+                ? { delete: { id: BigInt(reaction.id) } } as const
+                : { update: { where: { id: BigInt(reaction.id) }, data: { emoji: input.emoji || "" } } } as const;
         // Prepare transaction operations
         const transactionOps: Prisma.PrismaPromise<object>[] = [];
         // Update the score and reaction
         transactionOps.push((DbProvider.get()[reactedOnDbTable] as PrismaDelegate).update({
-            where: { id: input.forConnect },
+            where: { id: BigInt(input.forConnect) },
             data: {
                 score: reactedOnObject.score + deltaScore,
                 reactions: reactionQuery,
@@ -189,16 +186,16 @@ export const ReactionModel: ReactionModelLogic = ({
         for (const { emoji, delta } of emojisToAdjust) {
             const whereClause = {
                 emoji,
-                [reactedOnIdField]: input.forConnect,
+                [reactedOnIdField]: BigInt(input.forConnect),
             } as const;
 
             if (delta > 0) {
                 // Try to update existing summary
-                const createId = uuid();
+                const createId = generatePK();
                 transactionOps.push(
                     DbProvider.get().$executeRawUnsafe(`
                     INSERT INTO "reaction_summary" (id, emoji, count, "${reactedOnIdField}")
-                    VALUES ($1::UUID, $2, $3, $4::UUID)
+                    VALUES ($1::BIGINT, $2, $3, $4::BIGINT)
                     ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "projectId", "routineId", "standardId")
                     DO UPDATE SET count = reaction_summary.count + $5
                   `, createId, emoji, delta, input.forConnect, delta) as unknown as Prisma.PrismaPromise<object>,
@@ -269,16 +266,11 @@ export const ReactionModel: ReactionModelLogic = ({
         defaultSort: ReactionSortBy.DateUpdatedDesc,
         sortBy: ReactionSortBy,
         searchFields: {
-            apiId: true,
             chatMessageId: true,
-            codeId: true,
             commentId: true,
             excludeLinkedToTag: true,
             issueId: true,
-            noteId: true,
-            projectId: true,
-            routineId: true,
-            standardId: true,
+            resourceId: true,
         },
         searchStringQuery: () => ({}), // Intentionally empty
     },
@@ -288,16 +280,10 @@ export const ReactionModel: ReactionModelLogic = ({
             if (!data.by) return false;
             if (data.by.isPrivateVotes) return false;
             return oneIsPublic<ReactionModelInfo["DbSelect"]>([
-                ["api", "Api"],
                 ["chatMessage", "ChatMessage"],
-                ["code", "Code"],
                 ["comment", "Comment"],
                 ["issue", "Issue"],
-                ["note", "Note"],
-                ["post", "Post"],
-                ["project", "Project"],
-                ["routine", "Routine"],
-                ["standard", "Standard"],
+                ["resource", "Resource"],
             ], data, ...rest);
         },
         isTransferable: false,
@@ -313,7 +299,7 @@ export const ReactionModel: ReactionModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    by: { id: data.userId },
+                    by: { id: BigInt(data.userId) },
                     // Any non-public, non-owned objects should be filtered out
                     // Can use OR because only one relation will be present
                     OR: [

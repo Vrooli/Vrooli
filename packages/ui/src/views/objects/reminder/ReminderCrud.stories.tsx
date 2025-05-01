@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Reminder, endpointsReminder, getObjectUrl, uuid } from "@local/shared";
+import { Reminder, endpointsReminder, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ReminderCrud } from "./ReminderCrud.js";
@@ -9,7 +9,7 @@ import { ReminderCrud } from "./ReminderCrud.js";
 // Create simplified mock data for Reminder responses
 const mockReminderData = {
     __typename: "Reminder" as const,
-    id: uuid(),
+    id: generatePKString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
@@ -19,7 +19,7 @@ const mockReminderData = {
     description: "This is a **detailed** description for the reminder using markdown.\nInclude all technical specifications and user guides.",
     reminderItems: Array.from({ length: 3 }, (_, i) => ({
         __typename: "ReminderItem" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         dueDate: new Date(Date.now() + (i + 1) * 43200000).toISOString(), // Staggered due dates
@@ -30,7 +30,7 @@ const mockReminderData = {
     })),
     reminderList: {
         __typename: "ReminderList" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         reminders: [],
@@ -45,7 +45,7 @@ export default {
 // Create a new Reminder
 export function Create() {
     return (
-        <ReminderCrud display="page" isCreate={true} />
+        <ReminderCrud display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -73,7 +73,7 @@ CreateDialog.parameters = {
 // Update an existing Reminder
 export function Update() {
     return (
-        <ReminderCrud display="page" isCreate={false} />
+        <ReminderCrud display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -121,7 +121,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <ReminderCrud display="page" isCreate={false} />
+        <ReminderCrud display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -143,7 +143,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <ReminderCrud display="page" isCreate={true} />
+        <ReminderCrud display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

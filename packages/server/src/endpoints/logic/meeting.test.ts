@@ -1,8 +1,8 @@
-import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
+import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -14,6 +14,7 @@ import { meeting_updateOne } from "../generated/meeting_updateOne.js";
 import { meeting } from "./meeting.js";
 
 // Test users and meeting IDs
+let adminId: string;
 const user1Id = uuid();
 const user2Id = uuid();
 const meeting1Id = uuid();
@@ -50,15 +51,8 @@ describe("EndpointsMeeting", () => {
         });
 
         // Ensure admin user exists for update tests
-        await DbProvider.get().user.upsert({
-            where: { id: SEEDED_IDS.User.Admin },
-            update: {},
-            create: {
-                id: SEEDED_IDS.User.Admin, name: "Admin User", handle: "admin", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-            },
-        });
-
+        const admin = await seedMockAdminUser()
+        adminId = admin.id.toString();
         // Create two teams for meeting ownership
         team1 = await DbProvider.get().team.create({ data: { permissions: "{}" } });
         team2 = await DbProvider.get().team.create({ data: { permissions: "{}" } });
@@ -184,7 +178,7 @@ describe("EndpointsMeeting", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("allows admin to update a meeting", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
+                const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: MeetingUpdateInput = { id: meeting1Id, openToAnyoneWithInvite: false };
                 const result = await meeting.updateOne({ input }, { req, res }, meeting_updateOne);
@@ -214,7 +208,7 @@ describe("EndpointsMeeting", () => {
             });
 
             it("throws when updating non-existent meeting as admin", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
+                const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: MeetingUpdateInput = { id: uuid(), openToAnyoneWithInvite: true };
                 try {

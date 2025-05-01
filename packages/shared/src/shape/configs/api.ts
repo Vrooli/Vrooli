@@ -1,9 +1,9 @@
-import { ApiVersion } from "../../api/types.js";
+import { ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { LATEST_CONFIG_VERSION, parseObject, type StringifyMode } from "./utils.js";
+import { type StringifyMode } from "./utils.js";
 
-const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
+const LATEST_CONFIG_VERSION = "1.0";
 
 /**
  * Represents all data that can be stored in an API's stringified config.
@@ -84,77 +84,55 @@ export class ApiVersionConfig extends BaseConfig<ApiVersionConfigObject> {
     schema?: ApiVersionConfigObject["schema"];
     callLink?: ApiVersionConfigObject["callLink"];
 
-    constructor(data: ApiVersionConfigObject) {
-        super(data);
-        this.rateLimiting = data.rateLimiting;
-        this.authentication = data.authentication;
-        this.caching = data.caching;
-        this.timeout = data.timeout;
-        this.retry = data.retry;
-        this.documentationLink = data.documentationLink;
-        this.schema = data.schema;
-        this.callLink = data.callLink;
+    constructor({ config }: { config: ApiVersionConfigObject }) {
+        super(config);
+        this.rateLimiting = config.rateLimiting;
+        this.authentication = config.authentication;
+        this.caching = config.caching;
+        this.timeout = config.timeout;
+        this.retry = config.retry;
+        this.documentationLink = config.documentationLink;
+        this.schema = config.schema;
+        this.callLink = config.callLink;
     }
 
-    /**
-     * Creates an ApiVersionConfig from an API version object
-     */
-    static createFromApiVersion(
-        apiVersion: {
-            data?: string | null;
-            callLink: ApiVersion["callLink"];
-            schemaText?: ApiVersion["schemaText"];
-            schemaLanguage?: ApiVersion["schemaLanguage"];
-            documentationLink?: ApiVersion["documentationLink"];
-        },
+    static deserialize(
+        version: Pick<ResourceVersion, "config">,
         logger: PassableLogger,
-        options: { mode?: StringifyMode } = {},
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean }
     ): ApiVersionConfig {
-        const mode = options.mode || DEFAULT_STRINGIFY_MODE;
-        const obj = apiVersion.data ? parseObject<ApiVersionConfigObject>(apiVersion.data, mode, logger) : null;
-        if (!obj) {
-            return ApiVersionConfig.default({
-                callLink: apiVersion.callLink,
-                schemaText: apiVersion.schemaText,
-                schemaLanguage: apiVersion.schemaLanguage,
-                documentationLink: apiVersion.documentationLink,
-            });
-        }
-        return new ApiVersionConfig({
-            data: obj,
-            callLink: apiVersion.callLink,
-            schemaText: apiVersion.schemaText,
-            schemaLanguage: apiVersion.schemaLanguage,
-            documentationLink: apiVersion.documentationLink,
-        });
+        return this.parseConfig<ApiVersionConfigObject, ApiVersionConfig>(
+            version.config,
+            logger,
+            (cfg) => {
+                // ensure defaults for input/output/testcases
+                if (opts?.useFallbacks ?? true) {
+                    cfg.rateLimiting ??= ApiVersionConfig.defaultRateLimiting();
+                    cfg.authentication ??= ApiVersionConfig.defaultAuthentication();
+                    cfg.caching ??= ApiVersionConfig.defaultCaching();
+                    cfg.timeout ??= ApiVersionConfig.defaultTimeout();
+                    cfg.retry ??= ApiVersionConfig.defaultRetry();
+                }
+                return new ApiVersionConfig({ config: cfg });
+            },
+            { mode: opts?.mode }
+        );
     }
 
     /**
      * Creates a default ApiVersionConfig
      */
-    static default({
-        callLink,
-        schemaText,
-        schemaLanguage,
-        documentationLink,
-    }: {
-        callLink: ApiVersion["callLink"],
-        schemaText?: ApiVersion["schemaText"],
-        schemaLanguage?: ApiVersion["schemaLanguage"],
-        documentationLink?: ApiVersion["documentationLink"]
-    }): ApiVersionConfig {
-        const data: ApiVersionConfigObject = {
+    static default(): ApiVersionConfig {
+        const config: ApiVersionConfigObject = {
             __version: LATEST_CONFIG_VERSION,
             resources: [],
-            metadata: {},
+            rateLimiting: ApiVersionConfig.defaultRateLimiting(),
+            authentication: ApiVersionConfig.defaultAuthentication(),
+            caching: ApiVersionConfig.defaultCaching(),
+            timeout: ApiVersionConfig.defaultTimeout(),
+            retry: ApiVersionConfig.defaultRetry(),
         };
-        return new ApiVersionConfig({
-            data,
-            callLink,
-            schemaText,
-            schemaLanguage,
-            documentationLink,
-        });
+        return new ApiVersionConfig({ config });
     }
 
     /**
@@ -168,6 +146,43 @@ export class ApiVersionConfig extends BaseConfig<ApiVersionConfigObject> {
             caching: this.caching,
             timeout: this.timeout,
             retry: this.retry,
+        };
+    }
+
+    static defaultRateLimiting(): ApiVersionConfigObject["rateLimiting"] {
+        return {
+            requestsPerMinute: 1000,
+            burstLimit: 100,
+            useGlobalRateLimit: true,
+        };
+    }
+
+    static defaultAuthentication(): ApiVersionConfigObject["authentication"] {
+        return {
+            type: "none",
+        };
+    }
+
+    static defaultCaching(): ApiVersionConfigObject["caching"] {
+        return {
+            enabled: true,
+            ttl: 3600,
+            invalidation: "ttl",
+        };
+    }
+
+    static defaultTimeout(): ApiVersionConfigObject["timeout"] {
+        return {
+            request: 10000,
+            connection: 10000,
+        };
+    }
+
+    static defaultRetry(): ApiVersionConfigObject["retry"] {
+        return {
+            maxAttempts: 3,
+            backoffStrategy: "exponential",
+            initialDelay: 1000,
         };
     }
 

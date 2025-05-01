@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Meeting, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, getObjectUrl, uuid } from "@local/shared";
+import { Meeting, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleView } from "./ScheduleView.js";
 
 // Create simplified mock data for Schedule responses
 const mockScheduleData: Schedule = {
-    id: uuid(),
+    id: generatePKString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     startTime: new Date().toISOString(),
@@ -18,7 +18,7 @@ const mockScheduleData: Schedule = {
     recurrences: [
         {
             __typename: "ScheduleRecurrence" as const,
-            id: uuid(),
+            id: generatePKString(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             dayOfWeek: 2, // Tuesday
@@ -31,12 +31,12 @@ const mockScheduleData: Schedule = {
     ],
     meetings: [{
         __typename: "Meeting" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         translations: [{
             __typename: "MeetingTranslation" as const,
-            id: uuid(),
+            id: generatePKString(),
             language: "en",
             name: "Weekly Team Sync",
             description: "Regular team sync meeting to discuss progress and blockers",
@@ -52,9 +52,7 @@ const mockScheduleData: Schedule = {
             isParticipant: true,
         },
     } as unknown as Meeting],
-    runProjects: [],
-    runRoutines: [],
-    labels: [],
+    runs: [],
 } as any; // Cast as any to bypass type checking for stories
 
 export default {

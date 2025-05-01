@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, ResourceCreateInput, ResourceSearchInput, ResourceUpdateInput, RunCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, TeamCreateInput, TeamSearchInput, TeamUpdateInput, User, UserSearchInput, UserTranslation, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, ResourceCreateInput, ResourceSearchInput, ResourceUpdateInput, RunCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, TeamCreateInput, TeamSearchInput, TeamUpdateInput, User, UserSearchInput, UserTranslation, getObjectSlug, getObjectUrlBase, validatePK } from "@local/shared";
 import { Request, Response } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,8 +9,8 @@ import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Context } from "../../middleware/context.js";
 import { ModelMap } from "../../models/base/index.js";
-import { processRunProject } from "../../tasks/run/queue.js";
 import { RecursivePartial } from "../../types.js";
+import { processRun } from "../run/queue.js";
 
 type LlmTaskDataValue = string | number | boolean | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
@@ -153,9 +153,9 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const Endpoints = await import("../../endpoints/logic/user.js");
         const info = await import("../../endpoints/generated/user_findOne.js");
         return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            validateFields(["id", (data) => validatePK(data.id)])(data);
             const existingUser = await DbProvider.get().user.findUnique({
-                where: { id: data.id as string },
+                where: { id: BigInt(data.id as string) },
                 select: {
                     botSettings: true,
                     handle: true,
@@ -175,7 +175,15 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
             if (!existingUser) {
                 throw new CustomError("0276", "NotFound", { id: data.id, task });
             }
-            const input = converter[task](data, language, existingUser);
+            const userInput = {
+                ...existingUser,
+                id: existingUser.id.toString(),
+                translations: existingUser.translations.map((t) => ({
+                    ...t,
+                    id: t.id.toString(),
+                })),
+            };
+            const input = converter[task](data, language, userInput);
             const payload = await Endpoints.user.botUpdateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
@@ -216,7 +224,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const Endpoints = await import("../../endpoints/logic/member.js");
         const info = await import("../../endpoints/generated/member_findOne.js");
         return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            validateFields(["id", (data) => validatePK(data.id)])(data);
             const input = converter[task](data, language);
             const payload = await Endpoints.member.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
@@ -264,7 +272,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const Endpoints = await import("../../endpoints/logic/reminder.js");
         const info = await import("../../endpoints/generated/reminder_findOne.js");
         return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            validateFields(["id", (data) => validatePK(data.id)])(data);
             const input = converter[task](data, language);
             const payload = await Endpoints.reminder.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
@@ -296,7 +304,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/resource_findMany.js");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "RoutineVersion", req: context.req });
+            const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "ResourceVersion", req: context.req });
             const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
             const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
             return { label, link, payload };
@@ -306,7 +314,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const Endpoints = await import("../../endpoints/logic/resource.js");
         const info = await import("../../endpoints/generated/resource_findOne.js");
         return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            validateFields(["id", (data) => validatePK(data.id)])(data);
             const input = converter[task](data, language);
             const payload = await Endpoints.resource.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
@@ -320,9 +328,9 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             const input = converter[task](data, language);
             // Create the run
-            const payload = await Endpoints.runProject.createOne({ input }, context, info);
+            const payload = await Endpoints.run.createOne({ input }, context, info);
             // Start the run
-            await processRunProject({} as any);//TODO
+            await processRun({} as any);//TODO
             // Return the run
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
@@ -366,7 +374,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const Endpoints = await import("../../endpoints/logic/schedule.js");
         const info = await import("../../endpoints/generated/schedule_findOne.js");
         return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            validateFields(["id", (data) => validatePK(data.id)])(data);
             const input = converter[task](data, language);
             const payload = await Endpoints.schedule.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
@@ -408,7 +416,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const Endpoints = await import("../../endpoints/logic/team.js");
         const info = await import("../../endpoints/generated/team_findOne.js");
         return async (data) => {
-            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            validateFields(["id", (data) => validatePK(data.id)])(data);
             const input = converter[task](data, language);
             const payload = await Endpoints.team.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);

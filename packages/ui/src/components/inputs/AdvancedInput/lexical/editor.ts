@@ -2,7 +2,7 @@
 // NOTE: Much of this file is taken from the lexical package, which is licensed under the MIT license. 
 // We have copied the code here for customization purposes, such as replacing the default code block component
 
-import { uuid } from "@local/shared";
+import { nanoid } from "@local/shared";
 import { FULL_RECONCILE, NO_DIRTY_NODES } from "./consts.js";
 import { addRootElementEvents, removeRootElementEvents } from "./events.js";
 import { flushRootMutations, initMutationObserver } from "./mutations.js";
@@ -134,7 +134,7 @@ export async function createEditor(editorConfig?: CreateEditorArgs): Promise<Lex
 
     // Return active editor if it exists
     const config = editorConfig || {};
-    const namespace = config.namespace || uuid();
+    const namespace = config.namespace || nanoid();
 
     const editor = new LexicalEditor(
         { namespace },
@@ -219,7 +219,7 @@ export class LexicalEditor {
         // Handling of DOM mutations
         this._observer = null;
         // Used for identifying owning editors
-        this._key = uuid();
+        this._key = nanoid();
 
         this._onError = onError;
         this._editable = true;

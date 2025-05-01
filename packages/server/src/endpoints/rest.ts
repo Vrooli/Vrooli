@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsSchedule, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceVersion, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
 import { Express, NextFunction, Request, Response, Router } from "express";
 import { SessionService } from "../auth/session.js";
@@ -524,8 +524,6 @@ export async function initRestApi(app: Express) {
         [endpointsTransfer.cancelOne, Logic.transfer.cancelOne, Select.transfer_cancelOne],
         [endpointsTransfer.acceptOne, Logic.transfer.acceptOne, Select.transfer_acceptOne],
         [endpointsTransfer.denyOne, Logic.transfer.denyOne, Select.transfer_denyOne],
-        // Translate
-        [endpointsTranslate.translate, Logic.translate.translate, Select.translate_translate],
         // User
         [endpointsUser.botUpdateOne, Logic.user.botUpdateOne, Select.user_botUpdateOne, botImagesConfig],
         [endpointsUser.botCreateOne, Logic.user.botCreateOne, Select.user_botCreateOne, botImagesConfig],

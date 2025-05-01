@@ -1,4 +1,4 @@
-import { endpointsRoutine, FormSchema, InputType, RoutineSortBy, RoutineType } from "@local/shared";
+import { endpointsResource, FormSchema, InputType, ResourceSortBy, ResourceSubType, RoutineType } from "@local/shared";
 import { Icon, IconInfo } from "../../../icons/Icons.js";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
@@ -12,49 +12,49 @@ export type RoutineTypeOption = {
 
 export const routineTypes = [
     {
-        type: RoutineType.Informational,
+        type: ResourceSubType.RoutineInformational,
         label: "Basic",
         description: "Has no side effects. Used to collect information, provide instructions, or as a placeholder.",
         iconInfo: { name: "Help", type: "Common" } as const,
     },
     {
-        type: RoutineType.MultiStep,
+        type: ResourceSubType.RoutineMultiStep,
         label: "Multi-step",
         description: "A combination of other routines, using a graph to define the order of execution.",
         iconInfo: { name: "Routine", type: "Routine" } as const,
     },
     {
-        type: RoutineType.Generate,
+        type: ResourceSubType.RoutineGenerate,
         label: "Generate",
         description: "Sends inputs to an AI (e.g. GPT-4o) and returns its output.",
         iconInfo: { name: "Magic", type: "Common" } as const,
     },
     {
-        type: RoutineType.Data,
+        type: ResourceSubType.RoutineData,
         label: "Data",
         description: "Contains a single output and nothing else. Useful for providing hard-coded data to other routines, such as a prompt for a \"Generate\" routine.",
         iconInfo: { name: "CaseSensitive", type: "Text" } as const,
     },
     {
-        type: RoutineType.Action,
+        type: ResourceSubType.RoutineAction,
         label: "Action",
         description: "Performs specific actions within Vrooli, such as creating, updating, or deleting objects.",
         iconInfo: { name: "Action", type: "Common" } as const,
     },
     {
-        type: RoutineType.Code,
+        type: ResourceSubType.Code,
         label: "Code",
         description: "Runs code to convert inputs to outputs. Useful for converting plaintext to structured data.",
         iconInfo: { name: "Terminal", type: "Common" } as const,
     },
     {
-        type: RoutineType.Api,
+        type: ResourceSubType.Api,
         label: "API",
         description: "Sends inputs to an API and returns its output. Useful for connecting to external services.",
         iconInfo: { name: "Api", type: "Common" } as const,
     },
     {
-        type: RoutineType.Web,
+        type: ResourceSubType.Web,
         label: "Web",
         description: "Searches the web for information.",
         iconInfo: { name: "Web", type: "Common" } as const,
@@ -79,9 +79,9 @@ export function getRoutineTypeIcon(option: RoutineTypeOption) {
     />;
 }
 
-export function routineSearchSchema(): FormSchema {
+export function resourceSearchSchema(): FormSchema {
     return {
-        layout: searchFormLayout("SearchRoutine"),
+        layout: searchFormLayout("SearchResource"),
         containers: [
             {
                 direction: "column",
@@ -124,7 +124,7 @@ export function routineSearchSchema(): FormSchema {
     };
 }
 
-export function routineSearchParams() {
-    return toParams(routineSearchSchema(), endpointsRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
+export function resourceSearchParams() {
+    return toParams(resourceSearchSchema(), endpointsResource, ResourceSortBy, ResourceSortBy.ScoreDesc);
 }
 

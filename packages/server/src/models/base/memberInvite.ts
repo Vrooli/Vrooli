@@ -25,7 +25,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 message: noNull(data.message),
                 status: MemberInviteStatus.Pending,
                 willBeAdmin: noNull(data.willBeAdmin),

@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, Meeting, MeetingInviteStatus, endpointsMeeting, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, Meeting, MeetingInviteStatus, endpointsMeeting, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { MeetingView } from "./MeetingView.js";
@@ -7,7 +7,7 @@ import { MeetingView } from "./MeetingView.js";
 // Create simplified mock data for Meeting responses
 const mockMeetingData: Meeting = {
     __typename: "Meeting" as const,
-    id: uuid(),
+    id: generatePKString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     attendees: [],
@@ -15,7 +15,7 @@ const mockMeetingData: Meeting = {
     invites: [
         {
             __typename: "MeetingInvite" as const,
-            id: uuid(),
+            id: generatePKString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             status: MeetingInviteStatus.Pending,
@@ -23,7 +23,7 @@ const mockMeetingData: Meeting = {
             meeting: {} as any, // This will be set by the circular reference
             user: {
                 __typename: "User" as const,
-                id: uuid(),
+                id: generatePKString(),
             } as any,
             you: {
                 __typename: "MeetingInviteYou" as const,
@@ -33,32 +33,20 @@ const mockMeetingData: Meeting = {
         },
     ],
     invitesCount: 1,
-    labels: [
-        {
-            __typename: "Label" as const,
-            id: uuid(),
-            color: "#FF5722",
-            text: "Planning",
-        } as any,
-    ],
-    labelsCount: 1,
     openToAnyoneWithInvite: true,
-    restrictedToRoles: [],
     schedule: {
         __typename: "Schedule" as const,
-        id: uuid(),
+        id: generatePKString(),
         startTime: new Date().toISOString(),
         endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
         timezone: "America/New_York",
         exceptions: [],
-        labels: [],
         meetings: [],
-        runProjects: [],
-        runRoutines: [],
+        runs: [],
         recurrences: [
             {
                 __typename: "ScheduleRecurrence" as const,
-                id: uuid(),
+                id: generatePKString(),
                 dayOfMonth: null,
                 dayOfWeek: 2, // Tuesday
                 duration: 60, // 60 minutes
@@ -75,7 +63,7 @@ const mockMeetingData: Meeting = {
     showOnTeamProfile: true,
     team: {
         __typename: "Team" as const,
-        id: uuid(),
+        id: generatePKString(),
         bannerImage: null,
         profileImage: null,
         handle: "example-team",
@@ -91,7 +79,7 @@ const mockMeetingData: Meeting = {
             isViewed: true,
             yourMembership: {
                 __typename: "Member" as const,
-                id: uuid(),
+                id: generatePKString(),
                 isAdmin: true,
                 permissions: "{}",
             } as any,
@@ -123,7 +111,7 @@ export default {
 
 export function NoResult() {
     return (
-        <MeetingView display="page" />
+        <MeetingView display="Page" />
     );
 }
 NoResult.parameters = {
@@ -132,7 +120,7 @@ NoResult.parameters = {
 
 export function Loading() {
     return (
-        <MeetingView display="page" />
+        <MeetingView display="Page" />
     );
 }
 Loading.parameters = {
@@ -154,7 +142,7 @@ Loading.parameters = {
 
 export function SignInWithResults() {
     return (
-        <MeetingView display="page" />
+        <MeetingView display="Page" />
     );
 }
 SignInWithResults.parameters = {
@@ -173,7 +161,7 @@ SignInWithResults.parameters = {
 
 export function LoggedOutWithResults() {
     return (
-        <MeetingView display="page" />
+        <MeetingView display="Page" />
     );
 }
 LoggedOutWithResults.parameters = {

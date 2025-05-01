@@ -25,7 +25,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 message: noNull(data.message),
                 status: MeetingInviteStatus.Pending,
                 user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "meetingsInvited", data, ...rest }),

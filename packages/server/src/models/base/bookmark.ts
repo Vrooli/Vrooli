@@ -13,14 +13,9 @@ import { ModelMap } from "./index.js";
 import { BookmarkListModelInfo, BookmarkListModelLogic, BookmarkModelLogic } from "./types.js";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
-    Api: "api",
-    Code: "code",
     Comment: "comment",
     Issue: "issue",
-    Note: "note",
-    Project: "project",
-    Routine: "routine",
-    Standard: "standard",
+    Resource: "resource",
     Tag: "tag",
     Team: "team",
     User: "user",
@@ -49,12 +44,11 @@ export const BookmarkModel: BookmarkModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
                 list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                id: data.id,
                 list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Update"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
         },
@@ -62,16 +56,11 @@ export const BookmarkModel: BookmarkModelLogic = ({
             beforeDeleted: async ({ beforeDeletedData, deletingIds }) => {
                 // Grab bookmarked object id and type
                 const deleting = await DbProvider.get().bookmark.findMany({
-                    where: { id: { in: deletingIds } },
+                    where: { id: { in: deletingIds.map(id => BigInt(id)) } },
                     select: {
-                        apiId: true,
-                        codeId: true,
                         commentId: true,
                         issueId: true,
-                        noteId: true,
-                        projectId: true,
-                        routineId: true,
-                        standardId: true,
+                        resourceId: true,
                         tagId: true,
                         teamId: true,
                         userId: true,
@@ -80,14 +69,9 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 // Find type and id of bookmarked object
                 const bookmarkedPairs: [BookmarkFor, string][] = deleting.map(c => {
                     const [objectRel, objectId] = findFirstRel(c, [
-                        "apiId",
-                        "codeId",
                         "commentId",
                         "issueId",
-                        "noteId",
-                        "projectId",
-                        "routineId",
-                        "standardId",
+                        "resourceId",
                         "tagId",
                         "teamId",
                         "userId",
@@ -111,14 +95,9 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 for (const c of createInputs) {
                     // Find type and id of bookmarked object
                     const [objectRel, objectId] = findFirstRel(c, [
-                        "apiId",
-                        "codeId",
                         "commentId",
                         "issueId",
-                        "noteId",
-                        "projectId",
-                        "routineId",
-                        "standardId",
+                        "resourceId",
                         "tagId",
                         "teamId",
                         "userId",
@@ -158,7 +137,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(bookmarkFor)}Id`;
-            const isBookmarkredArray = await DbProvider.get().bookmark.findMany({ where: { list: { user: { id: userId } }, [fieldName]: { in: idsFiltered } } });
+            const isBookmarkredArray = await DbProvider.get().bookmark.findMany({ where: { list: { user: { id: BigInt(userId) } }, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // check if this id is in isBookmarkredArray
@@ -173,18 +152,13 @@ export const BookmarkModel: BookmarkModelLogic = ({
         defaultSort: BookmarkSortBy.DateUpdatedDesc,
         sortBy: BookmarkSortBy,
         searchFields: {
-            apiId: true,
-            codeId: true,
             commentId: true,
             excludeLinkedToTag: true,
             issueId: true,
             listLabel: true,
             limitTo: true,
             listId: true,
-            noteId: true,
-            projectId: true,
-            routineId: true,
-            standardId: true,
+            resourceId: true,
             tagId: true,
             teamId: true,
             userId: true,
@@ -199,14 +173,9 @@ export const BookmarkModel: BookmarkModelLogic = ({
             // Make sure to query for every bookmarked item, 
             // so we can ensure that the mutation trigger can increment the bookmark count
             dbFields: [
-                "apiId",
-                "codeId",
                 "commentId",
                 "issueId",
-                "noteId",
-                "projectId",
-                "routineId",
-                "standardId",
+                "resourceId",
                 "tagId",
                 "teamId",
                 "userId",

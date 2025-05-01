@@ -417,18 +417,18 @@ export type ChatMessage = DbObject<"ChatMessage"> & {
     reportsCount: Scalars["Int"];
     score: Scalars["Int"];
     sequence: Scalars["Int"];
-    translations: Array<ChatMessageTranslation>;
-    translationsCount: Scalars["Int"];
+    text: Scalars["String"];
     updatedAt: Scalars["Date"];
     user: User;
     versionIndex: Scalars["Int"];
     you: ChatMessageYou;
 };
 
-export type ChatMessageCreateInput = BaseTranslatableCreateInput<ChatMessageTranslationCreateInput> & {
+export type ChatMessageCreateInput = {
     chatConnect: Scalars["ID"];
     id: Scalars["ID"];
     parentConnect?: InputMaybe<Scalars["ID"]>;
+    text: Scalars["String"];
     userConnect: Scalars["ID"];
     versionIndex: Scalars["Int"];
 };
@@ -451,9 +451,9 @@ export type ChatMessageParent = {
 export type ChatMessageSearchInput = Omit<BaseSearchInput<ChatMessageSortBy>, "ids"> & {
     chatId: Scalars["ID"];
     createdTimeFrame?: InputMaybe<TimeFrame>;
+    languages?: InputMaybe<Array<Scalars["String"]>>;
     minScore?: InputMaybe<Scalars["Int"]>;
     searchString?: InputMaybe<Scalars["String"]>;
-    translationLanguages?: InputMaybe<Array<Scalars["String"]>>;
     updatedTimeFrame?: InputMaybe<TimeFrame>;
     userId?: InputMaybe<Scalars["ID"]>;
 };
@@ -480,20 +480,9 @@ export enum ChatMessageSortBy {
     DateCreatedDesc = "DateCreatedDesc"
 }
 
-export type ChatMessageTranslation = BaseTranslation<"ChatMessageTranslation"> & {
-    text: Scalars["String"];
-};
-
-export type ChatMessageTranslationCreateInput = BaseTranslationCreateInput & {
-    text: Scalars["String"];
-};
-
-export type ChatMessageTranslationUpdateInput = BaseTranslationUpdateInput & {
-    text?: InputMaybe<Scalars["String"]>;
-};
-
-export type ChatMessageUpdateInput = BaseTranslatableUpdateInput<ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput> & {
+export type ChatMessageUpdateInput = {
     id: Scalars["ID"];
+    text?: InputMaybe<Scalars["String"]>;
 };
 
 export type ChatMessageUpdateWithTaskInfoInput = {
@@ -2095,7 +2084,7 @@ export type ResourceSearchInput = BaseSearchInput<ResourceSortBy> & {
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     issuesId?: InputMaybe<Scalars["ID"]>;
     latestVersionResourceSubType?: InputMaybe<ResourceSubType>;
-    latestVersionResourceTypes?: InputMaybe<Array<ResourceSubType>>;
+    latestVersionResourceSubTypes?: InputMaybe<Array<ResourceSubType>>;
     maxBookmarks?: InputMaybe<Scalars["Int"]>;
     maxScore?: InputMaybe<Scalars["Int"]>;
     maxViews?: InputMaybe<Scalars["Int"]>;
@@ -2831,7 +2820,7 @@ export type StartRunTaskInput = {
     config: RunConfig;
     formValues?: InputMaybe<Scalars["JSONObject"]>;
     isNewRun: Scalars["Boolean"];
-    resourceVersionId?: InputMaybe<Scalars["ID"]>;
+    resourceVersionId: Scalars["ID"];
     runId: Scalars["ID"];
 };
 

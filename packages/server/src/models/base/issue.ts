@@ -58,7 +58,7 @@ export const IssueModel: IssueModelLogic = ({
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as IssuePre;
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
                     [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),

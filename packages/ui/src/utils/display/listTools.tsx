@@ -1,4 +1,4 @@
-import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
+import { AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Reaction, ReactionFor, ReportFor, Resource, ResourceType, ResourceVersion, Run, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { IconCommon } from "../../icons/Icons.js";
 import { routineTypes } from "../search/schemas/resource.js";
@@ -12,7 +12,6 @@ export type CountsInflated = {
     comments: number;
     forks: number;
     issues: number;
-    labels: number;
     pullRequests: number;
     reports: number;
     score: number;
@@ -36,10 +35,8 @@ export function getYouDot(
     if (!object) return null;
     // If the object is a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getYouDot((object as Partial<Bookmark | Reaction | View>).to, property);
-    // If the object is a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getYouDot((object as Partial<RunRoutine>).routineVersion, property);
-    // If the object is a run project, use the project version
-    if (isOfType(object, "RunProject")) return getYouDot((object as Partial<RunProject>).projectVersion, property);
+    // If the object is a run, use the resource version
+    if (isOfType(object, "Run")) return getYouDot((object as Partial<Run>).resourceVersion, property);
     // Check object.you
     if (exists(object.you?.[property])) return `you.${property}`;
     // Check object.root.you
@@ -101,16 +98,8 @@ export function getYou(
         ...getYou((object as Partial<Bookmark | Reaction | View>).to),
         canDelete: getPermission("canDelete"),
     };
-    if (isOfType(object, "RunRoutine")) return {
-        ...getYou((object as Partial<RunRoutine>).routineVersion),
-        canBookmark: false,
-        canComment: false,
-        canReact: false,
-        canShare: false,
-        canDelete: getPermission("canDelete"),
-    };
-    if (isOfType(object, "RunProject")) return {
-        ...getYou((object as Partial<RunProject>).projectVersion),
+    if (isOfType(object, "Run")) return {
+        ...getYou((object as Partial<Run>).resourceVersion),
         canBookmark: false,
         canComment: false,
         canReact: false,
@@ -123,8 +112,6 @@ export function getYou(
         canDelete: getPermission("canDelete"),
         canUpdate: getPermission("canUpdate"),
     };
-    if (isOfType(object, "Resource")) return getYou((object as Partial<Resource>).list);
-    if (isOfType(object, "ResourceList")) return getYou((object as Partial<ResourceList>).listFor);
     // Loop through all permission fields
     for (const key in objectPermissions) {
         objectPermissions[key] = getPermission(key as keyof YouInflated);
@@ -157,7 +144,6 @@ export function getCounts(
         comments: 0,
         forks: 0,
         issues: 0,
-        labels: 0,
         pullRequests: 0,
         reports: 0,
         score: 0,
@@ -170,10 +156,8 @@ export function getCounts(
     if (!object) return defaultCounts;
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getCounts((object as Partial<Bookmark | Reaction | View>).to);
-    // If a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getCounts((object as Partial<RunRoutine>).routineVersion);
-    // If a run project, use the project version
-    if (isOfType(object, "RunProject")) return getCounts((object as Partial<RunProject>).projectVersion);
+    // If a run, use the resource version
+    if (isOfType(object, "Run")) return getCounts((object as Partial<Run>).resourceVersion);
     // Otherwise, get the counts from the object
     // Loop through all count fields
     for (const key in defaultCounts) {
@@ -298,29 +282,16 @@ export function getDisplay(
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getDisplay((object as Partial<Bookmark | Reaction | View>).to as ListObject);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    // If a run routine, use the routine version's display and the startedAt/completedAt date
-    if (isOfType(object, "RunRoutine")) {
-        const { completedAt, name, routineVersion, startedAt } = object as Partial<RunRoutine>;
-        const title = firstString(name, getTranslation(routineVersion, langs, true).name);
+    // If a run, use the routine version's display and the startedAt/completedAt date
+    if (isOfType(object, "Run")) {
+        const { completedAt, name, resourceVersion, startedAt } = object as Partial<Run>;
+        const title = firstString(name, getTranslation(resourceVersion, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
-        const { subtitle: routineVersionSubtitle } = getDisplay(routineVersion, langs);
+        const { subtitle: resourceVersionSubtitle } = getDisplay(resourceVersion, langs);
         return {
             title,
-            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (routineVersionSubtitle ? " | " + routineVersionSubtitle : ""),
-            adornments,
-        };
-    }
-    // If a run project, use the project version's display and the startedAt/completedAt date
-    if (isOfType(object, "RunProject")) {
-        const { completedAt, name, projectVersion, startedAt } = object as Partial<RunProject>;
-        const title = firstString(name, getTranslation(projectVersion, langs, true).name);
-        const started = startedAt ? displayDate(startedAt) : null;
-        const completed = completedAt ? displayDate(completedAt) : null;
-        const { subtitle: projectVersionSubtitle } = getDisplay(projectVersion, langs);
-        return {
-            title,
-            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (projectVersionSubtitle ? " | " + projectVersionSubtitle : ""),
+            subtitle: (started ? "Started: " + started : completed ? "Completed: " + completed : "") + (resourceVersionSubtitle ? " | " + resourceVersionSubtitle : ""),
             adornments,
         };
     }
@@ -366,9 +337,9 @@ export function getDisplay(
         }
     }
     // If a Routine, add adornment for routine type
-    if (isOfType(object, "Routine", "RoutineVersion")) {
-        const routineType = (object as Partial<RoutineVersion>).routineType ?? (object as Partial<Routine>).versions?.find(v => v.isLatest)?.routineType;
-        const routineTypeInfo = routineType ? routineTypes.find(t => t.type === routineType) : undefined;
+    if ((object as Partial<Resource>).resourceType === ResourceType.Routine || (object as Partial<ResourceVersion>).resourceSubType?.startsWith("Routine")) {
+        const resourceSubType = (object as Partial<ResourceVersion>).resourceSubType ?? (object as Partial<Resource>).versions?.find(v => v.isLatest)?.resourceSubType;
+        const routineTypeInfo = resourceSubType ? routineTypes.find(t => t.type === resourceSubType) : undefined;
         if (routineTypeInfo) {
             adornments.push({
                 Adornment: <Chip key="routine-type" label={routineTypeInfo.label} sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />,
@@ -394,13 +365,11 @@ export function getBookmarkFor(
     if (isOfType(object, "BookmarkList", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return { bookmarkFor: null, starForId: null }; //TODO add more types
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getBookmarkFor((object as Partial<Bookmark | Reaction | View>).to);
-    // If a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getBookmarkFor((object as Partial<RunRoutine>).routineVersion);
-    // If a run project, use the project version
-    if (isOfType(object, "RunProject")) return getBookmarkFor((object as Partial<RunProject>).projectVersion);
+    // If a run, use the resource version
+    if (isOfType(object, "Run")) return getBookmarkFor((object as Partial<Run>).resourceVersion);
     // If the object contains a root object, use that
     if (Object.prototype.hasOwnProperty.call(object, "root"))
-        return getBookmarkFor((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
+        return getBookmarkFor((object as Partial<ResourceVersion>).root);
     // Use current object
     return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 }
@@ -434,11 +403,11 @@ export function listToAutocomplete(
         user: isOfType(o, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ?
             (o as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user :
             undefined,
-        versions: isOfType(o, "Api", "Note", "Project", "Routine", "Code", "Standard") ?
-            (o as Partial<Api | Note | Project | Routine | Code | Standard>).versions :
+        versions: isOfType(o, "Resource") ?
+            (o as Partial<Resource>).versions :
             undefined,
-        root: isOfType(o, "ApiVersion", "CodeVersion", "NoteVersion", "ProjectVersion", "RoutineVersion", "StandardVersion") ?
-            (o as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root :
+        root: isOfType(o, "ResourceVersion") ?
+            (o as Partial<ResourceVersion>).root :
             undefined,
     })) as AutocompleteOption[];
 }

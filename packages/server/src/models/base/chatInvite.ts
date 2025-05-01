@@ -25,7 +25,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     message: noNull(data.message),
                     status: ChatInviteStatus.Pending,
                     user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "chatsInvited", data, ...rest }),

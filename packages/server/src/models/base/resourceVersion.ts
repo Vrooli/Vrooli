@@ -1,4 +1,4 @@
-import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, getTranslation, routineVersionValidation } from "@local/shared";
+import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, generatePublicId, getTranslation, routineVersionValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -12,12 +12,12 @@ import { translationShapeHelper } from "../../utils/shapes/translationShapeHelpe
 import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { versionsCheck } from "../../validators/versionsCheck.js";
-import { RoutineVersionFormat } from "../formats.js";
+import { ResourceVersionFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types.js";
+import { ResourceVersionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo } from "./types.js";
 
-type RoutineVersionPre = PreShapeVersionResult & {
+type ResourceVersionPre = PreShapeVersionResult & {
     /** Map of routine version ID to graph complexity metrics */
     weightMap: Record<string, SubroutineWeightData & { id: string; }>;
 };
@@ -40,11 +40,11 @@ async function validateNodePositions(
     return;
 }
 
-const __typename = "RoutineVersion" as const;
-export const RoutineVersionModel: RoutineVersionModelLogic = ({
+const __typename = "ResourceVersion" as const;
+export const ResourceVersionModel: ResourceVersionModelLogic = ({
     __typename,
-    dbTable: "routine_version",
-    dbTranslationTable: "routine_version_translation",
+    dbTable: "resource_version",
+    dbTranslationTable: "resource_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -66,10 +66,10 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             },
         },
     }),
-    format: RoutineVersionFormat,
+    format: ResourceVersionFormat,
     mutate: {
         shape: {
-            pre: async (params): Promise<RoutineVersionPre> => {
+            pre: async (params): Promise<ResourceVersionPre> => {
                 const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
@@ -90,7 +90,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     Delete.map(d => d.input),
                 );
                 // Convert dataWeights to a map for easy lookup
-                const weightMap: RoutineVersionPre["weightMap"] = dataWeights.reduce((acc, curr) => {
+                const weightMap: ResourceVersionPre["weightMap"] = dataWeights.reduce((acc, curr) => {
                     acc[curr.id] = curr;
                     return acc;
                 }, {});
@@ -98,30 +98,28 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                 return { ...maps, weightMap };
             },
             create: async ({ data, ...rest }) => {
-                const preData = rest.preMap[__typename] as RoutineVersionPre;
+                const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
                     complexity: preData.weightMap[data.id]?.complexity ?? 0,
                     config: noNull(data.config),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
-                    routineType: data.routineType,
+                    resourceSubType: data.resourceSubType,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
-                    apiVersion: await shapeHelper({ relation: "apiVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ApiVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
-                    codeVersion: await shapeHelper({ relation: "codeVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "CodeVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
-                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersionInput", parentRelationshipName: "routineVersion", data, ...rest }),
-                    outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersionOutput", parentRelationshipName: "routineVersion", data, ...rest }),
-                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
-                    subroutineLinks: await shapeHelper({
-                        relation: "subroutineLinks",
-                        relTypes: ["Connect"],
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Resource", parentRelationshipName: "versions", data, ...rest }),
+                    relatedVersions: await shapeHelper({
+                        relation: "relatedVersions",
+                        relTypes: ["Create"],
                         isOneToOne: false,
-                        objectType: "RoutineVersion",
+                        objectType: "ResourceVersion",
                         parentRelationshipName: "",
                         data,
+                        //TODO
                         joinData: {
                             fieldName: "id",
                             uniqueFieldName: "routine_version_subroutine_parentRoutineId_subroutineId_unique",
@@ -135,7 +133,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                 };
             },
             update: async ({ data, ...rest }) => {
-                const preData = rest.preMap[__typename] as RoutineVersionPre;
+                const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
                     simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
                     complexity: preData.weightMap[data.id]?.complexity ?? 0,
@@ -145,16 +143,13 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     isComplete: noNull(data.isComplete),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
-                    apiVersion: await shapeHelper({ relation: "apiVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "ApiVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
-                    codeVersion: await shapeHelper({ relation: "codeVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "CodeVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
-                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionInput", parentRelationshipName: "routineVersion", data, ...rest }),
-                    outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionOutput", parentRelationshipName: "routineVersion", data, ...rest }),
-                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
-                    subroutineLinks: await shapeHelper({
-                        relation: "subroutineLinks",
-                        relTypes: ["Connect", "Disconnect"],
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Resource", parentRelationshipName: "versions", data, ...rest }),
+                    //TODO
+                    relatedVersions: await shapeHelper({
+                        relation: "relatedVersions",
+                        relTypes: ["Create", "Update", "Delete"],
                         isOneToOne: false,
-                        objectType: "RoutineVersion",
+                        objectType: "ResourceVersion",
                         parentRelationshipName: "",
                         data,
                         joinData: {
@@ -181,7 +176,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         defaultSort: RoutineVersionSortBy.DateCompletedDesc,
         sortBy: RoutineVersionSortBy,
         searchFields: {
-            codeVersionId: true,
+            codeLanguage: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
             excludeIds: true,
@@ -210,8 +205,8 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
-            routineType: true,
-            routineTypes: true,
+            resourceSubType: true,
+            resourceSubTypes: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -238,22 +233,22 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<RoutineVersionModelInfo["DbSelect"]>([["root", "Routine"]], data, ...rest),
+            oneIsPublic<RoutineVersionModelInfo["DbSelect"]>([["root", "Resource"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.root as RoutineModelInfo["DbModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Resource").validate().owner(data?.root as RoutineModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: ["Routine", ["versions"]],
+            root: ["Resource", ["versions"]],
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
             own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    root: useVisibility("Routine", "Own", data),
+                    root: useVisibility("Resource", "Own", data),
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
@@ -262,12 +257,12 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     OR: [
                         // Objects you own
                         {
-                            root: useVisibility("Routine", "Own", data),
+                            root: useVisibility("Resource", "Own", data),
                         },
                         // Public objects
                         {
                             isPrivate: false, // Can't be private
-                            root: (useVisibility("RoutineVersion", "Public", data) as { root: object }).root,
+                            root: (useVisibility("ResourceVersion", "Public", data) as { root: object }).root,
                         },
                     ],
                 };
@@ -279,13 +274,13 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                         // Private versions you own
                         {
                             isPrivate: true, // Version is private
-                            root: useVisibility("Routine", "Own", data),
+                            root: useVisibility("Resource", "Own", data),
                         },
                         // Private roots you own
                         {
                             root: {
                                 isPrivate: true, // Root is private
-                                ...useVisibility("Routine", "Own", data),
+                                ...useVisibility("Resource", "Own", data),
                             },
                         },
                     ],
@@ -298,13 +293,13 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                         // Public versions you own
                         {
                             isPrivate: false, // Version is public
-                            root: useVisibility("Routine", "Own", data),
+                            root: useVisibility("Resource", "Own", data),
                         },
                         // Public roots you own
                         {
                             root: {
                                 isPrivate: false, // Root is public
-                                ...useVisibility("Routine", "Own", data),
+                                ...useVisibility("Resource", "Own", data),
                             },
                         },
                     ],

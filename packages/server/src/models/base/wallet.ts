@@ -4,8 +4,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { WalletFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { TeamModelLogic, WalletModelLogic } from "./types.js";
+import { WalletModelLogic } from "./types.js";
 
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
@@ -24,21 +23,25 @@ export const WalletModel: WalletModelLogic = ({
                 // Prevent deleting wallets if it will leave you with less than one verified authentication method
                 if (Delete.length) {
                     const allWallets = await DbProvider.get().wallet.findMany({
-                        where: { user: { id: userData.id } },
+                        where: { user: { id: BigInt(userData.id) } },
                         select: { id: true, verifiedAt: true },
                     });
-                    const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
+                    const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id.toString()) && x.verifiedAt).length;
                     const verifiedPhonesCount = await DbProvider.get().phone.count({
-                        where: { user: { id: userData.id }, verifiedAt: true },
+                        where: { user: { id: BigInt(userData.id) }, verifiedAt: { not: null } },
                     });
                     const verifiedEmailsCount = await DbProvider.get().email.count({
-                        where: { user: { id: userData.id }, verifiedAt: true },
+                        where: { user: { id: BigInt(userData.id) }, verifiedAt: { not: null } },
                     });
                     if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)
                         throw new CustomError("0275", "MustLeaveVerificationMethod");
                 }
             },
-            update: async ({ data }) => data,
+            update: async ({ data }) => {
+                return {
+                    name: data.name,
+                };
+            },
         },
         yup: walletValidation,
     },
@@ -62,9 +65,8 @@ export const WalletModel: WalletModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        // TODO will have to update how owners are determined in the future. All members shouldn't always be considered owners. Just members with certain roles.
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
-                        { user: { id: data.userId } },
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
                     ],
                 };
             },

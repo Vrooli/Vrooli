@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RunRoutine, RunStatus, Tag, User, endpointsRoutineVersion, endpointsRunRoutine, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RunRoutine, RunStatus, Tag, User, endpointsRoutineVersion, endpointsRunRoutine, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
@@ -7,7 +7,7 @@ import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
 // Create simplified mock data for Routine responses
 const mockRoutineVersionData: RoutineVersion = {
     __typename: "RoutineVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     comments: [],
     commentsCount: 0,
@@ -95,11 +95,11 @@ const mockRoutineVersionData: RoutineVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
+            id: generatePKString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -107,7 +107,7 @@ const mockRoutineVersionData: RoutineVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -120,12 +120,12 @@ const mockRoutineVersionData: RoutineVersion = {
     },
     root: {
         __typename: "Routine" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         tags: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["AI", "Generate", "Content", "Automation", "Workflow", "Productivity", "Tools", "Development"][Math.floor(Math.random() * 8)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -165,11 +165,11 @@ const mockRoutineVersionData: RoutineVersion = {
 // Mock run data
 const mockRunRoutineData: RunRoutine = {
     __typename: "RunRoutine" as const,
-    id: uuid(),
+    id: generatePKString(),
     completedComplexity: 2,
     complexity: 2,
     createdAt: new Date().toISOString(),
-    creator: { __typename: "User" as const, id: uuid() } as User,
+    creator: { __typename: "User" as const, id: generatePKString() } as User,
     isCompleted: true,
     inputs: [],
     outputs: [],
@@ -195,7 +195,7 @@ export default {
 
 export function NoResult() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 NoResult.parameters = {
@@ -204,7 +204,7 @@ NoResult.parameters = {
 
 export function Loading() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 Loading.parameters = {
@@ -225,7 +225,7 @@ Loading.parameters = {
 
 export function SignedInWithResults() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 SignedInWithResults.parameters = {
@@ -244,7 +244,7 @@ SignedInWithResults.parameters = {
 
 export function LoggedOutWithResults() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 LoggedOutWithResults.parameters = {
@@ -263,7 +263,7 @@ LoggedOutWithResults.parameters = {
 
 export function WithActiveRun() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 WithActiveRun.parameters = {
@@ -279,13 +279,13 @@ WithActiveRun.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}?runId=${uuid()}`,
+        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}?runId=${generatePKString()}`,
     },
 };
 
 export function Own() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 Own.parameters = {

@@ -3,8 +3,7 @@ import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PremiumFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { PremiumModelLogic, TeamModelLogic } from "./types.js";
+import { PremiumModelLogic } from "./types.js";
 
 const __typename = "Premium" as const;
 export const PremiumModel: PremiumModelLogic = ({
@@ -41,8 +40,8 @@ export const PremiumModel: PremiumModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
-                        { user: { id: data.userId } },
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
                     ],
                 };
             },

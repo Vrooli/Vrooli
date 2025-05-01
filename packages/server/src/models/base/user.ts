@@ -1,5 +1,6 @@
-import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, SEEDED_IDS, UserSortBy, getTranslation, userValidation } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, generatePublicId, getTranslation, userValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
+import { DbProvider } from "../../db/provider.js";
 import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
@@ -55,9 +56,11 @@ export const UserModel: UserModelLogic = ({
             // Create only applies for bots normally, but seeding and tests might create non-bot users
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as UserPre;
-                const isUser = rest.userData.id === SEEDED_IDS.User.Admin && rest.additionalData?.isBot !== true;
+                const adminId = await DbProvider.getAdminId();
+                const isUser = rest.userData.id === adminId && rest.additionalData?.isBot !== true;
                 const commonData = {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     bannerImage: noNull(data.bannerImage),
                     handle: data.handle ?? null,
                     isPrivate: noNull(data.isPrivate),
@@ -72,7 +75,7 @@ export const UserModel: UserModelLogic = ({
                         botSettings: botData.botSettings,
                         isBot: true,
                         isBotDepictingPerson: botData.isBotDepictingPerson,
-                        invitedByUser: { connect: { id: rest.userData.id } },
+                        invitedByUser: { connect: { id: BigInt(rest.userData.id) } },
                     };
                 }
                 const profileData = data as (ProfileUpdateInput & { id: string });
@@ -80,19 +83,11 @@ export const UserModel: UserModelLogic = ({
                     ...commonData,
                     isBot: false,
                     theme: noNull(profileData.theme),
-                    isPrivateApis: noNull(profileData.isPrivateApis),
-                    isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
-                    isPrivateCodes: noNull(profileData.isPrivateCodes),
-                    isPrivateCodesCreated: noNull(profileData.isPrivateCodesCreated),
+                    isPrivate: noNull(profileData.isPrivate),
                     isPrivateMemberships: noNull(profileData.isPrivateMemberships),
-                    isPrivateProjects: noNull(profileData.isPrivateProjects),
-                    isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
                     isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
-                    isPrivateRoles: noNull(profileData.isPrivateRoles),
-                    isPrivateRoutines: noNull(profileData.isPrivateRoutines),
-                    isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
-                    isPrivateStandards: noNull(profileData.isPrivateStandards),
-                    isPrivateStandardsCreated: noNull(profileData.isPrivateStandardsCreated),
+                    isPrivateResources: noNull(profileData.isPrivateResources),
+                    isPrivateResourcesCreated: noNull(profileData.isPrivateResourcesCreated),
                     isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
                     isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
@@ -107,7 +102,6 @@ export const UserModel: UserModelLogic = ({
                 const commonData = {
                     bannerImage: data.bannerImage,
                     handle: data.handle ?? null,
-                    id: data.id,
                     isPrivate: noNull(data.isPrivate),
                     name: noNull(data.name),
                     profileImage: data.profileImage,
@@ -125,20 +119,11 @@ export const UserModel: UserModelLogic = ({
                 return {
                     ...commonData,
                     theme: noNull(profileData.theme),
-                    id: rest.userData.id,
-                    isPrivateApis: noNull(profileData.isPrivateApis),
-                    isPrivateApisCreated: noNull(profileData.isPrivateApisCreated),
-                    isPrivateCodes: noNull(profileData.isPrivateCodes),
-                    isPrivateCodesCreated: noNull(profileData.isPrivateCodesCreated),
+                    isPrivate: noNull(profileData.isPrivate),
                     isPrivateMemberships: noNull(profileData.isPrivateMemberships),
-                    isPrivateProjects: noNull(profileData.isPrivateProjects),
-                    isPrivateProjectsCreated: noNull(profileData.isPrivateProjectsCreated),
                     isPrivatePullRequests: noNull(profileData.isPrivatePullRequests),
-                    isPrivateRoles: noNull(profileData.isPrivateRoles),
-                    isPrivateRoutines: noNull(profileData.isPrivateRoutines),
-                    isPrivateRoutinesCreated: noNull(profileData.isPrivateRoutinesCreated),
-                    isPrivateStandards: noNull(profileData.isPrivateStandards),
-                    isPrivateStandardsCreated: noNull(profileData.isPrivateStandardsCreated),
+                    isPrivateResources: noNull(profileData.isPrivateResources),
+                    isPrivateResourcesCreated: noNull(profileData.isPrivateResourcesCreated),
                     isPrivateTeamsCreated: noNull(profileData.isPrivateTeamsCreated),
                     isPrivateBookmarks: noNull(profileData.isPrivateBookmarks),
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
@@ -212,7 +197,7 @@ export const UserModel: UserModelLogic = ({
             invitedByUser: ["User", ["invitedByUser"]], // If a bot, this is the user who created the bot
             isBot: true,
             isPrivate: true,
-            languages: { select: { language: true } },
+            languages: true,
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({ User: data?.isBot ? data.invitedByUser : data }),
@@ -223,16 +208,16 @@ export const UserModel: UserModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [ // Either yourself or a bot you created
-                        { id: data.userId },
-                        { isBot: true, invitedByUser: { id: data.userId } },
+                        { id: BigInt(data.userId) },
+                        { isBot: true, invitedByUser: { id: BigInt(data.userId) } },
                     ],
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [ // Either yourself, or a bot you created, or a public user
-                        { id: data.userId },
-                        { isBot: true, invitedByUser: { id: data.userId } },
+                        { id: BigInt(data.userId) },
+                        { isBot: true, invitedByUser: { id: BigInt(data.userId) } },
                         { isPrivate: false },
                     ],
                 };
@@ -241,8 +226,8 @@ export const UserModel: UserModelLogic = ({
                 return {
                     isPrivate: true,
                     OR: [ // Either yourself or a bot you created
-                        { id: data.userId },
-                        { isBot: true, invitedByUser: { id: data.userId } },
+                        { id: BigInt(data.userId) },
+                        { isBot: true, invitedByUser: { id: BigInt(data.userId) } },
                     ],
                 };
             },
@@ -250,8 +235,8 @@ export const UserModel: UserModelLogic = ({
                 return {
                     isPrivate: false,
                     OR: [ // Either yourself or a bot you created
-                        { id: data.userId },
-                        { isBot: true, invitedByUser: { id: data.userId } },
+                        { id: BigInt(data.userId) },
+                        { isBot: true, invitedByUser: { id: BigInt(data.userId) } },
                     ],
                 };
             },

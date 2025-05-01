@@ -1,4 +1,5 @@
-import { API_CREDITS_MULTIPLIER, AutoPickFirstSelectionHandler, AutoPickRandomSelectionHandler, BotSettings, BotSettingsConfig, BranchProgress, CodeLanguage, CodeVersionConfig, ConfigCallDataGenerate, DecisionOption, DeferredDecisionData, FormElementBase, FormInputBase, HOURS_2_MS, InputGenerationStrategy, LlmTask, Location, LocationData, MINUTES_1_MS, PathSelectionHandler, PathSelectionStrategy, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, ResourceSubType, ResourceVersion, RoutineVersionConfig, Run, RunBotConfig, RunConfig, RunCreateInput, RunIdentifier, RunLoader, RunNotifier, RunPersistence, RunStateMachine, RunStatus, RunStatusChangeReason, RunSubroutineResult, RunTaskInfo, RunUpdateInput, SECONDS_10_MS, SEEDED_IDS, SubroutineExecutionStrategy, SubroutineExecutor, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, Success, TaskStatus, getTranslation, navigatorFactory, uppercaseFirstLetter, type SessionUser } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, AutoPickFirstSelectionHandler, AutoPickRandomSelectionHandler, BotSettings, BotSettingsConfig, BranchProgress, CodeLanguage, CodeVersionConfig, ConfigCallDataGenerate, DecisionOption, DeferredDecisionData, FormElementBase, FormInputBase, HOURS_2_MS, InputGenerationStrategy, LlmTask, Location, LocationData, MINUTES_1_MS, PathSelectionHandler, PathSelectionStrategy, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, ResourceSubType, ResourceVersion, RoutineVersionConfig, Run, RunBotConfig, RunConfig, RunCreateInput, RunIdentifier, RunLoader, RunNotifier, RunPersistence, RunStateMachine, RunStatus, RunStatusChangeReason, RunSubroutineResult, RunTaskInfo, RunUpdateInput, SECONDS_10_MS, SEEDED_PUBLIC_IDS, SubroutineExecutionStrategy, SubroutineExecutor, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, Success, TaskStatus, getTranslation, navigatorFactory, uppercaseFirstLetter, type SessionUser } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import { Job } from "bull";
 import { createOneHelper } from "../../actions/creates.js";
 import { readOneHelper } from "../../actions/reads.js";
@@ -453,7 +454,6 @@ export async function doRunRoutine(data: RunRoutinePayload) {
 const DEFAULT_MODEL_HANDLING: RunBotConfig["modelHandling"] = "OnlyWhenMissing";
 const DEFAULT_PROMPT_HANDLING: RunBotConfig["promptHandling"] = "Combine";
 const DEFAULT_RESPONDING_BOT_HANDLING: RunBotConfig["respondingBotHandling"] = "OnlyWhenMissing";
-const DEFAULT_BOT_ID = SEEDED_IDS.User.Valyxa;
 
 /**
  * Accepted output formats for AI-generated input and output values.
@@ -518,6 +518,29 @@ class SubroutineBotHandler {
         const subroutineConfig = RoutineVersionConfig.deserialize(subroutine, logger, { useFallbacks: true });
         // Combine with the run's bot config to build the final bot config
         this.subroutineBotConfig = this.buildBotConfig(runBotConfig, subroutineConfig.callDataGenerate?.schema ?? {});
+    }
+
+    /**
+     * Safely gets the `where` clause for the bot to use.
+     * 
+     * @param respondingBotInfo The bot info to use
+     * @returns The `where` clause for the bot to use
+     */
+    private getBotWhereClause(respondingBotInfo: ConfigCallDataGenerate["respondingBot"] | null | undefined): Prisma.userWhereUniqueInput {
+        let where: Prisma.userWhereUniqueInput;
+        if (!respondingBotInfo) {
+            return { publicId: SEEDED_PUBLIC_IDS.Valyxa };
+        }
+        if (respondingBotInfo.id) {
+            where = { id: BigInt(respondingBotInfo.id) };
+        } else if (respondingBotInfo.publicId) {
+            where = { publicId: respondingBotInfo.publicId };
+        } else if (respondingBotInfo.handle) {
+            where = { handle: respondingBotInfo.handle };
+        } else {
+            where = { publicId: SEEDED_PUBLIC_IDS.Valyxa };
+        }
+        return where;
     }
 
     /**
@@ -632,9 +655,9 @@ class SubroutineBotHandler {
         }
 
         // Find the desired bot to use
-        const botId = this.subroutineBotConfig.respondingBot ?? DEFAULT_BOT_ID;
+        const where = this.getBotWhereClause(this.subroutineBotConfig.respondingBot);
         const botData = await DbProvider.get().user.findUnique({
-            where: { id: botId },
+            where,
             select: {
                 id: true,
                 // Used to check if you have access to the bot if it's marked as private
@@ -650,12 +673,12 @@ class SubroutineBotHandler {
             },
         });
         if (!botData) {
-            throw new CustomError("0224", "NotFound", { botId });
+            throw new CustomError("0224", "NotFound", { where });
         }
         // Verify that the user has access to the bot
-        const canUseBot = botData.isPrivate === false || botData.invitedByUser?.id === this.userData.id;
+        const canUseBot = botData.isPrivate === false || botData.invitedByUser?.id.toString() === this.userData.id;
         if (!canUseBot) {
-            throw new CustomError("0226", "Unauthorized", { botId });
+            throw new CustomError("0226", "Unauthorized", { where });
         }
         const botSettings = BotSettingsConfig.deserialize(botData, logger).schema;
 
@@ -666,7 +689,7 @@ class SubroutineBotHandler {
 
         // Set the bot info
         this.botInfo = {
-            id: botId,
+            id: botData.id.toString(),
             maxCredits: maxCredits ? BigInt(maxCredits) : undefined,
             settings: botSettings,
         };
@@ -1412,7 +1435,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
                 break;
             }
             default:
-                throw new Error(`Unknown or unsupported routine type: ${routine.routineType}`);
+                throw new Error(`Unknown or unsupported routine type: ${routine.resourceSubType}`);
         }
         // Add the action cost to the total cost
         result.cost = (BigInt(actionResult.cost) + BigInt(result.cost)).toString();

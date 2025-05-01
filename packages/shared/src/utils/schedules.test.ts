@@ -945,8 +945,7 @@ describe("applyExceptions", () => {
             id: uuid(),
             meetings: [],
             recurrences: [],
-            runProjects: [],
-            runRoutines: [],
+            runs: [],
         };
     });
 
@@ -1169,8 +1168,7 @@ async function testCalculateOccurrences({
         updatedAt: new Date().toISOString(),
         id: uuid(),
         meetings: [],
-        runProjects: [],
-        runRoutines: [],
+        runs: [],
         timezone: timeZone,
         recurrences: recurrences as ScheduleRecurrence[],
         exceptions: exceptions as ScheduleException[],

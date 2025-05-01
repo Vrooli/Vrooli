@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CalendarEvent, Meeting, RunRoutine, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
+import { CalendarEvent, Meeting, Run, RunRoutine, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";
@@ -84,7 +84,6 @@ const baseMockSchedules: Schedule[] = [
         endTime: new Date("2024-03-20T11:00:00Z"),
         timezone: "UTC",
         exceptions: [],
-        labels: [],
         meetings: [mockMeeting],
         recurrences: [{
             __typename: "ScheduleRecurrence",
@@ -95,8 +94,7 @@ const baseMockSchedules: Schedule[] = [
             dayOfWeek: 3, // Wednesday
             schedule: { __typename: "Schedule", id: mockScheduleId } as Schedule,
         }],
-        runProjects: [],
-        runRoutines: [],
+        runs: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     },
@@ -107,7 +105,6 @@ const baseMockSchedules: Schedule[] = [
         endTime: new Date("2024-03-21T23:59:59Z"),
         timezone: "UTC",
         exceptions: [],
-        labels: [],
         meetings: [mockMeeting],
         recurrences: [{
             __typename: "ScheduleRecurrence",
@@ -118,8 +115,7 @@ const baseMockSchedules: Schedule[] = [
             dayOfMonth: 21,
             schedule: { __typename: "Schedule", id: mockSchedule2Id } as Schedule,
         }],
-        runProjects: [],
-        runRoutines: [],
+        runs: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     },
@@ -130,7 +126,6 @@ const baseMockSchedules: Schedule[] = [
         endTime: new Date("2024-03-22T16:00:00Z"),
         timezone: "UTC",
         exceptions: [],
-        labels: [],
         meetings: [],
         recurrences: [{
             __typename: "ScheduleRecurrence",
@@ -141,8 +136,7 @@ const baseMockSchedules: Schedule[] = [
             dayOfWeek: 5, // Friday
             schedule: { __typename: "Schedule", id: mockSchedule3Id } as Schedule,
         }],
-        runProjects: [],
-        runRoutines: [mockRunRoutine],
+        runs: [mockRunRoutine],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     },
@@ -248,12 +242,12 @@ const extendedMockEvents: CalendarEvent[] = Array.from({ length: 3 }).flatMap((_
             }],
         } : undefined;
 
-        const newRunRoutine: RunRoutine = event.schedule.runRoutines[0] ? {
-            ...event.schedule.runRoutines[0],
-            id: `run-routine-${i * baseMockEvents.length + j + 1}`,
+        const newRun: Run = event.schedule.runs[0] ? {
+            ...event.schedule.runs[0],
+            id: `run-${i * baseMockEvents.length + j + 1}`,
             translations: [{
-                ...event.schedule.runRoutines[0].translations[0],
-                id: `run-routine-${i * baseMockEvents.length + j + 1}-en`,
+                ...event.schedule.runs[0].resourceVersion?.translations[0],
+                id: `run-${i * baseMockEvents.length + j + 1}-en`,
             }],
         } : undefined;
 
@@ -264,7 +258,7 @@ const extendedMockEvents: CalendarEvent[] = Array.from({ length: 3 }).flatMap((_
             startTime: start,
             endTime: end,
             meetings: newMeeting ? [newMeeting] : [],
-            runRoutines: newRunRoutine ? [newRunRoutine] : [],
+            runs: newRun ? [newRun] : [],
             recurrences: event.schedule.recurrences.map(rec => ({
                 ...rec,
                 id: `recurrence-${i * baseMockEvents.length + j + 1}`,

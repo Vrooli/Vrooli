@@ -16,5 +16,5 @@ export function onlyValidHandles(handles: (string | null | undefined)[]): string
  * @returns Array of valid IDs
  */
 export function onlyValidIds(ids: (string | null | undefined)[]): string[] {
-    return ids.filter(id => typeof id === "string" && validatePK(id)) as string[];
+    return ids.filter(id => validatePK(id)) as string[];
 }

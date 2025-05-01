@@ -8,7 +8,7 @@ export default {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <HistoryView display="page" />
+        <HistoryView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -17,7 +17,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <HistoryView display="page" />
+        <HistoryView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -26,7 +26,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <HistoryView display="page" />
+        <HistoryView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -35,7 +35,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <HistoryView display="page" />
+        <HistoryView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

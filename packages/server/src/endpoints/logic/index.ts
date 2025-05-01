@@ -43,7 +43,6 @@ export * from "./tag.js";
 export * from "./task.js";
 export * from "./team.js";
 export * from "./transfer.js";
-export * from "./translate.js";
 export * from "./user.js";
 export * from "./view.js";
 export * from "./wallet.js";

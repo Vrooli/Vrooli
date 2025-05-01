@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, CodeVersion, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, getObjectUrl, uuid } from "@local/shared";
+import { CodeLanguage, CodeType, CodeVersion, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterUpsert } from "./DataConverterUpsert.js";
@@ -9,7 +9,7 @@ import { DataConverterUpsert } from "./DataConverterUpsert.js";
 // Create simplified mock data for DataConverter responses
 const mockDataConverterVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     codeLanguage: CodeLanguage.Javascript,
     codeType: CodeType.DataConvert,
@@ -40,15 +40,15 @@ function stringToNumberArray(input) {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         listFor: {
             __typename: "CodeVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
+            id: generatePKString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -56,7 +56,7 @@ function stringToNumberArray(input) {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -69,12 +69,12 @@ function stringToNumberArray(input) {
     },
     root: {
         __typename: "Code" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["Data Processing", "ETL", "Transformation", "CSV", "JSON", "XML", "Integration"][Math.floor(Math.random() * 7)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -115,7 +115,7 @@ export default {
 // Create a new DataConverter
 export function Create() {
     return (
-        <DataConverterUpsert display="page" isCreate={true} />
+        <DataConverterUpsert display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -143,7 +143,7 @@ CreateDialog.parameters = {
 // Update an existing DataConverter
 export function Update() {
     return (
-        <DataConverterUpsert display="page" isCreate={false} />
+        <DataConverterUpsert display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -191,7 +191,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <DataConverterUpsert display="page" isCreate={false} />
+        <DataConverterUpsert display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -213,7 +213,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <DataConverterUpsert display="page" isCreate={true} />
+        <DataConverterUpsert display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

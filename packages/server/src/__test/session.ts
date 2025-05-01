@@ -1,4 +1,4 @@
-import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePKString } from "@local/shared";
+import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, SEEDED_PUBLIC_IDS } from "@local/shared";
 import { Request, Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
 import { UserDataForPasswordAuth } from "../auth/email.js";
@@ -7,7 +7,7 @@ import { SessionService } from "../auth/session.js";
 import { DbProvider } from "../db/provider.js";
 
 export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
-    id: generatePKString(),
+    id: generatePK().toString(),
     handle: "test-user",
     lastLoginAttempt: null,
     logInAttempts: 0,
@@ -17,7 +17,7 @@ export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
     status: AccountStatus.Unlocked,
     updatedAt: new Date(),
     auths: [{
-        id: generatePKString(),
+        id: generatePK(),
         provider: "Password",
         hashed_password: "dummy-hash"
     }],
@@ -49,7 +49,7 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
     const future = new Date(now.getTime() + DAYS_1_MS);
 
     const sessionData: UserDataForPasswordAuth["sessions"][0] = {
-        id: generatePKString(),
+        id: generatePK(),
         device_info: "test-device-info",
         ip_address: "127.0.0.1",
         last_refresh_at: now,
@@ -69,7 +69,7 @@ async function createMockSession(userData: UserDataForPasswordAuth, req: Request
             ip_address: sessionData.ip_address,
             expires_at: future,
             last_refresh_at: now,
-            user: { connect: { id: userData.id } },
+            user: { connect: { id: BigInt(userData.id) } },
             auth: { connect: { id: authId } },
         },
         update: {
@@ -277,4 +277,27 @@ export function mockWriteAuthPermissions(): Record<ApiKeyPermission, boolean> {
         [ApiKeyPermission.WriteAuth]: true,
         [ApiKeyPermission.WritePrivate]: true,
     };
+}
+
+/**
+ * Seeds a mock admin user
+ * @returns The admin user
+ */
+export async function seedMockAdminUser() {
+    const admin = await DbProvider.get().user.upsert({
+        where: { publicId: SEEDED_PUBLIC_IDS.Admin },
+        update: {},
+        create: {
+            id: generatePK(),
+            publicId: SEEDED_PUBLIC_IDS.Admin,
+            name: "Admin User",
+            handle: "admin",
+            status: "Unlocked",
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: false,
+            auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+        },
+    });
+    return admin;
 }

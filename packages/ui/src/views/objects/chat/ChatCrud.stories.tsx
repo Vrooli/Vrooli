@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Chat, ChatCreateInput, ChatInvite, ChatMessage, ChatParticipant, ChatUpdateInput, ChatYou, DUMMY_ID, Label, User, uuid, uuidToBase36 } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInvite, ChatMessage, ChatParticipant, ChatUpdateInput, ChatYou, DUMMY_ID, User, uuid, uuidToBase36 } from "@local/shared";
 import type { Meta, StoryObj } from "@storybook/react";
 import { waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -78,7 +78,6 @@ const mockExistingChat: Chat = {
     updatedAt: new Date().toISOString(),
     team: null, // Use team object/null, not teamId
     invites: [] as ChatInvite[],
-    labels: [] as Label[],
     participants: [
         createMockParticipant(signedInPremiumWithCreditsSession.users[0], mockChatId), // Use the SessionUser
         createMockParticipant(valyxaUser, mockChatId),
@@ -94,9 +93,7 @@ const mockExistingChat: Chat = {
         description: "This is an existing chat.",
     }],
     invitesCount: 0,
-    labelsCount: 0,
     participantsCount: 2,
-    restrictedToRoles: [],
     you: { ...mockChatYou, chat: { id: mockChatId } as Chat, user: { id: signedInPremiumWithCreditsSession.users[0].id } as User }, // Ensure ChatYou links to this chat
     // teamId removed
 };
@@ -109,7 +106,6 @@ const mockCreatedChat: Chat = {
     updatedAt: new Date().toISOString(),
     team: null,
     invites: [],
-    labels: [],
     participants: [
         createMockParticipant(signedInPremiumWithCreditsSession.users[0], mockNewChatId),
         createMockParticipant(valyxaUser, mockNewChatId),
@@ -123,9 +119,7 @@ const mockCreatedChat: Chat = {
         description: "",
     }],
     invitesCount: 0,
-    labelsCount: 0,
     participantsCount: 2,
-    restrictedToRoles: [],
     you: { ...mockChatYou, chat: { id: mockNewChatId } as Chat, user: { id: signedInPremiumWithCreditsSession.users[0].id } as User }, // Adjust ChatYou for new chat
     // teamId removed
 };

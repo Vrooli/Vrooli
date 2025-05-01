@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Api, ApiVersion, CodeLanguage, Resource, ResourceList, ResourceUsedFor, Tag, User, endpointsApiVersion, getObjectUrl, uuid } from "@local/shared";
+import { Api, ApiVersion, CodeLanguage, Resource, ResourceList, ResourceUsedFor, Tag, User, endpointsApiVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiView } from "./ApiView.js";
@@ -7,7 +7,7 @@ import { ApiView } from "./ApiView.js";
 // Create simplified mock data for API responses
 const mockApiVersionData: ApiVersion = {
     __typename: "ApiVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "https://reddit.com/v1",
     documentationLink: "https://docs.example.com/v1",
@@ -15,11 +15,11 @@ const mockApiVersionData: ApiVersion = {
     isPrivate: false,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
+            id: generatePKString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -27,7 +27,7 @@ const mockApiVersionData: ApiVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -177,12 +177,12 @@ components:
     updatedAt: new Date().toISOString(),
     root: {
         __typename: "Api" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() } as unknown as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as unknown as User,
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["Automation", "AI Agents", "Software Development", "Agriculture", "Healthcare", "Finance", "Education", "Government", "Retail", "Manufacturing", "Energy", "Transportation", "Entertainment", "Other"][Math.floor(Math.random() * 14)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -192,7 +192,7 @@ components:
     } as unknown as Api,
     translations: [{
         __typename: "ApiVersionTranslation" as const,
-        id: uuid(),
+        id: generatePKString(),
         language: "en",
         details: "This is a **detailed** description for the mock API using markdown.\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
         name: `Mock API v${Math.floor(Math.random() * 1000)}`,
@@ -207,7 +207,7 @@ export default {
 
 export function NoResult() {
     return (
-        <ApiView display="page" />
+        <ApiView display="Page" />
     );
 }
 NoResult.parameters = {
@@ -216,7 +216,7 @@ NoResult.parameters = {
 
 export function Loading() {
     return (
-        <ApiView display="page" />
+        <ApiView display="Page" />
     );
 }
 Loading.parameters = {
@@ -237,7 +237,7 @@ Loading.parameters = {
 
 export function SignInWithResults() {
     return (
-        <ApiView display="page" />
+        <ApiView display="Page" />
     );
 }
 SignInWithResults.parameters = {
@@ -256,7 +256,7 @@ SignInWithResults.parameters = {
 
 export function LoggedOutWithResults() {
     return (
-        <ApiView display="page" />
+        <ApiView display="Page" />
     );
 }
 LoggedOutWithResults.parameters = {
@@ -275,7 +275,7 @@ LoggedOutWithResults.parameters = {
 
 export function Own() {
     return (
-        <ApiView display="page" />
+        <ApiView display="Page" />
     );
 }
 Own.parameters = {

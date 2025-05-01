@@ -32,8 +32,7 @@ const { PromptUpsert } = lazily(() => import("../../../views/objects/prompt/Prom
 const { ReminderCrud } = lazily(() => import("../../../views/objects/reminder/ReminderCrud.js"));
 const { RoutineMultiStepCrud } = lazily(() => import("../../../views/objects/routine/RoutineMultiStepCrud.js"));
 const { RoutineSingleStepUpsert } = lazily(() => import("../../../views/objects/routine/RoutineSingleStepUpsert.js"));
-const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert.js"));
-const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert.js"));
+const { RunUpsert } = lazily(() => import("../../../views/objects/run/RunUpsert.js"));
 const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert.js"));
 const { TeamUpsert } = lazily(() => import("../../../views/objects/team/TeamUpsert.js"));
 
@@ -68,8 +67,7 @@ const createMap: { [K in FindObjectType]: UpsertView } = {
     Reminder: ReminderCrud as UpsertView,
     RoutineMultiStep: RoutineMultiStepCrud as UpsertView,
     RoutineSingleStep: RoutineSingleStepUpsert as UpsertView,
-    RunProject: RunProjectUpsert as UpsertView,
-    RunRoutine: RunRoutineUpsert as UpsertView,
+    Run: RunUpsert as UpsertView,
     SmartContract: SmartContractUpsert as UpsertView,
     Team: TeamUpsert as UpsertView,
     User: BotUpsert as UpsertView,

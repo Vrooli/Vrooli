@@ -21,7 +21,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 reminders: await shapeHelper({ relation: "reminders", relTypes: ["Create"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest }),
                 user: { connect: { id: rest.userData.id } },
             }),

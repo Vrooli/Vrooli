@@ -2,8 +2,7 @@ import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PaymentFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { PaymentModelLogic, TeamModelLogic } from "./types.js";
+import { PaymentModelLogic } from "./types.js";
 
 const __typename = "Payment" as const;
 export const PaymentModel: PaymentModelLogic = ({
@@ -53,8 +52,8 @@ export const PaymentModel: PaymentModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
-                        { user: { id: data.userId } },
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
                     ],
                 };
             },

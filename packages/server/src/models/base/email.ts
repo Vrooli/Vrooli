@@ -1,4 +1,4 @@
-import { emailValidation, MaxObjects } from "@local/shared";
+import { emailValidation, generatePK, MaxObjects } from "@local/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
@@ -32,15 +32,15 @@ export const EmailModel: EmailModelLogic = ({
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
                 if (Delete.length) {
                     const allEmails = await DbProvider.get().email.findMany({
-                        where: { user: { id: userData.id } },
+                        where: { user: { id: BigInt(userData.id) } },
                         select: { id: true, verifiedAt: true },
                     });
-                    const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
+                    const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id.toString()) && x.verifiedAt).length;
                     const verifiedPhonesCount = await DbProvider.get().phone.count({
-                        where: { user: { id: userData.id }, verifiedAt: true },
+                        where: { user: { id: BigInt(userData.id) }, verifiedAt: { not: null } },
                     });
                     const verifiedWalletsCount = await DbProvider.get().wallet.count({
-                        where: { user: { id: userData.id }, verifiedAt: true },
+                        where: { user: { id: BigInt(userData.id) }, verifiedAt: { not: null } },
                     });
                     if (remainingVerifiedEmailsCount + verifiedPhonesCount + verifiedWalletsCount < 1)
                         throw new CustomError("0049", "MustLeaveVerificationMethod");
@@ -48,8 +48,9 @@ export const EmailModel: EmailModelLogic = ({
                 return {};
             },
             create: async ({ data, userData }) => ({
+                id: generatePK(),
                 emailAddress: data.emailAddress,
-                user: { connect: { id: userData.id } },
+                user: { connect: { id: BigInt(userData.id) } },
             }),
         },
         trigger: {
@@ -86,7 +87,7 @@ export const EmailModel: EmailModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    user: { id: data.userId },
+                    user: { id: BigInt(data.userId) },
                 };
             },
             // Always private, so it's the same as "own"

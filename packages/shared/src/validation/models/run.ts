@@ -6,14 +6,14 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, id, intPositiveOrZero, name } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
-import { runRoutineIOValidation } from "./runIO.js";
+import { runIOValidation } from "./runIO.js";
 import { runRoutineStepValidation } from "./runStep.js";
 import { scheduleValidation } from "./schedule.js";
 
 const data = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
 const runStatus = enumToYup(RunStatus);
 
-export const runRoutineValidation: YupModel<["create", "update"]> = {
+export const runValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         completedComplexity: opt(intPositiveOrZero),
@@ -24,8 +24,8 @@ export const runRoutineValidation: YupModel<["create", "update"]> = {
         name: req(name),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ["io", ["Create"], "many", "opt", runRoutineIOValidation],
-        ["routineVersion", ["Connect"], "one", "req"],
+        ["io", ["Create"], "many", "opt", runIOValidation],
+        ["resourceVersion", ["Connect"], "one", "req"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],
         ["steps", ["Create"], "many", "opt", runRoutineStepValidation],
         ["team", ["Connect"], "one", "opt"],
@@ -39,7 +39,7 @@ export const runRoutineValidation: YupModel<["create", "update"]> = {
         isStarted: opt(bool),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ["io", ["Create", "Update", "Delete"], "many", "opt", runRoutineIOValidation],
+        ["io", ["Create", "Update", "Delete"], "many", "opt", runIOValidation],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
         ["steps", ["Create", "Update", "Delete"], "many", "opt", runRoutineStepValidation],
     ], [], d),

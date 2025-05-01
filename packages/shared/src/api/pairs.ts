@@ -406,13 +406,6 @@ export const endpointsTransfer = {
     },
 };
 
-export const endpointsTranslate = {
-    translate: {
-        endpoint: "/translate",
-        method: "GET" as const,
-    },
-} as const;
-
 export const endpointsUser = {
     ...findOne("user"),
     ...findMany("users"),

@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { AUTH_PROVIDERS, CodeLanguage, DEFAULT_LANGUAGE, FormElement, FormStructureType, InputType, ResourceUsedFor, RoutineType, RoutineVersionConfig, SEEDED_IDS, SEEDED_TAGS, StandardType } from "@local/shared";
+import { AUTH_PROVIDERS, CodeLanguage, DEFAULT_LANGUAGE, FormElement, FormStructureType, generatePK, generatePublicId, InputType, ResourceSubType, ResourceType, ResourceUsedFor, RoutineVersionConfig, SEEDED_PUBLIC_IDS, SEEDED_TAGS } from "@local/shared";
 import pkg from "@prisma/client";
 import { PasswordAuthService } from "../../auth/email.js";
 import { importData } from "../../builders/importExport.js";
@@ -36,7 +36,7 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
     // Admin
     await client.user.upsert({
         where: {
-            id: SEEDED_IDS.User.Admin,
+            publicId: SEEDED_PUBLIC_IDS.Admin,
         },
         update: {
             handle: "matt",
@@ -58,7 +58,8 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
             },
         },
         create: {
-            id: SEEDED_IDS.User.Admin,
+            id: generatePK(),
+            publicId: SEEDED_PUBLIC_IDS.Admin,
             handle: "matt",
             name: "Matt Halloran",
             reputation: 1000000, // TODO temporary until community grows
@@ -85,9 +86,7 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                     },
                 ],
             },
-            languages: {
-                create: [{ language: DEFAULT_LANGUAGE }],
-            },
+            languages: [DEFAULT_LANGUAGE],
             awards: {
                 create: [{
                     tierCompletedAt: new Date(),
@@ -110,23 +109,22 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
     // Default AI assistant
     const valyxa = await client.user.upsert({
         where: {
-            id: SEEDED_IDS.User.Valyxa,
+            publicId: SEEDED_PUBLIC_IDS.Valyxa,
         },
         update: {
             handle: "valyxa",
-            invitedByUser: { connect: { id: SEEDED_IDS.User.Admin } },
+            invitedByUser: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
         },
         create: {
-            id: SEEDED_IDS.User.Valyxa,
+            id: generatePK(),
+            publicId: SEEDED_PUBLIC_IDS.Valyxa,
             handle: "valyxa",
             isBot: true,
             name: "Valyxa",
             reputation: 1000000, // TODO temporary until community grows
             status: "Unlocked",
-            invitedByUser: { connect: { id: SEEDED_IDS.User.Admin } },
-            languages: {
-                create: [{ language: DEFAULT_LANGUAGE }],
-            },
+            invitedByUser: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
+            languages: [DEFAULT_LANGUAGE],
             translations: {
                 create: [{
                     language: DEFAULT_LANGUAGE,
@@ -162,7 +160,7 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
         where: {
             AND: [
                 { translations: { some: { language: DEFAULT_LANGUAGE, name: "Vrooli" } } },
-                { members: { some: { userId: SEEDED_IDS.User.Admin } } },
+                { members: { some: { user: { publicId: SEEDED_PUBLIC_IDS.Admin } } } },
             ],
         },
     });
@@ -170,9 +168,10 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
         logger.info("🏗 Creating Vrooli team");
         vrooli = await client.team.create({
             data: {
-                id: SEEDED_IDS.Team.Vrooli,
+                id: generatePK(),
+                publicId: SEEDED_PUBLIC_IDS.Vrooli,
                 handle: vrooliHandle,
-                createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
                 translations: {
                     create: [
                         {
@@ -183,21 +182,14 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
                     ],
                 },
                 permissions: JSON.stringify({}),
-                roles: {
-                    create: {
-                        name: "Admin",
-                        permissions: JSON.stringify({}),
-                        members: {
-                            create: [
-                                {
-                                    isAdmin: true,
-                                    permissions: JSON.stringify({}),
-                                    team: { connect: { id: SEEDED_IDS.Team.Vrooli } },
-                                    user: { connect: { id: SEEDED_IDS.User.Admin } },
-                                },
-                            ],
+                members: {
+                    create: [
+                        {
+                            isAdmin: true,
+                            permissions: JSON.stringify({}),
+                            user: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
                         },
-                    },
+                    ],
                 },
                 tags: {
                     create: [
@@ -246,17 +238,15 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
 }
 
 async function initProjects(client: InstanceType<typeof PrismaClient>) {
-    let projectEntrepreneur = await client.project_version.findFirst({
+    let projectEntrepreneur = await client.resource_version.findFirst({
         where: {
-            AND: [
-                { root: { ownedByTeamId: SEEDED_IDS.Team.Vrooli } },
-                { translations: { some: { language: DEFAULT_LANGUAGE, name: "Project Catalyst Entrepreneur Guide" } } },
-            ],
+            root: { ownedByTeam: { publicId: SEEDED_PUBLIC_IDS.Vrooli }, resourceType: ResourceType.Project },
+            translations: { some: { language: DEFAULT_LANGUAGE, name: "Project Catalyst Entrepreneur Guide" } },
         },
     });
     if (!projectEntrepreneur) {
         logger.info("📚 Creating Project Catalyst Guide project");
-        projectEntrepreneur = await client.project_version.create({
+        projectEntrepreneur = await client.resource_version.create({
             data: {
                 translations: {
                     create: [
@@ -269,9 +259,11 @@ async function initProjects(client: InstanceType<typeof PrismaClient>) {
                 },
                 root: {
                     create: {
+                        publicId: generatePublicId(),
                         permissions: JSON.stringify({}),
-                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
-                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
+                        resourceType: ResourceType.Project,
+                        createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
+                        ownedByTeam: { connect: { publicId: SEEDED_PUBLIC_IDS.Vrooli } },
                     },
                 },
             },
@@ -325,19 +317,20 @@ async function initStandards(client: InstanceType<typeof PrismaClient>) {
 }
 
 async function initRoutines(client: InstanceType<typeof PrismaClient>) {
-    let mintToken: any = await client.routine.findFirst({
-        where: { id: SEEDED_IDS.Routine.MintToken },
+    let mintToken: any = await client.resource.findFirst({
+        where: { publicId: SEEDED_PUBLIC_IDS.MintToken },
     });
     if (!mintToken) {
         logger.info("📚 Creating Native Token Minting routine");
-        mintToken = await client.routine_version.create({
+        mintToken = await client.resource_version.create({
             data: {
                 root: {
                     create: {
-                        id: SEEDED_IDS.Routine.MintToken,
+                        id: generatePK(),
+                        publicId: SEEDED_PUBLIC_IDS.MintToken,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
                         ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
@@ -383,19 +376,20 @@ async function initRoutines(client: InstanceType<typeof PrismaClient>) {
     }
     // routines[mintTokenId] = mintToken as unknown as Routine;
 
-    let mintNft: any = await client.routine.findFirst({
-        where: { id: SEEDED_IDS.Routine.MintNft },
+    let mintNft: any = await client.resource.findFirst({
+        where: { publicId: SEEDED_PUBLIC_IDS.MintNft },
     });
     if (!mintNft) {
         logger.info("📚 Creating NFT Minting routine");
-        mintNft = await client.routine_version.create({
+        mintNft = await client.resource_version.create({
             data: {
                 root: {
                     create: {
-                        id: SEEDED_IDS.Routine.MintNft,
+                        id: generatePK(),
+                        publicId: SEEDED_PUBLIC_IDS.MintNft,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
                         ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
@@ -449,9 +443,8 @@ async function initRoutines(client: InstanceType<typeof PrismaClient>) {
     }
     // routines[mintNftId] = mintNft as unknown as Routine;
 
-    await client.routine.deleteMany({ where: { id: SEEDED_IDS.Routine.ProjectKickoffChecklist } }); //TODO temp
-    let projectKickoffChecklist: any = await client.routine.findFirst({
-        where: { id: SEEDED_IDS.Routine.ProjectKickoffChecklist },
+    let projectKickoffChecklist: any = await client.resource.findFirst({
+        where: { publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist },
     });
     if (!projectKickoffChecklist) {
         logger.info("📚 Creating Project Kickoff Checklist routine");
@@ -778,14 +771,15 @@ async function initRoutines(client: InstanceType<typeof PrismaClient>) {
                 },
             },
         });
-        projectKickoffChecklist = await client.routine_version.create({
+        projectKickoffChecklist = await client.resource_version.create({
             data: {
                 root: {
                     create: {
-                        id: SEEDED_IDS.Routine.ProjectKickoffChecklist,
+                        id: generatePK(),
+                        publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
                         ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
@@ -885,9 +879,8 @@ async function initRoutines(client: InstanceType<typeof PrismaClient>) {
     }
     // routines[projectKickoffChecklistId] = projectKickoffChecklist as unknown as Routine;
 
-    await client.routine.deleteMany({ where: { id: SEEDED_IDS.Routine.WorkoutPlanGenerator } }); //TODO temp
-    let workoutPlanGenerator: any = await client.routine.findFirst({
-        where: { id: SEEDED_IDS.Routine.WorkoutPlanGenerator },
+    let workoutPlanGenerator: any = await client.resource.findFirst({
+        where: { publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator },
     });
     if (!workoutPlanGenerator) {
         logger.info("📚 Creating Workout Plan Generator routine");
@@ -1206,15 +1199,17 @@ Format the plan in a clear and organized manner, using markdown bullet points or
                 },
             },
         });
-        workoutPlanGenerator = await client.routine_version.create({
+        workoutPlanGenerator = await client.resource_version.create({
             data: {
                 root: {
                     create: {
-                        id: SEEDED_IDS.Routine.WorkoutPlanGenerator,
-                        permissions: JSON.stringify({}),
+                        id: generatePK(),
+                        publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator,
                         isInternal: false,
-                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
-                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
+                        permissions: JSON.stringify({}),
+                        resourceType: ResourceType.Routine,
+                        createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
+                        ownedByTeam: { connect: { publicId: SEEDED_PUBLIC_IDS.Vrooli } },
                     },
                 },
                 translations: {
@@ -1232,7 +1227,7 @@ Format the plan in a clear and organized manner, using markdown bullet points or
                 isAutomatable: true,
                 versionLabel: "1.0.0",
                 versionIndex: 0,
-                routineType: RoutineType.Generate,
+                resourceSubType: ResourceSubType.RoutineGenerate,
                 config: config.serialize("json"),
                 inputs: {
                     create: [
@@ -1304,7 +1299,7 @@ export async function init(client: InstanceType<typeof PrismaClient>) {
         assignObjectsTo: { __typename: "Team" as const, id: SEEDED_IDS.Team.Vrooli }, // Assign to Vrooli team
         onConflict: "overwrite" as const, //TODO need update option
         skipPermissions: true, // Skip permission checks
-        userData: { id: SEEDED_IDS.User.Admin, languages: [DEFAULT_LANGUAGE] }, // Set user data
+        userData: { publicId: SEEDED_PUBLIC_IDS.Admin, languages: [DEFAULT_LANGUAGE] }, // Set user data
     };
 
     // Order matters here. Some objects depend on others.

@@ -11,11 +11,11 @@ import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ViewFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { TeamModelLogic, ViewModelLogic } from "./types.js";
+import { ViewModelLogic } from "./types.js";
 
 function toWhere(key: string, nestedKey: string | null, id: string) {
     if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
-    return { [key]: { id } };
+    return { [key]: { id: BigInt(id) } };
 }
 
 function toSelect(key?: string) {
@@ -29,8 +29,8 @@ function toData(object: object, key?: string) {
 }
 
 function toCreate(object: object, relName: string, key?: string) {
-    if (key) return { [relName]: { connect: { id: object[key].id } } };
-    return { [relName]: { connect: { id: (object as { id: string }).id } } };
+    if (key) return { [relName]: { connect: { id: BigInt(object[key].id) } } };
+    return { [relName]: { connect: { id: BigInt((object as { id: string }).id) } } };
 }
 
 /**
@@ -38,18 +38,8 @@ function toCreate(object: object, relName: string, key?: string) {
  * if a view exists for a given object.
  */
 const whereMapper = {
-    Api: (id: string) => toWhere("api", null, id),
-    ApiVersion: (id: string) => toWhere("api", "versions", id),
-    Code: (id: string) => toWhere("code", null, id),
-    CodeVersion: (id: string) => toWhere("code", "versions", id),
-    Note: (id: string) => toWhere("note", null, id),
-    NoteVersion: (id: string) => toWhere("note", "versions", id),
-    Project: (id: string) => toWhere("project", null, id),
-    ProjectVersion: (id: string) => toWhere("project", "versions", id),
-    Routine: (id: string) => toWhere("routine", null, id),
-    RoutineVersion: (id: string) => toWhere("routine", "versions", id),
-    Standard: (id: string) => toWhere("standard", null, id),
-    StandardVersion: (id: string) => toWhere("standard", "versions", id),
+    Resource: (id: string) => toWhere("resource", null, id),
+    ResourceVersion: (id: string) => toWhere("resource", "versions", id),
     Team: (id: string) => toWhere("team", null, id),
     User: (id: string) => toWhere("user", null, id),
 } as const;
@@ -58,19 +48,8 @@ const whereMapper = {
  * Maps ViewFor types to partial query objects, used to find data required to create a view.
  */
 const selectMapper = {
-    Api: toSelect(),
-    ApiVersion: toSelect("root"),
-    Code: toSelect(),
-    CodeVersion: toSelect("root"),
-    Note: toSelect(),
-    NoteVersion: toSelect("root"),
-    Project: toSelect(),
-    ProjectVersion: toSelect("root"),
-    Routine: toSelect(),
-    RoutineVersion: toSelect("root"),
-    Standard: toSelect(),
-    StandardVersion: toSelect("root"),
-    Team: toSelect(),
+    Resource: toSelect(),
+    ResourceVersion: toSelect("root"),
     User: toSelect(),
 } as const;
 
@@ -78,18 +57,8 @@ const selectMapper = {
  * Maps object with selectMapper data to its corresponding id
  */
 const dataMapper = {
-    Api: (object: object) => toData(object),
-    ApiVersion: (object: object) => toData(object, "root"),
-    Code: (object: object) => toData(object),
-    CodeVersion: (object: object) => toData(object, "root"),
-    Note: (object: object) => toData(object),
-    NoteVersion: (object: object) => toData(object, "root"),
-    Project: (object: object) => toData(object),
-    ProjectVersion: (object: object) => toData(object, "root"),
-    Routine: (object: object) => toData(object),
-    RoutineVersion: (object: object) => toData(object, "root"),
-    Standard: (object: object) => toData(object),
-    StandardVersion: (object: object) => toData(object, "root"),
+    Resource: (object: object) => toData(object),
+    ResourceVersion: (object: object) => toData(object, "root"),
     Team: (object: object) => toData(object),
     User: (object: object) => toData(object),
 };
@@ -98,18 +67,8 @@ const dataMapper = {
  * Maps object with selectMapper data to a Prisma data object, to create a view.
  */
 const createMapper = {
-    Api: (object: object) => toCreate(object, "api"),
-    ApiVersion: (object: object) => toCreate(object, "api", "root"),
-    Code: (object: object) => toCreate(object, "code"),
-    CodeVersion: (object: object) => toCreate(object, "code", "root"),
-    Note: (object: object) => toCreate(object, "note"),
-    NoteVersion: (object: object) => toCreate(object, "note", "root"),
-    Project: (object: object) => toCreate(object, "project"),
-    ProjectVersion: (object: object) => toCreate(object, "project", "root"),
-    Routine: (object: object) => toCreate(object, "routine"),
-    RoutineVersion: (object: object) => toCreate(object, "routine", "root"),
-    Standard: (object: object) => toCreate(object, "standard"),
-    StandardVersion: (object: object) => toCreate(object, "standard", "root"),
+    Resource: (object: object) => toCreate(object, "resource"),
+    ResourceVersion: (object: object) => toCreate(object, "resource", "root"),
     Team: (object: object) => toCreate(object, "team"),
     User: (object: object) => toCreate(object, "user"),
 };
@@ -126,8 +85,8 @@ async function deleteViews(userId: string, ids: string[]): Promise<Count> {
     return await DbProvider.get().view.deleteMany({
         where: {
             AND: [
-                { id: { in: ids } },
-                { byId: userId },
+                { id: { in: ids.map(id => BigInt(id)) } },
+                { byId: BigInt(userId) },
             ],
         },
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
@@ -138,18 +97,12 @@ async function deleteViews(userId: string, ids: string[]): Promise<Count> {
  */
 async function clearViews(userId: string): Promise<Count> {
     return await DbProvider.get().view.deleteMany({
-        where: { byId: userId },
+        where: { byId: BigInt(userId) },
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
 }
 
 const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] } = {
-    Api: "api",
-    Code: "code",
-    Note: "note",
-    Post: "post",
-    Project: "project",
-    Routine: "routine",
-    Standard: "standard",
+    Resource: "resource",
     Team: "team",
     User: "user",
 };
@@ -200,7 +153,12 @@ export const ViewModel: ViewModelLogic = ({
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(viewFor)}Id`;
-            const isViewedArray = await DbProvider.get().view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+            const isViewedArray = await DbProvider.get().view.findMany({
+                where: {
+                    byId: BigInt(userId),
+                    [fieldName]: { in: idsFiltered.map(id => BigInt(id)) }
+                }
+            });
             // Replace the nulls in the result array with true if viewed
             for (let i = 0; i < ids.length; i++) {
                 // Try to find this id in the isViewed array
@@ -225,7 +183,7 @@ export const ViewModel: ViewModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    by: { id: data.userId },
+                    by: { id: BigInt(data.userId) },
                     // Any non-public, non-owned objects should be filtered out
                     // Can use OR because only one relation will be present
                     OR: [
@@ -263,7 +221,7 @@ export const ViewModel: ViewModelLogic = ({
         const { dbTable } = ModelMap.getLogic(["dbTable"], input.viewFor, true, "view 1");
         // Check if object being viewed on exists
         const objectToView: { [x: string]: any } | null = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
-            where: { id: input.forId },
+            where: { id: BigInt(input.forId) },
             select: selectMapper[input.viewFor],
         });
         if (!objectToView)
@@ -271,7 +229,7 @@ export const ViewModel: ViewModelLogic = ({
         // Check if view exists
         let view = await DbProvider.get().view.findFirst({
             where: {
-                by: { id: userData.id },
+                by: { id: BigInt(userData.id) },
                 ...whereMapper[input.viewFor](input.forId),
             },
         });
@@ -289,7 +247,7 @@ export const ViewModel: ViewModelLogic = ({
             const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, userData.languages, "view");
             view = await DbProvider.get().view.create({
                 data: {
-                    by: { connect: { id: userData.id } },
+                    by: { connect: { id: BigInt(userData.id) } },
                     name: labels[0],
                     ...createMapper[input.viewFor](objectToView),
                 },
@@ -300,32 +258,27 @@ export const ViewModel: ViewModelLogic = ({
         switch (input.viewFor) {
             case ViewFor.Team: {
                 // Check if user is an admin or owner of the team
-                const roles = await ModelMap.get<TeamModelLogic>("Team").query.hasRole(userData.id, [input.forId]);
-                isOwn = Boolean(roles[0]);
+                const adminData = await DbProvider.get().team.findFirst({
+                    where: {
+                        id: BigInt(input.forId),
+                        members: { some: { isAdmin: true, user: { id: BigInt(userData.id) } } },
+                    },
+                });
+                isOwn = Boolean(adminData);
                 break;
             }
-            case ViewFor.Api:
-            case ViewFor.ApiVersion:
-            case ViewFor.Code:
-            case ViewFor.CodeVersion:
-            case ViewFor.Note:
-            case ViewFor.NoteVersion:
-            case ViewFor.Project:
-            case ViewFor.ProjectVersion:
-            case ViewFor.Routine:
-            case ViewFor.RoutineVersion:
-            case ViewFor.Standard:
-            case ViewFor.StandardVersion: {
+            case ViewFor.Resource:
+            case ViewFor.ResourceVersion: {
                 // Check if ROOT object is owned by this user or by a team they are a member of
                 const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as ModelType, true, "view 2");
                 const rootObject = await (DbProvider.get()[rootDbTable] as PrismaDelegate).findFirst({
                     where: {
                         AND: [
-                            { id: dataMapper[input.viewFor](objectToView).id },
+                            { id: BigInt(dataMapper[input.viewFor](objectToView).id) },
                             {
                                 OR: [
-                                    ModelMap.get<TeamModelLogic>("Team").query.isMemberOfTeamQuery(userData.id),
-                                    { ownedByUser: { id: userData.id } },
+                                    { ownedByTeam: { members: { some: { user: { id: BigInt(userData.id) } } } } },
+                                    { ownedByUser: { id: BigInt(userData.id) } },
                                 ],
                             },
                         ],
@@ -353,7 +306,7 @@ export const ViewModel: ViewModelLogic = ({
                     // View counts don't exist on versioned objects, so we must make sure we are updating the root object
                     const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as ModelType, true, "view 3");
                     await (DbProvider.get()[rootDbTable] as PrismaDelegate).update({
-                        where: { id: input.forId },
+                        where: { id: BigInt(input.forId) },
                         data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
                     });
                 }

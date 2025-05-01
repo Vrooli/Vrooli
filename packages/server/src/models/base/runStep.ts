@@ -27,7 +27,7 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
                 let timeElapsed = noNull(data.timeElapsed);
                 if (timeElapsed !== undefined) timeElapsed = Math.max(timeElapsed, 0);
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     complexity: data.complexity,
                     contextSwitches,
                     name: data.name,

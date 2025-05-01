@@ -65,7 +65,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 createdBy: { connect: { id: rest.userData.id } },
                 [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
                 [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },

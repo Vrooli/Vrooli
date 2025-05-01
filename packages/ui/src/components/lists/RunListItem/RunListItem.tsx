@@ -3,7 +3,7 @@ import { Stack } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ListItemChip, ListItemCompletionBar, ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { RunProjectListItemProps } from "../types.js";
+import { RunListItemProps } from "../types.js";
 
 function statusToColor(status: RunStatus | undefined): ListItemStyleColor {
     if (!status) return "Default";
@@ -14,11 +14,11 @@ function statusToColor(status: RunStatus | undefined): ListItemStyleColor {
     }
 }
 
-export function RunProjectListItem({
+export function RunListItem({
     data,
     loading,
     ...props
-}: RunProjectListItemProps) {
+}: RunListItemProps) {
     const { t } = useTranslation();
 
     /**
@@ -26,7 +26,7 @@ export function RunProjectListItem({
      */
     const progressBar = useMemo(() => {
         const completedComplexity = data?.completedComplexity ?? 0;
-        const totalComplexity = data?.projectVersion?.complexity ?? null;
+        const totalComplexity = data?.routineVersion?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
@@ -36,7 +36,7 @@ export function RunProjectListItem({
             isLoading={loading}
             value={percentComplete}
         />);
-    }, [data?.completedComplexity, data?.projectVersion?.complexity, data?.status, loading]);
+    }, [data?.completedComplexity, data?.routineVersion?.complexity, data?.status, loading]);
 
     return (
         <ObjectListItemBase
@@ -56,7 +56,7 @@ export function RunProjectListItem({
             }
             data={data}
             loading={loading}
-            objectType="RunProject"
+            objectType="Run"
         />
     );
 }

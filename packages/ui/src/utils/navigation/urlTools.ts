@@ -1,4 +1,4 @@
-import { base36ToUuid, handleRegex, LINKS, uuidValidate } from "@local/shared";
+import { handleRegex, LINKS, validatePublicId } from "@local/shared";
 import { getLastPathnamePart } from "../../route/getLastPathnamePart.js";
 import { SetLocation } from "../../route/types.js";
 
@@ -7,6 +7,7 @@ export type UrlInfo = {
     handle?: string,
     idRoot?: string,
     id?: string,
+    versionLabel?: string,
 }
 
 /**
@@ -57,33 +58,46 @@ export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname
         LINKS.SmartContract,
     ].map(link => link.split("/").pop());
     // Check if any part of the URL contains the name of a versioned object
-    const allUrlParts = window.location.pathname.split("/");
+    const allUrlParts = pathname.split("/");
     const isVersioned = allUrlParts.some(part => objectsWithVersions.includes(part));
-    // If the URL is for a versioned object
+    // If the URL is for a versioned object, parse root and version parts
     if (isVersioned) {
         let hasRoot = false;
-        // Check if the second last part is a root handle or root ID
+        // Check if the second last part is a root handle or root public ID
         if (isHandle(secondLastPart)) {
             returnObject.handleRoot = secondLastPart.replace("@", "");
             hasRoot = true;
-        } else if (uuidValidate(base36ToUuid(secondLastPart))) {
-            returnObject.idRoot = base36ToUuid(secondLastPart);
+        } else if (validatePublicId(secondLastPart)) {
+            returnObject.idRoot = secondLastPart;
             hasRoot = true;
         }
-        // Check if the last part is a version handle or version ID
+        // Check if the last part is a version handle, public ID, or version label
         if (isHandle(lastPart)) {
-            if (hasRoot) returnObject.handle = lastPart.replace("@", "");
-            else returnObject.handleRoot = lastPart;
-        } else if (uuidValidate(base36ToUuid(lastPart))) {
-            if (hasRoot) returnObject.id = base36ToUuid(lastPart);
-            else returnObject.idRoot = base36ToUuid(lastPart);
+            if (hasRoot) {
+                // version handle
+                returnObject.handle = lastPart.replace("@", "");
+            } else {
+                // root handle only
+                returnObject.handleRoot = lastPart.replace("@", "");
+            }
+        } else if (validatePublicId(lastPart)) {
+            if (hasRoot) {
+                // version public ID
+                returnObject.id = lastPart;
+            } else {
+                // root public ID (single segment)
+                returnObject.idRoot = lastPart;
+            }
+        } else if (hasRoot) {
+            // Treat remaining part as version label
+            returnObject.versionLabel = lastPart;
         }
     } else {
-        // If the URL is for a non-versioned object, check if the last part is a handle or ID
+        // If the URL is for a non-versioned object, check if the last part is a handle or public ID
         if (isHandle(lastPart)) {
             returnObject.handle = lastPart.replace("@", "");
-        } else if (uuidValidate(base36ToUuid(lastPart))) {
-            returnObject.id = base36ToUuid(lastPart);
+        } else if (validatePublicId(lastPart)) {
+            returnObject.id = lastPart;
         }
     }
     // Return the object

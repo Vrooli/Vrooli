@@ -781,7 +781,6 @@ describe("determineModelType", () => {
             __typename: "Code",
             createdBy: "User",
             issues: "Issue",
-            labels: "Label",
             owner: {
                 ownedByTeam: "Team",
                 ownedByUser: "User",

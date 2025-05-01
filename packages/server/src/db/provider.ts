@@ -1,4 +1,4 @@
-import { MINUTES_5_MS } from "@local/shared";
+import { MINUTES_5_MS, SEEDED_PUBLIC_IDS } from "@local/shared";
 import pkg from "@prisma/client";
 import { logger } from "../events/logger.js";
 
@@ -47,6 +47,7 @@ export class DbProvider {
     private static seedAttemptCount = 0; // Track total attempts separately from retry count
     private static seedRetryTimeout: NodeJS.Timeout | null = null;
     private static connected = false;
+    private static adminId: string | null = null;
 
     /**
      * Asynchronously initializes the chosen database service.
@@ -304,5 +305,23 @@ export class DbProvider {
         }
         await DbProvider.dbService.deleteAll();
         logger.info('Database dropped for test environment');
+    }
+
+    /**
+     * @returns the ID of the seeded admin user
+     */
+    public static async getAdminId(): Promise<string> {
+        if (DbProvider.adminId) {
+            return DbProvider.adminId;
+        }
+        const client = DbProvider.get();
+        const admin = await client.user.findFirst({
+            where: { publicId: SEEDED_PUBLIC_IDS.Admin },
+        });
+        if (!admin) {
+            throw new Error("Admin user not found");
+        }
+        DbProvider.adminId = admin.id.toString();
+        return DbProvider.adminId;
     }
 }

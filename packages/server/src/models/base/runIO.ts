@@ -1,4 +1,4 @@
-import { MaxObjects, RunRoutineIOSortBy, runRoutineIOValidation } from "@local/shared";
+import { MaxObjects, RunRoutineIOSortBy, runIOValidation } from "@local/shared";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
@@ -38,7 +38,7 @@ export const RunRoutineIOModel: RunRoutineIOModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     data: data.data,
                     nodeInputName: data.nodeInputName,
                     nodeName: data.nodeName,
@@ -53,7 +53,7 @@ export const RunRoutineIOModel: RunRoutineIOModelLogic = ({
                 };
             },
         },
-        yup: runRoutineIOValidation,
+        yup: runIOValidation,
     },
     search: {
         defaultSort: RunRoutineIOSortBy.DateUpdatedDesc,

@@ -37,16 +37,10 @@ async function processTableInBatches(tableName: keyof InstanceType<typeof Prisma
 
 export async function countBookmarks(): Promise<void> {
     const tableNames = [
-        "api",
         "bookmark_list",
         "comment",
-        "code",
         "issue",
-        "note",
-        "post",
-        "project",
-        "routine",
-        "standard",
+        "resource",
         "tag",
         "team",
         "user",

@@ -1,4 +1,4 @@
-import { FormInformationalType, FormStructureType, LINKS, SEEDED_IDS, SearchPageTabOption, TutorialViewSearchParams, UrlTools, getObjectUrl, nanoid } from "@local/shared";
+import { FormInformationalType, FormStructureType, LINKS, SEEDED_PUBLIC_IDS, SearchPageTabOption, TutorialViewSearchParams, UrlTools, getObjectUrl, nanoid } from "@local/shared";
 import { Box, Button, Dialog, IconButton, LinearProgress, List, ListItem, ListItemText, ListSubheader, Menu, MenuItem, MobileStepper, Paper, PaperProps, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
@@ -591,7 +591,7 @@ const sections: TutorialSection[] = [
                     },
                 ],
                 location: {
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.ProjectKickoffChecklist } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
                 },
                 previous: { section: 4, step: 2 },
             },
@@ -620,7 +620,7 @@ const sections: TutorialSection[] = [
                 ],
                 location: {
                     element: ELEMENT_IDS.RelationshipList,
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.ProjectKickoffChecklist } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
                 },
             },
             {
@@ -637,7 +637,7 @@ const sections: TutorialSection[] = [
                 ],
                 location: {
                     element: ELEMENT_IDS.ResourceCards,
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.ProjectKickoffChecklist } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
                 },
             },
             {
@@ -663,7 +663,7 @@ const sections: TutorialSection[] = [
                 ],
                 location: {
                     element: ELEMENT_IDS.RoutineTypeForm,
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.ProjectKickoffChecklist } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.ProjectKickoffChecklist } as const),
                 },
                 next: { section: 4, step: 2 },
             },
@@ -707,7 +707,7 @@ const sections: TutorialSection[] = [
 
                 ],
                 location: {
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.WorkoutPlanGenerator } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
                 },
                 previous: { section: 4, step: 2 },
             },
@@ -736,7 +736,7 @@ const sections: TutorialSection[] = [
                 ],
                 location: {
                     element: ELEMENT_IDS.RelationshipList,
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.WorkoutPlanGenerator } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
                 },
             },
             {
@@ -759,7 +759,7 @@ const sections: TutorialSection[] = [
                 ],
                 location: {
                     element: ELEMENT_IDS.RoutineGenerateSettings,
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.WorkoutPlanGenerator } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
                 },
             },
             {
@@ -785,7 +785,7 @@ const sections: TutorialSection[] = [
                 ],
                 location: {
                     element: `input-${ELEMENT_IDS.FormRunView}`,
-                    page: getObjectUrl({ __typename: "Routine", id: SEEDED_IDS.Routine.WorkoutPlanGenerator } as const),
+                    page: getObjectUrl({ __typename: "Resource", publicId: SEEDED_PUBLIC_IDS.WorkoutPlanGenerator } as const),
                 },
                 next: { section: 4, step: 2 },
             },

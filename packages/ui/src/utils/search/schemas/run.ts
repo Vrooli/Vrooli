@@ -1,10 +1,10 @@
-import { endpointsRunRoutine, FormSchema, InputType, RunRoutineSortBy, RunStatus } from "@local/shared";
+import { endpointsRun, FormSchema, InputType, RunSortBy, RunStatus } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 
-export function runRoutineSearchSchema(): FormSchema {
+export function runSearchSchema(): FormSchema {
     return {
-        layout: searchFormLayout("SearchRunRoutine"),
+        layout: searchFormLayout("SearchRun"),
         containers: [
             { direction: "column", totalItems: 1 },
         ],
@@ -31,6 +31,6 @@ export function runRoutineSearchSchema(): FormSchema {
     };
 }
 
-export function runRoutineSearchParams() {
-    return toParams(runRoutineSearchSchema(), endpointsRunRoutine, RunRoutineSortBy, RunRoutineSortBy.DateStartedAsc);
+export function runSearchParams() {
+    return toParams(runSearchSchema(), endpointsRun, RunSortBy, RunSortBy.DateStartedAsc);
 }

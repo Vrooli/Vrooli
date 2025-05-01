@@ -1,4 +1,4 @@
-import { BotSettingsConfig, ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, uuid } from "@local/shared";
+import { BotSettingsConfig, ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter.js";
@@ -274,18 +274,13 @@ export async function llmProcessBotMessage({
         if (shouldStoreResponse) {
             // Store response in database 
             const select = InfoConverter.get().fromPartialApiToPrismaSelect(chatMessage_findOne);
-            const translation = {
-                id: uuid(),
-                language,
-                text: responseMessage,
-            } as const;
             const createdData = await DbProvider.get().chat_message.create({
                 data: {
-                    chat: { connect: { id: chatId } },
-                    parent: parentId ? { connect: { id: parentId } } : undefined,
-                    user: { connect: { id: respondingBotId } },
+                    text: responseMessage,
+                    chat: { connect: { id: BigInt(chatId) } },
+                    parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
+                    user: { connect: { id: BigInt(respondingBotId) } },
                     //TODO need to check existing number of parent's children to set versionIndex. Find somewhere to do this without having to call prisma again
-                    translations: { create: translation },
                 },
                 ...select,
             });
@@ -293,9 +288,9 @@ export async function llmProcessBotMessage({
             await (new ChatContextManager(model, userData.languages)).addMessage({
                 __type: "Create",
                 chatId,
-                messageId: createdData.id,
+                messageId: createdData.id.toString(),
                 parentId: parentId ?? null,
-                translations: [translation],
+                text: responseMessage,
                 userId: respondingBotId,
             });
 

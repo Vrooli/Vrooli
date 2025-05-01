@@ -1,4 +1,4 @@
-import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { AnyObjectSchema } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
@@ -387,7 +387,8 @@ export async function cudHelper({
     inputData,
     userData,
 }: CudHelperParams): Promise<CudHelperResult> {
-    if (adminFlags && userData.id !== SEEDED_IDS.User.Admin) {
+    const adminId = await DbProvider.getAdminId();
+    if (adminFlags && userData.id !== adminId) {
         throw new CustomError("0562", "Unauthorized", { adminFlags });
     }
 

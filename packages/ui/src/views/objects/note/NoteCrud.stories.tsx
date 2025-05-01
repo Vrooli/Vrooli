@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, NoteVersion, Tag, User, endpointsNoteVersion, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, NoteVersion, Tag, User, endpointsNoteVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { NoteCrud } from "./NoteCrud.js";
@@ -9,7 +9,7 @@ import { NoteCrud } from "./NoteCrud.js";
 // Create simplified mock data for Note responses
 const mockNoteVersionData: NoteVersion = {
     __typename: "NoteVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     comments: [],
     commentsCount: 0,
     createdAt: new Date().toISOString(),
@@ -22,13 +22,13 @@ const mockNoteVersionData: NoteVersion = {
     reportsCount: 0,
     root: {
         __typename: "Note" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         parent: null,
         tags: Array.from({ length: 4 }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["Notes", "Research", "Ideas", "Documentation", "Meeting Notes", "Project Notes"][Math.floor(Math.random() * 6)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -86,7 +86,7 @@ export default {
 // Create a new Note
 export function Create() {
     return (
-        <NoteCrud display="page" isCreate={true} />
+        <NoteCrud display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -114,7 +114,7 @@ CreateDialog.parameters = {
 // Update an existing Note
 export function Update() {
     return (
-        <NoteCrud display="page" isCreate={false} />
+        <NoteCrud display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -162,7 +162,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <NoteCrud display="page" isCreate={false} />
+        <NoteCrud display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -184,7 +184,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <NoteCrud display="page" isCreate={true} />
+        <NoteCrud display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {
@@ -194,7 +194,7 @@ NonPremiumUser.parameters = {
 // View mode (disabled)
 export function ViewMode() {
     return (
-        <NoteCrud display="page" isCreate={false} />
+        <NoteCrud display="Page" isCreate={false} />
     );
 }
 ViewMode.parameters = {

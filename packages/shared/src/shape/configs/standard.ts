@@ -1,9 +1,9 @@
-import { StandardType } from "../../api/types.js";
+import { ResourceSubType, ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { LATEST_CONFIG_VERSION, parseObject, type StringifyMode } from "./utils.js";
+import { type StringifyMode } from "./utils.js";
 
-const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
+const LATEST_CONFIG_VERSION = "1.0";
 
 /**
  * Represents all data that can be stored in a standard's stringified config.
@@ -71,67 +71,36 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
     jsonSchema?: StandardVersionConfigObject["jsonSchema"];
     props?: StandardVersionConfigObject["props"];
 
-    standardType: StandardType;
+    resourceSubType: ResourceSubType;
 
-    constructor({
-        data,
-        standardType,
-    }: {
-        data: StandardVersionConfigObject,
-        standardType: StandardType,
-    }) {
-        super(data);
-        this.validation = data.validation;
-        this.format = data.format;
-        this.compatibility = data.compatibility;
-        this.compliance = data.compliance;
-        this.jsonSchema = data.jsonSchema;
-        this.props = data.props;
+    constructor({ config, resourceSubType }: { config: StandardVersionConfigObject, resourceSubType: ResourceSubType }) {
+        super(config);
+        this.__version = config.__version ?? LATEST_CONFIG_VERSION;
+        this.validation = config.validation;
+        this.format = config.format;
+        this.compatibility = config.compatibility;
+        this.compliance = config.compliance;
+        this.jsonSchema = config.jsonSchema;
+        this.props = config.props;
 
-        this.standardType = standardType;
+        this.resourceSubType = resourceSubType;
     }
 
-    /**
-     * Creates a StandardVersionConfig from a standard version object
-     */
-    static createFromStandardVersion(
-        standardVersion: {
-            data?: string | null;
-            standardType: StandardType;
-        },
+
+    static deserialize(
+        version: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
-        options: { mode?: StringifyMode } = {},
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean }
     ): StandardVersionConfig {
-        const mode = options.mode || DEFAULT_STRINGIFY_MODE;
-        const obj = standardVersion.data ? parseObject<StandardVersionConfigObject>(standardVersion.data, mode, logger) : null;
-        if (!obj) {
-            return StandardVersionConfig.default({
-                standardType: standardVersion.standardType,
-            });
-        }
-        return new StandardVersionConfig({
-            data: obj,
-            standardType: standardVersion.standardType,
-        });
-    }
-
-    /**
-     * Creates a default StandardVersionConfig
-     */
-    static default({
-        standardType,
-    }: {
-        standardType: StandardType,
-    }): StandardVersionConfig {
-        const data: StandardVersionConfigObject = {
-            __version: LATEST_CONFIG_VERSION,
-            resources: [],
-            metadata: {},
-        };
-        return new StandardVersionConfig({
-            data,
-            standardType,
-        });
+        return this.parseConfig<StandardVersionConfigObject, StandardVersionConfig>(
+            version.config,
+            logger,
+            (cfg) => {
+                // Add fallback properties as needed
+                return new StandardVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
+            },
+            { mode: opts?.mode }
+        );
     }
 
     /**

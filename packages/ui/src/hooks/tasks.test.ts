@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask, LlmTaskInfo, TaskStatus, noop, uuid } from "@local/shared";
+import { LlmTask, LlmTaskInfo, TaskStatus, nanoid, noop } from "@local/shared";
 import { renderHook } from "@testing-library/react";
 import { expect } from "chai";
 import { act } from "react";
@@ -342,11 +342,11 @@ describe("useChatTasks", () => {
                                 data: LlmTask.Start,
                             },
                             value: [{
-                                id: uuid(),
+                                id: nanoid(),
                                 label: "Boop",
                                 data: "Boop",
                             }, {
-                                id: uuid(),
+                                id: nanoid(),
                                 label: "Beep",
                                 data: "Beep",
                             }],
@@ -438,7 +438,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.ApiFind,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -465,7 +465,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -493,7 +493,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: -420.69,
                                         }],
@@ -521,15 +521,15 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Old value 1",
                                             data: { key: "old value 1" },
                                         }, {
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Old value 2",
                                             data: { key: "old value 2" },
                                         }, {
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Old value 3",
                                             data: { key: "old value 3" },
                                         }],
@@ -546,7 +546,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -574,15 +574,15 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Old value 1",
                                             data: { key: "old value 1" },
                                         }, {
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Old value 2",
                                             data: { key: "old value 2" },
                                         }, {
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Old value 3",
                                             data: { key: "old value 3" },
                                         }],
@@ -601,7 +601,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -648,7 +648,7 @@ describe("useChatTasks", () => {
                                             data: task.taskId,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -693,7 +693,7 @@ describe("useChatTasks", () => {
                                             data: task.task,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -729,7 +729,7 @@ describe("useChatTasks", () => {
 
                             // Add context by context ID
                             const contexts = [{
-                                id: uuid(),
+                                id: nanoid(),
                                 label: "Boop",
                                 data: "Boop",
                             }];
@@ -775,7 +775,7 @@ describe("useChatTasks", () => {
 
                             // Add context by context ID
                             const originalContexts = [{
-                                id: uuid(),
+                                id: nanoid(),
                                 label: "Boop",
                                 data: "Boop",
                             }];
@@ -839,7 +839,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: true,
                                         }],
@@ -868,7 +868,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: -420.69,
                                         }],
@@ -897,7 +897,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: "Boop",
                                         }],
@@ -926,7 +926,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: { key: "value" },
                                         }],
@@ -955,7 +955,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: [1, 2, 3],
                                         }],
@@ -984,7 +984,7 @@ describe("useChatTasks", () => {
                                             data: LlmTask.Start,
                                         },
                                         value: [{
-                                            id: uuid(),
+                                            id: nanoid(),
                                             label: "Boop",
                                             data: null,
                                         }],
@@ -1008,15 +1008,15 @@ describe("useChatTasks", () => {
                     // Add task and existing data first
                     const task = taskToTaskInfo(LlmTask.ScheduleUpdate);
                     const originalContexts = [{
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 1",
                         data: { key: "old value 1" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 2",
                         data: { key: "old value 2" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 3",
                         data: { key: "old value 3" },
                     }];
@@ -1096,15 +1096,15 @@ describe("useChatTasks", () => {
 
                     // Add and existing data first
                     const originalContexts = [{
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 1",
                         data: { key: "old value 1" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 2",
                         data: { key: "old value 2" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 3",
                         data: { key: "old value 3" },
                     }];
@@ -1135,7 +1135,7 @@ describe("useChatTasks", () => {
                         label: "New value 2",
                         data: "hello",
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "New value 3",
                         data: 2319,
                     }];
@@ -1173,15 +1173,15 @@ describe("useChatTasks", () => {
 
                     // Add contexts to a task type first
                     const originalContexts = [{
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 1",
                         data: { key: "old value 1" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 2",
                         data: { key: "old value 2" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 3",
                         data: { key: "old value 3" },
                     }];
@@ -1219,11 +1219,11 @@ describe("useChatTasks", () => {
                                     behavior: "add",
                                     connect: { __type: "taskType", data: task1.task },
                                     value: [{
-                                        id: uuid(),
+                                        id: nanoid(),
                                         label: "Value 1",
                                         data: "Data 1",
                                     }, {
-                                        id: uuid(),
+                                        id: nanoid(),
                                         label: "Value 2",
                                         data: "Data 2",
                                     }],
@@ -1259,15 +1259,15 @@ describe("useChatTasks", () => {
 
                     // Add contexts to a task type first
                     const originalContexts = [{
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 1",
                         data: { key: "old value 1" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 2",
                         data: { key: "old value 2" },
                     }, {
-                        id: uuid(),
+                        id: nanoid(),
                         label: "Old value 3",
                         data: { key: "old value 3" },
                     }];
@@ -1305,11 +1305,11 @@ describe("useChatTasks", () => {
                                     behavior: "add",
                                     connect: { __type: "taskType", data: task1.task },
                                     value: [{
-                                        id: uuid(),
+                                        id: nanoid(),
                                         label: "Value 1",
                                         data: "Data 1",
                                     }, {
-                                        id: uuid(),
+                                        id: nanoid(),
                                         label: "Value 2",
                                         data: "Data 2",
                                     }],
@@ -1346,11 +1346,11 @@ describe("useChatTasks", () => {
 
                         // Add contexts to a task type first
                         const originalContexts = [{
-                            id: uuid(),
+                            id: nanoid(),
                             label: "Value 1",
                             data: "Data 1",
                         }, {
-                            id: uuid(),
+                            id: nanoid(),
                             label: "Value 2",
                             data: "Data 2",
                         }];
@@ -1405,11 +1405,11 @@ describe("useChatTasks", () => {
 
                         // Add contexts to a task type first
                         const originalContexts = [{
-                            id: uuid(),
+                            id: nanoid(),
                             label: "Value 1",
                             data: "Data 1",
                         }, {
-                            id: uuid(),
+                            id: nanoid(),
                             label: "Value 2",
                             data: "Data 2",
                         }];
@@ -1451,7 +1451,7 @@ describe("useChatTasks", () => {
                                 contexts: {
                                     remove: [
                                         { __type: "contextId", data: originalContexts[0].id }, // Exists
-                                        { __type: "contextId", data: uuid() }, // Doesn't exist
+                                        { __type: "contextId", data: nanoid() }, // Doesn't exist
                                     ],
                                 },
                             });
@@ -1613,7 +1613,7 @@ describe("useChatTasks", () => {
                                         },
                                     });
                                 });
-                                const updatedActiveTask = { ...task1, taskId: uuid() }; // Same task type, so it shouldn't update
+                                const updatedActiveTask = { ...task1, taskId: nanoid() }; // Same task type, so it shouldn't update
                                 await act(async () => {
                                     PubSub.get().publish("chatTask", {
                                         chatId: "main",
@@ -1788,7 +1788,7 @@ describe("useChatTasks", () => {
                                     },
                                 });
                             });
-                            const newInactiveTasks = [{ ...task2, taskId: uuid() }, { ...task3, taskId: uuid() }]; // task2 should be skipped, but still effect the order of the array
+                            const newInactiveTasks = [{ ...task2, taskId: nanoid() }, { ...task3, taskId: nanoid() }]; // task2 should be skipped, but still effect the order of the array
                             await act(async () => {
                                 PubSub.get().publish("chatTask", {
                                     chatId: "main",
@@ -1823,7 +1823,7 @@ describe("useChatTasks", () => {
                                     },
                                 });
                             });
-                            const newInactiveTasks = [{ ...task1 }, { ...task2, taskId: uuid() }]; // task1 has same ID as existing task, so it should be skipped
+                            const newInactiveTasks = [{ ...task1 }, { ...task2, taskId: nanoid() }]; // task1 has same ID as existing task, so it should be skipped
                             await act(async () => {
                                 PubSub.get().publish("chatTask", {
                                     chatId: "main",
@@ -1893,7 +1893,7 @@ describe("useChatTasks", () => {
                                     },
                                 });
                             });
-                            const newInactiveTasks = [{ ...task2, taskId: uuid() }, { ...task3, taskId: uuid() }]; // task2 should replace the existing task2
+                            const newInactiveTasks = [{ ...task2, taskId: nanoid() }, { ...task3, taskId: nanoid() }]; // task2 should replace the existing task2
                             await act(async () => {
                                 PubSub.get().publish("chatTask", {
                                     chatId: "main",
@@ -1928,7 +1928,7 @@ describe("useChatTasks", () => {
                                     },
                                 });
                             });
-                            const newInactiveTasks = [{ ...task1 }, { ...task4, id: uuid() }]; // task1 has same ID as existing task1, so it should replace it
+                            const newInactiveTasks = [{ ...task1 }, { ...task4, id: nanoid() }]; // task1 has same ID as existing task1, so it should replace it
                             await act(async () => {
                                 PubSub.get().publish("chatTask", {
                                     chatId: "main",

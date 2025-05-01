@@ -1,4 +1,4 @@
-import { LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsApiVersion, endpointsChatMessage, endpointsCodeVersion, endpointsComment, endpointsIssue, endpointsNoteVersion, endpointsPost, endpointsProjectVersion, endpointsRoutineVersion, endpointsStandardVersion, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop } from "@local/shared";
+import { LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsChatMessage, endpointsComment, endpointsIssue, endpointsResourceVersion, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop } from "@local/shared";
 import { Box, Button, Typography, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,20 +28,24 @@ import { UrlInfo, parseSingleItemUrl } from "../../utils/navigation/urlTools.js"
 import { ReportUpsert } from "../../views/objects/report/ReportUpsert.js";
 
 const scrollContainerId = "reports-search-scroll";
-const display = "page";
+const display = "Page";
 const take = 20;
 
 const reportForLinks: Record<ReportFor, string | string[]> = {
-    ApiVersion: LINKS.Api,
     ChatMessage: LINKS.ChatMessage,
-    CodeVersion: [LINKS.DataConverter, LINKS.SmartContract],
     Comment: LINKS.Comment,
     Issue: LINKS.Issue,
-    NoteVersion: LINKS.Note,
-    Post: LINKS.Post,
-    ProjectVersion: LINKS.Project,
-    RoutineVersion: [LINKS.RoutineMultiStep, LINKS.RoutineSingleStep],
-    StandardVersion: [LINKS.DataStructure],
+    ResourceVersion: [
+        LINKS.Api,
+        LINKS.DataConverter,
+        LINKS.SmartContract,
+        LINKS.Note,
+        LINKS.Project,
+        LINKS.RoutineMultiStep,
+        LINKS.RoutineSingleStep,
+        LINKS.DataStructure,
+        LINKS.Prompt,
+    ],
     Tag: LINKS.Tag,
     Team: LINKS.Team,
     User: LINKS.User,
@@ -53,32 +57,20 @@ type EndpointData = {
 };
 
 const reportForEndpoints: Record<ReportFor, EndpointData> = {
-    ApiVersion: endpointsApiVersion.findOne,
     ChatMessage: endpointsChatMessage.findOne,
-    CodeVersion: endpointsCodeVersion.findOne,
     Comment: endpointsComment.findOne,
     Issue: endpointsIssue.findOne,
-    NoteVersion: endpointsNoteVersion.findOne,
-    Post: endpointsPost.findOne,
-    ProjectVersion: endpointsProjectVersion.findOne,
-    RoutineVersion: endpointsRoutineVersion.findOne,
-    StandardVersion: endpointsStandardVersion.findOne,
+    ResourceVersion: endpointsResourceVersion.findOne,
     Tag: endpointsTag.findOne,
     Team: endpointsTeam.findOne,
     User: endpointsUser.findOne,
 };
 
 const reportForSearchFields: Record<ReportFor, keyof ReportSearchInput> = {
-    ApiVersion: "apiVersionId",
     ChatMessage: "chatMessageId",
-    CodeVersion: "codeVersionId",
     Comment: "commentId",
     Issue: "issueId",
-    NoteVersion: "noteVersionId",
-    Post: "postId",
-    ProjectVersion: "projectVersionId",
-    RoutineVersion: "routineVersionId",
-    StandardVersion: "standardVersionId",
+    ResourceVersion: "resourceVersionId",
     Tag: "tagId",
     Team: "teamId",
     User: "userId",
@@ -280,7 +272,7 @@ export function ReportsView(_props: ViewProps) {
                         isSelecting={false}
                         isSelected={false}
                         loading={true}
-                        objectType={"RoutineVersion"} // Can be any object type
+                        objectType={"ResourceVersion"} // Can be any object type
                         onAction={noop}
                     />}
                 </ListContainer>}

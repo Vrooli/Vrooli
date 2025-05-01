@@ -1,4 +1,4 @@
-import { FindVersionInput, ResourceVersion, ResourceVersionCreateInput, ResourceVersionSearchInput } from "@local/shared";
+import { FindVersionInput, ResourceVersion, ResourceVersionCreateInput, ResourceVersionSearchInput, ResourceVersionSearchResult, ResourceVersionUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

@@ -1,5 +1,5 @@
 import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "@hello-pangea/dnd";
-import { CreateFormInputProps, FormBuildViewProps, FormBuilder, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
+import { CreateFormInputProps, FormBuildViewProps, FormBuilder, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, mergeDeep, nanoid, noop, noopSubmit, preventFormSubmit } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
@@ -269,7 +269,7 @@ export function FormBuildView({
     const handleAddElement = useCallback(function handleAddElementCallback<T extends FormElement>(element: Omit<T, "id">) {
         const newElement = {
             ...element,
-            id: uuid(),
+            id: nanoid(),
         } as unknown as FormElement;
         const newElements = [...schema.elements ?? []];
         if (selectedElementIndex !== null) {

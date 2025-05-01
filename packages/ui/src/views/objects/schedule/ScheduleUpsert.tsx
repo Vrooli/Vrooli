@@ -92,7 +92,6 @@ export function scheduleInitialValues(
         endTime: new Date(Date.now() + HOURS_1_MS),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         exceptions: [],
-        labels: [],
         recurrences: [],
     };
 

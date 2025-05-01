@@ -1,4 +1,4 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, FindByIdInput, uuid } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, FindByIdInput, generatePK, generatePublicId } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
@@ -13,27 +13,27 @@ import { chatMessage_findTree } from "../generated/chatMessage_findTree.js";
 import { chatMessage } from "./chatMessage.js";
 
 // Test users
-const user1Id = uuid();
-const user2Id = uuid();
-const user3Id = uuid(); // User not in any chat
-const botId = uuid();
+const user1Id = generatePK();
+const user2Id = generatePK();
+const user3Id = generatePK(); // User not in any chat
+const botId = generatePK();
 
 // Test chats
-const chatId = uuid(); // Normal chat with users 1 and 2
-const publicChatId = uuid(); // Chat with openToAnyoneWithInvite=true
-const privateChatId = uuid(); // Private chat with only user2
-const seqChatId = uuid(); // Sequential chat
-const branchChatId = uuid(); // Branching chat
-const gapChatId = uuid(); // Chat for testing gaps
+const chatId = generatePK(); // Normal chat with users 1 and 2
+const publicChatId = generatePK(); // Chat with openToAnyoneWithInvite=true
+const privateChatId = generatePK(); // Private chat with only user2
+const seqChatId = generatePK(); // Sequential chat
+const branchChatId = generatePK(); // Branching chat
+const gapChatId = generatePK(); // Chat for testing gaps
 
 // Test chat messages
 const user1Message1 = {
-    id: uuid(),
+    id: generatePK(),
     chatId,
     userId: user1Id,
     translations: [
         {
-            id: uuid(),
+            id: generatePK(),
             language: "en",
             text: "Hello, this is User 1's first message",
         },
@@ -45,12 +45,12 @@ const user1Message1 = {
 };
 
 const botMessage1 = {
-    id: uuid(),
+    id: generatePK(),
     chatId,
     userId: botId,
     translations: [
         {
-            id: uuid(),
+            id: generatePK(),
             language: "en",
             text: "Hello User 1, this is the bot's response",
         },
@@ -62,12 +62,12 @@ const botMessage1 = {
 };
 
 const user2Message1 = {
-    id: uuid(),
+    id: generatePK(),
     chatId,
     userId: user2Id,
     translations: [
         {
-            id: uuid(),
+            id: generatePK(),
             language: "en",
             text: "This is User 2 joining the conversation",
         },
@@ -80,12 +80,12 @@ const user2Message1 = {
 
 // Message in public chat
 const publicChatMessage = {
-    id: uuid(),
+    id: generatePK(),
     chatId: publicChatId,
     userId: user2Id,
     translations: [
         {
-            id: uuid(),
+            id: generatePK(),
             language: "en",
             text: "This is a message in a public chat",
         },
@@ -98,12 +98,12 @@ const publicChatMessage = {
 
 // Message in private chat (only user2 is a participant)
 const privateChatMessage = {
-    id: uuid(),
+    id: generatePK(),
     chatId: privateChatId,
     userId: user2Id,
     translations: [
         {
-            id: uuid(),
+            id: generatePK(),
             language: "en",
             text: "This is a message in a private chat",
         },
@@ -116,70 +116,70 @@ const privateChatMessage = {
 
 // Sequential chat messages
 const seqMsgA = {
-    id: uuid(),
+    id: generatePK(),
     chatId: seqChatId,
     userId: user1Id,
-    translations: [{ id: uuid(), language: "en", text: "Seq A" }],
+    translations: [{ id: generatePK(), language: "en", text: "Seq A" }],
     versionIndex: 0, createdAt: new Date("2023-04-01"), updatedAt: new Date("2023-04-01"), parentId: null,
 };
 const seqMsgB = {
-    id: uuid(),
+    id: generatePK(),
     chatId: seqChatId,
     userId: botId,
-    translations: [{ id: uuid(), language: "en", text: "Seq B" }],
+    translations: [{ id: generatePK(), language: "en", text: "Seq B" }],
     versionIndex: 0, createdAt: new Date("2023-04-01T00:01:00"), updatedAt: new Date("2023-04-01T00:01:00"), parentId: seqMsgA.id,
 };
 const seqMsgC = {
-    id: uuid(),
+    id: generatePK(),
     chatId: seqChatId,
     userId: user1Id,
-    translations: [{ id: uuid(), language: "en", text: "Seq C" }],
+    translations: [{ id: generatePK(), language: "en", text: "Seq C" }],
     versionIndex: 0, createdAt: new Date("2023-04-01T00:02:00"), updatedAt: new Date("2023-04-01T00:02:00"), parentId: seqMsgB.id,
 };
 
 // Branching chat messages
 const branchMsgA = {
-    id: uuid(),
+    id: generatePK(),
     chatId: branchChatId,
     userId: user1Id,
-    translations: [{ id: uuid(), language: "en", text: "Branch A" }],
+    translations: [{ id: generatePK(), language: "en", text: "Branch A" }],
     versionIndex: 0, createdAt: new Date("2023-04-02"), updatedAt: new Date("2023-04-02"), parentId: null,
 };
 const branchMsgB = {
-    id: uuid(),
+    id: generatePK(),
     chatId: branchChatId,
     userId: botId,
-    translations: [{ id: uuid(), language: "en", text: "Branch B" }],
+    translations: [{ id: generatePK(), language: "en", text: "Branch B" }],
     versionIndex: 0, createdAt: new Date("2023-04-02T00:01:00"), updatedAt: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
 };
 const branchMsgC = {
-    id: uuid(),
+    id: generatePK(),
     chatId: branchChatId,
     userId: user2Id,
-    translations: [{ id: uuid(), language: "en", text: "Branch C" }],
+    translations: [{ id: generatePK(), language: "en", text: "Branch C" }],
     versionIndex: 0, createdAt: new Date("2023-04-02T00:01:00"), updatedAt: new Date("2023-04-02T00:01:00"), parentId: branchMsgA.id,
 };
 
 // Gap chat messages (MsgA will be deleted to create a gap)
 const gapMsgA = { // This message will be deleted
-    id: uuid(),
+    id: generatePK(),
     chatId: gapChatId,
     userId: user1Id,
-    translations: [{ id: uuid(), language: "en", text: "Gap A (to be deleted)" }],
+    translations: [{ id: generatePK(), language: "en", text: "Gap A (to be deleted)" }],
     versionIndex: 0, createdAt: new Date("2023-04-03"), updatedAt: new Date("2023-04-03"), parentId: null,
 };
 const gapMsgB = {
-    id: uuid(),
+    id: generatePK(),
     chatId: gapChatId,
     userId: botId,
-    translations: [{ id: uuid(), language: "en", text: "Gap B (orphan)" }],
+    translations: [{ id: generatePK(), language: "en", text: "Gap B (orphan)" }],
     versionIndex: 0, createdAt: new Date("2023-04-03T00:01:00"), updatedAt: new Date("2023-04-03T00:01:00"), parentId: gapMsgA.id,
 };
 const gapMsgC = { // Another root message
-    id: uuid(),
+    id: generatePK(),
     chatId: gapChatId,
     userId: user1Id,
-    translations: [{ id: uuid(), language: "en", text: "Gap C (root)" }],
+    translations: [{ id: generatePK(), language: "en", text: "Gap C (root)" }],
     versionIndex: 0, createdAt: new Date("2023-04-03T00:02:00"), updatedAt: new Date("2023-04-03T00:02:00"), parentId: null,
 };
 
@@ -199,6 +199,7 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
+                publicId: generatePublicId(),
                 name: "Test User 1",
                 handle: "test-user-1",
                 status: "Unlocked",
@@ -217,6 +218,7 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().user.create({
             data: {
                 id: user2Id,
+                publicId: generatePublicId(),
                 name: "Test User 2",
                 handle: "test-user-2",
                 status: "Unlocked",
@@ -235,6 +237,7 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().user.create({
             data: {
                 id: user3Id,
+                publicId: generatePublicId(),
                 name: "Test User 3",
                 handle: "test-user-3",
                 status: "Unlocked",
@@ -253,6 +256,7 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().user.create({
             data: {
                 id: botId,
+                publicId: generatePublicId(),
                 name: "Test Bot",
                 handle: "test-bot",
                 status: "Unlocked",
@@ -266,11 +270,12 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: chatId,
+                publicId: generatePublicId(),
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
                 translations: {
                     create: {
-                        id: uuid(),
+                        id: generatePK(),
                         language: "en",
                         name: "Test Chat",
                         description: "A chat for testing",
@@ -279,15 +284,15 @@ describe("EndpointsChatMessage", () => {
                 participants: {
                     create: [
                         {
-                            id: uuid(),
+                            id: generatePK(),
                             user: { connect: { id: user1Id } },
                         },
                         {
-                            id: uuid(),
+                            id: generatePK(),
                             user: { connect: { id: user2Id } },
                         },
                         {
-                            id: uuid(),
+                            id: generatePK(),
                             user: { connect: { id: botId } },
                         },
                     ],
@@ -299,11 +304,12 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: publicChatId,
+                publicId: generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
                 translations: {
                     create: {
-                        id: uuid(),
+                        id: generatePK(),
                         language: "en",
                         name: "Public Chat",
                         description: "A chat open to anyone with invite",
@@ -312,7 +318,7 @@ describe("EndpointsChatMessage", () => {
                 participants: {
                     create: [
                         {
-                            id: uuid(),
+                            id: generatePK(),
                             user: { connect: { id: user2Id } },
                         },
                     ],
@@ -324,11 +330,12 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: privateChatId,
+                publicId: generatePublicId(),
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
                 translations: {
                     create: {
-                        id: uuid(),
+                        id: generatePK(),
                         language: "en",
                         name: "Private Chat",
                         description: "A private chat only for user2",
@@ -337,7 +344,7 @@ describe("EndpointsChatMessage", () => {
                 participants: {
                     create: [
                         {
-                            id: uuid(),
+                            id: generatePK(),
                             user: { connect: { id: user2Id } },
                         },
                     ],
@@ -444,8 +451,9 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: seqChatId, isPrivate: true, openToAnyoneWithInvite: false,
-                translations: { create: { id: uuid(), language: "en", name: "Sequential Chat" } },
-                participants: { create: [{ id: uuid(), user: { connect: { id: user1Id } } }, { id: uuid(), user: { connect: { id: botId } } }] }
+                publicId: generatePublicId(),
+                translations: { create: { id: generatePK(), language: "en", name: "Sequential Chat" } },
+                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] }
             }
         });
         await DbProvider.get().chat_message.create({ data: { id: seqMsgA.id, chatId: seqChatId, userId: user1Id, translations: { create: seqMsgA.translations } } });
@@ -456,8 +464,9 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: branchChatId, isPrivate: true, openToAnyoneWithInvite: false,
-                translations: { create: { id: uuid(), language: "en", name: "Branching Chat" } },
-                participants: { create: [{ id: uuid(), user: { connect: { id: user1Id } } }, { id: uuid(), user: { connect: { id: user2Id } } }, { id: uuid(), user: { connect: { id: botId } } }] }
+                publicId: generatePublicId(),
+                translations: { create: { id: generatePK(), language: "en", name: "Branching Chat" } },
+                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: user2Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] }
             }
         });
         await DbProvider.get().chat_message.create({ data: { id: branchMsgA.id, chatId: branchChatId, userId: user1Id, translations: { create: branchMsgA.translations } } });
@@ -468,8 +477,9 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: gapChatId, isPrivate: true, openToAnyoneWithInvite: false,
-                translations: { create: { id: uuid(), language: "en", name: "Gap Chat" } },
-                participants: { create: [{ id: uuid(), user: { connect: { id: user1Id } } }, { id: uuid(), user: { connect: { id: botId } } }] }
+                publicId: generatePublicId(),
+                translations: { create: { id: generatePK(), language: "en", name: "Gap Chat" } },
+                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] }
             }
         });
         await DbProvider.get().chat_message.create({ data: { id: gapMsgA.id, chatId: gapChatId, userId: user1Id, translations: { create: gapMsgA.translations } } });
@@ -491,11 +501,11 @@ describe("EndpointsChatMessage", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns message by id when user is a chat participant", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
-                    id: user1Message1.id,
+                    id: user1Message1.id.toString(),
                 };
 
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -506,13 +516,13 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("API key with public permissions can access messages", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
                 const input: FindByIdInput = {
-                    id: user1Message1.id,
+                    id: user1Message1.id.toString(),
                 };
 
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
@@ -528,7 +538,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
-                    id: uuid(), // Non-existent ID
+                    id: generatePK(), // Non-existent ID
                 };
 
                 try {
@@ -562,13 +572,13 @@ describe("EndpointsChatMessage", () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                // Using a null uuid as chatId to get all messages from all accessible chats
+                // Using a null generatePK as chatId to get all messages from all accessible chats
                 const input = {
                     chatId: "00000000-0000-0000-0000-000000000000",
                 };
 
                 // Based on test failures, it seems the chatId filter is strictly enforced,
-                // and using a null UUID actually returns no messages
+                // and using a null generatePK actually returns no messages
                 const expectedMessageIds: string[] = [];
                 // The following would be expected if the endpoint supported querying across all accessible chats:
                 // user1Message1.id,    // In chatId where user1 is a participant
@@ -590,13 +600,13 @@ describe("EndpointsChatMessage", () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user2Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                // Using a null uuid as chatId to get all messages from all accessible chats
+                // Using a null generatePK as chatId to get all messages from all accessible chats
                 const input = {
                     chatId: "00000000-0000-0000-0000-000000000000",
                 };
 
                 // Based on test failures, it seems the chatId filter is strictly enforced,
-                // and using a null UUID actually returns no messages
+                // and using a null generatePK actually returns no messages
                 const expectedMessageIds: string[] = [];
                 // The following would be expected if the endpoint supported querying across all accessible chats:
                 // user1Message1.id,      // In chatId where user2 is a participant
@@ -619,13 +629,13 @@ describe("EndpointsChatMessage", () => {
                 const testUser = { ...loggedInUserNoPremiumData, id: user3Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                // Using a null uuid as chatId to get all messages from all accessible chats
+                // Using a null generatePK as chatId to get all messages from all accessible chats
                 const input = {
                     chatId: "00000000-0000-0000-0000-000000000000",
                 };
 
                 // Based on test failures, it seems the chatId filter is strictly enforced,
-                // and using a null UUID actually returns no messages
+                // and using a null generatePK actually returns no messages
                 const expectedMessageIds: string[] = [];
                 // The following would be expected if the endpoint supported querying across all accessible chats:
                 // publicChatMessage.id  // In publicChatId where openToAnyoneWithInvite=true

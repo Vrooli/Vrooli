@@ -2,10 +2,9 @@ import { ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { CodeLanguage } from "../../consts/ui.js";
 import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { LATEST_CONFIG_VERSION, parseObject, type StringifyMode } from "./utils.js";
+import { type StringifyMode } from "./utils.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
-const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
 /**
  * Represents the blockchain contract details associated with a code version.
@@ -192,40 +191,34 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
     }
 
     static deserialize(
-        { codeLanguage, config }: Pick<ResourceVersion, "codeLanguage" | "config">,
+        version: Pick<ResourceVersion, "codeLanguage" | "config">,
         logger: PassableLogger,
-        { mode = DEFAULT_STRINGIFY_MODE, useFallbacks = true }: { mode?: StringifyMode, useFallbacks?: boolean } = {},
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean }
     ): CodeVersionConfig {
-        let obj = config ? parseObject<CodeVersionConfigObject>(config, mode, logger) : null;
-        if (!obj) {
-            obj = { content: "", __version: LATEST_CONFIG_VERSION };
-        }
-        if (useFallbacks) {
-            if (!obj.inputConfig) {
-                obj.inputConfig = CodeVersionConfig.defaultInputConfig();
-            }
-            if (!obj.outputConfig) {
-                obj.outputConfig = CodeVersionConfig.defaultOutputConfig();
-            }
-            if (!obj.testCases) {
-                obj.testCases = CodeVersionConfig.defaultTestCases();
-            }
-            if (!obj.contractDetails) {
-                // Add if needed
-            }
-        }
-        return new CodeVersionConfig({ config: obj, codeLanguage });
+        return this.parseConfig<CodeVersionConfigObject, CodeVersionConfig>(
+            version.config,
+            logger,
+            (cfg) => {
+                // ensure defaults for input/output/testcases
+                if (opts?.useFallbacks ?? true) {
+                    cfg.inputConfig ??= CodeVersionConfig.defaultInputConfig();
+                    cfg.outputConfig ??= CodeVersionConfig.defaultOutputConfig();
+                    cfg.testCases ??= CodeVersionConfig.defaultTestCases();
+                }
+                return new CodeVersionConfig({ config: cfg, codeLanguage: version.codeLanguage });
+            },
+            { mode: opts?.mode }
+        );
     }
 
     static default({ codeLanguage }: { codeLanguage: ResourceVersion["codeLanguage"] }): CodeVersionConfig {
         const config: CodeVersionConfigObject = {
             __version: LATEST_CONFIG_VERSION,
+            resources: [],
+            content: "",
             inputConfig: CodeVersionConfig.defaultInputConfig(),
             outputConfig: CodeVersionConfig.defaultOutputConfig(),
             testCases: CodeVersionConfig.defaultTestCases(),
-            content: "",
-            resources: [],
-            metadata: {},
         };
         return new CodeVersionConfig({ config, codeLanguage });
     }
@@ -277,9 +270,9 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
         const results: CodeVersionTestCaseResult[] = [];
 
         // Iterate over each test case
-        for (const testCase of this.testCases) {
+        for (const testCase of this.testCases ?? []) {
             const { input, expectedOutput, description } = testCase;
-            const shouldSpreadInput = this.inputConfig.shouldSpread;
+            const shouldSpreadInput = this.inputConfig?.shouldSpread ?? false;
 
             try {
                 const result = await runSandbox({

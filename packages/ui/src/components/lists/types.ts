@@ -1,4 +1,4 @@
-import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, ListObject, Meeting, MeetingInvite, Member, MemberInvite, ModelType, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, Reminder, Report, ReportResponse, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, ListObject, Meeting, MeetingInvite, Member, MemberInvite, ModelType, NavigableObject, Notification, OrArray, Reminder, Report, ReportResponse, Resource, ResourceVersion, SearchType, Tag, Team, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { ReactNode } from "react";
 import { UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
@@ -62,7 +62,7 @@ export type ObjectListItemProps<T extends ListObject = ListObject> = {
     /** Data index for keyboard navigation */
     dataIndex?: number;
     /** Function to handle opening the context menu upon right click */
-    handleContextMenu: (target: ReactNode, object: ListObject | null) => void;
+    handleContextMenu: (target: EventTarget, object: ListObject | null) => void;
     /** Function to toggle item selection when in selection mode */
     handleToggleSelect: (item: T, event?: UsePressEvent) => void;
     /** Hide object's update button */
@@ -110,8 +110,7 @@ export type NotificationListItemProps = ObjectListItemProps<Notification> & {
 export type ReminderListItemProps = ObjectListItemProps<Reminder>
 export type ReportListItemProps = ObjectListItemProps<Report>
 export type ReportResponseListItemProps = ObjectListItemProps<ReportResponse>
-export type RunProjectListItemProps = ObjectListItemProps<RunProject>
-export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
+export type RunListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
     anchorEl: Element | null;
@@ -140,40 +139,24 @@ export type RelationshipItemTeam = Pick<Team, "handle" | "id"> &
 export type RelationshipItemUser = Pick<User, "handle" | "id" | "name"> & {
     __typename: "User";
 }
-export type RelationshipItemProjectVersion = Pick<ProjectVersion, "id"> &
+export type RelationshipItemProjectVersion = Pick<ResourceVersion, "id"> &
 {
-    root: Pick<Project, "__typename" | "id" | "handle" | "owner">;
-    translations?: Pick<ProjectVersion["translations"][0], "name" | "id" | "language">[];
-    __typename: "ProjectVersion";
+    root: Pick<Resource, "__typename" | "id" | "owner">;
+    translations?: Pick<ResourceVersion["translations"][0], "name" | "id" | "language">[];
+    __typename: "ResourceVersion";
 };
-export type RelationshipItemRoutineVersion = Pick<RoutineVersion, "id"> &
+export type RelationshipItemRoutineVersion = Pick<ResourceVersion, "id"> &
 {
-    root: Pick<Routine, "__typename" | "id" | "owner">;
-    translations?: Pick<RoutineVersion["translations"][0], "name" | "id" | "language">[];
-    __typename: "RoutineVersion";
+    root: Pick<Resource, "__typename" | "id" | "owner">;
+    translations?: Pick<ResourceVersion["translations"][0], "name" | "id" | "language">[];
+    __typename: "ResourceVersion";
 };
-export type RelationshipItemRunProject = Pick<RunProject, "id" | "name"> &
-{
-    __typename: "RunProject";
-    projectVersion: RelationshipItemProjectVersion;
-}
-export type RelationshipItemRunRoutine = Pick<RunRoutine, "id" | "name"> &
-{
-    __typename: "RunRoutine";
-    routineVersion: RelationshipItemRoutineVersion;
-}
 
 export interface RelationshipListProps {
     limitTo?: RelationshipButtonType[];
     isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
-}
-
-export interface RoleListProps {
-    maxCharacters?: number;
-    roles: Role[];
-    sx?: SxType;
 }
 
 /**
@@ -282,40 +265,3 @@ export interface TIDCardProps {
     title: string;
     warning?: string;
 }
-
-export type DirectoryItem = ApiVersionShape |
-    CodeVersionShape |
-    NoteVersionShape |
-    ProjectVersionShape |
-    RoutineVersionShape |
-    StandardVersionShape |
-    TeamShape;
-
-export interface DirectoryCardProps {
-    canUpdate: boolean;
-    data: DirectoryItem;
-    onContextMenu: (target: EventTarget, data: DirectoryItem) => unknown;
-    onDelete: (data: DirectoryItem) => unknown;
-}
-
-export interface DirectoryListProps {
-    canUpdate?: boolean;
-    handleUpdate?: (updatedDirectory: ProjectVersionDirectory) => unknown;
-    directory: ProjectVersionDirectory | null;
-    loading?: boolean;
-    mutate?: boolean;
-}
-
-export type DirectoryListHorizontalProps = DirectoryListProps & {
-    handleToggleSelect: (data: DirectoryItem) => unknown;
-    isEditing: boolean;
-    isSelecting: boolean;
-    list: DirectoryItem[];
-    onAction: (action: keyof ObjectListActions<DirectoryItem>, ...data: unknown[]) => unknown;
-    onClick: (data: DirectoryItem) => unknown;
-    onDelete: (data: DirectoryItem) => unknown;
-    openAddDialog: () => unknown;
-    selectedData: DirectoryItem[];
-}
-
-export type DirectoryListVerticalProps = DirectoryListHorizontalProps

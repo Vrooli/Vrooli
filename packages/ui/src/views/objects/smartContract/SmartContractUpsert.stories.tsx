@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Code, CodeLanguage, CodeType, CodeVersion, CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, getObjectUrl, uuid } from "@local/shared";
+import { Code, CodeLanguage, CodeType, CodeVersion, CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SmartContractUpsert } from "./SmartContractUpsert.js";
@@ -9,7 +9,7 @@ import { SmartContractUpsert } from "./SmartContractUpsert.js";
 // Create simplified mock data for CodeVersion responses
 const mockCodeVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     calledByRoutineVersionsCount: 2,
@@ -33,12 +33,12 @@ contract SimpleStorage {
     isPrivate: false,
     root: {
         __typename: "Code" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         owner: {
             __typename: "User" as const,
-            id: uuid(),
+            id: generatePKString(),
             handle: "blockchain-dev",
             name: "Blockchain Developer",
             profileImage: null,
@@ -47,37 +47,37 @@ contract SimpleStorage {
         isPrivate: false,
         versions: [{
             __typename: "CodeVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
             versionLabel: "0.9.0",
         }, {
             __typename: "CodeVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
             versionLabel: "1.0.0",
         }],
         tags: [{
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             label: "Ethereum",
         }, {
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             label: "Smart Contract",
         }, {
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             label: "Storage",
         }],
     } as unknown as Code,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         listFor: {} as any, // Circular reference
         resources: [
             {
                 __typename: "Resource" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
@@ -85,7 +85,7 @@ contract SimpleStorage {
                 list: {} as any, // Circular reference
                 translations: [{
                     __typename: "ResourceTranslation" as const,
-                    id: uuid(),
+                    id: generatePKString(),
                     language: "en",
                     name: "Smart Contracts Documentation",
                     description: "Official Ethereum documentation on smart contracts",
@@ -93,7 +93,7 @@ contract SimpleStorage {
             },
             {
                 __typename: "Resource" as const,
-                id: uuid(),
+                id: generatePKString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
@@ -101,7 +101,7 @@ contract SimpleStorage {
                 list: {} as any, // Circular reference
                 translations: [{
                     __typename: "ResourceTranslation" as const,
-                    id: uuid(),
+                    id: generatePKString(),
                     language: "en",
                     name: "Solidity Documentation",
                     description: "Official documentation for the Solidity programming language",
@@ -113,7 +113,7 @@ contract SimpleStorage {
     translations: [
         {
             __typename: "CodeVersionTranslation" as const,
-            id: uuid(),
+            id: generatePKString(),
             language: "en",
             name: "Simple Storage Contract",
             description: "A basic smart contract that demonstrates storage functionality on the Ethereum blockchain. This contract allows setting and retrieving a single integer value.",
@@ -139,7 +139,7 @@ export default {
 // Create a new Smart Contract
 export function Create() {
     return (
-        <SmartContractUpsert display="page" isCreate={true} />
+        <SmartContractUpsert display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -167,7 +167,7 @@ CreateDialog.parameters = {
 // Update an existing Smart Contract
 export function Update() {
     return (
-        <SmartContractUpsert display="page" isCreate={false} />
+        <SmartContractUpsert display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
@@ -215,7 +215,7 @@ UpdateDialog.parameters = {
 // Loading state
 export function Loading() {
     return (
-        <SmartContractUpsert display="page" isCreate={false} />
+        <SmartContractUpsert display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
@@ -237,7 +237,7 @@ Loading.parameters = {
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <SmartContractUpsert display="page" isCreate={true} />
+        <SmartContractUpsert display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

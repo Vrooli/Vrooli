@@ -46,11 +46,7 @@ export async function paymentsCreditsFreePremium(): Promise<void> {
             },
             select: {
                 id: true,
-                languages: {
-                    select: {
-                        language: true,
-                    },
-                },
+                languages: true,
                 premium: {
                     select: {
                         id: true,

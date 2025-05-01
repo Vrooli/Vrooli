@@ -1,6 +1,6 @@
 /* eslint-disable import/extensions */
 
-import { endpointsApi, endpointsChat, endpointsCode, endpointsComment, endpointsNote, endpointsProject, endpointsReport, endpointsRoutine, endpointsStandard, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, uuid } from "@local/shared";
+import { endpointsChat, endpointsComment, endpointsReport, endpointsResource, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, nanoid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
@@ -627,18 +627,18 @@ const specialRoutes = [
 
 // Maps URL slugs to endpoints
 const routeToEndpoint = {
-    [LINKS.Api]: endpointsApi.findOne,
+    [LINKS.Api]: endpointsResource.findOne,
     [LINKS.Chat]: endpointsChat.findOne,
-    [LINKS.DataConverter]: endpointsCode.findOne,
-    [LINKS.DataStructure]: endpointsStandard.findOne,
+    [LINKS.DataConverter]: endpointsResource.findOne,
+    [LINKS.DataStructure]: endpointsResource.findOne,
     [LINKS.Comment]: endpointsComment.findOne,
-    [LINKS.Note]: endpointsNote.findOne,
-    [LINKS.Project]: endpointsProject.findOne,
-    [LINKS.Prompt]: endpointsStandard.findOne,
+    [LINKS.Note]: endpointsResource.findOne,
+    [LINKS.Project]: endpointsResource.findOne,
+    [LINKS.Prompt]: endpointsResource.findOne,
     [LINKS.Report]: endpointsReport.findOne,
-    [LINKS.RoutineMultiStep]: endpointsRoutine.findOne,
-    [LINKS.RoutineSingleStep]: endpointsRoutine.findOne,
-    [LINKS.SmartContract]: endpointsCode.findOne,
+    [LINKS.RoutineMultiStep]: endpointsResource.findOne,
+    [LINKS.RoutineSingleStep]: endpointsResource.findOne,
+    [LINKS.SmartContract]: endpointsResource.findOne,
     [LINKS.Tag]: endpointsTag.findOne,
     [LINKS.Team]: endpointsTeam.findOne,
     [LINKS.User]: endpointsUser.findOne,
@@ -730,7 +730,7 @@ function withCustomLinkProps(additionalProps) {
 
 /** Custom checkbox component editable checkboxes */
 function CustomCheckbox({ checked, onChange, ...otherProps }) {
-    const id = useMemo(() => uuid(), []);
+    const id = useMemo(() => nanoid(), []);
     function toggleCheckbox() {
         onChange(id, !checked);
     }
@@ -834,7 +834,7 @@ export function MarkdownDisplay({
     headingLevelOffset?: number;
 }) {
     const { palette, typography } = useTheme();
-    const id = useMemo(() => uuid(), []);
+    const id = useMemo(() => nanoid(), []);
 
     // Add overrides for custom components
     const options = useMemo(function optionsMemo() {

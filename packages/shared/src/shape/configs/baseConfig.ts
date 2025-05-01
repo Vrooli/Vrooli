@@ -48,8 +48,6 @@ export interface BaseConfigObject {
     __version: string;
     /** Resources attached to this entity */
     resources?: ConfigResource[];
-    /** Additional metadata as key-value pairs */
-    metadata?: Record<string, any>;
 }
 
 /**
@@ -58,32 +56,28 @@ export interface BaseConfigObject {
 export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
     __version: string;
     resources: ConfigResource[];
-    metadata: Record<string, any>;
 
     constructor(data: T) {
         this.__version = data.__version ?? LATEST_CONFIG_VERSION;
         this.resources = data.resources ?? [];
-        this.metadata = data.metadata ?? {};
     }
 
     /**
-     * Creates a config instance from a stringified config
+     * Helper for subclasses to parse stringified config, auto-fill version/resources/etc., and forward to a factory.
      */
-    static deserialize<C extends BaseConfig, T extends BaseConfigObject>(
+    protected static parseConfig<T extends BaseConfigObject, C>(
         data: string | null | undefined,
-        ConfigClass: new (data: T) => C,
         logger: PassableLogger,
+        factory: (config: T) => C,
         { mode = DEFAULT_STRINGIFY_MODE }: { mode?: StringifyMode } = {},
     ): C {
         const obj = data ? parseObject<T>(data, mode, logger) : null;
-        if (!obj) {
-            return new ConfigClass({
-                __version: LATEST_CONFIG_VERSION,
-                resources: [],
-                metadata: {},
-            } as unknown as T);
-        }
-        return new ConfigClass(obj);
+        const full = {
+            __version: obj?.__version ?? LATEST_CONFIG_VERSION,
+            resources: obj?.resources ?? [],
+            ...obj,
+        } as T;
+        return factory(full);
     }
 
     /**
@@ -100,7 +94,6 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
         return {
             __version: this.__version,
             resources: this.resources,
-            metadata: this.metadata,
         } as unknown as T;
     }
 
@@ -134,19 +127,5 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
      */
     getResourcesByType(usedFor: ResourceUsedFor): ConfigResource[] {
         return this.resources.filter(resource => resource.usedFor === usedFor);
-    }
-
-    /**
-     * Sets metadata value
-     */
-    setMetadata(key: string, value: any): void {
-        this.metadata[key] = value;
-    }
-
-    /**
-     * Gets metadata value
-     */
-    getMetadata(key: string): any {
-        return this.metadata[key];
     }
 }

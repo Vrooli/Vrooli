@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, uuid, validateSessionSchema } from "@local/shared";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
@@ -75,7 +75,7 @@ export const auth: EndpointsAuth = {
                 const email = await DbProvider.get().email.findFirst({
                     where: {
                         AND: [
-                            { userId: user.id },
+                            { userId: BigInt(user.id) },
                             { verificationCode: input.verificationCode },
                         ],
                     },
@@ -372,7 +372,7 @@ export const auth: EndpointsAuth = {
         const sessionIdsToRevoke = usersNotRemaining.map(u => u.session?.id).filter(Boolean);
         await DbProvider.get().session.updateMany({
             where: {
-                id: { in: sessionIdsToRevoke },
+                id: { in: sessionIdsToRevoke.map(id => BigInt(id)) },
             },
             data: {
                 revokedAt: new Date(),
@@ -409,14 +409,18 @@ export const auth: EndpointsAuth = {
         const sessions = await DbProvider.get().$queryRaw`
                 UPDATE "session"
                 SET revokedAt = now()
-                WHERE "user_id" = ${userId}::uuid
+                WHERE "user_id" = ${BigInt(userId)}
                 RETURNING id;
             `;
-        //TODO
-        // Clear socket connections for sessions
-        const sessionId = userData?.session?.id;
-        if (sessionId) {
-            closeSessionSockets(sessionId);
+        // Iterate through all revoked session IDs and close their sockets
+        if (sessions && Array.isArray(sessions)) {
+            // Assuming sessions is an array of objects like { id: bigint }
+            for (const session of sessions as { id: bigint }[]) {
+                if (session.id) {
+                    // Convert BigInt to string for the function call
+                    closeSessionSockets(session.id.toString());
+                }
+            }
         }
         // Clear socket connections for user
         if (userId) {

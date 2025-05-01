@@ -1,5 +1,5 @@
 
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DUMMY_ID, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { BulkDeleteDialog } from "../components/dialogs/BulkDeleteDialog/BulkDeleteDialog.js";
@@ -62,7 +62,7 @@ export function useBookmarker({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
                 __typename: "Bookmark",
-                id: uuid(),
+                id: DUMMY_ID,
                 to: {
                     __typename: BookmarkFor[objectType],
                     id: objectId,
@@ -70,7 +70,7 @@ export function useBookmarker({
                 list: {
                     __typename: "BookmarkList",
                     __connect: Boolean(bookmarkListId),
-                    id: bookmarkListId ?? uuid(),
+                    id: bookmarkListId ?? DUMMY_ID,
                     label: bookmarkListId ? undefined : DEFAULT_BOOKMARK_LIST_LABEL,
                 },
             }),

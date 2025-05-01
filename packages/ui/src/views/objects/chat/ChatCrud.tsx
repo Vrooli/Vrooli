@@ -76,7 +76,6 @@ export function chatInitialValues(
         openToAnyoneWithInvite: false,
         team: null,
         invites: [],
-        labels: [],
         // Add yourself to the participants list
         participants: (currentUser.id ? [{
             __typename: "ChatParticipant" as const,

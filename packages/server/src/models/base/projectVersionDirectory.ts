@@ -24,7 +24,7 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 childOrder: noNull(data.childOrder),
                 isRoot: noNull(data.isRoot),
                 childApiVersions: await shapeHelper({ relation: "childApiVersions", relTypes: ["Connect"], isOneToOne: false, objectType: "ApiVersion", parentRelationshipName: "directoryListings", data, ...rest }),

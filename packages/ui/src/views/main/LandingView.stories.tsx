@@ -9,7 +9,7 @@ export default {
 // You can only ever visit the landing view if you are logged out
 export function LoggedOut() {
     return (
-        <LandingView display="page" />
+        <LandingView display="Page" />
     );
 }
 LoggedOut.parameters = {

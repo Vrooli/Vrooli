@@ -123,16 +123,10 @@ async function updateReactionsForTable(tableName: string): Promise<void> {
 
 export async function countReacts(): Promise<void> {
     const tableNames = [
-        "api",
         "chat_message",
-        "code",
         "comment",
         "issue",
-        "note",
-        "post",
-        "project",
-        "routine",
-        "standard",
+        "resource",
     ];
 
     for (const tableName of tableNames) {

@@ -1,4 +1,4 @@
-import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
+import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, nanoid } from "@local/shared";
 import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -255,7 +255,7 @@ export function ObjectListItemBase<T extends ListObject>({
     const { palette, typography } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const id = useMemo(() => data?.id ?? uuid(), [data]);
+    const id = useMemo(() => data?.id ?? nanoid(), [data]);
 
     const [object, setObject] = useState<T | null | undefined>(data);
     useEffect(() => { setObject(data); }, [data]);
