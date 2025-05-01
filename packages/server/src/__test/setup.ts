@@ -53,7 +53,7 @@ before(async function setup() {
     const POSTGRES_USER = "testuser";
     const POSTGRES_PASSWORD = "testpassword";
     const POSTGRES_DB = "testdb";
-    postgresContainer = await new GenericContainer("ankane/pgvector:v0.4.4")
+    postgresContainer = await new GenericContainer("pgvector/pgvector:pg15")
         .withExposedPorts(5432)
         .withEnvironment({
             "POSTGRES_USER": POSTGRES_USER,
