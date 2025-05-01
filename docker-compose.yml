@@ -165,7 +165,7 @@ services:
         condition: service_healthy
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/jobs.sh"
   db:
-    image: ankane/pgvector:v0.4.4
+    image: pgvector/pgvector:pg15 
     restart: always
     container_name: db
     environment:
@@ -179,13 +179,13 @@ services:
       - app
     volumes:
       - ./data/postgres-dev:/var/lib/postgresql/data
-      - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
+      - ./packages/db/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "exec docker-entrypoint.sh postgres"
+    entrypoint: ["/usr/local/bin/run-postgres.sh"]
   redis:
     image: redis:7.4.0-alpine
     container_name: redis
@@ -226,15 +226,6 @@ services:
     ports:
       - 8080:8080
     command: /bin/sh -c "exec php -S [::]:8080 -t /var/www/html/"
-  # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
-  # translate:
-  #   image: libretranslate/libretranslate:v1.2.9
-  #   container_name: translate
-  #   restart: always
-  #   networks:
-  #     - app
-  #   expose:
-  #     - ${PORT_TRANSLATE:-3457}
 
 networks:
   proxy:

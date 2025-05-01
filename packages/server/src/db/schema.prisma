@@ -94,7 +94,6 @@ model bookmark_list {
     id        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
     createdAt DateTime   @default(now()) @db.Timestamptz(6)
     updatedAt DateTime   @updatedAt @db.Timestamptz(6)
-    index     Int
     label     String     @db.VarChar(128)
     userId    BigInt     @db.BigInt
     bookmarks bookmark[] @relation("bookmark_list")
@@ -148,6 +147,7 @@ model chat_message {
     updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
     language          String             @db.VarChar(3)
     metadata          String?            @db.VarChar(4096)
+    text              String             @db.VarChar(32768)
     score             Int                @default(0)
     sequence          Int                @default(autoincrement())
     versionIndex      Int                @default(0)
@@ -944,15 +944,14 @@ model resource_translation {
 }
 
 model resource_tag {
-    id         BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
-    resourceId BigInt @db.BigInt
-    tagTag     String @db.VarChar(128)
-
-    resource resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+    id       BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    taggedId BigInt   @db.BigInt
+    tagTag   String   @db.VarChar(128)
+    tagged   resource @relation(fields: [taggedId], references: [id], onDelete: Cascade)
     tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
 
-    @@unique([resourceId, tagTag])
-    @@index([resourceId], name: "idx_resource_tag_resourceId")
+    @@unique([taggedId, tagTag])
+    @@index([taggedId], name: "idx_resource_tag_taggedId")
     @@index([tagTag], name: "idx_resource_tag_tagTag")
 }
 
@@ -970,7 +969,6 @@ model run {
     timeElapsed         Int?
     completedAt         DateTime?         @db.Timestamptz(6)
     name                String            @db.VarChar(128)
-    resourceType        String            @db.VarChar(32) // ROUTINE, PROJECT, etc.
     status              RunStatus         @default(Scheduled)
     resourceVersionId   BigInt?           @db.BigInt
     teamId              BigInt?           @db.BigInt
