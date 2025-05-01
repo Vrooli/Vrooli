@@ -533,7 +533,7 @@ async function getMeetingMeta(env: Env, baseHost: string, typeLabel: string, pat
         const preferredLanguages = getPreferredLanguages(req);
         const translation = getTranslation(data.translations, preferredLanguages);
 
-        const name = translation?.name ?? `Meeting ${id}`;
+        const name = translation?.name ?? typeLabel;
         const description = translation?.description ?? BASE_META.description ?? "";
         return {
             ...BASE_META,
