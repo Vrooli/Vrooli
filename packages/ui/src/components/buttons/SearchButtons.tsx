@@ -26,6 +26,7 @@ export const StyledSearchButton = styled(Box)<{ active?: boolean }>(
         cursor: "pointer",
         padding: "2px 12px",
         margin: "2px",
+        whiteSpace: "nowrap",
         "&:hover": {
             filter: "brightness(1.05)",
         },
@@ -168,7 +169,7 @@ export function SortButton({
                         }
                         name="Sort"
                     />
-                    <Typography variant="body2" ml={0.5}>{sortByLabel}</Typography>
+                    <Typography variant="caption" ml={0.5}>{sortByLabel}</Typography>
                 </StyledSearchButton>
             </Tooltip>
         </>
@@ -303,7 +304,7 @@ export function TimeButton({
                         }
                         name="History"
                     />
-                    <Typography variant="body2" ml={0.5}>{timeFrameLabel}</Typography>
+                    <Typography variant="caption" ml={0.5}>{timeFrameLabel}</Typography>
                 </StyledSearchButton>
             </Tooltip>
         </>
@@ -528,7 +529,7 @@ export function AdvancedSearchButton({
                         }
                         name="Build"
                     />
-                    {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={filterCountLabelStyle}>
+                    {Object.keys(advancedSearchParams).length > 0 && <Typography variant="caption" sx={filterCountLabelStyle}>
                         *{Object.keys(advancedSearchParams).length}
                     </Typography>}
                 </StyledSearchButton>

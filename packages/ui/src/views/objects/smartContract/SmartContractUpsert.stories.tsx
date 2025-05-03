@@ -174,13 +174,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockCodeVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}/edit`,
     },
 };
 
@@ -202,13 +202,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockCodeVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}/edit`,
     },
 };
 
@@ -222,7 +222,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockCodeVersionData });
@@ -230,7 +230,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockCodeVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockCodeVersionData)}/edit`,
     },
 };
 

@@ -153,7 +153,7 @@ export const apiUrlBase: string = isLocalhost ?
     serverUrlProvided ?
         `${process.env.VITE_API_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
-export const restBase = `/${SERVER_VERSION}/rest`;
+export const restBase = `/${SERVER_VERSION}`;
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${hostname}:${portServer}` :
     serverUrlProvided ?

@@ -2,7 +2,7 @@ import { Schedule, ScheduleShape, TranslationKeyCommon } from "@local/shared";
 import { IconInfo } from "../../../icons/Icons.js";
 import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
 
-export type ScheduleForType = "Meeting" | "RunProject" | "RunRoutine";
+export type ScheduleForType = "Meeting" | "Run";
 
 export type ScheduleForOption = {
     iconInfo: IconInfo;

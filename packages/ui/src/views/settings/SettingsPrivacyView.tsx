@@ -11,7 +11,7 @@ import { Navbar } from "../../components/navigation/Navbar.js";
 import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useAutoSave } from "../../hooks/useAutoSave.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { ScrollBox } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -61,33 +61,13 @@ function SettingsPrivacyForm({
                 <ListContainer sx={categoriesListContainerStyle}>
                     <SettingsToggleListItem
                         disabled={isPrivateField.value}
-                        title={t("PrivateApis")}
-                        name="isPrivateApis"
-                    />
-                    <SettingsToggleListItem
-                        disabled={isPrivateField.value}
                         title={t("PrivateBookmarks")}
                         name="isPrivateBookmarks"
                     />
                     <SettingsToggleListItem
                         disabled={isPrivateField.value}
-                        title={t("PrivateCodes")}
-                        name="isPrivateCodes"
-                    />
-                    <SettingsToggleListItem
-                        disabled={isPrivateField.value}
-                        title={t("PrivateProjects")}
-                        name="isPrivateProjects"
-                    />
-                    <SettingsToggleListItem
-                        disabled={isPrivateField.value}
-                        title={t("PrivateRoutines")}
-                        name="isPrivateRoutines"
-                    />
-                    <SettingsToggleListItem
-                        disabled={isPrivateField.value}
-                        title={t("PrivateStandards")}
-                        name="isPrivateStandards"
+                        title={t("PrivateResources")}
+                        name="isPrivateResources"
                     />
                 </ListContainer>
             </BaseForm>
@@ -110,24 +90,16 @@ export function SettingsPrivacyView({
             return {
                 id: "",
                 isPrivate: false,
-                isPrivateApis: false,
                 isPrivateBookmarks: false,
-                isPrivateCodes: false,
-                isPrivateProjects: false,
-                isPrivateRoutines: false,
-                isPrivateStandards: false,
+                isPrivateResources: false,
             };
         }
 
         return {
             id: profile.id,
             isPrivate: profile.isPrivate ?? false,
-            isPrivateApis: profile.isPrivateApis ?? false,
             isPrivateBookmarks: profile.isPrivateBookmarks ?? false,
-            isPrivateCodes: profile.isPrivateCodes ?? false,
-            isPrivateProjects: profile.isPrivateProjects ?? false,
-            isPrivateRoutines: profile.isPrivateRoutines ?? false,
-            isPrivateStandards: profile.isPrivateStandards ?? false,
+            isPrivateResources: profile.isPrivateResources ?? false,
         };
     }, [profile]);
 

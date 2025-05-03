@@ -1,20 +1,16 @@
-import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, ModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
+import { ModelType, ParseSearchParamsResult, YouInflated, isEqual, parseSearchParams } from "@local/shared";
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ServerResponseParser } from "../api/responseParser.js";
 import { FetchInputOptions } from "../api/types.js";
-import { useLocation } from "../route/router.js";
 import { PartialWithType } from "../types.js";
 import { defaultYou, getYou } from "../utils/display/listTools.js";
 import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "../utils/localStorage.js";
-import { UrlInfo, parseSingleItemUrl } from "../utils/navigation/urlTools.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useFormCacheStore } from "./forms.js";
-import { useLazyFetch } from "./useLazyFetch.js";
+import { uiPathToApi, useLazyFetch } from "./useFetch.js";
 import { useStableObject } from "./useStableObject.js";
 
 type UrlObject = { __typename: ModelType | `${ModelType}`; id?: string };
-
-type FetchInput = FindByIdInput | FindVersionInput | FindByIdOrHandleInput;
 
 /**
  * Maximum number of retries for fetching an object before giving up
@@ -41,10 +37,8 @@ interface UseManagedObjectParams<
     TData extends UrlObject = PartialWithType<PData>,
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 > {
-    /** The endpoint to fetch data from */
-    endpoint: string;
-    /** The GraphQL object type (e.g., 'BookmarkList') */
-    objectType: ModelType | `${ModelType}`;
+    /** The pathname to fetch data from */
+    pathname: string;
     /** If true, the hook will not attempt to fetch or load data */
     disabled?: boolean;
     /** If true, shows error snack when fetching fails */
@@ -62,61 +56,19 @@ interface UseManagedObjectParams<
 }
 
 /**
- * Hook for parsing and accessing URL parameters relevant to object identification
- */
-export function useObjectUrl() {
-    const [{ pathname }] = useLocation();
-    const urlParams = useMemo(function parseUrlParamsMemo() {
-        return parseSingleItemUrl({ pathname });
-    }, [pathname]);
-
-    const result = {
-        params: urlParams,
-        id: urlParams.id,
-        handle: urlParams.handle,
-        idRoot: urlParams.idRoot,
-        handleRoot: urlParams.handleRoot,
-        hasIdentifier: Boolean(urlParams.id || urlParams.handle || urlParams.idRoot || urlParams.handleRoot),
-    };
-
-    return result;
-}
-
-/**
  * Hook for fetching object data from server endpoints
  */
 export function useObjectData<TData extends UrlObject>(
-    endpoint: string,
     shouldFetch: boolean,
-    identifier: { id?: string; handle?: string; idRoot?: string; handleRoot?: string },
+    pathname: string,
     onError: FetchInputOptions["onError"],
     displayError: boolean,
 ) {
-    const [fetchData, fetchResult] = useLazyFetch<FetchInput, TData>({ endpoint });
+    const [fetchData, fetchResult] = useLazyFetch<undefined, TData>({ endpoint: undefined, method: "GET" });
     const retryCountRef = useRef(0);
     const [fetchFailed, setFetchFailed] = useState(false);
     // Track if initial fetch has been done
     const initialFetchDoneRef = useRef(false);
-
-    // Create a stable version of the identifier to prevent infinite loops
-    const stableIdentifier = useMemo(() => ({
-        id: identifier.id,
-        handle: identifier.handle,
-        idRoot: identifier.idRoot,
-        handleRoot: identifier.handleRoot
-    }), [identifier.id, identifier.handle, identifier.idRoot, identifier.handleRoot]);
-
-    // Track the previous identifier to detect real changes
-    const prevIdentifierRef = useRef(stableIdentifier);
-
-    // Check if identifier actually changed (values, not just object reference)
-    const identifierChanged = useMemo(() => {
-        const changed = !isEqual(prevIdentifierRef.current, stableIdentifier);
-        if (changed) {
-            prevIdentifierRef.current = stableIdentifier;
-        }
-        return changed;
-    }, [stableIdentifier]);
 
     const fetchObjectData = useCallback(function fetchObjectDataCallback() {
         if (!shouldFetch) {
@@ -131,53 +83,25 @@ export function useObjectData<TData extends UrlObject>(
             return false;
         }
 
-        // Determine which identifier to use for fetching
-        let identifierType: string | null = null;
-        let identifierValue: string | null = null;
-        let fetchInput: FetchInput | null = null;
+        fetchData(undefined, {
+            endpointOverride: uiPathToApi(pathname),
+            onError,
+            displayError,
+        });
+        retryCountRef.current++;
+        initialFetchDoneRef.current = true;
+        return true;
+    }, [fetchData, onError, displayError, pathname, shouldFetch]);
 
-        if (exists(stableIdentifier.handle)) {
-            identifierType = "handle";
-            identifierValue = stableIdentifier.handle;
-            fetchInput = { handle: stableIdentifier.handle };
-        } else if (exists(stableIdentifier.handleRoot)) {
-            identifierType = "handleRoot";
-            identifierValue = stableIdentifier.handleRoot;
-            fetchInput = { handleRoot: stableIdentifier.handleRoot };
-        } else if (exists(stableIdentifier.id)) {
-            identifierType = "id";
-            identifierValue = stableIdentifier.id;
-            fetchInput = { id: stableIdentifier.id };
-        } else if (exists(stableIdentifier.idRoot)) {
-            identifierType = "idRoot";
-            identifierValue = stableIdentifier.idRoot;
-            fetchInput = { idRoot: stableIdentifier.idRoot };
-        }
-
-        if (fetchInput) {
-            console.info(`[useObjectData] Fetching with ${identifierType}=${identifierValue}, attempt ${retryCountRef.current + 1}/${MAX_FETCH_RETRIES}`);
-            fetchData(fetchInput, { onError, displayError });
-            retryCountRef.current++;
-            initialFetchDoneRef.current = true;
-            return true;
-        } else {
-            console.warn("[useObjectData] No valid identifier found for fetching");
-            return false;
-        }
-    }, [stableIdentifier, fetchData, onError, displayError, shouldFetch]);
-
-    // Reset state when identifier *values* change (not just object reference)
-    useEffect(function refetchOnIdentifierChange() {
-        if (identifierChanged) {
-            console.info("[useObjectData] Identifier values changed, resetting retry count");
-            retryCountRef.current = 0;
-            setFetchFailed(false);
-            initialFetchDoneRef.current = false;
-        }
-    }, [identifierChanged]);
+    useEffect(function refetchOnPathnameChangeEffect() {
+        console.info("[useObjectData] Pathname changed, resetting retry count");
+        retryCountRef.current = 0;
+        setFetchFailed(false);
+        initialFetchDoneRef.current = false;
+    }, [pathname]);
 
     // Mark as failed when errors occur
-    useEffect(() => {
+    useEffect(function trackErrorsEffect() {
         if (fetchResult.errors && fetchResult.errors.length > 0) {
             console.error("[useObjectData] Fetch errors:", fetchResult.errors);
             // If we have errors and hit max retries, mark as failed
@@ -187,20 +111,6 @@ export function useObjectData<TData extends UrlObject>(
             }
         }
     }, [fetchResult.errors]);
-
-    // IMPORTANT: Initial fetch if we have an identifier and haven't fetched yet
-    // This ensures the fetch is triggered automatically when the hook is used
-    useEffect(() => {
-        const hasIdentifier = exists(stableIdentifier.id) ||
-            exists(stableIdentifier.handle) ||
-            exists(stableIdentifier.idRoot) ||
-            exists(stableIdentifier.handleRoot);
-
-        if (shouldFetch && !initialFetchDoneRef.current && hasIdentifier) {
-            console.info("[useObjectData] Triggering initial fetch");
-            fetchObjectData();
-        }
-    }, [shouldFetch, stableIdentifier, fetchObjectData]);
 
     return {
         data: fetchResult.data,
@@ -216,38 +126,19 @@ export function useObjectData<TData extends UrlObject>(
  * Hook for managing object caching operations
  */
 export function useObjectCache<TData extends UrlObject>(
-    objectType: ModelType | `${ModelType}`,
-    identifier: { id?: string; handle?: string; idRoot?: string; handleRoot?: string },
+    pathname: string,
 ) {
-    // Create a shallow copy of the identifier to ensure we only use the values we need
-    const safeIdentifier = useMemo(() => ({
-        id: identifier.id,
-        handle: identifier.handle,
-        idRoot: identifier.idRoot,
-        handleRoot: identifier.handleRoot
-    }), [identifier.id, identifier.handle, identifier.idRoot, identifier.handleRoot]);
-
-    // Only use the actual specified values when creating the cache object
-    const cacheRefObject = useMemo(() => {
-        const obj: any = { __typename: objectType };
-        if (safeIdentifier.id) obj.id = safeIdentifier.id;
-        if (safeIdentifier.handle) obj.handle = safeIdentifier.handle;
-        if (safeIdentifier.idRoot) obj.idRoot = safeIdentifier.idRoot;
-        if (safeIdentifier.handleRoot) obj.handleRoot = safeIdentifier.handleRoot;
-        return obj;
-    }, [objectType, safeIdentifier]);
-
     const getCachedData = useCallback(() => {
-        return getCookiePartialData<PartialWithType<TData>>(cacheRefObject);
-    }, [cacheRefObject]);
+        return getCookiePartialData<PartialWithType<TData>>(pathname);
+    }, [pathname]);
 
     const setCachedData = useCallback((data: TData) => {
         setCookiePartialData(data, "full");
-    }, []);
+    }, [pathname]);
 
     const clearCache = useCallback(() => {
-        removeCookiePartialData(cacheRefObject);
-    }, [cacheRefObject]);
+        removeCookiePartialData(null, pathname);
+    }, [pathname]);
 
     return { getCachedData, setCachedData, clearCache };
 }
@@ -273,34 +164,18 @@ export function useObjectForm<
     TData extends UrlObject = PartialWithType<PData>,
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 >(
-    objectType: ModelType | `${ModelType}`,
-    urlParams: UrlInfo,
+    pathname: string,
     isCreate = false,
     initialData?: Partial<PData>,
     transform?: TFunc,
 ) {
-    console.debug("useObjectForm called with:", { objectType, urlParams, isCreate });
-
     const getFormCacheData = useFormCacheStore(state => state.getCacheData);
-    const objectId = isCreate ? DUMMY_ID : urlParams.id;
-
-    // Memoize parameters to prevent unnecessary recalculations
-    const paramsMemo = useMemo(() => ({
-        objectType,
-        objectId,
-        isCreate
-    }), [objectType, objectId, isCreate]);
 
     // Get stored form data if it exists (memoized)
-    const storedFormData = useMemo(() =>
-        paramsMemo.objectId
-            ? getFormCacheData(paramsMemo.objectType, paramsMemo.objectId) as PData
-            : undefined
-        , [paramsMemo, getFormCacheData]);
+    const storedFormData = useMemo(() => pathname.length > 1 ? getFormCacheData(pathname) as PData : undefined, [pathname, getFormCacheData]);
 
     // Memoize transform function to prevent unnecessary recalculations
-    const stableTransform = useCallback(transform || ((data: Partial<PData>) => data as unknown as TData),
-        [transform]);
+    const stableTransform = useCallback(transform || ((data: Partial<PData>) => data as unknown as TData), [transform]);
 
     // Determine initial data with priorities
     const initialObject = useMemo(() => {
@@ -338,28 +213,23 @@ export function useObjectForm<
         const conflict = !isCreate && storedFormData && initialData && !isEqual(storedFormData, initialData);
 
         if (conflict && !hasLoggedConflictRef.current) {
-            console.warn(`Data conflict detected for ${objectType}`, {
-                stored: storedFormData,
-                initial: initialData
-            });
+            console.warn("Data conflict detected", { stored: storedFormData, initial: initialData });
             hasLoggedConflictRef.current = true;
         }
 
         return conflict;
-    }, [isCreate, storedFormData, initialData, objectType]);
+    }, [isCreate, storedFormData, initialData]);
 
     // Function to use stored data
     const useStoredData = useCallback(() => {
         if (storedFormData) {
-            console.info(`Using stored form data for ${objectType}`);
             setFormData(applyDataTransform(storedFormData, stableTransform) as ObjectReturnType<TData, TFunc>);
         }
-    }, [storedFormData, stableTransform, objectType]);
+    }, [storedFormData, stableTransform]);
 
     // Prompt for conflict resolution
     useEffect(() => {
         if (hasDataConflict && storedFormData) {
-            console.info(`Showing form data conflict resolution for ${objectType}`);
             PubSub.get().publish("snack", {
                 autoHideDuration: "persist",
                 messageKey: "FormDataFound",
@@ -368,7 +238,7 @@ export function useObjectForm<
                 severity: "Warning",
             });
         }
-    }, [hasDataConflict, storedFormData, useStoredData, objectType]);
+    }, [hasDataConflict, storedFormData, useStoredData]);
 
     return {
         formData,
@@ -388,8 +258,7 @@ export function useManagedObject<
     TData extends UrlObject = PartialWithType<PData>,
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 >({
-    endpoint,
-    objectType,
+    pathname,
     disabled = false,
     displayError = true,
     isCreate = false,
@@ -398,8 +267,6 @@ export function useManagedObject<
     overrideObject: unstableOverrideObject,
     transform,
 }: UseManagedObjectParams<PData, TData, TFunc>): UseManagedObjectReturn<TData, TFunc> {
-    // Get URL parameters
-    const urlInfo = useObjectUrl();
 
     // Create stable callbacks/objects
     const overrideObject = useStableObject(unstableOverrideObject as any);
@@ -413,39 +280,18 @@ export function useManagedObject<
         hasAlreadyShownInvalidUrlError: false,
         hasAttemptedInitialFetch: false,
         // Ensure we only reset formData once on fetch failure
-        hasAlreadyResolvedFetchFailed: false
+        hasAlreadyResolvedFetchFailed: false,
     });
 
-    console.info(`Initializing for ${objectType} with params:`, {
-        disabled,
-        shouldFetch,
-        hasOverride: !!overrideObject,
-        urlInfo: {
-            id: urlInfo.id,
-            handle: urlInfo.handle,
-            idRoot: urlInfo.idRoot,
-            handleRoot: urlInfo.handleRoot,
-            hasIdentifier: urlInfo.hasIdentifier
-        }
-    });
-
-    // Handle caching - use stable identifier reference
-    const stableIdentifier = useMemo(() => ({
-        id: urlInfo.id,
-        handle: urlInfo.handle,
-        idRoot: urlInfo.idRoot,
-        handleRoot: urlInfo.handleRoot
-    }), [urlInfo.id, urlInfo.handle, urlInfo.idRoot, urlInfo.handleRoot]);
-
-    // Reset error state when identifier changes
+    // Reset error state when pathname changes
     useEffect(() => {
         stateRef.current = {
             hasAlreadyShownFetchFailedError: false,
             hasAlreadyShownInvalidUrlError: false,
             hasAttemptedInitialFetch: false,
-            hasAlreadyResolvedFetchFailed: false
+            hasAlreadyResolvedFetchFailed: false,
         };
-    }, [stableIdentifier]);
+    }, [pathname]);
 
     // Get object data from server
     const {
@@ -454,46 +300,36 @@ export function useManagedObject<
         hasUnauthorizedError,
         fetchObjectData,
         fetchFailed,
-    } = useObjectData<PData>(endpoint, shouldFetch, stableIdentifier, onError, displayError);
+    } = useObjectData<PData>(shouldFetch, pathname, onError, displayError);
 
-    const { getCachedData, setCachedData, clearCache } = useObjectCache<PData>(
-        objectType,
-        stableIdentifier
-    );
+    const {
+        getCachedData,
+        setCachedData,
+        clearCache,
+    } = useObjectCache<PData>(pathname);
 
     // Get cached data once to avoid recreating it on each render
     const cachedData = useMemo(() => {
         const data = getCachedData();
-        if (data) {
-            console.info(`Found cached data for ${objectType}`);
-        }
         return data;
-    }, [getCachedData, objectType]);
+    }, [getCachedData]);
 
     // Initial data to use (either override or cached)
     const initialDataToUse = useMemo(() => {
         if (overrideObject) {
-            console.info(`Using override object for ${objectType}`);
             return overrideObject;
         }
         if (cachedData) {
-            console.info(`Using cached data for ${objectType}`);
             return cachedData;
         }
-        console.info(`No initial data available for ${objectType}`);
         return undefined;
-    }, [overrideObject, cachedData, objectType]);
-
-    // Handle form state with conflict resolution - use stable parameters
-    const stableUrlParams = useMemo(() => urlInfo.params, [urlInfo.params.id]);
+    }, [overrideObject, cachedData]);
 
     const {
         formData,
         setFormData,
-        hasDataConflict,
     } = useObjectForm<PData, TData, TFunc>(
-        objectType,
-        stableUrlParams,
+        pathname,
         isCreate,
         initialDataToUse,
         transform,
@@ -503,7 +339,7 @@ export function useManagedObject<
     // We've reorganized to minimize dependencies
     useEffect(() => {
         if (disabled) {
-            console.info(`Hook is disabled for ${objectType}, skipping data update`);
+            console.info("Hook is disabled, skipping data update");
             return;
         }
 
@@ -512,14 +348,12 @@ export function useManagedObject<
 
         // Priority 1: Override object
         if (overrideObject) {
-            console.info(`Priority 1: Using override object for ${objectType}`);
             setFormData(applyDataTransform(overrideObject, transform) as ObjectReturnType<TData, TFunc>);
             return;
         }
 
         // Priority 2: Fetched data
         if (fetchedData) {
-            console.info(`Priority 2: Using fetched data for ${objectType}`);
             setCachedData(fetchedData);
             setFormData(applyDataTransform(fetchedData, transform) as ObjectReturnType<TData, TFunc>);
             return;
@@ -527,7 +361,6 @@ export function useManagedObject<
 
         // Priority 3: Handle unauthorized errors
         if (hasUnauthorizedError) {
-            console.warn(`Priority 3: Unauthorized error for ${objectType}, clearing cache`);
             clearCache();
             setFormData(applyDataTransform({}, transform) as ObjectReturnType<TData, TFunc>);
             return;
@@ -535,7 +368,6 @@ export function useManagedObject<
 
         // Priority 4: Handle fetch failures
         if (fetchFailed) {
-            console.error(`Priority 4: Fetch failed for ${objectType} after max retries`);
             // Show error only once
             if (!stateRef.current.hasAlreadyShownFetchFailedError && displayError) {
                 stateRef.current.hasAlreadyShownFetchFailedError = true;
@@ -549,45 +381,22 @@ export function useManagedObject<
             return;
         }
 
-        // Priority 5: Invalid URL with handler
-        if (!isLoading && !urlInfo.hasIdentifier && onInvalidUrlParams) {
-            console.warn(`Priority 5: Invalid URL for ${objectType}, using onInvalidUrlParams`);
-            onInvalidUrlParams(urlInfo.params);
-            return;
-        }
-
-        // Priority 6: Invalid URL without handler
-        if (!isLoading && !urlInfo.hasIdentifier) {
-            console.error(`Priority 6: Invalid URL for ${objectType} with no handler`);
-            if (!stateRef.current.hasAlreadyShownInvalidUrlError && displayError) {
-                stateRef.current.hasAlreadyShownInvalidUrlError = true;
-                PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-            }
-            return;
-        }
 
         // Priority 7: Initiate fetch when needed
-        if (shouldFetch && urlInfo.hasIdentifier && !fetchedData && !isLoading && !stateRef.current.hasAttemptedInitialFetch) {
-            console.info(`Priority 7: Initiating first fetch for ${objectType}`);
+        if (shouldFetch && pathname.length > 1 && !fetchedData && !isLoading && !stateRef.current.hasAttemptedInitialFetch) {
             stateRef.current.hasAttemptedInitialFetch = true;
             fetchObjectData();
             return;
         }
-
-        // Priority 8: Still loading
-        if (isLoading) {
-            console.info(`Data is still loading for ${objectType}`);
-        }
     }, [
         // Core dependencies that should trigger reevaluation
-        objectType,
         disabled,
         overrideObject,
         fetchedData,
         hasUnauthorizedError,
         fetchFailed,
         isLoading,
-        urlInfo.hasIdentifier,
+        pathname,
         shouldFetch,
         onInvalidUrlParams,
     ]);
@@ -599,7 +408,7 @@ export function useManagedObject<
     );
 
     return {
-        id: formData?.id ?? urlInfo.id,
+        id: formData?.id ?? fetchedData?.id ?? cachedData?.id,
         isLoading,
         object: formData,
         permissions,

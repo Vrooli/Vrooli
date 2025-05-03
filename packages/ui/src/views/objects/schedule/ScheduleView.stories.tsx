@@ -80,7 +80,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockScheduleData });
@@ -88,7 +88,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 };
 
@@ -102,13 +102,13 @@ SignedIn.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 };
 
@@ -130,13 +130,13 @@ DialogView.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 };
 
@@ -150,12 +150,12 @@ LoggedOut.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 }; 

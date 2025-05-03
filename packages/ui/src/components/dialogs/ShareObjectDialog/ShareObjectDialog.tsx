@@ -3,15 +3,14 @@
  * and direct object export.
  */
 import { getObjectUrl } from "@local/shared";
-import { Box, Divider, Fade, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip, Typography, useTheme, Zoom } from "@mui/material";
-import { useMemo, useState } from "react";
+import { Box, Fade, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip, Typography, useTheme, Zoom } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { ObjectType } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 import { ShareObjectDialogProps } from "../types.js";
 
@@ -91,21 +90,22 @@ export function ShareObjectDialog({
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
     const fullUrl = useMemo(() => `${window.location.origin}${url}`, [url]);
 
-    function copyLink() {
+    const copyLink = useCallback(() => {
         navigator.clipboard.writeText(fullUrl);
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    }
+    }, [fullUrl]);
 
-    function copyObject() {
+    const copyObject = useCallback(() => {
+        if (!object) return;
         navigator.clipboard.writeText(JSON.stringify(prepareObjectForShare(object), null, 2));
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    }
+    }, [object]);
 
-    async function shareLink() {
+    const shareLink = useCallback(async () => {
         navigator.share({ title, url });
-    }
+    }, [title, url]);
 
-    async function shareObject() {
+    const shareObject = useCallback(async () => {
         if (!object) return;
         try {
             const jsonString = JSON.stringify(prepareObjectForShare(object), null, 2);  // Pretty-printed
@@ -131,12 +131,12 @@ export function ShareObjectDialog({
         } catch (err) {
             console.error(`The file could not be shared: ${err}`);
         }
-    }
+    }, [object]);
 
     const [isQrCodeVisible, setIsQrCodeVisible] = useState(false);
-    function toggleQrCode() {
-        setIsQrCodeVisible(!isQrCodeVisible);
-    }
+    const toggleQrCode = useCallback(() => {
+        setIsQrCodeVisible(v => !v);
+    }, []);
 
     async function downloadQrCode() {
         const qrCode = document.getElementById("qr-code-box")?.firstChild as SVGSVGElement;
@@ -173,6 +173,56 @@ export function ShareObjectDialog({
         img.src = svgUrl;
     }
 
+    // Define the type for share options
+    type ShareOption = {
+        id: string;
+        onClick: () => void | Promise<void>;
+        iconName: string; // Assuming IconCommon 'name' prop is string
+        primaryText: string;
+        secondaryText: string;
+    };
+
+    // Memoize the share options array
+    const shareOptions = useMemo<ShareOption[]>(() => [
+        {
+            id: "copy-link",
+            onClick: copyLink,
+            iconName: "Link",
+            primaryText: "Copy link",
+            secondaryText: "Copy URL to clipboard",
+        },
+        {
+            id: "share-link",
+            onClick: shareLink,
+            iconName: "Share",
+            primaryText: "Share link",
+            secondaryText: "Share via platform options",
+        },
+        {
+            id: "copy-object",
+            onClick: copyObject,
+            iconName: "Object",
+            primaryText: "Copy object",
+            secondaryText: "Copy JSON data to clipboard",
+        },
+        {
+            id: "share-object",
+            onClick: shareObject,
+            iconName: "Download",
+            primaryText: "Share object",
+            secondaryText: "Share object as a file",
+        },
+        {
+            id: "toggle-qr",
+            onClick: toggleQrCode,
+            iconName: "QrCode",
+            primaryText: "QR code",
+            secondaryText: isQrCodeVisible ? "Hide QR code" : "Show QR code",
+        },
+        // Add dependencies for functions defined within the component or using its scope
+        // Assuming copyLink, shareLink, copyObject, shareObject are stable or defined outside
+    ], [copyLink, shareLink, copyObject, shareObject, toggleQrCode, isQrCodeVisible]);
+
     return (
         <LargeDialog
             id="share-object-dialog"
@@ -185,17 +235,10 @@ export function ShareObjectDialog({
                     borderRadius: 2,
                     maxHeight: "calc(100vh - 64px)",
                     display: "flex",
-                    flexDirection: "column"
-                }
+                    flexDirection: "column",
+                },
             }}
         >
-            <TopBar
-                display="Dialog"
-                onClose={onClose}
-                title={t("Share")}
-                titleId={titleId}
-            />
-
             <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
                 {object && (
                     <Box sx={{ p: 2, pb: 0 }}>
@@ -209,7 +252,7 @@ export function ShareObjectDialog({
                                 mb: 1,
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
-                                whiteSpace: "nowrap"
+                                whiteSpace: "nowrap",
                             }}
                         >
                             {fullUrl}
@@ -217,101 +260,26 @@ export function ShareObjectDialog({
                     </Box>
                 )}
 
+                {/* Map over shareOptions to render list items */}
                 <List sx={{ pt: 0 }}>
-                    <Divider sx={{ my: 1 }} />
-                    <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
-                        {t("Share")}
-                    </Typography>
-
-                    <ListItem disablePadding>
-                        <ListItemButton onClick={copyLink} sx={{ py: 1.5 }}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    fill={palette.background.textPrimary}
-                                    name="Link"
+                    {shareOptions.map((option) => (
+                        <ListItem key={option.id} disablePadding>
+                            <ListItemButton onClick={option.onClick}>
+                                <ListItemIcon>
+                                    <IconCommon
+                                        decorative
+                                        fill={palette.background.textPrimary}
+                                        name={option.iconName} // Use dynamic icon name
+                                    />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={t(option.primaryText)} // Translate primary text
+                                    secondary={t(option.secondaryText)} // Translate secondary text
+                                    primaryTypographyProps={{ fontWeight: "medium" }}
                                 />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={"Copy link"}
-                                secondary={"Copy URL to clipboard"}
-                                primaryTypographyProps={{ fontWeight: "medium" }}
-                            />
-                        </ListItemButton>
-                    </ListItem>
-
-                    <ListItem disablePadding>
-                        <ListItemButton onClick={shareLink} sx={{ py: 1.5 }}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    fill={palette.background.textPrimary}
-                                    name="Share"
-                                />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={"Share link"}
-                                secondary={"Share via platform options"}
-                                primaryTypographyProps={{ fontWeight: "medium" }}
-                            />
-                        </ListItemButton>
-                    </ListItem>
-
-                    <Divider sx={{ my: 1 }} />
-                    <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
-                        {t("Advanced")}
-                    </Typography>
-
-                    <ListItem disablePadding>
-                        <ListItemButton onClick={copyObject} sx={{ py: 1.5 }}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    fill={palette.background.textPrimary}
-                                    name="Object"
-                                />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={"Copy object"}
-                                secondary={"Copy JSON data to clipboard"}
-                                primaryTypographyProps={{ fontWeight: "medium" }}
-                            />
-                        </ListItemButton>
-                    </ListItem>
-
-                    <ListItem disablePadding>
-                        <ListItemButton onClick={shareObject} sx={{ py: 1.5 }}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    fill={palette.background.textPrimary}
-                                    name="Download"
-                                />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={"Share object"}
-                                secondary={"Share object as a file"}
-                                primaryTypographyProps={{ fontWeight: "medium" }}
-                            />
-                        </ListItemButton>
-                    </ListItem>
-
-                    <ListItem disablePadding>
-                        <ListItemButton onClick={toggleQrCode} sx={{ py: 1.5 }}>
-                            <ListItemIcon>
-                                <IconCommon
-                                    decorative
-                                    fill={palette.background.textPrimary}
-                                    name="QrCode"
-                                />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={"QR code"}
-                                secondary={isQrCodeVisible ? "Hide QR code" : "Show QR code"}
-                                primaryTypographyProps={{ fontWeight: "medium" }}
-                            />
-                        </ListItemButton>
-                    </ListItem>
+                            </ListItemButton>
+                        </ListItem>
+                    ))}
                 </List>
 
                 {isQrCodeVisible && (
@@ -323,7 +291,7 @@ export function ShareObjectDialog({
                                 justifyContent: "center",
                                 alignItems: "center",
                                 p: 3,
-                                pt: 1
+                                pt: 1,
                             }}>
                             <Paper
                                 elevation={2}
@@ -344,21 +312,21 @@ export function ShareObjectDialog({
                             </Paper>
 
                             <Tooltip title={"Download QR code"}>
-                                <Zoom in={isQrCodeVisible} style={{ transitionDelay: '150ms' }}>
+                                <Zoom in={isQrCodeVisible} style={{ transitionDelay: "150ms" }}>
                                     <Box
                                         onClick={downloadQrCode}
                                         sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
+                                            display: "flex",
+                                            alignItems: "center",
                                             gap: 1,
-                                            bgcolor: 'action.selected',
+                                            bgcolor: "action.selected",
                                             borderRadius: 4,
                                             px: 2,
                                             py: 1,
-                                            cursor: 'pointer',
-                                            '&:hover': {
-                                                bgcolor: 'action.hover',
-                                            }
+                                            cursor: "pointer",
+                                            "&:hover": {
+                                                bgcolor: "action.hover",
+                                            },
                                         }}
                                     >
                                         <IconCommon

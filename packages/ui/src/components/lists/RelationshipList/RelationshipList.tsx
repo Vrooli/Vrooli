@@ -27,9 +27,9 @@ export function userFromSession(session: Session): Exclude<OwnerShape, null> {
 
 /** Map of button types to objects they're shown on */
 const buttonTypeMap: Record<RelationshipButtonType, (ModelType | `${ModelType}`)[]> = {
-    IsPrivate: ["Api", "Code", "Note", "Project", "Routine", "RunProject", "RunRoutine", "Standard", "Team", "User"],
-    IsComplete: ["Project", "Routine"],
-    Owner: ["Api", "Code", "Comment", "Label", "Note", "Project", "Routine", "Standard"],
+    IsPrivate: ["Resource", "ResourceVersion", "Run", "Team", "User"],
+    IsComplete: ["Resource", "ResourceVersion"],
+    Owner: ["Comment", "Resource", "ResourceVersion"],
     Members: ["Team"],
     Participants: ["Chat"],
 };

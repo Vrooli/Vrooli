@@ -1,4 +1,4 @@
-import { LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsChatMessage, endpointsComment, endpointsIssue, endpointsResourceVersion, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop } from "@local/shared";
+import { LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsChatMessage, endpointsComment, endpointsIssue, endpointsResource, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop } from "@local/shared";
 import { Box, Button, Typography, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,7 +60,7 @@ const reportForEndpoints: Record<ReportFor, EndpointData> = {
     ChatMessage: endpointsChatMessage.findOne,
     Comment: endpointsComment.findOne,
     Issue: endpointsIssue.findOne,
-    ResourceVersion: endpointsResourceVersion.findOne,
+    ResourceVersion: endpointsResource.findOne,
     Tag: endpointsTag.findOne,
     Team: endpointsTeam.findOne,
     User: endpointsUser.findOne,

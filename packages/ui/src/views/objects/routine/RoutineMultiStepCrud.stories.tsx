@@ -350,13 +350,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 };
 
@@ -378,13 +378,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 };
 
@@ -398,7 +398,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockRoutineVersionData });
@@ -406,7 +406,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 };
 
@@ -449,7 +449,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockRoutineVersionData,
@@ -484,6 +484,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 }; 

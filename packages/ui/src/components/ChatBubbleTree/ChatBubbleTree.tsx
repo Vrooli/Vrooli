@@ -8,7 +8,7 @@ import { usePress } from "../../hooks/gestures.js";
 import { MessageTree } from "../../hooks/messages.js";
 import { useDeleter } from "../../hooks/objectActions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { Link, useLocation } from "../../route/router.js";
 import { ProfileAvatar } from "../../styles.js";

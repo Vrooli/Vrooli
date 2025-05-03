@@ -391,11 +391,7 @@ export function listToAutocomplete(
         isBookmarked: getYou(o).isBookmarked,
         key: o.id,
         label: getDisplay(o, languages).title,
-        runnableObject: o.__typename === "RunProject" ?
-            o.projectVersion :
-            o.__typename === "RunRoutine" ?
-                o.routineVersion :
-                undefined,
+        runnableObject: o.__typename === "Run" ? o.resourceVersion : undefined,
         bookmarks: getCounts(o).bookmarks,
         to: isOfType(o, "Bookmark", "Reaction", "View") ?
             (o as Partial<Bookmark | Reaction | View>).to :

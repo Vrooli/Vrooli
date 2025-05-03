@@ -29,6 +29,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
 import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
@@ -748,13 +749,13 @@ export function ApiUpsert({
     ...props
 }: ApiUpsertProps) {
     const session = useContext(SessionContext);
+    const [{ pathname }] = useLocation();
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ApiVersion, ApiVersionShape>({
-        ...endpointsApiVersion.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "ApiVersion",
         overrideObject,
+        pathname,
         transform: (data) => apiInitialValues(session, data),
     });
 

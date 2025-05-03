@@ -1,4 +1,4 @@
-import { AITaskInfo, ModelType, NavigableObject, ProjectVersion, RoutineVersion, TaskContextInfo, isObject } from "@local/shared";
+import { AITaskInfo, NavigableObject, ProjectVersion, RoutineVersion, TaskContextInfo, getObjectSlug, isObject, mergeDeep } from "@local/shared";
 import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
@@ -439,38 +439,20 @@ type FormCacheEntry = {
     [key: string]: any; // This would be the form data
 }
 const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", FORM_CACHE_LIMIT, CACHE_LIMIT_512KB);
-function getFormCacheKey(
-    objectType: ModelType | `${ModelType}`,
-    objectId: string,
-) {
-    return `${objectType}:${objectId}`;
-}
-export function getCookieFormData(
-    objectType: ModelType | `${ModelType}`,
-    objectId: string,
-): FormCacheEntry | undefined {
+
+export function getCookieFormData(pathname: string): FormCacheEntry | undefined {
     return ifAllowed("functional", () => {
-        const key = getFormCacheKey(objectType, objectId);
-        return formDataCache.get(key);
+        return formDataCache.get(pathname);
     });
 }
-export function setCookieFormData(
-    objectType: ModelType | `${ModelType}`,
-    objectId: string,
-    data: FormCacheEntry,
-) {
+export function setCookieFormData(pathname: string, data: FormCacheEntry) {
     return ifAllowed("functional", () => {
-        const key = getFormCacheKey(objectType, objectId);
-        formDataCache.set(key, data);
+        formDataCache.set(pathname, data);
     });
 }
-export function removeCookieFormData(
-    objectType: ModelType | `${ModelType}`,
-    objectId: string,
-) {
+export function removeCookieFormData(pathname: string) {
     return ifAllowed("functional", () => {
-        const key = getFormCacheKey(objectType, objectId);
-        formDataCache.remove(key);
+        formDataCache.remove(pathname);
     });
 }
 
@@ -494,23 +476,23 @@ export function setCookieMessageTree(chatId: string, data: ChatMessageTreeCookie
 }
 
 type ChatGroupCookie = {
-    /** The last chatId for the group of userIds */
+    /** The last chatId for the group of user publicIds */
     chatId: string;
 };
 const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", CHAT_GROUP_CACHE_LIMIT, CACHE_LIMIT_128KB);
-export function getCookieMatchingChat(userIds: string[]): string | undefined {
+export function getCookieMatchingChat(publicIds: string[]): string | undefined {
     return ifAllowed("functional", function getCookieMatchingChatCallback() {
-        return chatGroupCache.get(chatMatchHash(userIds))?.chatId;
+        return chatGroupCache.get(chatMatchHash(publicIds))?.chatId;
     });
 }
-export function setCookieMatchingChat(chatId: string, userIds: string[]) {
+export function setCookieMatchingChat(chatId: string, publicIds: string[]) {
     return ifAllowed("functional", function setCookieMatchingChatCallback() {
-        chatGroupCache.set(chatMatchHash(userIds), { chatId });
+        chatGroupCache.set(chatMatchHash(publicIds), { chatId });
     });
 }
-export function removeCookieMatchingChat(userIds: string[]) {
+export function removeCookieMatchingChat(publicIds: string[]) {
     return ifAllowed("functional", function removeCookieMatchingChatCallback() {
-        chatGroupCache.remove(chatMatchHash(userIds));
+        chatGroupCache.remove(chatMatchHash(publicIds));
     });
 }
 
@@ -596,18 +578,7 @@ export function removeCookiesWithChatId(chatId: string) {
     });
 }
 
-/** Supports ID data from URL params, as well as partial object */
-export type CookiePartialData = {
-    __typename: NavigableObject["__typename"],
-    id?: string | null,
-    idRoot?: string | null,
-    handle?: string | null
-    handleRoot?: string | null,
-    root?: {
-        id?: string | null,
-        handle?: string | null,
-    } | null,
-};
+export type CookiePartialData = NavigableObject;
 /** Type of data stored */
 type DataType = "list" | "full";
 /** 
@@ -617,10 +588,8 @@ type DataType = "list" | "full";
  * Objects can be cached using their ID or handle, or root's ID or handle
  */
 type Cache = {
-    idMap: Record<string, CookiePartialData>,
-    handleMap: Record<string, CookiePartialData>,
-    idRootMap: Record<string, CookiePartialData>,
-    handleRootMap: Record<string, CookiePartialData>,
+    pathnameMap: Record<string, CookiePartialData>,
+    identifierMap: Record<string, CookiePartialData>,
     order: string[], // Order of objects in cache, for FIFO
 };
 
@@ -631,78 +600,67 @@ function getCache(): Cache {
         "PartialData", // Cookie name
         (value: unknown): value is Cache =>
             typeof value === "object" &&
-            typeof (value as Partial<Cache>)?.idMap === "object" &&
-            typeof (value as Partial<Cache>)?.handleMap === "object" &&
-            typeof (value as Partial<Cache>)?.idRootMap === "object" &&
-            typeof (value as Partial<Cache>)?.handleRootMap === "object" &&
+            typeof (value as Partial<Cache>)?.pathnameMap === "object" &&
+            typeof (value as Partial<Cache>)?.identifierMap === "object" &&
             Array.isArray((value as Partial<Cache>)?.order),
         {
-            idMap: {},
-            handleMap: {},
-            idRootMap: {},
-            handleRootMap: {},
+            pathnameMap: {},
             order: [],
         }, // Default value
     ) as Cache;
 }
 
-/** Shape knownData to replace idRoot and handleRoot with proper root object */
-function shapeKnownData<T extends CookiePartialData>(knownData: T): T {
-    let result = { ...knownData };
-    if (knownData.idRoot || knownData.handleRoot) {
-        result = {
-            ...result,
-            root: {
-                id: knownData.idRoot,
-                handle: knownData.handleRoot,
-            },
-        };
-    }
-    delete result.idRoot;
-    delete result.handleRoot;
-    return result;
-}
-export function getCookiePartialData<T extends CookiePartialData>(knownData: CookiePartialData): T {
+export function getCookiePartialData<T extends CookiePartialData>(pathname: string, knownData?: T): T | null {
     return ifAllowed("functional",
         () => {
-            const shapedKnownData = shapeKnownData(knownData);
             // Get the cache, which hopefully includes more info on the requested object
             const cache = getCache();
             // Try to find stored data in cache
-            const storedData = cache.idMap[shapedKnownData.id || ""] ||
-                cache.handleMap[shapedKnownData.handle || ""] ||
-                cache.idRootMap[shapedKnownData.root?.id || ""] ||
-                cache.handleRootMap[shapedKnownData.root?.handle || ""];
-            // Return match if found
-            if (storedData && storedData.__typename === shapedKnownData.__typename) {
-                return storedData;
+            const storedData = cache.pathnameMap[pathname];
+            if (typeof storedData !== "object" || storedData === null) {
+                return knownData;
             }
-            // Otherwise return known data
-            return shapedKnownData;
+            // Merge known data with stored data, making sure that known data takes priority
+            return mergeDeep(storedData, knownData);
         },
-        shapeKnownData(knownData),
+        knownData,
     );
+}
+function getPartialDataKey(partialData: CookiePartialData) {
+    let key = "";
+    if (typeof partialData !== "object" || partialData === null) {
+        return key;
+    }
+    const { id, handle, publicId } = (partialData as Record<string, any>);
+    if (typeof id === "string") key = `|id:${id}`;
+    if (typeof handle === "string") key = `|handle:${handle}`;
+    if (typeof publicId === "string") key = `|publicId:${publicId}`;
+    return key;
 }
 export function setCookiePartialData(partialData: CookiePartialData, dataType: DataType) {
     return ifAllowed("functional", () => {
+        if (typeof partialData !== "object" || partialData === null) {
+            console.error("[setCookiePartialData] Partial data is not an object or null", partialData);
+            return;
+        }
         // Get the cache
         const cache = getCache();
-        // Create a key that includes every identifier for the object
-        const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
+        // Create a key that includes every possible identifier for the object
+        const key = getPartialDataKey(partialData);
+        if (key.length === 0) {
+            console.error("[setCookiePartialData] No valid identifiers found for object", partialData);
+            return;
+        }
         // Check if the object is already in the cache
-        const isAlreadyInCache = Boolean((partialData.id && cache.idMap[partialData.id]) ||
-            (partialData.handle && cache.handleMap[partialData.handle]) ||
-            (partialData.root?.id && cache.idRootMap[partialData.root.id]) ||
-            (partialData.root?.handle && cache.handleRootMap[partialData.root.handle]));
+        const isAlreadyInCache = Boolean(cache.identifierMap[key]);
         // If data type is "list", don't overwrite the existing cached data
         if (isAlreadyInCache && dataType === "list") {
             return;
         }
-        // Store the object in the cache, even if it already existed. Store in every map that applies, since we don't know which one will be needed
-        if (partialData.id) cache.idMap[partialData.id] = partialData;
-        if (partialData.handle) cache.handleMap[partialData.handle] = partialData;
-        if (partialData.root?.id) cache.idRootMap[partialData.root.id] = partialData;
-        if (partialData.root?.handle) cache.handleRootMap[partialData.root.handle] = partialData;
+        // Store the object in the cache, even if it already existed.
+        cache.identifierMap[key] = partialData;
+        const pathname = getObjectSlug(partialData);
+        if (pathname.length > 1) cache.pathnameMap[pathname] = partialData;
         // If the object was already in the cache, update the order so it's at the end
         if (isAlreadyInCache) {
             // Find the existing key in the order array
@@ -720,11 +678,12 @@ export function setCookiePartialData(partialData: CookiePartialData, dataType: D
         if (cache.order.length >= PARTIAL_DATA_CACHE_LIMIT) {
             const oldestKey = cache.order.shift();
             if (oldestKey && typeof oldestKey === "string") {
-                const [id, handle, idRoot, handleRoot] = oldestKey.split("|");
-                delete cache.idMap[id];
-                delete cache.handleMap[handle];
-                delete cache.idRootMap[idRoot];
-                delete cache.handleRootMap[handleRoot];
+                const oldestData = cache.identifierMap[oldestKey];
+                if (oldestData) {
+                    const oldestPathname = getObjectSlug(oldestData);
+                    delete cache.identifierMap[oldestKey];
+                    if (oldestPathname.length > 1) delete cache.pathnameMap[oldestPathname];
+                }
             }
         }
         // Push the new object to the end of the FIFO order
@@ -733,22 +692,21 @@ export function setCookiePartialData(partialData: CookiePartialData, dataType: D
         setStorageItem("PartialData", cache);
     });
 }
-export function removeCookiePartialData(partialData: CookiePartialData) {
+export function removeCookiePartialData(partialData: CookiePartialData | null, pathname: string | null) {
     return ifAllowed("functional", () => {
         // Get the cache
         const cache = getCache();
-        // Create a key that includes every identifier for the object
-        const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
-        // Remove the object from the cache
-        delete cache.idMap[partialData.id || ""];
-        delete cache.handleMap[partialData.handle || ""];
-        delete cache.idRootMap[partialData.root?.id || ""];
-        delete cache.handleRootMap[partialData.root?.handle || ""];
-        // Remove the key from the order array
+
+        const path = pathname ?? getObjectSlug(partialData);
+        const data = partialData ?? cache.pathnameMap[path];
+        const key = getPartialDataKey(data);
+        delete cache.pathnameMap[path];
+        delete cache.identifierMap[key];
         const existingIndex = cache.order.indexOf(key);
         if (existingIndex !== -1) {
             cache.order.splice(existingIndex, 1);
         }
+
         setStorageItem("PartialData", cache);
     });
 }

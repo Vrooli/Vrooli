@@ -109,13 +109,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}/edit`,
     },
 };
 
@@ -129,7 +129,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockApiVersionData });
@@ -137,7 +137,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}/edit`,
     },
 };
 

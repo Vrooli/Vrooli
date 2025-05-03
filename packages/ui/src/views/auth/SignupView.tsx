@@ -13,7 +13,7 @@ import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formSubmit } from "../../forms/styles.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useReactSearch } from "../../hooks/useReactSearch.js";
 import { IconFavicon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
@@ -169,10 +169,10 @@ function SignupForm() {
     }, [emailSignUp, palette.mode, redirect, setLocation]);
 
     const inputFieldStyle = {
-        '& .MuiOutlinedInput-root': {
-            backgroundColor: 'transparent',
-            '& fieldset': { border: `1px solid ${palette.divider}` },
-            '&:hover fieldset': { border: `1px solid ${palette.divider}` },
+        "& .MuiOutlinedInput-root": {
+            backgroundColor: "transparent",
+            "& fieldset": { border: `1px solid ${palette.divider}` },
+            "&:hover fieldset": { border: `1px solid ${palette.divider}` },
             "&.Mui-focused fieldset": { border: `1px solid ${palette.divider}` },
         },
     } as const;

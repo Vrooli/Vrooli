@@ -126,7 +126,7 @@ NoKeysOrIntegrations.parameters = {
     },
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: noKeysOrIntegrationData,
                 });
@@ -149,7 +149,7 @@ WithKeysAndIntegrations.parameters = {
     },
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });
@@ -168,7 +168,7 @@ SignedInNoPremiumNoCredits.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: noKeysOrIntegrationData,
                 });
@@ -186,7 +186,7 @@ SignedInNoPremiumWithCredits.parameters = {
     session: signedInNoPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });
@@ -204,7 +204,7 @@ SignedInPremiumNoCredits.parameters = {
     session: signedInPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });
@@ -222,7 +222,7 @@ SignedInPremiumWithCredits.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });

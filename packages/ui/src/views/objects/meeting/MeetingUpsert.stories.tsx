@@ -150,13 +150,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockMeetingData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
     },
 };
 
@@ -178,13 +178,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockMeetingData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
     },
 };
 
@@ -198,7 +198,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsMeeting.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 const LOADING_DELAY = 120_000; // 2 minutes delay
                 await new Promise(resolve => setTimeout(resolve, LOADING_DELAY));
@@ -207,7 +207,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockMeetingData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
     },
 };
 

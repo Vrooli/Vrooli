@@ -2,7 +2,7 @@ import { endpointsUser, User } from "@local/shared";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/session.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
-import { useLazyFetch } from "./useLazyFetch.js";
+import { useLazyFetch } from "./useFetch.js";
 
 export function useProfileQuery() {
     const session = useContext(SessionContext);

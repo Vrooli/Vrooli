@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SocketService } from "../../../api/socket.js";
 import { SessionContext } from "../../../contexts/session.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";

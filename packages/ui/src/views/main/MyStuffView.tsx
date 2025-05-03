@@ -1,4 +1,4 @@
-import { ListObject, ModelType, SearchType, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ListObject, ModelType, SearchType, getObjectUrlBase, validatePK } from "@local/shared";
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,46 +36,22 @@ export function MyStuffView({
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
     const { t } = useTranslation();
-    const {
-        id: userId,
-        apisCount,
-        codesCount,
-        membershipsCount,
-        standardsCount,
-    } = useMemo(() => getCurrentUser(session), [session]);
+    const currentUser = useMemo(() => getCurrentUser(session), [session]);
 
-    /**
-     * Filter out certain tabs that we don't have any data for, 
-     * so user isn't overwhelmed with tabs for objects they never worked with. 
-     * Always keeps routines, projects, and notes
-     */
-    const filteredTabs = useMemo(() => myStuffTabParams.filter(tab => {
-        switch (tab.key) {
-            case "Api":
-                return Boolean(apisCount);
-            case "Code":
-                return Boolean(codesCount);
-            case "Standard":
-                return Boolean(standardsCount);
-            case "Team":
-                return Boolean(membershipsCount);
-        }
-        return true;
-    }), [apisCount, codesCount, membershipsCount, standardsCount]);
     const {
         currTab,
         handleTabChange,
         searchType,
         tabs,
         where,
-    } = useTabs({ id: ELEMENT_IDS.MyStuffTabs, tabParams: filteredTabs, display });
+    } = useTabs({ id: ELEMENT_IDS.MyStuffTabs, tabParams: myStuffTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
-        canSearch: () => uuidValidate(userId),
+        canSearch: () => validatePK(currentUser.id),
         controlsUrl: display === "Page",
         searchType,
         take: 20,
-        where: where({ userId: userId ?? "" }),
+        where: where({ userId: currentUser.id ?? "" }),
     });
 
     const {
@@ -191,7 +167,7 @@ export function MyStuffView({
                     {!isSelecting ? <IconButton aria-label={t("FilterList")} onClick={focusSearch}>
                         <IconCommon name="Search" />
                     </IconButton> : null}
-                    {userId ? (
+                    {currentUser.id ? (
                         <IconButton aria-label={t("Add")} onClick={onCreateStart}>
                             <IconCommon name="Add" />
                         </IconButton>

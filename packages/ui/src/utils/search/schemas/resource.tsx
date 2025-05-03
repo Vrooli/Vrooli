@@ -42,22 +42,22 @@ export const routineTypes = [
         iconInfo: { name: "Action", type: "Common" } as const,
     },
     {
-        type: ResourceSubType.Code,
+        type: ResourceSubType.RoutineCode,
         label: "Code",
         description: "Runs code to convert inputs to outputs. Useful for converting plaintext to structured data.",
         iconInfo: { name: "Terminal", type: "Common" } as const,
     },
     {
-        type: ResourceSubType.Api,
+        type: ResourceSubType.RoutineApi,
         label: "API",
         description: "Sends inputs to an API and returns its output. Useful for connecting to external services.",
         iconInfo: { name: "Api", type: "Common" } as const,
     },
     {
-        type: ResourceSubType.Web,
+        type: ResourceSubType.RoutineWeb,
         label: "Web",
         description: "Searches the web for information.",
-        iconInfo: { name: "Web", type: "Common" } as const,
+        iconInfo: { name: "Language", type: "Common" } as const,
     },
     //{
     //     type: RoutineType.SmartContract,

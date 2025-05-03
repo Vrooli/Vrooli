@@ -440,7 +440,7 @@ export function ObjectListItemBase<T extends ListObject>({
         const willShowVoteButton = isMobile && canReact && object; // Displayed elsewhere on wide screens
         const willShowBookmarkButton = canBookmark && bookmarkFor && starForId;
         const willShowCommentButton = canComment;
-        const willShowReportsButton = !isOfType(object, "RunRoutine", "RunProject") && reportsCount > 0;
+        const willShowReportsButton = !isOfType(object, "Run") && reportsCount > 0;
 
         if (!willShowEditButton && !willShowVoteButton && !willShowBookmarkButton && !willShowCommentButton && !willShowReportsButton) return null;
 

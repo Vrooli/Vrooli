@@ -6,23 +6,17 @@ import { SetLocation } from "../../route/types.js";
 import { ResourceType } from "../consts.js";
 import { setCookiePartialData } from "../localStorage.js";
 
-export type ObjectType = "Api" |
-    "Bookmark" |
+export type ObjectType = "Bookmark" |
     "Chat" |
     "ChatInvite" |
-    "Code" |
     "Comment" |
     "Meeting" |
     "MemberInvite" |
-    "Note" |
-    "Project" |
     "Reaction" |
     "Reminder" |
-    "Routine" |
-    "RunProject" |
-    "RunRoutine" |
+    "Resource" |
+    "Run" |
     "Schedule" |
-    "Standard" |
     "Tag" |
     "Team" |
     "User";

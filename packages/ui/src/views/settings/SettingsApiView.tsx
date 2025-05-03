@@ -13,7 +13,7 @@ import { SettingsList } from "../../components/lists/SettingsList/SettingsList.j
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { IconCommon, IconFavicon } from "../../icons/Icons.js";
 import { ScrollBox } from "../../styles.js";

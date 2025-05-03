@@ -12,7 +12,7 @@ import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";

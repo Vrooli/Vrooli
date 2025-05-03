@@ -5,7 +5,7 @@ import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";

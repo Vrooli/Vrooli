@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, SEEDED_IDS, Session, endpointsChat, uuidValidate } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, SEEDED_PUBLIC_IDS, Session, endpointsChat } from "@local/shared";
 import { TFunction } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -135,9 +135,9 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
                         usersTyping: [],
                     });
 
-                    const userId = getCurrentUser(session).id;
-                    if (userId) {
-                        setCookieMatchingChat(data.id, [userId, SEEDED_IDS.User.Valyxa]);
+                    const currentUser = getCurrentUser(session);
+                    if (currentUser.publicId) {
+                        setCookieMatchingChat(data.id, [currentUser.publicId, SEEDED_PUBLIC_IDS.Valyxa]);
                     }
                 }
             } catch (error) {
@@ -165,12 +165,12 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
             // Update the cache
             if (!chat || !session) return;
 
-            const userId = getCurrentUser(session).id;
-            const participantIds = chat.participants?.map(p => p.user?.id) ?? [];
+            const currentUser = getCurrentUser(session);
+            const participantPublicIds = chat.participants?.map(p => p.user?.publicId) ?? [];
 
-            if (userId && participantIds.length > 1 && participantIds.includes(userId)) {
+            if (currentUser.publicId && participantPublicIds.length > 1 && participantPublicIds.includes(currentUser.publicId)) {
                 // Must have more than yourself
-                setCookieMatchingChat(chat.id, participantIds);
+                setCookieMatchingChat(chat.id, participantPublicIds);
             }
         },
 
@@ -189,11 +189,11 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
         initializeChat: async (session, translator) => {
             if (!session) return;
 
-            const userId = getCurrentUser(session).id;
-            if (!userId || isFetchingChat.current) return;
+            const currentUser = getCurrentUser(session);
+            if (!currentUser.publicId || isFetchingChat.current) return;
 
             // Check local storage for an existing chat
-            const existingChatId = getCookieMatchingChat([userId, SEEDED_IDS.User.Valyxa]);
+            const existingChatId = getCookieMatchingChat([currentUser.publicId, SEEDED_PUBLIC_IDS.Valyxa]);
 
             // If stored chat is valid, fetch it
             if (existingChatId && existingChatId !== DUMMY_ID && uuidValidate(existingChatId)) {

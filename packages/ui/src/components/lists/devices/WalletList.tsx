@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { WalletInstallDialog, WalletSelectDialog } from "../../../components/dialogs/auth.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { hasWalletExtension, validateWallet } from "../../../utils/authentication/walletIntegration.js";

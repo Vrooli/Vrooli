@@ -1,4 +1,4 @@
-import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, MINUTES_10_MS, uuid } from "@local/shared";
+import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, generatePK, MINUTES_10_MS } from "@local/shared";
 import { Box } from "@mui/material";
 import { action } from "@storybook/addon-actions";
 import { useCallback, useEffect, useState } from "react";
@@ -8,12 +8,12 @@ import { pagePaddingBottom } from "../../styles.js";
 import { BranchMap } from "../../utils/localStorage.js";
 import { ChatBubbleTree } from "./ChatBubbleTree.js";
 
-const bot1Id = uuid();
-const botMessage1Id = uuid();
-const userMessage1Id = uuid();
-const botMessage2Version1Id = uuid();
-const botMessage2Version2Id = uuid();
-const userMessage2Id = uuid();
+const bot1Id = generatePK().toString();
+const botMessage1Id = generatePK().toString();
+const userMessage1Id = generatePK().toString();
+const botMessage2Version1Id = generatePK().toString();
+const botMessage2Version2Id = generatePK().toString();
+const userMessage2Id = generatePK().toString();
 
 const mockMessages: ChatMessageShape[] = [
     // Initial bot message
@@ -26,7 +26,7 @@ const mockMessages: ChatMessageShape[] = [
         updatedAt: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
-            id: uuid(),
+            id: generatePK().toString(),
             language: "en",
             text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum.",
         }],
@@ -56,7 +56,7 @@ const mockMessages: ChatMessageShape[] = [
         updatedAt: new Date(Date.now() - 9 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
-            id: uuid(),
+            id: generatePK().toString(),
             language: "en",
             text: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque nunc arcu, non scelerisque odio scelerisque ut. Cras volutpat in odio ac venenatis. Ut eleifend placerat ipsum, eu imperdiet lectus dapibus nec. Cras pharetra sollicitudin enim nec efficitur. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut mollis maximus varius. Donec eleifend turpis molestie arcu elementum, ut cursus nisi congue. Suspendisse sed nibh dapibus, tincidunt enim vitae, consectetur felis. Suspendisse vel nunc eros. Pellentesque sit amet sem dolor. Maecenas fermentum laoreet elit eget malesuada. Maecenas metus odio, dictum nec nunc lobortis, molestie aliquet justo.
 
@@ -93,7 +93,7 @@ In semper tortor ac mi condimentum rutrum. Mauris pulvinar vehicula urna sed sol
         updatedAt: new Date(Date.now() - 8 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
-            id: uuid(),
+            id: generatePK().toString(),
             language: "en",
             text: `Suspendisse pulvinar feugiat lectus sit amet porta. Donec id sapien odio. Vivamus mauris ligula, bibendum sollicitudin urna ut, semper fermentum nulla. Nulla viverra facilisis porttitor. Integer cursus ullamcorper metus in lacinia. Vivamus nulla nunc, pellentesque et mattis id, consectetur ut dolor. Nam imperdiet nibh in venenatis blandit. Aliquam at elit vulputate, varius ante gravida, gravida enim. Morbi sollicitudin purus et condimentum luctus. Nullam pellentesque malesuada nisl, ut placerat nisl porta vitae. Morbi velit enim, tristique eget rutrum ut, vulputate vel neque. Quisque accumsan eu enim nec pretium. Vivamus porttitor mollis elit id ultricies.
 
@@ -132,7 +132,7 @@ Suspendisse eu sodales nisi, sed malesuada augue. Morbi eget porttitor purus, eg
         updatedAt: new Date(Date.now() - 7 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
-            id: uuid(),
+            id: generatePK().toString(),
             language: "en",
             text: `Etiam porttitor lectus dolor, eu cursus dolor sodales vel. Pellentesque semper metus id arcu posuere elementum. Cras nec eros non urna accumsan varius et nec orci. Morbi facilisis nibh sed ligula dictum, id tristique libero aliquam. Mauris consectetur libero eget ex laoreet gravida. Vivamus dignissim mattis diam, sollicitudin aliquet nisi tincidunt aliquet. Sed sapien neque, accumsan a luctus ac, ullamcorper at ex. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Suspendisse in magna in purus maximus gravida id non nunc. Praesent ut urna ipsum. Maecenas vulputate enim nec nisl tincidunt tristique. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent dapibus, tellus vel rutrum cursus, massa purus condimentum sem, at sollicitudin metus dui sit amet sem. Integer egestas purus sit amet odio maximus congue vel vel est.
 
@@ -173,7 +173,7 @@ Quisque elementum mi non ligula blandit egestas. Maecenas laoreet ante urna, pul
         updatedAt: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
         translations: [{
             __typename: "ChatMessageTranslation" as const,
-            id: uuid(),
+            id: generatePK().toString(),
             language: "en",
             text: "This is a reply to your message.",
         }],
@@ -276,7 +276,7 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
         // Create a new message with the same text but a new ID and higher version index
         const newMessage: ChatMessageShape = {
             ...message,
-            id: uuid(),
+            id: generatePK().toString(),
             versionIndex: (message.versionIndex ?? 0) + 1,
             reactionSummaries: [],
             status: "sent",
@@ -289,12 +289,12 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
         // Create a new message as a reply
         const newMessage: ChatMessageShape = {
             __typename: "ChatMessage",
-            id: uuid(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             translations: [{
                 __typename: "ChatMessageTranslation",
-                id: uuid(),
+                id: generatePK().toString(),
                 language: "en",
                 text: "This is a reply to your message.",
             }],
@@ -321,7 +321,7 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
         // Create a new message with the same content but sent status
         const newMessage: ChatMessageShape = {
             ...message,
-            id: uuid(),
+            id: generatePK().toString(),
             status: "sent",
         };
         addMessages([newMessage]);

@@ -216,7 +216,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockDataConverterVersionData });
@@ -224,7 +224,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
 
@@ -237,13 +237,13 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
 
@@ -256,16 +256,16 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
-console.log('yeet mocked url', `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`);
+console.log('yeet mocked url', `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`);
 
 export function Own() {
     return (
@@ -276,7 +276,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockDataConverterVersionData,
@@ -305,6 +305,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };

@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CalendarEvent, Meeting, Run, RunRoutine, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
+import { CalendarEvent, generatePK, Meeting, Run, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";
@@ -48,21 +48,12 @@ const mockMeeting: Meeting = {
     },
 };
 
-const mockRunRoutineId = uuid();
-const mockRunRoutineTranslationId = uuid();
-const mockRunRoutine: RunRoutine = {
-    __typename: "RunRoutine",
-    id: mockRunRoutineId,
-    translations: [{
-        __typename: "RunRoutineTranslation",
-        id: mockRunRoutineTranslationId,
-        language: "en",
-        name: "Weekly Review",
-        description: "Weekly project review session",
-    }],
-    schedules: [],
+const mockRun: Run = {
+    __typename: "Run",
+    id: generatePK().toString(),
+    name: "Weekly Review",
     you: {
-        __typename: "RunRoutineYou",
+        __typename: "RunYou",
         canDelete: true,
         canRead: true,
         canUpdate: true,
@@ -136,7 +127,7 @@ const baseMockSchedules: Schedule[] = [
             dayOfWeek: 5, // Friday
             schedule: { __typename: "Schedule", id: mockSchedule3Id } as Schedule,
         }],
-        runs: [mockRunRoutine],
+        runs: [mockRun],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     },

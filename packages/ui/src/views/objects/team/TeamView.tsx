@@ -1,4 +1,4 @@
-import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, endpointsTeam, getTranslation, uuidValidate } from "@local/shared";
+import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,15 +39,12 @@ export function TeamView({
 }: TeamViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({
-        ...endpointsTeam.findOne,
-        objectType: "Team",
-    });
+    const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({ pathname });
 
     const availableLanguages = useMemo<string[]>(() => (team?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [team?.translations]);
     useEffect(() => {

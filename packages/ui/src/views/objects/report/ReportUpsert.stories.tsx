@@ -110,13 +110,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReport.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockReportData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReportData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReportData)}/edit`,
     },
 };
 
@@ -134,13 +134,13 @@ UpdateOtherReason.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReport.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockOtherReasonReportData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockOtherReasonReportData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockOtherReasonReportData)}/edit`,
     },
 };
 
@@ -158,7 +158,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReport.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockReportData });
@@ -166,7 +166,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReportData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReportData)}/edit`,
     },
 };
 

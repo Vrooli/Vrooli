@@ -18,7 +18,7 @@ export type PageTab<TabItem extends TabListType[number]> = Omit<TabItem, "color"
 type UseTabsProps<TabList extends TabListType = TabListType> = {
     defaultTab?: TabList[number]["key"]
     disableHistory?: boolean,
-    display: ViewDisplayType,
+    display: ViewDisplayType | `${ViewDisplayType}`,
     id: string,
     tabParams: TabList
 }

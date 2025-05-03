@@ -223,7 +223,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockApiVersionData });
@@ -231,7 +231,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
     },
 };
 
@@ -244,13 +244,13 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
     },
 };
 
@@ -263,13 +263,13 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
     },
 };
 
@@ -282,7 +282,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockApiVersionData,
@@ -311,6 +311,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockApiVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}`,
     },
 };

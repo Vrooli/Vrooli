@@ -1,4 +1,4 @@
-import { LINKS, RoutineType, TranslationKeyCommon } from "@local/shared";
+import { LINKS, ResourceSubType, TranslationKeyCommon } from "@local/shared";
 import { Box, Dialog, DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -91,13 +91,13 @@ export const createCards: CreateInfo[] = [
     //     id: "create-smart-contract-card",
     //     incomplete: true,
     // },
-    // {
-    //     objectType: "Api",
-    //     description: "CreateApiDescription",
-    //     iconInfo: { name: "Api", type: "Common" },
-    //     id: "create-api-card",
-    //     incomplete: true,
-    // },
+    {
+        objectType: "Api",
+        description: "CreateApiDescription",
+        iconInfo: { name: "Api", type: "Common" },
+        id: "create-api-card",
+        incomplete: true,
+    },
 ] as const;
 
 const singleStepRoutineIconInfo: IconInfo = { name: "Action", type: "Common" };
@@ -192,7 +192,7 @@ function RoutineWizardDialog({
     }
 
     const singleStepRoutines = useMemo(() => {
-        const result = routineTypes.filter(rt => rt.type !== RoutineType.MultiStep);
+        const result = routineTypes.filter(rt => rt.type !== ResourceSubType.RoutineMultiStep);
         sortByUsageHistory(result, (rt) => rt.type, "SingleStepRoutineOrder");
         return result;
     }, []);

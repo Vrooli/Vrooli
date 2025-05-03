@@ -13,7 +13,7 @@ import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../icons/Icons.js";

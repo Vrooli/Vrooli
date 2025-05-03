@@ -12,7 +12,7 @@ import { ObjectListActions } from "../../../components/lists/types.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
 import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";

@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_IDS, ServerResponse, Session, shapeChat, uuid, uuidToBase36 } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectSlug, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_PUBLIC_IDS, ServerResponse, Session, shapeChat } from "@local/shared";
 import { Box, Checkbox, FormControlLabel, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
 import { Formik, useFormikContext } from "formik";
 import { TFunction } from "i18next";
@@ -40,14 +40,6 @@ import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ChatCrudProps, ChatFormProps } from "./types.js";
 
-/** Basic chatInfo for a new convo with Valyxa */
-export const VALYXA_INFO = {
-    ...getCookiePartialData({ __typename: "User", id: SEEDED_IDS.User.Valyxa }),
-    id: SEEDED_IDS.User.Valyxa,
-    isBot: true,
-    name: "Valyxa" as const,
-} as const;
-
 export const CHAT_DEFAULTS = {
     __typename: "Chat" as const,
     id: DUMMY_ID,
@@ -56,7 +48,7 @@ export const CHAT_DEFAULTS = {
         __typename: "ChatInvite" as const,
         id: DUMMY_ID,
         status: ChatInviteStatus.Pending,
-        user: VALYXA_INFO,
+        user: { publicId: SEEDED_PUBLIC_IDS.Valyxa },
     }],
 } as unknown as Chat;
 
@@ -79,9 +71,9 @@ export function chatInitialValues(
         // Add yourself to the participants list
         participants: (currentUser.id ? [{
             __typename: "ChatParticipant" as const,
-            id: uuid(),
+            id: DUMMY_ID,
             user: {
-                ...getCookiePartialData({ __typename: "User", id: currentUser.id }),
+                ...getCookiePartialData(getObjectSlug(currentUser)),
                 __typename: "User" as const,
                 id: currentUser.id,
                 isBot: false,
@@ -209,9 +201,9 @@ function ChatForm({
     }, [existing.participants]);
     // When a chat is loaded, store chat ID by participants and task
     useEffect(() => {
-        const userIds = existing.participants?.map(p => p.user?.id) ?? [];
-        if (existing.id === DUMMY_ID || userIds.length === 0) return;
-        setCookieMatchingChat(existing.id, userIds);
+        const publicIds = existing.participants?.map(p => p.user?.publicId) ?? [];
+        if (existing.id === DUMMY_ID || publicIds.length === 0) return;
+        setCookieMatchingChat(existing.id, publicIds);
     }, [existing.id, existing.participants, session]);
 
     const messageTree = useMessageTree(existing.id);
@@ -272,15 +264,15 @@ function ChatForm({
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
             inputs: {
-                id: uuid(),
+                id: DUMMY_ID,
                 invitesCreate: existing.participants?.map(p => ({
-                    id: uuid(),
+                    id: DUMMY_ID,
                     chatConnect: existing.id,
                     userConnect: p.user.id,
                 })),
                 translationsCreate: existing.translations?.map(t => ({
                     ...t,
-                    id: uuid(),
+                    id: DUMMY_ID,
                 })) ?? [],
             },
             onSuccess: (data) => {
@@ -330,7 +322,7 @@ function ChatForm({
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
-    const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
+    const url = useMemo(() => getObjectUrl(values), [values]);
     const copyLink = useCallback(() => {
         navigator.clipboard.writeText(url);
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
@@ -556,7 +548,7 @@ export function ChatCrud({
 }: ChatCrudProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
 
     // Ref to hold stable onError callback for useManagedObject
     const onLoadErrorRef = useRef<(errors: any[]) => void>(() => { });
@@ -568,14 +560,13 @@ export function ChatCrud({
     );
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Chat, ChatShape>({
-        ...endpointsChat.findOne,
         // Call the latest onLoadErrorRef callback
         onError: (errors) => onLoadErrorRef.current(errors),
         disabled: display === "Dialog" && isOpen !== true,
         displayError: display === "Page" || isOpen === true,
         isCreate,
-        objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
+        pathname,
         transform: stableTransform,
     });
 

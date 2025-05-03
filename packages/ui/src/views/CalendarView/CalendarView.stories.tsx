@@ -154,7 +154,7 @@ const generateSchedules = () => {
             "Intensive work on project deliverables",
             generateDate(day, 11, 0),
             180,
-            "RunProject"
+            "Run"
         ));
     }
 
@@ -249,7 +249,7 @@ export default {
         msw: {
             handlers: [
                 // Mock the exact query we saw in the request
-                http.post(`${API_URL}/v2/rest/schedules`, async ({ request }) => {
+                http.post(`${API_URL}/v2/schedules`, async ({ request }) => {
                     console.log('Intercepted POST schedule request', request.url);
                     // Get the request body and examine it
                     let body;
@@ -272,7 +272,7 @@ export default {
                 }),
 
                 // Also handle GET requests with query parameters
-                http.get(`${API_URL}/v2/rest/schedules*`, ({ request }) => {
+                http.get(`${API_URL}/v2/schedules*`, ({ request }) => {
                     console.log('Intercepted GET schedule request', request.url);
                     const url = new URL(request.url);
                     console.log('GET request parameters:',

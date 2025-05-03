@@ -24,7 +24,6 @@ import { reportSearchParams } from "./schemas/report.js";
 import { reportResponseSearchParams } from "./schemas/reportResponse.js";
 import { reputationHistorySearchParams } from "./schemas/reputationHistory.js";
 import { resourceSearchParams } from "./schemas/resource.js";
-import { resourceVersionSearchParams } from "./schemas/resourceVersion.js";
 import { runSearchParams } from "./schemas/run.js";
 import { runIOSearchParams } from "./schemas/runIO.js";
 import { scheduleSearchParams } from "./schemas/schedule.js";
@@ -346,7 +345,7 @@ export type FindObjectTabsInfo = {
     WhereParams: undefined;
 }
 
-export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code", "Meeting", "RunRoutine", "RunProject"]> = [
+export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code", "Meeting", "Run"]> = [
     ...searchViewTabParams,
     {
         iconInfo: { name: "Team", type: "Common" } as const,
@@ -356,17 +355,10 @@ export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["P
         where: () => ({}),
     },
     {
-        iconInfo: { name: "Routine", type: "Routine" } as const,
-        key: CalendarPageTabOption.RunRoutine,
-        titleKey: "RunRoutine",
-        searchType: "RunRoutine",
-        where: () => ({}),
-    },
-    {
-        iconInfo: { name: "Project", type: "Common" } as const,
-        key: CalendarPageTabOption.RunProject,
-        titleKey: "RunProject",
-        searchType: "RunProject",
+        iconInfo: { name: "Play", type: "Common" } as const,
+        key: CalendarPageTabOption.Run,
+        titleKey: "Run",
+        searchType: "Run",
         where: () => ({}),
     },
 ];
@@ -679,7 +671,6 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     ReportResponse: reportResponseSearchParams,
     ReputationHistory: reputationHistorySearchParams,
     Resource: resourceSearchParams,
-    ResourceVersion: resourceVersionSearchParams,
     Run: runSearchParams,
     RunIO: runIOSearchParams,
     Schedule: scheduleSearchParams,

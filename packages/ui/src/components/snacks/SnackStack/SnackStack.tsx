@@ -1,4 +1,4 @@
-import { uuid } from "@local/shared";
+import { nanoid } from "@local/shared";
 import { Box, BoxProps, styled } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,7 +60,7 @@ export function SnackStack() {
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one
-                const id = o.id ?? uuid();
+                const id = o.id ?? nanoid();
                 const newSnack: BasicSnackProps = {
                     autoHideDuration: o.autoHideDuration,
                     buttonClicked: (props) => { o.buttonClicked?.(props); handleClose(id); },

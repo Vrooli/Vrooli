@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointsRun, noopSubmit, Run, RunCreateInput, RunRoutine, RunRoutineShape, RunShape, RunStatus, RunUpdateInput, runValidation, Schedule, Session, shapeRun } from "@local/shared";
+import { DUMMY_ID, endpointsRun, noopSubmit, Run, RunCreateInput, RunShape, RunStatus, RunUpdateInput, runValidation, Schedule, Session, shapeRun } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useContext, useMemo, useState } from "react";
@@ -130,7 +130,7 @@ function RunForm({
             />
             <ScheduleUpsert
                 canSetScheduleFor={false}
-                defaultScheduleFor="RunRoutine"
+                defaultScheduleFor="Run"
                 display="Dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -244,7 +244,7 @@ export function RunUpsert({
 }: RunUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunRoutine, RunRoutineShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Run, RunShape>({
         ...endpointsRun.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,

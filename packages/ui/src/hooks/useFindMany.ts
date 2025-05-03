@@ -9,7 +9,7 @@ import { listToAutocomplete } from "../utils/display/listTools.js";
 import { getUserLanguages } from "../utils/display/translationTools.js";
 import { searchTypeToParams } from "../utils/search/objectToSearch.js";
 import { SearchParams } from "../utils/search/schemas/base.js";
-import { useLazyFetch } from "./useLazyFetch.js";
+import { useLazyFetch } from "./useFetch.js";
 import { useStableCallback } from "./useStableCallback.js";
 import { useStableObject } from "./useStableObject.js";
 

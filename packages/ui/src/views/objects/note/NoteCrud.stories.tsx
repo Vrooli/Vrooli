@@ -121,13 +121,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsNoteVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockNoteVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockNoteVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}/edit`,
     },
 };
 
@@ -149,13 +149,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsNoteVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockNoteVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockNoteVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}/edit`,
     },
 };
 
@@ -169,7 +169,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsNoteVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockNoteVersionData });
@@ -177,7 +177,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockNoteVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}/edit`,
     },
 };
 
@@ -201,7 +201,7 @@ ViewMode.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsNoteVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, () => {
                 const viewOnlyData = {
                     ...mockNoteVersionData,
                     you: {
@@ -214,7 +214,7 @@ ViewMode.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockNoteVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockNoteVersionData)}`,
     },
 };
 

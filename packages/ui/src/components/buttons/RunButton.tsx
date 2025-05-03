@@ -96,7 +96,7 @@ export function RunPickerMenu({
     const { allData, loading, removeItem, setAllData, updateItem } = useFindMany<ListObject>({
         canSearch: () => typeof where === "object",
         controlsUrl: false,
-        searchType: objectType === "ProjectVersion" ? "RunProject" : "RunRoutine",
+        searchType: "Run",
         take: 10,
         where,
     });
@@ -177,7 +177,7 @@ export function RunPickerMenu({
                     >
                         <ObjectList
                             canNavigate={funcFalse}
-                            dummyItems={new Array(getDummyListLength("Dialog")).fill("RunRoutine")}
+                            dummyItems={new Array(getDummyListLength("Dialog")).fill("Run")}
                             handleToggleSelect={noop}
                             hideUpdateButton={true}
                             isSelecting={false}

@@ -16,7 +16,7 @@ import { getCurrentUser } from "../utils/authentication/session.js";
 import { getDisplay, getYouDot } from "../utils/display/listTools.js";
 import { openObject, openObjectEdit } from "../utils/navigation/openObject.js";
 import { PubSub } from "../utils/pubsub.js";
-import { useLazyFetch } from "./useLazyFetch.js";
+import { useLazyFetch } from "./useFetch.js";
 
 const DEFAULT_BOOKMARK_LIST_LABEL = "Favorites";
 

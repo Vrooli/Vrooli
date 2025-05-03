@@ -1,4 +1,4 @@
-import { uuid } from "@local/shared";
+import { nanoid } from "@local/shared";
 import { useEffect, useRef, useState } from "react";
 import { useReward } from "react-rewards";
 import { CelebrationType, PubSub } from "../../utils/pubsub.js";
@@ -17,7 +17,7 @@ export function Celebration() {
     }>({
         celebrationType: DEFAULT_CELEBRATION_TYPE,
         emojis: [DEFAULT_EMOJI],
-        id: uuid(),
+        id: nanoid(),
         isActive: false,
         positionStyle: {},
     });
@@ -68,7 +68,7 @@ export function Celebration() {
             setState({
                 celebrationType,
                 emojis,
-                id: uuid(),
+                id: nanoid(),
                 isActive: true,
                 positionStyle,
             });

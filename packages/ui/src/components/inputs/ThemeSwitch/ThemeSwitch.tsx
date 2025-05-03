@@ -3,7 +3,7 @@ import { Box, BoxProps, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { noSelect } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch.js";

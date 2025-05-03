@@ -1,5 +1,5 @@
 
-import { FindByIdInput, LINKS, Location, LocationData, ProjectVersion, RoutineVersion, Run, RunCreateInput, RunIdentifier, RunLoader, RunPersistence, RunUpdateInput, endpointsProjectVersion, endpointsRoutineVersion, endpointsRun } from "@local/shared";
+import { FindByIdInput, LINKS, Location, LocationData, ResourceVersion, Run, RunCreateInput, RunIdentifier, RunLoader, RunPersistence, RunUpdateInput, endpointsResource, endpointsRun } from "@local/shared";
 import { Box, Stack, styled } from "@mui/material";
 import { useCallback, useEffect, useRef } from "react";
 import { fetchData } from "../../api/fetchData.js";
@@ -104,12 +104,8 @@ class ClientRunLoader extends RunLoader {
     public async fetchLocation(
         location: Location,
     ): Promise<LocationData | null> {
-        const objectEndpoint = location.__typename === "ProjectVersion"
-            ? endpointsProjectVersion.findOne
-            : endpointsRoutineVersion.findOne;
-
-        const objectPromise = fetchData<FindByIdInput, ProjectVersion | RoutineVersion>({
-            ...objectEndpoint,
+        const objectPromise = fetchData<FindByIdInput, ResourceVersion>({
+            ...endpointsResource.findOne,
             inputs: { id: location.objectId },
         }).then(({ data, errors }) => {
             if (errors) {
@@ -119,8 +115,8 @@ class ClientRunLoader extends RunLoader {
             return data;
         });
         const subroutinePromise = location.subroutineId ?
-            fetchData<FindByIdInput, RoutineVersion>({
-                ...endpointsRoutineVersion.findOne,
+            fetchData<FindByIdInput, ResourceVersion>({
+                ...endpointsResource.findOne,
                 inputs: { id: location.objectId },
             }).then(({ data, errors }) => {
                 if (errors) {
