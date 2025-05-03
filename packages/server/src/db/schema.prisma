@@ -10,7 +10,7 @@ datasource db {
 }
 
 model award {
-    id              BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id              BigInt    @id @db.BigInt
     createdAt       DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
     tierCompletedAt DateTime? @db.Timestamptz(6)
@@ -24,7 +24,7 @@ model award {
 }
 
 model api_key {
-    id          BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id          BigInt    @id @db.BigInt
     createdAt   DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
     creditsUsed BigInt    @default(0)
@@ -45,7 +45,7 @@ model api_key {
 }
 
 model api_key_external {
-    id         BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id         BigInt    @id @db.BigInt
     createdAt  DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
     key        String    @db.VarChar(255)
@@ -63,7 +63,7 @@ model api_key_external {
 }
 
 model bookmark {
-    id         BigInt         @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id         BigInt         @id @db.BigInt
     createdAt  DateTime       @default(now()) @db.Timestamptz(6)
     updatedAt  DateTime       @updatedAt @db.Timestamptz(6)
     listId     BigInt?        @db.BigInt
@@ -91,7 +91,7 @@ model bookmark {
 }
 
 model bookmark_list {
-    id        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt     @id @db.BigInt
     createdAt DateTime   @default(now()) @db.Timestamptz(6)
     updatedAt DateTime   @updatedAt @db.Timestamptz(6)
     label     String     @db.VarChar(128)
@@ -104,7 +104,7 @@ model bookmark_list {
 }
 
 model chat {
-    id                     BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                     BigInt                      @id @db.BigInt
     publicId               String                      @unique @db.VarChar(12)
     createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
@@ -128,7 +128,7 @@ model chat {
 }
 
 model chat_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     embedding          Unsupported("vector(768)")?
     embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
     chatId             BigInt                      @db.BigInt
@@ -142,7 +142,7 @@ model chat_translation {
 }
 
 model chat_message {
-    id                BigInt             @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt             @id @db.BigInt
     createdAt         DateTime           @default(now()) @db.Timestamptz(6)
     updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
     language          String             @db.VarChar(3)
@@ -166,7 +166,7 @@ model chat_message {
 }
 
 model chat_participants {
-    id        BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt   @id @db.BigInt
     createdAt DateTime @default(now()) @db.Timestamptz(6)
     updatedAt DateTime @updatedAt @db.Timestamptz(6)
     hasUnread Boolean  @default(true)
@@ -181,7 +181,7 @@ model chat_participants {
 }
 
 model chat_invite {
-    id        BigInt       @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt       @id @db.BigInt
     createdAt DateTime     @default(now()) @db.Timestamptz(6)
     updatedAt DateTime     @updatedAt @db.Timestamptz(6)
     status    InviteStatus @default(Pending)
@@ -197,7 +197,7 @@ model chat_invite {
 }
 
 model comment {
-    id                BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt                      @id @db.BigInt
     createdAt         DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt         DateTime                    @updatedAt @db.Timestamptz(6)
     ownedByTeamId     BigInt?                     @db.BigInt
@@ -232,7 +232,7 @@ model comment {
 }
 
 model comment_translation {
-    id        BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt  @id @db.BigInt
     text      String  @db.VarChar(32768)
     language  String  @db.VarChar(3)
     commentId BigInt  @db.BigInt
@@ -243,7 +243,7 @@ model comment_translation {
 }
 
 model email {
-    id                                 BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                                 BigInt    @id @db.BigInt
     createdAt                          DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt                          DateTime  @updatedAt @db.Timestamptz(6)
     emailAddress                       String    @unique @db.Citext
@@ -260,7 +260,7 @@ model email {
 }
 
 model issue {
-    id                BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt                      @id @db.BigInt
     publicId          String                      @unique @db.VarChar(12)
     status            IssueStatus                 @default(Open)
     createdAt         DateTime                    @default(now()) @db.Timestamptz(6)
@@ -298,7 +298,7 @@ model issue {
 }
 
 model issue_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     embedding          Unsupported("vector(768)")?
     embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
     description        String?                     @db.VarChar(2048)
@@ -312,7 +312,7 @@ model issue_translation {
 }
 
 model meeting {
-    id                     BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                     BigInt                      @id @db.BigInt
     publicId               String                      @unique @db.VarChar(12)
     createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
@@ -336,7 +336,7 @@ model meeting {
 }
 
 model meeting_attendees {
-    id        BigInt  @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt  @id @db.BigInt
     meetingId BigInt  @db.BigInt
     userId    BigInt  @db.BigInt
     meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
@@ -348,7 +348,7 @@ model meeting_attendees {
 }
 
 model meeting_invite {
-    id        BigInt       @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt       @id @db.BigInt
     createdAt DateTime     @default(now()) @db.Timestamptz(6)
     updatedAt DateTime     @updatedAt @db.Timestamptz(6)
     status    InviteStatus @default(Pending)
@@ -364,7 +364,7 @@ model meeting_invite {
 }
 
 model meeting_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     embedding          Unsupported("vector(768)")?
     embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
     meetingId          BigInt                      @db.BigInt
@@ -379,7 +379,7 @@ model meeting_translation {
 }
 
 model notification {
-    id          BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id          BigInt   @id @db.BigInt
     createdAt   DateTime @default(now()) @db.Timestamptz(6)
     updatedAt   DateTime @updatedAt @db.Timestamptz(6)
     category    String   @db.VarChar(64)
@@ -398,7 +398,7 @@ model notification {
 }
 
 model notification_subscription {
-    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt        @id @db.BigInt
     createdAt     DateTime      @default(now()) @db.Timestamptz(6)
     context       String?       @db.VarChar(2048)
     silent        Boolean       @default(false)
@@ -436,7 +436,7 @@ model notification_subscription {
 }
 
 model push_device {
-    id       BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id       BigInt    @id @db.BigInt
     endpoint String    @unique @db.VarChar(1024)
     p256dh   String    @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
@@ -449,7 +449,7 @@ model push_device {
 }
 
 model team {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     publicId           String                      @unique @db.VarChar(12)
     createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
@@ -501,7 +501,7 @@ model team {
 }
 
 model team_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     embedding          Unsupported("vector(768)")?
     embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
     bio                String?                     @db.VarChar(2048)
@@ -515,7 +515,7 @@ model team_translation {
 }
 
 model team_tag {
-    id       BigInt @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id       BigInt @id @db.BigInt
     taggedId BigInt @db.BigInt
     tagTag   String @db.VarChar(128)
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
@@ -526,7 +526,7 @@ model team_tag {
 }
 
 model member {
-    id          BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id          BigInt   @id @db.BigInt
     publicId    String   @unique @db.VarChar(12)
     createdAt   DateTime @default(now()) @db.Timestamptz(6)
     updatedAt   DateTime @updatedAt @db.Timestamptz(6)
@@ -545,7 +545,7 @@ model member {
 }
 
 model member_invite {
-    id                  BigInt       @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                  BigInt       @id @db.BigInt
     createdAt           DateTime     @default(now()) @db.Timestamptz(6)
     updatedAt           DateTime     @updatedAt @db.Timestamptz(6)
     status              InviteStatus @default(Pending)
@@ -563,7 +563,7 @@ model member_invite {
 }
 
 model phone {
-    id                                 BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                                 BigInt    @id @db.BigInt
     phoneNumber                        String    @unique @db.VarChar(16)
     verifiedAt                         DateTime? @db.Timestamptz(6)
     verificationCode                   String?   @db.VarChar(16)
@@ -578,7 +578,7 @@ model phone {
 }
 
 model payment {
-    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt        @id @db.BigInt
     createdAt     DateTime      @default(now()) @db.Timestamptz(6)
     updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
     amount        Int
@@ -598,7 +598,7 @@ model payment {
 }
 
 model premium {
-    id                  BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                  BigInt    @id @db.BigInt
     credits             BigInt    @default(0)
     customPlan          String?   @db.VarChar(2048)
     enabledAt           DateTime? @db.Timestamptz(6)
@@ -609,7 +609,7 @@ model premium {
 }
 
 model pull_request {
-    id                  BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                  BigInt                      @id @db.BigInt
     publicId            String                      @unique @db.VarChar(12)
     createdAt           DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt           DateTime                    @updatedAt @db.Timestamptz(6)
@@ -630,7 +630,7 @@ model pull_request {
 }
 
 model pull_request_translation {
-    id            BigInt       @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt       @id @db.BigInt
     text          String       @db.VarChar(32768)
     language      String       @db.VarChar(3)
     pullRequestId BigInt       @db.BigInt
@@ -641,7 +641,7 @@ model pull_request_translation {
 }
 
 model reaction {
-    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt        @id @db.BigInt
     createdAt     DateTime      @default(now()) @db.Timestamptz(6)
     updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
     emoji         String        @db.VarChar(32)
@@ -664,7 +664,7 @@ model reaction {
 }
 
 model reaction_summary {
-    id            BigInt        @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt        @id @db.BigInt
     createdAt     DateTime      @default(now()) @db.Timestamptz(6)
     updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
     emoji         String        @db.VarChar(32)
@@ -686,7 +686,7 @@ model reaction_summary {
 }
 
 model reminder_list {
-    id        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt     @id @db.BigInt
     createdAt DateTime   @default(now()) @db.Timestamptz(6)
     updatedAt DateTime   @updatedAt @db.Timestamptz(6)
     userId    BigInt     @db.BigInt
@@ -697,7 +697,7 @@ model reminder_list {
 }
 
 model reminder {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
     completedAt        DateTime?                   @db.Timestamptz(6)
@@ -715,7 +715,7 @@ model reminder {
 }
 
 model reminder_item {
-    id          BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id          BigInt    @id @db.BigInt
     createdAt   DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
     completedAt DateTime? @db.Timestamptz(6)
@@ -730,7 +730,7 @@ model reminder_item {
 }
 
 model report {
-    id                BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt                      @id @db.BigInt
     publicId          String                      @unique @db.VarChar(12)
     createdAt         DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt         DateTime                    @updatedAt @db.Timestamptz(6)
@@ -769,7 +769,7 @@ model report {
 }
 
 model report_response {
-    id              BigInt                @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id              BigInt                @id @db.BigInt
     createdAt       DateTime              @default(now()) @db.Timestamptz(6)
     updatedAt       DateTime              @updatedAt @db.Timestamptz(6)
     reportId        BigInt                @db.BigInt
@@ -786,7 +786,7 @@ model report_response {
 }
 
 model reputation_history {
-    id        BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id        BigInt   @id @db.BigInt
     createdAt DateTime @default(now()) @db.Timestamptz(6)
     updatedAt DateTime @updatedAt @db.Timestamptz(6)
     amount    Int
@@ -801,7 +801,7 @@ model reputation_history {
 }
 
 model resource {
-    id                 BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt    @id @db.BigInt
     publicId           String    @unique @db.VarChar(12)
     createdAt          DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
@@ -855,7 +855,7 @@ model resource {
 }
 
 model resource_version {
-    id                  BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                  BigInt    @id @db.BigInt
     publicId            String    @unique @db.VarChar(12)
     rootId              BigInt    @db.BigInt
     versionIndex        Int       @default(0)
@@ -907,7 +907,7 @@ model resource_version {
 }
 
 model resource_version_relation {
-    id            BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt   @id @db.BigInt
     fromVersionId BigInt   @db.BigInt
     toVersionId   BigInt   @db.BigInt
     relationType  String   @db.VarChar(64) // e.g., "SUBROUTINE", "API_CALL", "CODE_CALL", etc.
@@ -922,7 +922,7 @@ model resource_version_relation {
 }
 
 model resource_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     resourceVersionId  BigInt                      @db.BigInt
     language           String                      @db.VarChar(3)
     embedding          Unsupported("vector(768)")?
@@ -944,7 +944,7 @@ model resource_translation {
 }
 
 model resource_tag {
-    id       BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id       BigInt   @id @db.BigInt
     taggedId BigInt   @db.BigInt
     tagTag   String   @db.VarChar(128)
     tagged   resource @relation(fields: [taggedId], references: [id], onDelete: Cascade)
@@ -956,7 +956,7 @@ model resource_tag {
 }
 
 model run {
-    id                  BigInt            @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                  BigInt            @id @db.BigInt
     createdAt           DateTime          @default(now()) @db.Timestamptz(6)
     updatedAt           DateTime          @updatedAt @db.Timestamptz(6)
     completedComplexity Int               @default(0)
@@ -991,7 +991,7 @@ model run {
 }
 
 model run_io {
-    id            BigInt   @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt   @id @db.BigInt
     createdAt     DateTime @default(now()) @db.Timestamptz(6)
     updatedAt     DateTime @updatedAt @db.Timestamptz(6)
     data          String   @db.VarChar(8192)
@@ -1004,7 +1004,7 @@ model run_io {
 }
 
 model run_step {
-    id                BigInt            @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt            @id @db.BigInt
     completedAt       DateTime?         @db.Timestamptz(6)
     complexity        Int               @default(0)
     contextSwitches   Int               @default(0)
@@ -1025,7 +1025,7 @@ model run_step {
 }
 
 model schedule {
-    id            BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id            BigInt                      @id @db.BigInt
     publicId      String                      @unique @db.VarChar(12)
     createdAt     DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt     DateTime                    @updatedAt @db.Timestamptz(6)
@@ -1043,7 +1043,7 @@ model schedule {
 }
 
 model schedule_exception {
-    id                BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt    @id @db.BigInt
     scheduleId        BigInt    @db.BigInt
     schedule          schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     originalStartTime DateTime
@@ -1054,7 +1054,7 @@ model schedule_exception {
 }
 
 model schedule_recurrence {
-    id             BigInt                 @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id             BigInt                 @id @db.BigInt
     scheduleId     BigInt                 @db.BigInt
     schedule       schedule               @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     recurrenceType ScheduleRecurrenceType
@@ -1069,7 +1069,7 @@ model schedule_recurrence {
 }
 
 model stats_resource {
-    id                        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                        BigInt     @id @db.BigInt
     resourceId                BigInt     @db.BigInt
     periodStart               DateTime   @db.Timestamptz(6)
     periodEnd                 DateTime   @db.Timestamptz(6)
@@ -1088,7 +1088,7 @@ model stats_resource {
 }
 
 model stats_site {
-    id          BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id          BigInt     @id @db.BigInt
     periodStart DateTime   @db.Timestamptz(6)
     periodEnd   DateTime   @db.Timestamptz(6)
     periodType  PeriodType
@@ -1114,7 +1114,7 @@ model stats_site {
 }
 
 model stats_team {
-    id                        BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                        BigInt     @id @db.BigInt
     teamId                    BigInt     @db.BigInt
     periodStart               DateTime   @db.Timestamptz(6)
     periodEnd                 DateTime   @db.Timestamptz(6)
@@ -1133,7 +1133,7 @@ model stats_team {
 }
 
 model stats_user {
-    id                                  BigInt     @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                                  BigInt     @id @db.BigInt
     userId                              BigInt     @db.BigInt
     periodStart                         DateTime   @db.Timestamptz(6)
     periodEnd                           DateTime   @db.Timestamptz(6)
@@ -1154,7 +1154,7 @@ model stats_user {
 }
 
 model tag {
-    id           BigInt            @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id           BigInt            @id @db.BigInt
     createdAt    DateTime          @default(now()) @db.Timestamptz(6)
     updatedAt    DateTime          @updatedAt @db.Timestamptz(6)
     tag          String            @unique @db.VarChar(128)
@@ -1171,7 +1171,7 @@ model tag {
 }
 
 model tag_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     embedding          Unsupported("vector(768)")?
     embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
     description        String?                     @db.VarChar(2048)
@@ -1184,7 +1184,7 @@ model tag_translation {
 }
 
 model transfer {
-    id                    BigInt         @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                    BigInt         @id @db.BigInt
     createdAt             DateTime       @default(now()) @db.Timestamptz(6)
     updatedAt             DateTime       @updatedAt @db.Timestamptz(6)
     status                TransferStatus @default(Pending)
@@ -1210,7 +1210,7 @@ model transfer {
 }
 
 model user {
-    id                        BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                        BigInt                      @id @db.BigInt
     publicId                  String                      @unique @db.VarChar(12)
     createdAt                 DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt                 DateTime                    @updatedAt @db.Timestamptz(6)
@@ -1300,7 +1300,7 @@ model user {
 }
 
 model user_auth {
-    id                              BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                              BigInt    @id @db.BigInt
     user_id                         BigInt    @db.BigInt
     provider                        String
     provider_user_id                String?
@@ -1318,7 +1318,7 @@ model user_auth {
 }
 
 model session {
-    id              BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id              BigInt    @id @db.BigInt
     user_id         BigInt    @db.BigInt
     auth_id         BigInt    @db.BigInt
     last_refresh_at DateTime  @default(now()) @db.Timestamptz(6)
@@ -1337,7 +1337,7 @@ model session {
 }
 
 model user_translation {
-    id                 BigInt                      @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                 BigInt                      @id @db.BigInt
     embedding          Unsupported("vector(768)")?
     embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
     bio                String?                     @db.VarChar(2048)
@@ -1350,7 +1350,7 @@ model user_translation {
 }
 
 model view {
-    id           BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id           BigInt    @id @db.BigInt
     lastViewedAt DateTime  @default(now()) @db.Timestamptz(6)
     name         String    @db.VarChar(128)
     byId         BigInt    @db.BigInt
@@ -1372,7 +1372,7 @@ model view {
 }
 
 model wallet {
-    id                BigInt    @id @default(dbgenerated("snowflake_id()")) @db.BigInt
+    id                BigInt    @id @db.BigInt
     createdAt         DateTime  @default(now()) @db.Timestamptz(6)
     updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
     stakingAddress    String    @unique @db.VarChar(128)

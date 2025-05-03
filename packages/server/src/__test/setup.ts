@@ -1,3 +1,4 @@
+import { initIdGenerator } from "@local/shared";
 import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
 import * as http from "http";
@@ -56,9 +57,9 @@ before(async function setup() {
     postgresContainer = await new GenericContainer("pgvector/pgvector:pg15")
         .withExposedPorts(5432)
         .withEnvironment({
-            "POSTGRES_USER": POSTGRES_USER,
-            "POSTGRES_PASSWORD": POSTGRES_PASSWORD,
-            "POSTGRES_DB": POSTGRES_DB
+            POSTGRES_USER,
+            POSTGRES_PASSWORD,
+            POSTGRES_DB,
         })
         .start();
     // Set the POSTGRES_URL environment variable
@@ -68,15 +69,18 @@ before(async function setup() {
 
     // Apply Prisma migrations and generate client
     try {
-        console.info('Applying Prisma migrations...');
-        execSync('yarn prisma migrate deploy', { stdio: 'inherit' });
-        console.info('Generating Prisma client...');
-        execSync('yarn prisma generate', { stdio: 'inherit' });
-        console.info('Database setup complete.');
+        console.info("Applying Prisma migrations...");
+        execSync("yarn prisma migrate deploy", { stdio: "inherit" });
+        console.info("Generating Prisma client...");
+        execSync("yarn prisma generate", { stdio: "inherit" });
+        console.info("Database setup complete.");
     } catch (error) {
-        console.error('Failed to set up database:', error);
+        console.error("Failed to set up database:", error);
         throw error; // Fail the test setup if migrations fail
     }
+
+    // Set snowflake worker ID
+    initIdGenerator(parseInt(process.env.WORKER_ID ?? "0"));
 
     // Initialize singletons
     await initSingletons();
@@ -143,18 +147,18 @@ after(async function teardown() {
     }
 
     // Force close all sockets in the global agents
-    const forceCloseAgentSockets = (agent: any) => {
+    function forceCloseAgentSockets(agent: any) {
         if (!agent || !agent.sockets) return;
         Object.keys(agent.sockets).forEach(key => {
             agent.sockets[key].forEach((socket: any) => {
                 try {
                     socket.destroy();
                 } catch (err) {
-                    console.error('Error destroying socket:', err);
+                    console.error("Error destroying socket:", err);
                 }
             });
         });
-    };
+    }
 
     forceCloseAgentSockets(http.globalAgent);
     forceCloseAgentSockets(https.globalAgent);
@@ -170,7 +174,7 @@ after(async function teardown() {
             });
         }
     } catch (error) {
-        console.error('Error stopping Redis container:', error);
+        console.error("Error stopping Redis container:", error);
     }
 
     try {
@@ -183,7 +187,7 @@ after(async function teardown() {
             });
         }
     } catch (error) {
-        console.error('Error stopping Postgres container:', error);
+        console.error("Error stopping Postgres container:", error);
     }
 
     // Final check for remaining connections
@@ -222,11 +226,11 @@ function checkActiveHandles(): number {
             if (!handle) return false;
 
             // TTY streams for console output are expected and not a problem
-            if (handle.constructor && handle.constructor.name === 'WriteStream' &&
+            if (handle.constructor && handle.constructor.name === "WriteStream" &&
                 (handle.fd === 1 || handle.fd === 2)) {
                 return false;
             }
-            if (handle.constructor && handle.constructor.name === 'ReadStream' && handle.fd === 0) {
+            if (handle.constructor && handle.constructor.name === "ReadStream" && handle.fd === 0) {
                 return false;
             }
 
@@ -270,51 +274,51 @@ function checkActiveHandles(): number {
                             try {
                                 // Basic socket info
                                 const addrInfo = socket._address ?
-                                    `${socket._address.address || ''}:${socket._address.port || ''}` :
-                                    'unknown address';
+                                    `${socket._address.address || ""}:${socket._address.port || ""}` :
+                                    "unknown address";
                                 const connInfo = socket.remoteAddress ?
                                     `${socket.remoteAddress}:${socket.remotePort}` :
-                                    'no remote';
-                                const serverInfo = socket.server ? 'server socket' : 'client socket';
+                                    "no remote";
+                                const serverInfo = socket.server ? "server socket" : "client socket";
 
                                 // Check socket state 
-                                const destroyed = socket.destroyed ? 'destroyed' : 'active';
-                                const connecting = socket.connecting ? 'connecting' : 'connected';
-                                const readable = socket.readable ? 'readable' : 'not readable';
-                                const writable = socket.writable ? 'writable' : 'not writable';
+                                const destroyed = socket.destroyed ? "destroyed" : "active";
+                                const connecting = socket.connecting ? "connecting" : "connected";
+                                const readable = socket.readable ? "readable" : "not readable";
+                                const writable = socket.writable ? "writable" : "not writable";
 
                                 // Check for pending operations
-                                const pendingOps = socket._pendingData ? 'has pending data' : 'no pending data';
+                                const pendingOps = socket._pendingData ? "has pending data" : "no pending data";
 
                                 // Get more detailed information
-                                let socketDetails = '';
+                                let socketDetails = "";
                                 if (socket._handle) {
-                                    socketDetails = `(type: ${socket._handle.constructor?.name || 'unknown'})`;
+                                    socketDetails = `(type: ${socket._handle.constructor?.name || "unknown"})`;
                                 }
 
                                 // Look for traces of what created this socket in stack
-                                const creation = socket.creation || socket._creation || '';
-                                const creationInfo = creation ? `\n      Created at: ${creation}` : '';
+                                const creation = socket.creation || socket._creation || "";
+                                const creationInfo = creation ? `\n      Created at: ${creation}` : "";
 
                                 console.info(
                                     `    #${i + 1}: ${addrInfo} → ${connInfo} (${serverInfo}) ${socketDetails}\n` +
                                     `      State: ${destroyed}, ${connecting}, ${readable}, ${writable}\n` +
-                                    `      Operations: ${pendingOps}${creationInfo}`
+                                    `      Operations: ${pendingOps}${creationInfo}`,
                                 );
 
                                 // If it's a server socket, check for linked server details
                                 if (socket.server) {
                                     const serverAddr = socket.server.address && socket.server.address();
                                     const serverAddrStr = serverAddr ?
-                                        (typeof serverAddr === 'string' ?
+                                        (typeof serverAddr === "string" ?
                                             serverAddr :
-                                            `${serverAddr.address || ''}:${serverAddr.port || ''}`) :
-                                        'not listening';
+                                            `${serverAddr.address || ""}:${serverAddr.port || ""}`) :
+                                        "not listening";
                                     console.info(`      Server: ${serverAddrStr}`);
                                 }
 
                                 // Check event listeners
-                                const events = Object.keys(socket._events || {}).join(', ');
+                                const events = Object.keys(socket._events || {}).join(", ");
                                 if (events) {
                                     console.info(`      Events: ${events}`);
                                 }
@@ -325,14 +329,14 @@ function checkActiveHandles(): number {
                     } else if (type === "Server") {
                         handles.forEach((server, i) => {
                             const address = server.address ?
-                                (typeof server.address() === 'string' ?
+                                (typeof server.address() === "string" ?
                                     server.address() :
-                                    `${server.address()?.address || ''}:${server.address()?.port || ''}`) :
-                                'not listening';
+                                    `${server.address()?.address || ""}:${server.address()?.port || ""}`) :
+                                "not listening";
                             console.info(`    #${i + 1}: ${address}`);
 
                             // Check event listeners
-                            const events = Object.keys(server._events || {}).join(', ');
+                            const events = Object.keys(server._events || {}).join(", ");
                             if (events) {
                                 console.info(`      Events: ${events}`);
                             }
@@ -343,12 +347,12 @@ function checkActiveHandles(): number {
                             if (i < 3) { // Only show first 3 timers to avoid clutter
                                 const msFuture = timer._idleTimeout > 0 ?
                                     `fires in ${timer._idleTimeout}ms` :
-                                    'repeating/unknown';
+                                    "repeating/unknown";
                                 // Try to get callback info
-                                let callbackInfo = '';
+                                let callbackInfo = "";
                                 try {
-                                    const callbackStr = timer._onTimeout ? timer._onTimeout.toString().substring(0, 100) : '';
-                                    callbackInfo = callbackStr ? `\n      Callback: ${callbackStr}...` : '';
+                                    const callbackStr = timer._onTimeout ? timer._onTimeout.toString().substring(0, 100) : "";
+                                    callbackInfo = callbackStr ? `\n      Callback: ${callbackStr}...` : "";
                                 } catch (err) {
                                     // Ignore errors getting callback info
                                 }
@@ -375,7 +379,7 @@ function checkActiveHandles(): number {
 
                             // Check if stream is a TTY
                             if (stream.isTTY) {
-                                details += ` (TTY)`;
+                                details += " (TTY)";
                             }
 
                             // Show readability status
@@ -399,7 +403,7 @@ function checkActiveHandles(): number {
 
                             // Check if stream is a TTY
                             if (stream.isTTY) {
-                                details += ` (TTY)`;
+                                details += " (TTY)";
                             }
 
                             // Show writability status
@@ -419,10 +423,10 @@ function checkActiveHandles(): number {
 
         // Check for pending callbacks
         // TypeScript doesn't know about this internal method, so we use type assertion
-        const pendingTimers = (process as any)._getActiveHandles ? (process as any)._getActiveHandles().length : 'unknown';
-        const pendingCallbacks = (process as any)._getAsyncIdCount ? (process as any)._getAsyncIdCount() : 'unknown';
+        const pendingTimers = (process as any)._getActiveHandles ? (process as any)._getActiveHandles().length : "unknown";
+        const pendingCallbacks = (process as any)._getAsyncIdCount ? (process as any)._getAsyncIdCount() : "unknown";
 
-        console.info(`\nEvent loop state:`);
+        console.info("\nEvent loop state:");
         console.info(`  - Active timers: ${pendingTimers}`);
         console.info(`  - Pending callbacks: ${pendingCallbacks}`);
 

@@ -1,6 +1,5 @@
 import { RunStatus } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
-import { generatePKString } from "../id/snowflake.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { RunProgressConfig } from "../shape/configs/run.js";
 import { getTranslation } from "../translations/translationTools.js";
@@ -180,8 +179,7 @@ export class RunStateMachine {
         }
         const { object: startObject } = startLocationData;
 
-        const runId = generatePKString();
-        this.services.logger.info(`Initializing new run with ID ${runId}`);
+        this.services.logger.info("Initializing new run");
         const { description, instructions, name } = getTranslation(startObject as { translations: { language: string, name: string, description: string, instructions?: string }[] | null | undefined }, userData.languages, true);
         const subcontext: SubroutineContext = {
             ...SubroutineContextManager.initializeContext(),
@@ -202,7 +200,6 @@ export class RunStateMachine {
             metrics: RunProgressConfig.defaultMetrics(),
             name: name ?? "",
             owner: startObject.root?.owner ?? { id: userData.id, __typename: "User" as const },
-            runId,
             runOnObjectId: startObject.id,
             schedule: null,
             steps: [],
@@ -266,21 +263,25 @@ export class RunStateMachine {
      * @param userData - Session data for the user running the routine.
      * @returns The finalized run progress object.
      */
-    private async finalizeInit(run: RunProgress, userData: RunTriggeredBy): Promise<RunProgress> {
+    private async finalizeInit(run: Omit<RunProgress, "runId">, userData: RunTriggeredBy): Promise<RunProgress> {
         // Update the state machine's state
-        this.state.runIdentifier = { runId: run.runId };
         this.state.userData = userData;
 
         // Store the run in the database
         this.services.persistence.saveProgress(run);
         await this.services.persistence.finalizeSave(false);
+        const runId = this.services.persistence["_lastStoredShape"]?.id;
+        if (!runId) {
+            throw new Error("Run ID not found");
+        }
+        this.state.runIdentifier = { runId };
 
         // Update path decisions
         this.services.pathSelectionHandler.updateDecisionOptions(run);
 
         this.state.status = StateMachineStatus.Initialized;
 
-        return run;
+        return { ...run, runId };
     }
 
     /**

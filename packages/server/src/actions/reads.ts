@@ -16,6 +16,7 @@ import { Searcher } from "../models/types.js";
 import { RecursivePartial } from "../types.js";
 import { SearchEmbeddingsCache } from "../utils/embeddings/cache.js";
 import { getEmbeddings } from "../utils/embeddings/getEmbeddings.js";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
 import { SearchMap } from "../utils/searchMap.js";
 import { SortMap } from "../utils/sortMap.js";
 import { permissionsCheck } from "../validators/permissions.js";
@@ -81,7 +82,6 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
             where = selector;
         }
     }
-    console.log("where", where);
     // Make sure we have enough information to find the object
     if (Object.keys(where).length === 0) {
         throw new CustomError("0019", "IdOrHandleRequired");
@@ -97,7 +97,6 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
 
     // Partially convert info
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
-    console.log("partialInfo", JSON.stringify(partialInfo));
 
     // Get the Prisma object
     let object: any;
@@ -110,11 +109,12 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     }
 
     // Check permissions after fetching the object since we have the ID
-    if (!object || !object.id) {
+    const objectId = object?.id?.toString();
+    if (!objectId) {
         throw new CustomError("0022", "NotFound", { objectType });
     }
-    const authDataById = { [object.id]: { __typename: objectType as ModelType, ...object } };
-    await permissionsCheck(authDataById, { ["Read"]: [object.id as string] }, {}, userData);
+    const authDataById = await getAuthenticatedData({ [model.__typename]: [objectId] }, userData ?? null);
+    await permissionsCheck(authDataById, { ["Read"]: [objectId] }, {}, userData);
 
     // Return formatted for GraphQL
     const formatted = InfoConverter.get().fromDbToApi(object, partialInfo) as RecursivePartial<ObjectModel>;

@@ -96,7 +96,7 @@ describe("EndpointsIssue", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns own issue for authenticated user", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const input: FindByIdInput = { id: issueUser1.id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
@@ -105,7 +105,7 @@ describe("EndpointsIssue", () => {
             });
 
             it("returns another user's issue", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const input: FindByIdInput = { id: issueUser2.id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
@@ -133,7 +133,7 @@ describe("EndpointsIssue", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns all issues for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: IssueSearchInput = { take: 10 };
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
                 const ids = result.edges.map(e => e!.node!.id).sort();
@@ -163,7 +163,7 @@ describe("EndpointsIssue", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates an issue for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const newIssueId = uuid();
                 const input: IssueCreateInput = { id: newIssueId, issueFor: IssueFor.Team, forConnect: team1.id };
                 const result = await issue.createOne({ input }, { req, res }, issue_createOne);
@@ -213,7 +213,7 @@ describe("EndpointsIssue", () => {
 
     describe("closeOne", () => {
         it("throws NotImplemented error", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             const input: IssueCloseInput = { id: issueUser1.id, status: IssueStatus.ClosedResolved };
             try {
                 await issue.closeOne({ input }, { req, res }, issue_closeOne);

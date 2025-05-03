@@ -454,7 +454,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 if (!startMessageAuthData) {
                     // This case should theoretically not happen if highestSeqMessage was found and chat permission passed,
                     // but adding check for robustness.
-                    throw new CustomError("0561", "InternalError", { startId, chatId, userId: userData?.id });
+                    throw new CustomError("0961", "InternalError", { startId, chatId, userId: userData?.id });
                 }
             }
 

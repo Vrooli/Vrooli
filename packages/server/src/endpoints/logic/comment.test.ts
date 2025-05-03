@@ -13,11 +13,6 @@ import { comment_findOne } from "../generated/comment_findOne.js";
 import { comment_updateOne } from "../generated/comment_updateOne.js";
 import { comment } from "./comment.js";
 
-// Test users
-let adminId: string;
-const user1Id = generatePK();
-const user2Id = generatePK();
-
 let issue: any;
 let comment1: { id: bigint; translations: Array<{ id: bigint; language: string; text: string; }> };
 let comment2: { id: bigint; translations: Array<{ id: bigint; language: string; text: string; }> };
@@ -25,6 +20,10 @@ let comment2: { id: bigint; translations: Array<{ id: bigint; language: string; 
 describe("EndpointsComment", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
+    // Test users
+    let adminId: bigint;
+    let user1Id: bigint;
+    let user2Id: bigint;
 
     before(() => {
         loggerErrorStub = sinon.stub(logger, "error");
@@ -37,6 +36,7 @@ describe("EndpointsComment", () => {
         await DbProvider.deleteAll();
 
         // Create test users
+        user1Id = generatePK();
         await DbProvider.get().user.create({
             data: {
                 id: user1Id,
@@ -47,9 +47,10 @@ describe("EndpointsComment", () => {
                 isBot: false,
                 isBotDepictingPerson: false,
                 isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+                auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
+        user2Id = generatePK();
         await DbProvider.get().user.create({
             data: {
                 id: user2Id,
@@ -60,12 +61,12 @@ describe("EndpointsComment", () => {
                 isBot: false,
                 isBotDepictingPerson: false,
                 isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+                auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         // Ensure admin user exists for update tests
         const admin = await seedMockAdminUser();
-        adminId = admin.id.toString();
+        adminId = admin.id;
         // Create a public issue to comment on
         issue = await DbProvider.get().issue.create({
             data: {
@@ -129,12 +130,10 @@ describe("EndpointsComment", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns comment by id for any authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: FindByIdInput = { id: comment1.id.toString() };
-                console.log('yeet before');
                 const result = await comment.findOne({ input }, { req, res }, comment_findOne);
-                console.log('yeet after');
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(comment1.id);
                 expect(result.translations?.[0]?.text).to.equal(comment1.translations[0].text);
@@ -149,7 +148,7 @@ describe("EndpointsComment", () => {
             });
 
             it("returns comment by id with API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -164,7 +163,7 @@ describe("EndpointsComment", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns comments with nested replies for any authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id.toString() });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: CommentSearchInput = { take: 10 };
                 const result = await comment.findMany({ input }, { req, res }, comment_findMany);
                 expect(result).to.not.be.null;
@@ -187,7 +186,7 @@ describe("EndpointsComment", () => {
             });
 
             it("returns comments for API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -202,15 +201,14 @@ describe("EndpointsComment", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a comment for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user2Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const newCommentId = generatePK();
-                const translationId = generatePK();
                 const input: CommentCreateInput = {
                     id: newCommentId.toString(),
                     createdFor: CommentFor.Issue,
                     forConnect: issue.id,
-                    translationsCreate: [{ id: translationId.toString(), language: "en", text: "New comment text" }],
+                    translationsCreate: [{ language: "en", text: "New comment text" }],
                 };
                 const result = await comment.createOne({ input }, { req, res }, comment_createOne);
                 expect(result).to.not.be.null;
@@ -219,17 +217,16 @@ describe("EndpointsComment", () => {
             });
 
             it("API key with write permissions can create comment", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user2Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const newCommentId = generatePK();
-                const translationId = generatePK();
                 const input: CommentCreateInput = {
                     id: newCommentId.toString(),
                     createdFor: CommentFor.Issue,
                     forConnect: issue.id,
-                    translationsCreate: [{ id: translationId.toString(), language: "en", text: "API created comment" }],
+                    translationsCreate: [{ language: "en", text: "API created comment" }],
                 };
                 const result = await comment.createOne({ input }, { req, res }, comment_createOne);
                 expect(result).to.not.be.null;
@@ -244,7 +241,7 @@ describe("EndpointsComment", () => {
                     id: generatePK().toString(),
                     createdFor: CommentFor.Issue,
                     forConnect: issue.id,
-                    translationsCreate: [{ id: generatePK().toString(), language: "en", text: "Unauthorized" }],
+                    translationsCreate: [{ language: "en", text: "Unauthorized" }],
                 };
                 try {
                     await comment.createOne({ input }, { req, res }, comment_createOne);
@@ -255,7 +252,7 @@ describe("EndpointsComment", () => {
             });
 
             it("API key without write permissions cannot create comment", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user2Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -263,7 +260,7 @@ describe("EndpointsComment", () => {
                     id: generatePK().toString(),
                     createdFor: CommentFor.Issue,
                     forConnect: issue.id,
-                    translationsCreate: [{ id: generatePK().toString(), language: "en", text: "Unauthorized" }],
+                    translationsCreate: [{ language: "en", text: "Unauthorized" }],
                 };
                 try {
                     await comment.createOne({ input }, { req, res }, comment_createOne);
@@ -278,7 +275,7 @@ describe("EndpointsComment", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("allows admin to update a comment", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+                const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: CommentUpdateInput = {
                     id: comment1.id.toString(),
@@ -292,7 +289,7 @@ describe("EndpointsComment", () => {
 
         describe("invalid", () => {
             it("denies update for non-admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: CommentUpdateInput = {
                     id: comment1.id.toString(),
@@ -321,7 +318,7 @@ describe("EndpointsComment", () => {
             });
 
             it("throws when updating non-existent comment as admin", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+                const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: CommentUpdateInput = {
                     id: generatePK().toString(),

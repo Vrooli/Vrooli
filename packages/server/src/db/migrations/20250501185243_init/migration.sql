@@ -39,7 +39,7 @@ CREATE TYPE "TransferStatus" AS ENUM ('Accepted', 'Denied', 'Pending');
 
 -- CreateTable
 CREATE TABLE "award" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "tierCompletedAt" TIMESTAMPTZ(6),
@@ -52,7 +52,7 @@ CREATE TABLE "award" (
 
 -- CreateTable
 CREATE TABLE "api_key" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "creditsUsed" BIGINT NOT NULL DEFAULT 0,
@@ -71,7 +71,7 @@ CREATE TABLE "api_key" (
 
 -- CreateTable
 CREATE TABLE "api_key_external" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "key" VARCHAR(255) NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE "api_key_external" (
 
 -- CreateTable
 CREATE TABLE "bookmark" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "listId" BIGINT,
@@ -102,7 +102,7 @@ CREATE TABLE "bookmark" (
 
 -- CreateTable
 CREATE TABLE "bookmark_list" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "label" VARCHAR(128) NOT NULL,
@@ -113,7 +113,7 @@ CREATE TABLE "bookmark_list" (
 
 -- CreateTable
 CREATE TABLE "chat" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE "chat" (
 
 -- CreateTable
 CREATE TABLE "chat_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "embedding" vector(768),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "chatId" BIGINT NOT NULL,
@@ -140,7 +140,7 @@ CREATE TABLE "chat_translation" (
 
 -- CreateTable
 CREATE TABLE "chat_message" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
@@ -158,7 +158,7 @@ CREATE TABLE "chat_message" (
 
 -- CreateTable
 CREATE TABLE "chat_participants" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "hasUnread" BOOLEAN NOT NULL DEFAULT true,
@@ -170,7 +170,7 @@ CREATE TABLE "chat_participants" (
 
 -- CreateTable
 CREATE TABLE "chat_invite" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "status" "InviteStatus" NOT NULL DEFAULT 'Pending',
@@ -183,7 +183,7 @@ CREATE TABLE "chat_invite" (
 
 -- CreateTable
 CREATE TABLE "comment" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "ownedByTeamId" BIGINT,
@@ -200,7 +200,7 @@ CREATE TABLE "comment" (
 
 -- CreateTable
 CREATE TABLE "comment_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "text" VARCHAR(32768) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "commentId" BIGINT NOT NULL,
@@ -210,7 +210,7 @@ CREATE TABLE "comment_translation" (
 
 -- CreateTable
 CREATE TABLE "email" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "emailAddress" CITEXT NOT NULL,
@@ -225,7 +225,7 @@ CREATE TABLE "email" (
 
 -- CreateTable
 CREATE TABLE "issue" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "status" "IssueStatus" NOT NULL DEFAULT 'Open',
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -244,7 +244,7 @@ CREATE TABLE "issue" (
 
 -- CreateTable
 CREATE TABLE "issue_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "embedding" vector(768),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "description" VARCHAR(2048),
@@ -257,7 +257,7 @@ CREATE TABLE "issue_translation" (
 
 -- CreateTable
 CREATE TABLE "meeting" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -272,7 +272,7 @@ CREATE TABLE "meeting" (
 
 -- CreateTable
 CREATE TABLE "meeting_attendees" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "meetingId" BIGINT NOT NULL,
     "userId" BIGINT NOT NULL,
 
@@ -281,7 +281,7 @@ CREATE TABLE "meeting_attendees" (
 
 -- CreateTable
 CREATE TABLE "meeting_invite" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "status" "InviteStatus" NOT NULL DEFAULT 'Pending',
@@ -294,7 +294,7 @@ CREATE TABLE "meeting_invite" (
 
 -- CreateTable
 CREATE TABLE "meeting_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "embedding" vector(768),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "meetingId" BIGINT NOT NULL,
@@ -308,7 +308,7 @@ CREATE TABLE "meeting_translation" (
 
 -- CreateTable
 CREATE TABLE "notification" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "category" VARCHAR(64) NOT NULL,
@@ -325,7 +325,7 @@ CREATE TABLE "notification" (
 
 -- CreateTable
 CREATE TABLE "notification_subscription" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "context" VARCHAR(2048),
     "silent" BOOLEAN NOT NULL DEFAULT false,
@@ -345,7 +345,7 @@ CREATE TABLE "notification_subscription" (
 
 -- CreateTable
 CREATE TABLE "push_device" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "endpoint" VARCHAR(1024) NOT NULL,
     "p256dh" VARCHAR(1024) NOT NULL,
     "auth" VARCHAR(1024) NOT NULL,
@@ -358,7 +358,7 @@ CREATE TABLE "push_device" (
 
 -- CreateTable
 CREATE TABLE "team" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -382,7 +382,7 @@ CREATE TABLE "team" (
 
 -- CreateTable
 CREATE TABLE "team_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "embedding" vector(768),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "bio" VARCHAR(2048),
@@ -395,7 +395,7 @@ CREATE TABLE "team_translation" (
 
 -- CreateTable
 CREATE TABLE "team_tag" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "taggedId" BIGINT NOT NULL,
     "tagTag" VARCHAR(128) NOT NULL,
 
@@ -404,7 +404,7 @@ CREATE TABLE "team_tag" (
 
 -- CreateTable
 CREATE TABLE "member" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -418,7 +418,7 @@ CREATE TABLE "member" (
 
 -- CreateTable
 CREATE TABLE "member_invite" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "status" "InviteStatus" NOT NULL DEFAULT 'Pending',
@@ -433,7 +433,7 @@ CREATE TABLE "member_invite" (
 
 -- CreateTable
 CREATE TABLE "phone" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "phoneNumber" VARCHAR(16) NOT NULL,
     "verifiedAt" TIMESTAMPTZ(6),
     "verificationCode" VARCHAR(16),
@@ -446,7 +446,7 @@ CREATE TABLE "phone" (
 
 -- CreateTable
 CREATE TABLE "payment" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "amount" INTEGER NOT NULL,
@@ -464,7 +464,7 @@ CREATE TABLE "payment" (
 
 -- CreateTable
 CREATE TABLE "premium" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "credits" BIGINT NOT NULL DEFAULT 0,
     "customPlan" VARCHAR(2048),
     "enabledAt" TIMESTAMPTZ(6),
@@ -476,7 +476,7 @@ CREATE TABLE "premium" (
 
 -- CreateTable
 CREATE TABLE "pull_request" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -490,7 +490,7 @@ CREATE TABLE "pull_request" (
 
 -- CreateTable
 CREATE TABLE "pull_request_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "text" VARCHAR(32768) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "pullRequestId" BIGINT NOT NULL,
@@ -500,7 +500,7 @@ CREATE TABLE "pull_request_translation" (
 
 -- CreateTable
 CREATE TABLE "reaction" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "emoji" VARCHAR(32) NOT NULL,
@@ -515,7 +515,7 @@ CREATE TABLE "reaction" (
 
 -- CreateTable
 CREATE TABLE "reaction_summary" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "emoji" VARCHAR(32) NOT NULL,
@@ -530,7 +530,7 @@ CREATE TABLE "reaction_summary" (
 
 -- CreateTable
 CREATE TABLE "reminder_list" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "userId" BIGINT NOT NULL,
@@ -540,7 +540,7 @@ CREATE TABLE "reminder_list" (
 
 -- CreateTable
 CREATE TABLE "reminder" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "completedAt" TIMESTAMPTZ(6),
@@ -557,7 +557,7 @@ CREATE TABLE "reminder" (
 
 -- CreateTable
 CREATE TABLE "reminder_item" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "completedAt" TIMESTAMPTZ(6),
@@ -572,7 +572,7 @@ CREATE TABLE "reminder_item" (
 
 -- CreateTable
 CREATE TABLE "report" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -594,7 +594,7 @@ CREATE TABLE "report" (
 
 -- CreateTable
 CREATE TABLE "report_response" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "reportId" BIGINT NOT NULL,
@@ -608,7 +608,7 @@ CREATE TABLE "report_response" (
 
 -- CreateTable
 CREATE TABLE "reputation_history" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "amount" INTEGER NOT NULL,
@@ -622,7 +622,7 @@ CREATE TABLE "reputation_history" (
 
 -- CreateTable
 CREATE TABLE "resource" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -647,7 +647,7 @@ CREATE TABLE "resource" (
 
 -- CreateTable
 CREATE TABLE "resource_version" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "rootId" BIGINT NOT NULL,
     "versionIndex" INTEGER NOT NULL DEFAULT 0,
@@ -677,7 +677,7 @@ CREATE TABLE "resource_version" (
 
 -- CreateTable
 CREATE TABLE "resource_version_relation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "fromVersionId" BIGINT NOT NULL,
     "toVersionId" BIGINT NOT NULL,
     "relationType" VARCHAR(64) NOT NULL,
@@ -688,7 +688,7 @@ CREATE TABLE "resource_version_relation" (
 
 -- CreateTable
 CREATE TABLE "resource_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "resourceVersionId" BIGINT NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "embedding" vector(768),
@@ -703,7 +703,7 @@ CREATE TABLE "resource_translation" (
 
 -- CreateTable
 CREATE TABLE "resource_tag" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "taggedId" BIGINT NOT NULL,
     "tagTag" VARCHAR(128) NOT NULL,
 
@@ -712,7 +712,7 @@ CREATE TABLE "resource_tag" (
 
 -- CreateTable
 CREATE TABLE "run" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "completedComplexity" INTEGER NOT NULL DEFAULT 0,
@@ -735,7 +735,7 @@ CREATE TABLE "run" (
 
 -- CreateTable
 CREATE TABLE "run_io" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "data" VARCHAR(8192) NOT NULL,
@@ -748,7 +748,7 @@ CREATE TABLE "run_io" (
 
 -- CreateTable
 CREATE TABLE "run_step" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "completedAt" TIMESTAMPTZ(6),
     "complexity" INTEGER NOT NULL DEFAULT 0,
     "contextSwitches" INTEGER NOT NULL DEFAULT 0,
@@ -767,7 +767,7 @@ CREATE TABLE "run_step" (
 
 -- CreateTable
 CREATE TABLE "schedule" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -780,7 +780,7 @@ CREATE TABLE "schedule" (
 
 -- CreateTable
 CREATE TABLE "schedule_exception" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "scheduleId" BIGINT NOT NULL,
     "originalStartTime" TIMESTAMP(3) NOT NULL,
     "newStartTime" TIMESTAMP(3),
@@ -791,7 +791,7 @@ CREATE TABLE "schedule_exception" (
 
 -- CreateTable
 CREATE TABLE "schedule_recurrence" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "scheduleId" BIGINT NOT NULL,
     "recurrenceType" "ScheduleRecurrenceType" NOT NULL,
     "interval" INTEGER NOT NULL DEFAULT 1,
@@ -806,7 +806,7 @@ CREATE TABLE "schedule_recurrence" (
 
 -- CreateTable
 CREATE TABLE "stats_resource" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "resourceId" BIGINT NOT NULL,
     "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
@@ -823,7 +823,7 @@ CREATE TABLE "stats_resource" (
 
 -- CreateTable
 CREATE TABLE "stats_site" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
@@ -846,7 +846,7 @@ CREATE TABLE "stats_site" (
 
 -- CreateTable
 CREATE TABLE "stats_team" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "teamId" BIGINT NOT NULL,
     "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
@@ -863,7 +863,7 @@ CREATE TABLE "stats_team" (
 
 -- CreateTable
 CREATE TABLE "stats_user" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "userId" BIGINT NOT NULL,
     "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
@@ -882,7 +882,7 @@ CREATE TABLE "stats_user" (
 
 -- CreateTable
 CREATE TABLE "tag" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "tag" VARCHAR(128) NOT NULL,
@@ -894,7 +894,7 @@ CREATE TABLE "tag" (
 
 -- CreateTable
 CREATE TABLE "tag_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "embedding" vector(768),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "description" VARCHAR(2048),
@@ -906,7 +906,7 @@ CREATE TABLE "tag_translation" (
 
 -- CreateTable
 CREATE TABLE "transfer" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "status" "TransferStatus" NOT NULL DEFAULT 'Pending',
@@ -924,7 +924,7 @@ CREATE TABLE "transfer" (
 
 -- CreateTable
 CREATE TABLE "user" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "publicId" VARCHAR(12) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -968,7 +968,7 @@ CREATE TABLE "user" (
 
 -- CreateTable
 CREATE TABLE "user_auth" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "user_id" BIGINT NOT NULL,
     "provider" TEXT NOT NULL,
     "provider_user_id" TEXT,
@@ -983,7 +983,7 @@ CREATE TABLE "user_auth" (
 
 -- CreateTable
 CREATE TABLE "session" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "user_id" BIGINT NOT NULL,
     "auth_id" BIGINT NOT NULL,
     "last_refresh_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -999,7 +999,7 @@ CREATE TABLE "session" (
 
 -- CreateTable
 CREATE TABLE "user_translation" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "embedding" vector(768),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "bio" VARCHAR(2048),
@@ -1011,7 +1011,7 @@ CREATE TABLE "user_translation" (
 
 -- CreateTable
 CREATE TABLE "view" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "lastViewedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "name" VARCHAR(128) NOT NULL,
     "byId" BIGINT NOT NULL,
@@ -1025,7 +1025,7 @@ CREATE TABLE "view" (
 
 -- CreateTable
 CREATE TABLE "wallet" (
-    "id" BIGINT NOT NULL DEFAULT snowflake_id(),
+    "id" BIGINT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "stakingAddress" VARCHAR(128) NOT NULL,

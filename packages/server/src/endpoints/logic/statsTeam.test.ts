@@ -165,7 +165,7 @@ describe("EndpointsStatsTeam", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns stats for public teams and teams the user is a member of when logged in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1 is in team 1 and 2
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 is in team 1 and 2
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -186,7 +186,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("returns correct stats for a different logged in user (user 2)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user2Id }; // User 2 is in team 1 and 3
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id }; // User 2 is in team 1 and 3
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -207,7 +207,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("returns only public stats for a user not in any private teams (user 3)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user3Id }; // User 3 is not in team 2 or 3
+                const testUser = { ...loggedInUserNoPremiumData(), id: user3Id }; // User 3 is not in team 2 or 3
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = { periodType: StatPeriodType.Monthly };
@@ -224,7 +224,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = { periodType: StatPeriodType.Monthly };
@@ -239,7 +239,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("filters by time range", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -260,7 +260,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("API key - public permissions returns only public team stats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User context might still be needed by readManyHelper
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User context might still be needed by readManyHelper
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -303,7 +303,7 @@ describe("EndpointsStatsTeam", () => {
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -320,7 +320,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { periodType: "InvalidPeriod" as any };
@@ -334,7 +334,7 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("cannot see stats of private team you are not a member of when searching by name", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1 is NOT in team 3
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 is NOT in team 3
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Search for team 3 by name

@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePK, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
@@ -151,17 +151,22 @@ export const auth: EndpointsAuth = {
         // Create user
         const user = await DbProvider.get().user.create({
             data: {
+                id: generatePK(),
                 publicId: generatePublicId(),
                 name: input.name,
                 theme: input.theme,
                 status: AccountStatus.Unlocked,
                 emails: {
                     create: [
-                        { emailAddress: input.email },
+                        {
+                            id: generatePK(),
+                            emailAddress: input.email,
+                        },
                     ],
                 },
                 auths: {
                     create: {
+                        id: generatePK(),
                         provider: AUTH_PROVIDERS.Password,
                         hashed_password: PasswordAuthService.hashPassword(input.password),
                     },

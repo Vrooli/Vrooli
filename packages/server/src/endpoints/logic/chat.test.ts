@@ -130,7 +130,7 @@ describe("EndpointsChat", () => {
 
     describe("findOne", () => {
         it("returns chat by id for any authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user3Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user3Id });
             const input: FindByIdInput = { id: chat1Id };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
             expect(result).to.not.be.null;
@@ -148,7 +148,7 @@ describe("EndpointsChat", () => {
         it("returns chat by id with API key public read", async () => {
             const permissions = mockReadPublicPermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
-            const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
             const input: FindByIdInput = { id: chat2Id };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
             expect(result).to.not.be.null;
@@ -158,7 +158,7 @@ describe("EndpointsChat", () => {
 
     describe("findMany", () => {
         it("returns chats without filters for any authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             const input: ChatSearchInput = { take: 10 };
             const result = await chat.findMany({ input }, { req, res }, chat_findMany);
             expect(result).to.not.be.null;
@@ -179,7 +179,7 @@ describe("EndpointsChat", () => {
         it("returns chats without filters for API key public read", async () => {
             const permissions = mockReadPublicPermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
-            const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
             const input: ChatSearchInput = { take: 10 };
             const result = await chat.findMany({ input }, { req, res }, chat_findMany);
             expect(result).to.not.be.null;
@@ -190,7 +190,7 @@ describe("EndpointsChat", () => {
 
     describe("createOne", () => {
         it("creates a chat for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             const newChatId = uuid();
             const input: ChatCreateInput = { id: newChatId, openToAnyoneWithInvite: true };
             const result = await chat.createOne({ input }, { req, res }, chat_createOne);
@@ -202,7 +202,7 @@ describe("EndpointsChat", () => {
         it("API key with write permissions can create chat", async () => {
             const permissions = mockWritePrivatePermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
-            const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
             const newChatId = uuid();
             const input: ChatCreateInput = { id: newChatId, openToAnyoneWithInvite: false };
             const result = await chat.createOne({ input }, { req, res }, chat_createOne);
@@ -224,7 +224,7 @@ describe("EndpointsChat", () => {
 
     describe("updateOne", () => {
         it("updates chat openToAnyoneWithInvite flag for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             const input: ChatUpdateInput = { id: chat1Id, openToAnyoneWithInvite: true };
             const result = await chat.updateOne({ input }, { req, res }, chat_updateOne);
             expect(result).to.not.be.null;

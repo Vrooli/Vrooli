@@ -1,4 +1,4 @@
-import { setWorkerId } from "@local/shared";
+import { initIdGenerator } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
@@ -46,7 +46,7 @@ async function main() {
     }
 
     // Set snowflake worker ID
-    setWorkerId(parseInt(process.env.WORKER_ID ?? "0"));
+    initIdGenerator(parseInt(process.env.WORKER_ID ?? "0"));
 
     // Initialize singletons
     await initSingletons();

@@ -170,7 +170,7 @@ describe("EndpointsStatsRoutine", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns stats for public and owned routines when logged in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = {
@@ -193,7 +193,7 @@ describe("EndpointsStatsRoutine", () => {
             });
 
             it("filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = { periodType: StatPeriodType.Monthly };
@@ -208,7 +208,7 @@ describe("EndpointsStatsRoutine", () => {
             });
 
             it("filters by time range", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = {
@@ -229,7 +229,7 @@ describe("EndpointsStatsRoutine", () => {
             });
 
             it("API key - public permissions (likely returns only public routines)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User context might be needed by readManyHelper even if permissions are broad
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User context might be needed by readManyHelper even if permissions are broad
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -280,7 +280,7 @@ describe("EndpointsStatsRoutine", () => {
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = {
@@ -301,7 +301,7 @@ describe("EndpointsStatsRoutine", () => {
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { // Use 'any' to bypass TypeScript type checking for the test
@@ -320,7 +320,7 @@ describe("EndpointsStatsRoutine", () => {
 
             it("cannot see stats of private routine you don't own when searching by name", async () => {
                 // Log in as user1
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Try to specifically query user2's private routine stats by name

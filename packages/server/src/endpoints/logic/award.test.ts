@@ -102,7 +102,7 @@ describe("EndpointsAward", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns awards without filters", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // When logged in as user1, should see global awards and user1's awards
@@ -124,7 +124,7 @@ describe("EndpointsAward", () => {
             });
 
             it("filters by updated time frame", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // For the given time range, should only see awards updated in Feb-Mar that user1 has access to
@@ -149,7 +149,7 @@ describe("EndpointsAward", () => {
             });
 
             it("API key - public permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -178,7 +178,7 @@ describe("EndpointsAward", () => {
 
         describe("invalid", () => {
             it("invalid time range format", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {

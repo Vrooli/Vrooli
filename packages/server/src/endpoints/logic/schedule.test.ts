@@ -219,7 +219,7 @@ describe("EndpointsSchedule", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns schedule by id when user owns the schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Using FindVersionInput, assuming id is the primary way to find
@@ -235,7 +235,7 @@ describe("EndpointsSchedule", () => {
 
         describe("invalid", () => {
             it("fails when schedule id doesn't exist", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindVersionInput = { id: uuid() }; // Non-existent ID
@@ -250,7 +250,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("fails when user tries to access another user's schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1 trying to access User 2's schedule
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 trying to access User 2's schedule
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindVersionInput = { id: scheduleUser2.id };
@@ -280,7 +280,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key with public permissions cannot access schedules (assumes schedules are private)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -300,7 +300,7 @@ describe("EndpointsSchedule", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns only own schedules for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // User 1 should only see their own schedule
@@ -335,7 +335,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key with public permissions returns empty list or fails (assumes schedules are private)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 // We mock the session with user1, but the helper with VisibilityType.Own should still check against the user.
@@ -363,7 +363,7 @@ describe("EndpointsSchedule", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a schedule for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const newScheduleId = uuid();
@@ -390,7 +390,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key with write permissions can create schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -435,7 +435,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key without write permissions cannot create schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -464,7 +464,7 @@ describe("EndpointsSchedule", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates own schedule for authenticated user and adds recurrence", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const newTimezone = "America/Los_Angeles";
@@ -500,7 +500,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key with write permissions can update own schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -524,7 +524,7 @@ describe("EndpointsSchedule", () => {
 
         describe("invalid", () => {
             it("cannot update another user's schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ScheduleUpdateInput = {
@@ -559,7 +559,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("cannot update non-existent schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ScheduleUpdateInput = {
@@ -577,7 +577,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key without write permissions cannot update schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);

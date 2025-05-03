@@ -1,4 +1,4 @@
-import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, SEEDED_PUBLIC_IDS } from "@local/shared";
+import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, generatePublicId, SEEDED_PUBLIC_IDS } from "@local/shared";
 import { Request, Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
 import { UserDataForPasswordAuth } from "../auth/email.js";
@@ -6,28 +6,31 @@ import { JsonWebToken } from "../auth/jwt.js";
 import { SessionService } from "../auth/session.js";
 import { DbProvider } from "../db/provider.js";
 
-export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
-    id: generatePK(),
-    handle: "test-user",
-    lastLoginAttempt: null,
-    logInAttempts: 0,
-    name: "Test User",
-    profileImage: null,
-    theme: "dark",
-    status: AccountStatus.Unlocked,
-    updatedAt: new Date(),
-    auths: [{
+export function loggedInUserNoPremiumData(): UserDataForPasswordAuth {
+    return {
         id: generatePK(),
-        provider: "Password",
-        hashed_password: "dummy-hash",
-    }],
-    emails: [{
-        emailAddress: "test-user@example.com",
-    }],
-    languages: ["en"],
-    premium: null,
-    sessions: [],
-};
+        handle: "test-user",
+        lastLoginAttempt: new Date(),
+        logInAttempts: 0,
+        name: "Test User",
+        profileImage: null,
+        publicId: generatePublicId(),
+        theme: "dark",
+        status: AccountStatus.Unlocked,
+        updatedAt: new Date(),
+        auths: [{
+            id: generatePK(),
+            provider: "Password",
+            hashed_password: "dummy-hash",
+        }],
+        emails: [{
+            emailAddress: "test-user@example.com",
+        }],
+        languages: ["en"],
+        premium: null,
+        sessions: [],
+    };
+}
 
 /**
  * Creates a mock session object that simulates a logged-in user
@@ -294,7 +297,7 @@ export async function seedMockAdminUser() {
             isBot: false,
             isBotDepictingPerson: false,
             isPrivate: false,
-            auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+            auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
         },
     });
     return admin;

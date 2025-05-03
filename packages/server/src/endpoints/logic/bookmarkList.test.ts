@@ -42,26 +42,26 @@ describe("EndpointsBookmarkList", () => {
                 id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked",
                 isBot: false, isBotDepictingPerson: false, isPrivate: false,
                 auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-            }
+            },
         });
         await DbProvider.get().user.create({
             data: {
                 id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked",
                 isBot: false, isBotDepictingPerson: false, isPrivate: false,
                 auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-            }
+            },
         });
 
         // seed bookmark lists
         listUser1 = await DbProvider.get().bookmark_list.create({
             data: {
-                id: uuid(), index: 0, label: "List One", user: { connect: { id: user1Id } }
-            }
+                id: uuid(), index: 0, label: "List One", user: { connect: { id: user1Id } },
+            },
         });
         listUser2 = await DbProvider.get().bookmark_list.create({
             data: {
-                id: uuid(), index: 0, label: "List Two", user: { connect: { id: user2Id } }
-            }
+                id: uuid(), index: 0, label: "List Two", user: { connect: { id: user2Id } },
+            },
         });
     });
 
@@ -77,7 +77,7 @@ describe("EndpointsBookmarkList", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns own bookmark list", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const input: FindByIdInput = { id: listUser1.id };
                 const result = await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
@@ -89,7 +89,7 @@ describe("EndpointsBookmarkList", () => {
                 const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 // Using user1Id here, but the API key doesn't grant ownership access
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: listUser2.id }; // Try to access listUser2
                 try {
                     await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
@@ -113,7 +113,7 @@ describe("EndpointsBookmarkList", () => {
 
         describe("invalid", () => {
             it("does not return another user's list", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const input: FindByIdInput = { id: listUser2.id };
                 try {
@@ -128,7 +128,7 @@ describe("EndpointsBookmarkList", () => {
 
     describe("findMany", () => {
         it("returns only own lists for authenticated user", async () => {
-            const user = { ...loggedInUserNoPremiumData, id: user1Id };
+            const user = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(user);
             const input: BookmarkListSearchInput = { take: 10 };
             const result = await bookmarkList.findMany({ input }, { req, res }, bookmarkList_findMany);
@@ -168,7 +168,7 @@ describe("EndpointsBookmarkList", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a bookmark list for authenticated user", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const newListId = uuid();
                 const input: BookmarkListCreateInput = { id: newListId, label: "New List" };
@@ -219,7 +219,7 @@ describe("EndpointsBookmarkList", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates own bookmark list", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const input: BookmarkListUpdateInput = { id: listUser1.id, label: "Updated Label" };
                 const result = await bookmarkList.updateOne({ input }, { req, res }, bookmarkList_updateOne);
@@ -240,7 +240,7 @@ describe("EndpointsBookmarkList", () => {
 
         describe("invalid", () => {
             it("cannot update another user's list", async () => {
-                const user = { ...loggedInUserNoPremiumData, id: user1Id };
+                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(user);
                 const input: BookmarkListUpdateInput = { id: listUser2.id, label: "Hacked" };
                 try {

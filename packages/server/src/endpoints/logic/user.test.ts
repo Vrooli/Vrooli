@@ -75,7 +75,7 @@ describe("EndpointsUser", () => {
     describe("profile", () => {
         describe("valid", () => {
             it("returns own profile", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const result = await user.profile({} as never, { req, res }, user_findOne);
@@ -87,7 +87,7 @@ describe("EndpointsUser", () => {
             });
 
             it("API key - private permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -104,7 +104,7 @@ describe("EndpointsUser", () => {
         describe("invalid", () => {
             testEndpointRequiresAuth(user.profile, {}, user_findOne);
 
-            const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+            const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
             testEndpointRequiresApiKeyPrivatePermissions(testUser, user.profile, {}, user_findOne);
         });
     });
@@ -112,7 +112,7 @@ describe("EndpointsUser", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("own profile", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { id: testUser.id };
@@ -131,7 +131,7 @@ describe("EndpointsUser", () => {
                     data: { isPrivate: true },
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { id: testUser.id };
@@ -148,7 +148,7 @@ describe("EndpointsUser", () => {
                     data: { isPrivate: false },
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { id: validUser2.id };
@@ -161,7 +161,7 @@ describe("EndpointsUser", () => {
             });
 
             it("API key - public permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -197,7 +197,7 @@ describe("EndpointsUser", () => {
                 });
 
                 // Attempt to access user2's profile from user1's account
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { id: validUser2.id };
@@ -213,7 +213,7 @@ describe("EndpointsUser", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("retuns public profiles", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { take: 10 };
@@ -227,7 +227,7 @@ describe("EndpointsUser", () => {
             });
 
             it("search input returns results", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { searchString: validUser2.name };
@@ -240,7 +240,7 @@ describe("EndpointsUser", () => {
             });
 
             it("API key - public permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -273,7 +273,7 @@ describe("EndpointsUser", () => {
     describe("botCreateOne", () => {
         describe("valid", () => {
             it("should create a bot user that you own", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const botData = {
@@ -308,7 +308,7 @@ describe("EndpointsUser", () => {
             });
 
             it("API key - write permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -344,7 +344,7 @@ describe("EndpointsUser", () => {
 
         describe("invalid", () => {
             it("same ID as existing user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -366,7 +366,7 @@ describe("EndpointsUser", () => {
             });
 
             it("same ID as admin", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -388,7 +388,7 @@ describe("EndpointsUser", () => {
             });
 
             it("trying to set `isBot` to false", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -410,7 +410,7 @@ describe("EndpointsUser", () => {
             });
 
             it("trying to update user-specific fields", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -445,7 +445,7 @@ describe("EndpointsUser", () => {
                 },
             }, user_findOne);
 
-            const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+            const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
             testEndpointRequiresApiKeyWritePermissions(
                 testUser,
                 user.botCreateOne,
@@ -469,7 +469,7 @@ describe("EndpointsUser", () => {
         describe("valid", () => {
             it("should update a bot user that you own", async () => {
                 // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const botId = uuid();
@@ -518,7 +518,7 @@ describe("EndpointsUser", () => {
 
             it("API key - write permissions", async () => {
                 // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req: createReq, res: createRes } = await mockAuthenticatedSession(testUser);
 
                 const botId = uuid();
@@ -571,7 +571,7 @@ describe("EndpointsUser", () => {
         describe("invalid", () => {
             it("updating a different user's bot", async () => {
                 // First create a bot owned by user2
-                const user2 = { ...loggedInUserNoPremiumData, id: validUser2.id };
+                const user2 = { ...loggedInUserNoPremiumData(), id: validUser2.id };
                 const { req: user2Req, res: user2Res } = await mockAuthenticatedSession(user2);
 
                 const botId = uuid();
@@ -591,7 +591,7 @@ describe("EndpointsUser", () => {
                 await user.botCreateOne({ input: botData }, { req: user2Req, res: user2Res }, user_findOne);
 
                 // Try to update the bot as user1
-                const user1 = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const user1 = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(user1);
 
                 const updateInput = {
@@ -606,7 +606,7 @@ describe("EndpointsUser", () => {
             });
 
             it("updating admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const updateInput = {
@@ -622,7 +622,7 @@ describe("EndpointsUser", () => {
 
             it("trying to set `isBot` to false", async () => {
                 // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const botId = uuid();
@@ -655,7 +655,7 @@ describe("EndpointsUser", () => {
 
             it("trying to update user-specific fields", async () => {
                 // First create a bot
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const botId = uuid();
@@ -695,7 +695,7 @@ describe("EndpointsUser", () => {
                 },
             }, user_findOne);
 
-            const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+            const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
             testEndpointRequiresApiKeyWritePermissions(
                 testUser,
                 user.botUpdateOne,
@@ -713,7 +713,7 @@ describe("EndpointsUser", () => {
     describe("profileUpdate", () => {
         describe("valid", () => {
             it("should update user profile information", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -734,7 +734,7 @@ describe("EndpointsUser", () => {
             });
 
             it("should handle translationsCreate correctly", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -763,7 +763,7 @@ describe("EndpointsUser", () => {
             });
 
             it("API key - write permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -781,7 +781,7 @@ describe("EndpointsUser", () => {
 
         describe("invalid", () => {
             it("updating a different user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -795,7 +795,7 @@ describe("EndpointsUser", () => {
             });
 
             it("updating admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -808,7 +808,7 @@ describe("EndpointsUser", () => {
                 } catch (error) { /* empty */ }
             });
             it("updating a non-existent user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -823,7 +823,7 @@ describe("EndpointsUser", () => {
 
             testEndpointRequiresAuth(user.profileUpdate, { input: { id: validUser1.id, name: "Updated Name" } }, user_findOne);
 
-            const testUser = { ...loggedInUserNoPremiumData, id: validUser1.id };
+            const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
             testEndpointRequiresApiKeyWritePermissions(testUser, user.profileUpdate, { input: { id: validUser1.id, name: "Updated Name" } }, user_findOne);
         });
     });

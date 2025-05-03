@@ -453,8 +453,8 @@ describe("EndpointsChatMessage", () => {
                 id: seqChatId, isPrivate: true, openToAnyoneWithInvite: false,
                 publicId: generatePublicId(),
                 translations: { create: { id: generatePK(), language: "en", name: "Sequential Chat" } },
-                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] }
-            }
+                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] },
+            },
         });
         await DbProvider.get().chat_message.create({ data: { id: seqMsgA.id, chatId: seqChatId, userId: user1Id, translations: { create: seqMsgA.translations } } });
         await DbProvider.get().chat_message.create({ data: { id: seqMsgB.id, chatId: seqChatId, userId: botId, parentId: seqMsgB.parentId, translations: { create: seqMsgB.translations } } });
@@ -466,8 +466,8 @@ describe("EndpointsChatMessage", () => {
                 id: branchChatId, isPrivate: true, openToAnyoneWithInvite: false,
                 publicId: generatePublicId(),
                 translations: { create: { id: generatePK(), language: "en", name: "Branching Chat" } },
-                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: user2Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] }
-            }
+                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: user2Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] },
+            },
         });
         await DbProvider.get().chat_message.create({ data: { id: branchMsgA.id, chatId: branchChatId, userId: user1Id, translations: { create: branchMsgA.translations } } });
         await DbProvider.get().chat_message.create({ data: { id: branchMsgB.id, chatId: branchChatId, userId: botId, parentId: branchMsgB.parentId, translations: { create: branchMsgB.translations } } });
@@ -479,8 +479,8 @@ describe("EndpointsChatMessage", () => {
                 id: gapChatId, isPrivate: true, openToAnyoneWithInvite: false,
                 publicId: generatePublicId(),
                 translations: { create: { id: generatePK(), language: "en", name: "Gap Chat" } },
-                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] }
-            }
+                participants: { create: [{ id: generatePK(), user: { connect: { id: user1Id } } }, { id: generatePK(), user: { connect: { id: botId } } }] },
+            },
         });
         await DbProvider.get().chat_message.create({ data: { id: gapMsgA.id, chatId: gapChatId, userId: user1Id, translations: { create: gapMsgA.translations } } });
         await DbProvider.get().chat_message.create({ data: { id: gapMsgB.id, chatId: gapChatId, userId: botId, parentId: gapMsgB.parentId, translations: { create: gapMsgB.translations } } });
@@ -501,7 +501,7 @@ describe("EndpointsChatMessage", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns message by id when user is a chat participant", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
@@ -516,7 +516,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("API key with public permissions can access messages", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id.toString() };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -534,7 +534,7 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("fails when message id doesn't exist", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
@@ -569,7 +569,7 @@ describe("EndpointsChatMessage", () => {
     describe("findMany", () => {
         describe("access control", () => {
             it("user1 can access messages from chats they participate in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Using a null generatePK as chatId to get all messages from all accessible chats
@@ -597,7 +597,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("user2 can access messages from all chats they participate in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user2Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Using a null generatePK as chatId to get all messages from all accessible chats
@@ -626,7 +626,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("user3 can only access messages from public chats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user3Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user3Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Using a null generatePK as chatId to get all messages from all accessible chats
@@ -651,7 +651,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("cannot access private chat if not a participant", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -673,7 +673,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("can access public chat even if not a participant", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user3Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user3Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -696,7 +696,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("API key with public permissions can access messages in chats the user is part of", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -747,7 +747,7 @@ describe("EndpointsChatMessage", () => {
 
         describe("filtering", () => {
             it("returns messages without filters", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -772,7 +772,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("filters by chatId", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -794,7 +794,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("filters by userId", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -820,7 +820,7 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("invalid timeframe format", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = {
@@ -844,7 +844,7 @@ describe("EndpointsChatMessage", () => {
     describe("findTree", () => {
         describe("access control", () => {
             it("user1 can access tree from chats they participate in (sequential)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: seqChatId,
@@ -866,7 +866,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("user2 can access tree from chats they participate in (branching)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user2Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: branchChatId,
@@ -888,7 +888,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("user3 can access tree from public chats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user3Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user3Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: publicChatId,
@@ -909,7 +909,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("user1 cannot access tree from private chat they are not in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: privateChatId,
@@ -947,7 +947,7 @@ describe("EndpointsChatMessage", () => {
             it("logged-out user cannot access tree from private chat", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: ChatMessageSearchTreeInput = {
-                    chatId: chatId, // Use the regular private chat
+                    chatId, // Use the regular private chat
                     startId: user1Message1.id, // Provide a startId
                 };
 
@@ -962,7 +962,7 @@ describe("EndpointsChatMessage", () => {
 
         describe("tree structure", () => {
             it("returns correct structure for sequential chat", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: seqChatId,
@@ -986,7 +986,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns correct structure for branching chat", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: branchChatId,
@@ -1007,7 +1007,7 @@ describe("EndpointsChatMessage", () => {
 
             it("returns correct structure for chat with gaps (deleted parent)", async () => {
                 // Note: gapMsgA was deleted in beforeEach. gapMsgB is now a root.
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: gapChatId,
@@ -1039,7 +1039,7 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("starts from highest sequence message when startId is omitted", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: ChatMessageSearchTreeInput = {
                     chatId: seqChatId,

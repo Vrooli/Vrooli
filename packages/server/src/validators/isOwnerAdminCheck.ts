@@ -11,11 +11,11 @@ export function isOwnerAdminCheck(
     // Can't be an admin if not logged in
     if (userId === null || userId === undefined) return false;
     // If the owner is a user, check id
-    if (owner.User) return owner.User.id === userId;
+    if (owner.User) return owner.User.id.toString() === userId;
     // If the owner is a team, check if you're a member with "isAdmin" set to true
     if (owner.Team) {
         return owner.Team.members ?
-            owner.Team.members.some((member: { [x: string]: any }) => member.userId === userId && member.isAdmin) :
+            owner.Team.members.some((member: { [x: string]: any }) => member.userId.toString() === userId && member.isAdmin) :
             false;
     }
     // If the owner is neither a user nor a team, return false

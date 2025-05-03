@@ -47,8 +47,8 @@ export const CommentModel: CommentModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: BigInt(data.id),
-                ownedByUser: { connect: { id: rest.userData.id } },
-                [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
+                ownedByUser: { connect: { id: BigInt(rest.userData.id) } },
+                [lowercaseFirstLetter(data.createdFor)]: { connect: { id: BigInt(data.forConnect) } },
                 translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
@@ -104,14 +104,14 @@ export const CommentModel: CommentModelLogic = ({
                 const totalInThread = await DbProvider.get().comment.count({
                     where: {
                         ...where,
-                        parentId: result.id,
+                        parentId: BigInt(result.id),
                     },
                 });
                 // Query for nested threads
                 const nestedThreads = nestLimit > 0 ? await DbProvider.get().comment.findMany({
                     where: {
                         ...where,
-                        parentId: result.id,
+                        parentId: BigInt(result.id),
                     },
                     take: input.take ?? DEFAULT_TAKE,
                     ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
@@ -185,7 +185,7 @@ export const CommentModel: CommentModelLogic = ({
                 take: input.take ?? DEFAULT_TAKE,
                 skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
                 cursor: input.after ? {
-                    id: input.after,
+                    id: BigInt(input.after),
                 } : undefined,
                 ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
             });
@@ -200,7 +200,7 @@ export const CommentModel: CommentModelLogic = ({
                 where: { ...where },
             });
             // Calculate end cursor
-            const endCursor = searchResults[searchResults.length - 1].id;
+            const endCursor = searchResults[searchResults.length - 1].id.toString();
             // If not as nestLimit, recurse with all result IDs
             const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                 ids: searchResults.map(r => r.id),

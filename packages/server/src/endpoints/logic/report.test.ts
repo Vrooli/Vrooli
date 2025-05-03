@@ -103,7 +103,7 @@ describe("EndpointsReport", () => {
 
     describe("findOne", () => {
         it("returns a report by id for authenticated user", async () => {
-            const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+            const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(testUser);
             const input: FindByIdInput = { id: seededReport1.id };
             const result = await report.findOne({ input }, { req, res }, report_findOne);
@@ -134,7 +134,7 @@ describe("EndpointsReport", () => {
 
     describe("findMany", () => {
         it("returns all reports for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id.toString() });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id.toString() });
             const input: ReportSearchInput = { take: 10 };
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             expect(result).to.not.be.null;
@@ -144,7 +144,7 @@ describe("EndpointsReport", () => {
         });
 
         it("filters reports by userId", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id.toString() });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id.toString() });
             const input: ReportSearchInput = { take: 10, userId: user1Id.toString() };
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             expect(result).to.have.property("edges").with.lengthOf(1);
@@ -159,7 +159,7 @@ describe("EndpointsReport", () => {
                 take: 10,
                 updatedTimeFrame: { after: new Date("2019-12-31"), before: new Date("2020-01-02") },
             };
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id.toString() });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id.toString() });
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             expect(result.edges).to.have.lengthOf(1);
             expect(result.edges![0]!.node!.id).to.equal(seededReport1.id);
@@ -175,7 +175,7 @@ describe("EndpointsReport", () => {
 
     describe("createOne", () => {
         it("creates a new report for authenticated user", async () => {
-            const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+            const testUser = { ...loggedInUserNoPremiumData(), id: user1Id.toString() };
             const { req, res } = await mockAuthenticatedSession(testUser);
             const newId = generatePK();
             const input: ReportCreateInput = {
@@ -194,7 +194,7 @@ describe("EndpointsReport", () => {
         });
 
         it("does not allow duplicate open report on same object", async () => {
-            const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+            const testUser = { ...loggedInUserNoPremiumData(), id: user1Id.toString() };
             const { req, res } = await mockAuthenticatedSession(testUser);
             const id1 = generatePK();
             const baseInput = {
@@ -234,7 +234,7 @@ describe("EndpointsReport", () => {
 
     describe("updateOne", () => {
         it("denies update for non-admin user", async () => {
-            const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+            const testUser = { ...loggedInUserNoPremiumData(), id: user1Id.toString() };
             const { req, res } = await mockAuthenticatedSession(testUser);
             const input: ReportUpdateInput = { id: seededReport1.id, reason: "Updated" };
             try {
@@ -249,7 +249,7 @@ describe("EndpointsReport", () => {
             // Close the second report
             await DbProvider.get().report.update({ where: { id: seededReport2.id }, data: { status: ReportStatus.ClosedHidden } });
             // Seed admin user and auth
-            const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+            const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             await DbProvider.get().user_auth.upsert({
                 where: { id: adminUser.auths[0].id },
                 create: {
@@ -268,7 +268,7 @@ describe("EndpointsReport", () => {
 
         it("throws error when updating non-existent report", async () => {
             // Seed admin user and auth
-            const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+            const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             await DbProvider.get().user_auth.upsert({
                 where: { id: adminUser.auths[0].id },
                 create: {

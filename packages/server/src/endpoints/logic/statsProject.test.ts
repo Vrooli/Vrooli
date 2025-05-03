@@ -190,7 +190,7 @@ describe("EndpointsStatsProject", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns stats for public and owned projects when logged in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1 owns privateProject1
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 owns privateProject1
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsProjectSearchInput = {
@@ -212,7 +212,7 @@ describe("EndpointsStatsProject", () => {
             });
 
             it("filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsProjectSearchInput = { periodType: StatPeriodType.Monthly };
@@ -227,7 +227,7 @@ describe("EndpointsStatsProject", () => {
             });
 
             it("filters by time range", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsProjectSearchInput = {
@@ -248,7 +248,7 @@ describe("EndpointsStatsProject", () => {
             });
 
             it("API key - public permissions returns only public projects", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -292,7 +292,7 @@ describe("EndpointsStatsProject", () => {
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsProjectSearchInput = {
@@ -309,7 +309,7 @@ describe("EndpointsStatsProject", () => {
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { periodType: "InvalidPeriod" as any };
@@ -323,7 +323,7 @@ describe("EndpointsStatsProject", () => {
             });
 
             it("cannot see stats of private project you don't own when searching by name", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id }; // User 1
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Search for User 2's private project
