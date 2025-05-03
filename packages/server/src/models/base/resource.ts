@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -43,10 +43,10 @@ export const ResourceModel: ResourceModelLogic = ({
                     permissions: noNull(data.permissions) ?? JSON.stringify({}),
                     createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
                     ...preData.versionMap[data.id],
-                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "resources", isCreate: true, objectType: __typename, data, ...rest })),
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "forks", data, ...rest }),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, ...rest }),
-                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Resource", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -56,9 +56,9 @@ export const ResourceModel: ResourceModelLogic = ({
                     isPrivate: noNull(data.isPrivate),
                     permissions: noNull(data.permissions),
                     ...preData.versionMap[data.id],
-                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "resources", isCreate: false, objectType: __typename, data, ...rest })),
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ResourceVersion", parentRelationshipName: "root", data, ...rest }),
-                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Resource", data, ...rest }),
                 };
             },
         },
@@ -67,11 +67,11 @@ export const ResourceModel: ResourceModelLogic = ({
                 await afterMutationsRoot({ ...params, objectType: __typename });
             },
         },
-        yup: routineValidation,
+        yup: resourceValidation,
     },
     search: {
-        defaultSort: RoutineSortBy.ScoreDesc,
-        sortBy: RoutineSortBy,
+        defaultSort: ResourceSortBy.ScoreDesc,
+        sortBy: ResourceSortBy,
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
@@ -156,7 +156,7 @@ export const ResourceModel: ResourceModelLogic = ({
             own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    isInternal: false, // Internal routines should never be in search results
+                    isInternal: false, // Internal resources should never be in search results
                     OR: [
                         { ownedByTeam: useVisibility("Team", "Own", data) },
                         { ownedByUser: useVisibility("User", "Own", data) },
@@ -166,7 +166,7 @@ export const ResourceModel: ResourceModelLogic = ({
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    isInternal: false, // Internal routines should never be in search results
+                    isInternal: false, // Internal resources should never be in search results
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },
                         { ownedByTeam: useVisibility("Team", "Own", data) },
@@ -179,7 +179,7 @@ export const ResourceModel: ResourceModelLogic = ({
             ownPrivate: function getOwnPrivate(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    isInternal: false, // Internal routines should never be in search results
+                    isInternal: false, // Internal resources should never be in search results
                     isPrivate: true,  // Must be private
                     OR: (useVisibility("Resource", "Own", data) as { OR: object[] }).OR,
                 };
@@ -194,7 +194,7 @@ export const ResourceModel: ResourceModelLogic = ({
             public: function getPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    isInternal: false, // Internal routines should never be in search results
+                    isInternal: false, // Internal resources should never be in search results
                     isPrivate: false, // Can't be private
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },

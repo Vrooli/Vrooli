@@ -1706,15 +1706,10 @@ describe("inputToMaps", () => {
         format = {
             apiRelMap: {
                 __typename: "User" as const,
-                api: "Api",
-                code: "Code",
-                project: "Project",
-                reports: "Report",
-                routine: "Routine",
-                standard: "Standard",
+                resource: "Resource",
             },
         };
-        closestWithId = { __typename: "Routine", id: "grandparentId", path: "version" };
+        closestWithId = { __typename: "Resource", id: "grandparentId", path: "version" };
     });
 
     after(() => {

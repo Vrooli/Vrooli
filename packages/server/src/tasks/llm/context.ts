@@ -404,7 +404,7 @@ export class ChatContextManager {
     private aiModel: string;
     private languageModelService: LanguageModelService<string>;
 
-    constructor(aiModel: string, userLanguages: string[]) {
+    constructor(aiModel: string) {
         this.aiModel = aiModel;
         this.languageModelService = LlmServiceRegistry.get().getService(LlmServiceRegistry.get().getServiceId(aiModel));
     }
@@ -660,8 +660,8 @@ export class ChatContextManager {
                 ...messageCache,
                 tokenCounts: JSON.stringify(tokenCounts),
                 id: messageId,
-                userId: messageData?.userId?.toString() ?? undefined,
-                parentId: messageData?.parentId?.toString() ?? undefined,
+                userId: messageData?.user?.id?.toString() ?? undefined,
+                parentId: messageData?.parent?.id?.toString() ?? undefined,
             };
             await ChatContextCache.get().setMessage(redisClient, messageId, updatedMessageCache);
             return { messageDetails: updatedMessageCache, tokenSize };

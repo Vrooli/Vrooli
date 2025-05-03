@@ -7,7 +7,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { PrismaDelegate } from "../../types.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
@@ -248,7 +248,7 @@ export const ReactionModel: ReactionModelLogic = ({
         await DbProvider.get().$transaction(transactionOps);
         // If we reacted to a chat message, send the updated reaction summaries to the chat room
         if (isChatMessage && reactedOnObject.chatId) {
-            emitSocketEvent("messages", reactedOnObject.chatId, { updated: [{ id: input.forConnect, reactionSummaries: updatedReactionSummaries }] });
+            SocketService.get().emitSocketEvent("messages", reactedOnObject.chatId, { updated: [{ id: input.forConnect, reactionSummaries: updatedReactionSummaries }] });
         }
         // Handle trigger
         await Trigger(userData.languages).objectReact({

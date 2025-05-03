@@ -3,7 +3,7 @@ import moment from "moment";
 import sinon from "sinon";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api/types.js";
 import { HOURS_2_MS } from "../consts/numbers.js";
-import { uuid } from "../id/uuid.js";
+import { DUMMY_ID, generatePublicId } from "../id/index.js";
 import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules.js";
 
 describe("validateTimeFrame", () => {
@@ -942,7 +942,8 @@ describe("applyExceptions", () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             exceptions: [], // Start with no exceptions
-            id: uuid(),
+            id: DUMMY_ID,
+            publicId: generatePublicId(),
             meetings: [],
             recurrences: [],
             runs: [],
@@ -1166,7 +1167,8 @@ async function testCalculateOccurrences({
         endTime: new Date(endTime).toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        id: uuid(),
+        id: DUMMY_ID,
+        publicId: generatePublicId(),
         meetings: [],
         runs: [],
         timezone: timeZone,

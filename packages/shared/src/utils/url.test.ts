@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { setupDOM, teardownDOM } from "../__test/setup.js";
-import { base36ToUuid, decodeValue, encodeValue, parseSearchParams, stringifySearchParams, uuidToBase36 } from "./url.js";
+import { decodeValue, encodeValue, parseSearchParams, stringifySearchParams } from "./url.js";
 
 describe("encodeValue and decodeValue", () => {
     const testCases = [
@@ -313,41 +313,5 @@ describe("stringifySearchParams and parseSearchParams", () => {
             const parsedParams = parseSearchParams();
             expect(parsedParams).to.deep.equal(expected);
         });
-    });
-});
-
-describe("uuidToBase36 and base36ToUuid", () => {
-
-    it("converts a standard UUID to base36 and back to UUID correctly", () => {
-        const uuid = "123e4567-e89b-12d3-a456-426614174000";
-        const base36 = uuidToBase36(uuid);
-        const convertedUuid = base36ToUuid(base36);
-        expect(convertedUuid).to.equal(uuid);
-    });
-
-    it("handles a UUID with all zeros", () => {
-        const uuid = "00000000-0000-0000-0000-000000000000";
-        const base36 = uuidToBase36(uuid);
-        const convertedUuid = base36ToUuid(base36);
-        expect(convertedUuid).to.equal(uuid);
-    });
-
-    it("handles a UUID with maximal values", () => {
-        const uuid = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-        const base36 = uuidToBase36(uuid);
-        const convertedUuid = base36ToUuid(base36);
-        expect(convertedUuid).to.equal(uuid);
-    });
-
-    it("returns empty string when invalid UUID is input to uuidToBase36", () => {
-        const invalidUuid = "invalid-uuid-format";
-        const result = uuidToBase36(invalidUuid);
-        expect(result).to.equal("");
-    });
-
-    it("returns empty string when invalid base36 is input to base36ToUuid", () => {
-        const invalidBase36 = "invalid-base36-format";
-        const result = base36ToUuid(invalidBase36);
-        expect(result).to.equal("");
     });
 });

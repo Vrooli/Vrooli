@@ -39,3 +39,16 @@ export class CustomError extends Error {
         return { trace: this.trace, code: this.code };
     }
 }
+
+/**
+ * Creates a standard error instance for invalid user credentials or authentication failures.
+ * 
+ * Intentionally vague for security purposes during login/password reset flows.
+ * Generates a unique trace each time it's called.
+ * 
+ * @returns A new CustomError instance with code "InvalidCredentials" and trace "0062-xxxx".
+ */
+export function createInvalidCredentialsError(): CustomError {
+    // Pass the base trace code "0062" and the error code "InvalidCredentials"
+    return new CustomError("0062", "InvalidCredentials");
+}

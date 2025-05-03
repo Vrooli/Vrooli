@@ -7,7 +7,7 @@ import { SessionService } from "../auth/session.js";
 import { DbProvider } from "../db/provider.js";
 
 export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
-    id: generatePK().toString(),
+    id: generatePK(),
     handle: "test-user",
     lastLoginAttempt: null,
     logInAttempts: 0,
@@ -19,14 +19,12 @@ export const loggedInUserNoPremiumData: UserDataForPasswordAuth = {
     auths: [{
         id: generatePK(),
         provider: "Password",
-        hashed_password: "dummy-hash"
+        hashed_password: "dummy-hash",
     }],
     emails: [{
-        emailAddress: "test-user@example.com"
+        emailAddress: "test-user@example.com",
     }],
-    languages: [{
-        language: "en"
-    }],
+    languages: ["en"],
     premium: null,
     sessions: [],
 };
@@ -201,7 +199,7 @@ export async function mockApiSession(apiToken: string, permissions: Record<ApiKe
     const res = mockResponse();
 
     // Generate API token
-    await AuthTokensService.generateApiToken(res, apiToken, permissions, userData.id);
+    await AuthTokensService.generateApiToken(res, apiToken, permissions, userData.id.toString());
 
     // Transfer cookies from response to request to simulate a real browser flow
     req.cookies = (res as any).cookies;

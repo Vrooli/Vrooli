@@ -253,8 +253,8 @@ function buildApiUrl(originHost: string, requestPath: string): string {
     // Ensure path starts with a slash and remove trailing slashes
     const cleanPath = (requestPath.startsWith('/') ? requestPath : `/${requestPath}`).replace(/\/+$/, "");
     // Handle root explicitly if necessary, though unlikely for dynamic routes
-    if (cleanPath === "") return `https://${originHost}/api/v2/rest/`;
-    return `https://${originHost}/api/v2/rest${cleanPath}`;
+    if (cleanPath === "") return `https://${originHost}/api/v2/`;
+    return `https://${originHost}/api/v2${cleanPath}`;
 }
 
 // Helper to parse Accept-Language header (basic)

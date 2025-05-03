@@ -8,7 +8,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Notify } from "../../notify/notify.js";
-import { emitSocketEvent, roomHasOpenConnections } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { LlmTaskData, generateTaskExec } from "../../tasks/llm/converter.js";
 import { LlmServiceRegistry } from "../../tasks/llm/registry.js";
 import { generateResponseWithFallback } from "../../tasks/llm/service.js";
@@ -309,7 +309,7 @@ export async function doRunRoutine(data: RunRoutinePayload) {
 
     try {
         // Let the UI know that the task is Running
-        emitSocketEvent("runTask", runId, { runStatus: RunStatus.InProgress, runId, startedById, taskId } as any);
+        SocketService.get().emitSocketEvent("runTask", runId, { runStatus: RunStatus.InProgress, runId, startedById, taskId } as any);
         // Get the routine and run, in a way that throws an error if they don't exist or the user doesn't have permission
         const req = buildReq(userData);
         run = await readOneHelper<Run>({
@@ -1127,14 +1127,14 @@ export class ServerRunNotifier extends RunNotifier {
      * @returns "push" if the run has an active websocket connection, "websocket" otherwise
      */
     private getNotificationType(runId: string): "push" | "websocket" {
-        return roomHasOpenConnections(runId) ? "websocket" : "push";
+        return SocketService.get().roomHasOpenConnections(runId) ? "websocket" : "push";
     }
 
     public emitProgressUpdate(runId: string, payload: RunTaskInfo): void {
         const notificationType = this.getNotificationType(runId);
         // Only needed if run has active websocket connection
         if (notificationType === "websocket") {
-            emitSocketEvent("runTask", runId, payload);
+            SocketService.get().emitSocketEvent("runTask", runId, payload);
         }
     }
 
@@ -1142,7 +1142,7 @@ export class ServerRunNotifier extends RunNotifier {
         const notificationType = this.getNotificationType(runId);
         // Send through websocket if run has active connection
         if (notificationType === "websocket") {
-            emitSocketEvent("runTaskDecisionRequest", runId, decision);
+            SocketService.get().emitSocketEvent("runTaskDecisionRequest", runId, decision);
         }
         // Otherwise, send through push notification
         else {

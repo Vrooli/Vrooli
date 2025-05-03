@@ -1,7 +1,9 @@
+import { LINKS } from "../consts/ui.js";
+
 function findOne(one: string) {
     return {
         findOne: {
-            endpoint: `/${one}/:id`,
+            endpoint: `/${one}/:publicId`,
             method: "GET" as const,
         },
     };
@@ -51,15 +53,6 @@ function updateMany(many: string) {
         },
     };
 }
-
-// function deleteOne(one: string) {
-//     return {
-//         deleteOne: {
-//             endpoint: `/${one}/:id`,
-//             method: "DELETE" as const,
-//         },
-//     };
-// }
 
 function standardCRUD(one: string, many: string) {
     return {
@@ -137,9 +130,9 @@ export const endpointsAward = {
 
 export const endpointsBookmark = standardCRUD("bookmark", "bookmarks");
 
-export const endpointsBookmarkList = standardCRUD("bookmarkList", "bookmarkLists");
+export const endpointsBookmarkList = standardCRUD(LINKS.BookmarkList, "bookmarkLists");
 
-export const endpointsChat = standardCRUD("chat", "chats");
+export const endpointsChat = standardCRUD(LINKS.Chat, "chats");
 
 export const endpointsChatInvite = {
     ...standardCRUD("chatInvite", "chatInvites"),
@@ -218,14 +211,14 @@ export const endpointsFeed = {
 } as const;
 
 export const endpointsIssue = {
-    ...standardCRUD("issue", "issues"),
+    ...standardCRUD(LINKS.Issue, "issues"),
     closeOne: {
         endpoint: "/issue/:id/close",
         method: "PUT" as const,
     },
 } as const;
 
-export const endpointsMeeting = standardCRUD("meeting", "meetings");
+export const endpointsMeeting = standardCRUD(LINKS.Meeting, "meetings");
 
 export const endpointsMeetingInvite = {
     ...standardCRUD("meetingInvite", "meetingInvites"),
@@ -313,14 +306,14 @@ export const endpointsReaction = {
     ...createOne("react"),
 };
 
-export const endpointsReminder = standardCRUD("reminder", "reminders");
+export const endpointsReminder = standardCRUD(LINKS.Reminder, "reminders");
 
 export const endpointsReminderList = {
     ...createOne("reminderList"),
     ...updateOne("reminderList"),
 } as const;
 
-export const endpointsReport = standardCRUD("report", "reports");
+export const endpointsReport = standardCRUD(LINKS.Report, "reports");
 
 export const endpointsReportResponse = standardCRUD("reportResponse", "reportResponses");
 
@@ -329,17 +322,34 @@ export const endpointsReputationHistory = {
     ...findMany("reputationHistories"),
 } as const;
 
-export const endpointsResource = standardCRUD("resource", "resources");
+function resourceVersion(one: string) {
+    return {
+        endpoint: `/${one}/:publicId/v/:versionLabel`,
+        method: "GET" as const,
+    };
+}
+// There are several types of resources, but they all end up pointing to the same resource endpoints
+export const endpointsResource = {
+    ...standardCRUD("resource", "resources"),
+    findResourceVersion: resourceVersion("resource"),
+    findApiVersion: resourceVersion(LINKS.Api.replace("/", "")),
+    findDataConverterVersion: resourceVersion(LINKS.DataConverter.replace("/", "")),
+    findDataStructureVersion: resourceVersion(LINKS.DataStructure.replace("/", "")),
+    findNoteVersion: resourceVersion(LINKS.Note.replace("/", "")),
+    findProjectVersion: resourceVersion(LINKS.Project.replace("/", "")),
+    findPromptVersion: resourceVersion(LINKS.Prompt.replace("/", "")),
+    findRoutineMultiStepVersion: resourceVersion(LINKS.RoutineMultiStep.replace("/", "")),
+    findRoutineSingleStepVersion: resourceVersion(LINKS.RoutineSingleStep.replace("/", "")),
+    findSmartContractVersion: resourceVersion(LINKS.SmartContract.replace("/", "")),
+} as const;
 
-export const endpointsResourceVersion = standardCRUD("resourceVersion", "resourceVersions");
-
-export const endpointsRun = standardCRUD("run", "runs");
+export const endpointsRun = standardCRUD(LINKS.Run, "runs");
 
 export const endpointsRunIO = {
     ...findMany("run/io"),
 } as const;
 
-export const endpointsSchedule = standardCRUD("schedule", "schedules");
+export const endpointsSchedule = standardCRUD(LINKS.Schedule, "schedules");
 
 export const endpointsStatsResource = {
     ...findMany("stats/resource"),
@@ -378,7 +388,7 @@ export const endpointsTask = {
     },
 };
 
-export const endpointsTeam = standardCRUD("team", "teams");
+export const endpointsTeam = standardCRUD(LINKS.Team, "teams");
 
 export const endpointsTransfer = {
     ...findOne("transfer"),
@@ -407,7 +417,7 @@ export const endpointsTransfer = {
 };
 
 export const endpointsUser = {
-    ...findOne("user"),
+    ...findOne(LINKS.User),
     ...findMany("users"),
     profile: {
         endpoint: "/profile",

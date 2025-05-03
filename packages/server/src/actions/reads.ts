@@ -1,4 +1,4 @@
-import { ModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
+import { FindByIdInput, FindByPublicIdInput, FindVersionInput, ModelType, PageInfo, TimeFrame, ViewFor, camelCase, validatePK, validatePublicId } from "@local/shared";
 import { SessionService } from "../auth/session.js";
 import { combineQueries } from "../builders/combineQueries.js";
 import { InfoConverter, addSupplementalFields } from "../builders/infoConverter.js";
@@ -9,8 +9,6 @@ import { DbProvider } from "../db/provider.js";
 import { SqlBuilder } from "../db/sqlBuilder.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
-import { getIdFromHandle } from "../getters/getIdFromHandle.js";
-import { getLatestVersion } from "../getters/getLatestVersion.js";
 import { getSearchStringQuery } from "../getters/getSearchStringQuery.js";
 import { ModelMap } from "../models/base/index.js";
 import { ViewModelLogic } from "../models/base/types.js";
@@ -18,7 +16,6 @@ import { Searcher } from "../models/types.js";
 import { RecursivePartial } from "../types.js";
 import { SearchEmbeddingsCache } from "../utils/embeddings/cache.js";
 import { getEmbeddings } from "../utils/embeddings/getEmbeddings.js";
-import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
 import { SearchMap } from "../utils/searchMap.js";
 import { SortMap } from "../utils/sortMap.js";
 import { permissionsCheck } from "../validators/permissions.js";
@@ -37,6 +34,10 @@ export function getDesiredTake(take: unknown, trace?: string): number {
     return desiredTake;
 }
 
+const supportHandles: ModelType[] = [ModelType.Team, ModelType.User];
+const supportPublicIds: ModelType[] = [ModelType.Chat, ModelType.Issue, ModelType.Meeting, ModelType.Team, ModelType.Member, ModelType.PullRequest, ModelType.Report, ModelType.Resource, ModelType.ResourceVersion, ModelType.Schedule, ModelType.User];
+const supportVersionLabels: ModelType[] = [ModelType.ResourceVersion];
+
 /**
  * Helper function for reading one object in a single line
  * @returns GraphQL response object
@@ -49,44 +50,72 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
 }: ReadOneHelperProps): Promise<RecursivePartial<ObjectModel>> {
     const userData = SessionService.getUser(req);
     const model = ModelMap.get(objectType);
-    // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
-    // Between these, the possible fields are id, idRoot, handle, and handleRoot
-    if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
+    // Build where clause
+    const { id, publicId, versionLabel } = (input as FindByIdInput & FindByPublicIdInput & FindVersionInput);
+    let where: Record<string, any> = {};
+    // Only allow one publicId or id
+    // Check for publicId (sometimes it's a handle)
+    if (publicId && validatePublicId(publicId) && !publicId.startsWith("@") && supportPublicIds.includes(objectType as ModelType)) {
+        const selector = { publicId };
+        if (supportVersionLabels.includes(objectType as ModelType)) {
+            where.root = selector;
+        } else {
+            where = selector;
+        }
+    }
+    // Check for handle
+    else if (publicId && publicId.startsWith("@") && supportHandles.includes(objectType as ModelType)) {
+        const selector = { handle: publicId.slice(1) };
+        if (supportVersionLabels.includes(objectType as ModelType)) {
+            where.root = selector;
+        } else {
+            where = selector;
+        }
+    }
+    // Check for id
+    else if (validatePK(id)) {
+        const selector = { id: BigInt(id) };
+        if (supportVersionLabels.includes(objectType as ModelType)) {
+            where.root = selector;
+        } else {
+            where = selector;
+        }
+    }
+    console.log("where", where);
+    // Make sure we have enough information to find the object
+    if (Object.keys(where).length === 0) {
         throw new CustomError("0019", "IdOrHandleRequired");
+    }
+    // For versioned objects, we find the latest public version if no version label is provided
+    if (supportVersionLabels.includes(objectType as ModelType)) {
+        if (typeof versionLabel === "string" && versionLabel.length > 0) {
+            where.versionLabel = versionLabel;
+        } else {
+            where.isLatestPublic = true;
+        }
+    }
+
     // Partially convert info
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
-    // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
-    // To query the version, we must find the latest completed version associated with the root object.
-    let id: string | null | undefined;
-    if (input.idRoot || input.handleRoot) {
-        id = await getLatestVersion({ objectType: objectType as any, idRoot: input.idRoot, handleRoot: input.handleRoot });
-    }
-    // If using handle, find the id of the object with that handle
-    else if (input.handle) {
-        id = await getIdFromHandle({ handle: input.handle, objectType });
-    }
-    // Otherwise, use the id provided
-    else {
-        id = input.id;
-    }
-    if (!id)
-        throw new CustomError("0434", "NotFound", { objectType });
-    // Query for all authentication data
-    const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, userData ?? null);
-    if (Object.keys(authDataById).length === 0) {
-        throw new CustomError("0021", "NotFound", { id, objectType });
-    }
-    // Check permissions
-    await permissionsCheck(authDataById, { ["Read"]: [id as string] }, {}, userData);
+    console.log("partialInfo", JSON.stringify(partialInfo));
+
     // Get the Prisma object
     let object: any;
     try {
-        object = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo) });
+        object = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findUnique({ where, ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo) });
         if (!object)
             throw new CustomError("0022", "NotFound", { objectType });
     } catch (error) {
         throw new CustomError("0435", "NotFound", { objectType, error });
     }
+
+    // Check permissions after fetching the object since we have the ID
+    if (!object || !object.id) {
+        throw new CustomError("0022", "NotFound", { objectType });
+    }
+    const authDataById = { [object.id]: { __typename: objectType as ModelType, ...object } };
+    await permissionsCheck(authDataById, { ["Read"]: [object.id as string] }, {}, userData);
+
     // Return formatted for GraphQL
     const formatted = InfoConverter.get().fromDbToApi(object, partialInfo) as RecursivePartial<ObjectModel>;
     // If logged in and object tracks view counts, add a view

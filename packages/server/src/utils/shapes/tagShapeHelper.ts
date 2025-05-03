@@ -1,21 +1,15 @@
-import { uuidValidate } from "@local/shared";
+import { validatePK } from "@local/shared";
 import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
 import { RelationshipType } from "../../builders/types.js";
 
 // Types of objects which have tags
-type TaggedObjectType = "Api" | "Code" | "Note" | "Post" | "Project" | "Routine" | "Standard" | "Team";
+type TaggedObjectType = "Resource" | "Team";
 
 /**
  * Maps type of a tag's parent with the unique field
  */
 const parentMapper: { [key in TaggedObjectType]: string } = {
-    "Api": "api_tags_taggedid_tagTag_unique",
-    "Code": "code_tags_taggedid_tagTag_unique",
-    "Note": "note_tags_taggedid_tagTag_unique",
-    "Post": "post_tags_taggedid_tagTag_unique",
-    "Project": "project_tags_taggedid_tagTag_unique",
-    "Routine": "routine_tags_taggedid_tagTag_unique",
-    "Standard": "standard_tags_taggedid_tagTag_unique",
+    "Resource": "resource_tags_taggedid_tagTag_unique",
     "Team": "team_tags_taggedid_tagTag_unique",
 };
 
@@ -41,7 +35,7 @@ export async function tagShapeHelper<
     // Make sure that all tag relations are objects instead of strings
     const keys = ["Create", "Connect", "Delete", "Disconnect", "Update"].map(op => `${relation}${op}` as string);
     function tagsToObject(tags: (string | object)[]) {
-        return tags.map(t => typeof t === "string" ? uuidValidate(t) ? { id: t } : { tag: t } : t);
+        return tags.map(t => typeof t === "string" ? validatePK(t) ? { id: t } : { tag: t } : t);
     }
     keys.forEach(key => {
         if (Array.isArray(data[key])) {

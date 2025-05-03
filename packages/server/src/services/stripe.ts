@@ -6,7 +6,7 @@ import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { withRedis } from "../redisConn.js";
 import { UI_URL } from "../server.js";
-import { emitSocketEvent } from "../sockets/events.js";
+import { SocketService } from "../sockets/io.js";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue.js";
 import { ResponseService } from "../utils/response.js";
 
@@ -433,7 +433,7 @@ export async function processPayment(
     }) : await DbProvider.get().payment.create({
         data: {
             ...data,
-            user: userId ? { connect: { id: userId } } : undefined,
+            user: userId ? { connect: { id: BigInt(userId) } } : undefined,
         },
         select: paymentSelect,
     });
@@ -445,7 +445,7 @@ export async function processPayment(
     if (payment.paymentType === PaymentType.Credits) {
         const creditsToAward = (BigInt(payment.amount) * API_CREDITS_MULTIPLIER);
         await DbProvider.get().user.update({
-            where: { id: payment.user.id },
+            where: { id: BigInt(payment.user.id) },
             data: {
                 premium: {
                     upsert: {
@@ -500,7 +500,7 @@ export async function processPayment(
                 },
             });
         }
-        emitSocketEvent("apiCredits", payment.user.id, { credits: API_CREDITS_PREMIUM + "" });
+        SocketService.get().emitSocketEvent("apiCredits", payment.user.id.toString(), { credits: API_CREDITS_PREMIUM + "" });
     }
     // Send thank you notification
     for (const email of payment.user.emails) {
@@ -1232,7 +1232,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
                         data: {
                             ...paymentData,
                             description: "Credits Purchase",
-                            user: { connect: { id: customerInfo.userId } },
+                            user: { connect: { id: BigInt(customerInfo.userId) } },
                         },
                     }));
                 }
@@ -1245,7 +1245,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
         // If there are credits to award, award them and upsert payments in the database
         if (creditsToAward > 0) {
             const updateUserCredits = DbProvider.get().user.update({
-                where: { id: userId },
+                where: { id: BigInt(userId) },
                 data: {
                     premium: {
                         upsert: {

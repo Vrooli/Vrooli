@@ -10,7 +10,7 @@ import { subscribableMapper } from "../events/subscriber.js";
 import { ModelMap } from "../models/base/index.js";
 import { PushDeviceModel } from "../models/base/pushDevice.js";
 import { withRedis } from "../redisConn.js";
-import { emitSocketEvent, roomHasOpenConnections } from "../sockets/events.js";
+import { SocketService } from "../sockets/io.js";
 import { sendMail } from "../tasks/email/queue.js";
 import { sendPush } from "../tasks/push/queue.js";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
@@ -210,11 +210,11 @@ async function push({
 
             // Emit via WebSocket for connected users
             for (const user of users) {
-                if (roomHasOpenConnections(user.userId)) {
+                if (SocketService.get().roomHasOpenConnections(user.userId)) {
                     // Find the notification we just created for this user
                     const notification = notificationsData.find(n => n.userId.toString() === user.userId);
                     if (notification) {
-                        emitSocketEvent("notification", user.userId, {
+                        SocketService.get().emitSocketEvent("notification", user.userId, {
                             ...notification,
                             id: notification.id.toString(),
                             __typename: "Notification",

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteStatus, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageParent, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantUpdateInput, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput, Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput, CommentedOn, Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput, Member, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, MemberUpdateInput, ProfileUpdateInput, PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderUpdateInput, Report, ReportCreateInput, ReportFor, ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput, ReportUpdateInput, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceVersion, ResourceVersionCreateInput, ResourceVersionRelation, ResourceVersionRelationCreateInput, ResourceVersionRelationUpdateInput, ResourceVersionTranslation, ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput, ResourceVersionUpdateInput, Run, RunCreateInput, RunIO, RunIOCreateInput, RunIOUpdateInput, RunStep, RunStepCreateInput, RunStepUpdateInput, RunUpdateInput, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleUpdateInput, Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput, Team, TeamCreateInput, TeamTranslation, TeamTranslationCreateInput, TeamTranslationUpdateInput, TeamUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../api/types.js";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteStatus, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageParent, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantUpdateInput, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput, Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput, CommentedOn, Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput, Member, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, MemberUpdateInput, ProfileUpdateInput, PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderUpdateInput, Report, ReportCreateInput, ReportFor, ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput, ReportUpdateInput, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceVersion, ResourceVersionCreateInput, ResourceVersionRelation, ResourceVersionRelationCreateInput, ResourceVersionRelationUpdateInput, ResourceVersionTranslation, ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput, ResourceVersionUpdateInput, Run, RunCreateInput, RunIO, RunIOCreateInput, RunIOUpdateInput, RunStep, RunStepCreateInput, RunStepUpdateInput, RunUpdateInput, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleUpdateInput, Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput, Team, TeamCreateInput, TeamTranslation, TeamTranslationCreateInput, TeamTranslationUpdateInput, TeamUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../api/types.js";
 import { CanConnect, ShapeModel } from "../../consts/commonTypes.js";
 import { DUMMY_ID } from "../../id/snowflake.js";
 import { LlmModel } from "../configs/bot.js";
@@ -177,11 +177,8 @@ export const shapeChatInvite: ShapeModel<ChatInviteShape, ChatInviteCreateInput,
     }),
 };
 
-export type ChatMessageTranslationShape = Pick<ChatMessageTranslation, "id" | "language" | "text"> & {
-    __typename?: "ChatMessageTranslation";
-}
 export type ChatMessageStatus = "unsent" | "editing" | "sending" | "sent" | "failed";
-export type ChatMessageShape = Pick<ChatMessage, "id" | "versionIndex"> & {
+export type ChatMessageShape = Pick<ChatMessage, "id" | "language" | "text" | "versionIndex"> & {
     __typename: "ChatMessage";
     createdAt: string; // Only used by the UI
     updatedAt: string; // Only used by the UI
@@ -192,24 +189,17 @@ export type ChatMessageShape = Pick<ChatMessage, "id" | "versionIndex"> & {
     parent?: CanConnect<ChatMessageParent> | null;
     parentId?: string | null;
     reactionSummaries: ReactionSummary[]; // Only used by the UI
-    translations: ChatMessageTranslationShape[];
     user?: CanConnect<User> | null;
     you?: ChatMessageYou; // Only used by the UI
 }
-export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput> = {
-    create: (d) => createPrims(d, "id", "language", "text"),
-    update: (o, u) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "text")),
-};
 export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInput, ChatMessageUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "versionIndex"),
+        ...createPrims(d, "id", "language", "text", "versionIndex"),
         ...createRel(d, "chat", ["Connect"], "one"),
-        ...createRel(d, "translations", ["Create"], "many", shapeChatMessageTranslation),
         ...createRel(d, "user", ["Connect"], "one"),
     }),
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id"),
-        ...updateTransRel(o, u, shapeChatMessageTranslation),
+        ...updatePrims(o, u, "id", "text"),
     }),
 };
 

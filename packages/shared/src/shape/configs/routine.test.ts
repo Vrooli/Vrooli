@@ -2,8 +2,8 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { LlmTask } from "../../api/types.js";
-import { uuidValidate } from "../../id/uuid.js";
-import { type SubroutineIOMapping } from "../types.js";
+import { validatePublicId } from "../../id/publicId.js";
+import { type SubroutineIOMapping } from "../../run/types.js";
 import { type CodeVersionInputDefinition } from "./code.js";
 import { CallDataActionConfig, CallDataCodeConfig } from "./routine.js";
 
@@ -65,55 +65,55 @@ describe("CallDataActionConfig", () => {
             describe("valid test cases", () => {
                 it("should replace string input placeholders", () => {
                     const str = "{{input.routineInputA}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(ioMapping.inputs.routineInputA.value);
                 });
 
                 it("should replace numeric input placeholders", () => {
                     const str = "{{input.routineInputC}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(ioMapping.inputs.routineInputC.value);
                 });
 
                 it("should replace boolean input placeholders", () => {
                     const str = "{{input.routineInputD}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(ioMapping.inputs.routineInputD.value);
                 });
 
                 it("should replace array input placeholders", () => {
                     const str = "{{input.routineInputF}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.deep.equal(ioMapping.inputs.routineInputF.value);
                 });
 
                 it("should replace object input placeholders", () => {
                     const str = "{{input.routineInputH}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.deep.equal(ioMapping.inputs.routineInputH.value);
                 });
 
                 it("should replace date input placeholders", () => {
                     const str = "{{input.routineInputJ}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(ioMapping.inputs.routineInputJ.value);
                 });
 
                 it("should replace null input placeholders", () => {
                     const str = "{{input.routineInputL}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(ioMapping.inputs.routineInputL.value);
                 });
 
                 it("should handle multiple placeholders in a single string", () => {
                     const str = "A: {{input.routineInputA}}, B: {{input.routineInputC}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(`A: ${ioMapping.inputs.routineInputA.value}, B: ${ioMapping.inputs.routineInputC.value}`);
                 });
 
                 it("should leave static strings unchanged", () => {
                     const str = "static string";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal(str);
                 });
             });
@@ -121,7 +121,7 @@ describe("CallDataActionConfig", () => {
             describe("invalid test cases", () => {
                 it("should throw an error for missing input", () => {
                     const str = "{{input.missingInput}}";
-                    expect(() => config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} })).to.throw(
+                    expect(() => config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} })).to.throw(
                         "Input \"missingInput\" not found",
                     );
                 });
@@ -132,32 +132,32 @@ describe("CallDataActionConfig", () => {
             describe("valid test cases", () => {
                 it("should replace userLanguage placeholder with the first language", () => {
                     const str = "{{userLanguage}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.equal("en");
                 });
 
                 it("should replace userLanguages placeholder with the full language array", () => {
                     const str = "{{userLanguages}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.deep.equal(["en", "es"]);
                 });
 
                 it("should replace now() placeholder with a valid ISO date string", () => {
                     const str = "{{now()}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     const asDate = new Date(result as string);
                     expect(asDate.toISOString()).to.equal(result);
                 });
 
-                it("should replace uuid() placeholder with a valid UUID", () => {
-                    const str = "{{uuid()}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
-                    expect(uuidValidate(result)).to.be.true;
+                it("should replace nanoid() placeholder with a valid id", () => {
+                    const str = "{{nanoid()}}";
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
+                    expect(validatePublicId(result)).to.be.true;
                 });
 
-                it("should replace uuid(seed) placeholder with consistent UUID for the same seed", () => {
-                    const str = "{{uuid(123)}}|{{uuid(123)}}|{{uuid(456)}}|{{uuid(456)}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                it("should replace nanoid(seed) placeholder with consistent id for the same seed", () => {
+                    const str = "{{nanoid(123)}}|{{nanoid(123)}}|{{nanoid(456)}}|{{nanoid(456)}}";
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     const ids = (result as string).split("|");
                     expect(ids[0]).to.equal(ids[1]);
                     expect(ids[2]).to.equal(ids[3]);
@@ -165,7 +165,7 @@ describe("CallDataActionConfig", () => {
 
                 it("should replace random() placeholder with a random number", () => {
                     const str = "{{random()}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     // Should be a number from 0 to 1
                     expect(result).to.be.a("number");
                     expect(result).to.be.within(0, 1);
@@ -173,7 +173,7 @@ describe("CallDataActionConfig", () => {
 
                 it("should replace random(min, max) placeholder with a number within the specified range", () => {
                     const str = "{{random(1, 10)}}";
-                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                    const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                     expect(result).to.be.a("number");
                     expect(result).to.be.within(1, 10);
                 });
@@ -182,7 +182,7 @@ describe("CallDataActionConfig", () => {
             describe("invalid test cases", () => {
                 it("should throw an error for invalid arguments in random(min, max)", () => {
                     const str = "{{random(abc, 10)}}";
-                    expect(() => config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} })).to.throw();
+                    expect(() => config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} })).to.throw();
                 });
             });
         });
@@ -190,12 +190,12 @@ describe("CallDataActionConfig", () => {
         describe("Error Handling", () => {
             it("should throw an error for unknown placeholders", () => {
                 const str = "{{unknown}}";
-                expect(() => config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} })).to.throw();
+                expect(() => config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} })).to.throw();
             });
 
             it("should not transform malformed placeholders", () => {
                 const str = "{{input.routineInputA";
-                const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededUUIDs: {} });
+                const result = config["replacePlaceholders"](str, { inputs: ioMapping.inputs, userLanguages, seededIds: {} });
                 expect(result).to.equal(str);
             });
         });
@@ -235,23 +235,23 @@ describe("CallDataActionConfig", () => {
         });
 
         describe("Special Function Placeholders", () => {
-            it("should replace {{uuid()}} with a valid UUID", () => {
-                config.schema.inputTemplate = "{\"id\": \"{{uuid()}}\"}";
+            it("should replace {{nanoid()}} with a valid id", () => {
+                config.schema.inputTemplate = "{\"id\": \"{{nanoid()}}\"}";
                 const result = config.buildTaskInput(ioMapping, userLanguages);
                 expect(result).to.have.property("id");
-                expect(uuidValidate(result.id as string)).to.be.true;
+                expect(validatePublicId(result.id as string)).to.be.true;
             });
 
-            it("should generate consistent UUIDs for the same seed across the template", () => {
-                config.schema.inputTemplate = "{\"id1\": \"{{uuid(123)}}\", \"child\": {\"id2\": \"{{uuid(123)}}\", \"id3\": \"{{uuid(456)}}\"}}";
+            it("should generate consistent ids for the same seed across the template", () => {
+                config.schema.inputTemplate = "{\"id1\": \"{{nanoid(123)}}\", \"child\": {\"id2\": \"{{nanoid(123)}}\", \"id3\": \"{{nanoid(456)}}\"}}";
                 const result = config.buildTaskInput(ioMapping, userLanguages);
                 // @ts-ignore Testing runtime scenario
                 expect(result.id1).to.equal(result.child.id2);
                 // @ts-ignore Testing runtime scenario
                 expect(result.id1).to.not.equal(result.child.id3);
-                expect(uuidValidate(result.id1 as string)).to.be.true;
+                expect(validatePublicId(result.id1 as string)).to.be.true;
                 // @ts-ignore Testing runtime scenario
-                expect(uuidValidate(result.child.id3 as string)).to.be.true;
+                expect(validatePublicId(result.child.id3 as string)).to.be.true;
             });
 
             it("should replace {{userLanguage}} with the first language", () => {
@@ -363,7 +363,7 @@ describe("CallDataActionConfig", () => {
         describe("Complex Cases", () => {
             it("should handle complex nested structures with various placeholders", () => {
                 config.schema.inputTemplate = `{
-                    "id": "{{uuid()}}",
+                    "id": "{{nanoid()}}",
                     "user": {
                         "name": "{{input.routineInputA}}",
                         "languages": "{{userLanguages}}",
@@ -376,9 +376,9 @@ describe("CallDataActionConfig", () => {
                 }`;
                 const result = config.buildTaskInput(ioMapping, userLanguages);
 
-                // Check id is a string and a valid UUID
+                // Check id is a valid string
                 expect(result).to.have.property("id").that.is.a("string");
-                expect(uuidValidate(result.id)).to.be.true;
+                expect(validatePublicId(result.id)).to.be.true;
 
                 // Check user object
                 expect(result).to.have.property("user").that.is.an("object");

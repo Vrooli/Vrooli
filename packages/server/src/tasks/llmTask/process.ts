@@ -1,7 +1,7 @@
 import { AITaskInfo, LlmTask, ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { generateTaskExec } from "../llm/converter.js";
 import { LlmTaskProcessPayload, changeLlmTaskStatus } from "./queue.js";
 
@@ -22,7 +22,7 @@ export async function executeLlmTask({
     try {
         // Notify UI that command is being processed
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ taskId: taskInfo.taskId, status: "Running" }] });
+            SocketService.get().emitSocketEvent("llmTasks", chatId, { updates: [{ taskId: taskInfo.taskId, status: "Running" }] });
         }
 
         // Disallow "Start" task
@@ -48,7 +48,7 @@ export async function executeLlmTask({
         status: success ? "Completed" as const : "Failed" as const,
     };
     if (chatId && taskInfo !== null) {
-        emitSocketEvent("llmTasks", chatId, { tasks: [result] });
+        SocketService.get().emitSocketEvent("llmTasks", chatId, { tasks: [result] });
     }
     await changeLlmTaskStatus(taskInfo.taskId, result.status, userData.id);
     return result;

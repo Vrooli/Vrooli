@@ -1,7 +1,8 @@
-import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, DEFAULT_LANGUAGE, MaxObjects, openAIServiceInfo, uuidValidate } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, DEFAULT_LANGUAGE, MaxObjects, openAIServiceInfo, validatePK } from "@local/shared";
 import { Request } from "express";
 import { SessionService } from "../../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
+import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { PartialApiInfo } from "../../builders/types.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -9,7 +10,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context.js";
 import { requestBotResponse } from "../../tasks/llm/queue.js";
 import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, PreMapChatData, PreMapMessageData, PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData, prepareChatMessageOperations } from "../../utils/chat.js";
@@ -260,8 +261,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 return {
                     id: BigInt(data.id),
                     language: userData.languages[0] ?? DEFAULT_LANGUAGE,
-                    parent: parentId ? { connect: { id: parentId } } : undefined,
-                    user: { connect: { id: data.userConnect ?? userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
+                    parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
+                    user: { connect: { id: BigInt(data.userConnect ?? userData.id) } }, // Can create messages for bots. This is authenticated in the "pre" function.
                     text: data.text,
                     versionIndex: data.versionIndex,
                     chat: await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "messages", data, userData, ...rest }),
@@ -273,8 +274,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 const messageData = preMap?.messageData[data.id] as PreMapMessageDataUpdate | undefined;
                 const parentId = messageData?.parentId;
                 return {
-                    parent: parentId ? { connect: { id: parentId } } : undefined,
-                    text: data.text,
+                    parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
+                    text: noNull(data.text),
                 };
             },
         },
@@ -299,7 +300,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     }
                     // Add message to cache
                     const model = additionalData.model || openAIServiceInfo.defaultModel;
-                    await (new ChatContextManager(model, userData.languages)).addMessage(messageData);
+                    await (new ChatContextManager(model)).addMessage(messageData);
                     // Common trigger logic
                     await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
@@ -322,7 +323,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     const botsToRespond = determineRespondingBots(messageData.text, messageData.userId, chat, bots, userData.id);
                     if (botsToRespond.length) {
                         // Send typing indicator while bots are responding
-                        emitSocketEvent("typing", chatId, { starting: botsToRespond });
+                        SocketService.get().emitSocketEvent("typing", chatId, { starting: botsToRespond });
                         const task = additionalData.task || "Start";
                         const taskContexts = Array.isArray(additionalData.taskContexts) ? additionalData.taskContexts : [];
                         // For each bot that should respond, request bot response
@@ -358,7 +359,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     const messageData = preMapMessageData[objectId] as PreMapMessageDataUpdate | undefined;
                     if (messageData) {
                         const model = additionalData.model || openAIServiceInfo.defaultModel;
-                        await (new ChatContextManager(model, userData.languages)).editMessage(messageData);
+                        await (new ChatContextManager(model)).editMessage(messageData);
                     }
                     //TODO should probably call determineRespondingBots and requestBotResponse here as well
                     const chatMessage = resultsById[objectId] as ChatMessage | undefined;
@@ -407,7 +408,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             const { chatId, startId: inputStartId, take: takeInput, excludeUp, excludeDown } = input;
 
             // --- Input Validation --- 
-            if (!chatId || !uuidValidate(chatId)) { // Validate chatId
+            if (!chatId || !validatePK(chatId)) { // Validate chatId
                 throw new CustomError("0531", "InvalidArgs", { input, reason: "Invalid or missing chatId" });
             }
 
@@ -425,7 +426,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             }
             await permissionsCheck({ [chatId]: chatAuthDataById[chatId] }, { ["Read"]: [chatId] }, {}, userData);
 
-            if (inputStartId && uuidValidate(inputStartId)) {
+            if (inputStartId && validatePK(inputStartId)) {
                 startId = inputStartId;
                 // Check permission on the provided start message
                 const startMsgAuthDataById = await getAuthenticatedData({ "ChatMessage": [startId] }, userData ?? null);

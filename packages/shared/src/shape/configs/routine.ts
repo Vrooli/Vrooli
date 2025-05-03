@@ -1,12 +1,12 @@
 import i18next from "i18next";
-import { LlmTask, ResourceSubType, type ResourceVersion } from "../../api/types.js";
+import { LlmTask, ResourceSubType, StartLlmTaskInput, type ResourceVersion } from "../../api/types.js";
 import { HttpMethod } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { InputType } from "../../consts/model.js";
 import { DEFAULT_LANGUAGE } from "../../consts/ui.js";
 import { type FormInputBase, type FormSchema } from "../../forms/types.js";
-import { generatePKString } from "../../id/snowflake.js";
-import { BotStyle, Id, type SubroutineIOMapping } from "../../run/types.js";
+import { nanoid } from "../../id/publicId.js";
+import { BotStyle, type SubroutineIOMapping } from "../../run/types.js";
 import { getDotNotationValue } from "../../utils/objects.js";
 import { BaseConfig } from "./baseConfig.js";
 import { type LlmModel } from "./bot.js";
@@ -171,7 +171,7 @@ export type ConfigCallDataGenerate = {
     /**
      * The bot to use for the LLM.
      */
-    respondingBot?: { id?: Id, publicId?: string, handle?: string } | null;
+    respondingBot?: StartLlmTaskInput["respondingBot"] | null;
 };
 
 /**
@@ -564,7 +564,7 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
 type TemplateConfig = {
     inputs: SubroutineIOMapping["inputs"];
     userLanguages: string[];
-    seededUUIDs: Record<string, string>;
+    seededIds: Record<string, string>;
 };
 
 export class CallDataActionConfig {
@@ -578,7 +578,7 @@ export class CallDataActionConfig {
 
     private getPlaceholderValue(
         placeholder: string,
-        { inputs, userLanguages, seededUUIDs }: TemplateConfig,
+        { inputs, userLanguages, seededIds }: TemplateConfig,
     ): unknown {
         // Handle routine inputs: input.routineInputName
         if (placeholder.startsWith("input.")) {
@@ -600,20 +600,20 @@ export class CallDataActionConfig {
                 return new Date().toISOString();
         }
 
-        // Handle generatePrimaryKey()
-        if (placeholder.startsWith("generatePrimaryKey")) {
+        // Handle nanoid()
+        if (placeholder.startsWith("nanoid")) {
             // Check if there are any arguments
-            const args = placeholder.slice("generatePrimaryKey(".length, -")".length).trim();
+            const args = placeholder.slice("nanoid(".length, -")".length).trim();
             if (args) {
-                const seededId = seededUUIDs[args];
+                const seededId = seededIds[args];
                 if (seededId) {
                     return seededId;
                 }
-                const id = generatePKString();
-                seededUUIDs[args] = id;
+                const id = nanoid();
+                seededIds[args] = id;
                 return id;
             }
-            return generatePKString();
+            return nanoid();
         }
 
         // Handle random()
@@ -697,7 +697,7 @@ export class CallDataActionConfig {
         const config: TemplateConfig = {
             inputs: ioMapping.inputs,
             userLanguages,
-            seededUUIDs: {},
+            seededIds: {},
         };
 
         // Parse the inputTemplate string into a JavaScript object

@@ -2,7 +2,7 @@ import { AwardCategory, BookmarkFor, ChatMessage, CopyType, IssueStatus, ModelTy
 import { PasswordAuthService } from "../auth/email.js";
 import { DbProvider } from "../db/provider.js";
 import { Notify, isObjectSubscribable } from "../notify/notify.js";
-import { emitSocketEvent } from "../sockets/events.js";
+import { SocketService } from "../sockets/io.js";
 import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat.js";
 import { Award, objectAwardCategory } from "./awards.js";
 import { logger } from "./logger.js";
@@ -38,9 +38,9 @@ type Owner = { __typename: "User" | "Team", id: string };
  */
 export function Trigger(languages: string[] | undefined) {
     return {
-        acountNew: async (userId: string, emailAddress?: string) => {
+        accountNew: async (userId: string, userPublicId: string, emailAddress?: string) => {
             // Send a welcome/verification email (if not created with wallet)
-            if (emailAddress) await PasswordAuthService.setupEmailVerificationCode(emailAddress, userId, languages);
+            if (emailAddress) await PasswordAuthService.setupEmailVerificationCode(emailAddress, userId, userPublicId, languages);
             // Give the user an award
             Award(userId, languages).update("AccountNew", 1);
         },
@@ -59,7 +59,7 @@ export function Trigger(languages: string[] | undefined) {
             message: ChatMessage,
         }) => {
             Notify(languages).pushMessageReceived(messageId, senderId).toChatParticipants(chatId, [senderId, excludeUserId]);
-            emitSocketEvent("messages", chatId, { added: [message] });
+            SocketService.get().emitSocketEvent("messages", chatId, { added: [message] });
         },
         chatMessageUpdated: async ({
             data,
@@ -69,7 +69,7 @@ export function Trigger(languages: string[] | undefined) {
             message: ChatMessage,
         }) => {
             if (data.chatId) {
-                emitSocketEvent("messages", data.chatId, { updated: [message] });
+                SocketService.get().emitSocketEvent("messages", data.chatId, { updated: [message] });
             } else {
                 logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
             }
@@ -80,7 +80,7 @@ export function Trigger(languages: string[] | undefined) {
             data: Pick<PreMapMessageDataDelete, "chatId" | "messageId">,
         }) => {
             if (data.chatId) {
-                emitSocketEvent("messages", data.chatId, { removed: [data.messageId] });
+                SocketService.get().emitSocketEvent("messages", data.chatId, { removed: [data.messageId] });
             } else {
                 logger.error("Could not send socket event for ChatMessage}", { trace: "0497", data });
             }

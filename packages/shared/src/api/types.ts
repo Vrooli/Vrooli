@@ -411,6 +411,7 @@ export type ChatInviteYou = {
 export type ChatMessage = DbObject<"ChatMessage"> & {
     chat: Chat;
     createdAt: Scalars["Date"];
+    language: Scalars["String"];
     parent?: Maybe<ChatMessageParent>;
     reactionSummaries: Array<ReactionSummary>;
     reports: Array<Report>;
@@ -427,6 +428,7 @@ export type ChatMessage = DbObject<"ChatMessage"> & {
 export type ChatMessageCreateInput = {
     chatConnect: Scalars["ID"];
     id: Scalars["ID"];
+    language: Scalars["String"];
     parentConnect?: InputMaybe<Scalars["ID"]>;
     text: Scalars["String"];
     userConnect: Scalars["ID"];
@@ -803,7 +805,8 @@ export type EmailRequestPasswordChangeInput = {
 
 export type EmailResetPasswordInput = {
     code: Scalars["String"];
-    id: Scalars["ID"];
+    id?: InputMaybe<Scalars["ID"]>;
+    publicId?: InputMaybe<Scalars["String"]>;
     newPassword: Scalars["String"];
 };
 
@@ -820,15 +823,13 @@ export type FindByIdInput = {
     id: Scalars["ID"];
 };
 
-export type FindByIdOrHandleInput = {
-    handle?: InputMaybe<Scalars["String"]>;
-    id?: InputMaybe<Scalars["ID"]>;
+export type FindByPublicIdInput = {
+    publicId: Scalars["String"];
 };
 
 export type FindVersionInput = {
-    handleRoot?: InputMaybe<Scalars["String"]>;
-    id?: InputMaybe<Scalars["ID"]>;
-    idRoot?: InputMaybe<Scalars["ID"]>;
+    publicId: Scalars["String"];
+    versionLabel?: InputMaybe<Scalars["String"]>;
 };
 
 export enum ModelType {
@@ -2795,6 +2796,7 @@ export type SessionUser = {
     languages: Array<Scalars["String"]>;
     name?: Maybe<Scalars["String"]>;
     profileImage?: Maybe<Scalars["String"]>;
+    publicId: Scalars["String"];
     session: SessionUserSession;
     theme?: Maybe<Scalars["String"]>;
     updatedAt: Scalars["Date"];
@@ -2810,7 +2812,7 @@ export type StartLlmTaskInput = {
     chatId: Scalars["ID"];
     model: string;
     parentId?: InputMaybe<Scalars["ID"]>;
-    respondingBotId: Scalars["ID"];
+    respondingBot: { id?: string, publicId?: string, handle?: string };
     shouldNotRunTasks: Scalars["Boolean"];
     task: LlmTask;
     taskContexts: Array<TaskContextInfoInput>;
@@ -3285,18 +3287,6 @@ export type TransferYou = {
     __typename: "TransferYou";
     canDelete: Scalars["Boolean"];
     canUpdate: Scalars["Boolean"];
-};
-
-export type Translate = {
-    __typename: "Translate";
-    fields: Scalars["String"];
-    language: Scalars["String"];
-};
-
-export type TranslateInput = {
-    fields: Scalars["String"];
-    languageSource: Scalars["String"];
-    languageTarget: Scalars["String"];
 };
 
 export type User = DbObject<"User"> & {

@@ -1,136 +1,151 @@
 /**
  * Snowflake ID implementation
- * 
- * A 64-bit time-ordered distributed ID generator.
- * This implementation is based on Twitter's Snowflake ID.
- * 
- * Consists of:
- * - timestamp (41 bits) - milliseconds since the epoch
- * - worker ID (10 bits) - allows for 1024 different worker nodes
- * - sequence (12 bits) - allows for 4096 IDs per millisecond per worker
- * 
- * The implementation works well for distributed systems because worker IDs
- * prevent collisions across different nodes without requiring database coordination.
+ *
+ * A 64‑bit, time‑ordered, distributed‑friendly ID generator
+ * inspired by Twitter Snowflake.
+ *
+ * Layout (left → right):
+ * ┌──────────41 bits───────────┬────10 bits────┬───12 bits───┐
+ * │  milliseconds since epoch  │   worker ID   │   sequence   │
+ * └────────────────────────────┴───────────────┴──────────────┘
+ *
+ * • Epoch: 2021‑01‑01 00:00:00 UTC
+ * • 1024 distinct workers per deployment
+ * • 4096 IDs / ms / worker
+ *
+ * In production you **must** call `setWorkerId()` with a stable
+ * value (0‑1023) unique to the node / process / shard.
  */
 
+// ─────────────────────────────────────────────────────────────
 // Constants
-const EPOCH = 1609459200000; // Custom epoch (Jan 1, 2021 UTC)
+// ─────────────────────────────────────────────────────────────
+const EPOCH = 1609459200000;                     // Jan 1 2021 UTC
 const WORKER_ID_BITS = 10;
 const SEQUENCE_BITS = 12;
-const MAX_WORKER_ID = -1 ^ (-1 << WORKER_ID_BITS); // 1023
-const MAX_SEQUENCE = -1 ^ (-1 << SEQUENCE_BITS); // 4095
-const TIMESTAMP_LEFT_SHIFT = WORKER_ID_BITS + SEQUENCE_BITS; // 22
-const WORKER_ID_SHIFT = SEQUENCE_BITS; // 12
-const RANDOM_WORKER_ID_MAX = 900; // Maximum random portion of worker ID
-const BIGINT_BITS_COUNT = 64; // Number of bits in a BigInt for Snowflake
 
-// Default workerId based on a combination of process ID and a random value
-// This should be overridden in production with a stable worker ID
-let workerId = (process.pid % 100) + Math.floor(Math.random() * RANDOM_WORKER_ID_MAX);
+const MAX_WORKER_ID = (1 << WORKER_ID_BITS) - 1; // 1023
+const MAX_SEQUENCE = (1 << SEQUENCE_BITS) - 1; // 4095
+
+const TIMESTAMP_LEFT_SHIFT = WORKER_ID_BITS + SEQUENCE_BITS; // 22
+const WORKER_ID_SHIFT = SEQUENCE_BITS;                  // 12
+
+const BIGINT_64_MAX = (1n << 64n) - 1n;                      // 2⁶⁴−1
+
+// ─────────────────────────────────────────────────────────────
+// Worker‑ID initialisation (safe for Node *and* browser)
+// ─────────────────────────────────────────────────────────────
+
+// Helper: pseudo‑PID when `process.pid` is unavailable (browser)
+function getDefaultPid(): number {
+    if (typeof process !== "undefined" && typeof process.pid === "number") {
+        return process.pid;
+    }
+    // Browser / non‑Node: pick a random 0‑999 for dev convenience
+    return Math.floor(Math.random() * 1_000);
+}
+
+/**
+ * Default worker ID:
+ *   • low 2 digits of (real PID OR pseudo‑PID)  +
+ *   • random 0‑899  → gives an easy‑to‑spot dev pattern
+ *
+ * *Do not rely on this in production.*
+ */
+let workerId =
+    ((getDefaultPid() % 100) + Math.floor(Math.random() * 900)) & MAX_WORKER_ID;
+
+// Runtime variables
 let sequence = 0;
 let lastTimestamp = -1;
 
+// ─────────────────────────────────────────────────────────────
+// Public API
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Set the worker ID for the node
- * @param id Worker ID between 0 and 1023
+ * Set a stable worker ID (0 – 1023) for this node/process.
  */
 export function setWorkerId(id: number): void {
-    if (id < 0 || id > MAX_WORKER_ID) {
-        throw new Error(`Worker ID must be between 0 and ${MAX_WORKER_ID}`);
+    if (id < 0 || id > MAX_WORKER_ID || !Number.isInteger(id)) {
+        throw new Error(`Worker ID must be an integer between 0 and ${MAX_WORKER_ID}`);
     }
     workerId = id;
 }
 
 /**
- * Waits until the next millisecond
- */
-function tilNextMillis(lastTimestamp: number): number {
-    let timestamp = Date.now();
-    while (timestamp <= lastTimestamp) {
-        timestamp = Date.now();
-    }
-    return timestamp;
-}
-
-/**
- * Generates a Snowflake ID as a bigint
+ * Generate next Snowflake ID as a `bigint`.
  */
 export function nextBigInt(): bigint {
     let timestamp = Date.now();
 
-    // If current time is less than last timestamp, there is a clock drift
+    // Clock moved backwards → refuse to generate IDs
     if (timestamp < lastTimestamp) {
-        throw new Error(`Clock moved backwards. Refusing to generate id for ${lastTimestamp - timestamp} milliseconds`);
+        throw new Error(
+            `Clock moved backwards by ${lastTimestamp - timestamp} ms — ID generation halted`
+        );
     }
 
-    // If current timestamp equals last timestamp, increment sequence
     if (timestamp === lastTimestamp) {
+        // Same millisecond → bump sequence
         sequence = (sequence + 1) & MAX_SEQUENCE;
-        // If sequence overflows, wait until next millisecond
         if (sequence === 0) {
-            timestamp = tilNextMillis(lastTimestamp);
+            // Sequence overflow → wait for next millisecond
+            timestamp = waitNextMillis(lastTimestamp);
         }
     } else {
-        // Reset sequence for this new millisecond
+        // New millisecond → reset sequence
         sequence = 0;
     }
 
     lastTimestamp = timestamp;
 
-    // Combine components into a 64-bit ID
-    const id = BigInt(timestamp - EPOCH) << BigInt(TIMESTAMP_LEFT_SHIFT) |
-        BigInt(workerId) << BigInt(WORKER_ID_SHIFT) |
+    // Compose the 64‑bit ID
+    return (BigInt(timestamp - EPOCH) << BigInt(TIMESTAMP_LEFT_SHIFT)) |
+        (BigInt(workerId) << BigInt(WORKER_ID_SHIFT)) |
         BigInt(sequence);
-
-    return id;
 }
 
 /**
- * Validates if a string is a valid Snowflake ID
+ * Validate that `id` is a positive 64‑bit integer.
  */
 export function validatePK(id: unknown): boolean {
     if (typeof id !== "string" && typeof id !== "bigint") return false;
     try {
-        // Convert to BigInt if it's a string
-        const snowflakeId = typeof id === "string" ? BigInt(id) : id;
-
-        // Define constants for BigInt comparisons
-        const ZERO_BIG = BigInt(0);
-        const MAX_BITS = BigInt(BIGINT_BITS_COUNT);
-        const TWO_BIG = BigInt(2);
-
-        // Valid Snowflake IDs should be positive and fit in 64 bits
-        return snowflakeId > ZERO_BIG && snowflakeId < TWO_BIG ** MAX_BITS;
-    } catch (error) {
+        const snowflake = typeof id === "string" ? BigInt(id) : id;
+        return snowflake > 0n && snowflake <= BIGINT_64_MAX;
+    } catch {
         return false;
     }
 }
 
 /**
- * Extract timestamp from Snowflake ID
+ * Extract the original timestamp as a `Date`.
  */
 export function getTimestampFromId(id: string | bigint): Date {
-    const snowflakeId = typeof id === "string" ? BigInt(id) : id;
-    const timestamp = Number((snowflakeId >> BigInt(TIMESTAMP_LEFT_SHIFT)) + BigInt(EPOCH));
-    return new Date(timestamp);
+    const snowflake = typeof id === "string" ? BigInt(id) : id;
+    const ts = Number((snowflake >> BigInt(TIMESTAMP_LEFT_SHIFT)) + BigInt(EPOCH));
+    return new Date(ts);
 }
 
 /**
- * Generate a primary key for database records
+ * Convenience helpers mirroring your earlier API
  */
-export function generatePK(): bigint {
-    return nextBigInt();
-}
+export const generatePK = nextBigInt;
+export const generatePKString = () => nextBigInt().toString();
 
 /**
- * Generate a primary key as a string
- */
-export function generatePKString(): string {
-    return nextBigInt().toString();
-}
-
-/**
- * Dummy ID for testing purposes and satisfying type requirements. 
- * Validation schemas should detect and cast this to a valid ID.
+ * Dummy placeholder ID for tests / schema defaults.
+ * Be sure to replace before persisting to the database.
  */
 export const DUMMY_ID = "0";
+
+// ─────────────────────────────────────────────────────────────
+// Internals
+// ─────────────────────────────────────────────────────────────
+
+function waitNextMillis(last: number): number {
+    let ts = Date.now();
+    while (ts <= last) ts = Date.now();
+    return ts;
+}

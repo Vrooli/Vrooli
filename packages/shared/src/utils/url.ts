@@ -280,9 +280,9 @@ export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
  * @returns String used to reference object in URL slug
  */
 export function getObjectSlug(object: NavigableObject | null | undefined, prefersId = false): string {
-    if (typeof object !== "object" || object === null) return "";
+    if (typeof object !== "object" || object === null) return "/";
     // If object is an action/shortcut/event, return blank
-    if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
+    if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "/";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Partial<Bookmark | Reaction | View>).to);
     // If object has root, use the root and version
@@ -290,15 +290,15 @@ export function getObjectSlug(object: NavigableObject | null | undefined, prefer
         const resourceVersion = object as ResourceVersion;
         const root = getObjectSlug(resourceVersion.root);
         const version = resourceVersion.versionLabel ?? resourceVersion.publicId ?? resourceVersion.id;
-        return `${root}/${version}`;
+        return `${root}/v/${version}`;
     }
     // If the object is a member or chat participant, use the user's slug
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectSlug((object as Partial<ChatParticipant | Member>).user);
     // If the object is a notification, return an empty string
-    if (isOfType(object, "Notification")) return "";
+    if (isOfType(object, "Notification")) return "/";
     // Otherwise, use object's handle or id
     const id = object.publicId ?? object.id ?? "";
-    return (prefersId ? id : object.handle ?? id) ?? "";
+    return `/${prefersId ? id : object.handle ?? id}`;
 }
 
 /**
@@ -327,8 +327,7 @@ export function getObjectUrl(object: NavigableObject): string {
     if (isOfType(object, "Shortcut")) return (object as ShortcutOption).id ?? "";
     if (isOfType(object, "CalendarEvent")) return getObjectUrl((object as CalendarEvent).schedule);
     const base = getObjectUrlBase(object);
-    let slug = getObjectSlug(object);
-    if (slug.length > 0 && !slug.startsWith("/")) slug = `/${slug}`;
+    const slug = getObjectSlug(object);
     const search = getObjectSearchParams(object);
     return `${base}${slug}${search}`;
 }

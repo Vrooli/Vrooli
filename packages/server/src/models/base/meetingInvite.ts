@@ -1,4 +1,4 @@
-import { MaxObjects, MeetingInviteSortBy, MeetingInviteStatus, meetingInviteValidation, uuidValidate } from "@local/shared";
+import { MaxObjects, MeetingInviteSortBy, MeetingInviteStatus, meetingInviteValidation, validatePK } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -76,8 +76,8 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             user: "User",
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const inviteUserId = data.userId ?? data.user?.id;
-            const isYourInvite = uuidValidate(userId) && inviteUserId === userId;
+            const inviteUserId = data.userId.toString() ?? data.user?.id.toString();
+            const isYourInvite = validatePK(userId) && inviteUserId === userId;
             const basePermissions = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
             return {
                 ...basePermissions,
@@ -96,7 +96,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
                 return { // If you created the invite or were invited
                     OR: [
                         { meeting: useVisibility("Meeting", "Own", data) },
-                        { user: { id: data.userId } },
+                        { user: { id: BigInt(data.userId) } },
                     ],
                 };
             },

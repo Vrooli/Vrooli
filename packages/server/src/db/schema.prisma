@@ -521,7 +521,7 @@ model team_tag {
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   team   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-    @@unique([taggedId, tagTag], name: "team_tag_taggedid_tagTag_unique")
+    @@unique([taggedId, tagTag], name: "team_tag_taggedId_tagTag_unique")
     @@index([taggedId], name: "idx_team_tag_taggedId")
 }
 
@@ -950,7 +950,7 @@ model resource_tag {
     tagged   resource @relation(fields: [taggedId], references: [id], onDelete: Cascade)
     tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
 
-    @@unique([taggedId, tagTag])
+    @@unique([taggedId, tagTag], name: "resource_tag_taggedId_tagTag_unique")
     @@index([taggedId], name: "idx_resource_tag_taggedId")
     @@index([tagTag], name: "idx_resource_tag_tagTag")
 }

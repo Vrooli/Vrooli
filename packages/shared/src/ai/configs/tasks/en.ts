@@ -139,7 +139,7 @@ export const config: AITaskConfig = {
     __apiProperties: {
         id: {
             description: "Unique identifier for the API.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             description: "The name of the API.",
@@ -205,7 +205,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -245,7 +245,7 @@ export const config: AITaskConfig = {
     __bot_properties: {
         id: {
             description: "The ID of the bot.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             example: "Elon Musk",
@@ -314,7 +314,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -333,7 +333,7 @@ export const config: AITaskConfig = {
             },
             {
                 name: "memberInTeamId",
-                type: "uuid",
+                type: "string",
                 is_required: false,
                 description: "The ID of the team the bot is a member of.",
             },
@@ -364,7 +364,7 @@ export const config: AITaskConfig = {
     __dataConverterProperties: {
         id: {
             description: "Unique identifier for the converter.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             description: "The name of the data converter.",
@@ -410,7 +410,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -446,7 +446,7 @@ export const config: AITaskConfig = {
     __memberProperties: {
         id: {
             description: "The unique identifier for the member.",
-            type: "uuid",
+            type: "string",
         },
         isAdmin: {
             description: "Whether the member has administrative privileges.",
@@ -455,11 +455,11 @@ export const config: AITaskConfig = {
         },
         teamId: {
             description: "The ID of the team the member belongs to.",
-            type: "uuid",
+            type: "string",
         },
         userId: {
             description: "The ID of the user associated with this member.",
-            type: "uuid",
+            type: "string",
         },
     },
     __memberInviteProperties: {
@@ -470,11 +470,11 @@ export const config: AITaskConfig = {
         },
         teamId: {
             description: "The ID of the team to which the member is being invited.",
-            type: "uuid",
+            type: "string",
         },
         userId: {
             description: "The ID of the user being invited.",
-            type: "uuid",
+            type: "string",
         },
         message: {
             description: "An optional message to the user being invited.",
@@ -502,7 +502,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "ids",
-                type: "uuid array",
+                type: "string array",
             },
         ],
     }),
@@ -521,7 +521,7 @@ export const config: AITaskConfig = {
             },
             {
                 name: "teamId",
-                type: "uuid",
+                type: "string",
                 is_required: false,
                 description: "The ID of the team the member is a member of.",
             },
@@ -542,7 +542,7 @@ export const config: AITaskConfig = {
     __noteProperties: {
         id: {
             description: "The ID of the note.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             example: "Weekly Review",
@@ -578,7 +578,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -613,7 +613,7 @@ export const config: AITaskConfig = {
     __projectProperties: {
         id: {
             description: "The unique identifier for the project.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             description: "The name of the project.",
@@ -648,7 +648,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -682,7 +682,7 @@ export const config: AITaskConfig = {
     __reminderProperties: {
         id: {
             description: "The unique identifier for the reminder.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             example: "Project Deadline",
@@ -764,7 +764,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -800,7 +800,7 @@ export const config: AITaskConfig = {
     __roleProperties: {
         id: {
             description: "Unique identifier for the role.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             description: "Name of the role within a team.",
@@ -808,7 +808,7 @@ export const config: AITaskConfig = {
         },
         teamId: {
             description: "The ID of the team the member belongs to.",
-            type: "uuid",
+            type: "string",
         },
     },
     RoleAdd: () => ({
@@ -829,7 +829,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -866,7 +866,7 @@ export const config: AITaskConfig = {
     __routineProperties: {
         id: {
             description: "Unique identifier for the routine.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             description: "The name of the routine.",
@@ -914,7 +914,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -972,7 +972,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -1003,7 +1003,7 @@ export const config: AITaskConfig = {
     __smartContractProperties: {
         id: {
             description: "Unique identifier for the smart contract.",
-            type: "uuid",
+            type: "string",
         },
         name: {
             description: "The name of the smart contract.",
@@ -1056,7 +1056,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -1116,7 +1116,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),
@@ -1189,7 +1189,7 @@ export const config: AITaskConfig = {
         properties: [
             {
                 name: "id",
-                type: "uuid",
+                type: "string",
             },
         ],
     }),

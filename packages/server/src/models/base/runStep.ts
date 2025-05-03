@@ -4,21 +4,21 @@ import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { RunRoutineStepFormat } from "../formats.js";
+import { RunStepFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { RunRoutineModelInfo, RunRoutineModelLogic, RunRoutineStepModelInfo, RunRoutineStepModelLogic } from "./types.js";
+import { RunModelInfo, RunModelLogic, RunStepModelInfo, RunStepModelLogic } from "./types.js";
 
-const __typename = "RunRoutineStep" as const;
-export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
+const __typename = "RunStep" as const;
+export const RunStepModel: RunStepModelLogic = ({
     __typename,
-    dbTable: "run_routine_step",
+    dbTable: "run_step",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
             get: (select) => select.name,
         },
     }),
-    format: RunRoutineStepFormat,
+    format: RunStepFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
@@ -34,10 +34,10 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
                     nodeId: data.nodeId,
                     order: data.order,
                     status: noNull(data.status),
-                    subroutineInId: data.subroutineInId,
+                    resourceInId: data.resourceInId,
                     timeElapsed,
-                    runRoutine: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "steps", data, ...rest }),
-                    subroutine: await shapeHelper({ relation: "subroutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runSteps", data, ...rest }),
+                    run: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "Run", parentRelationshipName: "steps", data, ...rest }),
+                    resourceVersion: await shapeHelper({ relation: "resourceVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "runSteps", data, ...rest }),
                 };
             },
             update: async ({ data }) => {
@@ -60,37 +60,37 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            runRoutine: "RunRoutine",
+            runRoutine: "Run",
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["name"],
-        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["DbModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunModelLogic>("Run").validate().owner(data?.run as RunModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunRoutineStepModelInfo["DbSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunStepModelInfo["DbSelect"]>([["run", "Run"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "Own", data),
+                    run: useVisibility("Run", "Own", data),
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "OwnOrPublic", data),
+                    run: useVisibility("Run", "OwnOrPublic", data),
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "OwnPrivate", data),
+                    run: useVisibility("Run", "OwnPrivate", data),
                 };
             },
             ownPublic: function getOwnPublic(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "OwnPublic", data),
+                    run: useVisibility("Run", "OwnPublic", data),
                 };
             },
             public: function getPublic(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "Public", data),
+                    run: useVisibility("Run", "Public", data),
                 };
             },
         },

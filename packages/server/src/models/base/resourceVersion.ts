@@ -1,4 +1,4 @@
-import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, generatePublicId, getTranslation, routineVersionValidation } from "@local/shared";
+import { MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -15,30 +15,12 @@ import { versionsCheck } from "../../validators/versionsCheck.js";
 import { ResourceVersionFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceVersionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo } from "./types.js";
+import { ResourceModelLogic, ResourceVersionModelInfo, ResourceVersionModelLogic } from "./types.js";
 
 type ResourceVersionPre = PreShapeVersionResult & {
     /** Map of routine version ID to graph complexity metrics */
     weightMap: Record<string, SubroutineWeightData & { id: string; }>;
 };
-
-/**
- * Validates node positions
- */
-async function validateNodePositions(
-    input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
-): Promise<void> {
-    // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
-    // let combinedNodes = [];
-    // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
-    // if ((input as RoutineUpdateInput).nodesUpdate) combinedNodes.push(...(input as any).nodesUpdate);
-    // if ((input as RoutineUpdateInput).nodesDelete) combinedNodes = combinedNodes.filter(node => !(input as any).nodesDelete.includes(node.id));
-    // // Remove nodes that have duplicate rowIndexes and columnIndexes
-    // console.log('unique nodes check', JSON.stringify(combinedNodes));
-    // const uniqueNodes = uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
-    // if (uniqueNodes.length < combinedNodes.length) throw new CustomError("NodeDuplicatePosition", {});
-    return;
-}
 
 const __typename = "ResourceVersion" as const;
 export const ResourceVersionModel: ResourceVersionModelLogic = ({
@@ -80,7 +62,6 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
                 combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
-                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(input); }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once. 
                 // We exclude deleting versions to ensure that they don't affect the calculations. 
@@ -170,11 +151,11 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 await afterMutationsVersion({ ...params, objectType: __typename });
             },
         },
-        yup: routineVersionValidation,
+        yup: resourceVersionValidation,
     },
     search: {
-        defaultSort: RoutineVersionSortBy.DateCompletedDesc,
-        sortBy: RoutineVersionSortBy,
+        defaultSort: ResourceVersionSortBy.DateCompletedDesc,
+        sortBy: ResourceVersionSortBy,
         searchFields: {
             codeLanguage: true,
             createdByIdRoot: true,
@@ -223,7 +204,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<RoutineVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ResourceVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -233,10 +214,10 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<RoutineVersionModelInfo["DbSelect"]>([["root", "Resource"]], data, ...rest),
+            oneIsPublic<ResourceVersionModelInfo["DbSelect"]>([["root", "Resource"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Resource").validate().owner(data?.root as RoutineModelInfo["DbModel"], userId),
+        owner: (data, userId) => ModelMap.get<ResourceModelLogic>("Resource").validate().owner(data?.root as ResourceModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,
@@ -319,12 +300,11 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                             // Owned by public teams
                             { ownedByTeam: useVisibility("Team", "Public", data) },
                             // Owned by public users
-                            { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
+                            { ownedByUser: { isPrivate: false, isPrivateResources: false } },
                         ],
                     },
                 };
             },
         },
     }),
-    validateNodePositions,
 });

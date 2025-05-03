@@ -70,6 +70,7 @@ TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" ${NODE_ENV} ${TMP_FILE} "${secre
 rm "$TMP_FILE"
 export DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:${PORT_DB:-5432}"
 export REDIS_URL="redis://:${REDIS_PASSWORD}@redis:${PORT_REDIS:-6379}"
+export WORKER_ID=0 # This is fine for single-node deployments, but should be set to the pod ordinal for multi-node deployments.
 # Not sure why, but these need to be exported for the server to read them.
 # This is not the case for the other secrets.
 export JWT_PRIV

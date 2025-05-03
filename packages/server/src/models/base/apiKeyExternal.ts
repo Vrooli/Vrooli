@@ -1,4 +1,4 @@
-import { apiKeyExternalValidation, MaxObjects, uuid } from "@local/shared";
+import { apiKeyExternalValidation, MaxObjects } from "@local/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -22,13 +22,12 @@ export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
     mutate: {
         shape: {
             create: async ({ userData, data }) => ({
-                id: uuid(),
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                 key: ApiKeyEncryptionService.get().encryptExternal(data.key),
                 name: data.name,
                 service: data.service,
-                team: data.teamConnect ? { connect: { id: data.teamConnect } } : undefined,
-                user: data.teamConnect ? undefined : { connect: { id: userData.id } },
+                team: data.teamConnect ? { connect: { id: BigInt(data.teamConnect) } } : undefined,
+                user: data.teamConnect ? undefined : { connect: { id: BigInt(userData.id) } },
 
             }),
             update: async ({ data }) => ({

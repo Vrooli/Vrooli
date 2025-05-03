@@ -5,7 +5,7 @@ import { LlmServiceErrorType } from "./registry.js";
 
 export type SimpleChatMessageData = {
     id: string;
-    translations: { language: string, text: string }[];
+    text: string;
 }
 
 export type LanguageModelMessage = Partial<ContextInfo> & {

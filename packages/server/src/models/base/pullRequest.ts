@@ -1,4 +1,4 @@
-import { MaxObjects, ModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
+import { generatePublicId, MaxObjects, ModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { noNull } from "../../builders/noNull.js";
@@ -11,21 +11,11 @@ import { ModelMap } from "./index.js";
 import { PullRequestModelInfo, PullRequestModelLogic } from "./types.js";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
-    ApiVersion: "fromApiVersion",
-    CodeVersion: "fromCodeVersion",
-    NoteVersion: "fromNoteVersion",
-    ProjectVersion: "fromProjectVersion",
-    RoutineVersion: "fromRoutineVersion",
-    StandardVersion: "fromStandardVersion",
+    ResourceVersion: "fromResourceVersion",
 };
 
 const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
-    Api: "toApi",
-    Code: "toCode",
-    Note: "toNote",
-    Project: "toProject",
-    Routine: "toRoutine",
-    Standard: "toStandard",
+    Resource: "toResource",
 };
 
 const __typename = "PullRequest" as const;
@@ -66,9 +56,10 @@ export const PullRequestModel: PullRequestModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: BigInt(data.id),
-                createdBy: { connect: { id: rest.userData.id } },
-                [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
-                [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: BigInt(rest.userData.id) } },
+                [fromMapper[data.fromObjectType]]: { connect: { id: BigInt(data.fromConnect) } },
+                [toMapper[data.toObjectType]]: { connect: { id: BigInt(data.toConnect) } },
                 translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             // NOTE: Pull request creator can only set status to 'Canceled'. 
@@ -121,7 +112,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
         owner: (data, userId) => {
             if (!data) return {};
             // If you are the creator, return that
-            if (data?.createdBy?.id === userId) return ({
+            if (data?.createdBy?.id.toString() === userId) return ({
                 User: data.createdBy,
             });
             // Otherwise, find owner from the object that has the pull request
@@ -153,23 +144,13 @@ export const PullRequestModel: PullRequestModelLogic = ({
                     OR: [ // Either you created it or you are the owner of the object that has the pull request
                         {
                             OR: [
-                                { fromApiVersion: useVisibility("ApiVersion", "Own", data) },
-                                { fromCodeVersion: useVisibility("CodeVersion", "Own", data) },
-                                { fromNoteVersion: useVisibility("NoteVersion", "Own", data) },
-                                { fromProjectVersion: useVisibility("ProjectVersion", "Own", data) },
-                                { fromRoutineVersion: useVisibility("RoutineVersion", "Own", data) },
-                                { fromStandardVersion: useVisibility("StandardVersion", "Own", data) },
+                                { fromResourceVersion: useVisibility("ResourceVersion", "Own", data) },
                             ],
                         },
                         {
                             status: { not: PullRequestStatus.Draft }, // If you didn't create it, is cannot be a draft
                             OR: [
-                                { toApi: useVisibility("Api", "Own", data) },
-                                { toCode: useVisibility("Code", "Own", data) },
-                                { toNote: useVisibility("Note", "Own", data) },
-                                { toProject: useVisibility("Project", "Own", data) },
-                                { toRoutine: useVisibility("Routine", "Own", data) },
-                                { toStandard: useVisibility("Standard", "Own", data) },
+                                { toResource: useVisibility("Resource", "Own", data) },
                             ],
                         },
                     ],
@@ -191,12 +172,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
                 return {
                     status: { not: PullRequestStatus.Draft },
                     OR: [
-                        { toApi: useVisibility("Api", "Public", data) },
-                        { toCode: useVisibility("Code", "Public", data) },
-                        { toNote: useVisibility("Note", "Public", data) },
-                        { toProject: useVisibility("Project", "Public", data) },
-                        { toRoutine: useVisibility("Routine", "Public", data) },
-                        { toStandard: useVisibility("Standard", "Public", data) },
+                        { toResource: useVisibility("Resource", "Public", data) },
                     ],
                 };
             },

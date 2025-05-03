@@ -3,11 +3,11 @@ import { Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
 import { logger } from "../../events/logger.js";
-import { onSocketEvent } from "../events.js";
+import { SocketService } from "../io.js";
 
 /** Socket room for user-specific events */
 export function userSocketRoomHandlers(socket: Socket) {
-    onSocketEvent(socket, "joinUserRoom", async ({ userId }, callback) => {
+    SocketService.get().onSocketEvent(socket, "joinUserRoom", async ({ userId }, callback) => {
         try {
             if (AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_USER_ROOM_ERRORS.SessionExpired });
@@ -36,7 +36,7 @@ export function userSocketRoomHandlers(socket: Socket) {
         }
     });
 
-    onSocketEvent(socket, "leaveUserRoom", async ({ userId }, callback) => {
+    SocketService.get().onSocketEvent(socket, "leaveUserRoom", async ({ userId }, callback) => {
         try {
             socket.leave(userId);
             callback({ success: true });

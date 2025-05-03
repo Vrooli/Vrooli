@@ -2,7 +2,7 @@ import * as yup from "yup";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
 import { yupObj } from "../utils/builders/yupObj.js";
-import { bio, bool, email, handle, id, imageFile, name, password, theme } from "../utils/commonFields.js";
+import { bio, bool, email, handle, id, imageFile, name, password, publicId, theme } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
 import { botSettings, botValidation } from "./bot.js";
@@ -33,19 +33,10 @@ export const profileValidation: YupModel<["update"]> = {
         handle: opt(handle),
         id: req(id),
         isPrivate: opt(bool),
-        isPrivateApis: opt(bool),
-        isPrivateApisCreated: opt(bool),
-        isPrivateCodes: opt(bool),
-        isPrivateCodesCreated: opt(bool),
         isPrivateMemberships: opt(bool),
-        isPrivateProjects: opt(bool),
-        isPrivateProjectsCreated: opt(bool),
         isPrivatePullRequests: opt(bool),
-        isPrivateRoles: opt(bool),
-        isPrivateRoutines: opt(bool),
-        isPrivateRoutinesCreated: opt(bool),
-        isPrivateStandards: opt(bool),
-        isPrivateStandardsCreated: opt(bool),
+        isPrivateResources: opt(bool),
+        isPrivateResourcesCreated: opt(bool),
         isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
@@ -72,19 +63,10 @@ export const userValidation: YupModel<["create", "update"]> = {
         handle: opt(handle),
         id: req(id),
         isPrivate: opt(bool),
-        isPrivateApis: opt(bool),
-        isPrivateApisCreated: opt(bool),
-        isPrivateCodes: opt(bool),
-        isPrivateCodesCreated: opt(bool),
         isPrivateMemberships: opt(bool),
-        isPrivateProjects: opt(bool),
-        isPrivateProjectsCreated: opt(bool),
         isPrivatePullRequests: opt(bool),
-        isPrivateRoles: opt(bool),
-        isPrivateRoutines: opt(bool),
-        isPrivateRoutinesCreated: opt(bool),
-        isPrivateStandards: opt(bool),
-        isPrivateStandardsCreated: opt(bool),
+        isPrivateResources: opt(bool),
+        isPrivateResourcesCreated: opt(bool),
         isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
@@ -117,10 +99,15 @@ export const emailResetPasswordFormSchema = yup.object().shape({
 });
 
 export const emailResetPasswordSchema = yup.object().shape({
-    id: req(id),
+    id: opt(id),
+    publicId: opt(publicId),
     code: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
     newPassword: req(password),
-});
+}).test(
+    "id-or-publicid-required",
+    "Either id or publicId must be provided",
+    (value) => !!value.id || !!value.publicId,
+);
 
 export const validateSessionSchema = yup.object().shape({
     timeZone: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),

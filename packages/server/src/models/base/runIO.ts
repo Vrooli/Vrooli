@@ -1,39 +1,28 @@
-import { MaxObjects, RunRoutineIOSortBy, runIOValidation } from "@local/shared";
+import { MaxObjects, RunIOSortBy, runIOValidation } from "@local/shared";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { RunRoutineIOFormat } from "../formats.js";
+import { RunIOFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVersionOutputModelInfo, RoutineVersionOutputModelLogic, RunRoutineIOModelInfo, RunRoutineIOModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types.js";
+import { RunIOModelInfo, RunIOModelLogic, RunModelInfo, RunModelLogic } from "./types.js";
 
-const __typename = "RunRoutineIO" as const;
-export const RunRoutineIOModel: RunRoutineIOModelLogic = ({
+const __typename = "RunIO" as const;
+export const RunIOModel: RunIOModelLogic = ({
     __typename,
     dbTable: "run_routine_io",
     display: () => ({
         label: {
             select: () => ({
                 id: true,
-                runRoutine: { select: ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.select() },
-                routineVersionInput: { select: ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display().label.select() },
-                routineVersionOutput: { select: ModelMap.get<RoutineVersionOutputModelLogic>("RoutineVersionOutput").display().label.select() },
+                run: { select: ModelMap.get<RunModelLogic>("Run").display().label.select() },
             }),
             get: (select, languages) => {
-                const runRoutineLabel = ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.get(select.runRoutine as RunRoutineModelInfo["DbModel"], languages);
-                const ioLabel = select.routineVersionInput
-                    ? ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display().label.get(select.routineVersionInput as RoutineVersionInputModelInfo["DbModel"], languages)
-                    : select.routineVersionOutput
-                        ? ModelMap.get<RoutineVersionOutputModelLogic>("RoutineVersionOutput").display().label.get(select.routineVersionOutput as RoutineVersionOutputModelInfo["DbModel"], languages)
-                        : "";
-                if (runRoutineLabel.length > 0) {
-                    return `${runRoutineLabel} - ${ioLabel}`;
-                }
-                return ioLabel;
+                return ModelMap.get<RunModelLogic>("Run").display().label.get(select.run as RunModelInfo["DbModel"], languages);
             },
         },
     }),
-    format: RunRoutineIOFormat,
+    format: RunIOFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
@@ -42,9 +31,7 @@ export const RunRoutineIOModel: RunRoutineIOModelLogic = ({
                     data: data.data,
                     nodeInputName: data.nodeInputName,
                     nodeName: data.nodeName,
-                    runRoutine: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "io", data, ...rest }),
-                    routineVersionInput: await shapeHelper({ relation: "routineVersionInput", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersionInput", parentRelationshipName: "runIO", data, ...rest }),
-                    routineVersionOutput: await shapeHelper({ relation: "routineVersionOutput", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersionOutput", parentRelationshipName: "runIO", data, ...rest }),
+                    run: await shapeHelper({ relation: "run", relTypes: ["Connect"], isOneToOne: true, objectType: "Run", parentRelationshipName: "io", data, ...rest }),
                 };
             },
             update: async ({ data }) => {
@@ -56,52 +43,52 @@ export const RunRoutineIOModel: RunRoutineIOModelLogic = ({
         yup: runIOValidation,
     },
     search: {
-        defaultSort: RunRoutineIOSortBy.DateUpdatedDesc,
-        sortBy: RunRoutineIOSortBy,
+        defaultSort: RunIOSortBy.DateUpdatedDesc,
+        sortBy: RunIOSortBy,
         searchFields: {
             createdTimeFrame: true,
             excludeIds: true,
-            runRoutineIds: true,
+            runIds: true,
             updatedTimeFrame: true,
         },
-        searchStringQuery: () => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").search.searchStringQuery() }),
+        searchStringQuery: () => ({ run: ModelMap.get<RunModelLogic>("Run").search.searchStringQuery() }),
     },
     validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            runRoutine: "RunRoutine",
+            run: "Run",
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["data"],
-        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["DbModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunModelLogic>("Run").validate().owner(data?.run as RunModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunRoutineIOModelInfo["DbSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunIOModelInfo["DbSelect"]>([["run", "Run"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "Own", data),
+                    run: useVisibility("Run", "Own", data),
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "OwnOrPublic", data),
+                    run: useVisibility("Run", "OwnOrPublic", data),
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "OwnPrivate", data),
+                    run: useVisibility("Run", "OwnPrivate", data),
                 };
             },
             ownPublic: function getOwnPublic(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "OwnPublic", data),
+                    run: useVisibility("Run", "OwnPublic", data),
                 };
             },
             public: function getPublic(data) {
                 return {
-                    runRoutine: useVisibility("RunRoutine", "Public", data),
+                    run: useVisibility("Run", "Public", data),
                 };
             },
         },

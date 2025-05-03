@@ -44,7 +44,7 @@ describe("Email Queue Tests", () => {
             id: "test-id",
             data: {} as EmailProcessPayload,
             opts: {},
-            attemptsMade: 0
+            attemptsMade: 0,
         } as Bull.Job<EmailProcessPayload>;
 
         // Stub emailQueue's getQueue().add method
@@ -94,7 +94,7 @@ describe("Email Queue Tests", () => {
                 expect(actualData.text).to.equal(expectedData.text);
             }
             // Special handling for html field, which can be undefined
-            if ('html' in expectedData) {
+            if ("html" in expectedData) {
                 if (expectedData.html === undefined) {
                     expect(actualData.html).to.be.undefined;
                 } else {
@@ -178,31 +178,31 @@ describe("Email Queue Tests", () => {
         const testEmail = "valid.email@example.com";
 
         it("correctly enqueues email for sendResetPasswordLink function", async () => {
-            const userId = "userId1";
+            const userPublicId = "userPublicId1";
             const code = "code1";
-            await sendResetPasswordLink(testEmail, userId, code);
+            await sendResetPasswordLink(testEmail, userPublicId, code);
 
             const actualData = await expectEmailToBeEnqueuedWith({
                 to: [testEmail],
             });
 
-            // Make sure that the text and html both include `${userId}:${code}`
-            const partialLink = `${userId}:${code}`;
+            // Make sure that the text and html both include `${userPublicId}:${code}`
+            const partialLink = `${userPublicId}:${code}`;
             expect(actualData.text).to.include(partialLink);
             expect(actualData.html).to.include(partialLink);
         });
 
         it("correctly enqueues email for sendVerificationLink function", async () => {
-            const userId = "userId1";
+            const userPublicId = "userPublicId1";
             const code = "code1";
-            await sendVerificationLink(testEmail, userId, code);
+            await sendVerificationLink(testEmail, userPublicId, code);
 
             const actualData = await expectEmailToBeEnqueuedWith({
                 to: [testEmail],
             });
 
-            // Make sure that the text and html both include `${userId}:${code}`
-            const partialLink = `${userId}:${code}`;
+            // Make sure that the text and html both include `${userPublicId}:${code}`
+            const partialLink = `${userPublicId}:${code}`;
             expect(actualData.text).to.include(partialLink);
             expect(actualData.html).to.include(partialLink);
         });
