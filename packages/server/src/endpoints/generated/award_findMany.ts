@@ -16,5 +16,5 @@ export const award_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1961197054"
+    "__cacheKey": "-1248180091"
 };

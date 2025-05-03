@@ -1,4 +1,4 @@
-import { FindByIdInput, Report, ReportCreateInput, ReportSearchInput, ReportSearchResult, ReportUpdateInput } from "@local/shared";
+import { FindByPublicIdInput, Report, ReportCreateInput, ReportSearchInput, ReportSearchResult, ReportUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsReport = {
-    findOne: ApiEndpoint<FindByIdInput, Report>;
+    findOne: ApiEndpoint<FindByPublicIdInput, Report>;
     findMany: ApiEndpoint<ReportSearchInput, ReportSearchResult>;
     createOne: ApiEndpoint<ReportCreateInput, Report>;
     updateOne: ApiEndpoint<ReportUpdateInput, Report>;

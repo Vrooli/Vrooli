@@ -67,5 +67,5 @@ export const issue_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "951010261"
+    "__cacheKey": "505644885"
 };

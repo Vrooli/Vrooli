@@ -1,4 +1,4 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceVersion, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
 import { Express, NextFunction, Request, Response, Router } from "express";
 import { SessionService } from "../auth/session.js";
@@ -475,11 +475,16 @@ export async function initRestApi(app: Express) {
         [endpointsResource.findMany, Logic.resource.findMany, Select.resource_findMany],
         [endpointsResource.createOne, Logic.resource.createOne, Select.resource_createOne],
         [endpointsResource.updateOne, Logic.resource.updateOne, Select.resource_updateOne],
-        // Resource version
-        [endpointsResourceVersion.findOne, Logic.resourceVersion.findOne, Select.resourceVersion_findOne],
-        [endpointsResourceVersion.findMany, Logic.resourceVersion.findMany, Select.resourceVersion_findMany],
-        [endpointsResourceVersion.createOne, Logic.resourceVersion.createOne, Select.resourceVersion_createOne],
-        [endpointsResourceVersion.updateOne, Logic.resourceVersion.updateOne, Select.resourceVersion_updateOne],
+        [endpointsResource.findResourceVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findApiVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findDataConverterVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findDataStructureVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findNoteVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findProjectVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findPromptVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findRoutineMultiStepVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findRoutineSingleStepVersion, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findSmartContractVersion, Logic.resource.findOne, Select.resource_findOne],
         // Run
         [endpointsRun.findOne, Logic.run.findOne, Select.run_findOne],
         [endpointsRun.findMany, Logic.run.findMany, Select.run_findMany],
@@ -527,7 +532,6 @@ export async function initRestApi(app: Express) {
         // User
         [endpointsUser.botUpdateOne, Logic.user.botUpdateOne, Select.user_botUpdateOne, botImagesConfig],
         [endpointsUser.botCreateOne, Logic.user.botCreateOne, Select.user_botCreateOne, botImagesConfig],
-        [endpointsUser.profile, Logic.user.profile, Select.user_profile],
         [endpointsUser.profileUpdate, Logic.user.profileUpdate, Select.user_profileUpdate, userImagesConfig],
         [endpointsUser.findOne, Logic.user.findOne, Select.user_findOne],
         [endpointsUser.findMany, Logic.user.findMany, Select.user_findMany],
@@ -541,6 +545,6 @@ export async function initRestApi(app: Express) {
         // Wallet
         [endpointsWallet.updateOne, Logic.wallet.updateOne, Select.wallet_updateOne],
     ]);
-    app.use(`/api/${SERVER_VERSION}/rest`, routes);
+    app.use(`/api/${SERVER_VERSION}`, routes);
 }
 

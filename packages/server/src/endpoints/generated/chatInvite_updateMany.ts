@@ -93,5 +93,5 @@ export const chatInvite_updateMany = {
             "name": true
         }
     },
-    "__cacheKey": "-1288146848"
+    "__cacheKey": "1714839352"
 };

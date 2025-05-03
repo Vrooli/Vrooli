@@ -1,4 +1,4 @@
-import { FindByIdInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSearchResult, PullRequestUpdateInput } from "@local/shared";
+import { FindByPublicIdInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSearchResult, PullRequestUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsPullRequest = {
-    findOne: ApiEndpoint<FindByIdInput, PullRequest>;
+    findOne: ApiEndpoint<FindByPublicIdInput, PullRequest>;
     findMany: ApiEndpoint<PullRequestSearchInput, PullRequestSearchResult>;
     createOne: ApiEndpoint<PullRequestCreateInput, PullRequest>;
     updateOne: ApiEndpoint<PullRequestUpdateInput, PullRequest>;

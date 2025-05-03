@@ -30,7 +30,6 @@ export * from "./report.js";
 export * from "./reportResponse.js";
 export * from "./reputationHistory.js";
 export * from "./resource.js";
-export * from "./resourceVersion.js";
 export * from "./run.js";
 export * from "./runIO.js";
 export * from "./schedule.js";

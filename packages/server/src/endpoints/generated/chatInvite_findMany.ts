@@ -102,5 +102,5 @@ export const chatInvite_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1316017922"
+    "__cacheKey": "641208870"
 };

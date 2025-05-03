@@ -292,5 +292,5 @@ export const bookmark_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2125099459"
+    "__cacheKey": "-1151846694"
 };

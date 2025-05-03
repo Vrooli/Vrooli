@@ -123,5 +123,5 @@ export const resourceVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-193659159"
+    "__cacheKey": "-778416130"
 };

@@ -166,5 +166,5 @@ export const meetingInvite_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2061997273"
+    "__cacheKey": "1824557479"
 };

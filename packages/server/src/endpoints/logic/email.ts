@@ -17,10 +17,10 @@ export const email: EndpointsEmail = {
         return createOneHelper({ info, input, objectType, req });
     },
     verify: async ({ input }, { req }) => {
-        const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
+        const { id: userId, publicId: userPublicId } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 50, req });
         RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
-        await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, req.session.languages);
+        await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, userPublicId, req.session.languages);
         return { __typename: "Success" as const, success: true };
     },
 };

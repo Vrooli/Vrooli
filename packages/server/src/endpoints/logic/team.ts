@@ -1,4 +1,4 @@
-import { FindByIdOrHandleInput, Team, TeamCreateInput, TeamSearchInput, TeamSearchResult, TeamUpdateInput } from "@local/shared";
+import { FindByPublicIdInput, Team, TeamCreateInput, TeamSearchInput, TeamSearchResult, TeamUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsTeam = {
-    findOne: ApiEndpoint<FindByIdOrHandleInput, Team>;
+    findOne: ApiEndpoint<FindByPublicIdInput, Team>;
     findMany: ApiEndpoint<TeamSearchInput, TeamSearchResult>;
     createOne: ApiEndpoint<TeamCreateInput, Team>;
     updateOne: ApiEndpoint<TeamUpdateInput, Team>;

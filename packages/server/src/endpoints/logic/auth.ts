@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
@@ -10,10 +10,10 @@ import { SessionService } from "../../auth/session.js";
 import { generateNonce, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet.js";
 import { DbProvider } from "../../db/provider.js";
 import { Award } from "../../events/awards.js";
-import { CustomError } from "../../events/error.js";
+import { CustomError, createInvalidCredentialsError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
 import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user.js";
-import { closeSessionSockets, closeUserSockets } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { ApiEndpoint, SessionData } from "../../types.js";
 import { hasProfanity } from "../../utils/censor.js";
 
@@ -81,9 +81,9 @@ export const auth: EndpointsAuth = {
                     },
                 });
                 if (!email) {
-                    throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+                    throw createInvalidCredentialsError();
                 }
-                const verified = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id, input.verificationCode);
+                const verified = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id.toString(), input.verificationCode);
                 if (!verified) {
                     throw new CustomError("0132", "CannotVerifyEmailCode");
                 }
@@ -104,11 +104,11 @@ export const auth: EndpointsAuth = {
                 select: PasswordAuthService.selectUserForPasswordAuth(),
             });
             if (!user) {
-                throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+                throw createInvalidCredentialsError();
             }
             const email = user.emails.find(e => e.emailAddress === input.email);
             if (!email) {
-                throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+                throw createInvalidCredentialsError();
             }
             // Check for password in database. If it doesn't exist, send a password reset link
             const passwordHash = PasswordAuthService.getAuthPassword(user);
@@ -118,7 +118,7 @@ export const auth: EndpointsAuth = {
             }
             // Validate verification code, if supplied
             if (input.verificationCode) {
-                const isCodeValid = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id, input.verificationCode);
+                const isCodeValid = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id.toString(), input.verificationCode);
                 if (!isCodeValid) {
                     throw new CustomError("0137", "CannotVerifyEmailCode");
                 }
@@ -130,7 +130,7 @@ export const auth: EndpointsAuth = {
                 await AuthTokensService.generateSessionToken(res, session);
                 return session;
             } else {
-                throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+                throw createInvalidCredentialsError();
             }
         }
     },
@@ -147,73 +147,48 @@ export const auth: EndpointsAuth = {
         if (existingEmail) {
             throw new CustomError("0141", "EmailInUse");
         }
-        // Get device info and IP address
-        const deviceInfo = RequestService.getDeviceInfo(req);
-        const ipAddress = req.ip;
-        // Update the database
-        const userId = uuid();
-        const passwordAuthId = uuid();
-        const transactions: PrismaPromise<object>[] = [
-            // Create user
-            DbProvider.get().user.create({
-                data: {
-                    id: userId,
-                    name: input.name,
-                    theme: input.theme,
-                    status: AccountStatus.Unlocked,
-                    emails: {
-                        create: [
-                            { emailAddress: input.email },
-                        ],
-                    },
-                    auths: {
-                        create: {
-                            id: passwordAuthId,
-                            provider: AUTH_PROVIDERS.Password,
-                            hashed_password: PasswordAuthService.hashPassword(input.password),
-                        },
-                    },
-                    ...DEFAULT_USER_DATA,
+
+        // Create user
+        const user = await DbProvider.get().user.create({
+            data: {
+                publicId: generatePublicId(),
+                name: input.name,
+                theme: input.theme,
+                status: AccountStatus.Unlocked,
+                emails: {
+                    create: [
+                        { emailAddress: input.email },
+                    ],
                 },
-                select: PasswordAuthService.selectUserForPasswordAuth(),
-            }),
-            // Create session
-            DbProvider.get().session.create({
-                data: {
-                    device_info: deviceInfo,
-                    expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
-                    last_refresh_at: new Date(),
-                    ip_address: ipAddress,
-                    revokedAt: null,
-                    user: {
-                        connect: { id: userId },
-                    },
-                    auth: {
-                        connect: { id: passwordAuthId },
+                auths: {
+                    create: {
+                        provider: AUTH_PROVIDERS.Password,
+                        hashed_password: PasswordAuthService.hashPassword(input.password),
                     },
                 },
-                select: PasswordAuthService.selectUserForPasswordAuth().sessions.select,
-            }),
-        ];
-        const transactionResults = await DbProvider.get().$transaction(transactions);
-        // transactions[0]: user.create
-        // transactions[1]: session.create
-        const userData = transactionResults[0] as Omit<UserDataForPasswordAuth, "session">;
-        const sessionData = transactionResults[1] as UserDataForPasswordAuth["sessions"][0];
-        userData.sessions = [sessionData];
-        if (!userData) {
-            throw new CustomError("0142", "FailedToCreate");
+                ...DEFAULT_USER_DATA,
+            },
+            select: PasswordAuthService.selectUserForPasswordAuth(),
+        });
+
+        // Find the created password auth record's ID
+        const createdAuthId = user.auths.find(a => a.provider === AUTH_PROVIDERS.Password)?.id;
+        if (!createdAuthId) {
+            // Use a valid error key like InternalError
+            throw new CustomError("0580", "InternalError", { detail: "Failed to find created password auth record" });
         }
-        // Give user award for signing up
-        await Award(userData.id, req.session.languages).update("AccountNew", 1);
-        // Create session from user object
-        const session = await SessionService.createSession(userData, sessionData, req);
-        // Set up session token
-        await AuthTokensService.generateSessionToken(res, session);
+
+        // Create session AFTER transaction
+        const recordedSessionData = await SessionService.createAndRecordSession(user.id.toString(), createdAuthId.toString(), req);
+        // Pass the recordedSessionData which matches PrismaSessionData type
+        const responseSession = await SessionService.createSession(user, recordedSessionData, req);
+        await AuthTokensService.generateSessionToken(res, responseSession);
+
         // Trigger new account
-        await Trigger(req.session.languages).acountNew(userData.id, input.email);
-        // Return user data
-        return session;
+        await Trigger(req.session.languages).accountNew(user.id.toString(), user.publicId, input.email);
+
+        // Return session data
+        return responseSession;
     },
     emailRequestPasswordChange: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
@@ -232,7 +207,7 @@ export const auth: EndpointsAuth = {
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });
         if (!user) {
-            throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+            throw createInvalidCredentialsError();
         }
         // Generate and send password reset code
         const success = await PasswordAuthService.setupPasswordReset(user);
@@ -245,11 +220,11 @@ export const auth: EndpointsAuth = {
         emailResetPasswordSchema.validateSync(input, { abortEarly: false });
         // Find user
         const user = await DbProvider.get().user.findUnique({
-            where: { id: input.id },
+            where: input.id ? { id: BigInt(input.id as string) } : { publicId: input.publicId as string },
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });
         if (!user) {
-            throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+            throw createInvalidCredentialsError();
         }
         // Check code
         const passwordAuth = user.auths.find(a => a.provider === AUTH_PROVIDERS.Password);
@@ -293,9 +268,7 @@ export const auth: EndpointsAuth = {
                     lastLoginAttempt: new Date(),
                 },
             }),
-            // Revoke all existing password sessions, even ones using other authentication methods
-            // You could also delete them, but this may be required for compliance reasons. 
-            // We'll rely on a cron job to delete old sessions.
+            // Revoke all existing password sessions (may need to keep old ones around for compliance purposes)
             DbProvider.get().session.updateMany({
                 where: {
                     user: {
@@ -330,12 +303,13 @@ export const auth: EndpointsAuth = {
         // transactions[1]: user.update
         // transactions[2]: session.updateMany
         // transactions[3]: session.create
-        const sessionData = transactionResults[3] as UserDataForPasswordAuth["sessions"][0];
-        // Create session from user object
-        const session = await SessionService.createSession(user, sessionData, req);
+        const createdSessionData = transactionResults[3] as UserDataForPasswordAuth["sessions"][0];
+
+        // Create final session object for response
+        const responseSession = await SessionService.createSession(user, createdSessionData, req);
         // Set up session token
-        await AuthTokensService.generateSessionToken(res, session);
-        return session;
+        await AuthTokensService.generateSessionToken(res, responseSession);
+        return responseSession;
     },
     guestLogIn: async (_d, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
@@ -355,7 +329,7 @@ export const auth: EndpointsAuth = {
         // Clear socket connections for session
         const sessionId = userData?.session?.id;
         if (sessionId) {
-            closeSessionSockets(sessionId);
+            SocketService.get().closeSessionSockets(sessionId);
         }
 
         // A session can store multiple users. Check if we're logging out all users or just one
@@ -418,13 +392,13 @@ export const auth: EndpointsAuth = {
             for (const session of sessions as { id: bigint }[]) {
                 if (session.id) {
                     // Convert BigInt to string for the function call
-                    closeSessionSockets(session.id.toString());
+                    SocketService.get().closeSessionSockets(session.id.toString());
                 }
             }
         }
         // Clear socket connections for user
         if (userId) {
-            closeUserSockets(userId);
+            SocketService.get().closeUserSockets(userId);
         }
         // Return a guest session
         return establishGuestSession(res);
@@ -556,27 +530,33 @@ export const auth: EndpointsAuth = {
             },
         });
         // If wallet doesn't exist, throw error
-        if (!walletData)
-            throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
+        if (!walletData) {
+            throw createInvalidCredentialsError();
+        }
         // If nonce expired, throw error
-        if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION)
+        if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) {
             throw new CustomError("0314", "NonceExpired");
+        }
+
         // Verify that message was signed by wallet address
         const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
-        if (!walletVerified)
+        if (!walletVerified) {
             throw new CustomError("0151", "CannotVerifyWallet");
-        let userId: string | undefined = walletData.user?.id;
+        }
+
+        let userId: bigint | undefined = walletData.user?.id;
         let firstLogIn = false;
         // If you are not signed in
         if (!req.session.isLoggedIn) {
             // Wallet must be verified
-            if (!walletData.verified) {
+            if (!walletData.verifiedAt) {
                 throw new CustomError("0152", "NotYourWallet");
             }
             firstLogIn = true;
             // Create new user
             const userData = await DbProvider.get().user.create({
                 data: {
+                    publicId: generatePublicId(),
                     name: `user${randomString(DEFAULT_USER_NAME_LENGTH, "0123456789")}`,
                     wallets: {
                         connect: { id: walletData.id },
@@ -587,14 +567,14 @@ export const auth: EndpointsAuth = {
             });
             userId = userData.id;
             // Give user award for signing up
-            await Award(userId, req.session.languages).update("AccountNew", 1);
+            await Award(userId.toString(), req.session.languages).update("AccountNew", 1);
         }
         // If you are signed in
         else {
             // If wallet is not verified, link it to your account
-            if (!walletData.verified) {
+            if (!walletData.verifiedAt) {
                 await DbProvider.get().user.update({
-                    where: { id: req.session.users?.[0]?.id as string },
+                    where: { id: BigInt(req.session.users?.[0]?.id as string) },
                     data: {
                         wallets: {
                             connect: { id: walletData.id },
@@ -630,6 +610,7 @@ export const auth: EndpointsAuth = {
             session,
             wallet: {
                 ...wallet,
+                id: wallet.id.toString(),
                 __typename: "Wallet",
             },
         } as const;

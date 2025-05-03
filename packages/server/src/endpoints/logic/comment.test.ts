@@ -64,7 +64,7 @@ describe("EndpointsComment", () => {
             },
         });
         // Ensure admin user exists for update tests
-        const admin = await seedMockAdminUser()
+        const admin = await seedMockAdminUser();
         adminId = admin.id.toString();
         // Create a public issue to comment on
         issue = await DbProvider.get().issue.create({
@@ -129,10 +129,12 @@ describe("EndpointsComment", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns comment by id for any authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: FindByIdInput = { id: comment1.id.toString() };
+                console.log('yeet before');
                 const result = await comment.findOne({ input }, { req, res }, comment_findOne);
+                console.log('yeet after');
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(comment1.id);
                 expect(result.translations?.[0]?.text).to.equal(comment1.translations[0].text);
@@ -147,7 +149,7 @@ describe("EndpointsComment", () => {
             });
 
             it("returns comment by id with API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);

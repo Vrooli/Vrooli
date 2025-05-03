@@ -155,5 +155,5 @@ export const meeting_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-109881032"
+    "__cacheKey": "479618462"
 };

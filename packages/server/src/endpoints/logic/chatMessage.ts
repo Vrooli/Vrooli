@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { CustomError } from "../../events/error.js";
 import { ModelMap } from "../../models/base/index.js";
 import { ChatMessageModelLogic, ChatModelInfo } from "../../models/base/types.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { requestBotResponse } from "../../tasks/llm/queue.js";
 import { ApiEndpoint } from "../../types.js";
 import { ChatMessagePre, PreMapChatData, PreMapMessageDataUpdate, PreMapUserData, getChatParticipantData } from "../../utils/chat.js";
@@ -100,7 +100,7 @@ export const chatMessage: EndpointsChatMessage = {
         // but if not we can default to the first bot in the chat
         const respondingBotId = bots.find(b => b.id === regneratingMessageData.userId)?.id ?? bots[0].id;
         // Send typing indicator while bots are responding
-        emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
+        SocketService.get().emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
         // Call LLM for bot response
         const parentMessageText = getTranslation({ translations: parentMessageData.translations }, userData.languages).text || null;
         requestBotResponse({

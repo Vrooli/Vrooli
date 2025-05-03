@@ -283,5 +283,5 @@ export const bookmarkList_updateOne = {
             }
         }
     },
-    "__cacheKey": "-767656558"
+    "__cacheKey": "-1255400393"
 };

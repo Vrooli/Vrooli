@@ -165,7 +165,6 @@ export * from "./transfer_requestReceiveOne.js";
 export * from "./transfer_cancelOne.js";
 export * from "./transfer_acceptOne.js";
 export * from "./transfer_denyOne.js";
-export * from "./translate_translate.js";
 export * from "./user_profile.js";
 export * from "./user_findOne.js";
 export * from "./user_findMany.js";

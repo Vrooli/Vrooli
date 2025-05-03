@@ -738,5 +738,5 @@ export const notificationSubscription_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1103760235"
+    "__cacheKey": "260267110"
 };
