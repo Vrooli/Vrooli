@@ -34,6 +34,15 @@ services:
     volumes:
       - ./packages/ui:${PROJECT_DIR:-/srv/app}/packages/ui:z
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          node -e "require('http').request({hostname: 'localhost', port: ${PORT_UI:-3000}, path: '/'}, res => { if (res.statusCode >= 200 && res.statusCode < 400) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()"
+      start_period: 60s
+      interval: 20s
+      timeout: 5s
+      retries: 5
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
   server:
     build:
@@ -83,6 +92,7 @@ services:
       VIRTUAL_PATH: "/api"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+      WORKER_ID: "${WORKER_ID}"
     ports:
       - ${PORT_API:-5329}:${PORT_API:-5329}
       - "9229:9229" # For debugger

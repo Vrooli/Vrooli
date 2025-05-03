@@ -33,6 +33,15 @@ services:
       - app
     volumes:
       - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          node -e "require('http').request({hostname: 'localhost', port: ${PORT_UI:-3000}, path: '/'}, res => { if (res.statusCode >= 200 && res.statusCode < 400) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()"
+      start_period: 60s
+      interval: 20s
+      timeout: 5s
+      retries: 5
     depends_on:
       server:
         condition: service_healthy
