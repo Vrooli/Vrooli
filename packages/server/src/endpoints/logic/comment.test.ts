@@ -2,7 +2,7 @@ import { CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput,
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -39,29 +39,17 @@ describe("EndpointsComment", () => {
         user1Id = generatePK();
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
-                publicId: generatePublicId(),
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         user2Id = generatePK();
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
-                publicId: generatePublicId(),
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         // Ensure admin user exists for update tests

@@ -1,9 +1,10 @@
+import { assertFindManyResultIds } from "../../__test/helpers.js";
 // Tests for the ChatParticipant endpoint (findOne, findMany, updateOne)
 import { ChatParticipantSearchInput, ChatParticipantUpdateInput, FindByIdInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -42,26 +43,16 @@ describe("EndpointsChatParticipant", () => {
         // Create two users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 
@@ -132,7 +123,7 @@ describe("EndpointsChatParticipant", () => {
             it("API key with public read can find no participants", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
                 const input: FindByIdInput = { id: cp3.id };
                 try {
                     await chatParticipant.findOne({ input }, { req, res }, chatParticipant_findOne);
@@ -174,17 +165,19 @@ describe("EndpointsChatParticipant", () => {
             const user = { ...loggedInUserNoPremiumData(), id: user2Id };
             const { req, res } = await mockAuthenticatedSession(user);
             const input: ChatParticipantSearchInput = { take: 10 };
+            const expectedIds = [
+                cp2.id,
+                cp3.id,
+            ];
             const result = await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
             expect(result).to.not.be.null;
-            const ids = result.edges!.map(e => e!.node!.id).sort();
-            // user2 has cp2 and cp3
-            expect(ids).to.deep.equal([cp2.id, cp3.id].sort());
+            assertFindManyResultIds(expect, result, expectedIds);
         });
 
         it("API key with public read returns no participants", async () => {
             const permissions = mockReadPublicPermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
-            const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+            const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
             const input: ChatParticipantSearchInput = { take: 10 };
             try {
                 await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
@@ -220,7 +213,7 @@ describe("EndpointsChatParticipant", () => {
             it("API key with write permissions can update only own participant", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
                 const input: ChatParticipantUpdateInput = { id: cp1.id };
                 const result = await chatParticipant.updateOne({ input }, { req, res }, chatParticipant_updateOne);
                 expect(result.id).to.equal(cp1.id);

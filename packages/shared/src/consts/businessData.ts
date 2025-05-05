@@ -15,11 +15,6 @@ export const SOCIALS = {
 export const APP_URL = "https://vrooli.com";
 
 export const SEEDED_PUBLIC_IDS = {
-    // Routines
-    MintNft: "se1ikb3bnqk1",
-    MintToken: "flyfhcxn2lz9",
-    ProjectKickoffChecklist: "8kmwl48ur1te",
-    WorkoutPlanGenerator: "h4lj74tp8dlq",
     // Teams
     Vrooli: "kndp1s0qhdtn",
     // Users

@@ -1,9 +1,10 @@
+import { assertFindManyResultIds } from "../../__test/helpers.js";
 // Tests for the Bookmark endpoint (findOne, findMany, createOne, updateOne)
-import { BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkUpdateInput, DUMMY_ID, FindByIdInput, generatePK, generatePublicId, validatePK } from "@local/shared";
+import { BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkUpdateInput, FindByIdInput, generatePK, nanoid, validatePK } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -46,29 +47,17 @@ describe("EndpointsBookmark", () => {
         user1Id = generatePK();
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
-                publicId: generatePublicId(),
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         user2Id = generatePK();
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
-                publicId: generatePublicId(),
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         const admin = await seedMockAdminUser();
@@ -173,11 +162,13 @@ describe("EndpointsBookmark", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: BookmarkSearchInput = { take: 10 };
+                const expectedIds = [
+                    bookmarkUser1Id,
+                ];
                 const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
-                const ids = result.edges!.map(edge => edge!.node!.id);
-                expect(ids).to.deep.equal([bookmarkUser1Id]);
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
 
@@ -198,7 +189,7 @@ describe("EndpointsBookmark", () => {
             it("creates a bookmark for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: DUMMY_ID,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
@@ -213,7 +204,7 @@ describe("EndpointsBookmark", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: DUMMY_ID,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
@@ -228,7 +219,7 @@ describe("EndpointsBookmark", () => {
             it("not logged in user cannot create bookmark", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: BookmarkCreateInput = {
-                    id: DUMMY_ID,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
@@ -242,7 +233,7 @@ describe("EndpointsBookmark", () => {
             it("cannot create bookmark under another user's list", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: DUMMY_ID,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser2.id,
                     listConnect: listUser2.id,
@@ -258,7 +249,7 @@ describe("EndpointsBookmark", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: DUMMY_ID,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,

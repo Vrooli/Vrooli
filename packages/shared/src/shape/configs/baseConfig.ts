@@ -26,18 +26,16 @@ export enum ResourceUsedFor {
  * Resource definition for storing links and external data
  */
 export interface ConfigResource {
-    /** Unique identifier for the resource */
-    id: string;
     /** Link to the resource */
     link: string;
-    /** Position in the list of resources */
-    index?: number;
     /** Purpose of the resource */
-    usedFor: ResourceUsedFor;
-    /** Resource name */
-    name?: string;
-    /** Resource description */
-    description?: string;
+    usedFor?: ResourceUsedFor | `${ResourceUsedFor}`;
+    /** Display info */
+    translations: {
+        language: string;
+        name: string;
+        description?: string;
+    }[];
 }
 
 /**
@@ -107,16 +105,16 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
     /**
      * Removes a resource from the config
      */
-    removeResource(resourceId: string): void {
-        this.resources = this.resources.filter(resource => resource.id !== resourceId);
+    removeResource(index: number): void {
+        this.resources = this.resources.filter((_, i) => i !== index);
     }
 
     /**
      * Updates a resource in the config
      */
-    updateResource(resourceId: string, updates: Partial<ConfigResource>): void {
-        this.resources = this.resources.map(resource =>
-            resource.id === resourceId
+    updateResource(index: number, updates: Partial<ConfigResource>): void {
+        this.resources = this.resources.map((resource, i) =>
+            i === index
                 ? { ...resource, ...updates }
                 : resource,
         );

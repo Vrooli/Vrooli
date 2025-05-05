@@ -1,4 +1,4 @@
-import { BookmarkFor, BookmarkSortBy, MaxObjects, ModelType, bookmarkValidation, exists, generatePK, lowercaseFirstLetter, uppercaseFirstLetter } from "@local/shared";
+import { BookmarkFor, BookmarkSortBy, MaxObjects, ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { onlyValidIds } from "../../builders/onlyValid.js";
@@ -44,7 +44,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: generatePK(),
+                id: BigInt(data.id),
                 [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
                 list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),

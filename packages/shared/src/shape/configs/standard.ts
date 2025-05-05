@@ -54,8 +54,10 @@ export interface StandardVersionConfigObject extends BaseConfigObject {
             expiration?: string;
         }>;
     };
-    /** JSON Schema for the standard */
-    jsonSchema?: string;
+    /** Schema for the standard (typically JSON Schema) */
+    schema?: string;
+    /** What the schema is written in */
+    schemaLanguage?: string;
     /** Props that are used to generate the standard */
     props?: Record<string, unknown>;
 }
@@ -68,7 +70,8 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
     format?: StandardVersionConfigObject["format"];
     compatibility?: StandardVersionConfigObject["compatibility"];
     compliance?: StandardVersionConfigObject["compliance"];
-    jsonSchema?: StandardVersionConfigObject["jsonSchema"];
+    schema?: StandardVersionConfigObject["schema"];
+    schemaLanguage?: StandardVersionConfigObject["schemaLanguage"];
     props?: StandardVersionConfigObject["props"];
 
     resourceSubType: ResourceSubType;
@@ -80,7 +83,8 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
         this.format = config.format;
         this.compatibility = config.compatibility;
         this.compliance = config.compliance;
-        this.jsonSchema = config.jsonSchema;
+        this.schema = config.schema;
+        this.schemaLanguage = config.schemaLanguage;
         this.props = config.props;
 
         this.resourceSubType = resourceSubType;
@@ -90,7 +94,7 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
     static deserialize(
         version: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean }
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): StandardVersionConfig {
         return this.parseConfig<StandardVersionConfigObject, StandardVersionConfig>(
             version.config,
@@ -99,7 +103,7 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
                 // Add fallback properties as needed
                 return new StandardVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
             },
-            { mode: opts?.mode }
+            { mode: opts?.mode },
         );
     }
 
@@ -113,7 +117,9 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
             format: this.format,
             compatibility: this.compatibility,
             compliance: this.compliance,
-            jsonSchema: this.jsonSchema,
+            schema: this.schema,
+            schemaLanguage: this.schemaLanguage,
+            props: this.props,
         };
     }
 
@@ -148,7 +154,14 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
     /**
      * Sets JSON schema
      */
-    setJsonSchema(jsonSchema: StandardVersionConfigObject["jsonSchema"]): void {
-        this.jsonSchema = jsonSchema;
+    setSchema(schema: StandardVersionConfigObject["schema"]): void {
+        this.schema = schema;
+    }
+
+    /**
+     * Sets the language of the schema
+     */
+    setSchemaLanguage(schemaLanguage: StandardVersionConfigObject["schemaLanguage"]): void {
+        this.schemaLanguage = schemaLanguage;
     }
 } 

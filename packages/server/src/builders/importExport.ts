@@ -232,7 +232,7 @@ abstract class AbstractImportExport<Import extends ImportDataBase<`${ModelType}`
     public abstract export(record: DbModel, config: ExportConfig): Promise<Import>;
 }
 
-class ResourceImportExport extends AbstractImportExport<ResourceImportData, Resource> {
+export class ResourceImportExport extends AbstractImportExport<ResourceImportData, Resource> {
     public async getInfoCreate() {
         const info = (await import("../endpoints/generated/resource_createOne.js")).resource_createOne;
         return info;

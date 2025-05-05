@@ -2,8 +2,8 @@ import { SEEDED_IDS, SessionUser, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
-import { testEndpointRequiresApiKeyPrivatePermissions, testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { PrismaCreate } from "../../builders/types.js";
@@ -70,43 +70,6 @@ describe("EndpointsUser", () => {
 
         loggerErrorStub.restore();
         loggerInfoStub.restore();
-    });
-
-    describe("profile", () => {
-        describe("valid", () => {
-            it("returns own profile", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const result = await user.profile({} as never, { req, res }, user_findOne);
-
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("id", testUser.id);
-                expect(result).to.have.property("name", validUser1.name);
-                expect(result).to.have.property("handle", validUser1.handle);
-            });
-
-            it("API key - private permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
-                const permissions = mockReadPrivatePermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-
-                const result = await user.profile({} as never, { req, res }, user_findOne);
-
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("id", testUser.id);
-                expect(result).to.have.property("name", validUser1.name);
-                expect(result).to.have.property("handle", validUser1.handle);
-            });
-        });
-
-        describe("invalid", () => {
-            testEndpointRequiresAuth(user.profile, {}, user_findOne);
-
-            const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
-            testEndpointRequiresApiKeyPrivatePermissions(testUser, user.profile, {}, user_findOne);
-        });
     });
 
     describe("findOne", () => {

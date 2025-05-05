@@ -1,8 +1,9 @@
-import { ChatCreateInput, ChatSearchInput, ChatUpdateInput, FindByIdInput, uuid } from "@local/shared";
+import { ChatCreateInput, ChatSearchInput, ChatUpdateInput, FindByIdInput, generatePublicId, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -38,38 +39,23 @@ describe("EndpointsChat", () => {
         // Seed three users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user3Id,
                 name: "Test User 3",
-                handle: "test-user-3",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 
@@ -77,6 +63,7 @@ describe("EndpointsChat", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: chat1Id,
+                publicId: generatePublicId(),
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
                 translations: {
@@ -100,6 +87,7 @@ describe("EndpointsChat", () => {
         await DbProvider.get().chat.create({
             data: {
                 id: chat2Id,
+                publicId: generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
                 translations: {
@@ -160,20 +148,26 @@ describe("EndpointsChat", () => {
         it("returns chats without filters for any authenticated user", async () => {
             const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             const input: ChatSearchInput = { take: 10 };
+            const expectedIds = [
+                chat1Id,
+                chat2Id,
+            ];
             const result = await chat.findMany({ input }, { req, res }, chat_findMany);
             expect(result).to.not.be.null;
             expect(result.edges).to.be.an("array");
-            const ids = result.edges!.map(edge => edge!.node!.id).sort();
-            expect(ids).to.deep.equal([chat1Id, chat2Id].sort());
+            assertFindManyResultIds(expect, result, expectedIds);
         });
 
         it("returns chats without filters for not authenticated user", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: ChatSearchInput = { take: 10 };
+            const expectedIds = [
+                chat1Id,
+                chat2Id,
+            ];
             const result = await chat.findMany({ input }, { req, res }, chat_findMany);
             expect(result).to.not.be.null;
-            const ids = result.edges!.map(edge => edge!.node!.id).sort();
-            expect(ids).to.deep.equal([chat1Id, chat2Id].sort());
+            assertFindManyResultIds(expect, result, expectedIds);
         });
 
         it("returns chats without filters for API key public read", async () => {
@@ -181,10 +175,13 @@ describe("EndpointsChat", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
             const input: ChatSearchInput = { take: 10 };
+            const expectedIds = [
+                chat1Id,
+                chat2Id,
+            ];
             const result = await chat.findMany({ input }, { req, res }, chat_findMany);
             expect(result).to.not.be.null;
-            const ids = result.edges!.map(edge => edge!.node!.id).sort();
-            expect(ids).to.deep.equal([chat1Id, chat2Id].sort());
+            assertFindManyResultIds(expect, result, expectedIds);
         });
     });
 

@@ -1,11 +1,11 @@
-import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, ResourceVersion, Tag } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { getLabels } from "../../getters/getLabels.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
@@ -14,7 +14,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ResourceFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, ReactionModelLogic, ResourceModelInfo, ResourceModelLogic, ResourceVersionModelLogic, ViewModelLogic } from "./types.js";
+import { BookmarkModelLogic, ReactionModelLogic, ResourceModelInfo, ResourceModelLogic, ViewModelLogic } from "./types.js";
 
 type ResourcePre = PreShapeRootResult;
 
@@ -22,7 +22,55 @@ const __typename = "Resource" as const;
 export const ResourceModel: ResourceModelLogic = ({
     __typename,
     dbTable: "resource",
-    display: () => rootObjectDisplay(ModelMap.get<ResourceVersionModelLogic>("ResourceVersion")),
+    display: () => ({
+        label: {
+            select: () => ({
+                id: true,
+                isDeleted: false,
+                OR: [
+                    {
+                        isPrivate: false,
+                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
+
+                    },
+                    {
+                        isPrivate: true,
+                        versions: { select: { id: true, isLatest: true, translations: { select: { language: true, name: true } } } },
+                    },
+                ],
+            }),
+            get: (select, languages) => {
+                const latestVersion = select.versions.find((version) => version.isLatestPublic || version.isLatest);
+                return getTranslation(latestVersion as unknown as ResourceVersion, languages).name ?? "";
+            },
+        },
+        embed: {
+            select: () => ({
+                id: true,
+                isDeleted: false,
+                tags: { select: { tag: true } },
+                OR: [
+                    {
+                        isPrivate: false,
+                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } } },
+                    },
+                    {
+                        isPrivate: true,
+                        versions: { select: { id: true, isLatest: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } } },
+                    },
+                ],
+            }),
+            get: ({ tags, versions }, languages) => {
+                const latestVersion = versions.find((version) => version.isLatestPublic || version.isLatest);
+                const trans = getTranslation(latestVersion as unknown as ResourceVersion, languages);
+                return getEmbeddableString({
+                    name: trans.name,
+                    tags: (tags as unknown as Tag[]).map(({ tag }) => tag),
+                    description: trans.description,
+                }, languages?.[0]);
+            },
+        },
+    }),
     format: ResourceFormat,
     mutate: {
         shape: {

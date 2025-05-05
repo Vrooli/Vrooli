@@ -1,7 +1,7 @@
 import { CodeVersionConfig } from "@local/shared";
 import { expect } from "chai";
 import { SandboxChildProcessManager } from "../../../tasks/sandbox/sandboxWorkerManager.js";
-import { data } from "./codes.js";
+import { data } from "./resources.js";
 
 type WorkerManager = SandboxChildProcessManager;
 

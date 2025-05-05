@@ -2,7 +2,7 @@ import { FindByIdInput, MeetingInviteCreateInput, MeetingInviteSearchInput, Meet
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -44,38 +44,23 @@ describe("EndpointsMeetingInvite", () => {
         // Seed three users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user3Id,
                 name: "Test User 3",
-                handle: "test-user-3",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 

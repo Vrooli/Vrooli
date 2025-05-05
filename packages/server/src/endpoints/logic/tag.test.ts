@@ -2,7 +2,8 @@ import { FindByIdInput, SEEDED_IDS, TagCreateInput, TagSearchInput, TagUpdateInp
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -50,26 +51,16 @@ describe("EndpointsTag", () => {
         // Create test users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         // Ensure admin user exists for update tests
@@ -139,19 +130,19 @@ describe("EndpointsTag", () => {
             it("returns tags without filters for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: TagSearchInput = { take: 10 };
+                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
-                const resultTagIds = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(resultTagIds).to.deep.equal(allTagIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
             it("returns tags without filters for not authenticated user", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: TagSearchInput = { take: 10 };
+                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).to.not.be.null;
-                const resultTagIds = result.edges!.map(e => e!.node!.id).sort();
-                expect(resultTagIds).to.deep.equal(allTagIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
             it("returns tags without filters for API key public read", async () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
@@ -159,10 +150,10 @@ describe("EndpointsTag", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: TagSearchInput = { take: 10 };
+                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).to.not.be.null;
-                const resultTagIds = result.edges!.map(e => e!.node!.id).sort();
-                expect(resultTagIds).to.deep.equal(allTagIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
     });

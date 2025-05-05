@@ -1,6 +1,7 @@
+import { Team } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { LATEST_CONFIG_VERSION, parseObject, type StringifyMode } from "./utils.js";
+import { stringifyObject, type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
@@ -32,7 +33,7 @@ const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
  * }
  * ```
  */
-export interface TeamConfigObject extends BaseConfigObject {
+export type TeamConfigObject = BaseConfigObject & {
     /**
      * Roles available to team mmembers
      */
@@ -51,43 +52,45 @@ export interface TeamConfigObject extends BaseConfigObject {
     };
 }
 
+function defaultStructure(): TeamConfigObject["structure"] {
+    return {
+        type: "MOISE+",
+        version: "1.0",
+        content: "",
+    };
+}
+
 /**
  * Top-level Team config that encapsulates all team-related configuration data.
  */
 export class TeamConfig extends BaseConfig<TeamConfigObject> {
     structure?: TeamConfigObject["structure"];
 
-    constructor(data: TeamConfigObject) {
-        super(data);
-        this.structure = data.structure;
+    constructor({ config }: { config: TeamConfigObject }) {
+        super(config);
+        this.structure = config.structure;
     }
 
-    /**
-     * Creates a TeamConfig from a team object
-     */
-    static createFromTeam(
-        team: {
-            config?: string | null;
-        },
+    static deserialize(
+        version: Pick<Team, "config">,
         logger: PassableLogger,
-        options: { mode?: StringifyMode } = {},
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): TeamConfig {
-        const mode = options.mode || DEFAULT_STRINGIFY_MODE;
-        const obj = team.config ? parseObject<TeamConfigObject>(team.config, mode, logger) : null;
-        if (!obj) {
-            return TeamConfig.default();
-        }
-        return new TeamConfig(obj);
+        return this.parseConfig<TeamConfigObject, TeamConfig>(
+            version.config,
+            logger,
+            (cfg) => {
+                if (opts?.useFallbacks ?? true) {
+                    cfg.structure ??= defaultStructure();
+                }
+                return new TeamConfig({ config: cfg });
+            },
+            { mode: opts?.mode },
+        );
     }
 
-    /**
-     * Creates a default TeamConfig
-     */
-    static default(): TeamConfig {
-        const data: TeamConfigObject = {
-            __version: LATEST_CONFIG_VERSION,
-        };
-        return new TeamConfig(data);
+    serialize(mode: StringifyMode): string {
+        return stringifyObject(this.export(), mode);
     }
 
     /**

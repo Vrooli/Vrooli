@@ -2,7 +2,8 @@ import { FindByIdInput, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearch
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -44,26 +45,16 @@ describe("EndpointsIssue", () => {
         // Create two users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 
@@ -122,7 +113,7 @@ describe("EndpointsIssue", () => {
             it("returns issue with API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
                 const input: FindByIdInput = { id: issueUser2.id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
                 expect(result.id).to.equal(issueUser2.id);
@@ -135,27 +126,36 @@ describe("EndpointsIssue", () => {
             it("returns all issues for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: IssueSearchInput = { take: 10 };
+                const expectedIds = [
+                    issueUser1.id,
+                    issueUser2.id,
+                ];
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
-                const ids = result.edges.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([issueUser1.id, issueUser2.id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("returns all issues when not authenticated", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: IssueSearchInput = { take: 10 };
+                const expectedIds = [
+                    issueUser1.id,
+                    issueUser2.id,
+                ];
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
-                const ids = result.edges.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([issueUser1.id, issueUser2.id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("returns issues with API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
                 const input: IssueSearchInput = { take: 10 };
+                const expectedIds = [
+                    issueUser1.id,
+                    issueUser2.id,
+                ];
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
-                const ids = result.edges.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([issueUser1.id, issueUser2.id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
     });
@@ -175,7 +175,7 @@ describe("EndpointsIssue", () => {
             it("API key with write permissions can create issue", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
                 const newIssueId = uuid();
                 const input: IssueCreateInput = { id: newIssueId, issueFor: IssueFor.Team, forConnect: team1.id };
                 const result = await issue.createOne({ input }, { req, res }, issue_createOne);
@@ -199,7 +199,7 @@ describe("EndpointsIssue", () => {
             it("API key without write permissions cannot create issue", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData);
+                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
                 const input: IssueCreateInput = { id: uuid(), issueFor: IssueFor.Team, forConnect: team1.id };
                 try {
                     await issue.createOne({ input }, { req, res }, issue_createOne);

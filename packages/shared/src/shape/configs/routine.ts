@@ -8,13 +8,12 @@ import { type FormInputBase, type FormSchema } from "../../forms/types.js";
 import { nanoid } from "../../id/publicId.js";
 import { BotStyle, type SubroutineIOMapping } from "../../run/types.js";
 import { getDotNotationValue } from "../../utils/objects.js";
-import { BaseConfig } from "./baseConfig.js";
+import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
 import { type LlmModel } from "./bot.js";
 import { CodeVersionConfigObject, JsonSchema } from "./code.js";
 import { stringifyObject, type StringifyMode } from "./utils.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
-const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
 /**
  * Represents how to perform an action within Vrooli.
@@ -341,7 +340,7 @@ export type GraphConfigObject = GraphBpmnConfigObject;
  * Represents the configuration for a routine version. 
  * Includes configs for calling another service, I/O, and more.
  */
-export type RoutineVersionConfigObject = {
+export type RoutineVersionConfigObject = BaseConfigObject & {
     /** Store the version number for future compatibility */
     __version: string;
     /** Config for calling an action */
@@ -535,7 +534,7 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
                 }
                 return new RoutineVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
             },
-            { mode: opts?.mode }
+            { mode: opts?.mode },
         );
     }
 

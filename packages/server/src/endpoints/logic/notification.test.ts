@@ -1,9 +1,10 @@
+import { assertFindManyResultIds } from "../../__test/helpers.js";
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { FindByIdInput, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { defaultNotificationSettings } from "../../notify/notificationSettings.js";
@@ -40,28 +41,16 @@ describe("EndpointsNotification", () => {
         // Seed two users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-                notificationSettings: JSON.stringify(defaultNotificationSettings),
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-                notificationSettings: JSON.stringify(defaultNotificationSettings),
             },
         });
 
@@ -159,11 +148,14 @@ describe("EndpointsNotification", () => {
             it("returns notifications owned by authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: NotificationSearchInput = { take: 10 };
+                const expectedIds = [
+                    notification1Id,
+                    notification2Id,
+                ];
                 const result = await notification.findMany({ input }, { req, res }, notification_findMany);
                 expect(result).to.not.be.null;
                 expect(result.edges).to.have.lengthOf(2);
-                const ids = result.edges!.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([notification1Id, notification2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
 

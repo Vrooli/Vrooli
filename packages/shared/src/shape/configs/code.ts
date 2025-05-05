@@ -193,7 +193,7 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
     static deserialize(
         version: Pick<ResourceVersion, "codeLanguage" | "config">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean }
+        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): CodeVersionConfig {
         return this.parseConfig<CodeVersionConfigObject, CodeVersionConfig>(
             version.config,
@@ -207,7 +207,7 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
                 }
                 return new CodeVersionConfig({ config: cfg, codeLanguage: version.codeLanguage });
             },
-            { mode: opts?.mode }
+            { mode: opts?.mode },
         );
     }
 

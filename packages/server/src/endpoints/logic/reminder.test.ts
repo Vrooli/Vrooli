@@ -2,7 +2,8 @@ import { FindByIdInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdate
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -60,36 +61,16 @@ describe("EndpointsReminder", () => {
         // Create test users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: {
-                    create: [{
-                        provider: "Password",
-                        hashed_password: "dummy-hash",
-                    }],
-                },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: {
-                    create: [{
-                        provider: "Password",
-                        hashed_password: "dummy-hash",
-                    }],
-                },
             },
         });
 
@@ -237,8 +218,7 @@ describe("EndpointsReminder", () => {
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
 
-                const resultReminderIds = result.edges!.map(edge => edge!.node!.id);
-                expect(resultReminderIds.sort()).to.deep.equal(expectedReminderIds.sort());
+                assertFindManyResultIds(expect, result, expectedReminderIds);
             });
 
             it("filters by updated time frame", async () => {
@@ -262,8 +242,7 @@ describe("EndpointsReminder", () => {
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
 
-                const resultReminderIds = result.edges!.map(edge => edge!.node!.id);
-                expect(resultReminderIds.sort()).to.deep.equal(expectedReminderIds.sort());
+                assertFindManyResultIds(expect, result, expectedReminderIds);
             });
 
             it("filters by due date", async () => {
@@ -276,13 +255,15 @@ describe("EndpointsReminder", () => {
                         before: new Date("2023-03-20"),
                     },
                 };
+                const expectedIds = [
+                    userReminder1.id,
+                ];
                 const result = await reminder.findMany({ input }, { req, res }, reminder_findMany);
 
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
 
-                const resultReminderIds = result.edges!.map(edge => edge!.node!.id);
-                expect(resultReminderIds.sort()).to.deep.equal([userReminder1.id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("API key - public permissions", async () => {

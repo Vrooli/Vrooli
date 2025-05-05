@@ -2,7 +2,8 @@ import { FindVersionInput, ScheduleCreateInput, ScheduleRecurrenceType, Schedule
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -56,26 +57,16 @@ describe("EndpointsSchedule", () => {
         // Create test users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 
@@ -312,8 +303,7 @@ describe("EndpointsSchedule", () => {
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
 
-                const resultScheduleIds = result.edges!.map(edge => edge!.node!.id);
-                expect(resultScheduleIds.sort()).to.deep.equal(expectedScheduleIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
                 expect(resultScheduleIds).to.not.include(scheduleUser2.id);
             });
 

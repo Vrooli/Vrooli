@@ -3,7 +3,7 @@ import { PeriodType, team as TeamModelPrisma } from "@prisma/client";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -113,13 +113,25 @@ describe("EndpointsStatsTeam", () => {
 
         // Create test users
         await DbProvider.get().user.create({
-            data: { id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
+            data: {
+                ...defaultPublicUserData(),
+                id: user1Id,
+                name: "Test User 1",
+            },
         });
         await DbProvider.get().user.create({
-            data: { id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
+            data: {
+                ...defaultPublicUserData(),
+                id: user2Id,
+                name: "Test User 2",
+            },
         });
         await DbProvider.get().user.create({
-            data: { id: user3Id, name: "Test User 3", handle: "test-user-3", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
+            data: {
+                ...defaultPublicUserData(),
+                id: user3Id,
+                name: "Test User 3",
+            },
         });
 
         // Create test teams (ensure all required fields are present)

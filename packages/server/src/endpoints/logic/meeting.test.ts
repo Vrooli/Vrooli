@@ -2,7 +2,8 @@ import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInp
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -39,14 +40,16 @@ describe("EndpointsMeeting", () => {
         // Create two test users
         await DbProvider.get().user.create({
             data: {
-                id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+                ...defaultPublicUserData(),
+                id: user1Id,
+                name: "Test User 1",
             },
         });
         await DbProvider.get().user.create({
             data: {
-                id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+                ...defaultPublicUserData(),
+                id: user2Id,
+                name: "Test User 2",
             },
         });
 
@@ -107,20 +110,26 @@ describe("EndpointsMeeting", () => {
             it("returns meetings without filters for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingSearchInput = { take: 10 };
+                const expectedIds = [
+                    meeting1Id,
+                    meeting2Id,
+                ];
                 const result = await meeting.findMany({ input }, { req, res }, meeting_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
-                const ids = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(ids).to.deep.equal([meeting1Id, meeting2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("returns meetings without filters for not authenticated user", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: MeetingSearchInput = { take: 10 };
+                const expectedIds = [
+                    meeting1Id,
+                    meeting2Id,
+                ];
                 const result = await meeting.findMany({ input }, { req, res }, meeting_findMany);
                 expect(result).to.not.be.null;
-                const ids = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(ids).to.deep.equal([meeting1Id, meeting2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("returns meetings without filters for API key public read", async () => {
@@ -129,10 +138,13 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: MeetingSearchInput = { take: 10 };
+                const expectedIds = [
+                    meeting1Id,
+                    meeting2Id,
+                ];
                 const result = await meeting.findMany({ input }, { req, res }, meeting_findMany);
                 expect(result).to.not.be.null;
-                const ids = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(ids).to.deep.equal([meeting1Id, meeting2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
     });

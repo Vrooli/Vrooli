@@ -1,4 +1,4 @@
-import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, generatePublicId, SEEDED_PUBLIC_IDS } from "@local/shared";
+import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, generatePublicId, nanoid, SEEDED_PUBLIC_IDS } from "@local/shared";
 import { Request, Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
 import { UserDataForPasswordAuth } from "../auth/email.js";
@@ -280,6 +280,20 @@ export function mockWriteAuthPermissions(): Record<ApiKeyPermission, boolean> {
     };
 }
 
+export function defaultPublicUserData() {
+    return {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        name: "Test User",
+        handle: nanoid(),
+        status: "Unlocked" as const,
+        isBot: false,
+        isBotDepictingPerson: false,
+        isPrivate: false,
+        auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
+    };
+}
+
 /**
  * Seeds a mock admin user
  * @returns The admin user
@@ -289,15 +303,11 @@ export async function seedMockAdminUser() {
         where: { publicId: SEEDED_PUBLIC_IDS.Admin },
         update: {},
         create: {
+            ...defaultPublicUserData(),
             id: generatePK(),
             publicId: SEEDED_PUBLIC_IDS.Admin,
             name: "Admin User",
             handle: "admin",
-            status: "Unlocked",
-            isBot: false,
-            isBotDepictingPerson: false,
-            isPrivate: false,
-            auths: { create: [{ id: generatePK(), provider: "Password", hashed_password: "dummy-hash" }] },
         },
     });
     return admin;
