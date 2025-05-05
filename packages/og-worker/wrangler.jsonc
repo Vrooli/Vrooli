@@ -12,14 +12,6 @@
         {
             "pattern": "*.vrooli.com/*",
             "zone_name": "vrooli.com"
-        },
-        {
-            "pattern": "rustyisthebest.com/*",
-            "zone_name": "rustyisthebest.com"
-        },
-        {
-            "pattern": "*.rustyisthebest.com/*",
-            "zone_name": "rustyisthebest.com"
         }
     ],
     "vars": {
