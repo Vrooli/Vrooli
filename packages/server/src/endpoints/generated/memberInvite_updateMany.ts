@@ -1,7 +1,7 @@
 export const memberInvite_updateMany = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "message": true,
     "status": true,
     "willBeAdmin": true,
@@ -22,8 +22,8 @@ export const memberInvite_updateMany = {
             "isViewed": true,
             "yourMembership": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "isAdmin": true,
                 "permissions": true
             }
@@ -31,8 +31,8 @@ export const memberInvite_updateMany = {
     },
     "user": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "bannerImage": true,
         "handle": true,
         "isBot": true,
@@ -44,5 +44,5 @@ export const memberInvite_updateMany = {
         "canDelete": true,
         "canUpdate": true
     },
-    "__cacheKey": "-335858030"
+    "__cacheKey": "-1114681364"
 };

@@ -1,4 +1,4 @@
-import { DAYS_1_S, DEFAULT_LANGUAGE, TaskContextInfo } from "@local/shared";
+import { DAYS_1_S, TaskContextInfo } from "@local/shared";
 import { RedisClientType } from "redis";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -12,10 +12,10 @@ type CachedChatMessage = {
     id: string;
     userId?: string;
     parentId?: string;
-    translatedTokenCounts: string;
+    // Stores token counts as JSON: { [estimationMethodEncodingPair: string]: number }
+    tokenCounts: string;
 }
 type ContextInfoBase = {
-    language: string;
     tokenSize: number;
     userId: string | null;
 }
@@ -30,9 +30,9 @@ export type TextContextInfo = ContextInfoBase & {
 export type ContextInfo = MessageContextInfo | TextContextInfo;
 
 /**
- * Calculated token counts for a message, grouped by language and estimation method/encoding pair
+ * Calculated token counts for a message, grouped by estimation method/encoding pair
  */
-type StoredTokenCounts = { [language: string]: { [estimationMethodEncodingPair: string]: number } };
+type StoredTokenCounts = { [estimationMethodEncodingPair: string]: number };
 
 export type CollectMessageContextInfoParams = {
     /** The chat ID where the message was sent */
@@ -293,18 +293,13 @@ export class ChatContextDb {
 
     public async getMessage(messageId: string) {
         const message = await DbProvider.get().chat_message.findUnique({
-            where: { id: messageId },
+            where: { id: BigInt(messageId) },
             select: {
                 id: true,
+                text: true,
                 parent: {
                     select: {
                         id: true,
-                    },
-                },
-                translations: {
-                    select: {
-                        language: true,
-                        text: true,
                     },
                 },
                 user: {
@@ -340,9 +335,9 @@ export class TokenCountManager {
     public getTokenCountsFromMessageCache(messageCache: CachedChatMessage | null): StoredTokenCounts {
         if (!messageCache) return {};
         try {
-            return JSON.parse(messageCache.translatedTokenCounts);
+            return JSON.parse(messageCache.tokenCounts);
         } catch (error) {
-            logger.error("Failed to parse existing translations", { trace: "0069", error, messageCache });
+            logger.error("Failed to parse existing token counts", { trace: "0069", error, messageCache });
             return {};
         }
     }
@@ -362,7 +357,7 @@ export class TokenCountManager {
     /**
      * Creates or updates `StoredTokenCounts` for a message.
      * 
-     * @param messageObject The message to calculate token counts for
+     * @param text The message text to calculate token counts for
      * @param messageCache The existing cached information for the message
      * @param userLanguages The languages the user speaks
      * @param languageModelService The language model service
@@ -370,42 +365,24 @@ export class TokenCountManager {
      * @returns The calculated token counts
      */
     public calculateTokenCounts(
-        messageObject: { translations?: readonly { language: string, text: string }[] | undefined },
+        text: string,
         messageCache: CachedChatMessage | null,
-        userLanguages: string[],
         languageModelService: LanguageModelService<string>,
         aiModel: string,
     ): StoredTokenCounts {
-        const { translations } = messageObject;
 
         // Start with the existing token counts
         const result = this.getTokenCountsFromMessageCache(messageCache);
 
-        if (!translations || !Array.isArray(translations) || translations.length === 0) {
+        if (typeof text !== "string" || text.trim() === "") {
             return result;
         }
 
-        // Loop through the translations
-        for (const translation of translations) {
-            // Initialize the object for the language if it doesn't exist
-            if (!result[translation.language]) {
-                result[translation.language] = {};
-            }
-
-            // Don't bother translating if the user doesn't speak the language
-            if (!userLanguages.includes(translation.language)) {
-                continue;
-            }
-
-            // Calculate the token counts for the translation if they don't exist
-            const estimationKey = this.getEstimationKey(languageModelService, aiModel);
-            if (!result[translation.language][estimationKey]) {
-                const tokenEstimation = languageModelService.estimateTokens({
-                    aiModel,
-                    text: translation.text,
-                });
-                result[translation.language][estimationKey] = tokenEstimation.tokens;
-            }
+        // Calculate the token counts they don't exist
+        const estimationKey = this.getEstimationKey(languageModelService, aiModel);
+        if (!result[estimationKey]) {
+            const tokenEstimation = languageModelService.estimateTokens({ aiModel, text });
+            result[estimationKey] = tokenEstimation.tokens;
         }
 
         // Return the calculated token counts
@@ -425,12 +402,10 @@ export class TokenCountManager {
  */
 export class ChatContextManager {
     private aiModel: string;
-    private userLanguages: string[];
     private languageModelService: LanguageModelService<string>;
 
-    constructor(aiModel: string, userLanguages: string[]) {
+    constructor(aiModel: string) {
         this.aiModel = aiModel;
-        this.userLanguages = userLanguages;
         this.languageModelService = LlmServiceRegistry.get().getService(LlmServiceRegistry.get().getServiceId(aiModel));
     }
 
@@ -441,15 +416,14 @@ export class ChatContextManager {
                 if (!redisClient) return;
 
                 const tokenCounts = TokenCountManager.get().calculateTokenCounts(
-                    data,
+                    data.text,
                     null,
-                    this.userLanguages,
                     this.languageModelService,
                     this.aiModel,
                 );
                 const messageData: CachedChatMessage = {
                     id: messageId,
-                    translatedTokenCounts: JSON.stringify(tokenCounts),
+                    tokenCounts: JSON.stringify(tokenCounts),
                 };
                 if (parentId) {
                     messageData.parentId = parentId;
@@ -481,15 +455,14 @@ export class ChatContextManager {
                 }
                 // Create new cache data
                 const tokenCounts = TokenCountManager.get().calculateTokenCounts(
-                    data,
+                    data.text,
                     null, // We'll pass in null in case the message text has changed (which would invalidate the existing token counts)
-                    this.userLanguages,
                     this.languageModelService,
                     this.aiModel,
                 );
                 const messageData: CachedChatMessage = {
                     id: messageId,
-                    translatedTokenCounts: JSON.stringify(tokenCounts),
+                    tokenCounts: JSON.stringify(tokenCounts),
                 };
                 // hSet keeps existing fields if not provided, so we only need to update the fields that have changed
                 if (parentId && parentId !== existingData?.parentId) {
@@ -581,7 +554,6 @@ export class ChatContextManager {
         const contextSize = this.languageModelService.getContextSize(this.aiModel);
         let currentTokenCount = 0;
         const contextInfo: ContextInfo[] = [];
-        const language = this.userLanguages.length ? this.userLanguages[0] : DEFAULT_LANGUAGE;
 
         // Add task message to context info if provided
         if (taskMessage) {
@@ -595,7 +567,6 @@ export class ChatContextManager {
                     __type: "text",
                     tokenSize: estimation.tokens,
                     userId: null,
-                    language,
                     text: taskMessage,
                 });
             } else {
@@ -630,7 +601,6 @@ export class ChatContextManager {
                                 messageId: currentMessageId,
                                 tokenSize,
                                 userId: messageDetails.userId ?? null,
-                                language,
                             });
 
                             currentMessageId = messageDetails.parentId ?? null;
@@ -669,36 +639,34 @@ export class ChatContextManager {
         let tokenSize = 0;
 
         // Check if the message data includes a token count for the current language and estimation method
-        const currentLanguage = this.userLanguages.length ? this.userLanguages[0] : DEFAULT_LANGUAGE;
-        const tokenCounts = TokenCountManager.get().getTokenCountsFromMessageCache(messageCache);
-        if (!tokenCounts[currentLanguage] || typeof tokenCounts[currentLanguage] !== "object") {
-            tokenCounts[currentLanguage] = {};
+        let tokenCounts = TokenCountManager.get().getTokenCountsFromMessageCache(messageCache);
+        if (typeof tokenCounts !== "object") {
+            tokenCounts = {};
         }
         const estimationKey = TokenCountManager.get().getEstimationKey(this.languageModelService, this.aiModel);
         // If the token count is not found, calculate it
-        if (tokenCounts[currentLanguage][estimationKey] === undefined) {
+        if (tokenCounts[estimationKey] === undefined) {
             const messageData = await ChatContextDb.get().getMessage(messageId);
-            const translation = messageData?.translations?.find((t) => t.language === currentLanguage);
-            if (translation) {
+            if (messageData?.text) {
                 const tokenEstimation = this.languageModelService.estimateTokens({
                     aiModel: this.aiModel,
-                    text: translation.text,
+                    text: messageData.text,
                 });
-                tokenCounts[currentLanguage][estimationKey] = tokenEstimation.tokens;
+                tokenCounts[estimationKey] = tokenEstimation.tokens;
                 tokenSize = tokenEstimation.tokens;
             }
             // Update the cache with the new token counts and any other message data it might be missing
             const updatedMessageCache: CachedChatMessage = {
                 ...messageCache,
-                translatedTokenCounts: JSON.stringify(tokenCounts),
+                tokenCounts: JSON.stringify(tokenCounts),
                 id: messageId,
-                userId: messageData?.user?.id ?? undefined,
-                parentId: messageData?.parent?.id ?? undefined,
+                userId: messageData?.user?.id?.toString() ?? undefined,
+                parentId: messageData?.parent?.id?.toString() ?? undefined,
             };
             await ChatContextCache.get().setMessage(redisClient, messageId, updatedMessageCache);
             return { messageDetails: updatedMessageCache, tokenSize };
         } else {
-            tokenSize = tokenCounts[currentLanguage][estimationKey];
+            tokenSize = tokenCounts[estimationKey];
             return { messageDetails: messageCache, tokenSize };
         }
     }
@@ -730,15 +698,19 @@ export async function getBotInfo(botId: string): Promise<PreMapUserData | null> 
 
     // If not found in cache, query the database
     if (!botInfo || Object.keys(botInfo).length < 4) { // There are 4 fields in PreMapUserData. Can add better check if needed
-        botInfo = await DbProvider.get().user.findUnique({
-            where: { id: botId },
+        const botData = await DbProvider.get().user.findUnique({
+            where: { id: BigInt(botId) },
             select: {
                 id: true,
                 name: true,
                 isBot: true,
                 botSettings: true,
             },
-        }) as PreMapUserData;
+        });
+        botInfo = {
+            ...botData,
+            id: botData?.id.toString() ?? "",
+        } as PreMapUserData;
         // Store the fetched data in Redis for future use
         await withRedis({
             process: async (redisClient) => {

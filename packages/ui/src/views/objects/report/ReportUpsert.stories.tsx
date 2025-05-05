@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Report, ReportFor, endpointsReport, getObjectUrl, uuid } from "@local/shared";
+import { Report, ReportFor, endpointsReport, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ReportUpsert } from "./ReportUpsert.js";
@@ -9,16 +9,16 @@ import { ReportUpsert } from "./ReportUpsert.js";
 // Create simplified mock data for Report responses
 const mockReportData: Report = {
     __typename: "Report" as const,
-    id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    id: generatePKString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     reason: "Inappropriate",
     otherReason: "",
     details: "This is a detailed explanation of why this content was reported as inappropriate. The content contains material that violates community guidelines.",
     language: "en",
     createdFor: {
         __typename: "StandardVersion" as const,
-        id: uuid(),
+        id: generatePKString(),
     },
     you: {
         __typename: "ReportYou",
@@ -31,7 +31,7 @@ const mockReportData: Report = {
 // Mock for other reason type report
 const mockOtherReasonReportData: Report = {
     ...mockReportData,
-    id: uuid(),
+    id: generatePKString(),
     reason: "Other",
     otherReason: "The content is misleading",
     details: "This content provides incorrect information that could mislead users.",
@@ -40,10 +40,10 @@ const mockOtherReasonReportData: Report = {
 // Create mock for report object for a different object type
 const mockForRoutineReportData: Report = {
     ...mockReportData,
-    id: uuid(),
+    id: generatePKString(),
     createdFor: {
         __typename: "RoutineVersion" as const,
-        id: uuid(),
+        id: generatePKString(),
     },
 };
 
@@ -61,7 +61,7 @@ export function CreateDialog() {
             isOpen={true}
             createdFor={{
                 __typename: "StandardVersion" as ReportFor,
-                id: uuid(),
+                id: generatePKString(),
             }}
             onClose={() => { }}
             onCancel={() => { }}
@@ -82,7 +82,7 @@ export function CreateForRoutine() {
             isCreate={true}
             createdFor={{
                 __typename: "RoutineVersion" as ReportFor,
-                id: uuid(),
+                id: generatePKString(),
             }}
         />
     );
@@ -110,13 +110,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReport.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockReportData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReportData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReportData)}/edit`,
     },
 };
 
@@ -134,13 +134,13 @@ UpdateOtherReason.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReport.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockOtherReasonReportData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockOtherReasonReportData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockOtherReasonReportData)}/edit`,
     },
 };
 
@@ -158,7 +158,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReport.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsReport.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockReportData });
@@ -166,7 +166,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReportData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReportData)}/edit`,
     },
 };
 
@@ -178,7 +178,7 @@ export function NonPremiumUser() {
             isCreate={true}
             createdFor={{
                 __typename: "StandardVersion" as ReportFor,
-                id: uuid(),
+                id: generatePKString(),
             }}
         />
     );

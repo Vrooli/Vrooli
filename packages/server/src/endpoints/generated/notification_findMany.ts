@@ -3,7 +3,7 @@ export const notification_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
+            "createdAt": true,
             "category": true,
             "isRead": true,
             "title": true,
@@ -16,5 +16,5 @@ export const notification_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1637668420"
+    "__cacheKey": "1691406715"
 };

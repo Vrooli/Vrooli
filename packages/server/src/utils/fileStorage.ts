@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { SessionUser, uuid } from "@local/shared";
+import { SessionUser, nanoid } from "@local/shared";
 import https from "https";
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints/rest.js";
@@ -216,7 +216,7 @@ export async function processAndStoreFiles<TInput>(
         }
 
         // Get the file name
-        const filenameBase = fileConfig?.fileNameBase ? fileConfig.fileNameBase(input, userData) : uuid();
+        const filenameBase = fileConfig?.fileNameBase ? fileConfig.fileNameBase(input, userData) : nanoid();
 
         // Find extension using the beginning of the file buffer. 
         // This is safer than using the file extension from the original file name, 

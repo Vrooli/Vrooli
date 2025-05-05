@@ -1,13 +1,13 @@
 /**
  * Displays all search options for a team
  */
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList } from "@local/shared";
 import { Box, Button, Checkbox, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, TextField, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useBookmarkListsStore } from "../../../stores/bookmarkListsStore.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
@@ -71,7 +71,7 @@ export function SelectBookmarkListDialog({
             if (isCreate || !data?.edges.some(e => e.node.id === list.id)) {
                 await create(shapeBookmark.create({
                     __typename: "Bookmark",
-                    id: uuid(),
+                    id: DUMMY_ID,
                     to: {
                         __typename: objectType as BookmarkFor,
                         id: objectId!,
@@ -226,7 +226,7 @@ function CreateBookmarkListDialog({
             fetch: createList,
             inputs: shapeBookmarkList.create({
                 __typename: "BookmarkList",
-                id: uuid(),
+                id: DUMMY_ID,
                 label: name.trim(),
             }),
             onSuccess: (data) => {

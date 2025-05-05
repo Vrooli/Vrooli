@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ModelType, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
@@ -11,15 +11,10 @@ import { ModelMap } from "./index.js";
 import { ReportModelInfo, ReportModelLogic } from "./types.js";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
-    ApiVersion: "apiVersion",
     ChatMessage: "chatMessage",
-    CodeVersion: "codeVersion",
     Comment: "comment",
     Issue: "issue",
-    NoteVersion: "noteVersion",
-    ProjectVersion: "projectVersion",
-    RoutineVersion: "routineVersion",
-    StandardVersion: "standardVersion",
+    ResourceVersion: "resourceVersion",
     Tag: "tag",
     Team: "team",
     User: "user",
@@ -57,33 +52,32 @@ export const ReportModel: ReportModelLogic = ({
                         status: "Open",
                         user: { id: userData.id },
                         OR: Create.map((x) => ({
-                            [forMapper[x.input.createdForType]]: { id: x.input.createdForConnect },
+                            [forMapper[x.input.createdForType]]: { id: BigInt(x.input.createdForConnect) },
                         })),
                     };
-                    console.log("report pre where", JSON.stringify(where));
                     const existing = await DbProvider.get().report.findMany({
                         where: {
                             status: "Open",
-                            user: { id: userData.id },
+                            user: { id: BigInt(userData.id) },
                             OR: Create.map((x) => ({
-                                [forMapper[x.input.createdForType]]: { id: x.input.createdForConnect },
+                                [forMapper[x.input.createdForType]]: { id: BigInt(x.input.createdForConnect) },
                             })),
                         },
                     });
-                    console.log("existing", existing);
                     if (existing.length > 0)
                         throw new CustomError("0337", "MaxReportsReached");
                 }
             },
             create: async ({ data, userData }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     language: data.language,
                     reason: data.reason,
                     details: data.details,
                     status: ReportStatus.Open,
-                    createdBy: { connect: { id: userData.id } },
-                    [forMapper[data.createdForType]]: { connect: { id: data.createdForConnect } },
+                    createdBy: { connect: { id: BigInt(userData.id) } },
+                    [forMapper[data.createdForType]]: { connect: { id: BigInt(data.createdForConnect) } },
                 };
             },
             update: async ({ data }) => {
@@ -108,19 +102,13 @@ export const ReportModel: ReportModelLogic = ({
         defaultSort: ReportSortBy.DateCreatedDesc,
         sortBy: ReportSortBy,
         searchFields: {
-            apiVersionId: true,
             chatMessageId: true,
-            codeVersionId: true,
             commentId: true,
             createdTimeFrame: true,
             fromId: true,
             issueId: true,
             languageIn: true,
-            noteVersionId: true,
-            postId: true,
-            projectVersionId: true,
-            routineVersionId: true,
-            standardVersionId: true,
+            resourceVersionId: true,
             tagId: true,
             teamId: true,
             updatedTimeFrame: true,
@@ -169,7 +157,7 @@ export const ReportModel: ReportModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    createdBy: { id: data.userId },
+                    createdBy: { id: BigInt(data.userId) },
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {

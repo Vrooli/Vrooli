@@ -1,4 +1,4 @@
-import { calculateOccurrences, CalendarEvent, CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, HOURS_1_MS, isOfType, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, HOURS_1_MS, isOfType, MeetingShape, noopSubmit, RunShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success } from "@local/shared";
 import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
 import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
 import enUS from "date-fns/locale/en-US";
@@ -22,7 +22,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
@@ -41,15 +41,10 @@ export const scheduleForOptions: ScheduleForOption[] = [
         objectType: "Meeting",
     },
     {
-        iconInfo: { name: "Routine", type: "Routine" },
-        labelKey: "RunRoutine",
-        objectType: "RunRoutine",
+        iconInfo: { name: "Play", type: "Common" },
+        labelKey: "Run",
+        objectType: "Run",
     },
-    {
-        iconInfo: { name: "Project", type: "Common" },
-        labelKey: "RunProject",
-        objectType: "RunProject",
-    }
 ];
 
 const dayOfWeekOptions = [
@@ -92,7 +87,6 @@ export function scheduleInitialValues(
         endTime: new Date(Date.now() + HOURS_1_MS),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         exceptions: [],
-        labels: [],
         recurrences: [],
     };
 
@@ -107,7 +101,7 @@ export function transformScheduleValues(values: ScheduleShape, existing: Schedul
     return isCreate ? shapeSchedule.create(values) : shapeSchedule.update(existing, values);
 }
 
-type ScheduleForObject = CanConnect<MeetingShape | RunProjectShape | RunRoutineShape>;
+type ScheduleForObject = CanConnect<MeetingShape | RunShape>;
 
 
 const ScheduleForCardOuter = styled(Card)(({ theme }) => ({
@@ -132,12 +126,8 @@ const ScheduleForCardAvatar = memo(function ScheduleForCardAvatarMemo({ schedule
         switch (scheduleFor.__typename) {
             case "Meeting":
                 return { name: "Team", type: "Common" } as const;
-            case "RunProject":
-                return { name: "Project", type: "Common" } as const;
-            case "RunRoutine":
-                return { name: "Routine", type: "Routine" } as const;
             default:
-                return { name: "Routine", type: "Routine" } as const;
+                return { name: "Play", type: "Common" } as const;
         }
     }, [scheduleFor.__typename]);
 
@@ -450,15 +440,13 @@ function ScheduleForm({
     const [recurrencesField, , recurrencesHelpers] = useField<ScheduleRecurrence[]>("recurrences");
 
     const [meetingField, , meetingHelpers] = useField<MeetingShape | null>("meeting");
-    const [runProjectField, , runProjectHelpers] = useField<RunProjectShape | null>("runProject");
-    const [runRoutineField, , runRoutineHelpers] = useField<RunRoutineShape | null>("runRoutine");
+    const [runField, , runHelpers] = useField<RunShape | null>("run");
     // Determine the selected object (meeting, project, or routine)
     const scheduleForObject = useMemo(() => {
         if (meetingField.value) return meetingField.value;
-        if (runProjectField.value) return runProjectField.value;
-        if (runRoutineField.value) return runRoutineField.value;
+        if (runField.value) return runField.value;
         return null;
-    }, [meetingField.value, runProjectField.value, runRoutineField.value]);
+    }, [meetingField.value, runField.value]);
     const getScheduleForLabel = useCallback(function getScheduleForLabelCallback(scheduleFor: ScheduleForOption) {
         return t(scheduleFor.labelKey, { count: 1 });
     }, [t]);
@@ -468,10 +456,9 @@ function ScheduleForm({
         setIsScheduleForSearchOpen(false);
         if (selected) {
             meetingHelpers.setValue(isOfType(selected, "Meeting") ? selected as MeetingShape : null);
-            runProjectHelpers.setValue(isOfType(selected, "RunProject") ? selected as RunProjectShape : null);
-            runRoutineHelpers.setValue(isOfType(selected, "RunRoutine") ? selected as RunRoutineShape : null);
+            runHelpers.setValue(isOfType(selected, "Run") ? selected as RunShape : null);
         }
-    }, [meetingHelpers, runProjectHelpers, runRoutineHelpers]);
+    }, [meetingHelpers, runHelpers]);
     const handleScheduleForButtonClick = useCallback(function handleScheduleForButtonClickCallback() {
         setIsScheduleForSearchOpen(true);
     }, []);
@@ -515,7 +502,7 @@ function ScheduleForm({
         }
         recurrencesHelpers.setValue([...currentRecurrences, {
             __typename: "ScheduleRecurrence" as const,
-            id: uuid(),
+            id: DUMMY_ID,
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             duration: 60,
@@ -565,8 +552,8 @@ function ScheduleForm({
         } else {
             onCompleted?.({
                 ...values,
-                created_at: (existing as Partial<Schedule>).created_at ?? new Date().toISOString(),
-                updated_at: (existing as Partial<Schedule>).updated_at ?? new Date().toISOString(),
+                createdAt: (existing as Partial<Schedule>).createdAt ?? new Date().toISOString(),
+                updatedAt: (existing as Partial<Schedule>).updatedAt ?? new Date().toISOString(),
             } as Schedule);
         }
     }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, onCompleted, props, values]);
@@ -592,13 +579,9 @@ function ScheduleForm({
                                 __typename: "Meeting" as const,
                                 id: values.meeting.id,
                             } : undefined,
-                            runProject: values.runProject?.id ? {
-                                __typename: "RunProject" as const,
-                                id: values.runProject.id,
-                            } : undefined,
-                            runRoutine: values.runRoutine?.id ? {
-                                __typename: "RunRoutine" as const,
-                                id: values.runRoutine.id,
+                            run: values.run?.id ? {
+                                __typename: "Run" as const,
+                                id: values.run.id,
                             } : undefined,
                         }, values, true) as ScheduleCreateInput,
                         successCondition: (data) => !!data.id,
@@ -705,7 +688,7 @@ function ScheduleForm({
             // Exception doesn't exist, add it
             const newException: ScheduleException = {
                 __typename: "ScheduleException" as const,
-                id: uuid(),
+                id: DUMMY_ID,
                 originalStartTime: occurrenceTimeStr,
                 schedule: { __typename: "Schedule" as const, id: values.id } as any,
             };
@@ -973,8 +956,7 @@ export const ScheduleUpsert = memo(function ScheduleUpsert({
         // Ensure controlled fields for form before applying existing data
         const baseline: Schedule = {
             meeting: false,
-            runProject: false,
-            runRoutine: false,
+            run: false,
             ...data,
         } as Schedule;
         return scheduleInitialValues(session, baseline);

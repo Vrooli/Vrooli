@@ -1,4 +1,4 @@
-import { Bookmark, ListObject, ModelType, OrArray, Reaction, View, isOfType, noop } from "@local/shared";
+import { Bookmark, ListObject, ModelType, OrArray, Reaction, View, getObjectUrl, isOfType, noop } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lazily } from "react-lazily";
@@ -24,8 +24,7 @@ const { MemberInviteListItem } = lazily(() => import("../MemberInviteListItem/Me
 const { MemberListItem } = lazily(() => import("../MemberListItem/MemberListItem.js"));
 const { NotificationListItem } = lazily(() => import("../NotificationListItem/NotificationListItem.js"));
 const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem.js"));
-const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem.js"));
-const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem.js"));
+const { RunListItem } = lazily(() => import("../RunListItem/RunListItem.js"));
 function getListItemComponent(objectType: `${ModelType}` | "CalendarEvent") {
     switch (objectType) {
         case "BookmarkList": return BookmarkListListItem;
@@ -37,8 +36,7 @@ function getListItemComponent(objectType: `${ModelType}` | "CalendarEvent") {
         case "Member": return MemberListItem;
         case "Notification": return NotificationListItem;
         case "Reminder": return ReminderListItem;
-        case "RunProject": return RunProjectListItem;
-        case "RunRoutine": return RunRoutineListItem;
+        case "Run": return RunListItem;
         default: return ObjectListItemBase;
     }
 }

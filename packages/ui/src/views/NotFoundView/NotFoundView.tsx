@@ -50,7 +50,7 @@ export function NotFoundView(_props: ViewProps) {
     return (
         <>
             <TopBar
-                display="page"
+                display="Page"
                 titleBehavior="Hide"
             />
             <Container

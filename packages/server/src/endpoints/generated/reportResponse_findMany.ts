@@ -3,15 +3,16 @@ export const reportResponse_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "actionSuggested": true,
             "details": true,
             "language": true,
             "report": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "details": true,
                 "language": true,
                 "reason": true,
@@ -34,5 +35,5 @@ export const reportResponse_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1256014825"
+    "__cacheKey": "-662885085"
 };

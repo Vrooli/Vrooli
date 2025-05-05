@@ -1,4 +1,4 @@
-import { FindByIdInput, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSearchResult, MeetingUpdateInput } from "@local/shared";
+import { FindByPublicIdInput, Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSearchResult, MeetingUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsMeeting = {
-    findOne: ApiEndpoint<FindByIdInput, Meeting>;
+    findOne: ApiEndpoint<FindByPublicIdInput, Meeting>;
     findMany: ApiEndpoint<MeetingSearchInput, MeetingSearchResult>;
     createOne: ApiEndpoint<MeetingCreateInput, Meeting>;
     updateOne: ApiEndpoint<MeetingUpdateInput, Meeting>;

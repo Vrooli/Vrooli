@@ -3,14 +3,14 @@ import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, St
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useTabs } from "../../../hooks/useTabs.js";
-import { IconCommon } from "../../../icons/Icons.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { removeSearchParams } from "../../../route/searchParams.js";
 import { CrudProps } from "../../../types.js";
-import { Z_INDEX } from "../../../utils/consts.js";
+import { ELEMENT_CLASSES, Z_INDEX } from "../../../utils/consts.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { findObjectTabParams, searchTypeToParams } from "../../../utils/search/objectToSearch.js";
 import { SearchParams } from "../../../utils/search/schemas/base.js";
@@ -32,8 +32,7 @@ const { PromptUpsert } = lazily(() => import("../../../views/objects/prompt/Prom
 const { ReminderCrud } = lazily(() => import("../../../views/objects/reminder/ReminderCrud.js"));
 const { RoutineMultiStepCrud } = lazily(() => import("../../../views/objects/routine/RoutineMultiStepCrud.js"));
 const { RoutineSingleStepUpsert } = lazily(() => import("../../../views/objects/routine/RoutineSingleStepUpsert.js"));
-const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert.js"));
-const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert.js"));
+const { RunUpsert } = lazily(() => import("../../../views/objects/run/RunUpsert.js"));
 const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert.js"));
 const { TeamUpsert } = lazily(() => import("../../../views/objects/team/TeamUpsert.js"));
 
@@ -68,8 +67,7 @@ const createMap: { [K in FindObjectType]: UpsertView } = {
     Reminder: ReminderCrud as UpsertView,
     RoutineMultiStep: RoutineMultiStepCrud as UpsertView,
     RoutineSingleStep: RoutineSingleStepUpsert as UpsertView,
-    RunProject: RunProjectUpsert as UpsertView,
-    RunRoutine: RunRoutineUpsert as UpsertView,
+    Run: RunUpsert as UpsertView,
     SmartContract: SmartContractUpsert as UpsertView,
     Team: TeamUpsert as UpsertView,
     User: BotUpsert as UpsertView,
@@ -125,6 +123,9 @@ const autoFocusDelayMs = 100;
 const dialogStyle = {
     paper: {
         maxWidth: "min(100%, 600px)",
+        [`& .${ELEMENT_CLASSES.SearchBar} > div > div`]: {
+            borderRadius: 0,
+        },
     },
 } as const;
 
@@ -392,7 +393,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                 {/* Never show 'All' */}
                 {findObjectTabParams.filter((t) => !["Popular"]
                     .includes(t.searchType as SearchType))
-                    .map(({ Icon, key, titleKey }) => {
+                    .map(({ iconInfo, key, titleKey }) => {
                         function handleClick() {
                             onSelectCreateTypeClose(key as FindObjectType);
                         }
@@ -402,8 +403,8 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                                 key={key}
                                 onClick={handleClick}
                             >
-                                {Icon && <ListItemIcon>
-                                    <Icon fill={palette.background.textPrimary} />
+                                {iconInfo && <ListItemIcon>
+                                    <Icon info={iconInfo} fill={palette.background.textPrimary} />
                                 </ListItemIcon>}
                                 <ListItemText primary={t(titleKey, { count: 1, defaultValue: titleKey })} />
                             </MenuItem>
@@ -459,8 +460,8 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                                 <TIDCard
                                     buttonText={t("Select")}
                                     description={getDisplay(version as any).subtitle}
+                                    iconInfo={findObjectTabParams.find((t) => t.searchType === (version as any).__typename)?.iconInfo}
                                     key={index}
-                                    Icon={findObjectTabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
                                     onClick={handleClick}
                                     title={`${version.versionLabel} - ${getDisplay(version as any).title}`}
                                 />

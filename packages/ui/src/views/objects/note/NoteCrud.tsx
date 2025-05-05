@@ -18,7 +18,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm, InnerForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -46,7 +46,6 @@ function noteInitialValues(
     return {
         __typename: "NoteVersion" as const,
         id: DUMMY_ID,
-        directoryListings: [],
         isPrivate: true,
         versionLabel: existing?.versionLabel ?? "1.0.0",
         ...existing,

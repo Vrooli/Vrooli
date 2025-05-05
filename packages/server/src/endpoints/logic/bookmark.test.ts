@@ -1,9 +1,10 @@
+import { assertFindManyResultIds } from "../../__test/helpers.js";
 // Tests for the Bookmark endpoint (findOne, findMany, createOne, updateOne)
-import { BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkUpdateInput, FindByIdInput, uuid } from "@local/shared";
+import { BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkUpdateInput, FindByIdInput, generatePK, nanoid, validatePK } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -14,25 +15,23 @@ import { bookmark_findOne } from "../generated/bookmark_findOne.js";
 import { bookmark_updateOne } from "../generated/bookmark_updateOne.js";
 import { bookmark } from "./bookmark.js";
 
-// Test users
-const user1Id = uuid();
-const user2Id = uuid();
-
-// Variables to hold created bookmark lists and tags
-let listUser1: any;
-let listUser2: any;
-
-// Bookmark IDs for tests
-const bookmarkUser1Id = uuid();
-const bookmarkUser2Id = uuid();
-
-// Tag IDs for tests
-let tagUser1: any;
-let tagUser2: any;
-
 describe("EndpointsBookmark", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
+    // Test users
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let adminId: bigint;
+    let user1Id: bigint;
+    let user2Id: bigint;
+    // Bookmark lists for tests
+    let listUser1: any;
+    let listUser2: any;
+    // Bookmark IDs for tests
+    let bookmarkUser1Id: bigint;
+    let bookmarkUser2Id: bigint;
+    // Tags for tests
+    let tagUser1: any;
+    let tagUser2: any;
 
     before(() => {
         // Stub logger methods to suppress output
@@ -44,55 +43,48 @@ describe("EndpointsBookmark", () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Create two users for testing
+        // Create users for testing
+        user1Id = generatePK();
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
+        user2Id = generatePK();
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
+        const admin = await seedMockAdminUser();
+        adminId = admin.id;
 
         // Create bookmark lists for each user
         listUser1 = await DbProvider.get().bookmark_list.create({
             data: {
-                id: uuid(),
-                index: 0,
+                id: generatePK(),
                 label: "List1",
                 user: { connect: { id: user1Id } },
             },
         });
         listUser2 = await DbProvider.get().bookmark_list.create({
             data: {
-                id: uuid(),
-                index: 0,
+                id: generatePK(),
                 label: "List2",
                 user: { connect: { id: user2Id } },
             },
         });
 
         // Create tags to be bookmarked
-        tagUser1 = await DbProvider.get().tag.create({ data: { id: uuid(), tag: "tag-1" } });
-        tagUser2 = await DbProvider.get().tag.create({ data: { id: uuid(), tag: "tag-2" } });
+        tagUser1 = await DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-1" } });
+        tagUser2 = await DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-2" } });
 
         // Seed bookmarks for each user
+        bookmarkUser1Id = generatePK();
         await DbProvider.get().bookmark.create({
             data: {
                 id: bookmarkUser1Id,
@@ -101,6 +93,7 @@ describe("EndpointsBookmark", () => {
                 tag: { connect: { id: tagUser1.id } },
             },
         });
+        bookmarkUser2Id = generatePK();
         await DbProvider.get().bookmark.create({
             data: {
                 id: bookmarkUser2Id,
@@ -123,9 +116,9 @@ describe("EndpointsBookmark", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns own bookmark", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
-                const input: FindByIdInput = { id: bookmarkUser1Id };
+                const input: FindByIdInput = { id: bookmarkUser1Id.toString() };
                 const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(bookmarkUser1Id);
@@ -134,8 +127,8 @@ describe("EndpointsBookmark", () => {
             it("API key with read permissions can find own bookmark", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
-                const input: FindByIdInput = { id: bookmarkUser1Id };
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
+                const input: FindByIdInput = { id: bookmarkUser1Id.toString() };
                 const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(bookmarkUser1Id);
@@ -144,8 +137,8 @@ describe("EndpointsBookmark", () => {
 
         describe("invalid", () => {
             it("cannot find another user's bookmark", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
-                const input: FindByIdInput = { id: bookmarkUser2Id };
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
+                const input: FindByIdInput = { id: bookmarkUser2Id.toString() };
                 try {
                     await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
                     expect.fail("Expected an error to be thrown");
@@ -154,7 +147,7 @@ describe("EndpointsBookmark", () => {
 
             it("not logged in user cannot find bookmark", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: bookmarkUser1Id };
+                const input: FindByIdInput = { id: bookmarkUser1Id.toString() };
                 try {
                     await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
                     expect.fail("Expected an error to be thrown");
@@ -166,14 +159,16 @@ describe("EndpointsBookmark", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns own bookmarks for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: BookmarkSearchInput = { take: 10 };
+                const expectedIds = [
+                    bookmarkUser1Id,
+                ];
                 const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
-                const ids = result.edges!.map(edge => edge!.node!.id);
-                expect(ids).to.deep.equal([bookmarkUser1Id]);
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
 
@@ -192,33 +187,31 @@ describe("EndpointsBookmark", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a bookmark for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
-                const newBookmarkId = uuid();
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: newBookmarkId,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
                 };
                 const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
                 expect(result).to.not.be.null;
-                expect(result.id).to.equal(newBookmarkId);
+                expect(validatePK(result.id)).to.be.true;
             });
 
             it("API key with write permissions can create bookmark", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
-                const newBookmarkId = uuid();
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: newBookmarkId,
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
                 };
                 const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
                 expect(result).to.not.be.null;
-                expect(result.id).to.equal(newBookmarkId);
+                expect(validatePK(result.id)).to.be.true;
             });
         });
 
@@ -226,7 +219,7 @@ describe("EndpointsBookmark", () => {
             it("not logged in user cannot create bookmark", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: BookmarkCreateInput = {
-                    id: uuid(),
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
@@ -238,9 +231,9 @@ describe("EndpointsBookmark", () => {
             });
 
             it("cannot create bookmark under another user's list", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: uuid(),
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser2.id,
                     listConnect: listUser2.id,
@@ -254,9 +247,9 @@ describe("EndpointsBookmark", () => {
             it("API key without write permissions cannot create bookmark", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: BookmarkCreateInput = {
-                    id: uuid(),
+                    id: nanoid(),
                     bookmarkFor: BookmarkFor.Tag,
                     forConnect: tagUser1.id,
                     listConnect: listUser1.id,
@@ -272,8 +265,8 @@ describe("EndpointsBookmark", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates own bookmark", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
-                const input: BookmarkUpdateInput = { id: bookmarkUser1Id, listConnect: listUser1.id };
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
+                const input: BookmarkUpdateInput = { id: bookmarkUser1Id.toString(), listConnect: listUser1.id.toString() };
                 const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(bookmarkUser1Id);
@@ -282,8 +275,8 @@ describe("EndpointsBookmark", () => {
             it("API key with write permissions can update own bookmark", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
-                const input: BookmarkUpdateInput = { id: bookmarkUser1Id, listConnect: listUser1.id };
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
+                const input: BookmarkUpdateInput = { id: bookmarkUser1Id.toString(), listConnect: listUser1.id.toString() };
                 const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
                 expect(result).to.not.be.null;
                 expect(result.id).to.equal(bookmarkUser1Id);
@@ -292,8 +285,8 @@ describe("EndpointsBookmark", () => {
 
         describe("invalid", () => {
             it("cannot update another user's bookmark", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
-                const input: BookmarkUpdateInput = { id: bookmarkUser2Id, listConnect: listUser2.id };
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
+                const input: BookmarkUpdateInput = { id: bookmarkUser2Id.toString(), listConnect: listUser2.id.toString() };
                 try {
                     await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
                     expect.fail("Expected an error to be thrown");
@@ -302,7 +295,7 @@ describe("EndpointsBookmark", () => {
 
             it("not logged in user cannot update bookmark", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: BookmarkUpdateInput = { id: bookmarkUser1Id, listConnect: listUser1.id };
+                const input: BookmarkUpdateInput = { id: bookmarkUser1Id.toString(), listConnect: listUser1.id.toString() };
                 try {
                     await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
                     expect.fail("Expected an error to be thrown");

@@ -2,7 +2,7 @@ import { FindByIdInput, MeetingInviteCreateInput, MeetingInviteSearchInput, Meet
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -44,38 +44,23 @@ describe("EndpointsMeetingInvite", () => {
         // Seed three users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user3Id,
                 name: "Test User 3",
-                handle: "test-user-3",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 
@@ -121,7 +106,7 @@ describe("EndpointsMeetingInvite", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns invite when user is the meeting creator", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: FindByIdInput = { id: invite1Id };
                 const result = await meetingInvite.findOne({ input }, { req, res }, meetingInvite_findOne);
@@ -130,7 +115,7 @@ describe("EndpointsMeetingInvite", () => {
             });
 
             it("returns invite when user is the invited user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: FindByIdInput = { id: invite2Id };
                 const result = await meetingInvite.findOne({ input }, { req, res }, meetingInvite_findOne);
@@ -148,7 +133,7 @@ describe("EndpointsMeetingInvite", () => {
             });
 
             it("returns invite for API key with private read permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -163,7 +148,7 @@ describe("EndpointsMeetingInvite", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns only invites visible to authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteSearchInput = { take: 10 };
                 const result = await meetingInvite.findMany({ input }, { req, res }, meetingInvite_findMany);
                 expect(result).to.not.be.null;
@@ -187,7 +172,7 @@ describe("EndpointsMeetingInvite", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates an invite for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const newInviteId = uuid();
                 const input: MeetingInviteCreateInput = { id: newInviteId, meetingConnect: meeting1Id, userConnect: user3Id, message: "New Invite" };
                 const result = await meetingInvite.createOne({ input }, { req, res }, meetingInvite_createOne);
@@ -199,7 +184,7 @@ describe("EndpointsMeetingInvite", () => {
             it("API key with write permissions can create invite", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const newInviteId = uuid();
                 const input: MeetingInviteCreateInput = { id: newInviteId, meetingConnect: meeting1Id, userConnect: user3Id };
                 const result = await meetingInvite.createOne({ input }, { req, res }, meetingInvite_createOne);
@@ -219,7 +204,7 @@ describe("EndpointsMeetingInvite", () => {
             });
 
             it("authenticated user cannot create invite for meeting they don't own", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user3Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user3Id });
                 const input: MeetingInviteCreateInput = { id: uuid(), meetingConnect: meeting2Id, userConnect: user3Id, message: "Invalid Invite" };
                 try {
                     await meetingInvite.createOne({ input }, { req, res }, meetingInvite_createOne);
@@ -230,7 +215,7 @@ describe("EndpointsMeetingInvite", () => {
             it("API key without write permissions cannot create invite", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteCreateInput = { id: uuid(), meetingConnect: meeting2Id, userConnect: user3Id };
                 try {
                     await meetingInvite.createOne({ input }, { req, res }, meetingInvite_createOne);
@@ -243,7 +228,7 @@ describe("EndpointsMeetingInvite", () => {
     describe("createMany", () => {
         describe("valid", () => {
             it("creates multiple invites for meetings user owns", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const idA = uuid();
                 const input: MeetingInviteCreateInput[] = [
                     { id: idA, meetingConnect: meeting1Id, userConnect: user3Id, message: "Bulk 1" },
@@ -269,7 +254,7 @@ describe("EndpointsMeetingInvite", () => {
             it("API key without write permissions cannot create many invites", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteCreateInput[] = [
                     { id: uuid(), meetingConnect: meeting2Id, userConnect: user3Id },
                 ];
@@ -284,7 +269,7 @@ describe("EndpointsMeetingInvite", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates invite for meeting owner", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteUpdateInput = { id: invite1Id, message: "Updated Msg" };
                 const result = await meetingInvite.updateOne({ input }, { req, res }, meetingInvite_updateOne);
                 expect(result).to.not.be.null;
@@ -292,7 +277,7 @@ describe("EndpointsMeetingInvite", () => {
             });
 
             it("cannot update invite as invite recipient", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteUpdateInput = { id: invite2Id, message: "Updated By Recipient" };
                 try {
                     await meetingInvite.updateOne({ input }, { req, res }, meetingInvite_updateOne);
@@ -303,7 +288,7 @@ describe("EndpointsMeetingInvite", () => {
             it("API key with write permissions can update an invite", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteUpdateInput = { id: invite1Id, message: "API Update" };
                 const result = await meetingInvite.updateOne({ input }, { req, res }, meetingInvite_updateOne);
                 expect(result).to.not.be.null;
@@ -326,7 +311,7 @@ describe("EndpointsMeetingInvite", () => {
     describe("updateMany", () => {
         describe("valid", () => {
             it("updates multiple invites where user has visibility", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteUpdateInput[] = [{ id: invite1Id, message: "Bulk Update 1" }];
                 const result = await meetingInvite.updateMany({ input }, { req, res }, meetingInvite_updateMany);
                 expect(result).to.have.length(1);
@@ -336,7 +321,7 @@ describe("EndpointsMeetingInvite", () => {
             it("API key with write permissions can update many invites", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteUpdateInput[] = [{ id: invite1Id, message: "API Bulk" }];
                 const result = await meetingInvite.updateMany({ input }, { req, res }, meetingInvite_updateMany);
                 expect(result).to.have.length(1);
@@ -355,7 +340,7 @@ describe("EndpointsMeetingInvite", () => {
             });
 
             it("cannot update invite as invite recipient", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingInviteUpdateInput[] = [{ id: invite2Id, message: "Fail Bulk" }];
                 try {
                     await meetingInvite.updateMany({ input }, { req, res }, meetingInvite_updateMany);
@@ -367,7 +352,7 @@ describe("EndpointsMeetingInvite", () => {
 
     describe("acceptOne", () => {
         it("invited user can accept invite", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user2Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user2Id });
             const input: FindByIdInput = { id: invite1Id };
 
             const result = await meetingInvite.acceptOne({ input }, { req, res }, meetingInvite_acceptOne);
@@ -382,7 +367,7 @@ describe("EndpointsMeetingInvite", () => {
         });
 
         it("non-invited user cannot accept invite", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user3Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user3Id });
             const input: FindByIdInput = { id: invite1Id };
             try {
                 await meetingInvite.acceptOne({ input }, { req, res }, meetingInvite_acceptOne);
@@ -391,10 +376,10 @@ describe("EndpointsMeetingInvite", () => {
         });
 
         it("cannot accept non-pending invite", async () => {
-            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user2Id });
+            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user2Id });
             await meetingInvite.acceptOne({ input: { id: invite1Id } }, { req: req1, res: res1 }, meetingInvite_acceptOne);
 
-            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user2Id });
+            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user2Id });
             try {
                 await meetingInvite.acceptOne({ input: { id: invite1Id } }, { req: req2, res: res2 }, meetingInvite_acceptOne);
                 expect.fail("Expected Conflict error");
@@ -404,7 +389,7 @@ describe("EndpointsMeetingInvite", () => {
 
     describe("declineOne", () => {
         it("invited user can decline invite", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             const input: FindByIdInput = { id: invite2Id };
 
             const result = await meetingInvite.declineOne({ input }, { req, res }, meetingInvite_declineOne);
@@ -419,7 +404,7 @@ describe("EndpointsMeetingInvite", () => {
         });
 
         it("meeting owner can't decline invite (they must delete it)", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user2Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user2Id });
             const input: FindByIdInput = { id: invite2Id };
             try {
                 await meetingInvite.declineOne({ input }, { req, res }, meetingInvite_declineOne);
@@ -428,7 +413,7 @@ describe("EndpointsMeetingInvite", () => {
         });
 
         it("non-involved user cannot decline invite", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user3Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user3Id });
             const input: FindByIdInput = { id: invite2Id };
             try {
                 await meetingInvite.declineOne({ input }, { req, res }, meetingInvite_declineOne);
@@ -437,10 +422,10 @@ describe("EndpointsMeetingInvite", () => {
         });
 
         it("cannot decline non-pending invite", async () => {
-            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             await meetingInvite.declineOne({ input: { id: invite2Id } }, { req: req1, res: res1 }, meetingInvite_declineOne);
 
-            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
             try {
                 await meetingInvite.declineOne({ input: { id: invite2Id } }, { req: req2, res: res2 }, meetingInvite_declineOne);
                 expect.fail("Expected Conflict error");

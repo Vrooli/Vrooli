@@ -15,7 +15,7 @@ import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { SessionContext } from "../../contexts/session.js";
 import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { FormSection, ScrollBox } from "../../styles.js";
 import { SessionService } from "../../utils/authentication/session.js";

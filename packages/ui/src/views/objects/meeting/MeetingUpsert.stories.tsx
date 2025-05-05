@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, Meeting, MeetingInviteStatus, endpointsMeeting, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, Meeting, MeetingInviteStatus, endpointsMeeting, generatePKString, generatePublicId, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { MeetingUpsert } from "./MeetingUpsert.js";
@@ -9,23 +9,24 @@ import { MeetingUpsert } from "./MeetingUpsert.js";
 // Create simplified mock data for Meeting responses
 const mockMeetingData: Meeting = {
     __typename: "Meeting" as const,
-    id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    id: generatePKString(),
+    publicId: generatePublicId(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     attendees: [],
     attendeesCount: 0,
     invites: [
         {
             __typename: "MeetingInvite" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            id: generatePKString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             status: MeetingInviteStatus.Pending,
             message: "Please join our weekly planning meeting",
             meeting: {} as any, // This will be set by the circular reference
             user: {
                 __typename: "User" as const,
-                id: uuid(),
+                id: generatePKString(),
             } as any,
             you: {
                 __typename: "MeetingInviteYou" as const,
@@ -35,32 +36,20 @@ const mockMeetingData: Meeting = {
         },
     ],
     invitesCount: 1,
-    labels: [
-        {
-            __typename: "Label" as const,
-            id: uuid(),
-            color: "#FF5722",
-            text: "Planning",
-        } as any,
-    ],
-    labelsCount: 1,
     openToAnyoneWithInvite: true,
-    restrictedToRoles: [],
     schedule: {
         __typename: "Schedule" as const,
-        id: uuid(),
+        id: generatePKString(),
         startTime: new Date().toISOString(),
         endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
         timezone: "America/New_York",
         exceptions: [],
-        labels: [],
         meetings: [],
-        runProjects: [],
-        runRoutines: [],
+        runs: [],
         recurrences: [
             {
                 __typename: "ScheduleRecurrence" as const,
-                id: uuid(),
+                id: generatePKString(),
                 dayOfMonth: null,
                 dayOfWeek: 2, // Tuesday
                 duration: 60, // 60 minutes
@@ -71,13 +60,13 @@ const mockMeetingData: Meeting = {
                 schedule: {} as any, // This will be set by the circular reference
             },
         ],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     } as any,
     showOnTeamProfile: true,
     team: {
         __typename: "Team" as const,
-        id: uuid(),
+        id: generatePKString(),
         bannerImage: null,
         profileImage: null,
         handle: "example-team",
@@ -93,7 +82,7 @@ const mockMeetingData: Meeting = {
             isViewed: true,
             yourMembership: {
                 __typename: "Member" as const,
-                id: uuid(),
+                id: generatePKString(),
                 isAdmin: true,
                 permissions: "{}",
             } as any,
@@ -126,7 +115,7 @@ export default {
 // Create a new Meeting
 export function Create() {
     return (
-        <MeetingUpsert display="page" isCreate={true} />
+        <MeetingUpsert display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -154,20 +143,20 @@ CreateDialog.parameters = {
 // Update an existing Meeting
 export function Update() {
     return (
-        <MeetingUpsert display="page" isCreate={false} />
+        <MeetingUpsert display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockMeetingData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
     },
 };
 
@@ -189,27 +178,27 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockMeetingData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
     },
 };
 
 // Loading state
 export function Loading() {
     return (
-        <MeetingUpsert display="page" isCreate={false} />
+        <MeetingUpsert display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsMeeting.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 const LOADING_DELAY = 120_000; // 2 minutes delay
                 await new Promise(resolve => setTimeout(resolve, LOADING_DELAY));
@@ -218,14 +207,14 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockMeetingData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
     },
 };
 
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <MeetingUpsert display="page" isCreate={true} />
+        <MeetingUpsert display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

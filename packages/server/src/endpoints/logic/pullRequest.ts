@@ -1,4 +1,4 @@
-import { FindByIdInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSearchResult, PullRequestUpdateInput } from "@local/shared";
+import { FindByPublicIdInput, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSearchResult, PullRequestUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsPullRequest = {
-    findOne: ApiEndpoint<FindByIdInput, PullRequest>;
+    findOne: ApiEndpoint<FindByPublicIdInput, PullRequest>;
     findMany: ApiEndpoint<PullRequestSearchInput, PullRequestSearchResult>;
     createOne: ApiEndpoint<PullRequestCreateInput, PullRequest>;
     updateOne: ApiEndpoint<PullRequestUpdateInput, PullRequest>;
@@ -29,7 +29,6 @@ export const pullRequest: EndpointsPullRequest = {
     updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         return updateOneHelper({ info, input, objectType, req });
-        // TODO make sure to set hasBeenClosedOrRejected to true if status is closed or rejected
         // TODO 2 permissions for this differ from normal objects. Some fields can be updated by creator, and some by owner of object the pull request is for. Probably need to make custom endpoints like for transfers
     },
 };

@@ -34,8 +34,8 @@ describe("ChatContextManager", () => {
         parentId: null,
         content: "First test message",
         language: "en",
-        translations: [{ id: "trans-1", language: "en", text: "First test message" }],
-        userId: "user-test-1"
+        text: "First test message",
+        userId: "user-test-1",
     };
 
     const testMessage2 = {
@@ -44,8 +44,8 @@ describe("ChatContextManager", () => {
         parentId: testMessage1.messageId,
         content: "Second test message",
         language: "en",
-        translations: [{ id: "trans-2", language: "en", text: "Second test message" }],
-        userId: "user-test-1"
+        text: "Second test message",
+        userId: "user-test-1",
     };
 
     beforeEach(async () => {
@@ -73,7 +73,7 @@ describe("ChatContextManager", () => {
         describe(`${lmServiceName}`, () => {
             beforeEach(async () => {
                 // Create a ChatContextManager with the language model service
-                chatContextManager = new ChatContextManager("defaultModel", ["en"]);
+                chatContextManager = new ChatContextManager("defaultModel");
             });
 
             // Add message
@@ -89,7 +89,7 @@ describe("ChatContextManager", () => {
                 expect(messageData).to.have.property("id", message.messageId);
                 expect(messageData).to.have.property("userId", message.userId);
                 expect(messageData).to.have.property("translatedTokenCounts");
-                expect(JSON.parse(messageData.translatedTokenCounts)).to.be.an('object');
+                expect(JSON.parse(messageData.translatedTokenCounts)).to.be.an("object");
             });
 
             it("should add a message with a parent to Redis", async () => {
@@ -119,9 +119,9 @@ describe("ChatContextManager", () => {
                     __type: "Update",
                     chatId: testMessage1.chatId,
                     messageId: testMessage1.messageId,
-                    translations: [{ id: "trans-1-edited", language: "en", text: "Edited first message" }],
+                    text: "Edited first message",
                     userId: testMessage1.userId,
-                    parentId: null
+                    parentId: null,
                 };
 
                 await chatContextManager.editMessage(editedMessage);
@@ -153,8 +153,8 @@ describe("ChatContextManager", () => {
                     chatId: childMsg.chatId,
                     messageId: childMsg.messageId,
                     parentId: "parent2",
-                    translations: childMsg.translations,
-                    userId: childMsg.userId
+                    text: childMsg.text,
+                    userId: childMsg.userId,
                 };
 
                 await chatContextManager.editMessage(updatedMsg);
@@ -179,7 +179,7 @@ describe("ChatContextManager", () => {
                 const deleteMessage: PreMapMessageDataDelete = {
                     __type: "Delete",
                     chatId: testMessage1.chatId,
-                    messageId: testMessage1.messageId
+                    messageId: testMessage1.messageId,
                 };
 
                 await chatContextManager.deleteMessage(deleteMessage);
@@ -208,7 +208,7 @@ describe("ChatContextManager", () => {
                 await chatContextManager.deleteMessage({
                     __type: "Delete",
                     chatId: parent.chatId,
-                    messageId: parent.messageId
+                    messageId: parent.messageId,
                 });
 
                 // Verify children now have grandparent as parent

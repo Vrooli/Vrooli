@@ -23,8 +23,8 @@ export const teamYou: ApiPartial<TeamYou> = {
         isViewed: true,
         yourMembership: {
             id: true,
-            created_at: true,
-            updated_at: true,
+            createdAt: true,
+            updatedAt: true,
             isAdmin: true,
             permissions: true,
         },
@@ -34,10 +34,11 @@ export const teamYou: ApiPartial<TeamYou> = {
 export const team: ApiPartial<Team> = {
     common: {
         id: true,
+        publicId: true,
         bannerImage: true,
         handle: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         isOpenToNewMembers: true,
         isPrivate: true,
         commentsCount: true,
@@ -50,8 +51,8 @@ export const team: ApiPartial<Team> = {
         you: () => rel(teamYou, "full"),
     },
     full: {
+        config: true,
         members: async () => rel((await import("./member.js")).member, "list", { omit: "team" }),
-        roles: async () => rel((await import("./role.js")).role, "full", { omit: "team" }),
     },
     nav: {
         id: true,

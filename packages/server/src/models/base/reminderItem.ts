@@ -22,7 +22,7 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
                 index: data.index,

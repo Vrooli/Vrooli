@@ -1,17 +1,16 @@
 /* eslint-disable import/extensions */
 
-import { endpointsApi, endpointsChat, endpointsCode, endpointsComment, endpointsNote, endpointsProject, endpointsReport, endpointsRoutine, endpointsStandard, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, uuid } from "@local/shared";
+import { ListObject, nanoid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePress, UsePressEvent } from "../../hooks/gestures.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { uiPathToApi, useLazyFetch } from "../../hooks/useFetch.js";
 import { IconCommon, IconText } from "../../icons/Icons.js";
 import { SxType } from "../../types.js";
 import { getDisplay } from "../../utils/display/listTools.js";
-import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 
@@ -609,73 +608,37 @@ function processMarkdown(content: string): string {
     return result;
 }
 
-// Vrooli pages that show up as special links
-const specialRoutes = [
-    "Api",
-    "Chat",
-    "Code",
-    "Comment",
-    "Note",
-    "Project",
-    "Report",
-    "Routine",
-    "Standard",
-    "Tag",
-    "Team",
-    "User",
-].map(key => LINKS[key]);
-
-// Maps URL slugs to endpoints
-const routeToEndpoint = {
-    [LINKS.Api]: endpointsApi.findOne,
-    [LINKS.Chat]: endpointsChat.findOne,
-    [LINKS.DataConverter]: endpointsCode.findOne,
-    [LINKS.DataStructure]: endpointsStandard.findOne,
-    [LINKS.Comment]: endpointsComment.findOne,
-    [LINKS.Note]: endpointsNote.findOne,
-    [LINKS.Project]: endpointsProject.findOne,
-    [LINKS.Prompt]: endpointsStandard.findOne,
-    [LINKS.Report]: endpointsReport.findOne,
-    [LINKS.RoutineMultiStep]: endpointsRoutine.findOne,
-    [LINKS.RoutineSingleStep]: endpointsRoutine.findOne,
-    [LINKS.SmartContract]: endpointsCode.findOne,
-    [LINKS.Tag]: endpointsTag.findOne,
-    [LINKS.Team]: endpointsTeam.findOne,
-    [LINKS.User]: endpointsUser.findOne,
-};
-
 /** Creates custom links for Vrooli objects, and normal links otherwise */
 function CustomLink({ children, href }) {
     // Check if this is a special link
-    let linkUrl, windowUrl;
-    try {
-        linkUrl = new URL(href);
-        windowUrl = new URL(window.location.href);
-    } catch (_) {
-        console.error("CustomLink failed to parse url", href);
-    }
-
-    const matchingRoute: string | undefined = linkUrl ? specialRoutes.find(route => linkUrl.pathname.startsWith(route)) : undefined;
-    const isSpecialLink: boolean = linkUrl && linkUrl.hostname === windowUrl.hostname && matchingRoute !== undefined;
-    const endpoint = (isSpecialLink && matchingRoute) ? routeToEndpoint[matchingRoute] : null;
+    const { isInternal, apiUrl } = useMemo(() => {
+        try {
+            const link = new URL(href, window.location.href);
+            const here = window.location;
+            const isInternal = link.host === here.host;
+            if (!isInternal) return { isInternal, apiUrl: null };
+            return { isInternal: true, apiUrl: uiPathToApi(link.pathname) };
+        } catch {
+            return { isInternal: false, apiUrl: null };
+        }
+    }, [href]);
 
     // Fetch hook
-    const [getData, { data, loading: isLoading }] = useLazyFetch<any, any>(endpoint ?? endpointsUser.findOne);
+    const [getData, { data, loading: isLoading }] = useLazyFetch<undefined, unknown>({ endpoint: undefined, method: "GET" });
 
     // Get display data
-    const { title, subtitle } = getDisplay(data, ["en"]);
+    const { title, subtitle } = getDisplay(data as unknown as ListObject, ["en"]);
 
     // Popover to display more info
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = useCallback(({ target }: UsePressEvent) => {
+        if (!apiUrl) return;
         setAnchorEl(target as HTMLElement);
-        const urlParams = parseSingleItemUrl({ href });
-        if (exists(urlParams.handle)) getData({ handle: urlParams.handle });
-        else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot });
-        else if (exists(urlParams.id)) getData({ id: urlParams.id });
-        else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot });
-        else PubSub.get().publish("snack", { message: "Invalid URL", severity: "Error" });
-    }, [getData, href]);
+        getData(undefined, {
+            endpointOverride: apiUrl,
+            onError: () => PubSub.get().publish("snack", { message: "Invalid URL", severity: "Error" }),
+        });
+    }, [getData, apiUrl]);
     const close = useCallback(() => setAnchorEl(null), []);
 
     const pressEvents = usePress({
@@ -684,7 +647,7 @@ function CustomLink({ children, href }) {
         onClick: open,
     });
 
-    if (isSpecialLink) {
+    if (isInternal) {
         return (
             <>
                 <Link
@@ -730,7 +693,7 @@ function withCustomLinkProps(additionalProps) {
 
 /** Custom checkbox component editable checkboxes */
 function CustomCheckbox({ checked, onChange, ...otherProps }) {
-    const id = useMemo(() => uuid(), []);
+    const id = useMemo(() => nanoid(), []);
     function toggleCheckbox() {
         onChange(id, !checked);
     }
@@ -834,7 +797,7 @@ export function MarkdownDisplay({
     headingLevelOffset?: number;
 }) {
     const { palette, typography } = useTheme();
-    const id = useMemo(() => uuid(), []);
+    const id = useMemo(() => nanoid(), []);
 
     // Add overrides for custom components
     const options = useMemo(function optionsMemo() {

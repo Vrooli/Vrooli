@@ -9,7 +9,7 @@ import { LineGraphCard } from "../../components/lists/LineGraphCard/LineGraphCar
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { PageTab, useTabs } from "../../hooks/useTabs.js";
 import { ScrollBox } from "../../styles.js";
 import { statsDisplay } from "../../utils/display/statsDisplay.js";

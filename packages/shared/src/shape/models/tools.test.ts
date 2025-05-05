@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
 import sinon from "sinon";
-import { DUMMY_ID, uuidValidate } from "../../id/uuid.js";
+import { DUMMY_ID } from "../../id/index.js";
 import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, shouldConnect, updateOwner, updatePrims, updateRel, updateTranslationPrims, updateVersion } from "./tools.js";
 
 const mockShapeCreateModel = {
@@ -176,14 +176,6 @@ describe("createPrims", () => {
         const obj = { id: "123", value: 10 };
         const result = createPrims(obj, ["value", () => null]);
         expect(result).to.deep.equal({ value: null });
-    });
-
-    it("handling of DUMMY_ID", () => {
-        const obj = { id: DUMMY_ID, name: "Test" };
-        const result = createPrims(obj, "id", "name");
-        expect(result.id).not.to.equal(DUMMY_ID);
-        expect(uuidValidate(result.id)).to.equal(true); // Assuming uuid.validate() is a method to validate UUIDs
-        expect(result.name).to.equal("Test");
     });
 
     it("mix of fields with and without transformation functions", () => {
@@ -487,22 +479,6 @@ describe("updatePrims", () => {
         expect(result).to.deep.equal({ id: "123", value: 40 });
     });
 
-    it("handling of DUMMY_ID", () => {
-        const original = { id: DUMMY_ID, name: "Test" };
-        const updated = { ...original, name: "Updated" };
-        const result = updatePrims(original, updated, "id", "name");
-        expect(uuidValidate(result.id)).to.equal(true);
-        expect(result.name).to.equal("Updated");
-    });
-
-    it("primary key as id with DUMMY_ID", () => {
-        const original = { id: DUMMY_ID, name: "Test" };
-        const updated = { ...original, name: "Updated" };
-        const result = updatePrims(original, updated, "id", "name");
-        expect(uuidValidate(result.id)).to.equal(true);
-        expect(result.name).to.equal("Updated");
-    });
-
     it("primary key as id without DUMMY_ID", () => {
         const original = { id: "123", name: "Test" };
         const updated = { ...original, name: "Updated" };
@@ -574,23 +550,6 @@ describe("updateTranslationPrims", () => {
         const updated = { ...original, value: 20, language: "fr" };
         const result = updateTranslationPrims(original, updated, "id", ["value", val => val * 2]);
         expect(result).to.deep.equal({ id: "123", value: 40, language: "fr" });
-    });
-
-    it("handling of DUMMY_ID", () => {
-        const original = { id: DUMMY_ID, name: "Test", language: "fr" };
-        const updated = { ...original, name: "Updated" };
-        const result = updateTranslationPrims(original, updated, "id", "name");
-        expect(uuidValidate(result.id)).to.equal(true);
-        expect(result.name).to.equal("Updated");
-    });
-
-    it("primary key as id with DUMMY_ID", () => {
-        const original = { id: DUMMY_ID, name: "Test" };
-        const updated = { ...original, name: "Updated", language: "fr" };
-        // @ts-ignore: Testing runtime scenario
-        const result = updateTranslationPrims(original, updated, "id", "name") as any;
-        expect(uuidValidate(result.id)).to.equal(true);
-        expect(result.name).to.equal("Updated");
     });
 
     it("primary key as id without DUMMY_ID", () => {

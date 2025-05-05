@@ -84,7 +84,6 @@ class GenerateManager {
             end: {
                 __typename: "NodeEnd" as const,
                 id: uuid(),
-                suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
             translations: [{
@@ -1236,7 +1235,7 @@ function FormButtons({
     return (
         <MultiStepButtonsOuter>
             <Grid container spacing={1} ml={2}>
-                <BottomActionsGrid display="page">
+                <BottomActionsGrid display="Page">
                     <Popover />
                     <Grid item xs={6}>
                         <Box onClick={onSubmit}>

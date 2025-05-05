@@ -24,8 +24,7 @@ export async function cleanupRevokedSessions() {
                 id: true,
             },
             where: {
-                revoked: true,
-                updated_at: { lte: new Date(Date.now() - REVOKED_SESSION_TIMEOUT) },
+                revokedAt: { lte: new Date(Date.now() - REVOKED_SESSION_TIMEOUT) },
             },
         });
         logger.info(`Deleted ${totalDeleted} revoked sessions.`);

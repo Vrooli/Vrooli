@@ -32,7 +32,6 @@ describe('ActiveChatStore', () => {
             openToAnyoneWithInvite: false,
             __typename: 'Chat',
             invites: [],
-            labels: [],
             messages: [],
             participants: [{ id: 'p1', user: { __typename: 'User', id: 'u1', handle: 'test', isBot: false, name: 'Test', profileImage: '' } }],
             participantsDelete: [],

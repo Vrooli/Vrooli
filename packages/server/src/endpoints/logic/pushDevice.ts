@@ -18,10 +18,11 @@ export const pushDevice: EndpointsPushDevice = {
     findMany: async (_d, { req }) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return DbProvider.get().push_device.findMany({
-            where: { userId: id },
+        const devices = await DbProvider.get().push_device.findMany({
+            where: { userId: BigInt(id) },
             select: { id: true, name: true, expires: true },
         });
+        return devices.map(({ id, name, expires }) => ({ id: id.toString(), name, expires }));
     },
     createOne: async ({ input }, { req }, info) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
@@ -39,10 +40,10 @@ export const pushDevice: EndpointsPushDevice = {
     testOne: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         const pushDevices = await DbProvider.get().push_device.findMany({
-            where: { userId: userData.id },
+            where: { userId: BigInt(userData.id) },
         });
         const requestedId = input.id;
-        const requestedDevice = pushDevices.find(({ id }) => id === requestedId);
+        const requestedDevice = pushDevices.find(({ id }) => id.toString() === requestedId);
         if (!requestedDevice) {
             logger.info(`devices: ${requestedId}, ${JSON.stringify(pushDevices)}`);
             throw new CustomError("0588", "Unauthorized");

@@ -1,17 +1,12 @@
 import { DbProvider, ModelMap, PrismaDelegate, UI_URL_REMOTE, logger } from "@local/server";
-import { CodeType, LINKS, RoutineType, SitemapEntryContent, StandardType, generateSitemap, generateSitemapIndex, uuidToBase36 } from "@local/shared";
+import { LINKS, ResourceSubType, ResourceType, SitemapEntryContent, generateSitemap, generateSitemapIndex } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import zlib from "zlib";
 
 const sitemapObjectTypes = [
-    "ApiVersion",
-    "CodeVersion",
-    "NoteVersion",
-    "ProjectVersion",
-    "RoutineVersion",
-    "StandardVersion",
+    "ResourceVersion",
     "Team",
     "User",
 ] as const;
@@ -26,18 +21,31 @@ const BATCH_SIZE = 100; // How many objects to fetch at a time
  */
 function getLink(objectType: typeof sitemapObjectTypes[number], properties: any): string {
     switch (objectType) {
-        case "CodeVersion":
-            return properties.codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
-        case "StandardVersion":
-            return properties.variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
-        case "ApiVersion":
-            return LINKS.Api;
-        case "NoteVersion":
-            return LINKS.Note;
-        case "ProjectVersion":
-            return LINKS.Project;
-        case "RoutineVersion":
-            return properties.routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
+        case "ResourceVersion":
+            const resourceSubType = properties.resourceSubType;
+            switch (resourceSubType) {
+                case ResourceSubType.CodeDataConverter:
+                    return LINKS.DataConverter;
+                case ResourceSubType.CodeSmartContract:
+                    return LINKS.SmartContract;
+                case ResourceSubType.StandardPrompt:
+                    return LINKS.Prompt;
+                case ResourceSubType.StandardDataStructure:
+                    return LINKS.DataStructure;
+                case ResourceSubType.RoutineMultiStep:
+                    return LINKS.RoutineMultiStep;
+            }
+            const resourceType = properties.root?.resourceType;
+            if (resourceType === ResourceType.Api) {
+                return LINKS.Api;
+            } else if (resourceType === ResourceType.Note) {
+                return LINKS.Note;
+            } else if (resourceType === ResourceType.Project) {
+                return LINKS.Project;
+            } else if (resourceType === ResourceType.Routine) {
+                return LINKS.RoutineSingleStep;
+            }
+            return "";
         case "Team":
             return LINKS.Team;
         case "User":
@@ -65,11 +73,7 @@ async function genSitemapForObject(
     // Initialize return value
     const sitemapFileNames: string[] = [];
     // For objects that support handles, we prioritize those urls over the id urls
-    const supportsHandles = ["Team", "ProjectVersion", "User"].includes(objectType);
-    // For versioned objects, we also need to collect the root Id/handle
-    const isVersioned = objectType.endsWith("Version");
-    // If object can be private (in which case we don't want to include it in the sitemap)
-    const canBePrivate = true; // All object types currently support private flags
+    const supportsHandles = ["Team", "User"].includes(objectType);
     // Create do-while loop which breaks when the objects returned are less than the batch size
     let skip = 0;
     let currentBatchSize = 0;
@@ -88,26 +92,27 @@ async function genSitemapForObject(
                 // Grab id, handle, root data, and translations
                 select: {
                     id: true,
-                    ...(canBePrivate && { isPrivate: true }),
-                    ...(!isVersioned && supportsHandles && { handle: true }),
-                    ...(isVersioned && {
-                        root: {
-                            select: {
-                                id: true,
-                                ...(canBePrivate && { isPrivate: true }),
-                                ...(supportsHandles && { handle: true }),
-                            },
-                        },
-                    }),
+                    publicId: true,
+                    ...(supportsHandles && { handle: true }),
                     translations: {
                         select: {
                             language: true,
                         },
                     },
                     // Object type-specific fields for disambiguating urls
-                    ...(objectType === "CodeVersion" && { codeType: true }),
-                    ...(objectType === "RoutineVersion" && { routineType: true }),
-                    ...(objectType === "StandardVersion" && { variant: true }),
+                    ...(objectType === "ResourceVersion" && {
+                        isDeleted: true,
+                        resourceSubType: true,
+                        versionLabel: true,
+                        root: {
+                            select: {
+                                id: true,
+                                publicId: true,
+                                isDeleted: true,
+                                isPrivate: true,
+                            },
+                        },
+                    }),
                 },
                 skip,
                 take: BATCH_SIZE,
@@ -122,11 +127,12 @@ async function genSitemapForObject(
                 const objectLink = getLink(objectType, entry);
                 const entryContent: SitemapEntryContent = {
                     handle: entry.handle,
-                    id: uuidToBase36(entry.id),
+                    publicId: entry.publicId,
+                    versionLabel: entry.versionLabel,
                     languages: entry.translations.map(translation => translation.language),
                     objectLink,
                     rootHandle: entry.root?.handle,
-                    rootId: entry.root?.id ? uuidToBase36(entry.root.id) : undefined,
+                    rootPublicId: entry.root?.publicId,
                 };
                 // Add entry to collected entries
                 collectedEntries.push(entryContent);

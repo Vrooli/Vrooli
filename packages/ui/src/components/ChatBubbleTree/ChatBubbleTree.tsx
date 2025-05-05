@@ -8,7 +8,7 @@ import { usePress } from "../../hooks/gestures.js";
 import { MessageTree } from "../../hooks/messages.js";
 import { useDeleter } from "../../hooks/objectActions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { Link, useLocation } from "../../route/router.js";
 import { ProfileAvatar } from "../../styles.js";
@@ -589,7 +589,7 @@ export function ChatBubble({
                 <Stack direction="row" justifyContent={isOwn ? "flex-end" : "flex-start"}>
                     {!isOwn && !isMobile && (
                         <ProfileAvatar
-                            src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, TARGET_PROFILE_IMAGE_SIZE_PX)}
+                            src={extractImageUrl(message.user?.profileImage, message.user?.updatedAt, TARGET_PROFILE_IMAGE_SIZE_PX)}
                             alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
                             isBot={message.user?.isBot === true}
                             onClick={openProfile}
@@ -626,7 +626,7 @@ export function ChatBubble({
                     isOwn={isOwn}
                     numSiblings={numSiblings}
                     messageId={message.id}
-                    messageCreatedAt={message.created_at}
+                    messageCreatedAt={message.createdAt}
                     reactions={message.reactionSummaries}
                     status={message.status ?? "sent"}
                     onDelete={handleDelete}

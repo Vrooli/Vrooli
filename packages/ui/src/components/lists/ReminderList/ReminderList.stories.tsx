@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Reminder, ReminderList as ReminderListType, uuid } from "@local/shared";
+import { Reminder, ReminderList as ReminderListType, generatePKString } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";
@@ -22,12 +22,12 @@ const meta = {
 export default meta;
 
 // Mock data for reminders
-const mockReminderListId = uuid();
+const mockReminderListId = generatePKString();
 const mockReminderList: ReminderListType = {
     __typename: "ReminderList",
     id: mockReminderListId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     reminders: [],
 };
 
@@ -35,7 +35,7 @@ const mockReminderList: ReminderListType = {
 const baseMockReminders: Reminder[] = [
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Complete weekly report",
         description: "Finalize and submit the weekly progress report",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
@@ -43,12 +43,12 @@ const baseMockReminders: Reminder[] = [
         index: 0,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Meeting preparation",
         description: "Prepare slides for the upcoming team meeting",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 2)),
@@ -56,12 +56,12 @@ const baseMockReminders: Reminder[] = [
         index: 1,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Review pull requests",
         description: "Review pending pull requests from the team",
         dueDate: new Date(new Date().setHours(new Date().getHours() + 4)),
@@ -69,12 +69,12 @@ const baseMockReminders: Reminder[] = [
         index: 2,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Project planning",
         description: "Plan the next sprint objectives and tasks",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
@@ -82,12 +82,12 @@ const baseMockReminders: Reminder[] = [
         index: 3,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Client follow-up",
         description: "Send follow-up emails to clients",
         dueDate: new Date(new Date().setHours(new Date().getHours() + 2)),
@@ -95,8 +95,8 @@ const baseMockReminders: Reminder[] = [
         index: 4,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ];
 
@@ -105,7 +105,7 @@ const extendedMockReminders: Reminder[] = [
     ...baseMockReminders,
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Code review",
         description: "Review code changes for the new feature",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 4)),
@@ -113,12 +113,12 @@ const extendedMockReminders: Reminder[] = [
         index: 5,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Documentation update",
         description: "Update documentation for the recent API changes",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
@@ -126,12 +126,12 @@ const extendedMockReminders: Reminder[] = [
         index: 6,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Team feedback session",
         description: "Conduct feedback session with team members",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
@@ -139,12 +139,12 @@ const extendedMockReminders: Reminder[] = [
         index: 7,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "Quarterly planning",
         description: "Prepare quarterly objectives and key results",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
@@ -152,12 +152,12 @@ const extendedMockReminders: Reminder[] = [
         index: 8,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         __typename: "Reminder",
-        id: uuid(),
+        id: generatePKString(),
         name: "System maintenance",
         description: "Schedule and perform routine system maintenance",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
@@ -165,8 +165,8 @@ const extendedMockReminders: Reminder[] = [
         index: 9,
         reminderItems: [],
         reminderList: mockReminderList,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ];
 

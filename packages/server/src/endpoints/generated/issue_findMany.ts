@@ -3,35 +3,16 @@ export const issue_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "closedAt": true,
             "referencedVersionId": true,
             "status": true,
             "to": {
-                "Api": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Code": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Note": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Project": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Routine": {
+                "Resource": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
-                },
-                "Standard": {
-                    "id": true,
                     "isPrivate": true
                 },
                 "Team": {
@@ -50,8 +31,8 @@ export const issue_findMany = {
                         "isViewed": true,
                         "yourMembership": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "isAdmin": true,
                             "permissions": true
                         }
@@ -63,17 +44,6 @@ export const issue_findMany = {
             "score": true,
             "bookmarks": true,
             "views": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "you": {
                 "canComment": true,
                 "canDelete": true,
@@ -97,5 +67,5 @@ export const issue_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2108576717"
+    "__cacheKey": "505644885"
 };

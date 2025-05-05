@@ -30,7 +30,7 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 silent: noNull(data.silent),
                 subscriber: { connect: { id: rest.userData.id } },
                 [subscribableMapper[data.objectType]]: { connect: { id: data.objectConnect } },

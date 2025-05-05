@@ -3,56 +3,22 @@ export const member_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "isAdmin": true,
             "permissions": true,
-            "roles": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "name": true,
-                "permissions": true,
-                "membersCount": true,
-                "team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                }
-            },
             "you": {
                 "canDelete": true,
                 "canUpdate": true
             },
             "team": {
                 "id": true,
+                "publicId": true,
                 "bannerImage": true,
                 "handle": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "isOpenToNewMembers": true,
                 "isPrivate": true,
                 "commentsCount": true,
@@ -62,7 +28,7 @@ export const member_findMany = {
                 "bookmarks": true,
                 "tags": {
                     "id": true,
-                    "created_at": true,
+                    "createdAt": true,
                     "tag": true,
                     "bookmarks": true,
                     "translations": {
@@ -92,8 +58,8 @@ export const member_findMany = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
                     }
@@ -101,8 +67,9 @@ export const member_findMany = {
             },
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -130,5 +97,5 @@ export const member_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1202671121"
+    "__cacheKey": "-173183830"
 };

@@ -5,8 +5,8 @@ import { rel } from "../utils.js";
 export const reminderItem: ApiPartial<ReminderItem> = {
     full: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         name: true,
         description: true,
         dueDate: true,

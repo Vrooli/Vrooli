@@ -190,7 +190,7 @@ export function SubroutineView({
                                 {/* Date created */}
                                 <DateDisplay
                                     loading={isLoading}
-                                    timestamp={internalRoutineVersion?.created_at}
+                                    timestamp={internalRoutineVersion?.createdAt}
                                 />
                                 <VersionDisplay
                                     currentVersion={internalRoutineVersion}

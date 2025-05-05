@@ -8,7 +8,7 @@ export default {
 
 export function LoggedOut() {
     return (
-        <StatsSiteView display="page" />
+        <StatsSiteView display="Page" />
     );
 }
 LoggedOut.parameters = {
@@ -17,7 +17,7 @@ LoggedOut.parameters = {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <StatsSiteView display="page" />
+        <StatsSiteView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -26,7 +26,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <StatsSiteView display="page" />
+        <StatsSiteView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -35,7 +35,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <StatsSiteView display="page" />
+        <StatsSiteView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -44,7 +44,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <StatsSiteView display="page" />
+        <StatsSiteView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

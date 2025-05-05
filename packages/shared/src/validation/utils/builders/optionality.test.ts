@@ -55,7 +55,13 @@ describe("optArr function", () => {
 
         expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
         expect(await schema.validate({ tags: ["tag1", "tag2"] })).to.deep.equal({ tags: ["tag1", "tag2"] });
-        await expect(schema.validate({ tags: ["tag1", "", "tag2"] })).to.be.rejected;
+
+        try {
+            await schema.validate({ tags: ["tag1", "", "tag2"] });
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
     });
 
     it("should create an optional array of numbers with required contents", async () => {
@@ -65,7 +71,13 @@ describe("optArr function", () => {
 
         expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
         expect(await schema.validate({ numbers: [1, 2, 3] })).to.deep.equal({ numbers: [1, 2, 3] });
-        await expect(schema.validate({ numbers: [1, null, 3] })).to.be.rejected;
+
+        try {
+            await schema.validate({ numbers: [1, null, 3] });
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
     });
 
     it("should create an optional array of booleans with required contents", async () => {
@@ -75,7 +87,13 @@ describe("optArr function", () => {
 
         expect(await schema.validate({}, { stripUnknown: true, abortEarly: false })).to.deep.equal({});
         expect(await schema.validate({ flags: [true, false] })).to.deep.equal({ flags: [true, false] });
-        await expect(schema.validate({ flags: [true, null, false] })).to.be.rejected;
+
+        try {
+            await schema.validate({ flags: [true, null, false] });
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
     });
 
 });
@@ -86,7 +104,13 @@ describe("req function", () => {
             name: req(yup.string()),
         });
 
-        await expect(schema.validate({})).to.be.rejected;
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ name: "John" })).to.deep.equal({ name: "John" });
     });
 
@@ -95,7 +119,13 @@ describe("req function", () => {
             age: req(yup.number()),
         });
 
-        await expect(schema.validate({})).to.be.rejected;
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ age: 30 })).to.deep.equal({ age: 30 });
     });
 
@@ -104,7 +134,13 @@ describe("req function", () => {
             active: req(yup.boolean()),
         });
 
-        await expect(schema.validate({})).to.be.rejected;
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ active: true })).to.deep.equal({ active: true });
     });
 
@@ -114,7 +150,14 @@ describe("req function", () => {
         });
 
         const date = new Date();
-        await expect(schema.validate({})).to.be.rejected;
+
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ birthDate: date })).to.deep.equal({ birthDate: date });
     });
 });
@@ -125,10 +168,22 @@ describe("reqArr function", () => {
             tags: reqArr(yup.string().required()),
         });
 
-        await expect(schema.validate({})).to.be.rejected;
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ tags: [] })).to.deep.equal({ tags: [] });
         expect(await schema.validate({ tags: ["tag1", "tag2"] })).to.deep.equal({ tags: ["tag1", "tag2"] });
-        await expect(schema.validate({ tags: ["tag1", "", "tag2"] })).to.be.rejected;
+
+        try {
+            await schema.validate({ tags: ["tag1", "", "tag2"] });
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
     });
 
     it("should require an array of numbers with required contents", async () => {
@@ -136,10 +191,22 @@ describe("reqArr function", () => {
             numbers: reqArr(yup.number().required()),
         });
 
-        await expect(schema.validate({})).to.be.rejected;
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ numbers: [] })).to.deep.equal({ numbers: [] });
         expect(await schema.validate({ numbers: [1, 2, 3] })).to.deep.equal({ numbers: [1, 2, 3] });
-        await expect(schema.validate({ numbers: [1, null, 3] })).to.be.rejected;
+
+        try {
+            await schema.validate({ numbers: [1, null, 3] });
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
     });
 
     it("should require an array of booleans with required contents", async () => {
@@ -147,9 +214,21 @@ describe("reqArr function", () => {
             flags: reqArr(yup.boolean().required()),
         });
 
-        await expect(schema.validate({})).to.be.rejected;
+        try {
+            await schema.validate({});
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
+
         expect(await schema.validate({ flags: [] })).to.deep.equal({ flags: [] });
         expect(await schema.validate({ flags: [true, false] })).to.deep.equal({ flags: [true, false] });
-        await expect(schema.validate({ flags: [true, null, false] })).to.be.rejected;
+
+        try {
+            await schema.validate({ flags: [true, null, false] });
+            expect.fail("Validation should have failed but passed");
+        } catch (error) {
+            expect(error).to.be.an.instanceOf(Error);
+        }
     });
 });

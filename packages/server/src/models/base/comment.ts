@@ -18,20 +18,14 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { CommentFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic, TeamModelLogic } from "./types.js";
+import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic } from "./types.js";
 
 const DEFAULT_TAKE = 10;
 
 const forMapper: { [key in CommentFor]: keyof Prisma.commentUpsertArgs["create"] } = {
-    ApiVersion: "apiVersion",
-    CodeVersion: "codeVersion",
     Issue: "issue",
-    NoteVersion: "noteVersion",
-    Post: "post",
-    ProjectVersion: "projectVersion",
     PullRequest: "pullRequest",
-    RoutineVersion: "routineVersion",
-    StandardVersion: "standardVersion",
+    ResourceVersion: "resourceVersion",
 };
 const reversedForMapper: { [key in keyof Prisma.commentUpsertArgs["create"]]: CommentFor } = Object.fromEntries(
     Object.entries(forMapper).map(([key, value]) => [value, key]),
@@ -52,9 +46,9 @@ export const CommentModel: CommentModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
-                ownedByUser: { connect: { id: rest.userData.id } },
-                [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
+                id: BigInt(data.id),
+                ownedByUser: { connect: { id: BigInt(rest.userData.id) } },
+                [lowercaseFirstLetter(data.createdFor)]: { connect: { id: BigInt(data.forConnect) } },
                 translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
@@ -110,14 +104,14 @@ export const CommentModel: CommentModelLogic = ({
                 const totalInThread = await DbProvider.get().comment.count({
                     where: {
                         ...where,
-                        parentId: result.id,
+                        parentId: BigInt(result.id),
                     },
                 });
                 // Query for nested threads
                 const nestedThreads = nestLimit > 0 ? await DbProvider.get().comment.findMany({
                     where: {
                         ...where,
-                        parentId: result.id,
+                        parentId: BigInt(result.id),
                     },
                     take: input.take ?? DEFAULT_TAKE,
                     ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
@@ -191,7 +185,7 @@ export const CommentModel: CommentModelLogic = ({
                 take: input.take ?? DEFAULT_TAKE,
                 skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
                 cursor: input.after ? {
-                    id: input.after,
+                    id: BigInt(input.after),
                 } : undefined,
                 ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
             });
@@ -206,7 +200,7 @@ export const CommentModel: CommentModelLogic = ({
                 where: { ...where },
             });
             // Calculate end cursor
-            const endCursor = searchResults[searchResults.length - 1].id;
+            const endCursor = searchResults[searchResults.length - 1].id.toString();
             // If not as nestLimit, recurse with all result IDs
             const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                 ids: searchResults.map(r => r.id),
@@ -259,20 +253,14 @@ export const CommentModel: CommentModelLogic = ({
     search: {
         defaultSort: CommentSortBy.ScoreDesc,
         searchFields: {
-            apiVersionId: true,
             createdTimeFrame: true,
-            codeVersionId: true,
             issueId: true,
             minScore: true,
             minBookmarks: true,
-            noteVersionId: true,
             ownedByTeamId: true,
             ownedByUserId: true,
-            postId: true,
-            projectVersionId: true,
             pullRequestId: true,
-            routineVersionId: true,
-            standardVersionId: true,
+            resourceVersionId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -296,16 +284,11 @@ export const CommentModel: CommentModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            apiVersion: "ApiVersion",
-            codeVersion: "CodeVersion",
             issue: "Issue",
             ownedByTeam: "Team",
             ownedByUser: "User",
-            post: "Post",
-            projectVersion: "ProjectVersion",
             pullRequest: "PullRequest",
-            routineVersion: "RoutineVersion",
-            standardVersion: "StandardVersion",
+            resourceVersion: "ResourceVersion",
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
@@ -317,21 +300,16 @@ export const CommentModel: CommentModelLogic = ({
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<CommentModelInfo["DbSelect"]>([
-            ["apiVersion", "ApiVersion"],
-            ["codeVersion", "CodeVersion"],
             ["issue", "Issue"],
-            ["post", "Post"],
-            ["projectVersion", "ProjectVersion"],
             ["pullRequest", "PullRequest"],
-            ["routineVersion", "RoutineVersion"],
-            ["standardVersion", "StandardVersion"],
+            ["resourceVersion", "ResourceVersion"],
         ], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
-                        { ownedByUser: { id: data.userId } },
+                        { ownedByTeam: useVisibility("Team", "Own", data) },
+                        { ownedByUser: useVisibility("User", "Own", data) },
                     ],
                 };
             },

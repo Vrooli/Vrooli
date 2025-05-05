@@ -1,6 +1,6 @@
-import { TranslationKeyCommon } from "@local/shared";
-import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, Member, ModelType, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/types.js";
+import { Bookmark, ChatParticipant, Member, ModelType, Notification, Reaction, Resource, ResourceSubType, ResourceVersion, Schedule, Session, View } from "../api/types.js";
 import { LINKS } from "../consts/ui.js";
+import { Run, TranslationKeyCommon } from "../types.js";
 import { isOfType } from "./objects.js";
 
 export type UrlPrimitive = string | number | boolean | object;
@@ -58,6 +58,7 @@ export type NavigableObject = Omit<ListObject, "__typename"> & {
     __typename: `${ModelType}` | "Shortcut" | "Action" | "CalendarEvent",
     handle?: string | null,
     id?: string,
+    publicId?: string,
 };
 
 export interface ObjectOption {
@@ -126,12 +127,6 @@ export type CalendarEvent = {
     allDay: boolean;
     schedule: Schedule;
 };
-
-
-export enum RunTypeInPath {
-    Project = "p",
-    Routine = "r",
-}
 
 /**
  * Recursively encodes values in preparation for JSON serialization and URL encoding.
@@ -223,50 +218,17 @@ export function parseSearchParams(): ParseSearchParamsResult {
     return obj;
 }
 
-/**
- * Converts a string to a BigInt
- * @param value String to convert
- * @param radix Radix (base) to use
- * @returns 
- */
-function toBigInt(value: string, radix: number) {
-    return [...value.toString()]
-        // eslint-disable-next-line no-magic-numbers
-        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
-}
-
-/**
- * Converts a UUID into a shorter, base 36 string without dashes. 
- * Useful for displaying UUIDs in a more compact format, such as in a URL.
- * @param uuid v4 UUID to convert
- * @returns base 36 string without dashes
- */
-export function uuidToBase36(uuid: string): string {
-    try {
-        // eslint-disable-next-line no-magic-numbers
-        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
-        return base36 === "0" ? "" : base36;
-    } catch (error) {
-        return "";
+function getResourceSubType(object: Omit<NavigableObject, "id">): ResourceSubType | undefined {
+    if (isOfType(object, "Resource")) {
+        const latestVersion = (object as Resource).versions?.find(v => v.isLatest === true);
+        if (latestVersion) {
+            return latestVersion.resourceSubType;
+        }
     }
-}
-
-/**
- * Converts a base 36 string without dashes into a UUID.
- * @param base36 base 36 string without dashes
- * @param showError Whether to show an error snack if the conversion fails
- * @returns v4 UUID
- */
-export function base36ToUuid(base36: string): string {
-    try {
-        // Convert to base 16. If the ID is less than 32 characters, pad start with 0s. 
-        // Then, insert dashes
-        // eslint-disable-next-line no-magic-numbers
-        const uuid = toBigInt(base36, 36).toString(16).padStart(32, "0").replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
-        return uuid === "0" ? "" : uuid;
-    } catch (error) {
-        return "";
+    if (isOfType(object, "ResourceVersion")) {
+        return (object as ResourceVersion).resourceSubType ?? ResourceSubType.RoutineMultiStep;
     }
+    return undefined;
 }
 
 /**
@@ -279,17 +241,24 @@ export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
         console.warn("getObjectUrlBase called with non-object or non-string __typename", object);
         return "";
     }
+    // Resources have several types
+    const resourceSubType = getResourceSubType(object);
+    if (resourceSubType) {
+        switch (resourceSubType) {
+            case ResourceSubType.CodeDataConverter:
+                return LINKS.DataConverter;
+            case ResourceSubType.CodeSmartContract:
+                return LINKS.SmartContract;
+            case ResourceSubType.StandardDataStructure:
+                return LINKS.DataStructure;
+            case ResourceSubType.StandardPrompt:
+                return LINKS.Prompt;
+            case ResourceSubType.RoutineMultiStep:
+                return LINKS.RoutineMultiStep;
+        }
+    }
     // If object is a user, use 'Profile'
     if (isOfType(object, "User", "SessionUser")) return LINKS.Profile;
-    // If object is a code, base URL on its type
-    if (isOfType(object, "CodeVersion")) return (object as CodeVersion).codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
-    if (isOfType(object, "Code")) return (object as Code).versions?.find(v => v.isLatest === true)?.codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
-    // If object is a routine, base URL on its type
-    if (isOfType(object, "RoutineVersion")) return (object as RoutineVersion).routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
-    if (isOfType(object, "Routine")) return (object as Routine).versions?.find(v => v.isLatest === true)?.routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
-    // If object is a standard, base URL on its type
-    if (isOfType(object, "StandardVersion")) return (object as StandardVersion).variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
-    if (isOfType(object, "Standard")) return (object as Standard).versions?.find(v => v.isLatest === true)?.variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectUrlBase((object as Bookmark | Reaction | View).to as NavigableObject);
     // If the object is a member or participant, use the user
@@ -297,13 +266,8 @@ export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
     // If the object is a notification, use the "link" property
     if (isOfType(object, "Notification")) return (object as Notification).link ?? "";
     // If the object is a run
-    if (isOfType(object, "RunProject", "RunRoutine")) {
-        // Use run page for multi-step routines
-        if (isOfType(object, "RunProject") || (object as RunRoutine).routineVersion?.routineType === RoutineType.MultiStep) {
-            return LINKS.Run;
-        }
-        // Otherwise, use routine view page
-        return LINKS.RoutineSingleStep;
+    if (isOfType(object, "Run")) {
+        return LINKS.Run;
     }
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
@@ -316,36 +280,25 @@ export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
  * @returns String used to reference object in URL slug
  */
 export function getObjectSlug(object: NavigableObject | null | undefined, prefersId = false): string {
-    if (typeof object !== "object" || object === null) return "";
+    if (typeof object !== "object" || object === null) return "/";
     // If object is an action/shortcut/event, return blank
-    if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
+    if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "/";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Partial<Bookmark | Reaction | View>).to);
     // If object has root, use the root and version
-    if ((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root) {
-        const root = getObjectSlug((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
-        const versionId = uuidToBase36((object as { id?: string }).id ?? "");
-        const version = prefersId ? versionId : (object as { handle?: string }).handle ?? versionId;
-        return `${root}/${version}`;
+    if (Object.prototype.hasOwnProperty.call(object, "root")) {
+        const resourceVersion = object as ResourceVersion;
+        const root = getObjectSlug(resourceVersion.root);
+        const version = resourceVersion.versionLabel ?? resourceVersion.publicId ?? resourceVersion.id;
+        return `${root}/v/${version}`;
     }
     // If the object is a member or chat participant, use the user's slug
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectSlug((object as Partial<ChatParticipant | Member>).user);
     // If the object is a notification, return an empty string
-    if (isOfType(object, "Notification")) return "";
-    // Handle run slugs
-    if (isOfType(object, "RunProject")) {
-        return `${RunTypeInPath.Project}/${uuidToBase36((object as RunProject).id)}`;
-    }
-    if (isOfType(object, "RunRoutine")) {
-        if ((object as RunRoutine).routineVersion?.routineType === RoutineType.MultiStep) {
-            return `${RunTypeInPath.Routine}/${uuidToBase36((object as RunRoutine).id)}`;
-        }
-        // Use routine id for single-step routines (run id will be in search params)
-        return getObjectSlug((object as RunRoutine).routineVersion);
-    }
+    if (isOfType(object, "Notification")) return "/";
     // Otherwise, use object's handle or id
-    const id = uuidToBase36((object as { id?: string }).id ?? "");
-    return prefersId ? id : (object as { handle?: string }).handle ?? id;
+    const id = object.publicId ?? object.id ?? "";
+    return `/${prefersId ? id : object.handle ?? id}`;
 }
 
 /**
@@ -359,13 +312,8 @@ export function getObjectSearchParams(object: NavigableObject): string | null {
         return UrlTools.stringifySearchParams(LINKS.Calendar, { start: (object as CalendarEvent).start });
     }
     // If object is a run
-    if (isOfType(object, "RunProject", "RunRoutine")) {
-        // Use run page for multi-step routines
-        if (isOfType(object, "RunProject") || (object as RunRoutine).routineVersion?.routineType === RoutineType.MultiStep) {
-            return UrlTools.stringifySearchParams(LINKS.Run, { step: (object as RunProject | RunRoutine).lastStep ?? undefined });
-        }
-        // Otherwise, use routine view page
-        return UrlTools.stringifySearchParams(LINKS.RoutineSingleStep, { runId: uuidToBase36((object as RunRoutine).id) });
+    if (isOfType(object, "Run")) {
+        return UrlTools.stringifySearchParams(LINKS.Run, { step: (object as Run).lastStep ?? undefined });
     }
     return "";
 }
@@ -379,8 +327,7 @@ export function getObjectUrl(object: NavigableObject): string {
     if (isOfType(object, "Shortcut")) return (object as ShortcutOption).id ?? "";
     if (isOfType(object, "CalendarEvent")) return getObjectUrl((object as CalendarEvent).schedule);
     const base = getObjectUrlBase(object);
-    let slug = getObjectSlug(object);
-    if (slug.length > 0 && !slug.startsWith("/")) slug = `/${slug}`;
+    const slug = getObjectSlug(object);
     const search = getObjectSearchParams(object);
     return `${base}${slug}${search}`;
 }

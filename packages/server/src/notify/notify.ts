@@ -1,4 +1,4 @@
-import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success, uuid } from "@local/shared";
+import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, generatePK, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { type TFuncKey } from "i18next";
 import { InfoConverter } from "../builders/infoConverter.js";
@@ -9,9 +9,8 @@ import { logger } from "../events/logger.js";
 import { subscribableMapper } from "../events/subscriber.js";
 import { ModelMap } from "../models/base/index.js";
 import { PushDeviceModel } from "../models/base/pushDevice.js";
-import { type TeamModelLogic } from "../models/base/types.js";
 import { withRedis } from "../redisConn.js";
-import { emitSocketEvent, roomHasOpenConnections } from "../sockets/events.js";
+import { SocketService } from "../sockets/io.js";
 import { sendMail } from "../tasks/email/queue.js";
 import { sendPush } from "../tasks/push/queue.js";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
@@ -197,11 +196,11 @@ async function push({
             const notificationsData = users.map(({ userId }) => ({
                 category,
                 description: userBodies[userId],
-                id: uuid(),
+                id: generatePK(),
                 imgLink: APP_ICON,
                 link,
                 title: userTitles[userId],
-                userId,
+                userId: BigInt(userId),
             }));
 
             // Create all notifications
@@ -211,14 +210,15 @@ async function push({
 
             // Emit via WebSocket for connected users
             for (const user of users) {
-                if (roomHasOpenConnections(user.userId)) {
+                if (SocketService.get().roomHasOpenConnections(user.userId)) {
                     // Find the notification we just created for this user
-                    const notification = notificationsData.find(n => n.userId === user.userId);
+                    const notification = notificationsData.find(n => n.userId.toString() === user.userId);
                     if (notification) {
-                        emitSocketEvent("notification", user.userId, {
+                        SocketService.get().emitSocketEvent("notification", user.userId, {
                             ...notification,
+                            id: notification.id.toString(),
                             __typename: "Notification",
-                            created_at: new Date().toISOString(),
+                            createdAt: new Date().toISOString(),
                             isRead: false,
                         });
                     }
@@ -375,11 +375,26 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
         toTeam: async (teamId, excludedUsers) => {
             const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent } = notification;
             // Find every admin of the team, excluding the user who triggered the notification
-            const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
+            const adminData = await DbProvider.get().member.findMany({
+                where: {
+                    teamId: BigInt(teamId),
+                    isAdmin: true,
+                    ...(typeof excludedUsers === "string" ? [{ userId: { not: BigInt(excludedUsers) } }] : Array.isArray(excludedUsers) ? [{ userId: { notIn: excludedUsers.map(id => BigInt(id)) } }] : []),
+                },
+                select: {
+                    user: {
+                        select: {
+                            id: true,
+                            languages: true,
+                        },
+                    },
+                },
+            });
+            const admins = adminData.map(({ user }) => user);
             // Shape and translate the notification for each admin
-            const users = await replaceLabels(bodyVariables, titleVariables, silent, adminData.map(({ id, languages }) => ({
+            const users = await replaceLabels(bodyVariables, titleVariables, silent, admins.map(({ id, languages }) => ({
                 languages,
-                userId: id,
+                userId: id.toString(),
             })));
             // Send the notification to each admin
             await push({ body, bodyKey, category, link, title, titleKey, users });
@@ -423,9 +438,9 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                         AND: [
                             { [subscribableMapper[objectType]]: { id: objectId } },
                             ...(typeof excludedUsers === "string" ?
-                                [{ subscriberId: { not: excludedUsers } }] :
+                                [{ subscriberId: { not: BigInt(excludedUsers) } }] :
                                 Array.isArray(excludedUsers) ?
-                                    [{ subscriberId: { notIn: excludedUsers } }] :
+                                    [{ subscriberId: { notIn: excludedUsers.map(id => BigInt(id)) } }] :
                                     []
                             ),
                         ],
@@ -446,21 +461,21 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                 const { batch } = await import("../utils/batch.js");
                 await batch<Prisma.chat_participantsFindManyArgs>({
                     objectType: "ChatParticipant",
-                    processBatch: async (batch: { user: { id: string } }[]) => {
+                    processBatch: async (batch: { user: { id: string, languages: string[] } }[]) => {
                         // Shape and translate the notification for each participant
                         const users = await replaceLabels(bodyVariables, titleVariables, silent, batch.map(({ user }) => ({
-                            languages: ["en"], //TODO need to store user languages in db , then can update this
+                            languages: user.languages,
                             userId: user.id,
                         })));
                         // Send the notification to each participant
                         await push({ body, bodyKey, category, link, title, titleKey, users });
                     },
-                    select: { user: { select: { id: true } } },
+                    select: { user: { select: { id: true, languages: true } } },
                     where: typeof excludedUsers === "string"
-                        ? { AND: [{ chatId }, { userId: { not: excludedUsers } }] }
+                        ? { AND: [{ chatId: BigInt(chatId) }, { userId: { not: BigInt(excludedUsers) } }] }
                         : Array.isArray(excludedUsers)
-                            ? { AND: [{ chatId }, { userId: { notIn: excludedUsers } }] }
-                            : { chatId },
+                            ? { AND: [{ chatId: BigInt(chatId) }, { userId: { notIn: excludedUsers.map(id => BigInt(id)) } }] }
+                            : { chatId: BigInt(chatId) },
                 });
             } catch (error) {
                 logger.error("Caught error in toChatParticipants", { trace: "0498", error });
@@ -541,7 +556,7 @@ export function Notify(languages: string[] | undefined) {
                             auth,
                             p256dh,
                             expires,
-                            user: { connect: { id: userData.id } },
+                            user: { connect: { id: BigInt(userData.id) } },
                         },
                         select,
                     });
@@ -560,13 +575,13 @@ export function Notify(languages: string[] | undefined) {
         unregisterPushDevice: async (deviceId: string, userId: string): Promise<Success> => {
             // Check if the device is registered to the user
             const device = await DbProvider.get().push_device.findUnique({
-                where: { id: deviceId },
+                where: { id: BigInt(deviceId) },
                 select: { userId: true },
             });
-            if (!device || device.userId !== userId)
+            if (!device || device.userId.toString() !== userId)
                 throw new CustomError("0307", "PushDeviceNotFound");
             // If it is, delete it  
-            const deletedDevice = await DbProvider.get().push_device.delete({ where: { id: deviceId } });
+            const deletedDevice = await DbProvider.get().push_device.delete({ where: { id: BigInt(deviceId) } });
             return { __typename: "Success" as const, success: Boolean(deletedDevice) };
         },
         /**
@@ -642,10 +657,10 @@ export function Notify(languages: string[] | undefined) {
             link: `/messages/${messageId}`,
             titleKey: "MessageReceived_Title",
         }),
-        pushNewDecisionRequest: (decision: DeferredDecisionData, runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushNewDecisionRequest: (decision: DeferredDecisionData, runId: string): NotifyResultType => NotifyResult({
             body: decision.message,
             bodyKey: "NewDecisionRequest_Body",
-            bodyVariables: { objectName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { objectName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             titleKey: "NewDecisionRequest_Title",
@@ -741,25 +756,25 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}/pulls/${reportId}`,
             titleKey: `PullRequestStatus${status}_Title`,
         }),
-        pushRunStartedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushRunStartedAutomatically: (runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunStartedAutomatically_Body",
-            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { runName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,
             titleKey: "RunStartedAutomatically_Title",
         }),
-        pushRunCompletedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushRunCompletedAutomatically: (runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunCompletedAutomatically_Body",
-            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { runName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,
             titleKey: "RunCompletedAutomatically_Title",
         }),
-        pushRunFailedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+        pushRunFailedAutomatically: (runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunFailedAutomatically_Body",
-            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
+            bodyVariables: { runName: `<Label|Run:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,

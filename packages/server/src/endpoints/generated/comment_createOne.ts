@@ -1,7 +1,7 @@
 export const comment_createOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "owner": {
         "Team": {
             "id": true,
@@ -19,8 +19,8 @@ export const comment_createOne = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
@@ -28,8 +28,8 @@ export const comment_createOne = {
         },
         "User": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -52,42 +52,6 @@ export const comment_createOne = {
         "reaction": true
     },
     "commentedOn": {
-        "ApiVersion": {
-            "id": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "root": {
-                "id": true,
-                "isPrivate": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "details": true,
-                "name": true,
-                "summary": true
-            }
-        },
-        "CodeVersion": {
-            "id": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "root": {
-                "id": true,
-                "isPrivate": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "jsonVariable": true,
-                "name": true
-            }
-        },
         "Issue": {
             "id": true,
             "translations": {
@@ -97,54 +61,14 @@ export const comment_createOne = {
                 "name": true
             }
         },
-        "NoteVersion": {
-            "id": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "root": {
-                "id": true,
-                "isPrivate": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true,
-                "pages": {
-                    "id": true,
-                    "pageIndex": true,
-                    "text": true
-                }
-            }
-        },
-        "ProjectVersion": {
-            "id": true,
-            "complexity": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "root": {
-                "id": true,
-                "isPrivate": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            }
-        },
         "PullRequest": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "mergedOrRejectedAt": true,
             "status": true
         },
-        "RoutineVersion": {
+        "ResourceVersion": {
             "id": true,
             "complexity": true,
             "isAutomatable": true,
@@ -157,34 +81,17 @@ export const comment_createOne = {
                 "isInternal": true,
                 "isPrivate": true
             },
-            "routineType": true,
+            "resourceSubType": true,
             "translations": {
                 "id": true,
                 "language": true,
                 "description": true,
+                "details": true,
                 "instructions": true,
                 "name": true
             },
             "versionIndex": true,
             "versionLabel": true
-        },
-        "StandardVersion": {
-            "id": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "root": {
-                "id": true,
-                "isPrivate": true
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "jsonVariable": true,
-                "name": true
-            }
         }
     },
     "translations": {
@@ -192,5 +99,5 @@ export const comment_createOne = {
         "language": true,
         "text": true
     },
-    "__cacheKey": "-1647528212"
+    "__cacheKey": "-841009201"
 };

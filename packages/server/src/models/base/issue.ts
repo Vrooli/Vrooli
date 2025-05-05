@@ -1,10 +1,9 @@
-import { IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, MaxObjects, ModelType, getTranslation, issueValidation } from "@local/shared";
+import { IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, MaxObjects, ModelType, generatePublicId, getTranslation, issueValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
@@ -16,12 +15,7 @@ import { type BookmarkModelLogic, type IssueModelInfo, type IssueModelLogic, typ
 type IssuePre = PreShapeEmbeddableTranslatableResult;
 
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } = {
-    Api: "api",
-    Code: "code",
-    Note: "note",
-    Project: "project",
-    Routine: "routine",
-    Standard: "standard",
+    Resource: "resource",
     Team: "team",
 };
 const reversedForMapper: { [key in keyof Prisma.issueUpsertArgs["create"]]: IssueFor } = Object.fromEntries(
@@ -59,10 +53,10 @@ export const IssueModel: IssueModelLogic = ({
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as IssuePre;
                 return {
-                    id: data.id,
-                    referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
-                    [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", data, ...rest }),
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
+                    referencedVersion: data.referencedVersionIdConnect ? { connect: { id: BigInt(data.referencedVersionIdConnect) } } : undefined,
+                    [forMapper[data.issueFor]]: { connect: { id: BigInt(data.forConnect) } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -73,7 +67,6 @@ export const IssueModel: IssueModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as IssuePre;
                 return {
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -84,19 +77,14 @@ export const IssueModel: IssueModelLogic = ({
         defaultSort: IssueSortBy.ScoreDesc,
         sortBy: IssueSortBy,
         searchFields: {
-            apiId: true,
             closedById: true,
-            codeId: true,
             createdById: true,
             createdTimeFrame: true,
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            noteId: true,
-            projectId: true,
             referencedVersionId: true,
-            routineId: true,
-            standardId: true,
+            resourceId: true,
             status: true,
             teamId: true,
             translationLanguages: true,
@@ -119,12 +107,7 @@ export const IssueModel: IssueModelLogic = ({
     validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<IssueModelInfo["DbSelect"]>([
-            ["api", "Api"],
-            ["code", "Code"],
-            ["note", "Note"],
-            ["project", "Project"],
-            ["routine", "Routine"],
-            ["standard", "Standard"],
+            ["resource", "Resource"],
             ["team", "Team"],
         ], ...rest),
         isTransferable: false,
@@ -135,19 +118,14 @@ export const IssueModel: IssueModelLogic = ({
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            api: "Api",
-            code: "Code",
             createdBy: "User",
-            note: "Note",
-            project: "Project",
-            routine: "Routine",
-            standard: "Standard",
+            resource: "Resource",
             team: "Team",
         }),
         visibility: {
             own: function getOwn(data) {
                 return {
-                    createdBy: { id: data.userId },
+                    createdBy: { id: BigInt(data.userId) },
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {

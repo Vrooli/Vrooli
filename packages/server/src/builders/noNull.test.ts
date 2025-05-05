@@ -1,7 +1,6 @@
 /* eslint-disable func-style */
-import { uuid } from "@local/shared";
 import { expect } from "chai";
-import { noEmptyString, noNull, validNumber, validUuid } from "./noNull.js";
+import { noEmptyString, noNull, validNumber } from "./noNull.js";
 
 describe("noNull", () => {
     it("returns the first valid argument when all are valid", () => {
@@ -131,50 +130,3 @@ describe("validNumber", () => {
     });
 });
 
-describe("validUuid", () => {
-    it("should return the first valid UUID", () => {
-        const uuid1 = uuid();
-        const uuid2 = uuid();
-        expect(validUuid(uuid1, uuid2)).to.equal(uuid1);
-    });
-
-    it("should ignore invalid UUIDs and return the first valid UUID", () => {
-        const goodUuid = uuid();
-        const badUuid = "invalid-uuid";
-        expect(validUuid(badUuid, goodUuid)).to.equal(goodUuid);
-    });
-
-    it("should ignore null and undefined values and return the first valid UUID", () => {
-        const goodUuid = uuid();
-        expect(validUuid(null, undefined, goodUuid)).to.equal(goodUuid);
-    });
-
-    it("should return undefined if no valid UUIDs are provided", () => {
-        const badUuid = "invalid-uuid";
-        expect(validUuid(null, undefined, badUuid)).to.be.undefined;
-    });
-
-    it("should ignore non-string types and return the first valid UUID", () => {
-        const goodUuid = uuid();
-        expect(validUuid(42, true, {}, [], goodUuid)).to.equal(goodUuid);
-    });
-
-    it("should handle a mix of invalid types and values, returning the first valid UUID", () => {
-        const goodUuid = uuid();
-        const badUuid = "invalid-uuid";
-        expect(validUuid("text", null, undefined, badUuid, goodUuid)).to.equal(goodUuid);
-    });
-
-    it("should return undefined if only non-string types and invalid UUIDs are provided", () => {
-        const badUuid = uuid() + "1";
-        expect(validUuid("string", true, {}, [], badUuid)).to.be.undefined;
-    });
-
-    it("should return undefined if no arguments are provided", () => {
-        expect(validUuid()).to.be.undefined;
-    });
-
-    it("should return undefined if only null and undefined arguments are provided", () => {
-        expect(validUuid(null, undefined)).to.be.undefined;
-    });
-});

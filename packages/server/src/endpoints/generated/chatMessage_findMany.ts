@@ -3,18 +3,17 @@ export const chatMessage_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
             "sequence": true,
             "versionIndex": true,
             "parent": {
                 "id": true,
-                "created_at": true
+                "createdAt": true
             },
             "user": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -47,5 +46,5 @@ export const chatMessage_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "2023547114"
+    "__cacheKey": "146455401"
 };

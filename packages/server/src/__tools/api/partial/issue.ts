@@ -28,19 +28,15 @@ export const issueYou: ApiPartial<IssueYou> = {
 export const issue: ApiPartial<Issue> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         closedAt: true,
         referencedVersionId: true,
         status: true,
         to: {
             __union: {
-                Api: async () => rel((await import("./api.js")).api, "nav"),
-                Code: async () => rel((await import("./code.js")).code, "nav"),
-                Note: async () => rel((await import("./note.js")).note, "nav"),
-                Project: async () => rel((await import("./project.js")).project, "nav"),
-                Routine: async () => rel((await import("./routine.js")).routine, "nav"),
-                Standard: async () => rel((await import("./standard.js")).standard, "nav"),
+                Resource: async () => rel((await import("./resource.js")).resource, "nav"),
                 Team: async () => rel((await import("./team.js")).team, "nav"),
             },
         },
@@ -49,7 +45,6 @@ export const issue: ApiPartial<Issue> = {
         score: true,
         bookmarks: true,
         views: true,
-        labels: async () => rel((await import("./label.js")).label, "nav"),
         you: () => rel(issueYou, "full"),
     },
     full: {

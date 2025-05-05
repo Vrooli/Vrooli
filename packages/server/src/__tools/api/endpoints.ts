@@ -13,15 +13,6 @@ export const endpoints = {
             deleteAccount: await toObject(success, "full"),
         };
     },
-    api: async () => {
-        const { api } = await import("./partial/api.js");
-        return {
-            findOne: await toObject(api, "full"),
-            findMany: await toObject(api, "list", { asSearch: true }),
-            createOne: await toObject(api, "full"),
-            updateOne: await toObject(api, "full"),
-        };
-    },
     apiKey: async () => {
         const { apiKey, apiKeyCreated } = await import("./partial/apiKey.js");
         return {
@@ -35,15 +26,6 @@ export const endpoints = {
         return {
             createOne: await toObject(apiKeyExternal, "full"),
             updateOne: await toObject(apiKeyExternal, "full"),
-        };
-    },
-    apiVersion: async () => {
-        const { apiVersion } = await import("./partial/apiVersion.js");
-        return {
-            findOne: await toObject(apiVersion, "full"),
-            findMany: await toObject(apiVersion, "list", { asSearch: true }),
-            createOne: await toObject(apiVersion, "full"),
-            updateOne: await toObject(apiVersion, "full"),
         };
     },
     auth: async () => {
@@ -130,24 +112,6 @@ export const endpoints = {
             updateOne: await toObject(chatParticipant, "full"),
         };
     },
-    code: async () => {
-        const { code } = await import("./partial/code.js");
-        return {
-            findOne: await toObject(code, "full"),
-            findMany: await toObject(code, "list", { asSearch: true }),
-            createOne: await toObject(code, "full"),
-            updateOne: await toObject(code, "full"),
-        };
-    },
-    codeVersion: async () => {
-        const { codeVersion } = await import("./partial/codeVersion.js");
-        return {
-            findOne: await toObject(codeVersion, "full"),
-            findMany: await toObject(codeVersion, "list", { asSearch: true }),
-            createOne: await toObject(codeVersion, "full"),
-            updateOne: await toObject(codeVersion, "full"),
-        };
-    },
     comment: async () => {
         const { comment, commentSearchResult } = await import("./partial/comment.js");
         return {
@@ -174,12 +138,7 @@ export const endpoints = {
                 searchOverrides: {
                     pageInfo: {
                         hasNextPage: true,
-                        endCursorApi: true,
-                        endCursorCode: true,
-                        endCursorNote: true,
-                        endCursorProject: true,
-                        endCursorRoutine: true,
-                        endCursorStandard: true,
+                        endCursorResource: true,
                         endCursorTeam: true,
                         endCursorUser: true,
                     },
@@ -195,15 +154,6 @@ export const endpoints = {
             createOne: await toObject(issue, "full"),
             updateOne: await toObject(issue, "full"),
             closeOne: await toObject(issue, "full"),
-        };
-    },
-    label: async () => {
-        const { label } = await import("./partial/label.js");
-        return {
-            findOne: await toObject(label, "full"),
-            findMany: await toObject(label, "list", { asSearch: true }),
-            createOne: await toObject(label, "full"),
-            updateOne: await toObject(label, "full"),
         };
     },
     meeting: async () => {
@@ -249,24 +199,6 @@ export const endpoints = {
             declineOne: await toObject(memberInvite, "full"),
         };
     },
-    note: async () => {
-        const { note } = await import("./partial/note.js");
-        return {
-            findOne: await toObject(note, "full"),
-            findMany: await toObject(note, "list", { asSearch: true }),
-            createOne: await toObject(note, "full"),
-            updateOne: await toObject(note, "full"),
-        };
-    },
-    noteVersion: async () => {
-        const { noteVersion } = await import("./partial/noteVersion.js");
-        return {
-            findOne: await toObject(noteVersion, "full"),
-            findMany: await toObject(noteVersion, "list", { asSearch: true }),
-            createOne: await toObject(noteVersion, "full"),
-            updateOne: await toObject(noteVersion, "full"),
-        };
-    },
     notification: async () => {
         const { notification, notificationSettings } = await import("./partial/notification.js");
         const { success } = await import("./partial/success.js");
@@ -296,33 +228,6 @@ export const endpoints = {
             createOne: await toObject(phone, "full"),
             verify: await toObject(success, "full"),
             validate: await toObject(success, "full"),
-        };
-    },
-    project: async () => {
-        const { project } = await import("./partial/project.js");
-        return {
-            findOne: await toObject(project, "full"),
-            findMany: await toObject(project, "list", { asSearch: true }),
-            createOne: await toObject(project, "full"),
-            updateOne: await toObject(project, "full"),
-        };
-    },
-    projectVersion: async () => {
-        const { projectVersion } = await import("./partial/projectVersion.js");
-        return {
-            findOne: await toObject(projectVersion, "full"),
-            findMany: await toObject(projectVersion, "list", { asSearch: true }),
-            createOne: await toObject(projectVersion, "full"),
-            updateOne: await toObject(projectVersion, "full"),
-        };
-    },
-    projectVersionDirectory: async () => {
-        const { projectVersionDirectory } = await import("./partial/projectVersionDirectory.js");
-        return {
-            findOne: await toObject(projectVersionDirectory, "full"),
-            findMany: await toObject(projectVersionDirectory, "list", { asSearch: true }),
-            createOne: await toObject(projectVersionDirectory, "full"),
-            updateOne: await toObject(projectVersionDirectory, "full"),
         };
     },
     pullRequest: async () => {
@@ -402,64 +307,28 @@ export const endpoints = {
             updateOne: await toObject(resource, "full"),
         };
     },
-    resourceList: async () => {
-        const { resourceList } = await import("./partial/resourceList.js");
+    resourceVersion: async () => {
+        const { resourceVersion } = await import("./partial/resourceVersion.js");
         return {
-            findOne: await toObject(resourceList, "full"),
-            findMany: await toObject(resourceList, "list", { asSearch: true }),
-            createOne: await toObject(resourceList, "full"),
-            updateOne: await toObject(resourceList, "full"),
+            findOne: await toObject(resourceVersion, "full"),
+            findMany: await toObject(resourceVersion, "list", { asSearch: true }),
+            createOne: await toObject(resourceVersion, "full"),
+            updateOne: await toObject(resourceVersion, "full"),
         };
     },
-    role: async () => {
-        const { role } = await import("./partial/role.js");
+    run: async () => {
+        const { run } = await import("./partial/run.js");
         return {
-            findOne: await toObject(role, "full"),
-            findMany: await toObject(role, "list", { asSearch: true }),
-            createOne: await toObject(role, "full"),
-            updateOne: await toObject(role, "full"),
+            findOne: await toObject(run, "full"),
+            findMany: await toObject(run, "list", { asSearch: true }),
+            createOne: await toObject(run, "full"),
+            updateOne: await toObject(run, "full"),
         };
     },
-    routine: async () => {
-        const { routine } = await import("./partial/routine.js");
+    runIO: async () => {
+        const { runIO } = await import("./partial/runIO.js");
         return {
-            findOne: await toObject(routine, "full"),
-            findMany: await toObject(routine, "list", { asSearch: true }),
-            createOne: await toObject(routine, "full"),
-            updateOne: await toObject(routine, "full"),
-        };
-    },
-    routineVersion: async () => {
-        const { routineVersion } = await import("./partial/routineVersion.js");
-        return {
-            findOne: await toObject(routineVersion, "full"),
-            findMany: await toObject(routineVersion, "list", { asSearch: true }),
-            createOne: await toObject(routineVersion, "full"),
-            updateOne: await toObject(routineVersion, "full"),
-        };
-    },
-    runProject: async () => {
-        const { runProject } = await import("./partial/runProject.js");
-        return {
-            findOne: await toObject(runProject, "full"),
-            findMany: await toObject(runProject, "list", { asSearch: true }),
-            createOne: await toObject(runProject, "full"),
-            updateOne: await toObject(runProject, "full"),
-        };
-    },
-    runRoutine: async () => {
-        const { runRoutine } = await import("./partial/runRoutine.js");
-        return {
-            findOne: await toObject(runRoutine, "full"),
-            findMany: await toObject(runRoutine, "list", { asSearch: true }),
-            createOne: await toObject(runRoutine, "full"),
-            updateOne: await toObject(runRoutine, "full"),
-        };
-    },
-    runRoutineIO: async () => {
-        const { runRoutineIO } = await import("./partial/runRoutineIO.js");
-        return {
-            findMany: await toObject(runRoutineIO, "list", { asSearch: true }),
+            findMany: await toObject(runIO, "list", { asSearch: true }),
         };
     },
     schedule: async () => {
@@ -471,58 +340,16 @@ export const endpoints = {
             updateOne: await toObject(schedule, "full"),
         };
     },
-    standard: async () => {
-        const { standard } = await import("./partial/standard.js");
+    statsResource: async () => {
+        const { statsResource } = await import("./partial/statsResource.js");
         return {
-            findOne: await toObject(standard, "full"),
-            findMany: await toObject(standard, "list", { asSearch: true }),
-            createOne: await toObject(standard, "full"),
-            updateOne: await toObject(standard, "full"),
-        };
-    },
-    standardVersion: async () => {
-        const { standardVersion } = await import("./partial/standardVersion.js");
-        return {
-            findOne: await toObject(standardVersion, "full"),
-            findMany: await toObject(standardVersion, "list", { asSearch: true }),
-            createOne: await toObject(standardVersion, "full"),
-            updateOne: await toObject(standardVersion, "full"),
-        };
-    },
-    statsApi: async () => {
-        const { statsApi } = await import("./partial/statsApi.js");
-        return {
-            findMany: await toObject(statsApi, "list", { asSearch: true }),
-        };
-    },
-    statsCode: async () => {
-        const { statsCode } = await import("./partial/statsCode.js");
-        return {
-            findMany: await toObject(statsCode, "list", { asSearch: true }),
-        };
-    },
-    statsProject: async () => {
-        const { statsProject } = await import("./partial/statsProject.js");
-        return {
-            findMany: await toObject(statsProject, "list", { asSearch: true }),
-        };
-    },
-    statsRoutine: async () => {
-        const { statsRoutine } = await import("./partial/statsRoutine.js");
-        return {
-            findMany: await toObject(statsRoutine, "list", { asSearch: true }),
+            findMany: await toObject(statsResource, "list", { asSearch: true }),
         };
     },
     statsSite: async () => {
         const { statsSite } = await import("./partial/statsSite.js");
         return {
             findMany: await toObject(statsSite, "list", { asSearch: true }),
-        };
-    },
-    statsStandard: async () => {
-        const { statsStandard } = await import("./partial/statsStandard.js");
-        return {
-            findMany: await toObject(statsStandard, "list", { asSearch: true }),
         };
     },
     statsTeam: async () => {
@@ -576,49 +403,6 @@ export const endpoints = {
             cancelOne: await toObject(transfer, "full"),
             acceptOne: await toObject(transfer, "full"),
             denyOne: await toObject(transfer, "full"),
-        };
-    },
-    translate: async () => {
-        const { translate } = await import("./partial/translate.js");
-        return {
-            translate: await toObject(translate, "full"),
-        };
-    },
-    unions: async () => {
-        const { projectOrRoutine } = await import("./partial/projectOrRoutine.js");
-        const { projectOrTeam } = await import("./partial/projectOrTeam.js");
-        const { runProjectOrRunRoutine } = await import("./partial/runProjectOrRunRoutine.js");
-        return {
-            projectOrRoutine: await toObject(projectOrRoutine, "list", {
-                asSearch: true,
-                searchOverrides: {
-                    pageInfo: {
-                        hasNextPage: true,
-                        endCursorProject: true,
-                        endCursorRoutine: true,
-                    },
-                },
-            }),
-            projectOrTeam: await toObject(projectOrTeam, "list", {
-                asSearch: true,
-                searchOverrides: {
-                    pageInfo: {
-                        hasNextPage: true,
-                        endCursorProject: true,
-                        endCursorTeam: true,
-                    },
-                },
-            }),
-            runProjectOrRunRoutine: await toObject(runProjectOrRunRoutine, "list", {
-                asSearch: true,
-                searchOverrides: {
-                    pageInfo: {
-                        hasNextPage: true,
-                        endCursorRunProject: true,
-                        endCursorRunRoutine: true,
-                    },
-                },
-            }),
         };
     },
     user: async () => {

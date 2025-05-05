@@ -1,10 +1,10 @@
 export const reputationHistory_findOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "amount": true,
     "event": true,
     "objectId1": true,
     "objectId2": true,
-    "__cacheKey": "170652615"
+    "__cacheKey": "-840124703"
 };

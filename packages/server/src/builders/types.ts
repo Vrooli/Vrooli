@@ -2,7 +2,7 @@ import { ModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/
 import { type RequestService } from "../auth/request.js";
 
 /**
- * Shape 2 of 4 for API endpoint to Prisma converstion. Each level contains a __typename field. 
+ * Shape 2 of 4 for API endpoint to Prisma conversion. Each level contains a __typename field. 
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialApiInfo {

@@ -1,4 +1,4 @@
-import { CopyInput, DeleteManyInput, DeleteOneInput, ModelType, SessionUser, VisibilityType } from "@local/shared";
+import { CopyInput, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByPublicIdInput, FindVersionInput, ModelType, SessionUser, VisibilityType } from "@local/shared";
 import { RequestService } from "../auth/request.js";
 import { CountInputBase, PartialApiInfo } from "../builders/types.js";
 import { EmbeddableType } from "../utils/embeddings/types.js";
@@ -71,15 +71,9 @@ export type ReadManyWithEmbeddingsHelperProps<
     objectType: EmbeddableType;
 };
 
-type FindUniqueInput = {
-    id?: string | null | undefined;
-    handle?: string | null | undefined;
-    handleRoot?: string | null | undefined;
-    idRoot?: string | null | undefined;
-}
 export type ReadOneHelperProps = {
     info: PartialApiInfo;
-    input: FindUniqueInput;
+    input: FindByIdInput | FindByPublicIdInput | FindVersionInput;
     objectType: `${ModelType}`;
     req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }

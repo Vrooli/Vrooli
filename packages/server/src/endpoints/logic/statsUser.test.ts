@@ -288,7 +288,7 @@ describe("EndpointsStatsUser", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns own stats, stats for own bots, and stats for public users/bots", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsUserSearchInput = {
@@ -312,7 +312,7 @@ describe("EndpointsStatsUser", () => {
             });
 
             it("properly filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsUserSearchInput = {
@@ -338,7 +338,7 @@ describe("EndpointsStatsUser", () => {
             });
 
             it("API key with public permission returns public user/bot stats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -387,7 +387,7 @@ describe("EndpointsStatsUser", () => {
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsUserSearchInput = {
@@ -404,7 +404,7 @@ describe("EndpointsStatsUser", () => {
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { periodType: "InvalidPeriod" as any };

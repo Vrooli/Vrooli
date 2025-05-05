@@ -1,12 +1,11 @@
-import { MaxObjects, phoneValidation } from "@local/shared";
+import { generatePK, MaxObjects, phoneValidation } from "@local/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PhoneFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { PhoneModelLogic, TeamModelLogic } from "./types.js";
+import { PhoneModelLogic } from "./types.js";
 
 const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({
@@ -41,15 +40,15 @@ export const PhoneModel: PhoneModelLogic = ({
                 // Prevent deleting phones if it will leave you with less than one verified authentication method
                 if (Delete.length) {
                     const allPhones = await DbProvider.get().phone.findMany({
-                        where: { user: { id: userData.id } },
-                        select: { id: true, verified: true },
+                        where: { user: { id: BigInt(userData.id) } },
+                        select: { id: true, verifiedAt: true },
                     });
-                    const remainingVerifiedPhonesCount = allPhones.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
+                    const remainingVerifiedPhonesCount = allPhones.filter(x => !Delete.some(d => d.input === x.id.toString()) && x.verifiedAt).length;
                     const verifiedEmailsCount = await DbProvider.get().email.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: BigInt(userData.id) }, verifiedAt: { not: null } },
                     });
                     const verifiedWalletsCount = await DbProvider.get().wallet.count({
-                        where: { user: { id: userData.id }, verified: true },
+                        where: { user: { id: BigInt(userData.id) }, verifiedAt: { not: null } },
                     });
                     if (remainingVerifiedPhonesCount + verifiedEmailsCount + verifiedWalletsCount < 1)
                         throw new CustomError("0153", "MustLeaveVerificationMethod");
@@ -57,8 +56,9 @@ export const PhoneModel: PhoneModelLogic = ({
                 return {};
             },
             create: async ({ data, userData }) => ({
+                id: generatePK(),
                 phoneNumber: data.phoneNumber,
-                user: { connect: { id: userData.id } },
+                user: { connect: { id: BigInt(userData.id) } },
             }),
         },
         trigger: {
@@ -97,8 +97,8 @@ export const PhoneModel: PhoneModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
-                        { user: { id: data.userId } },
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
                     ],
                 };
             },

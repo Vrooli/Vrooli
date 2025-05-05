@@ -1,4 +1,4 @@
-import { ChatInviteSortBy, ChatInviteStatus, chatInviteValidation, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatInviteSortBy, ChatInviteStatus, chatInviteValidation, MaxObjects, validatePK } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -25,7 +25,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     message: noNull(data.message),
                     status: ChatInviteStatus.Pending,
                     user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "chatsInvited", data, ...rest }),
@@ -82,8 +82,8 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             User: (data?.chat as ChatModelInfo["DbModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const inviteUserId = data.userId ?? data.user?.id;
-            const isYourInvite = uuidValidate(userId) && inviteUserId === userId;
+            const inviteUserId = data.userId.toString() ?? data.user?.id.toString();
+            const isYourInvite = validatePK(userId) && inviteUserId === userId;
             const basePermissions = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
             return {
                 ...basePermissions,
@@ -102,7 +102,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
                 return { // If you created the invite or were invited
                     OR: [
                         { chat: useVisibility("Chat", "Own", data) },
-                        { user: { id: data.userId } },
+                        { user: { id: BigInt(data.userId) } },
                     ],
                 };
             },

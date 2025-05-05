@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, endpointsBookmarkList, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, IconButton } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,7 @@ import { ObjectListActions } from "../../../components/lists/types.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
@@ -29,12 +29,9 @@ export function BookmarkListView({
 }: BookmarkListViewProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const [, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setBookmarkList } = useManagedObject<BookmarkList>({
-        ...endpointsBookmarkList.findOne,
-        objectType: "BookmarkList",
-    });
+    const { object: existing, isLoading, setObject: setBookmarkList } = useManagedObject<BookmarkList>({ pathname });
 
     const { label } = useMemo(() => ({ label: existing?.label ?? "" }), [existing]);
 

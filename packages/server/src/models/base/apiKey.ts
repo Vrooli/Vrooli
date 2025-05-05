@@ -1,4 +1,4 @@
-import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
+import { apiKeyValidation, MaxObjects } from "@local/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -6,8 +6,7 @@ import { DbProvider } from "../../db/provider.js";
 import { withRedis } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ApiKeyFormat } from "../formats.js";
-import { ModelMap } from "./index.js";
-import { ApiKeyModelLogic, TeamModelLogic } from "./types.js";
+import { ApiKeyModelLogic } from "./types.js";
 
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
@@ -25,7 +24,6 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
     mutate: {
         shape: {
             create: async ({ userData, data }) => ({
-                id: uuid(),
                 creditsUsedBeforeLimit: 0,
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                 limitHard: BigInt(data.limitHard),
@@ -34,9 +32,8 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                 name: data.name,
                 permissions: data.permissions,
                 stopAtLimit: data.stopAtLimit,
-                team: data.teamConnect ? { connect: { id: data.teamConnect } } : undefined,
-                user: data.teamConnect ? undefined : { connect: { id: userData.id } },
-
+                team: data.teamConnect ? { connect: { id: BigInt(data.teamConnect) } } : undefined,
+                user: data.teamConnect ? undefined : { connect: { id: BigInt(userData.id) } },
             }),
             update: async ({ data }) => ({
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
@@ -48,12 +45,12 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, updatedIds, deletedIds, userData }) => {
+            afterMutations: async ({ createdIds, updatedIds, deletedIds }) => {
                 const ids = [...createdIds, ...updatedIds, ...deletedIds];
                 if (ids.length === 0) return;
                 // Fetch the key strings for these API key IDs
                 const records = await DbProvider.get().api_key.findMany({
-                    where: { id: { in: ids } },
+                    where: { id: { in: ids.map(id => BigInt(id)) } },
                     select: { key: true },
                 });
                 // Clear cached permissions in Redis
@@ -88,8 +85,8 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             own: function getOwn(data) {
                 return {
                     OR: [
-                        { user: { id: data.userId } },
-                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: useVisibility("User", "Own", data) },
+                        { team: useVisibility("Team", "Own", data) },
                     ],
                 };
             },

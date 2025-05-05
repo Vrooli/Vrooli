@@ -3,8 +3,8 @@ export const reminder_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "name": true,
             "description": true,
             "dueDate": true,
@@ -12,8 +12,8 @@ export const reminder_findMany = {
             "isComplete": true,
             "reminderItems": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "name": true,
                 "description": true,
                 "dueDate": true,
@@ -22,8 +22,8 @@ export const reminder_findMany = {
             },
             "reminderList": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true
+                "createdAt": true,
+                "updatedAt": true
             }
         }
     },
@@ -31,5 +31,5 @@ export const reminder_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1430826308"
+    "__cacheKey": "1292331446"
 };

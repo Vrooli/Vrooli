@@ -1,4 +1,4 @@
-import { FindByIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueSearchInput, IssueSearchResult, IssueUpdateInput } from "@local/shared";
+import { FindByPublicIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueSearchInput, IssueSearchResult, IssueUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -7,7 +7,7 @@ import { CustomError } from "../../events/error.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsIssue = {
-    findOne: ApiEndpoint<FindByIdInput, Issue>;
+    findOne: ApiEndpoint<FindByPublicIdInput, Issue>;
     findMany: ApiEndpoint<IssueSearchInput, IssueSearchResult>;
     createOne: ApiEndpoint<IssueCreateInput, Issue>;
     updateOne: ApiEndpoint<IssueUpdateInput, Issue>;
@@ -34,6 +34,5 @@ export const issue: EndpointsIssue = {
     },
     closeOne: async ({ input }, { req }, info) => {
         throw new CustomError("0000", "NotImplemented");
-        // TODO make sure to set hasBeenClosedOrRejected to true
     },
 };

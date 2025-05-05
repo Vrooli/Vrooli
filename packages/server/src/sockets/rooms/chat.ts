@@ -4,11 +4,11 @@ import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { onSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../io.js";
 
 /** Socket room for chat events */
 export function chatSocketRoomHandlers(socket: Socket) {
-    onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
+    SocketService.get().onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
         try {
             if (AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_CHAT_ROOM_ERRORS.SessionExpired });
@@ -23,11 +23,11 @@ export function chatSocketRoomHandlers(socket: Socket) {
             // Find chat only if permitted
             const chat = await DbProvider.get().chat.findMany({
                 where: {
-                    id: chatId,
+                    id: BigInt(chatId),
                     OR: [
                         { openToAnyoneWithInvite: true },
-                        { participants: { some: { user: { id } } } },
-                        { creator: { id } },
+                        { participants: { some: { user: { id: BigInt(id) } } } },
+                        { creator: { id: BigInt(id) } },
                     ],
                 },
             });
@@ -48,7 +48,7 @@ export function chatSocketRoomHandlers(socket: Socket) {
         }
     });
 
-    onSocketEvent(socket, "leaveChatRoom", async ({ chatId }, callback) => {
+    SocketService.get().onSocketEvent(socket, "leaveChatRoom", async ({ chatId }, callback) => {
         try {
             socket.leave(chatId);
             callback({ success: true });

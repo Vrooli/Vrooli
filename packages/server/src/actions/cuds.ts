@@ -1,6 +1,6 @@
-import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser, uuidValidate } from "@local/shared";
+import { DUMMY_ID, generatePK, ModelType, SessionUser, validatePK, YupMutateParams } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { AnyObjectSchema } from "yup";
+import { AnyObjectSchema, ValidationError as YupError } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
 import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -8,7 +8,7 @@ import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
 import { PreMap } from "../models/types.js";
-import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps.js";
+import { cudInputsToMaps, CudInputsToMapsResult } from "../utils/cudInputsToMaps.js";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps.js";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
 import { CudInputData } from "../utils/types.js";
@@ -53,13 +53,15 @@ type CudTransactionData = {
     operations: PrismaPromise<object>[];
 }
 
-/**
- * Initializes the result array with false values.
- * @param length The length of the result array to initialize.
- * @returns An array filled with `false` of the specified length.
- */
-function initializeResults(length: number): Array<boolean | Record<string, any>> {
-    return new Array(length).fill(false);
+interface FieldError {
+    path: string;              // e.g.  "email"  or "address[0].zip"
+    message: string;           // human‑readable, from Yup
+}
+
+interface ValidationErrorPayload {
+    objectType: string;
+    action: string;
+    errors: FieldError[];
 }
 
 /**
@@ -68,33 +70,91 @@ function initializeResults(length: number): Array<boolean | Record<string, any>>
  * @throws CustomError if validation fails.
  */
 async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
-    try {
-        for (let i = 0; i < inputData.length; i++) {
-            const { action, input, objectType } = inputData[i];
-            const { mutate } = ModelMap.getLogic(["mutate"], objectType as ModelType, true, `cudHelper cast ${action.toLowerCase()}`);
-            let transformedInput: AnyObjectSchema;
-            if (action === "Create") {
-                // If the mutate object doesn't have a yup.create property, it's not meant to be created this way
-                if (!mutate.yup.create) {
-                    throw new CustomError("0559", "InternalError", { action, objectType });
-                }
-                transformedInput = mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
-            } else if (action === "Update") {
-                // If the mutate object doesn't have a yup.update property, it's not meant to be updated this way
-                if (!mutate.yup.update) {
-                    throw new CustomError("0560", "InternalError", { action, objectType });
-                }
-                transformedInput = mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
-            } else if (action === "Delete") {
-                continue;
-            } else {
-                throw new CustomError("0558", "InternalError", { action });
-            }
-            inputData[i].input = transformedInput as unknown as PrismaCreate | PrismaUpdate;
+    for (let i = 0; i < inputData.length; i++) {
+        const { action, input, objectType } = inputData[i];
+        const { mutate } = ModelMap.getLogic(["mutate"], objectType as ModelType, true, "cudHelper cast");
+
+        const schemaFactory:
+            | ((p: YupMutateParams) => AnyObjectSchema)
+            | undefined =
+            action === "Create"
+                ? mutate.yup.create
+                : action === "Update"
+                    ? mutate.yup.update
+                    : undefined;
+
+        if (!schemaFactory) {
+            throw new CustomError("0953", "InternalError", { action, objectType });
         }
-    } catch (error) {
-        throw new CustomError("0561", "InternalError", { error, inputData });
+
+        try {
+            const transformed = schemaFactory({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
+            inputData[i].input = transformed as PrismaCreate | PrismaUpdate;
+
+        } catch (err) {
+            if (err instanceof YupError) {
+                const fieldErrors: FieldError[] = err.inner.length
+                    ? err.inner.map(e => ({ path: e.path ?? "", message: e.message }))
+                    : [{ path: err.path ?? "", message: err.message }];
+
+                const payload: ValidationErrorPayload = { objectType, action, errors: fieldErrors };
+                throw new CustomError("0558", "ValidationFailed", payload);
+            }
+            throw new CustomError("0959", "InternalError", { err, objectType });
+        }
     }
+}
+
+/**
+ * Replaces every non‑Snowflake id in CREATE inputs (and every reference that
+ * points at them) with a freshly‑generated Snowflake.  
+ * Returns the placeholder ➜ snowflake map in case callers want it.
+ */
+export function convertCreateIds(inputData: CudInputData[]) {
+    /** placeholder → snowflake */
+    const map = new Map<string, bigint>();
+
+    /** Recursive walker that rewrites any scalar or scalar‑inside‑array/object */
+    function deepReplace(value: any): any {
+        // scalar → swap if we have a mapping
+        if (typeof value === "string" || typeof value === "number") {
+            const hit = map.get(String(value));
+            return hit ? hit.toString() : value;
+        }
+
+        // array → recurse on every element
+        if (Array.isArray(value)) {
+            return value.map(deepReplace);
+        }
+
+        // object → recurse on every key
+        if (value && typeof value === "object") {
+            for (const key of Object.keys(value)) {
+                value[key] = deepReplace(value[key]);
+            }
+        }
+
+        return value;
+    }
+
+    for (const entry of inputData) {
+        if (entry.action !== "Create") continue;
+
+        const create = entry.input as PrismaCreate;
+        const currentId = (create as any).id ?? DUMMY_ID;
+
+        if (!validatePK(currentId)) {
+            const sf = generatePK();
+            map.set(String(currentId), sf);
+            create.id = sf.toString();
+        }
+    }
+
+    for (const entry of inputData) {
+        entry.input = deepReplace(entry.input);
+    }
+
+    return map;
 }
 
 /**
@@ -175,12 +235,6 @@ async function buildOperations(
         // Create operations
         for (const { index } of Create) {
             const { input } = inputData[index];
-            // Make sure no objects with placeholder ids are created. These could potentially bypass permissions/api checks, 
-            // since they're typically used to satisfy validation for relationships that aren't needed for the create 
-            // (e.g. `listConnect` on a resource item that's already being created in a list)
-            if ((input as PrismaCreate)?.id === DUMMY_ID) {
-                throw new CustomError("0501", "InternalError", { input, objectType });
-            }
             const data = mutate.shape.create
                 ? await mutate.shape.create({
                     additionalData,
@@ -220,7 +274,7 @@ async function buildOperations(
 
             // Verify that the "where" object is valid
             const where = { id: typeof input === "string" ? input : input.id };
-            if (typeof where.id !== "string" || !uuidValidate(where.id)) {
+            if (typeof where.id !== "string") {
                 logger.error(`[buildOperations] Invalid where object for update operation: ${JSON.stringify({ objectType, input, where })}`, { trace: "0802" });
                 throw new CustomError("0802", "InternalError", { objectType });
             }
@@ -387,19 +441,30 @@ export async function cudHelper({
     inputData,
     userData,
 }: CudHelperParams): Promise<CudHelperResult> {
-    if (adminFlags && userData.id !== SEEDED_IDS.User.Admin) {
+    const adminId = await DbProvider.getAdminId();
+    if (adminFlags && userData.id !== adminId) {
         throw new CustomError("0562", "Unauthorized", { adminFlags });
     }
 
-    const result = initializeResults(inputData.length);
+    const result = new Array(inputData.length).fill(false);
     if (!adminFlags?.disableInputValidationAndCasting && !adminFlags?.disableAllChecks) {
         await validateAndCastInputs(inputData);
     }
 
-    const maps = await cudInputsToMaps({ inputData });
-    await calculatePreShapeData(maps.inputsByType, userData, maps.inputsById, maps.preMap);
+    convertCreateIds(inputData);
 
+    const maps = await cudInputsToMaps({ inputData });
+    Object.freeze(maps);
+    await calculatePreShapeData(maps.inputsByType, userData, maps.inputsById, maps.preMap);
+    Object.freeze(maps.idsByAction);
+    Object.freeze(maps.idsByType);
+    Object.freeze(maps.idsCreateToConnect);
+    Object.freeze(maps.inputsById);
+    Object.freeze(maps.inputsByType);
+    Object.freeze(maps.preMap);
     const authDataById = await getAuthenticatedData(maps.idsByType, userData);
+    Object.freeze(authDataById);
+
     if (!adminFlags?.disablePermissionsCheck && !adminFlags?.disableAllChecks) {
         await permissionsCheck(authDataById, maps.idsByAction, maps.inputsById, userData);
     }
@@ -411,11 +476,16 @@ export async function cudHelper({
     }
 
     const topInputsByType = groupTopLevelDataByType(inputData);
+    Object.freeze(topInputsByType);
 
     const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {});
+    Object.freeze(transactionData);
 
     const transactionResult = await executeTransaction(transactionData.operations);
+    Object.freeze(transactionResult);
     processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, info, maps, result);
+    Object.freeze(maps.resultsById);
+
     if (!adminFlags?.disableTriggerAfterMutations && !adminFlags?.disableAllChecks) {
         await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
     }

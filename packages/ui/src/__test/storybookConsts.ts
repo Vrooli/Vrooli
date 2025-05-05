@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Session, SessionUser, uuid } from "@local/shared";
+import { generatePK, Session, SessionUser } from "@local/shared";
 import { DEFAULT_THEME } from "../utils/display/theme.js";
 
 export const API_URL = "http://localhost:5329/api";
 
-export const signedInUserId = uuid();
+export const signedInUserId = generatePK().toString();
 
 export const baseSession = {
     __typename: "Session" as const,
@@ -69,10 +69,10 @@ export const multipleUsersSession: Partial<Session> = {
         // @ts-ignore - We know these users exist in the test context
         signedInPremiumWithCreditsSession.users?.[0],
         // @ts-ignore - We know these users exist in the test context
-        { ...signedInPremiumNoCreditsSession.users?.[0], id: uuid() },
+        { ...signedInPremiumNoCreditsSession.users?.[0], id: generatePK().toString() },
         // @ts-ignore - We know these users exist in the test context
-        { ...signedInNoPremiumWithCreditsSession.users?.[0], id: uuid() },
+        { ...signedInNoPremiumWithCreditsSession.users?.[0], id: generatePK().toString() },
         // @ts-ignore - We know these users exist in the test context
-        { ...signedInNoPremiumNoCreditsSession.users?.[0], id: uuid() },
+        { ...signedInNoPremiumNoCreditsSession.users?.[0], id: generatePK().toString() },
     ],
 };

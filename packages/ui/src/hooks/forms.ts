@@ -1,5 +1,5 @@
-import { DUMMY_ID, LINKS, ListObject, ModelType, NavigableObject, OrArray, TranslationKeyCommon, getObjectUrl } from "@local/shared";
-import { useCallback, useEffect, useMemo } from "react";
+import { LINKS, ListObject, ModelType, NavigableObject, OrArray, TranslationKeyCommon, getObjectUrl } from "@local/shared";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { ObjectDialogAction } from "../components/dialogs/types.js";
@@ -16,25 +16,25 @@ type FormCacheState = {
     cacheEnabled: boolean;
     enableCache: () => void;
     disableCache: () => void;
-    getCacheData: (objectType: ModelType | `${ModelType}`, id: string) => object | null;
-    setCacheData: (objectType: ModelType | `${ModelType}`, id: string, values: object) => void;
-    clearCache: (objectType: ModelType | `${ModelType}`, id: string) => void;
+    getCacheData: (pathname: string) => object | null;
+    setCacheData: (pathname: string, values: object) => void;
+    clearCache: (pathname: string) => void;
 };
 
 export const useFormCacheStore = create<FormCacheState>()((set, get) => ({
     cacheEnabled: true,
     enableCache: () => set({ cacheEnabled: true }),
     disableCache: () => set({ cacheEnabled: false }),
-    getCacheData: (objectType, id) => {
+    getCacheData: (pathname) => {
         if (!get().cacheEnabled) return null;
-        return getCookieFormData(objectType, id) ?? null;
+        return getCookieFormData(pathname) ?? null;
     },
-    setCacheData: (objectType, id, values) => {
+    setCacheData: (pathname, values) => {
         if (!get().cacheEnabled) return;
-        setCookieFormData(objectType, id, values);
+        setCookieFormData(pathname, values);
     },
-    clearCache: (objectType, id) => {
-        removeCookieFormData(objectType, id);
+    clearCache: (pathname) => {
+        removeCookieFormData(pathname);
     },
 }));
 
@@ -44,21 +44,19 @@ function shouldValuesBeSaved(values: object) {
 
 /** Caches updates to the `values` prop in localStorage*/
 export function useSaveToCache<T extends object>({
-    values,
-    objectId,
     debounceTime,
-    objectType,
+    disabled = false,
     isCacheOn,
     isCreate,
-    disabled = false,
+    pathname,
+    values,
 }: {
-    values: T;
-    objectId: string;
     debounceTime?: number;
-    objectType: ModelType | `${ModelType}`;
+    disabled?: boolean;
     isCacheOn?: boolean;
     isCreate: boolean;
-    disabled?: boolean;
+    pathname: string;
+    values: T;
 }) {
     const cacheEnabled = useFormCacheStore(state => state.cacheEnabled);
     const enableCache = useFormCacheStore(state => state.enableCache);
@@ -67,9 +65,8 @@ export function useSaveToCache<T extends object>({
     // Define the function that will handle the cache saving logic
     const saveToCache = useCallback((currentValues: T) => {
         if (disabled || isCacheOn === false) return;
-        const formId = isCreate ? DUMMY_ID : objectId;
-        setCacheData(objectType, formId, currentValues);
-    }, [disabled, isCacheOn, isCreate, objectId, objectType, setCacheData]);
+        setCacheData(pathname, currentValues);
+    }, [disabled, isCacheOn, isCreate, pathname, setCacheData]);
 
     const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? DEFAULT_DEBOUNCE_TIME_MS);
 
@@ -96,10 +93,9 @@ type TType = OrArray<{ __typename: ListObject["__typename"], id: string }>;
 type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>, "onCancel" | "onCompleted" | "onDeleted"> & {
     display: ViewDisplayType | `${ViewDisplayType}`,
     isCreate: boolean,
-    objectId?: string,
     objectType: ListObject["__typename"],
     onAction?: (action: ObjectDialogAction, item: Model) => void,
-    rootObjectId?: string,
+    pathname: string,
     suppressSnack?: boolean,
 }
 
@@ -154,13 +150,12 @@ export function asMockObject(objectType: ModelType | `${ModelType}`, objectId: s
 export function useUpsertActions<T extends TType>({
     display,
     isCreate,
-    objectId,
     objectType,
     onAction,
     onCancel,
     onCompleted,
     onDeleted,
-    rootObjectId,
+    pathname,
     suppressSnack,
 }: UseUpsertActionsProps<T>) {
     const { t } = useTranslation();
@@ -184,7 +179,7 @@ export function useUpsertActions<T extends TType>({
             const shouldOpenObject = [ModelType.Report].includes(objectType as ModelType);
             if (shouldOpenObject) {
                 buttonKey = "View";
-                const url = objectType === ModelType.Report ? `${LINKS.Reports}${getObjectUrl(item)}` : getObjectUrl(item);
+                const url = getObjectUrl(item);
                 buttonClicked = () => setLocation(url);
             } else {
                 buttonKey = "CreateNew";
@@ -200,15 +195,13 @@ export function useUpsertActions<T extends TType>({
         });
     }, [objectType, setLocation, suppressSnack, t]);
 
-    const handleAction = useCallback((action: ObjectDialogAction, item: T) => {
+    const handleAction = useCallback((action: ObjectDialogAction, item: T | null) => {
         let viewUrl: string | undefined;
-        let objectId: string | undefined;
         let canStore = false;
         if (item && !Array.isArray(item)) {
             viewUrl = getObjectUrl(item);
             // Should hopefully have id if not an array
             if (item.id) {
-                objectId = item.id;
                 canStore = true;
             } else {
                 console.warn("No id found on object. This may be a mistake.", item);
@@ -218,11 +211,8 @@ export function useUpsertActions<T extends TType>({
         function handleAddOrUpdate(messageType: "Created" | "Updated", item: NavigableObject) {
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
-                const formId = isCreate ? DUMMY_ID : objectId;
-                if (formId) {
-                    clearCache(objectType as ModelType, formId);
-                    disableCache();
-                }
+                clearCache(pathname);
+                disableCache();
             }
 
             if (display === "Page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
@@ -234,17 +224,16 @@ export function useUpsertActions<T extends TType>({
 
         switch (action) {
             case ObjectDialogAction.Add:
-                if (item && !Array.isArray(item)) handleAddOrUpdate("Created", item);
-                onCompleted?.(item);
+                if (item && !Array.isArray(item)) {
+                    handleAddOrUpdate("Created", item);
+                    onCompleted?.(item);
+                }
                 break;
             case ObjectDialogAction.Cancel:
                 // Remove form backup data from cache
                 if (canStore) {
-                    const formId = isCreate ? DUMMY_ID : objectId;
-                    if (formId) {
-                        clearCache(objectType as ModelType, formId);
-                        disableCache();
-                    }
+                    clearCache(pathname);
+                    disableCache();
                 }
                 if (display === "Page") goBack(setLocation, isCreate ? undefined : viewUrl);
                 else onCancel?.();
@@ -257,31 +246,28 @@ export function useUpsertActions<T extends TType>({
             case ObjectDialogAction.Delete:
                 // Remove both the object and the form backup data from cache
                 if (canStore) {
-                    removeCookiePartialData(item as NavigableObject);
-                    const formId = isCreate ? DUMMY_ID : objectId;
-                    if (formId) {
-                        clearCache(objectType as ModelType, formId);
-                        disableCache();
-                    }
+                    removeCookiePartialData(item as NavigableObject, pathname);
+                    clearCache(pathname);
+                    disableCache();
                 }
                 if (display === "Page") goBack(setLocation);
-                else onDeleted?.(item);
+                else if (item) onDeleted?.(item);
                 // Don't display snack message, as we don't have enough information for the message's "Undo" button
                 break;
             case ObjectDialogAction.Save:
-                if (item && !Array.isArray(item)) handleAddOrUpdate("Updated", item);
-                onCompleted?.(item);
+                if (item && !Array.isArray(item)) {
+                    handleAddOrUpdate("Updated", item);
+                    onCompleted?.(item);
+                }
                 break;
         }
 
-        onAction?.(action, item);
+        if (item) {
+            onAction?.(action, item);
+        }
     }, [onAction, display, isCreate, clearCache, objectType, disableCache, setLocation, publishSnack, onCompleted, onCancel, onDeleted]);
 
-    const mockObject = useMemo(function mockObjectMemo() {
-        return asMockObject(objectType as ModelType, objectId ?? DUMMY_ID, rootObjectId) as unknown as T;
-    }, [objectId, objectType, rootObjectId]);
-
-    const handleCancel = useCallback(() => handleAction(ObjectDialogAction.Cancel, mockObject), [mockObject, handleAction]);
+    const handleCancel = useCallback(() => handleAction(ObjectDialogAction.Cancel, null), [handleAction]);
     const handleCreated = useCallback((data: T) => { handleAction(ObjectDialogAction.Add, data); }, [handleAction]);
     const handleUpdated = useCallback((data: T) => { handleAction(ObjectDialogAction.Save, data); }, [handleAction]);
     const handleCompleted = useCallback((data: T) => { handleAction(isCreate ? ObjectDialogAction.Add : ObjectDialogAction.Save, data); }, [isCreate, handleAction]);

@@ -3,7 +3,7 @@ export const tag_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
+            "createdAt": true,
             "tag": true,
             "bookmarks": true,
             "translations": {
@@ -21,5 +21,5 @@ export const tag_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-218007257"
+    "__cacheKey": "473956902"
 };

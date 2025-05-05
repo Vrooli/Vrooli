@@ -34,6 +34,15 @@ services:
     volumes:
       - ./packages/ui:${PROJECT_DIR:-/srv/app}/packages/ui:z
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          node -e "require('http').request({hostname: 'localhost', port: ${PORT_UI:-3000}, path: '/'}, res => { if (res.statusCode >= 200 && res.statusCode < 400) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()"
+      start_period: 60s
+      interval: 20s
+      timeout: 5s
+      retries: 5
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
   server:
     build:
@@ -83,6 +92,7 @@ services:
       VIRTUAL_PATH: "/api"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+      WORKER_ID: "${WORKER_ID}"
     ports:
       - ${PORT_API:-5329}:${PORT_API:-5329}
       - "9229:9229" # For debugger
@@ -165,7 +175,7 @@ services:
         condition: service_healthy
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/jobs.sh"
   db:
-    image: ankane/pgvector:v0.4.4
+    image: pgvector/pgvector:pg15 
     restart: always
     container_name: db
     environment:
@@ -179,13 +189,13 @@ services:
       - app
     volumes:
       - ./data/postgres-dev:/var/lib/postgresql/data
-      - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
+      - ./packages/db/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: /bin/sh -c "exec docker-entrypoint.sh postgres"
+    entrypoint: ["/usr/local/bin/run-postgres.sh"]
   redis:
     image: redis:7.4.0-alpine
     container_name: redis
@@ -226,15 +236,6 @@ services:
     ports:
       - 8080:8080
     command: /bin/sh -c "exec php -S [::]:8080 -t /var/www/html/"
-  # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
-  # translate:
-  #   image: libretranslate/libretranslate:v1.2.9
-  #   container_name: translate
-  #   restart: always
-  #   networks:
-  #     - app
-  #   expose:
-  #     - ${PORT_TRANSLATE:-3457}
 
 networks:
   proxy:

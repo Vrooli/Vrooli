@@ -1,5 +1,5 @@
 
-import { FindByIdInput, LINKS, Location, LocationData, ProjectVersion, RoutineVersion, RunIdentifier, RunLoader, RunPersistence, RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, RunTypeInPath, endpointsProjectVersion, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, uuidToBase36, uuidValidate } from "@local/shared";
+import { FindByIdInput, LINKS, Location, LocationData, ResourceVersion, Run, RunCreateInput, RunIdentifier, RunLoader, RunPersistence, RunUpdateInput, endpointsResource, endpointsRun } from "@local/shared";
 import { Box, Stack, styled } from "@mui/material";
 import { useCallback, useEffect, useRef } from "react";
 import { fetchData } from "../../api/fetchData.js";
@@ -13,10 +13,8 @@ type StepRunData = {
     // Add other properties of currentStepRunData if needed
 }
 
-export function createRunPath(runIdOrTest: string, runnableObject: { __typename: "ProjectVersion" | "RoutineVersion" }): string {
-    const runId = uuidValidate(runIdOrTest) ? uuidToBase36(runIdOrTest) : "test";
-    const runType = runnableObject.__typename === "ProjectVersion" ? RunTypeInPath.Project : RunTypeInPath.Routine;
-    return `${LINKS.Run}/${runType}/${runId}`;
+export function createRunPath(runIdOrTest: string): string {
+    return `${LINKS.Run}/${runIdOrTest}`;
 }
 
 export function useStepMetrics(
@@ -106,12 +104,8 @@ class ClientRunLoader extends RunLoader {
     public async fetchLocation(
         location: Location,
     ): Promise<LocationData | null> {
-        const objectEndpoint = location.__typename === "ProjectVersion"
-            ? endpointsProjectVersion.findOne
-            : endpointsRoutineVersion.findOne;
-
-        const objectPromise = fetchData<FindByIdInput, ProjectVersion | RoutineVersion>({
-            ...objectEndpoint,
+        const objectPromise = fetchData<FindByIdInput, ResourceVersion>({
+            ...endpointsResource.findOne,
             inputs: { id: location.objectId },
         }).then(({ data, errors }) => {
             if (errors) {
@@ -121,8 +115,8 @@ class ClientRunLoader extends RunLoader {
             return data;
         });
         const subroutinePromise = location.subroutineId ?
-            fetchData<FindByIdInput, RoutineVersion>({
-                ...endpointsRoutineVersion.findOne,
+            fetchData<FindByIdInput, ResourceVersion>({
+                ...endpointsResource.findOne,
                 inputs: { id: location.objectId },
             }).then(({ data, errors }) => {
                 if (errors) {
@@ -155,9 +149,9 @@ class ClientRunPersistence extends RunPersistence {
         super();
     }
 
-    async createRunProject(input: RunProjectCreateInput): Promise<RunProject | null> {
-        const { endpoint, method } = endpointsRunProject.createOne;
-        const result = await fetchData<RunProjectCreateInput, RunProject>({
+    async postRun(input: RunCreateInput): Promise<Run | null> {
+        const { endpoint, method } = endpointsRun.createOne;
+        const result = await fetchData<RunCreateInput, Run>({
             endpoint,
             inputs: input,
             method,
@@ -171,9 +165,9 @@ class ClientRunPersistence extends RunPersistence {
         return result ?? null;
     }
 
-    async createRunRoutine(input: RunRoutineCreateInput): Promise<RunRoutine | null> {
-        const { endpoint, method } = endpointsRunRoutine.createOne;
-        const result = await fetchData<RunRoutineCreateInput, RunRoutine>({
+    async putRun(input: RunUpdateInput): Promise<Run | null> {
+        const { endpoint, method } = endpointsRun.updateOne;
+        const result = await fetchData<RunUpdateInput, Run>({
             endpoint,
             inputs: input,
             method,
@@ -187,43 +181,9 @@ class ClientRunPersistence extends RunPersistence {
         return result ?? null;
     }
 
-    async updateRunProject(input: RunProjectUpdateInput): Promise<RunProject | null> {
-        const { endpoint, method } = endpointsRunProject.updateOne;
-        const result = await fetchData<RunProjectUpdateInput, RunProject>({
-            endpoint,
-            inputs: input,
-            method,
-        }).then(({ data, errors }) => {
-            if (errors) {
-                ServerResponseParser.displayErrors(errors);
-                return null;
-            }
-            return data;
-        });
-        return result ?? null;
-    }
-
-    async updateRunRoutine(input: RunRoutineUpdateInput): Promise<RunRoutine | null> {
-        const { endpoint, method } = endpointsRunRoutine.updateOne;
-        const result = await fetchData<RunRoutineUpdateInput, RunRoutine>({
-            endpoint,
-            inputs: input,
-            method,
-        }).then(({ data, errors }) => {
-            if (errors) {
-                ServerResponseParser.displayErrors(errors);
-                return null;
-            }
-            return data;
-        });
-        return result ?? null;
-    }
-
-    async fetchRunProgress(run: RunIdentifier): Promise<RunProject | RunRoutine | null> {
-        const { endpoint, method } = run.type === "RunProject"
-            ? endpointsRunProject.findOne
-            : endpointsRunRoutine.findOne;
-        const storedData = await fetchData<FindByIdInput, RunProject | RunRoutine>({
+    async fetchRun(run: RunIdentifier): Promise<Run | null> {
+        const { endpoint, method } = endpointsRun.findOne;
+        const storedData = await fetchData<FindByIdInput, Run>({
             endpoint,
             inputs: { id: run.runId },
             method,
@@ -330,12 +290,10 @@ export function RunView({
     // const [, setLocation] = useLocation();
 
     // // Find data in URL (e.g. current step, runID, whether or not this is a test run)
-    // const { runId, runType, testMode } = useMemo(function parseUrlMemo() {
+    // const { runId, testMode } = useMemo(function parseUrlMemo() {
     //     const runId = getLastPathnamePart({ offset: 0 });
-    //     const runType = getLastPathnamePart({ offset: 1 });
     //     return {
     //         runId: (typeof runId === "string" && uuidValidate(base36ToUuid(runId))) ? base36ToUuid(runId) : undefined,
-    //         runType: runType === RunTypeInPath.Project ? "RunProject" : "RunRoutine",
     //         testMode: runId === "test",
     //     } as const;
     //     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -536,7 +494,6 @@ export function RunView({
     // useSocketRun({
     //     applyRunUpdate,
     //     runId,
-    //     runType,
     // });
 
     // /**

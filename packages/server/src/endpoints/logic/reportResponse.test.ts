@@ -42,7 +42,7 @@ describe("EndpointsReportResponse", () => {
         await DbProvider.get().user.upsert({
             where: { id: adminId },
             update: { name: "Admin User", handle: "admin", status: "Unlocked" },
-            create: { id: adminId, name: "Admin User", handle: "admin", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "hash" }] } }
+            create: { id: adminId, name: "Admin User", handle: "admin", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false, auths: { create: [{ provider: "Password", hashed_password: "hash" }] } },
         });
 
         // Seed a report created by user1 targeting themselves
@@ -50,7 +50,7 @@ describe("EndpointsReportResponse", () => {
             data: {
                 id: uuid(), language: "en", reason: "Test Report", details: "Details", status: ReportStatus.Open,
                 createdBy: { connect: { id: user1Id } }, user: { connect: { id: user1Id } },
-            }
+            },
         });
 
         // Seed a response from the admin
@@ -58,8 +58,8 @@ describe("EndpointsReportResponse", () => {
             data: {
                 id: uuid(), details: "Admin response", report: { connect: { id: report1.id } },
                 actionSuggested: ReportSuggestedAction.NonIssue, // Use enum
-                createdBy: { connect: { id: adminId } } // Explicitly connect creator for seeding
-            }
+                createdBy: { connect: { id: adminId } }, // Explicitly connect creator for seeding
+            },
         });
     });
 
@@ -74,7 +74,7 @@ describe("EndpointsReportResponse", () => {
 
     describe("findOne", () => {
         it("admin can find a report response", async () => {
-            const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+            const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             const { req, res } = await mockAuthenticatedSession(adminUser);
             const input: FindByIdInput = { id: response1.id };
             const result = await reportResponse.findOne({ input }, { req, res }, reportResponse_findOne);
@@ -92,7 +92,7 @@ describe("EndpointsReportResponse", () => {
         });
 
         it("throws for non-admin user", async () => {
-            const user = { ...loggedInUserNoPremiumData, id: user1Id };
+            const user = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(user);
             const input: FindByIdInput = { id: response1.id };
             try {
@@ -106,7 +106,7 @@ describe("EndpointsReportResponse", () => {
 
     describe("findMany", () => {
         it("admin can find report responses", async () => {
-            const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+            const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             const { req, res } = await mockAuthenticatedSession(adminUser);
             const input: ReportResponseSearchInput = { take: 10, reportId: report1.id };
             const result = await reportResponse.findMany({ input }, { req, res }, reportResponse_findMany);
@@ -115,7 +115,7 @@ describe("EndpointsReportResponse", () => {
         });
 
         it("throws for non-admin user", async () => {
-            const user = { ...loggedInUserNoPremiumData, id: user1Id };
+            const user = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(user);
             const input: ReportResponseSearchInput = { take: 10, reportId: report1.id };
             try {
@@ -129,14 +129,14 @@ describe("EndpointsReportResponse", () => {
 
     describe("createOne", () => {
         it("admin can create a report response", async () => {
-            const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+            const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             const { req, res } = await mockAuthenticatedSession(adminUser);
             const newResponseId = uuid();
             const input: ReportResponseCreateInput = {
                 id: newResponseId,
                 details: "New admin response",
                 reportConnect: report1.id,
-                actionSuggested: ReportSuggestedAction.NonIssue // Use enum
+                actionSuggested: ReportSuggestedAction.NonIssue, // Use enum
             };
             const result = await reportResponse.createOne({ input }, { req, res }, reportResponse_createOne);
             expect(result.id).to.equal(newResponseId);
@@ -144,7 +144,7 @@ describe("EndpointsReportResponse", () => {
         });
 
         it("throws for non-admin user", async () => {
-            const user = { ...loggedInUserNoPremiumData, id: user1Id };
+            const user = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(user);
             const input: ReportResponseCreateInput = { id: uuid(), details: "User response", reportConnect: report1.id, actionSuggested: ReportSuggestedAction.NonIssue }; // Use enum
             try {
@@ -158,7 +158,7 @@ describe("EndpointsReportResponse", () => {
 
     describe("updateOne", () => {
         it("admin can update a report response", async () => {
-            const adminUser = { ...loggedInUserNoPremiumData, id: adminId };
+            const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             const { req, res } = await mockAuthenticatedSession(adminUser);
             const input: ReportResponseUpdateInput = { id: response1.id, details: "Updated admin response" };
             const result = await reportResponse.updateOne({ input }, { req, res }, reportResponse_updateOne);
@@ -167,7 +167,7 @@ describe("EndpointsReportResponse", () => {
         });
 
         it("throws for non-admin user", async () => {
-            const user = { ...loggedInUserNoPremiumData, id: user1Id };
+            const user = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(user);
             const input: ReportResponseUpdateInput = { id: response1.id, details: "User updated response" };
             try {

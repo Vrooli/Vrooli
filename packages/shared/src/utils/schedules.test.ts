@@ -3,7 +3,7 @@ import moment from "moment";
 import sinon from "sinon";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api/types.js";
 import { HOURS_2_MS } from "../consts/numbers.js";
-import { uuid } from "../id/uuid.js";
+import { DUMMY_ID, generatePublicId } from "../id/index.js";
 import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules.js";
 
 describe("validateTimeFrame", () => {
@@ -939,15 +939,14 @@ describe("applyExceptions", () => {
             startTime: new Date("2024-01-01T00:03:10Z").toISOString(),
             endTime: new Date("2025-07-25T23:59:59Z").toISOString(),
             timezone: "Europe/London",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             exceptions: [], // Start with no exceptions
-            id: uuid(),
-            labels: [],
+            id: DUMMY_ID,
+            publicId: generatePublicId(),
             meetings: [],
             recurrences: [],
-            runProjects: [],
-            runRoutines: [],
+            runs: [],
         };
     });
 
@@ -1166,13 +1165,12 @@ async function testCalculateOccurrences({
         __typename: "Schedule",
         startTime: new Date(startTime).toISOString(),
         endTime: new Date(endTime).toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        id: uuid(),
-        labels: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        id: DUMMY_ID,
+        publicId: generatePublicId(),
         meetings: [],
-        runProjects: [],
-        runRoutines: [],
+        runs: [],
         timezone: timeZone,
         recurrences: recurrences as ScheduleRecurrence[],
         exceptions: exceptions as ScheduleException[],

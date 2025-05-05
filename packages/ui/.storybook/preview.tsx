@@ -1,4 +1,4 @@
-import { CodeLanguage, StripeEndpoint, User, uuid } from '@local/shared';
+import { ApiKey, CodeLanguage, StripeEndpoint, User, generatePK, generatePKString } from '@local/shared';
 import { CssBaseline, GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
 import type { Preview } from '@storybook/react';
 import { HttpResponse, http } from 'msw';
@@ -35,11 +35,11 @@ initialize({
 
 // Mock profile for settings and other views
 let mockProfile: Partial<User> = {
-    id: uuid(),
+    id: generatePKString(),
     name: 'John Doe',
     apiKeys: [
-        { __typename: "ApiKey" as const, id: '1', name: 'Key 1' },
-        { __typename: "ApiKey" as const, id: '2', name: 'Key 2' },
+        { __typename: "ApiKey" as const, id: generatePK().toString(), name: 'Key 1' },
+        { __typename: "ApiKey" as const, id: generatePK().toString(), name: 'Key 2' },
     ],
     externalServiceKeys: {
         openAI: '',
@@ -58,7 +58,7 @@ function generateDummyStandards() {
                     cursor: String(index + 1),
                     node: {
                         __typename: "Standard" as const,
-                        id: uuid(),
+                        id: generatePKString(),
                         bookmarks: Math.floor(Math.random() * 100),
                         hasCompleteVersion,
                         isDeleted: false,
@@ -67,13 +67,13 @@ function generateDummyStandards() {
                         versions: [
                             {
                                 __typename: "StandardVersion" as const,
-                                id: uuid(),
+                                id: generatePKString(),
                                 codeLanguage: CodeLanguage.Javascript,
                                 isComplete: hasCompleteVersion,
                                 translations: [
                                     {
                                         __typename: "StandardVersionTranslation" as const,
-                                        id: uuid(),
+                                        id: generatePKString(),
                                         language: "en",
                                         name: standardName,
                                     },
@@ -125,7 +125,7 @@ const preview: Preview = {
             // Put global request overrides here, such as requests made by the side menus
             handlers: [
                 // api keys
-                http.post(`${API_URL}/v2/rest/apikeys`, async ({ request }) => {
+                http.post(`${API_URL}/v2/apikeys`, async ({ request }) => {
                     const input = await request.json();
                     const newKey = {
                         id: `key-${Date.now()}`,
@@ -138,7 +138,7 @@ const preview: Preview = {
                         data: newKey,
                     });
                 }),
-                http.put(`${API_URL}/v2/rest/apikeys/:id`, async ({ params, request }) => {
+                http.put(`${API_URL}/v2/apikeys/:id`, async ({ params, request }) => {
                     const id = params.id;
                     const input = await request.json();
                     const keyIndex = mockProfile.apiKeys?.findIndex(key => key.id === id);
@@ -153,7 +153,7 @@ const preview: Preview = {
                     }
                     return HttpResponse.json({ error: 'Key not found' }, { status: 404 });
                 }),
-                http.delete(`${API_URL}/v2/rest/apikeys/:id`, ({ params }) => {
+                http.delete(`${API_URL}/v2/apikeys/:id`, ({ params }) => {
                     const id = params.id;
                     const keyIndex = mockProfile.apiKeys.findIndex(key => key.id === id);
                     if (keyIndex !== -1) {
@@ -172,10 +172,10 @@ const preview: Preview = {
                     });
                 }),
                 // Search lists
-                http.get(`${API_URL}/v2/rest/feed/popular*`, () => {
+                http.get(`${API_URL}/v2/feed/popular*`, () => {
                     return HttpResponse.json(generateDummyStandards());
                 }),
-                http.get(`${API_URL}/v2/rest/standards*`, () => {
+                http.get(`${API_URL}/v2/standards*`, () => {
                     return HttpResponse.json(generateDummyStandards());
                 }),
             ],

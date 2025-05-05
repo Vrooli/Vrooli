@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Reminder, endpointsReminder, getObjectUrl, uuid } from "@local/shared";
+import { Reminder, endpointsReminder, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ReminderCrud } from "./ReminderCrud.js";
@@ -9,9 +9,9 @@ import { ReminderCrud } from "./ReminderCrud.js";
 // Create simplified mock data for Reminder responses
 const mockReminderData = {
     __typename: "Reminder" as const,
-    id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    id: generatePKString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
     index: 0,
     isComplete: false,
@@ -19,9 +19,9 @@ const mockReminderData = {
     description: "This is a **detailed** description for the reminder using markdown.\nInclude all technical specifications and user guides.",
     reminderItems: Array.from({ length: 3 }, (_, i) => ({
         __typename: "ReminderItem" as const,
-        id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        id: generatePKString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         dueDate: new Date(Date.now() + (i + 1) * 43200000).toISOString(), // Staggered due dates
         index: i,
         isComplete: i === 0, // First item is complete
@@ -30,9 +30,9 @@ const mockReminderData = {
     })),
     reminderList: {
         __typename: "ReminderList" as const,
-        id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        id: generatePKString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         reminders: [],
     },
 } as unknown as Reminder;
@@ -45,7 +45,7 @@ export default {
 // Create a new Reminder
 export function Create() {
     return (
-        <ReminderCrud display="page" isCreate={true} />
+        <ReminderCrud display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -73,20 +73,20 @@ CreateDialog.parameters = {
 // Update an existing Reminder
 export function Update() {
     return (
-        <ReminderCrud display="page" isCreate={false} />
+        <ReminderCrud display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReminder.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsReminder.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockReminderData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReminderData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReminderData)}/edit`,
     },
 };
 
@@ -108,27 +108,27 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReminder.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsReminder.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockReminderData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReminderData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReminderData)}/edit`,
     },
 };
 
 // Loading state
 export function Loading() {
     return (
-        <ReminderCrud display="page" isCreate={false} />
+        <ReminderCrud display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsReminder.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsReminder.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockReminderData });
@@ -136,14 +136,14 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockReminderData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockReminderData)}/edit`,
     },
 };
 
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <ReminderCrud display="page" isCreate={true} />
+        <ReminderCrud display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

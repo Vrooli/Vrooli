@@ -1,33 +1,21 @@
-import { ApiSearchInput, ApiVersionSearchInput, BookmarkListSearchInput, BookmarkSearchInput, ChatInviteSearchInput, ChatMessageSearchInput, ChatParticipantSearchInput, ChatSearchInput, CodeSearchInput, CodeVersionSearchInput, CommentSearchInput, IssueSearchInput, LabelSearchInput, MeetingInviteSearchInput, MeetingSearchInput, MemberInviteSearchInput, MemberSearchInput, NoteSearchInput, NoteVersionSearchInput, NotificationSearchInput, NotificationSubscriptionSearchInput, PopularSearchInput, ProjectOrRoutineSearchInput, ProjectOrTeamSearchInput, ProjectSearchInput, ProjectVersionSearchInput, PullRequestSearchInput, ReactionSearchInput, ReminderSearchInput, ReportResponseSearchInput, ReportSearchInput, ReputationHistorySearchInput, ResourceListSearchInput, ResourceSearchInput, RoleSearchInput, RoutineSearchInput, RoutineVersionSearchInput, RunProjectOrRunRoutineSearchInput, RunProjectSearchInput, RunRoutineIOSearchInput, RunRoutineSearchInput, ScheduleSearchInput, StandardSearchInput, StandardVersionSearchInput, StatsApiSearchInput, StatsCodeSearchInput, StatsProjectSearchInput, StatsRoutineSearchInput, StatsSiteSearchInput, StatsStandardSearchInput, StatsTeamSearchInput, StatsUserSearchInput, TagSearchInput, TeamSearchInput, TransferSearchInput, UserSearchInput, ViewSearchInput } from "../api/types.js";
+import { BookmarkListSearchInput, BookmarkSearchInput, ChatInviteSearchInput, ChatMessageSearchInput, ChatParticipantSearchInput, ChatSearchInput, CommentSearchInput, IssueSearchInput, MeetingInviteSearchInput, MeetingSearchInput, MemberInviteSearchInput, MemberSearchInput, NotificationSearchInput, NotificationSubscriptionSearchInput, PopularSearchInput, PullRequestSearchInput, ReactionSearchInput, ReminderSearchInput, ReportResponseSearchInput, ReportSearchInput, ReputationHistorySearchInput, ResourceSearchInput, ResourceVersionSearchInput, RunIOSearchInput, RunSearchInput, ScheduleSearchInput, StatsResourceSearchInput, StatsSiteSearchInput, StatsTeamSearchInput, StatsUserSearchInput, TagSearchInput, TeamSearchInput, TransferSearchInput, UserSearchInput, ViewSearchInput } from "../api/types.js";
 
 export type SearchTypeToSearchInput = {
-    Api: ApiSearchInput;
-    ApiVersion: ApiVersionSearchInput;
     Bookmark: BookmarkSearchInput;
     BookmarkList: BookmarkListSearchInput;
     Chat: ChatSearchInput;
     ChatInvite: ChatInviteSearchInput;
     ChatMessage: ChatMessageSearchInput;
     ChatParticipant: ChatParticipantSearchInput;
-    Code: CodeSearchInput;
-    CodeVersion: CodeVersionSearchInput;
     Comment: CommentSearchInput;
     Issue: IssueSearchInput;
-    Label: LabelSearchInput;
     MeetingInvite: MeetingInviteSearchInput;
     Meeting: MeetingSearchInput;
     MemberInvite: MemberInviteSearchInput;
     Member: MemberSearchInput;
-    Note: NoteSearchInput;
-    NoteVersion: NoteVersionSearchInput;
     Notification: NotificationSearchInput;
     NotificationSubscription: NotificationSubscriptionSearchInput;
     Popular: PopularSearchInput;
-    ProjectOrRoutine: ProjectOrRoutineSearchInput;
-    ProjectOrTeam: ProjectOrTeamSearchInput;
-    Project: ProjectSearchInput;
-    ProjectVersion: ProjectVersionSearchInput;
-    // ProjectVersionDirectory: ProjectVersionDirectorySearchInput;
     PullRequest: PullRequestSearchInput;
     Reaction: ReactionSearchInput;
     Reminder: ReminderSearchInput;
@@ -35,23 +23,12 @@ export type SearchTypeToSearchInput = {
     Report: ReportSearchInput;
     ReputationHistory: ReputationHistorySearchInput;
     Resource: ResourceSearchInput;
-    ResourceList: ResourceListSearchInput;
-    Role: RoleSearchInput;
-    Routine: RoutineSearchInput;
-    RoutineVersion: RoutineVersionSearchInput;
-    RunProject: RunProjectSearchInput;
-    RunProjectOrRunRoutine: RunProjectOrRunRoutineSearchInput;
-    RunRoutine: RunRoutineSearchInput;
-    RunRoutineIO: RunRoutineIOSearchInput;
+    ResourceVersion: ResourceVersionSearchInput;
+    Run: RunSearchInput;
+    RunIO: RunIOSearchInput;
     Schedule: ScheduleSearchInput;
-    Standard: StandardSearchInput;
-    StandardVersion: StandardVersionSearchInput;
-    StatsApi: StatsApiSearchInput;
-    StatsCode: StatsCodeSearchInput;
-    StatsProject: StatsProjectSearchInput;
-    StatsRoutine: StatsRoutineSearchInput;
+    StatsResource: StatsResourceSearchInput;
     StatsSite: StatsSiteSearchInput;
-    StatsStandard: StatsStandardSearchInput;
     StatsTeam: StatsTeamSearchInput;
     StatsUser: StatsUserSearchInput;
     Tag: TagSearchInput;
@@ -137,8 +114,7 @@ export enum UserPageTabOption {
 export enum CalendarPageTabOption {
     All = "All",
     Meeting = "Meeting",
-    RunProject = "RunProject",
-    RunRoutine = "RunRoutine",
+    Run = "Run",
 }
 
 export enum InboxPageTabOption {

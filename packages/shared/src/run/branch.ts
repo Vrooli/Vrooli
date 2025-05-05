@@ -1,6 +1,6 @@
-import { ModelType, RoutineVersion, RunStepStatus } from "../api/types.js";
-import { uuid } from "../id/uuid.js";
-import { RoutineVersionConfig } from "./configs/routine.js";
+import { RunStepStatus } from "../api/types.js";
+import { nanoid } from "../id/publicId.js";
+import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { SubroutineContextManager } from "./context.js";
 import { BranchLocationDataMap, BranchProgress, BranchStatus, IOMap, Id, Location, LocationStack, RunProgress, RunStateMachineServices } from "./types.js";
 
@@ -39,10 +39,10 @@ export class BranchManager {
 
             // Get the appropriate graph config, io data, and navigator for the current object
             // TODO support projects and project directories
-            if (object.__typename !== ModelType.RoutineVersion) {
-                services.logger.error(`moveBranchesForward: Unsupported object type: ${(object as { __typename: unknown }).__typename}`);
+            if (!object.resourceSubType.startsWith("Routine")) {
+                services.logger.error(`moveBranchesForward: Unsupported object type: ${object.resourceSubType}`);
                 branch.status = BranchStatus.Failed;
-                throw new Error(`Unsupported object type: ${object.__typename}`);
+                continue;
             }
             const { graph: config } = RoutineVersionConfig.deserialize(object, services.logger, { useFallbacks: true });
             if (!config) {
@@ -87,7 +87,7 @@ export class BranchManager {
                 run.decisions = updatedDecisions;
                 // Send a decision request to the client
                 for (const decision of nextDecision.deferredDecisions) {
-                    services.notifier?.sendDecisionRequest(run.runId, run.type, decision);
+                    services.notifier?.sendDecisionRequest(run.runId, decision);
                 }
                 // Put the branch in a waiting state
                 branch.status = BranchStatus.Waiting;
@@ -348,14 +348,14 @@ export class BranchManager {
     * Creates a new branch ID.
     */
     static generateBranchId(): Id {
-        return uuid();
+        return nanoid();
     }
 
     /**
      * Creates a new branch process ID.
      */
     static generateBranchProcessId(): Id {
-        return uuid();
+        return nanoid();
     }
 
     /**
@@ -365,6 +365,6 @@ export class BranchManager {
      * @returns A composite ID of the shape `${subroutineId}.${uniqueId}`.
      */
     static generateSubroutineInstanceId(subroutineId: Id): string {
-        return `${subroutineId}.${uuid()}`;
+        return `${subroutineId}.${nanoid()}`;
     }
 }

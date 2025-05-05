@@ -55,12 +55,12 @@ describe("combineQueries", () => {
         it("merges AND clauses", () => {
             const queries = [
                 { AND: [{ isActive: true }] },
-                { AND: [{ isVerified: true }] },
+                { AND: [{ verifiedAt: true }] },
             ];
             const expected = {
                 AND: [
                     { isActive: true },
-                    { isVerified: true },
+                    { verifiedAt: true },
                 ],
             };
             // Same in both merge modes
@@ -396,14 +396,14 @@ describe("combineQueries", () => {
         it("combines complex nested queries without conflicts", () => {
             const queries = [
                 { user: { id: 1 } },
-                { user: { OR: [{ isActive: true }, { isVerified: true }] } },
+                { user: { OR: [{ isActive: true }, { verifiedAt: true }] } },
             ];
             const expected = {
                 user: {
                     id: 1,
                     OR: [
                         { isActive: true },
-                        { isVerified: true },
+                        { verifiedAt: true },
                     ],
                 },
             };
@@ -448,8 +448,8 @@ describe("combineQueries", () => {
         });
 
         it("handles empty and null queries gracefully - test 2", () => {
-            const queries = [null, { isActive: true }, undefined, { isVerified: false }];
-            const expected = { isActive: true, isVerified: false };
+            const queries = [null, { isActive: true }, undefined, { verifiedAt: false }];
+            const expected = { isActive: true, verifiedAt: false };
             // Same in both merge modes
             expect(combineQueries(queries)).to.deep.equal(expected);
             expect(combineQueries(queries, { mergeMode: "strict" })).to.deep.equal(expected);
@@ -463,12 +463,12 @@ describe("combineQueries", () => {
             it("counting public teams", () => {
                 const customWhere = undefined;
                 const createdQuery = {
-                    created_at: {
+                    createdAt: {
                         gte: new Date("2021-01-01T00:00:00.000Z").toISOString(),
                     },
                 };
                 const updatedQuery = {
-                    updated_at: {
+                    updatedAt: {
                         gte: new Date("2022-02-02T00:00:00.000Z").toISOString(),
                         lte: new Date("2023-03-03T23:59:59.999Z").toISOString(),
                     },
@@ -478,10 +478,10 @@ describe("combineQueries", () => {
                 };
                 const queries = [customWhere, createdQuery, updatedQuery, visibilityQuery];
                 const expected = {
-                    created_at: {
+                    createdAt: {
                         gte: new Date("2021-01-01T00:00:00.000Z").toISOString(),
                     },
-                    updated_at: {
+                    updatedAt: {
                         gte: new Date("2022-02-02T00:00:00.000Z").toISOString(),
                         lte: new Date("2023-03-03T23:59:59.999Z").toISOString(),
                     },

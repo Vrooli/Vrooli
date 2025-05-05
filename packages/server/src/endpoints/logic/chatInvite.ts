@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSearchResult, ChatInviteUpdateInput, FindByIdInput, uuidValidate } from "@local/shared";
+import { ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSearchResult, ChatInviteUpdateInput, FindByIdInput, validatePK } from "@local/shared";
 import { createManyHelper, createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";
@@ -57,7 +57,7 @@ export const chatInvite: EndpointsChatInvite = {
     acceptOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        if (!input || !input.id || !uuidValidate(input.id)) {
+        if (!input || !input.id || !validatePK(input.id)) {
             throw new CustomError("0400", "InvalidArgs");
         }
         const userData = SessionService.getUser(req);
@@ -67,12 +67,12 @@ export const chatInvite: EndpointsChatInvite = {
         const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
 
         const invite = await DbProvider.get().chat_invite.findUnique({
-            where: { id: input.id },
+            where: { id: BigInt(input.id) },
             select: { id: true, userId: true, chatId: true, status: true },
         });
 
         if (!invite) throw new CustomError("0404", "NotFound", { objectType });
-        if (invite.userId !== userData.id) throw new CustomError("0803", "Unauthorized");
+        if (invite.userId.toString() !== userData.id) throw new CustomError("0803", "Unauthorized");
         if (invite.status !== "Pending") throw new CustomError("0809", "InternalError");
 
         await DbProvider.get().$transaction([
@@ -82,7 +82,7 @@ export const chatInvite: EndpointsChatInvite = {
             }),
             DbProvider.get().chat_participants.upsert({
                 where: {
-                    chatId_userId: {
+                    chat_participants_chatid_userid_unique: {
                         chatId: invite.chatId,
                         userId: invite.userId,
                     },
@@ -96,13 +96,13 @@ export const chatInvite: EndpointsChatInvite = {
             }),
         ]);
 
-        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id }, objectType, req });
+        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
         return result as ChatInvite;
     },
     declineOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        if (!input || !input.id || !uuidValidate(input.id)) {
+        if (!input || !input.id || !validatePK(input.id)) {
             throw new CustomError("0400", "InvalidArgs");
         }
         const userData = SessionService.getUser(req);
@@ -112,12 +112,12 @@ export const chatInvite: EndpointsChatInvite = {
         const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
 
         const invite = await DbProvider.get().chat_invite.findUnique({
-            where: { id: input.id },
+            where: { id: BigInt(input.id) },
             select: { id: true, userId: true, chatId: true, status: true },
         });
 
         if (!invite) throw new CustomError("0404", "NotFound", { objectType });
-        if (invite.userId !== userData.id) throw new CustomError("0803", "Unauthorized");
+        if (invite.userId.toString() !== userData.id) throw new CustomError("0803", "Unauthorized");
         if (invite.status !== "Pending") throw new CustomError("0809", "InternalError");
 
         await DbProvider.get().chat_invite.update({
@@ -125,7 +125,7 @@ export const chatInvite: EndpointsChatInvite = {
             data: { status: "Declined" },
         });
 
-        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id }, objectType, req });
+        const result = await readOneHelper({ info: partialInfo, input: { id: invite.id.toString() }, objectType, req });
         return result as ChatInvite;
     },
 };

@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
-import { FormSchema, RoutineSortBy, RoutineVersionSortBy, TimeFrame } from "@local/shared";
+import { FormSchema, ResourceVersionSortBy, TimeFrame } from "@local/shared";
 import { useCallback, useState } from "react";
 import { SearchButtons } from "./SearchButtons.js";
 
@@ -30,10 +30,10 @@ export function WithAllButtons() {
         elements: [],
     };
 
-    const [sortBy, setSortBy] = useState(RoutineVersionSortBy.CommentsAsc);
+    const [sortBy, setSortBy] = useState(ResourceVersionSortBy.CommentsAsc);
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>({ after: new Date(), before: new Date() });
     const onSetSortBy = useCallback((sortBy: string) => {
-        setSortBy(sortBy as RoutineVersionSortBy);
+        setSortBy(sortBy as ResourceVersionSortBy);
     }, [setSortBy]);
     const onSetTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
         setTimeFrame(timeFrame);
@@ -45,12 +45,12 @@ export function WithAllButtons() {
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 controlsUrl={false}
-                searchType="RoutineVersion"
+                searchType="ResourceVersion"
                 setAdvancedSearchParams={() => { }}
                 setSortBy={onSetSortBy}
                 setTimeFrame={onSetTimeFrame}
                 sortBy={sortBy}
-                sortByOptions={RoutineVersionSortBy}
+                sortByOptions={ResourceVersionSortBy}
                 timeFrame={timeFrame}
             />
         </Outer>
@@ -72,12 +72,12 @@ export function WithoutAdvancedSearchParams() {
                 advancedSearchParams={null}
                 advancedSearchSchema={null}
                 controlsUrl={false}
-                searchType="RoutineVersion"
+                searchType="ResourceVersion"
                 setAdvancedSearchParams={() => { }}
                 setSortBy={() => { }}
                 setTimeFrame={() => { }}
                 sortBy={""}
-                sortByOptions={RoutineSortBy}
+                sortByOptions={ResourceVersionSortBy}
                 timeFrame={undefined}
             />
         </Outer>

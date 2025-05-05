@@ -179,16 +179,16 @@ export class SqlBuilder {
                 scoreExpression = `${inverseDistanceWeighted} + (LN("${tableAlias}"."bookmarks" + 1) * 2)`;
                 break;
             case "EmbedDateCreatedAsc":
-                scoreExpression = `${inverseDistanceWeighted} + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."created_at") / 3600), 0.25)) * 1)`;
+                scoreExpression = `${inverseDistanceWeighted} + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."createdAt") / 3600), 0.25)) * 1)`;
                 break;
             case "EmbedDateCreatedDesc":
-                scoreExpression = `${inverseDistanceWeighted} + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."created_at") / 3600), 0.25)) * 100)`;
+                scoreExpression = `${inverseDistanceWeighted} + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."createdAt") / 3600), 0.25)) * 100)`;
                 break;
             case "EmbedDateUpdatedAsc":
-                scoreExpression = `${inverseDistanceWeighted} + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."updated_at") / 3600), 0.25)) * 1)`;
+                scoreExpression = `${inverseDistanceWeighted} + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."updatedAt") / 3600), 0.25)) * 1)`;
                 break;
             case "EmbedDateUpdatedDesc":
-                scoreExpression = `${inverseDistanceWeighted} + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."updated_at") / 3600), 0.25)) * 100)`;
+                scoreExpression = `${inverseDistanceWeighted} + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - "${tableAlias}"."updatedAt") / 3600), 0.25)) * 100)`;
                 break;
             default:
                 throw new Error(`Unsupported sort option: ${sortOption}`);

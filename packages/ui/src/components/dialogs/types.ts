@@ -58,8 +58,7 @@ export type FindObjectType = |
     "Reminder" |
     "RoutineMultiStep" |
     "RoutineSingleStep" |
-    "RunProject" |
-    "RunRoutine" |
+    "Run" |
     "SmartContract" |
     "Team" |
     "User";

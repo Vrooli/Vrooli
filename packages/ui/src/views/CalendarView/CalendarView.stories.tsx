@@ -71,34 +71,12 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                     isBookmarked: false,
                 }
             }] : [],
-            runProjects: scheduleFor === "RunProject" ? [{
-                __typename: "RunProject",
-                id: `project-${id}`,
-                translations: [
-                    {
-                        __typename: "RunProjectTranslation",
-                        id: `project-translation-${id}`,
-                        language: "en",
-                        title,
-                        description
-                    }
-                ],
-                you: {
-                    __typename: "RunProjectYou",
-                    canBookmark: true,
-                    canDelete: true,
-                    canRead: true,
-                    canUpdate: true,
-                    canUseExisting: true,
-                    isBookmarked: false,
-                }
-            }] : [],
-            runRoutines: scheduleFor === "RunRoutine" ? [{
-                __typename: "RunRoutine",
+            runs: scheduleFor === "Run" ? [{
+                __typename: "Run",
                 id: `routine-${id}`,
                 translations: [
                     {
-                        __typename: "RunRoutineTranslation",
+                        __typename: "RunTranslation",
                         id: `routine-translation-${id}`,
                         language: "en",
                         title,
@@ -106,7 +84,7 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                     }
                 ],
                 you: {
-                    __typename: "RunRoutineYou",
+                    __typename: "RunYou",
                     canBookmark: true,
                     canDelete: true,
                     canRead: true,
@@ -115,9 +93,8 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                     isBookmarked: false,
                 }
             }] : [],
-            labels: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             translations: [
                 {
                     __typename: "ScheduleTranslation",
@@ -177,7 +154,7 @@ const generateSchedules = () => {
             "Intensive work on project deliverables",
             generateDate(day, 11, 0),
             180,
-            "RunProject"
+            "Run"
         ));
     }
 
@@ -188,7 +165,7 @@ const generateSchedules = () => {
         "Plan tasks and objectives for the week",
         generateDate(1, 8, 0),
         90,
-        "RunRoutine",
+        "Run",
         true // Include recurrence
     ));
 
@@ -198,7 +175,7 @@ const generateSchedules = () => {
         "Review progress and lessons learned",
         generateDate(5, 16, 0),
         60,
-        "RunRoutine",
+        "Run",
         true // Include recurrence
     ));
 
@@ -227,8 +204,8 @@ const processScheduleDate = (scheduleData) => {
         // Convert ISO strings to Date objects where needed
         node.startTime = new Date(node.startTime);
         node.endTime = new Date(node.endTime);
-        node.created_at = new Date(node.created_at);
-        node.updated_at = new Date(node.updated_at);
+        node.createdAt = new Date(node.createdAt);
+        node.updatedAt = new Date(node.updatedAt);
 
         // Process recurrences if any
         if (node.recurrences && node.recurrences.length > 0) {
@@ -272,7 +249,7 @@ export default {
         msw: {
             handlers: [
                 // Mock the exact query we saw in the request
-                http.post(`${API_URL}/v2/rest/schedules`, async ({ request }) => {
+                http.post(`${API_URL}/v2/schedules`, async ({ request }) => {
                     console.log('Intercepted POST schedule request', request.url);
                     // Get the request body and examine it
                     let body;
@@ -295,7 +272,7 @@ export default {
                 }),
 
                 // Also handle GET requests with query parameters
-                http.get(`${API_URL}/v2/rest/schedules*`, ({ request }) => {
+                http.get(`${API_URL}/v2/schedules*`, ({ request }) => {
                     console.log('Intercepted GET schedule request', request.url);
                     const url = new URL(request.url);
                     console.log('GET request parameters:',
@@ -372,7 +349,7 @@ export default {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <CalendarView display="page" />
+        <CalendarView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -381,7 +358,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <CalendarView display="page" />
+        <CalendarView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -390,7 +367,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <CalendarView display="page" />
+        <CalendarView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -399,7 +376,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <CalendarView display="page" />
+        <CalendarView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {
@@ -430,7 +407,7 @@ export function CalendarTabView() {
                 <div style={{ marginTop: '8px' }}>to see the processed mock data</div>
             </div>
             <CalendarView
-                display="page"
+                display="Page"
                 initialTab={CalendarTabs.CALENDAR}
             />
         </>
@@ -443,7 +420,7 @@ CalendarTabView.parameters = {
 
 export function TriggerTabView() {
     return (
-        <CalendarView display="page" initialTab={CalendarTabs.TRIGGER} />
+        <CalendarView display="Page" initialTab={CalendarTabs.TRIGGER} />
     );
 }
 TriggerTabView.storyName = "Trigger Tab View";

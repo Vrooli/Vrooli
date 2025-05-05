@@ -1,7 +1,7 @@
 // Create a new ChatSettingsMenu component to consolidate chat/model settings
 
-import type { ChatInviteShape, ListObject, ProjectVersion } from '@local/shared';
-import { CanConnect, Chat, ChatParticipantShape, LlmModel, getAvailableModels, uuidToBase36 } from '@local/shared';
+import type { ChatInviteShape, ListObject, ResourceVersion } from '@local/shared';
+import { CanConnect, Chat, ChatParticipantShape, LlmModel, getAvailableModels } from '@local/shared';
 import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemButton, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Form, Formik } from 'formik';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -36,7 +36,7 @@ export interface ShareSettings {
 }
 
 // Type for a connected integration (e.g., a Project)
-export type Integration = Pick<ProjectVersion, 'id' | '__typename' | 'translations'>; // Using ProjectVersion
+export type Integration = Pick<ResourceVersion, 'id' | '__typename' | 'translations'>; // Using ProjectVersion
 
 // Type for the overall integration settings state
 export interface IntegrationSettings {
@@ -51,7 +51,7 @@ export interface ChatSettingsMenuProps {
     open: boolean;
     onClose: () => void;
     /** Minimal chat object, needs __typename */
-    chat: Pick<Chat, 'id' | 'translations' | '__typename'>;
+    chat: Pick<Chat, 'id' | 'publicId' | 'translations' | '__typename'>;
     /** Current chat participants */
     participants: ChatParticipantShape[];
     /** Pending chat invites */
@@ -218,7 +218,7 @@ export function ChatSettingsMenu({
                         <ShareLinkTab
                             enabled={shareSettings.enabled}
                             onToggle={onToggleShare}
-                            chatId={chat.id}
+                            chatPublicId={chat.publicId}
                         />
                     )}
                 </Box>
@@ -699,13 +699,13 @@ export interface ShareLinkTabProps {
     /** Callback when toggled */
     onToggle: (enabled: boolean) => void;
     /** Chat ID for generating link */
-    chatId: string;
+    chatPublicId: string;
 }
 
-function ShareLinkTab({ enabled, onToggle, chatId }: ShareLinkTabProps) {
+function ShareLinkTab({ enabled, onToggle, chatPublicId }: ShareLinkTabProps) {
     const { t } = useTranslation();
     // Compute the invite link from chatId
-    const inviteLink = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(chatId)}`, [chatId]);
+    const inviteLink = useMemo(() => `${window.location.origin}/chat/${chatPublicId}`, [chatPublicId]);
 
     return (
         <Box>

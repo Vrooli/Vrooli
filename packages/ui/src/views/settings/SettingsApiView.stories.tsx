@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { ApiKey, ApiKeyPermission, Session, SessionUser, User, uuid } from "@local/shared";
+import { ApiKey, ApiKeyPermission, Session, SessionUser, User, generatePKString } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PERMISSION_PRESETS, SettingsApiView } from "./SettingsApiView.js";
@@ -14,7 +14,7 @@ const session: Partial<Session> = {
     users: [{
         credits: "12345678912",
         hasPremium: true,
-        id: uuid(),
+        id: generatePKString(),
     }] as SessionUser[],
 };
 const noKeysOrIntegrationData: Partial<User> = {
@@ -26,7 +26,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Fresh key with READ_ONLY permissions
         {
             __typename: "ApiKey" as const,
-            id: uuid(),
+            id: generatePKString(),
             creditsUsed: BigInt(0).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -38,7 +38,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Used but still active key with STANDARD permissions
         {
             __typename: "ApiKey" as const,
-            id: uuid(),
+            id: generatePKString(),
             creditsUsed: BigInt(1000000).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -50,7 +50,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Inactive key with DEVELOPER permissions
         {
             __typename: "ApiKey" as const,
-            id: uuid(),
+            id: generatePKString(),
             creditsUsed: BigInt(1000000).toString(),
             disabledAt: new Date().toISOString(),
             limitHard: BigInt(25000000000).toString(),
@@ -62,7 +62,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Key with FULL_ACCESS permissions
         {
             __typename: "ApiKey" as const,
-            id: uuid(),
+            id: generatePKString(),
             creditsUsed: BigInt(2000000).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -74,7 +74,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Key with custom permissions
         {
             __typename: "ApiKey" as const,
-            id: uuid(),
+            id: generatePKString(),
             creditsUsed: BigInt(500000).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -91,21 +91,21 @@ const withKeysAndIntegrationsData: Partial<User> = {
     apiKeysExternal: [
         {
             __typename: "ApiKeyExternal" as const,
-            id: uuid(),
+            id: generatePKString(),
             disabledAt: null,
             name: "External Key 1",
             service: "OpenAI",
         },
         {
             __typename: "ApiKeyExternal" as const,
-            id: uuid(),
+            id: generatePKString(),
             disabledAt: new Date().toISOString(),
             name: "External Key 2",
             service: "OpenAI",
         },
         {
             __typename: "ApiKeyExternal" as const,
-            id: uuid(),
+            id: generatePKString(),
             disabledAt: null,
             name: "External Key 3",
             service: "Microsoft",
@@ -115,7 +115,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
 
 export function NoKeysOrIntegrations() {
     return (
-        <SettingsApiView display="page" />
+        <SettingsApiView display="Page" />
     );
 }
 NoKeysOrIntegrations.parameters = {
@@ -126,7 +126,7 @@ NoKeysOrIntegrations.parameters = {
     },
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: noKeysOrIntegrationData,
                 });
@@ -138,7 +138,7 @@ NoKeysOrIntegrations.parameters = {
 
 export function WithKeysAndIntegrations() {
     return (
-        <SettingsApiView display="page" />
+        <SettingsApiView display="Page" />
     );
 }
 WithKeysAndIntegrations.parameters = {
@@ -149,7 +149,7 @@ WithKeysAndIntegrations.parameters = {
     },
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });
@@ -161,14 +161,14 @@ WithKeysAndIntegrations.parameters = {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <SettingsApiView display="page" />
+        <SettingsApiView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: noKeysOrIntegrationData,
                 });
@@ -179,14 +179,14 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <SettingsApiView display="page" />
+        <SettingsApiView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
     session: signedInNoPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });
@@ -197,14 +197,14 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <SettingsApiView display="page" />
+        <SettingsApiView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
     session: signedInPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });
@@ -215,14 +215,14 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <SettingsApiView display="page" />
+        <SettingsApiView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest/profile`, () => {
+            http.get(`${API_URL}/v2/profile`, () => {
                 return HttpResponse.json({
                     data: withKeysAndIntegrationsData,
                 });

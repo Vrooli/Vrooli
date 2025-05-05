@@ -1,3 +1,4 @@
+import { initIdGenerator } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
@@ -5,7 +6,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { app } from "./app.js";
 import { AuthService } from "./auth/auth.js";
-import { SessionService } from "./auth/session.js";
 import { DbProvider } from "./db/provider.js";
 import { initRestApi } from "./endpoints/rest.js";
 import { logger } from "./events/logger.js";
@@ -14,7 +14,7 @@ import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { setupHealthCheck } from "./services/health.js";
 import { setupMCP } from "./services/mcp/index.js";
 import { setupStripe } from "./services/stripe.js";
-import { io, sessionSockets, userSockets } from "./sockets/io.js";
+import { SocketService } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
 import { runSocketRoomHandlers } from "./sockets/rooms/run.js";
 import { userSocketRoomHandlers } from "./sockets/rooms/user.js";
@@ -28,13 +28,25 @@ async function main() {
     logger.info("Starting server...");
 
     // Check for required .env variables
-    const requiredEnvs = ["JWT_PRIV", "JWT_PUB", "PROJECT_DIR", "VITE_SERVER_LOCATION", "LETSENCRYPT_EMAIL", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"];
+    const requiredEnvs = [
+        "JWT_PRIV", // Private key for JWT tokens
+        "JWT_PUB", // Public key for JWT tokens
+        "PROJECT_DIR", // Path to the project directory
+        "VITE_SERVER_LOCATION", // Location of the server
+        "LETSENCRYPT_EMAIL", // Email for Let's Encrypt
+        "VAPID_PUBLIC_KEY", // Public key for VAPID
+        "VAPID_PRIVATE_KEY", // Private key for VAPID
+        "WORKER_ID", // Worker ID (e.g. pod ordinal) for Snowflake IDs
+    ];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: "0007" });
             process.exit(1);
         }
     }
+
+    // Set snowflake worker ID
+    initIdGenerator(parseInt(process.env.WORKER_ID ?? "0"));
 
     // Initialize singletons
     await initSingletons();
@@ -96,31 +108,20 @@ async function main() {
     await initRestApi(app);
 
     // Set up websocket server
+    const socketService = SocketService.get(); // Get the initialized instance
+    const ioInstance = socketService.io; // Access the io instance from the service
+
     // Authenticate new connections (this is not called for each event)
-    io.use(AuthService.authenticateSocket);
+    ioInstance.use(AuthService.authenticateSocket);
     // Set up socket connection logic
-    io.on("connection", (socket) => {
-        // Keep track of sockets for each user and session, so that they can be 
-        // disconnected when the user logs out or revokes open sessions
-        const user = SessionService.getUser(socket);
-        const userId = user?.id;
-        const sessionId = user?.session.id;
-        if (userId && sessionId) {
-            if (!userSockets.has(userId)) {
-                userSockets.set(userId, new Set());
-            }
-            userSockets.get(userId)?.add(socket.id);
+    ioInstance.on("connection", (socket) => {
+        // Add socket to maps using the service method
+        socketService.addSocket(socket);
 
-            if (!sessionSockets.has(sessionId)) {
-                sessionSockets.set(sessionId, new Set());
-            }
-            sessionSockets.get(sessionId)?.add(socket.id);
-
-            socket.on("disconnect", () => {
-                userSockets.get(userId)?.delete(socket.id);
-                sessionSockets.get(sessionId)?.delete(socket.id);
-            });
-        }
+        // Handle disconnection using the service method
+        socket.on("disconnect", () => {
+            socketService.removeSocket(socket);
+        });
 
         // Add handlers for each room
         chatSocketRoomHandlers(socket);
@@ -156,7 +157,7 @@ export * from "./models/index.js";
 export * from "./notify/index.js";
 export * from "./redisConn.js";
 export * from "./server.js";
-export * from "./sockets/events.js";
+export * from "./sockets/io.js";
 export * from "./tasks/index.js";
 export * from "./utils/index.js";
 export * from "./validators/index.js";

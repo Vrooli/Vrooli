@@ -1,7 +1,7 @@
 export const reminder_findOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "createdAt": true,
+    "updatedAt": true,
     "name": true,
     "description": true,
     "dueDate": true,
@@ -9,8 +9,8 @@ export const reminder_findOne = {
     "isComplete": true,
     "reminderItems": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
+        "updatedAt": true,
         "name": true,
         "description": true,
         "dueDate": true,
@@ -19,8 +19,8 @@ export const reminder_findOne = {
     },
     "reminderList": {
         "id": true,
-        "created_at": true,
-        "updated_at": true
+        "createdAt": true,
+        "updatedAt": true
     },
-    "__cacheKey": "2048759526"
+    "__cacheKey": "765065268"
 };

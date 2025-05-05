@@ -1,4 +1,4 @@
-import { ModelType, RoutineType, ScheduleFor, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, ResourceSubType, ResourceType, ScheduleFor, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
 import { PeriodType } from "@prisma/client";
 import { RequestService } from "../auth/request.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
@@ -71,10 +71,6 @@ type SearchMapType<T> = {
  * consistent across all objects.
  */
 export const SearchMap: { [key in string]?: SearchFunction } = {
-    apiId: (id: string) => oneToOneId(id, "api"),
-    apisId: (id: string) => oneToManyId(id, "apis"),
-    apiVersionId: (id: string) => oneToOneId(id, "apiVersion"),
-    apiVersionsId: (id: string) => oneToManyId(id, "apiVersions"),
     bookmarksContainsId: (id: string) => ({
         bookmarks: {
             some: {
@@ -98,8 +94,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     cardLast4: (cardLast4: string) => ({ cardLast4 }),
     chatId: (id: string) => oneToOneId(id, "chat"),
     chatMessageId: (id: string) => oneToOneId(id, "chatMessage"),
-    codeId: (id: string) => oneToOneId(id, "code"),
-    codesId: (id: string) => oneToManyId(id, "codes"),
     codeLanguage: (codeLanguage: string) => codeLanguage ? ({ codeLanguage: { contains: codeLanguage.trim(), mode: "insensitive" } }) : {},
     codeLanguageLatestVersion: (language: string) => language ? ({
         versions: {
@@ -109,27 +103,15 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         },
     }) : {},
-    codeType: (codeType: string) => codeType ? ({ codeType: { contains: codeType.trim(), mode: "insensitive" } }) : {},
-    codeTypeLatestVersion: (type: string) => type ? ({
-        versions: {
-            some: {
-                isLatest: true,
-                codeType: { contains: type.trim(), mode: "insensitive" },
-            },
-        },
-    }) : {},
-    codeVersionId: (id: string) => oneToOneId(id, "codeVersion"),
-    codeVersionsId: (id: string) => oneToManyId(id, "codeVersions"),
     commentId: (id: string) => oneToOneId(id, "comment"),
     commentsId: (id: string) => oneToManyId(id, "comments"),
     completedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("completedAt", time),
     closedById: (id: string) => oneToOneId(id, "closedBy"),
     createdById: (id: string) => oneToOneId(id, "createdBy"),
     createdByIdRoot: (id: string) => ({ root: oneToOneId(id, "createdBy") }),
-    createdTimeFrame: (time: TimeFrame) => timeFrameToPrisma("created_at", time),
+    createdTimeFrame: (time: TimeFrame) => timeFrameToPrisma("createdAt", time),
     creatorId: (id: string) => oneToOneId(id, "creator"),
     currency: (currency: string) => ({ currency }),
-    directoryListingsId: (id: string) => oneToManyId(id, "directoryListings"),
     endTimeFrame: (time: TimeFrame) => timeFrameToPrisma("endTime", time),
     excludeIds: (ids: string[]) => ({ NOT: { id: { in: ids } } }),
     excludeLinkedToTag: (exclude: boolean) => exclude === true ? { tagId: null } : {},
@@ -207,10 +189,10 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     labelsIds: (ids: string[]) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: string[]) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("lastViewedAt", time),
-    latestVersionRoutineType: (routineType: RoutineType, { visibility }) => {
+    latestVersionResourceSubType: (resourceSubType: ResourceSubType, { visibility }) => {
         // If visibility is "Public", then we must use "isLatestPublic" flag
         if (visibility === VisibilityType.Public) {
-            return { versions: { some: { isLatestPublic: true, routineType } } };
+            return { versions: { some: { isLatestPublic: true, resourceSubType } } };
         }
         // Otherwise, use "isLatest" flag or "isLatestPublic" flag. The visibility builder will handle omitting objects you're not allowed to see.
         // TODO probably flawed if using visibility "All"
@@ -221,15 +203,15 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
                         { isLatest: true },
                         { isLatestPublic: true },
                     ],
-                    routineType,
+                    resourceSubType,
                 },
             },
         };
     },
-    latestVersionRoutineTypes: (routineTypes: RoutineType[], { visibility }) => {
+    latestVersionResourceSubTypes: (resourceSubTypes: ResourceSubType[], { visibility }) => {
         // If visibility is "Public", then we must use "isLatestPublic" flag
         if (visibility === VisibilityType.Public) {
-            return { versions: { some: { isLatestPublic: true, routineType: { in: routineTypes } } } };
+            return { versions: { some: { isLatestPublic: true, resourceSubType: { in: resourceSubTypes } } } };
         }
         // Otherwise, use "isLatest" flag or "isLatestPublic" flag. The visibility builder will handle omitting objects you're not allowed to see.
         // TODO probably flawed if using visibility "All"
@@ -240,7 +222,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
                         { isLatest: true },
                         { isLatestPublic: true },
                     ],
-                    routineType: { in: routineTypes },
+                    resourceSubType: { in: resourceSubTypes },
                 },
             },
         };
@@ -283,10 +265,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     notInChatId: (id: string) => id ? ({ NOT: { chats: { some: { id } } } }) : {}, // TODO should probably validate that you can read the participants in this chat, so that you can't figure out who's in a chat by finding out everyone who's not
     notInvitedToTeamId: (id: string) => ({ membershipsInvited: { none: { team: { id } } } }),
     notMemberInTeamId: (id: string) => ({ memberships: { none: { team: { id } } } }),
-    noteId: (id: string) => oneToOneId(id, "note"),
-    notesId: (id: string) => oneToManyId(id, "notes"),
-    noteVersionId: (id: string) => oneToOneId(id, "noteVersion"),
-    noteVersionsId: (id: string) => oneToManyId(id, "noteVersions"),
     objectId: (id: string) => oneToOneId(id, "object"),
     objectType: (objectType: string) => objectType ? ({ objectType: { contains: objectType.trim(), mode: "insensitive" } }) : {},
     openToAnyoneWithInvite: () => ({ openToAnyoneWithInvite: true }),
@@ -297,40 +275,24 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     parentId: (id: string) => oneToOneId(id, "parent"),
     periodTimeFrame: (time: TimeFrame) => timeFrameToPrisma("periodEnd", time),
     periodType: (periodType: PeriodType) => ({ periodType }),
-    projectId: (id: string) => oneToOneId(id, "project"),
-    projectsId: (id: string) => oneToManyId(id, "projects"),
-    projectVersionId: (id: string) => oneToOneId(id, "projectVersion"),
-    projectVersionsId: (id: string) => oneToManyId(id, "projectVersions"),
     pullRequestId: (id: string) => oneToOneId(id, "pullRequest"),
     pullRequestsId: (id: string) => oneToManyId(id, "pullRequests"),
     referencedVersionId: (id: string) => ({ referencedVersionId: id }), // Not a relationship, just a field
     reminderListId: (id: string) => oneToOneId(id, "reminderList"),
     reportId: (id: string) => oneToOneId(id, "report"),
     reportsId: (id: string) => oneToManyId(id, "reports"),
-    resourceListId: (id: string) => oneToOneId(id, "resourceList"),
-    resourceListsId: (id: string) => oneToManyId(id, "resourceLists"),
     responseId: (id: string) => oneToOneId(id, "response"),
-    roles: (roles: string[]) => ({ roles: { some: { name: { in: roles } } } }),
     rootId: (id: string) => oneToOneId(id, "root"),
-    routineId: (id: string) => oneToOneId(id, "routine"),
-    routineIds: (ids: string[]) => oneToOneIds(ids, "routine"),
-    routinesId: (id: string) => oneToManyId(id, "routines"),
-    routinesIds: (ids: string[]) => oneToManyIds(ids, "routines"),
-    routineType: (routineType: RoutineType) => ({ routineType }),
-    routineTypes: (routineTypes: RoutineType[]) => ({ routineType: { in: routineTypes } }),
-    routineVersionId: (id: string) => oneToOneId(id, "routineVersion"),
-    routineVersionsId: (id: string) => oneToManyId(id, "routineVersions"),
-    runProjectTeamId: (id: string) => ({ runProject: { team: { id } } }),
-    runProjectUserId: (id: string) => ({ runProject: { user: { id } } }),
-    runRoutineTeamId: (id: string) => ({ runRoutine: { team: { id } } }),
-    runRoutineUserId: (id: string) => ({ runRoutine: { user: { id } } }),
+    resourceType: (resourceType: ResourceType) => ({ resourceType }),
+    resourceTypes: (resourceTypes: ResourceType[]) => ({ resourceType: { in: resourceTypes } }),
+    runTeamId: (id: string) => ({ run: { team: { id } } }),
+    runUserId: (id: string) => ({ run: { user: { id } } }),
     scheduleEndTimeFrame: (time: TimeFrame) => ({ schedule: timeFrameToPrisma("endTime", time) }),
     scheduleStartTimeFrame: (time: TimeFrame) => ({ schedule: timeFrameToPrisma("startTime", time) }),
     scheduleFor: (scheduleFor: ScheduleFor) => {
         switch (scheduleFor) {
             case "Meeting": return { meetings: { some: {} } };
-            case "RunProject": return { runProjects: { some: {} } };
-            case "RunRoutine": return { runRoutines: { some: {} } };
+            case "Run": return { runs: { some: {} } };
             default: return {};
         }
     },
@@ -370,30 +332,12 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
                 ],
             },
         },
-        runProjects: {
-
-        },
-        runRoutines: {
+        runs: {
 
         },
     }) : {},
     showOnTeamProfile: () => ({ showOnTeamProfile: true }),
     silent: (silent: boolean) => ({ silent }),
-    standardId: (id: string) => oneToOneId(id, "standard"),
-    standardIds: (ids: string[]) => oneToOneIds(ids, "standard"),
-    standardType: (standardType: string) => standardType ? ({ standardType: { contains: standardType.trim(), mode: "insensitive" } }) : {},
-    standardTypeLatestVersion: (type: string) => type ? ({
-        versions: {
-            some: {
-                isLatest: true,
-                type: { contains: type.trim(), mode: "insensitive" },
-            },
-        },
-    }) : {},
-    standardsId: (id: string) => oneToManyId(id, "standards"),
-    standardsIds: (ids: string[]) => oneToManyIds(ids, "standards"),
-    standardVersionId: (id: string) => oneToOneId(id, "standardVersion"),
-    standardVersionsId: (id: string) => oneToManyId(id, "standardVersions"),
     startTimeFrame: (time: TimeFrame) => timeFrameToPrisma("startTime", time),
     startedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("startedAt", time),
     status: <T>(status: T) => ({ status }),
@@ -419,17 +363,8 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         },
     }),
-    updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updated_at", time),
+    updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updatedAt", time),
     userId: (id: string) => oneToOneId(id, "user"),
     usersId: (id: string) => oneToManyId(id, "users"),
-    variant: (variant: string) => variant ? ({ variant: { equals: variant } }) : {}, // Treated as an emum
-    variantLatestVersion: (variant: string) => variant ? ({
-        versions: {
-            some: {
-                isLatest: true,
-                variant: { equals: variant }, // Treated as an emum
-            },
-        },
-    }) : {},
     visibility: (visibility: VisibilityType | null | undefined, { objectType, req, searchInput }) => visibilityBuilderPrisma({ objectType, req, searchInput, visibility }).query,
 } as SearchMapType<typeof SearchMap>;

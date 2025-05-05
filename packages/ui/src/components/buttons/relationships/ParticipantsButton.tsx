@@ -38,7 +38,7 @@ export function ParticipantsButton({
             };
         }
         const avatars = participants.slice(0, MAX_AVATARS).map(participant => {
-            const imageUrl = extractImageUrl(participant.user?.profileImage, participant.user?.updated_at, TARGET_IMAGE_SIZE);
+            const imageUrl = extractImageUrl(participant.user?.profileImage, participant.user?.updatedAt, TARGET_IMAGE_SIZE);
             const isBot = participant.user?.isBot ?? false;
             return (
                 <RelationshipAvatar

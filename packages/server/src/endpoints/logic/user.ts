@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, BotCreateInput, BotUpdateInput, FindByIdOrHandleInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Success, User, UserSearchInput, UserSearchResult } from "@local/shared";
+import { AUTH_PROVIDERS, BotCreateInput, BotUpdateInput, FindByPublicIdInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Success, User, UserSearchInput, UserSearchResult } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
@@ -9,10 +9,10 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { ApiEndpoint } from "../../types.js";
 import { parseICalFile } from "../../utils/calendar.js";
+import { user_profile } from "../generated/user_profile.js";
 
 export type EndpointsUser = {
-    profile: ApiEndpoint<never, User>;
-    findOne: ApiEndpoint<FindByIdOrHandleInput, User>;
+    findOne: ApiEndpoint<FindByPublicIdInput, User>;
     findMany: ApiEndpoint<UserSearchInput, UserSearchResult>;
     botCreateOne: ApiEndpoint<BotCreateInput, User>;
     botUpdateOne: ApiEndpoint<BotUpdateInput, User>;
@@ -26,13 +26,16 @@ export type EndpointsUser = {
 
 const objectType = "User";
 export const user: EndpointsUser = {
-    profile: async (_d, { req }, info) => {
-        const { id } = RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
-        return readOneHelper({ info, input: { id }, objectType, req });
-    },
     findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
+
+        // If the id is "me", use the current user's id
+        if (input.publicId === "me") {
+            const { publicId: userPublicId } = RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
+            input.publicId = userPublicId;
+            info = user_profile;
+        }
         return readOneHelper({ info, input, objectType, req });
     },
     findMany: async ({ input }, { req }, info) => {
@@ -65,7 +68,7 @@ export const user: EndpointsUser = {
         profileEmailUpdateValidation.update({ env: process.env.NODE_ENV as "development" | "production" }).validateSync(input, { abortEarly: false });
         // Find user
         const user = await DbProvider.get().user.findUnique({
-            where: { id: userData.id },
+            where: { id: BigInt(userData.id) },
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });
         if (!user)
@@ -105,12 +108,12 @@ export const user: EndpointsUser = {
         // Delete emails
         if (input.emailsDelete) {
             // Make sure you have at least one authentication method remaining
-            const emailsCount = await DbProvider.get().email.count({ where: { userId: userData.id } });
-            const walletsCount = await DbProvider.get().wallet.count({ where: { userId: userData.id } });
+            const emailsCount = await DbProvider.get().email.count({ where: { userId: BigInt(userData.id) } });
+            const walletsCount = await DbProvider.get().wallet.count({ where: { userId: BigInt(userData.id) } });
             if (emailsCount - input.emailsDelete.length <= 0 && walletsCount <= 0)
                 throw new CustomError("0126", "MustLeaveVerificationMethod");
             // Delete emails
-            await DbProvider.get().email.deleteMany({ where: { id: { in: input.emailsDelete } } });
+            await DbProvider.get().email.deleteMany({ where: { id: { in: input.emailsDelete.map(id => BigInt(id)) } } });
         }
         // Return updated user
         return readOneHelper({ info, input: { id: userData.id }, objectType, req });

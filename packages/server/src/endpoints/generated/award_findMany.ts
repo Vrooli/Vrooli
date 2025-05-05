@@ -3,9 +3,9 @@ export const award_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "timeCurrentTierCompleted": true,
+            "createdAt": true,
+            "updatedAt": true,
+            "tierCompletedAt": true,
             "category": true,
             "progress": true,
             "title": true,
@@ -16,5 +16,5 @@ export const award_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1961197054"
+    "__cacheKey": "-1248180091"
 };

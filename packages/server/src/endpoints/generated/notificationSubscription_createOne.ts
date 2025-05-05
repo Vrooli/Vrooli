@@ -1,247 +1,12 @@
 export const notificationSubscription_createOne = {
     "id": true,
-    "created_at": true,
+    "createdAt": true,
     "silent": true,
     "object": {
-        "Api": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isPrivate": true,
-            "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
-            "owner": {
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true
-                }
-            },
-            "permissions": true,
-            "score": true,
-            "bookmarks": true,
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "transfersCount": true,
-            "views": true,
-            "you": {
-                "canDelete": true,
-                "canBookmark": true,
-                "canTransfer": true,
-                "canUpdate": true,
-                "canRead": true,
-                "canReact": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "reaction": true
-            },
-            "versions": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "callLink": true,
-                "commentsCount": true,
-                "documentationLink": true,
-                "forksCount": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "reportsCount": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "schemaLanguage": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "details": true,
-                    "name": true,
-                    "summary": true
-                }
-            }
-        },
-        "Code": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isPrivate": true,
-            "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
-            "owner": {
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true
-                }
-            },
-            "permissions": true,
-            "score": true,
-            "bookmarks": true,
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "transfersCount": true,
-            "views": true,
-            "you": {
-                "canDelete": true,
-                "canBookmark": true,
-                "canTransfer": true,
-                "canUpdate": true,
-                "canRead": true,
-                "canReact": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "reaction": true
-            },
-            "versions": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isComplete": true,
-                "isDeleted": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "codeLanguage": true,
-                "codeType": true,
-                "default": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "commentsCount": true,
-                "directoryListingsCount": true,
-                "forksCount": true,
-                "reportsCount": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "jsonVariable": true,
-                    "name": true
-                }
-            }
-        },
         "Comment": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "owner": {
                 "Team": {
                     "id": true,
@@ -259,8 +24,8 @@ export const notificationSubscription_createOne = {
                         "isViewed": true,
                         "yourMembership": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "isAdmin": true,
                             "permissions": true
                         }
@@ -268,8 +33,8 @@ export const notificationSubscription_createOne = {
                 },
                 "User": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "bannerImage": true,
                     "handle": true,
                     "isBot": true,
@@ -299,35 +64,16 @@ export const notificationSubscription_createOne = {
         },
         "Issue": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "closedAt": true,
             "referencedVersionId": true,
             "status": true,
             "to": {
-                "Api": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Code": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Note": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Project": {
-                    "id": true,
-                    "isPrivate": true
-                },
-                "Routine": {
+                "Resource": {
                     "id": true,
                     "isInternal": true,
-                    "isPrivate": true
-                },
-                "Standard": {
-                    "id": true,
                     "isPrivate": true
                 },
                 "Team": {
@@ -346,8 +92,8 @@ export const notificationSubscription_createOne = {
                         "isViewed": true,
                         "yourMembership": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "isAdmin": true,
                             "permissions": true
                         }
@@ -359,17 +105,6 @@ export const notificationSubscription_createOne = {
             "score": true,
             "bookmarks": true,
             "views": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "you": {
                 "canComment": true,
                 "canDelete": true,
@@ -390,8 +125,9 @@ export const notificationSubscription_createOne = {
         },
         "Meeting": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "openToAnyoneWithInvite": true,
             "showOnTeamProfile": true,
             "team": {
@@ -410,118 +146,10 @@ export const notificationSubscription_createOne = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
-                    }
-                }
-            },
-            "restrictedToRoles": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "name": true,
-                "permissions": true,
-                "membersCount": true,
-                "team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "members": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isAdmin": true,
-                    "permissions": true,
-                    "roles": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "name": true,
-                        "permissions": true,
-                        "membersCount": true,
-                        "team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        }
-                    },
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    },
-                    "user": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true,
-                        "bookmarks": true,
-                        "reportsReceivedCount": true,
-                        "you": {
-                            "canDelete": true,
-                            "canReport": true,
-                            "canUpdate": true,
-                            "isBookmarked": true,
-                            "isViewed": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "bio": true
-                        }
                     }
                 }
             },
@@ -532,21 +160,11 @@ export const notificationSubscription_createOne = {
                 "canInvite": true,
                 "canUpdate": true
             },
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "schedule": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "startTime": true,
                 "endTime": true,
                 "timezone": true,
@@ -565,88 +183,7 @@ export const notificationSubscription_createOne = {
                     "month": true,
                     "endDate": true
                 },
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
-                "runProjects": {
-                    "id": true,
-                    "isPrivate": true,
-                    "completedComplexity": true,
-                    "contextSwitches": true,
-                    "startedAt": true,
-                    "timeElapsed": true,
-                    "completedAt": true,
-                    "name": true,
-                    "projectVersion": {
-                        "id": true,
-                        "complexity": true,
-                        "isLatest": true,
-                        "isPrivate": true,
-                        "versionIndex": true,
-                        "versionLabel": true,
-                        "root": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        }
-                    },
-                    "status": true,
-                    "stepsCount": true,
-                    "team": {
-                        "id": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "profileImage": true,
-                        "you": {
-                            "canAddMembers": true,
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canReport": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "yourMembership": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
-                    },
-                    "user": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true
-                    },
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true,
-                        "canRead": true
-                    },
-                    "lastStep": true
-                },
-                "runRoutines": {
+                "runs": {
                     "id": true,
                     "isPrivate": true,
                     "completedComplexity": true,
@@ -660,7 +197,7 @@ export const notificationSubscription_createOne = {
                     "ioCount": true,
                     "stepsCount": true,
                     "wasRunAutomatically": true,
-                    "routineVersion": {
+                    "resourceVersion": {
                         "id": true,
                         "complexity": true,
                         "isAutomatable": true,
@@ -673,11 +210,12 @@ export const notificationSubscription_createOne = {
                             "isInternal": true,
                             "isPrivate": true
                         },
-                        "routineType": true,
+                        "resourceSubType": true,
                         "translations": {
                             "id": true,
                             "language": true,
                             "description": true,
+                            "details": true,
                             "instructions": true,
                             "name": true
                         },
@@ -700,8 +238,8 @@ export const notificationSubscription_createOne = {
                             "isViewed": true,
                             "yourMembership": {
                                 "id": true,
-                                "created_at": true,
-                                "updated_at": true,
+                                "createdAt": true,
+                                "updatedAt": true,
                                 "isAdmin": true,
                                 "permissions": true
                             }
@@ -709,8 +247,8 @@ export const notificationSubscription_createOne = {
                     },
                     "user": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "bannerImage": true,
                         "handle": true,
                         "isBot": true,
@@ -734,245 +272,256 @@ export const notificationSubscription_createOne = {
                 "name": true
             }
         },
-        "Note": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isPrivate": true,
-            "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
-            "owner": {
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true
-                }
-            },
-            "permissions": true,
-            "score": true,
-            "bookmarks": true,
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "transfersCount": true,
-            "views": true,
-            "you": {
-                "canDelete": true,
-                "canBookmark": true,
-                "canTransfer": true,
-                "canUpdate": true,
-                "canRead": true,
-                "canReact": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "reaction": true
-            },
-            "versions": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "reportsCount": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true,
-                    "pages": {
-                        "id": true,
-                        "pageIndex": true,
-                        "text": true
-                    }
-                }
-            }
-        },
-        "Project": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isPrivate": true,
-            "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
-            "owner": {
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true
-                }
-            },
-            "permissions": true,
-            "score": true,
-            "bookmarks": true,
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "transfersCount": true,
-            "views": true,
-            "you": {
-                "canDelete": true,
-                "canBookmark": true,
-                "canTransfer": true,
-                "canUpdate": true,
-                "canRead": true,
-                "canReact": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "reaction": true
-            },
-            "versions": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "directoriesCount": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "reportsCount": true,
-                "runProjectsCount": true,
-                "simplicity": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                }
-            }
-        },
         "PullRequest": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "mergedOrRejectedAt": true,
             "commentsCount": true,
             "status": true,
+            "from": {
+                "ResourceVersion": {
+                    "id": true,
+                    "createdAt": true,
+                    "updatedAt": true,
+                    "codeLanguage": true,
+                    "completedAt": true,
+                    "isAutomatable": true,
+                    "isComplete": true,
+                    "isDeleted": true,
+                    "isLatest": true,
+                    "isPrivate": true,
+                    "resourceSubType": true,
+                    "simplicity": true,
+                    "timesStarted": true,
+                    "timesCompleted": true,
+                    "versionIndex": true,
+                    "versionLabel": true,
+                    "commentsCount": true,
+                    "forksCount": true,
+                    "reportsCount": true,
+                    "you": {
+                        "canComment": true,
+                        "canCopy": true,
+                        "canDelete": true,
+                        "canBookmark": true,
+                        "canReport": true,
+                        "canRun": true,
+                        "canUpdate": true,
+                        "canRead": true,
+                        "canReact": true
+                    },
+                    "root": {
+                        "id": true,
+                        "publicId": true,
+                        "createdAt": true,
+                        "updatedAt": true,
+                        "bookmarks": true,
+                        "isInternal": true,
+                        "isPrivate": true,
+                        "issuesCount": true,
+                        "owner": {
+                            "Team": {
+                                "id": true,
+                                "bannerImage": true,
+                                "handle": true,
+                                "profileImage": true,
+                                "you": {
+                                    "canAddMembers": true,
+                                    "canDelete": true,
+                                    "canBookmark": true,
+                                    "canReport": true,
+                                    "canUpdate": true,
+                                    "canRead": true,
+                                    "isBookmarked": true,
+                                    "isViewed": true,
+                                    "yourMembership": {
+                                        "id": true,
+                                        "createdAt": true,
+                                        "updatedAt": true,
+                                        "isAdmin": true,
+                                        "permissions": true
+                                    }
+                                }
+                            },
+                            "User": {
+                                "id": true,
+                                "createdAt": true,
+                                "updatedAt": true,
+                                "bannerImage": true,
+                                "handle": true,
+                                "isBot": true,
+                                "isBotDepictingPerson": true,
+                                "name": true,
+                                "profileImage": true
+                            }
+                        },
+                        "permissions": true,
+                        "resourceType": true,
+                        "score": true,
+                        "tags": {
+                            "id": true,
+                            "createdAt": true,
+                            "tag": true,
+                            "bookmarks": true,
+                            "translations": {
+                                "id": true,
+                                "language": true,
+                                "description": true
+                            },
+                            "you": {
+                                "isOwn": true,
+                                "isBookmarked": true
+                            }
+                        },
+                        "transfersCount": true,
+                        "views": true,
+                        "you": {
+                            "canComment": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "canReact": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "reaction": true
+                        }
+                    },
+                    "translations": {
+                        "id": true,
+                        "language": true,
+                        "description": true,
+                        "details": true,
+                        "instructions": true,
+                        "name": true
+                    }
+                }
+            },
+            "to": {
+                "Resource": {
+                    "id": true,
+                    "publicId": true,
+                    "createdAt": true,
+                    "updatedAt": true,
+                    "bookmarks": true,
+                    "isInternal": true,
+                    "isPrivate": true,
+                    "issuesCount": true,
+                    "owner": {
+                        "Team": {
+                            "id": true,
+                            "bannerImage": true,
+                            "handle": true,
+                            "profileImage": true,
+                            "you": {
+                                "canAddMembers": true,
+                                "canDelete": true,
+                                "canBookmark": true,
+                                "canReport": true,
+                                "canUpdate": true,
+                                "canRead": true,
+                                "isBookmarked": true,
+                                "isViewed": true,
+                                "yourMembership": {
+                                    "id": true,
+                                    "createdAt": true,
+                                    "updatedAt": true,
+                                    "isAdmin": true,
+                                    "permissions": true
+                                }
+                            }
+                        },
+                        "User": {
+                            "id": true,
+                            "createdAt": true,
+                            "updatedAt": true,
+                            "bannerImage": true,
+                            "handle": true,
+                            "isBot": true,
+                            "isBotDepictingPerson": true,
+                            "name": true,
+                            "profileImage": true
+                        }
+                    },
+                    "permissions": true,
+                    "resourceType": true,
+                    "score": true,
+                    "tags": {
+                        "id": true,
+                        "createdAt": true,
+                        "tag": true,
+                        "bookmarks": true,
+                        "translations": {
+                            "id": true,
+                            "language": true,
+                            "description": true
+                        },
+                        "you": {
+                            "isOwn": true,
+                            "isBookmarked": true
+                        }
+                    },
+                    "transfersCount": true,
+                    "views": true,
+                    "you": {
+                        "canComment": true,
+                        "canDelete": true,
+                        "canBookmark": true,
+                        "canUpdate": true,
+                        "canRead": true,
+                        "canReact": true,
+                        "isBookmarked": true,
+                        "isViewed": true,
+                        "reaction": true
+                    },
+                    "versions": {
+                        "id": true,
+                        "createdAt": true,
+                        "updatedAt": true,
+                        "codeLanguage": true,
+                        "completedAt": true,
+                        "isAutomatable": true,
+                        "isComplete": true,
+                        "isDeleted": true,
+                        "isLatest": true,
+                        "isPrivate": true,
+                        "resourceSubType": true,
+                        "simplicity": true,
+                        "timesStarted": true,
+                        "timesCompleted": true,
+                        "versionIndex": true,
+                        "versionLabel": true,
+                        "commentsCount": true,
+                        "forksCount": true,
+                        "reportsCount": true,
+                        "you": {
+                            "canComment": true,
+                            "canCopy": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canRun": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "canReact": true
+                        },
+                        "translations": {
+                            "id": true,
+                            "language": true,
+                            "description": true,
+                            "details": true,
+                            "instructions": true,
+                            "name": true
+                        }
+                    }
+                }
+            },
             "createdBy": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "bannerImage": true,
                 "handle": true,
                 "isBot": true,
@@ -994,8 +543,9 @@ export const notificationSubscription_createOne = {
         },
         "Report": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "details": true,
             "language": true,
             "reason": true,
@@ -1008,24 +558,15 @@ export const notificationSubscription_createOne = {
                 "isOwn": true
             }
         },
-        "Routine": {
+        "Resource": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
+            "bookmarks": true,
             "isInternal": true,
             "isPrivate": true,
             "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "owner": {
                 "Team": {
                     "id": true,
@@ -1043,8 +584,8 @@ export const notificationSubscription_createOne = {
                         "isViewed": true,
                         "yourMembership": {
                             "id": true,
-                            "created_at": true,
-                            "updated_at": true,
+                            "createdAt": true,
+                            "updatedAt": true,
                             "isAdmin": true,
                             "permissions": true
                         }
@@ -1052,8 +593,8 @@ export const notificationSubscription_createOne = {
                 },
                 "User": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "bannerImage": true,
                     "handle": true,
                     "isBot": true,
@@ -1063,11 +604,11 @@ export const notificationSubscription_createOne = {
                 }
             },
             "permissions": true,
+            "resourceType": true,
             "score": true,
-            "bookmarks": true,
             "tags": {
                 "id": true,
-                "created_at": true,
+                "createdAt": true,
                 "tag": true,
                 "bookmarks": true,
                 "translations": {
@@ -1095,25 +636,23 @@ export const notificationSubscription_createOne = {
             },
             "versions": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
+                "codeLanguage": true,
                 "completedAt": true,
                 "isAutomatable": true,
                 "isComplete": true,
                 "isDeleted": true,
                 "isLatest": true,
                 "isPrivate": true,
-                "routineType": true,
+                "resourceSubType": true,
                 "simplicity": true,
                 "timesStarted": true,
                 "timesCompleted": true,
                 "versionIndex": true,
                 "versionLabel": true,
                 "commentsCount": true,
-                "directoryListingsCount": true,
                 "forksCount": true,
-                "inputsCount": true,
-                "outputsCount": true,
                 "reportsCount": true,
                 "you": {
                     "canComment": true,
@@ -1130,138 +669,19 @@ export const notificationSubscription_createOne = {
                     "id": true,
                     "language": true,
                     "description": true,
+                    "details": true,
                     "instructions": true,
-                    "name": true
-                }
-            }
-        },
-        "Standard": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isPrivate": true,
-            "issuesCount": true,
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
-            "owner": {
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true
-                }
-            },
-            "permissions": true,
-            "score": true,
-            "bookmarks": true,
-            "tags": {
-                "id": true,
-                "created_at": true,
-                "tag": true,
-                "bookmarks": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "you": {
-                    "isOwn": true,
-                    "isBookmarked": true
-                }
-            },
-            "transfersCount": true,
-            "views": true,
-            "you": {
-                "canDelete": true,
-                "canBookmark": true,
-                "canTransfer": true,
-                "canUpdate": true,
-                "canRead": true,
-                "canReact": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "reaction": true
-            },
-            "versions": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "codeLanguage": true,
-                "default": true,
-                "isComplete": true,
-                "isFile": true,
-                "isLatest": true,
-                "isPrivate": true,
-                "props": true,
-                "variant": true,
-                "versionIndex": true,
-                "versionLabel": true,
-                "yup": true,
-                "commentsCount": true,
-                "directoryListingsCount": true,
-                "forksCount": true,
-                "reportsCount": true,
-                "you": {
-                    "canComment": true,
-                    "canCopy": true,
-                    "canDelete": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canUse": true,
-                    "canRead": true
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "jsonVariable": true,
                     "name": true
                 }
             }
         },
         "Team": {
             "id": true,
+            "publicId": true,
             "bannerImage": true,
             "handle": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "isOpenToNewMembers": true,
             "isPrivate": true,
             "commentsCount": true,
@@ -1271,7 +691,7 @@ export const notificationSubscription_createOne = {
             "bookmarks": true,
             "tags": {
                 "id": true,
-                "created_at": true,
+                "createdAt": true,
                 "tag": true,
                 "bookmarks": true,
                 "translations": {
@@ -1301,13 +721,13 @@ export const notificationSubscription_createOne = {
                 "isViewed": true,
                 "yourMembership": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "isAdmin": true,
                     "permissions": true
                 }
             }
         }
     },
-    "__cacheKey": "-683448910"
+    "__cacheKey": "-205171836"
 };

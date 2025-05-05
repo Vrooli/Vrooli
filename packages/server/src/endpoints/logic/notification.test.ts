@@ -1,9 +1,10 @@
+import { assertFindManyResultIds } from "../../__test/helpers.js";
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { FindByIdInput, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { defaultNotificationSettings } from "../../notify/notificationSettings.js";
@@ -40,28 +41,16 @@ describe("EndpointsNotification", () => {
         // Seed two users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-                notificationSettings: JSON.stringify(defaultNotificationSettings),
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-                notificationSettings: JSON.stringify(defaultNotificationSettings),
             },
         });
 
@@ -107,7 +96,7 @@ describe("EndpointsNotification", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns notification owned by user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: notification1Id };
                 const result = await notification.findOne({ input }, { req, res }, notification_findOne);
                 expect(result).to.not.be.null;
@@ -129,7 +118,7 @@ describe("EndpointsNotification", () => {
             });
 
             it("throws error for notification not owned by user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: notification3Id }; // Belongs to user2
                 try {
                     await notification.findOne({ input }, { req, res }, notification_findOne);
@@ -141,7 +130,7 @@ describe("EndpointsNotification", () => {
             });
 
             it("throws error for non-existent notification id", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: uuid() };
                 try {
                     await notification.findOne({ input }, { req, res }, notification_findOne);
@@ -157,13 +146,16 @@ describe("EndpointsNotification", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns notifications owned by authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: NotificationSearchInput = { take: 10 };
+                const expectedIds = [
+                    notification1Id,
+                    notification2Id,
+                ];
                 const result = await notification.findMany({ input }, { req, res }, notification_findMany);
                 expect(result).to.not.be.null;
                 expect(result.edges).to.have.lengthOf(2);
-                const ids = result.edges!.map(e => e!.node!.id).sort();
-                expect(ids).to.deep.equal([notification1Id, notification2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
 
@@ -185,7 +177,7 @@ describe("EndpointsNotification", () => {
     describe("getSettings", () => {
         describe("valid", () => {
             it("returns notification settings for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const result = await notification.getSettings(undefined, { req, res }, notification_getSettings);
                 expect(result).to.deep.equal(defaultNotificationSettings);
             });
@@ -208,7 +200,7 @@ describe("EndpointsNotification", () => {
     describe("markAsRead", () => {
         describe("valid", () => {
             it("marks a specific notification as read for the owner", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: notification1Id }; // Initially unread
 
                 // Verify it's unread first
@@ -225,7 +217,7 @@ describe("EndpointsNotification", () => {
             });
 
             it("marks notification as read successfully even if already read", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: notification2Id }; // Already read
                 const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
                 // The endpoint should now return true even if it was already read
@@ -247,7 +239,7 @@ describe("EndpointsNotification", () => {
             });
 
             it("returns success false for notification not owned by user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: notification3Id }; // Belongs to user2
                 const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
                 // updateMany count will be 0 as the user condition doesn't match
@@ -259,7 +251,7 @@ describe("EndpointsNotification", () => {
             });
 
             it("returns success false for non-existent notification id", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: FindByIdInput = { id: uuid() };
                 const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
                 // For non-existent IDs, the success should still reflect the operation outcome.
@@ -272,7 +264,7 @@ describe("EndpointsNotification", () => {
     describe("markAllAsRead", () => {
         describe("valid", () => {
             it("marks all unread notifications as read for the owner", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
 
                 // Verify initial state (1 unread, 1 read)
                 let user1Notifications = await DbProvider.get().notification.findMany({ where: { userId: user1Id } });
@@ -311,7 +303,7 @@ describe("EndpointsNotification", () => {
     describe("updateSettings", () => {
         describe("valid", () => {
             it("updates notification settings for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: NotificationSettingsUpdateInput = { enabled: true };
 
                 const result = await notification.updateSettings({ input }, { req, res }, notification_updateSettings);

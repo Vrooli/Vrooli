@@ -23,7 +23,7 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     originalStartTime: data.originalStartTime,
                     newStartTime: noNull(data.newStartTime),
                     newEndTime: noNull(data.newEndTime),

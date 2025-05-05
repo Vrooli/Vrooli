@@ -1,6 +1,6 @@
 export const tag_findOne = {
     "id": true,
-    "created_at": true,
+    "createdAt": true,
     "tag": true,
     "bookmarks": true,
     "translations": {
@@ -12,5 +12,5 @@ export const tag_findOne = {
         "isOwn": true,
         "isBookmarked": true
     },
-    "__cacheKey": "-766404125"
+    "__cacheKey": "1280968376"
 };

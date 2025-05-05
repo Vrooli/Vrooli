@@ -1,10 +1,6 @@
-import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
-import { role } from "@prisma/client";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePublicId, getTranslation, teamValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
-import { onlyValidIds } from "../../builders/onlyValid.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
-import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { DbProvider } from "../../db/provider.js";
 import { getLabels } from "../../getters/getLabels.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
@@ -55,24 +51,23 @@ export const TeamModel: TeamModelLogic = ({
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as TeamPre;
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     bannerImage: data.bannerImage,
+                    config: noNull(data.config),
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: data.isPrivate,
-                    permissions: JSON.stringify({}), //TODO
                     profileImage: data.profileImage,
-                    createdBy: { connect: { id: rest.userData.id } },
+                    createdBy: { connect: { id: BigInt(rest.userData.id) } },
                     members: {
                         create: {
+                            publicId: generatePublicId(),
                             isAdmin: true,
-                            permissions: JSON.stringify({}), //TODO
-                            user: { connect: { id: rest.userData.id } },
+                            user: { connect: { id: BigInt(rest.userData.id) } },
                         },
                     },
                     memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
-                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "team", data, ...rest }),
-                    roles: await shapeHelper({ relation: "roles", relTypes: ["Create"], isOneToOne: false, objectType: "Role", parentRelationshipName: "team", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Team", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
@@ -81,15 +76,13 @@ export const TeamModel: TeamModelLogic = ({
                 const preData = rest.preMap[__typename] as TeamPre;
                 return {
                     bannerImage: noNull(data.bannerImage),
+                    config: noNull(data.config),
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
-                    permissions: JSON.stringify({}), //TODO
                     profileImage: noNull(data.profileImage),
                     members: await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
                     memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
-                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "team", data, ...rest }),
-                    roles: await shapeHelper({ relation: "roles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Role", parentRelationshipName: "team", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Team", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
@@ -98,41 +91,6 @@ export const TeamModel: TeamModelLogic = ({
         trigger: {
             afterMutations: async ({ createdIds, userData }) => {
                 for (const teamId of createdIds) {
-                    // Upsert "Admin" role (in case they already included it in the request). 
-                    // Trying to connect you as a member again shouldn't throw an error (hopefully)
-                    await DbProvider.get().role.upsert({
-                        where: {
-                            role_teamId_name_unique: {
-                                name: "Admin",
-                                teamId,
-                            },
-                        },
-                        create: {
-                            id: uuid(),
-                            name: "Admin",
-                            permissions: JSON.stringify({}), //TODO
-                            members: {
-                                connect: {
-                                    member_teamid_userid_unique: {
-                                        userId: userData.id,
-                                        teamId,
-                                    },
-                                },
-                            },
-                            teamId,
-                        },
-                        update: {
-                            permissions: JSON.stringify({}), //TODO
-                            members: {
-                                connect: {
-                                    member_teamid_userid_unique: {
-                                        userId: userData.id,
-                                        teamId,
-                                    },
-                                },
-                            },
-                        },
-                    });
                     // Handle trigger
                     // Trigger(userData.languages).createTeam(userData.id, teamId);
                 }
@@ -150,10 +108,8 @@ export const TeamModel: TeamModelLogic = ({
             memberUserIds: true,
             minBookmarks: true,
             minViews: true,
-            projectId: true,
             reportId: true,
-            routineId: true,
-            standardId: true,
+            resourceId: true,
             tags: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -161,7 +117,6 @@ export const TeamModel: TeamModelLogic = ({
         sortBy: TeamSortBy,
         searchStringQuery: () => ({
             OR: [
-                "labelsOwnerWrapped",
                 "tagsWrapped",
                 "transNameWrapped",
                 "transBioWrapped",
@@ -181,84 +136,6 @@ export const TeamModel: TeamModelLogic = ({
             },
         },
     },
-    query: {
-        /**
-         * Query for checking if a user has a specific role in a team
-         */
-        hasRoleQuery: (userId: string, names: string[] = []) => {
-            // If no names are provided, query by members (in case user was not assigned a role)
-            if (names.length === 0) return { members: { some: { user: { id: userId } } } };
-            // Otherwise, query for roles with one of the provided names
-            return { roles: { some: { name: { in: names }, members: { some: { user: { id: userId } } } } } };
-        },
-        /**
-         * Query for checking if a user is a member of a team
-         */
-        isMemberOfTeamQuery: (userId: string) => (
-            { ownedByTeam: { members: { some: { userId } } } }
-        ),
-        /**
-         * Determines if a user has a role of a list of teams
-         * @param userId The user's ID
-         * @param teamIds The list of team IDs
-         * @param name The name of the role
-         * @returns Array in the same order as the ids, with either admin/owner role data or undefined
-         */
-        async hasRole(userId: string | null | undefined, teamIds: (string | null | undefined)[], name = "Admin"): Promise<Array<role | undefined>> {
-            if (teamIds.length === 0) return [];
-            if (!exists(userId)) return teamIds.map(() => undefined);
-            // Take out nulls
-            const idsToQuery = onlyValidIds(teamIds);
-            // Query roles data for each team ID
-            const roles = await DbProvider.get().role.findMany({
-                where: {
-                    name,
-                    team: { id: { in: idsToQuery } },
-                    members: { some: { user: { id: userId } } },
-                },
-            });
-            // Create an array of the same length as the input, with the role data or undefined
-            return teamIds.map(id => roles.find(({ teamId }) => teamId === id));
-        },
-        /**
-         * Finds every admin of a team
-         * @param teamId The team ID
-         * @param excludedUsers IDs of users to exclude from results
-         * @returns A list of admin ids and their preferred languages. Useful for sending notifications
-         */
-        async findAdminInfo(teamId: string, excludedUsers?: string[] | string): Promise<{ id: string, languages: string[] }[]> {
-            const admins = await DbProvider.get().member.findMany({
-                where: {
-                    AND: [
-                        { teamId },
-                        { isAdmin: true },
-                        ...(typeof excludedUsers === "string" ?
-                            [{ userId: { not: excludedUsers } }] :
-                            Array.isArray(excludedUsers) ?
-                                [{ userId: { notIn: excludedUsers } }] :
-                                []
-                        ),
-                    ],
-                },
-                select: {
-                    user: {
-                        select: {
-                            id: true,
-                            languages: { select: { language: true } },
-                        },
-                    },
-                },
-            });
-            const result: { id: string, languages: string[] }[] = [];
-            admins.forEach(({ user }) => {
-                result.push({
-                    id: user.id,
-                    languages: user.languages.map(({ language }) => language),
-                });
-            });
-            return result;
-        },
-    },
     validate: () => ({
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
@@ -275,25 +152,12 @@ export const TeamModel: TeamModelLogic = ({
             id: true,
             isOpenToNewMembers: true,
             isPrivate: true,
-            languages: { select: { language: true } },
+            languages: true,
             permissions: true,
             ...(userId ? {
-                roles: {
-                    where: {
-                        members: {
-                            some: {
-                                userId,
-                            },
-                        },
-                    },
-                    select: {
-                        id: true,
-                        permissions: true,
-                    },
-                },
                 members: {
                     where: {
-                        userId,
+                        userId: BigInt(userId),
                     },
                     select: {
                         id: true,
@@ -306,27 +170,42 @@ export const TeamModel: TeamModelLogic = ({
         }),
         visibility: {
             own: function getOwn(data) {
-                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId);
+                return {
+                    members: {
+                        some: {
+                            isAdmin: true,
+                            user: { id: BigInt(data.userId) },
+                        },
+                    },
+                };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
-                        // Owned objects
-                        ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
-                        // Public objects
-                        useVisibility("Team", "Public", data),
+                        { members: { some: { isAdmin: true, user: { id: BigInt(data.userId) } } } },
+                        { isPrivate: false },
                     ],
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
-                    ...ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                    members: {
+                        some: {
+                            isAdmin: true,
+                            user: { id: BigInt(data.userId) },
+                        },
+                    },
                     isPrivate: true,
                 };
             },
             ownPublic: function getOwnPublic(data) {
                 return {
-                    ...ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                    members: {
+                        some: {
+                            isAdmin: true,
+                            user: { id: BigInt(data.userId) },
+                        },
+                    },
                     isPrivate: false,
                 };
             },

@@ -1,6 +1,6 @@
 import { PERCENTS } from "../consts/numbers.js";
 import { SEND_PROGRESS_UPDATE_THROTTLE_MS } from "./consts.js";
-import { BranchProgress, DeferredDecisionData, IOKey, IOMap, IOValue, Id, MapDiff, RunProgress, RunStatusChangeReason, RunTaskInfo, RunType, SubcontextUpdates } from "./types.js";
+import { BranchProgress, DeferredDecisionData, IOKey, IOMap, IOValue, Id, MapDiff, RunProgress, RunStatusChangeReason, RunTaskInfo, SubcontextUpdates } from "./types.js";
 
 /**
  * Handles emitting payloads to send run-related events to the client. This includes:
@@ -57,8 +57,8 @@ export abstract class RunNotifier {
             const payload = this.createPayload(progress, runStatusChangeReason);
             // Update baseline with the new progress
             this._lastSendProgressInfo = { progress, runStatusChangeReason };
-            const { runId, type: runType } = progress;
-            this.emitProgressUpdate(runId, runType, payload);
+            const { runId } = progress;
+            this.emitProgressUpdate(runId, payload);
         } else {
             // Otherwise, store the update as pending.
             this._pendingSendProgressInfo = { progress, runStatusChangeReason };
@@ -99,8 +99,8 @@ export abstract class RunNotifier {
             const payload = this.createPayload(progress, runStatusChangeReason);
             // Update the baseline so that subsequent diffs are incremental.
             this._lastSendProgressInfo = { progress, runStatusChangeReason };
-            const { runId, type: runType } = progress;
-            this.emitProgressUpdate(runId, runType, payload);
+            const { runId } = progress;
+            this.emitProgressUpdate(runId, payload);
             this._pendingSendProgressInfo = null;
         }
         this._throttleTimer = null;
@@ -220,35 +220,31 @@ export abstract class RunNotifier {
     * Sends the progress update to the client.
     *
     * @param runId The ID of the run
-    * @param runType The type of run
     * @param payload The payload to send to the client
     */
-    protected abstract emitProgressUpdate(runId: Id, runType: RunType, payload: RunTaskInfo): void;
+    protected abstract emitProgressUpdate(runId: Id, payload: RunTaskInfo): void;
 
     /**
      * Sends a request to the client to make a decision.
      * 
      * @param runId The ID of the run
-     * @param runType The type of run
      * @param decision The decision to make
      */
-    public abstract sendDecisionRequest(runId: Id, runType: RunType, decision: DeferredDecisionData): void;
+    public abstract sendDecisionRequest(runId: Id, decision: DeferredDecisionData): void;
 
     /**
      * Sends a request to the client to fill in missing inputs for a subroutine.
      * 
      * @param runId The ID of the run
-     * @param runType The type of run
      * @param branch The branch that is running the subroutine
      */
-    public abstract sendMissingInputsRequest(runId: Id, runType: RunType, branch: BranchProgress): void;
+    public abstract sendMissingInputsRequest(runId: Id, branch: BranchProgress): void;
 
     /**
      * Sends a request to the client to confirm manual execution of a subroutine.
      * 
      * @param runId The ID of the run
-     * @param runType The type of run
      * @param branch The branch that is running the subroutine
      */
-    public abstract sendManualExecutionConfirmationRequest(runId: Id, runType: RunType, branch: BranchProgress): void;
+    public abstract sendManualExecutionConfirmationRequest(runId: Id, branch: BranchProgress): void;
 }

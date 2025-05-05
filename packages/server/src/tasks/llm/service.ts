@@ -3,7 +3,7 @@ import { cudHelper } from "../../actions/cuds.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { PreMapUserData } from "../../utils/chat.js";
 import { objectToYaml } from "../../utils/toYaml.js";
 import { ChatContextManager, CollectMessageContextInfoParams, MessageContextInfo } from "./context.js";
@@ -160,17 +160,14 @@ export async function generateDefaultContext<GenerateNameType extends string>({
     for (const context of contextInfo) {
         const messageData = context.__type === "message"
             ? messagesFromDB.find(message => message.id === context.messageId)
-            : { translations: [{ language: context.language, text: context.text }] };
+            : { text: context.text };
         if (!messageData) continue;
-
-        const messageTranslation = messageData.translations.find(translation => translation.language === context.language);
-        if (!messageTranslation) continue;
 
         const userName = (context.userId && participantsData) ? participantsData[context.userId]?.name : undefined;
         const isBot = (context.userId && participantsData) ? participantsData[context.userId]?.isBot : true;
         const role: LanguageModelMessage["role"] = isBot ? "assistant" : "user";
 
-        const content = hasOtherParticipants ? `[${role === "assistant" ? "Bot" : "User"}: ${userName ?? "Unknown"}]: ${messageTranslation.text}` : messageTranslation.text;
+        const content = hasOtherParticipants ? `[${role === "assistant" ? "Bot" : "User"}: ${userName ?? "Unknown"}]: ${messageData.text}` : messageData.text;
         const tokenSize = context.tokenSize + service.estimateTokens({ text: content, aiModel: model }).tokens;
 
         // Stop if adding this message would exceed the context size
@@ -246,20 +243,20 @@ export function getDefaultResponseCost<GenerateNameType extends string>(
 export async function fetchMessagesFromDatabase(messageIds: string[]): Promise<SimpleChatMessageData[]> {
     const messages = await DbProvider.get().chat_message.findMany({
         where: {
-            id: { in: messageIds },
+            id: { in: messageIds.map(id => BigInt(id)) },
         },
         select: {
             id: true,
-            translations: {
-                select: {
-                    language: true,
-                    text: true,
-                },
-            },
+            language: true,
+            text: true,
         },
     }) ?? [];
 
-    return messages;
+    return messages.map(message => ({
+        id: message.id.toString(),
+        language: message.language,
+        text: message.text,
+    }));
 }
 
 export type CreditValue = number | string | bigint;
@@ -367,9 +364,8 @@ export async function generateResponseWithFallback({
             // Try using the service to generate a response
             const serviceInstance = LlmServiceRegistry.get().getService(serviceId);
             const model = serviceInstance.getModel(respondingBotConfig?.model);
-            const languages = userData.languages;
 
-            const contextInfo = await (new ChatContextManager(model, languages)).collectMessageContextInfo({
+            const contextInfo = await (new ChatContextManager(model)).collectMessageContextInfo({
                 chatId,
                 latestMessage,
                 taskMessage,
@@ -411,7 +407,7 @@ export async function generateResponseWithFallback({
                             // Notify the user that their message was removed
                             if (chatId) {
                                 // Use the 'stream' type since 'system' is not an available event type
-                                emitSocketEvent("responseStream", chatId, {
+                                SocketService.get().emitSocketEvent("responseStream", chatId, {
                                     __type: "stream",
                                     message: "Your message was removed because it was flagged as potentially unsafe content.",
                                     botId: respondingBotId,
@@ -495,7 +491,7 @@ export async function generateResponseWithFallback({
                         payload.botId = respondingBotId;
                         messageStreamStarted = true;
                     }
-                    emitSocketEvent("responseStream", chatId, payload);
+                    SocketService.get().emitSocketEvent("responseStream", chatId, payload);
                 }
             } else {
                 const response = await serviceInstance.generateResponse({

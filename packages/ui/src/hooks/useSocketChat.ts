@@ -120,8 +120,8 @@ export function processParticipantsUpdates(
     if (!chat) return;
 
     // Remove cache data for old participants group
-    const existingUserIds = participants.map(p => p.user.id);
-    removeCookieMatchingChat(existingUserIds);
+    const existingPublicIds = participants.map(p => p.user.publicId);
+    removeCookieMatchingChat(existingPublicIds);
 
     // Create updated participants list
     let updatedParticipants = [...participants];
@@ -134,8 +134,8 @@ export function processParticipantsUpdates(
         updatedParticipants = updatedParticipants.filter(participant => !leaving.includes(participant.user.id) && !leaving.includes(participant.id));
     }
 
-    const updatedUserIds = updatedParticipants.map(p => p.user.id);
-    setCookieMatchingChat(chat.id, updatedUserIds);
+    const updatedPublicIds = updatedParticipants.map(p => p.user.publicId);
+    setCookieMatchingChat(chat.id, updatedPublicIds);
 
     // Don't update if the participants are the same
     if (updatedParticipants.length === participants.length && updatedParticipants.every((p, i) => p.user.id === participants[i].user.id)) {

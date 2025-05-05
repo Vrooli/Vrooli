@@ -2,7 +2,7 @@ import { ReminderListCreateInput, ReminderListUpdateInput, uuid } from "@local/s
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -35,26 +35,16 @@ describe("EndpointsReminderList", () => {
         // Create test users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
 
@@ -62,16 +52,16 @@ describe("EndpointsReminderList", () => {
         await DbProvider.get().reminder_list.create({
             data: {
                 id: reminderListUser1Id,
-                created_at: new Date("2023-03-01"),
-                updated_at: new Date("2023-03-01"),
+                createdAt: new Date("2023-03-01"),
+                updatedAt: new Date("2023-03-01"),
                 user: { connect: { id: user1Id } },
             },
         });
         await DbProvider.get().reminder_list.create({
             data: {
                 id: reminderListUser2Id,
-                created_at: new Date("2023-03-05"),
-                updated_at: new Date("2023-03-05"),
+                createdAt: new Date("2023-03-05"),
+                updatedAt: new Date("2023-03-05"),
                 user: { connect: { id: user2Id } },
             },
         });
@@ -89,7 +79,7 @@ describe("EndpointsReminderList", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a reminder list for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const newListId = uuid();
@@ -102,7 +92,7 @@ describe("EndpointsReminderList", () => {
             });
 
             it("API key with write permissions can create reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -130,7 +120,7 @@ describe("EndpointsReminderList", () => {
             });
 
             it("API key without write permissions cannot create reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -148,7 +138,7 @@ describe("EndpointsReminderList", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates a reminder list for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ReminderListUpdateInput = { id: reminderListUser1Id };
@@ -160,7 +150,7 @@ describe("EndpointsReminderList", () => {
             });
 
             it("API key with write permissions can update reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -176,7 +166,7 @@ describe("EndpointsReminderList", () => {
 
         describe("invalid", () => {
             it("cannot update another user's reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ReminderListUpdateInput = { id: reminderListUser2Id };
@@ -199,7 +189,7 @@ describe("EndpointsReminderList", () => {
             });
 
             it("cannot update non-existent reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ReminderListUpdateInput = { id: uuid() };

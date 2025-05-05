@@ -4,7 +4,7 @@ import { styled } from "@mui/material/styles";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { Link, useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -332,7 +332,7 @@ export function CommentThreadItem({
                             variant="caption"
                             color="background.textSecondary"
                         >
-                            {displayDate(data?.created_at, false)}
+                            {displayDate(data?.createdAt, false)}
                         </Typography>
                     </Stack>
                     {/* Text */}

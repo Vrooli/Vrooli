@@ -17,7 +17,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -351,13 +351,13 @@ export function BookmarkListUpsert({
     ...props
 }: BookmarkListUpsertProps) {
     const session = useContext(SessionContext);
+    const [{ pathname }] = useLocation();
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<BookmarkList, BookmarkListShape>({
-        ...endpointsBookmarkList.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "BookmarkList",
         overrideObject,
+        pathname,
         transform: (data) => bookmarkListInitialValues(session, data),
     });
 

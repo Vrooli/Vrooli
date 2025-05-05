@@ -4,7 +4,7 @@ import { useFormik } from "formik";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -109,7 +109,7 @@ export function PhoneListItem({
                 PubSub.get().publish("alertDialog", { messageKey: "PhoneVerifiedMaybeCreditsReceived", buttons: [{ labelKey: "Ok" }] });
                 PubSub.get().publish("celebration");
                 setVerificationCode("");
-                handleUpdate(index, { ...data, verified: true });
+                handleUpdate(index, { ...data, verifiedAt: new Date() });
             },
         });
     }, [data, handleUpdate, index, loadingValidateText, validateMutation, verificationCode]);

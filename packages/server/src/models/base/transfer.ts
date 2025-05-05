@@ -51,7 +51,18 @@ export function transfer() {
             // Grab all create team IDs
             const orgIds = owners.filter(o => o.__typename === "Team").map(o => o.id);
             // Check if user is an admin of each team
-            const isAdmins: boolean[] = await ModelMap.get<TeamModelLogic>("Team").query.hasRole(userData.id, orgIds);
+            const adminData = await DbProvider.get().team.findMany({
+                where: {
+                    id: { in: orgIds.map(id => BigInt(id)) },
+                    members: {
+                        some: {
+                            isAdmin: true,
+                            user: { id: BigInt(userData.id) }
+                        }
+                    },
+                },
+            });
+            const isAdmins: boolean[] = orgIds.map(id => adminData.some(t => t.id === BigInt(id)));
             // Create return list
             const requiresTransferRequest: boolean[] = owners.map((o, i) => {
                 // If owner is a user, transfer is required if user is not the same as the session user
@@ -211,7 +222,7 @@ export function transfer() {
                     },
                 },
             });
-            //TODO update object's hasBeenTransferred flag
+            //TODO update object's transferredAt flag
             // TODO Notify user/org that sent the transfer request
             //const pushNotification = Notify(userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
             // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);

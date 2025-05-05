@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkFor, uuidValidate } from "@local/shared";
+import { Bookmark, BookmarkFor, validatePK } from "@local/shared";
 import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -93,7 +93,7 @@ export function BookmarkButton({
         event.stopPropagation();
         event.preventDefault();
         // If objectId is not valid, return
-        if (!uuidValidate(objectId)) return;
+        if (!validatePK(objectId)) return;
         // Call handleBookmark
         handleBookmark(isBookmarked);
     }, [userId, internalIsBookmarked, onChange, objectId, handleBookmark]);

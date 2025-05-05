@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RoutineVersionYou, endpointsRoutineVersion, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RoutineVersionYou, endpointsRoutineVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineSingleStepUpsert } from "./RoutineSingleStepUpsert.js";
@@ -9,7 +9,7 @@ import { RoutineSingleStepUpsert } from "./RoutineSingleStepUpsert.js";
 // Create simplified mock data for Routine responses
 const mockRoutineVersionData: RoutineVersion = {
     __typename: "RoutineVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     apiVersion: null,
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "",
@@ -83,9 +83,7 @@ const mockRoutineVersionData: RoutineVersion = {
             },
         },
     }),
-    created_at: new Date().toISOString(),
-    directoryListings: [],
-    directoryListingsCount: 0,
+    createdAt: new Date().toISOString(),
     forks: [],
     forksCount: 0,
     inputs: [],
@@ -102,44 +100,44 @@ const mockRoutineVersionData: RoutineVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
-        created_at: new Date().toISOString(),
+        id: generatePKString(),
+        createdAt: new Date().toISOString(),
         listFor: {
             __typename: "RoutineVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
         },
         resources: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            id: generatePKString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
             link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                id: generatePKString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 language: "en",
                 name: `Resource ${Math.floor(Math.random() * 1000)}`,
                 description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
             }],
         })),
         translations: [],
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     root: {
         __typename: "Routine" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() },
+        owner: { __typename: "User" as const, id: generatePKString() },
         tags: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["AI", "Generate", "Content", "Automation", "Workflow", "Productivity", "Tools", "Development"][Math.floor(Math.random() * 8)],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         })),
         versions: [],
         views: Math.floor(Math.random() * 10000),
@@ -147,7 +145,6 @@ const mockRoutineVersionData: RoutineVersion = {
     routineType: RoutineType.Generate,
     simplicity: 5,
     subroutineLinks: [],
-    suggestedNextByRoutineVersion: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),
     translations: [{
@@ -158,7 +155,7 @@ const mockRoutineVersionData: RoutineVersion = {
         instructions: "Enter your prompt in the input field. Be as specific as possible for better results. Then click 'Run' to generate content.",
         name: "AI Content Generator",
     }],
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     versionIndex: 0,
     versionLabel: "1.0.0",
     versionNotes: "Initial version",
@@ -179,7 +176,7 @@ export default {
 // Create a new Routine
 export function Create() {
     return (
-        <RoutineSingleStepUpsert display="page" isCreate={true} />
+        <RoutineSingleStepUpsert display="Page" isCreate={true} />
     );
 }
 Create.parameters = {
@@ -207,20 +204,20 @@ CreateDialog.parameters = {
 // Update an existing Routine
 export function Update() {
     return (
-        <RoutineSingleStepUpsert display="page" isCreate={false} />
+        <RoutineSingleStepUpsert display="Page" isCreate={false} />
     );
 }
 Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 };
 
@@ -242,27 +239,27 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 };
 
 // Loading state
 export function Loading() {
     return (
-        <RoutineSingleStepUpsert display="page" isCreate={false} />
+        <RoutineSingleStepUpsert display="Page" isCreate={false} />
     );
 }
 Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockRoutineVersionData });
@@ -270,14 +267,14 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}/edit`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}/edit`,
     },
 };
 
 // Non-premium user
 export function NonPremiumUser() {
     return (
-        <RoutineSingleStepUpsert display="page" isCreate={true} />
+        <RoutineSingleStepUpsert display="Page" isCreate={true} />
     );
 }
 NonPremiumUser.parameters = {

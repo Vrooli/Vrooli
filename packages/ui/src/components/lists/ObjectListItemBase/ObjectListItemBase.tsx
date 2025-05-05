@@ -1,4 +1,4 @@
-import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
+import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, nanoid } from "@local/shared";
 import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -255,7 +255,7 @@ export function ObjectListItemBase<T extends ListObject>({
     const { palette, typography } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const id = useMemo(() => data?.id ?? uuid(), [data]);
+    const id = useMemo(() => data?.id ?? nanoid(), [data]);
 
     const [object, setObject] = useState<T | null | undefined>(data);
     useEffect(() => { setObject(data); }, [data]);
@@ -326,7 +326,7 @@ export function ObjectListItemBase<T extends ListObject>({
     const leftColumn = useMemo(() => {
         // Show icons for teams, users, and objects with display teams/users
         if (isOfType(object, "Team", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
-            type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updated_at: string, isBot?: boolean };
+            type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updatedAt: string, isBot?: boolean };
             const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
             const isBot = orgOrUser.isBot;
             let iconInfo: IconInfo;
@@ -343,7 +343,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     isBot={isBot ?? false}
                     isMobile={isMobile}
                     profileColors={profileColors}
-                    src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updated_at, TARGET_IMAGE_SIZE)}
+                    src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updatedAt, TARGET_IMAGE_SIZE)}
                 >
                     <Icon
                         fill={profileColors[1]}
@@ -367,7 +367,7 @@ export function ObjectListItemBase<T extends ListObject>({
                         isBot={firstUser?.isBot ?? false}
                         isMobile={isMobile}
                         profileColors={profileColors}
-                        src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, TARGET_IMAGE_SIZE)}
+                        src={extractImageUrl(firstUser?.profileImage, firstUser?.updatedAt, TARGET_IMAGE_SIZE)}
                     >
                         <IconCommon
                             decorative
@@ -388,7 +388,7 @@ export function ObjectListItemBase<T extends ListObject>({
                                 isBot={user?.isBot ?? false}
                                 isMobile={isMobile}
                                 profileColors={placeholderColor(user.id)}
-                                src={extractImageUrl(user?.profileImage, user?.updated_at, TARGET_IMAGE_SIZE)}
+                                src={extractImageUrl(user?.profileImage, user?.updatedAt, TARGET_IMAGE_SIZE)}
                             >
                                 <IconCommon
                                     decorative
@@ -440,7 +440,7 @@ export function ObjectListItemBase<T extends ListObject>({
         const willShowVoteButton = isMobile && canReact && object; // Displayed elsewhere on wide screens
         const willShowBookmarkButton = canBookmark && bookmarkFor && starForId;
         const willShowCommentButton = canComment;
-        const willShowReportsButton = !isOfType(object, "RunRoutine", "RunProject") && reportsCount > 0;
+        const willShowReportsButton = !isOfType(object, "Run") && reportsCount > 0;
 
         if (!willShowEditButton && !willShowVoteButton && !willShowBookmarkButton && !willShowCommentButton && !willShowReportsButton) return null;
 

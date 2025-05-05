@@ -1,4 +1,4 @@
-import { FindVersionInput, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSearchResult, ScheduleUpdateInput, VisibilityType } from "@local/shared";
+import { FindByPublicIdInput, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleSearchResult, ScheduleUpdateInput, VisibilityType } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsSchedule = {
-    findOne: ApiEndpoint<FindVersionInput, Schedule>;
+    findOne: ApiEndpoint<FindByPublicIdInput, Schedule>;
     findMany: ApiEndpoint<ScheduleSearchInput, ScheduleSearchResult>;
     createOne: ApiEndpoint<ScheduleCreateInput, Schedule>;
     updateOne: ApiEndpoint<ScheduleUpdateInput, Schedule>;

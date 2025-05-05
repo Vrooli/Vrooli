@@ -1,11 +1,7 @@
 import { DAYS_1_HOURS, MONTHS_1_DAYS, WEEKS_1_DAYS, YEARS_1_DAYS } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { logApiStats } from "./api.js";
-import { logCodeStats } from "./code.js";
-import { logProjectStats } from "./project.js";
-import { logRoutineStats } from "./routine.js";
+import { logRoutineStats } from "./resource.js";
 import { logSiteStats } from "./site.js";
-import { logStandardStats } from "./standard.js";
 import { logTeamStats } from "./team.js";
 import { logUserStats } from "./user.js";
 
@@ -65,12 +61,8 @@ export function initStatsPeriod(cron: string) {
     // Trigger each stat group
     Promise.all([
         logSiteStats(...params),
-        logApiStats(...params),
         logTeamStats(...params),
-        logProjectStats(...params),
         logRoutineStats(...params),
-        logCodeStats(...params),
-        logStandardStats(...params),
         logUserStats(...params),
     ]);
 }

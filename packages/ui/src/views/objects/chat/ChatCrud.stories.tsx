@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Chat, ChatCreateInput, ChatInvite, ChatMessage, ChatParticipant, ChatUpdateInput, ChatYou, DUMMY_ID, Label, User, uuid, uuidToBase36 } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInvite, ChatMessage, ChatParticipant, ChatUpdateInput, ChatYou, DUMMY_ID, User, uuid, uuidToBase36 } from "@local/shared";
 import type { Meta, StoryObj } from "@storybook/react";
 import { waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -18,10 +18,8 @@ const valyxaUser: User = {
     isBot: VALYXA_INFO.isBot,
     emails: [],
     // picture: null, // Removed
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    roles: [],
-    settings: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     preferences: [],
     permissions: { canCreate: {}, canRead: {}, canUpdate: {}, canDelete: {} },
 };
@@ -49,8 +47,8 @@ function createMockParticipant(user: User, chatId: string): ChatParticipant {
         id: uuid(),
         user,
         chat: { id: chatId } as Chat,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     };
 }
 
@@ -60,8 +58,8 @@ function createMockMessage(user: User, chatId: string, messageText: string): Cha
         __typename: "ChatMessage",
         id: uuid(),
         chat: { id: chatId } as Chat,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         text: messageText, // Use 'text' instead of 'content'
         user,
         parentMessageId: null,
@@ -76,11 +74,10 @@ const mockExistingChat: Chat = {
     __typename: "Chat",
     id: mockChatId,
     openToAnyoneWithInvite: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     team: null, // Use team object/null, not teamId
     invites: [] as ChatInvite[],
-    labels: [] as Label[],
     participants: [
         createMockParticipant(signedInPremiumWithCreditsSession.users[0], mockChatId), // Use the SessionUser
         createMockParticipant(valyxaUser, mockChatId),
@@ -96,9 +93,7 @@ const mockExistingChat: Chat = {
         description: "This is an existing chat.",
     }],
     invitesCount: 0,
-    labelsCount: 0,
     participantsCount: 2,
-    restrictedToRoles: [],
     you: { ...mockChatYou, chat: { id: mockChatId } as Chat, user: { id: signedInPremiumWithCreditsSession.users[0].id } as User }, // Ensure ChatYou links to this chat
     // teamId removed
 };
@@ -107,11 +102,10 @@ const mockCreatedChat: Chat = {
     __typename: "Chat",
     id: mockNewChatId,
     openToAnyoneWithInvite: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     team: null,
     invites: [],
-    labels: [],
     participants: [
         createMockParticipant(signedInPremiumWithCreditsSession.users[0], mockNewChatId),
         createMockParticipant(valyxaUser, mockNewChatId),
@@ -125,9 +119,7 @@ const mockCreatedChat: Chat = {
         description: "",
     }],
     invitesCount: 0,
-    labelsCount: 0,
     participantsCount: 2,
-    restrictedToRoles: [],
     you: { ...mockChatYou, chat: { id: mockNewChatId } as Chat, user: { id: signedInPremiumWithCreditsSession.users[0].id } as User }, // Adjust ChatYou for new chat
     // teamId removed
 };
@@ -166,8 +158,8 @@ const meta: Meta<typeof ChatCrud> = {
                     const createdChatResponse: Chat = {
                         ...mockCreatedChat,
                         id: newChatId,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
                         // Ensure ChatYou links correctly
                         you: { ...mockCreatedChat.you, chat: { id: newChatId } as Chat },
                         translations: body.translationsCreate?.map(t => ({
@@ -183,7 +175,7 @@ const meta: Meta<typeof ChatCrud> = {
                     const body = await request.json() as ChatUpdateInput;
                     const updatedChat: Chat = {
                         ...mockExistingChat,
-                        updated_at: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
                         openToAnyoneWithInvite: body.openToAnyoneWithInvite ?? mockExistingChat.openToAnyoneWithInvite,
                         translations: body.translationsUpdate
                             ? mockExistingChat.translations?.map(t => {

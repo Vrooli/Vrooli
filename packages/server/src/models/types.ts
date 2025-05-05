@@ -398,8 +398,8 @@ export type Validator<
      * Permissions data for the object's owner
      */
     owner: (data: Model["DbModel"] | undefined, userId: string) => {
-        Team?: ({ id: string } & DbObject) | null;
-        User?: ({ id: string } & DbObject) | null;
+        Team?: ({ id: bigint } & DbObject) | null;
+        User?: ({ id: bigint } & DbObject) | null;
     }
     /**
      * String fields which must be checked for profanity. You don't need to 

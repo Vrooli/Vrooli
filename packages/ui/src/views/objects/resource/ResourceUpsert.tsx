@@ -148,8 +148,8 @@ function ResourceForm({
         } else {
             handleCompleted({
                 ...values,
-                created_at: (existing as Resource)?.created_at ?? new Date().toISOString(),
-                updated_at: (existing as Resource)?.updated_at ?? new Date().toISOString(),
+                createdAt: (existing as Resource)?.createdAt ?? new Date().toISOString(),
+                updatedAt: (existing as Resource)?.updatedAt ?? new Date().toISOString(),
             } as Resource);
         }
     }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, values]);

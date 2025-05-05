@@ -1,4 +1,4 @@
-import { CalendarEvent, ChatParticipantShape, DAYS_30_MS, DUMMY_ID, HomeResult, Reminder, ReminderList as ReminderListShape, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, uuid, uuidToBase36 } from "@local/shared";
+import { CalendarEvent, ChatParticipantShape, DAYS_30_MS, DUMMY_ID, HomeResult, Reminder, ReminderList as ReminderListShape, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, getObjectUrl, uuid } from "@local/shared";
 import { Box, IconButton, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,8 +13,8 @@ import { NavListBox, NavListInboxButton, NavListNewChatButton, NavListProfileBut
 import { SessionContext } from "../../contexts/session.js";
 import { useMessageInput } from "../../hooks/messages.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useActiveChat } from "../../stores/activeChatStore.js";
 import { ScrollBox } from "../../styles.js";
@@ -44,8 +44,8 @@ const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
 const resourceListFallback = {
     __typename: "ResourceList",
-    created_at: 0,
-    updated_at: 0,
+    createdAt: 0,
+    updatedAt: 0,
     id: DUMMY_ID,
     resources: [],
     translations: [],
@@ -145,7 +145,7 @@ export function DashboardView({
     const handleUpdateDetails = useCallback((data: { name: string; description?: string }) => { console.log("Dashboard: Update details:", data); }, []);
     const handleToggleShare = useCallback((enabled: boolean) => {
         // Generate invite link when enabled, clear on disable
-        const link = enabled ? `${window.location.origin}/chat/${uuidToBase36(settingsChat.id)}` : undefined;
+        const link = enabled ? getObjectUrl(settingsChat) : undefined;
         setShareSettings({ enabled, link });
     }, [settingsChat.id]);
     const handleIntegrationSettingsChange = useCallback((newSettings: IntegrationSettings) => {
@@ -306,8 +306,8 @@ export function DashboardView({
                             __typename: "ReminderList",
                             id: DUMMY_ID,
                             reminders: reminders,
-                            created_at: Date.now(),
-                            updated_at: Date.now(),
+                            createdAt: Date.now(),
+                            updatedAt: Date.now(),
                         } as ReminderListShape}
                         canUpdate={true}
                         handleUpdate={(updatedList: ReminderListShape) => setReminders(updatedList.reminders)}

@@ -10,7 +10,7 @@ type TimeFrameWhereQuery = {
 /**
  * Converts time frame to Prisma "where" query
  * @param time Time frame to convert
- * @param fieldName Name of time field (typically created_at or updated_at)
+ * @param fieldName Name of time field (typically createdAt or updatedAt)
  * @returns Prisma "where" query if any time frame fields are defined, undefined otherwise
  */
 export function timeFrameToPrisma(fieldName: string, time?: TimeFrame | null | undefined): TimeFrameWhereQuery | undefined {

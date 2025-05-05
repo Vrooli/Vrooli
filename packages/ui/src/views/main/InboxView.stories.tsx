@@ -1,6 +1,5 @@
-import { InboxPageTabOption, Notification, NotificationSearchResult, Success, endpointsNotification } from "@local/shared";
+import { InboxPageTabOption, Notification, NotificationSearchResult, Success, endpointsNotification, generatePKString } from "@local/shared";
 import { HttpResponse, http } from "msw";
-import { v4 as uuidv4 } from "uuid";
 import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { apiUrlBase, restBase } from "../../utils/consts.js";
 import { InboxView } from "./InboxView.js";
@@ -18,8 +17,8 @@ const DEFAULT_PAGE_SIZE = 20; // Matching the actual call observed
 const mockNotifications: Notification[] = [
     {
         __typename: "Notification",
-        id: uuidv4(),
-        created_at: new Date().toISOString(),
+        id: generatePKString(),
+        createdAt: new Date().toISOString(),
         title: "Agent Task Completed",
         description: "Your agent 'Alpha' completed its task successfully.",
         category: "AGENT",
@@ -29,8 +28,8 @@ const mockNotifications: Notification[] = [
     },
     {
         __typename: "Notification",
-        id: uuidv4(),
-        created_at: new Date(Date.now() - ONE_DAY_MS).toISOString(),
+        id: generatePKString(),
+        createdAt: new Date(Date.now() - ONE_DAY_MS).toISOString(),
         title: "New Comment",
         description: "New comment on your document 'Project Proposal'.",
         category: "DOCUMENT",
@@ -40,8 +39,8 @@ const mockNotifications: Notification[] = [
     },
     {
         __typename: "Notification",
-        id: uuidv4(),
-        created_at: new Date(Date.now() - TWO_DAYS_MS).toISOString(),
+        id: generatePKString(),
+        createdAt: new Date(Date.now() - TWO_DAYS_MS).toISOString(),
         title: "Low Credit Balance",
         description: "Credit balance is low. Please top up.",
         category: "BILLING",
@@ -118,7 +117,7 @@ export default {
 
 export function SignedInNoPremiumNoCredits() {
     return (
-        <InboxView display="page" />
+        <InboxView display="Page" />
     );
 }
 SignedInNoPremiumNoCredits.parameters = {
@@ -131,7 +130,7 @@ SignedInNoPremiumNoCredits.parameters = {
 
 export function SignedInNoPremiumWithCredits() {
     return (
-        <InboxView display="page" />
+        <InboxView display="Page" />
     );
 }
 SignedInNoPremiumWithCredits.parameters = {
@@ -144,7 +143,7 @@ SignedInNoPremiumWithCredits.parameters = {
 
 export function SignedInPremiumNoCredits() {
     return (
-        <InboxView display="page" />
+        <InboxView display="Page" />
     );
 }
 SignedInPremiumNoCredits.parameters = {
@@ -157,7 +156,7 @@ SignedInPremiumNoCredits.parameters = {
 
 export function SignedInPremiumWithCredits() {
     return (
-        <InboxView display="page" />
+        <InboxView display="Page" />
     );
 }
 SignedInPremiumWithCredits.parameters = {

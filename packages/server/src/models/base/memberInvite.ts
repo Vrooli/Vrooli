@@ -1,4 +1,4 @@
-import { MaxObjects, MemberInviteSortBy, MemberInviteStatus, memberInviteValidation, uuidValidate } from "@local/shared";
+import { MaxObjects, MemberInviteSortBy, MemberInviteStatus, memberInviteValidation, validatePK } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -25,7 +25,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 message: noNull(data.message),
                 status: MemberInviteStatus.Pending,
                 willBeAdmin: noNull(data.willBeAdmin),
@@ -80,8 +80,8 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
             user: "User",
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const inviteUserId = data.userId ?? data.user?.id;
-            const isYourInvite = uuidValidate(userId) && inviteUserId === userId;
+            const inviteUserId = data.userId.toString() ?? data.user?.id.toString();
+            const isYourInvite = validatePK(userId) && inviteUserId === userId;
             const basePermissions = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
             return {
                 ...basePermissions,
@@ -100,7 +100,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
                 return { // If you created the invite or were invited
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
-                        { user: { id: data.userId } },
+                        { user: { id: BigInt(data.userId) } },
                     ],
                 };
             },

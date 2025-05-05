@@ -26,9 +26,7 @@ export const meetingValidation: YupModel<["create", "update"]> = {
         showOnTeamProfile: opt(bool),
     }, [
         ["team", ["Connect"], "one", "req"],
-        ["restrictedToRoles", ["Connect"], "many", "opt"],
         ["invites", ["Create"], "many", "opt", meetingInviteValidation],
-        ["labels", ["Connect"], "many", "opt"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],
         ["translations", ["Create"], "many", "opt", meetingTranslationValidation],
     ], [], d),
@@ -37,9 +35,7 @@ export const meetingValidation: YupModel<["create", "update"]> = {
         openToAnyoneWithInvite: opt(bool),
         showOnTeamProfile: opt(bool),
     }, [
-        ["restrictedToRoles", ["Connect", "Disconnect"], "many", "opt"],
         ["invites", ["Create", "Update", "Delete"], "many", "opt", meetingInviteValidation],
-        ["labels", ["Connect", "Disconnect"], "many", "opt"],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", meetingTranslationValidation],
     ], [], d),

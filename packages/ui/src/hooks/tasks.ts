@@ -1,4 +1,4 @@
-import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, noop, uuid } from "@local/shared";
+import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_PUBLIC_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, nanoid, noop } from "@local/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import type { IconInfo } from "../icons/Icons.js";
@@ -7,7 +7,7 @@ import { AITaskDisplay, AITaskDisplayState } from "../types.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
 import { getCookieTasksForChat, setCookieTasksForChat } from "../utils/localStorage.js";
 import { ChatTaskPub, ContextConnect, PubSub } from "../utils/pubsub.js";
-import { useLazyFetch } from "./useLazyFetch.js";
+import { useLazyFetch } from "./useFetch.js";
 
 export type UseAutoFillProps<FormShape = object> = {
     /**
@@ -164,7 +164,7 @@ export function useAutoFill<T = object>({
      * ID used when sending form data as a task context to the server. 
      * This is used to identify the task context when the server sends back the autofill result.
      */
-    const contextId = useRef<string>(uuid());
+    const contextId = useRef<string>(nanoid());
 
     // Starts the autofill process in the server. Must listen to socket events for the result
     const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartLlmTaskInput, undefined>(endpointsTask.startLlmTask);
@@ -193,7 +193,7 @@ export function useAutoFill<T = object>({
                 model,
                 // Used to add messages to the LLM context
                 parentId: latestMessageId,
-                respondingBotId: SEEDED_IDS.User.Valyxa,
+                respondingBot: { publicId: SEEDED_PUBLIC_IDS.Valyxa },
                 // Used to ensure that the task is only suggested, and not actually run. 
                 // We only want what it'd look like to create/update this object, and let the user 
                 // press the submit button to actually do it.
@@ -340,7 +340,7 @@ type UseChatTasksProps = {
  */
 function mapTaskToTool(task: AITaskInfo): AITaskDisplay {
     let iconInfo: IconInfo;
-    if (task.task === LlmTask.RunRoutineStart) {
+    if (task.task === LlmTask.RunStart) {
         iconInfo = { name: "Routine", type: "Routine" } as const;
     } else {
         iconInfo = { name: "Play", type: "Common" } as const;

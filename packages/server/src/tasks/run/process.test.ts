@@ -19,7 +19,6 @@ function createMockRoutineVersion(routineType: RoutineType): RoutineVersion {
         timesStarted: 0,
         nodeLinks: [],
         nodes: [],
-        suggestedNextByRoutineVersion: [],
         translations: [{
             language: "en",
             description: "English description",

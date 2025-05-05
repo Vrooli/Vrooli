@@ -5,8 +5,8 @@ import { rel } from "../utils.js";
 export const reminderList: ApiPartial<ReminderList> = {
     full: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         reminders: async () => rel((await import("./reminder.js")).reminder, "full", { omit: "reminderList" }),
     },
 };

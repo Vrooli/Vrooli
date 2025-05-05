@@ -73,11 +73,11 @@ export function ProfilePictureInput({
     const { palette } = useTheme();
     const session = useContext(SessionContext);
 
-    const [bannerImageUrl, setBannerImageUrl] = useState(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
-    const [profileImageUrl, setProfileImageUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));
+    const [bannerImageUrl, setBannerImageUrl] = useState(extractImageUrl(profile?.bannerImage, profile?.updatedAt, BANNER_TARGET_SIZE));
+    const [profileImageUrl, setProfileImageUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updatedAt, PROFILE_TARGET_SIZE));
     useEffect(() => {
-        setBannerImageUrl(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
-        setProfileImageUrl(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));
+        setBannerImageUrl(extractImageUrl(profile?.bannerImage, profile?.updatedAt, BANNER_TARGET_SIZE));
+        setProfileImageUrl(extractImageUrl(profile?.profileImage, profile?.updatedAt, PROFILE_TARGET_SIZE));
     }, [profile]);
 
     // Colorful placeholder if no image, or white if there is an image (in case there's transparency)

@@ -1,4 +1,4 @@
-import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -340,7 +340,8 @@ export async function permissionsCheck(
     userData: Pick<SessionUser, "id"> | null,
     throwsOnError = true,
 ): Promise<boolean> {
-    const isAdmin = userData?.id && userData.id === SEEDED_IDS.User.Admin;
+    const adminId = await DbProvider.getAdminId();
+    const isAdmin = userData?.id && userData.id === adminId;
     // Get permissions
     const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
     // If you're an admin, skip permissions checking

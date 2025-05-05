@@ -7,7 +7,8 @@
  */
 import * as yup from "yup";
 import { ReportFor } from "../../api/types.js";
-import { uuidValidate } from "../../id/uuid.js";
+import { validatePublicId } from "../../id/publicId.js";
+import { validatePK } from "../../id/snowflake.js";
 import { urlRegexDev } from "../../validation/utils/regex.js";
 import { YupMutateParams } from "../../validation/utils/types.js";
 import { enumToYup } from "./builders/convert.js";
@@ -47,12 +48,22 @@ yup.addMethod(yup.bool, "toBool", function transformToBool() {
 
 
 // db fields
-export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be a valid UUID", (value) => value === null || value === undefined || (typeof value === "string" && uuidValidate(value)));
+export const id = yup.string().trim().removeEmptyString().test(
+    "id-validation",
+    "Must be a valid ID (UUID or Snowflake ID)",
+    (value) => value === null || value === undefined || (
+        typeof value === "string" && validatePK(value)
+    ),
+);
+
+// Add publicId validation
+export const publicId = yup.string().trim().removeEmptyString().test(
+    "publicId-validation",
+    "Must be a valid public ID (10-12 character alphanumeric string)",
+    (value) => value === null || value === undefined || (typeof value === "string" && validatePublicId(value)),
+);
 
 // protocol fields
-export const configCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const configFormInput = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
-export const configFormOutput = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
 export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
 export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
@@ -206,6 +217,7 @@ export const reportReason = yup.string().trim().removeEmptyString().min(1, minSt
 export const instructions = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const jsonVariable = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const phoneNumber = yup.string().trim().removeEmptyString().max(16, maxStrErr);
+export const config = yup.string().trim().removeEmptyString().max(32768, maxStrErr);
 
 // enums
 export const reportCreatedFor = enumToYup(ReportFor);

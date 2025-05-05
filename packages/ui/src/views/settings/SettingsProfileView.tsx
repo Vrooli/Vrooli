@@ -15,7 +15,7 @@ import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { SessionContext } from "../../contexts/session.js";
 import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { useTranslatedFields } from "../../hooks/useTranslatedFields.js";
 import { IconCommon } from "../../icons/Icons.js";
@@ -85,8 +85,8 @@ function SettingsProfileForm({
         handle: values.handle,
         profileImage: values.profileImage,
         bannerImage: values.bannerImage,
-        updated_at: values.updated_at,
-    }), [values.id, values.name, values.handle, values.profileImage, values.bannerImage, values.updated_at]);
+        updatedAt: values.updatedAt,
+    }), [values.id, values.name, values.handle, values.profileImage, values.bannerImage, values.updatedAt]);
 
     return (
         <OuterForm display={display}>
@@ -175,7 +175,7 @@ export function SettingsProfileView({
             language: getUserLanguages(session)[0],
             bio: "",
         }],
-        updated_at: profile?.updated_at ?? null, // Used for cache busting on profile image
+        updatedAt: profile?.updatedAt ?? null, // Used for cache busting on profile image
     } as const), [profile, session]);
 
     // Form submission handler
@@ -189,18 +189,11 @@ export function SettingsProfileView({
             ...values,
             id: profile.id,
             isPrivate: values.isPrivate ?? undefined,
-            isPrivateApis: values.isPrivateApis ?? undefined,
-            isPrivateApisCreated: values.isPrivateApisCreated ?? undefined,
             isPrivateBookmarks: values.isPrivateBookmarks ?? undefined,
             isPrivateMemberships: values.isPrivateMemberships ?? undefined,
-            isPrivateProjects: values.isPrivateProjects ?? undefined,
-            isPrivateProjectsCreated: values.isPrivateProjectsCreated ?? undefined,
             isPrivatePullRequests: values.isPrivatePullRequests ?? undefined,
-            isPrivateRoles: values.isPrivateRoles ?? undefined,
-            isPrivateRoutines: values.isPrivateRoutines ?? undefined,
-            isPrivateRoutinesCreated: values.isPrivateRoutinesCreated ?? undefined,
-            isPrivateStandards: values.isPrivateStandards ?? undefined,
-            isPrivateStandardsCreated: values.isPrivateStandardsCreated ?? undefined,
+            isPrivateResources: values.isPrivateResources ?? undefined,
+            isPrivateResourcesCreated: values.isPrivateResourcesCreated ?? undefined,
             isPrivateTeamsCreated: values.isPrivateTeamsCreated ?? undefined,
             isPrivateVotes: values.isPrivateVotes ?? undefined,
             name: values.name ?? undefined,

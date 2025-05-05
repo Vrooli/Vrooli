@@ -265,7 +265,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [8.3828191932843];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedDateCreatedAsc");
             expect(builder.query.select).to.include(
-                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[8.382819]::vector) + 0.01, 2))) + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"created_at\") / 3600), 0.25)) * 1) AS points"
+                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[8.382819]::vector) + 0.01, 2))) + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"createdAt\") / 3600), 0.25)) * 1) AS points"
             );
         });
 
@@ -275,7 +275,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedDateUpdatedDesc");
             expect(builder.query.select).to.include(
-                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[]::vector) + 0.01, 2))) + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"updated_at\") / 3600), 0.25)) * 100) AS points"
+                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[]::vector) + 0.01, 2))) + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"updatedAt\") / 3600), 0.25)) * 100) AS points"
             );
         });
 

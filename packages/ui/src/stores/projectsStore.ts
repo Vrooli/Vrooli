@@ -1,4 +1,4 @@
-import { Project, ProjectSearchInput, ProjectSearchResult, ProjectSortBy, endpointsProject } from "@local/shared";
+import { endpointsResource, ResourceType, ResourceVersion, ResourceVersionSearchInput, ResourceVersionSearchResult, ResourceVersionSortBy } from "@local/shared";
 import { useContext, useEffect } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";
@@ -7,21 +7,21 @@ import { SessionContext } from "../contexts/session.js";
 import { checkIfLoggedIn } from "../utils/authentication/session.js";
 
 interface ProjectsState {
-    projects: Project[];
+    projects: ResourceVersion[];
     isLoading: boolean;
     error: string | null;
     /** Selected project ID */
     selectedProjectId: string | null;
     /** Fetch projects from the server */
-    fetchProjects: (signal?: AbortSignal) => Promise<Project[]>;
+    fetchProjects: (signal?: AbortSignal) => Promise<ResourceVersion[]>;
     /** Set projects list */
-    setProjects: (projects: Project[] | ((prev: Project[]) => Project[])) => void;
+    setProjects: (projects: ResourceVersion[] | ((prev: ResourceVersion[]) => ResourceVersion[])) => void;
     /** Add a new project to the list */
-    addProject: (project: Project) => void;
+    addProject: (project: ResourceVersion) => void;
     /** Remove a project from the list by ID */
     removeProject: (projectId: string) => void;
     /** Update an existing project in the list */
-    updateProject: (updatedProject: Project) => void;
+    updateProject: (updatedProject: ResourceVersion) => void;
     /** Select a project by ID */
     selectProject: (projectId: string) => void;
     /** Clear all projects and reset state */
@@ -40,9 +40,9 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => ({
         }
         set({ isLoading: true, error: null });
         try {
-            const response = await fetchData<ProjectSearchInput, ProjectSearchResult>({
-                ...endpointsProject.findMany,
-                inputs: { sortBy: ProjectSortBy.DateUpdatedDesc },
+            const response = await fetchData<ResourceVersionSearchInput, ResourceVersionSearchResult>({
+                ...endpointsResource.findMany,
+                inputs: { resourceType: ResourceType.Project, sortBy: ResourceVersionSortBy.DateUpdatedDesc },
                 signal,
             });
             if (response.errors) {

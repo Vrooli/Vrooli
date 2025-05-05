@@ -1,4 +1,4 @@
-import { ModelType, pascalCase, uuidValidate } from "@local/shared";
+import { ModelType, pascalCase, validatePK } from "@local/shared";
 import { isRelationshipObject } from "../builders/isOfType.js";
 import { PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -57,7 +57,7 @@ export async function fetchAndMapPlaceholder(
 
     // Check if the placeholder is just an ID, in which case
     // we'll add it to the map and return
-    if (parts.length === 1 && uuidValidate(rootId)) {
+    if (parts.length === 1 && validatePK(rootId)) {
         logger.warning("Unnecessary placeholder was generated. This may be a bug", { trace: "0163", placeholder });
         // Directly map the rootId as the ID without querying the database
         placeholderToIdMap[placeholder] = rootId;

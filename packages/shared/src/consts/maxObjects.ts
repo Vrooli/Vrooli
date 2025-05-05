@@ -166,28 +166,6 @@ export const MaxObjects = {
         },
         Team: 0,
     },
-    Label: {
-        User: {
-            private: {
-                noPremium: 20,
-                premium: 100,
-            },
-            public: {
-                noPremium: 20,
-                premium: 100,
-            },
-        },
-        Team: {
-            private: {
-                noPremium: 20,
-                premium: 100,
-            },
-            public: {
-                noPremium: 20,
-                premium: 100,
-            },
-        },
-    },
     Meeting: {
         User: 0,
         Team: {

@@ -2,20 +2,27 @@ import { fromDatetimeLocal, toDatetimeLocal } from "@local/shared";
 import { Box, Button, Grid, Popover } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useStableObject } from "../../../hooks/useStableObject.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
-import { TopBar } from "../../navigation/TopBar.js";
 import { DateRangeMenuProps } from "../types.js";
+
+// Default min date to 5 years ago
+const YEARS_5_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+const DEFAULT_MIN_DATE = new Date(YEARS_5_MS);
+// Default max date to now
+const DEFAULT_MAX_DATE = new Date();
 
 export function DateRangeMenu({
     anchorEl,
-    minDate = new Date(0),
-    maxDate = new Date(),
+    minDate = DEFAULT_MIN_DATE,
+    maxDate = DEFAULT_MAX_DATE,
     onClose,
     onSubmit,
-    range,
+    range: unstableRange,
     strictIntervalRange,
 }: DateRangeMenuProps) {
     const { t } = useTranslation();
+    const range = useStableObject(unstableRange);
 
     const open = Boolean(anchorEl);
 
@@ -73,12 +80,6 @@ export function DateRangeMenu({
             onClose={onClose}
             disableScrollLock={true}
         >
-            <TopBar
-                display="Dialog"
-                onClose={onClose}
-                title={t("SelectDateRange")}
-                variant="subheader"
-            />
             <Box sx={{
                 display: "flex",
                 flexDirection: "column",

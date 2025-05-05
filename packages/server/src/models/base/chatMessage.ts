@@ -1,7 +1,8 @@
-import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, getTranslation, MaxObjects, openAIServiceInfo, uuidValidate } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, DEFAULT_LANGUAGE, MaxObjects, openAIServiceInfo, validatePK } from "@local/shared";
 import { Request } from "express";
 import { SessionService } from "../../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
+import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { PartialApiInfo } from "../../builders/types.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -9,13 +10,12 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context.js";
 import { requestBotResponse } from "../../tasks/llm/queue.js";
 import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, PreMapChatData, PreMapMessageData, PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData, prepareChatMessageOperations } from "../../utils/chat.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
 import { InputNode } from "../../utils/inputNode.js";
-import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
 import { getSingleTypePermissions, permissionsCheck } from "../../validators/permissions.js";
 import { ChatMessageFormat } from "../formats.js";
@@ -31,12 +31,11 @@ const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
     __typename,
     dbTable: "chat_message",
-    dbTranslationTable: "chat_message_translation",
     display: () => ({
         label: {
-            select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => {
-                return getTranslation(select, languages).text ?? "";
+            select: () => ({ id: true, text: true }),
+            get: (select) => {
+                return select.text ?? "";
             },
         },
     }),
@@ -83,40 +82,21 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         }
                     }
                     // Collect message data
-                    const translations = (input.translationsCreate?.filter(t => t.text.length > 0) || []);
                     preMap.messageData[node.id] = {
                         __type: "Create",
                         chatId,
                         messageId: node.id,
                         parentId: input.parentConnect || null, // NOTE: This is overwritten later
-                        translations,
+                        text: input.text,
                         userId: input.userConnect || userData.id,
                     };
                 }
 
-                // Update translation information for updated messages
+                // Update information for updated messages
                 for (const { node, input } of Update) {
                     const messageData = preMap.messageData[node.id] as PreMapMessageDataUpdate | undefined;
-                    const translationsUpdates = (input.translationsUpdate || []).filter(t => t.text && t.text.length > 0);
-                    const translationsDeletes = (input.translationsDelete || []).filter(Boolean);
-                    if (!messageData || (!translationsUpdates.length && !translationsDeletes.length)) {
-                        continue;
-                    }
-                    let messageDataTranslations = messageData.translations || [];
-                    // Apply updates
-                    for (const { id, text, language } of translationsUpdates) {
-                        const translation = messageDataTranslations.find(t => t.id === id);
-                        if (translation) {
-                            translation.text = text || "";
-                        } else {
-                            messageDataTranslations = [...messageDataTranslations, { id, language, text: text || "" }];
-                        }
-                    }
-                    // Apply deletes
-                    messageDataTranslations = messageDataTranslations.filter(t => !translationsDeletes.includes(t.id));
-
-                    // Update messageData
-                    messageData.translations = messageDataTranslations;
+                    if (!messageData || !input.text) continue;
+                    messageData.text = input.text;
                 }
 
                 // Collect information for constructing the message tree, which is effected by creating and deleting messages on existing chats
@@ -203,7 +183,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 if (potentialBotIds.length) {
                     const potentialBots = await DbProvider.get().user.findMany({
                         where: {
-                            id: { in: potentialBotIds },
+                            id: { in: potentialBotIds.map(id => BigInt(id)) },
                             isBot: true,
                         },
                         select: {
@@ -220,18 +200,18 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     });
                     potentialBots.forEach(user => {
                         // Any participant (even not bots) can be added to preMapUserData
-                        preMap.userData[user.id] = {
+                        preMap.userData[user.id.toString()] = {
                             botSettings: user.botSettings ?? JSON.stringify({}),
-                            id: user.id,
+                            id: user.id.toString(),
                             isBot: true,
                             name: user.name,
                         };
                         // Add any bot that is public or invited by you to participants
-                        if (!user.isPrivate || user.invitedByUser?.id === userData.id) {
+                        if (!user.isPrivate || user.invitedByUser?.id.toString() === userData.id) {
                             Object.entries(preMap.chatData).forEach(([id, chat]) => {
-                                if (chat.potentialBotIds?.includes(user.id) && !chat.botParticipants?.includes(user.id)) {
+                                if (chat.potentialBotIds?.includes(user.id.toString()) && !chat.botParticipants?.includes(user.id.toString())) {
                                     if (!chat.botParticipants) chat.botParticipants = [];
-                                    chat.botParticipants.push(user.id);
+                                    chat.botParticipants.push(user.id.toString());
                                 }
                             });
                         }
@@ -241,7 +221,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 if (participantsBeingRemovedIds.length) {
                     const participantsBeingRemoved = await DbProvider.get().chat_participants.findMany({
                         where: {
-                            id: { in: participantsBeingRemovedIds },
+                            id: { in: participantsBeingRemovedIds.map(id => BigInt(id)) },
                         },
                         select: {
                             id: true,
@@ -255,8 +235,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     participantsBeingRemoved.forEach(participant => {
                         // Remove from chatData.botParticipants
                         Object.values(preMap.chatData).forEach((chat) => {
-                            if (chat.botParticipants?.includes(participant.user.id)) {
-                                chat.botParticipants = chat.botParticipants.filter(id => id !== participant.user.id);
+                            if (chat.botParticipants?.includes(participant.user.id.toString())) {
+                                chat.botParticipants = chat.botParticipants.filter(id => id !== participant.user.id.toString());
                             }
                         });
                         // NOTE: Don't remove from preMapUserData, since their messages may still be in the context for AI responses
@@ -273,18 +253,19 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Return data
                 return preMap;
             },
-            create: async ({ data, ...rest }) => {
+            create: async ({ data, userData, ...rest }) => {
                 const preMap = rest.preMap[__typename] as ChatMessagePre;
                 // Prefer parent ID from preMap data over what's provided by the client
                 const messageData = preMap?.messageData[data.id] as PreMapMessageDataCreate | undefined;
                 const parentId = messageData?.parentId !== undefined ? messageData.parentId : data.parentConnect;
                 return {
-                    id: data.id,
-                    parent: parentId ? { connect: { id: parentId } } : undefined,
-                    user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
+                    id: BigInt(data.id),
+                    language: userData.languages[0] ?? DEFAULT_LANGUAGE,
+                    parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
+                    user: { connect: { id: BigInt(data.userConnect ?? userData.id) } }, // Can create messages for bots. This is authenticated in the "pre" function.
+                    text: data.text,
                     versionIndex: data.versionIndex,
-                    chat: await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest }),
-                    translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
+                    chat: await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "messages", data, userData, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -293,8 +274,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 const messageData = preMap?.messageData[data.id] as PreMapMessageDataUpdate | undefined;
                 const parentId = messageData?.parentId;
                 return {
-                    parent: parentId ? { connect: { id: parentId } } : undefined,
-                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
+                    parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
+                    text: noNull(data.text),
                 };
             },
         },
@@ -303,7 +284,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 const preMapUserData: Record<string, PreMapUserData> = preMap[__typename]?.userData ?? {};
                 const preMapChatData: Record<string, PreMapChatData> = preMap[__typename]?.chatData ?? {};
                 const preMapMessageData: Record<string, PreMapMessageData> = preMap[__typename]?.messageData ?? {};
-                return;
                 // Call triggers
                 for (const objectId of createdIds) {
                     const messageData = preMapMessageData[objectId] as PreMapMessageDataCreate | undefined;
@@ -318,10 +298,9 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         logger.error("Message, message sender, or chat not found", { trace: "0363", user: userData.id, messageId: objectId, chatId });
                         continue;
                     }
-                    const messageText = getTranslation({ translations: messageData.translations }, userData.languages).text || null;
                     // Add message to cache
                     const model = additionalData.model || openAIServiceInfo.defaultModel;
-                    await (new ChatContextManager(model, userData.languages)).addMessage(messageData);
+                    await (new ChatContextManager(model)).addMessage(messageData);
                     // Common trigger logic
                     await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
@@ -341,10 +320,10 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     // Determine which bots should respond, if any.
                     const chat: PreMapChatData | undefined = preMapChatData[chatId];
                     const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
-                    const botsToRespond = determineRespondingBots(messageText, messageData.userId, chat, bots, userData.id);
+                    const botsToRespond = determineRespondingBots(messageData.text, messageData.userId, chat, bots, userData.id);
                     if (botsToRespond.length) {
                         // Send typing indicator while bots are responding
-                        emitSocketEvent("typing", chatId, { starting: botsToRespond });
+                        SocketService.get().emitSocketEvent("typing", chatId, { starting: botsToRespond });
                         const task = additionalData.task || "Start";
                         const taskContexts = Array.isArray(additionalData.taskContexts) ? additionalData.taskContexts : [];
                         // For each bot that should respond, request bot response
@@ -355,7 +334,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                                 mode: "text",
                                 model,
                                 parentId: messageData.messageId,
-                                parentMessage: messageText,
+                                parentMessage: messageData.text,
                                 respondingBotId: botId,
                                 shouldNotRunTasks: false,
                                 task,
@@ -380,7 +359,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     const messageData = preMapMessageData[objectId] as PreMapMessageDataUpdate | undefined;
                     if (messageData) {
                         const model = additionalData.model || openAIServiceInfo.defaultModel;
-                        await (new ChatContextManager(model, userData.languages)).editMessage(messageData);
+                        await (new ChatContextManager(model)).editMessage(messageData);
                     }
                     //TODO should probably call determineRespondingBots and requestBotResponse here as well
                     const chatMessage = resultsById[objectId] as ChatMessage | undefined;
@@ -429,7 +408,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             const { chatId, startId: inputStartId, take: takeInput, excludeUp, excludeDown } = input;
 
             // --- Input Validation --- 
-            if (!chatId || !uuidValidate(chatId)) { // Validate chatId
+            if (!chatId || !validatePK(chatId)) { // Validate chatId
                 throw new CustomError("0531", "InvalidArgs", { input, reason: "Invalid or missing chatId" });
             }
 
@@ -447,7 +426,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             }
             await permissionsCheck({ [chatId]: chatAuthDataById[chatId] }, { ["Read"]: [chatId] }, {}, userData);
 
-            if (inputStartId && uuidValidate(inputStartId)) {
+            if (inputStartId && validatePK(inputStartId)) {
                 startId = inputStartId;
                 // Check permission on the provided start message
                 const startMsgAuthDataById = await getAuthenticatedData({ "ChatMessage": [startId] }, userData ?? null);
@@ -459,7 +438,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             } else {
                 // Find the message with the highest sequence in the chat
                 const highestSeqMessage = await DbProvider.get().chat_message.findFirst({
-                    where: { chatId },
+                    where: { chatId: BigInt(chatId) },
                     orderBy: { sequence: "desc" },
                     select: { id: true },
                 });
@@ -467,7 +446,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 if (!highestSeqMessage) {
                     return { __typename: "ChatMessageSearchTreeResult", messages: [], hasMoreUp: false, hasMoreDown: false };
                 }
-                startId = highestSeqMessage.id;
+                startId = highestSeqMessage.id.toString();
 
                 // Check permission on the found start message
                 const startMsgAuthDataById = await getAuthenticatedData({ "ChatMessage": [startId] }, userData ?? null);
@@ -475,7 +454,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 if (!startMessageAuthData) {
                     // This case should theoretically not happen if highestSeqMessage was found and chat permission passed,
                     // but adding check for robustness.
-                    throw new CustomError("0561", "InternalError", { startId, chatId, userId: userData?.id });
+                    throw new CustomError("0961", "InternalError", { startId, chatId, userId: userData?.id });
                 }
             }
 
@@ -551,7 +530,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
 
             // --- Fetch message tree ---
             const tree = await DbProvider.get().chat_message.findUnique({
-                where: { id: startId },
+                where: { id: BigInt(startId) },
                 select: treeSelect.select,
             });
 
@@ -635,16 +614,16 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         defaultSort: ChatMessageSortBy.DateCreatedDesc,
         searchFields: {
             createdTimeFrame: true,
+            languages: true,
             minScore: true,
             chatId: true,
             userId: true,
             updatedTimeFrame: true,
-            translationLanguages: true,
         },
         sortBy: ChatMessageSortBy,
         searchStringQuery: () => ({
             OR: [
-                "transTextWrapped",
+                "textWrapped",
                 { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),

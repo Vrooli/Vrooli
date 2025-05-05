@@ -43,7 +43,7 @@ export async function paymentsFail() {
             },
             where: {
                 status: PaymentStatus.Pending,
-                updated_at: { lte: new Date(Date.now() - PENDING_TIMEOUT) },
+                updatedAt: { lte: new Date(Date.now() - PENDING_TIMEOUT) },
             },
         });
     } catch (error) {

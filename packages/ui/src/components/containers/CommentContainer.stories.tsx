@@ -1,4 +1,4 @@
-import { Comment, CommentFor, CommentThread, CommentTranslation, endpointsComment, uuid } from "@local/shared";
+import { Comment, CommentFor, CommentThread, CommentTranslation, endpointsComment, generatePK } from "@local/shared";
 import { Box, Paper, useTheme } from "@mui/material";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
@@ -79,8 +79,8 @@ interface MockCommentYou {
 interface MockComment extends Partial<Comment> {
     __typename: "Comment";
     id: string;
-    created_at: string;
-    updated_at: string;
+    createdAt: string;
+    updatedAt: string;
     translations: MockCommentTranslation[];
     owner: MockCommentOwner;
     you: MockCommentYou;
@@ -97,8 +97,8 @@ interface MockCommentThread extends Partial<CommentThread> {
 const createMockComment = (id: string, text: string, owner: string = "John Doe", isCurrentUser: boolean = false): MockComment => ({
     __typename: "Comment" as const,
     id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     translations: [{
         __typename: "CommentTranslation" as const,
         id: `${id}-translation`,
@@ -135,21 +135,21 @@ const createMockThread = (comment: MockComment, childThreads: MockCommentThread[
 // Mock comment data
 const mockComments = [
     createMockThread(
-        createMockComment(uuid(), "This is a top-level comment that discusses the main features of this object. It's quite detailed and provides useful information.", "Current User", true),
+        createMockComment(generatePK().toString(), "This is a top-level comment that discusses the main features of this object. It's quite detailed and provides useful information.", "Current User", true),
         [
             createMockThread(
-                createMockComment(uuid(), "Great point! I'd like to add that there are additional considerations here.", "Jane Smith")
+                createMockComment(generatePK().toString(), "Great point! I'd like to add that there are additional considerations here.", "Jane Smith")
             ),
             createMockThread(
-                createMockComment(uuid(), "I disagree with some parts of your assessment. Let me explain why in this long message.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", "Alex Johnson")
+                createMockComment(generatePK().toString(), "I disagree with some parts of your assessment. Let me explain why in this long message.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", "Alex Johnson")
             ),
         ]
     ),
     createMockThread(
-        createMockComment(uuid(), "Has anyone tried using this with the new API? I'm getting some unexpected results.", "Sam Wilson")
+        createMockComment(generatePK().toString(), "Has anyone tried using this with the new API? I'm getting some unexpected results.", "Sam Wilson")
     ),
     createMockThread(
-        createMockComment(uuid(), "The documentation for this could be improved. Here are some suggestions.", "Maria Garcia")
+        createMockComment(generatePK().toString(), "The documentation for this could be improved. Here are some suggestions.", "Maria Garcia")
     ),
 ];
 
@@ -167,19 +167,19 @@ const populatedCommentsResponse = {
 // Base component props
 const defaultProps = {
     language: "en",
-    objectId: uuid(),
+    objectId: generatePK().toString(),
     objectType: CommentFor.CodeVersion,
 };
 
 // Sample comment handlers for MSW
 const commentHandlers = (responseData = emptyCommentsResponse) => [
     // Mock find many comments endpoint
-    http.get(`${API_URL}/v2/rest${endpointsComment.findMany.endpoint}*`, () => {
+    http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
         return HttpResponse.json({ data: responseData });
     }),
 
     // Mock create comment endpoint
-    http.post(`${API_URL}/v2/rest${endpointsComment.createOne.endpoint}`, async ({ request }) => {
+    http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, async ({ request }) => {
         const body = await request.json() as Record<string, any>;
         console.log("Create comment request body:", body);
 
@@ -195,7 +195,7 @@ const commentHandlers = (responseData = emptyCommentsResponse) => [
 
         // Create a mock response with the submitted data
         const newComment = createMockComment(
-            uuid(),
+            generatePK().toString(),
             commentText,
             "Current User",
             true // Mark as current user's comment
@@ -207,7 +207,7 @@ const commentHandlers = (responseData = emptyCommentsResponse) => [
 
 // Loading handlers that delay response
 const loadingHandlers = [
-    http.get(`${API_URL}/v2/rest${endpointsComment.findMany.endpoint}*`, async () => {
+    http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, async () => {
         // Simulate a delay
         await new Promise(resolve => setTimeout(resolve, 2000));
         return HttpResponse.json({ data: emptyCommentsResponse });
@@ -217,12 +217,12 @@ const loadingHandlers = [
 // Read-only handlers that return 403 for create operations
 const readOnlyHandlers = (responseData = emptyCommentsResponse) => [
     // Allow read operations
-    http.get(`${API_URL}/v2/rest${endpointsComment.findMany.endpoint}*`, () => {
+    http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
         return HttpResponse.json({ data: responseData });
     }),
 
     // Deny write operations
-    http.post(`${API_URL}/v2/rest${endpointsComment.createOne.endpoint}`, () => {
+    http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, () => {
         return HttpResponse.json(
             {
                 success: false,

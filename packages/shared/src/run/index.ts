@@ -1,6 +1,6 @@
 /* c8 ignore start */
+export * from "../shape/configs/index.js";
 export * from "./branch.js";
-export * from "./configs/index.js";
 export * from "./consts.js";
 export * from "./context.js";
 export * from "./executor.js";

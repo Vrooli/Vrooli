@@ -1,7 +1,10 @@
-import { DEFAULT_LANGUAGE, Session, SessionUser, uuidValidate } from "@local/shared";
+import { DEFAULT_LANGUAGE, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
+import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
-import { UserDataForPasswordAuth } from "./email.js";
+import { PasswordAuthService, UserDataForPasswordAuth } from "./email.js";
+import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
+import { RequestService } from "./request.js";
 
 export class SessionService {
     private static instance: SessionService;
@@ -13,6 +16,33 @@ export class SessionService {
             SessionService.instance = new SessionService();
         }
         return SessionService.instance;
+    }
+
+    /**
+     * Creates and records a new session in the database.
+     * @param userId The ID of the user for the session.
+     * @param authId The ID of the authentication record used.
+     * @param req The Express request object.
+     * @returns The created session data from Prisma.
+     */
+    static async createAndRecordSession(userId: string, authId: string, req: Request) {
+        const deviceInfo = RequestService.getDeviceInfo(req);
+        const ipAddress = req.ip;
+        const sessionData = await DbProvider.get().session.create({
+            data: {
+                device_info: deviceInfo,
+                expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
+                last_refresh_at: new Date(),
+                ip_address: ipAddress,
+                revokedAt: null,
+                user: { connect: { id: BigInt(userId) } },
+                auth: { connect: { id: BigInt(authId) } },
+            },
+            // Use the select statement consistent with other parts of the auth logic
+            select: PasswordAuthService.selectUserForPasswordAuth().sessions.select,
+        });
+        // Prisma might return BigInts, ensure the return type matches PrismaSessionData if necessary
+        return sessionData;
     }
 
     /**
@@ -28,12 +58,12 @@ export class SessionService {
         if (typeof session !== "object" || session === null) {
             return null;
         }
-        if (session.userId && typeof session.userId === "string" && uuidValidate(session.userId)) {
+        if (session.userId && typeof session.userId === "string") {
             return { id: session.userId, languages: [DEFAULT_LANGUAGE] } as unknown as User;
         }
         if (Array.isArray(session.users) && session.users.length > 0) {
             const user = session.users[0];
-            if (user !== undefined && typeof user.id === "string" && uuidValidate(user.id)) {
+            if (user !== undefined && typeof user.id === "string") {
                 return user;
             }
 
@@ -46,34 +76,31 @@ export class SessionService {
      * @param userData User data
      * @param session Current session data
      */
-    static async createUserSession(userData: Omit<UserDataForPasswordAuth, "auths" | "emails" | "sessions">, sessionData: UserDataForPasswordAuth["sessions"][0]): Promise<SessionUser> {
+    static async createUserSession(
+        userData: Omit<UserDataForPasswordAuth, "auths" | "emails" | "sessions">,
+        sessionData: UserDataForPasswordAuth["sessions"][0],
+    ): Promise<SessionUser> {
         if (!userData || !sessionData) {
             throw new CustomError("0510", "NotFound", { userData });
         }
         // Return shaped SessionUser object
         const result: SessionUser = {
             __typename: "SessionUser" as const,
-            id: userData.id,
-            apisCount: userData._count?.apis ?? 0,
-            codesCount: userData._count?.codes ?? 0,
+            id: userData.id.toString(),
+            publicId: userData.publicId,
             credits: (userData.premium?.credits ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
             handle: userData.handle ?? undefined,
             hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
-            languages: userData.languages.map(l => l.language),
-            membershipsCount: userData._count?.memberships ?? 0,
+            languages: userData.languages,
             name: userData.name,
-            notesCount: userData._count?.notes ?? 0,
             profileImage: userData.profileImage,
-            projectsCount: userData._count?.projects ?? 0,
-            routinesCount: userData._count?.routines ?? 0,
             session: {
                 __typename: "SessionUserSession" as const,
-                id: sessionData.id,
+                id: sessionData.id.toString(),
                 lastRefreshAt: sessionData.last_refresh_at,
             },
-            standardsCount: userData._count?.standards ?? 0,
             theme: userData.theme,
-            updated_at: userData.updated_at,
+            updatedAt: userData.updatedAt,
         };
         return result;
     }

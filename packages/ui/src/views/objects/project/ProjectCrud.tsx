@@ -11,7 +11,6 @@ import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInpu
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
-import { DirectoryList } from "../../../components/lists/DirectoryList/DirectoryList.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { NavbarInner, SiteNavigatorButton } from "../../../components/navigation/Navbar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
@@ -19,7 +18,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -293,13 +292,13 @@ function ProjectForm({
                         marginRight: "auto",
                     }}
                 >
-                    <DirectoryList
+                    {/* <DirectoryList
                         canUpdate={!disabled}
                         directory={directoryField.value}
                         handleUpdate={directoryHelpers.setValue}
                         loading={isLoading}
                         mutate={false}
-                    />
+                    /> */}
                 </BaseForm>
                 <BottomActionsButtons
                     display={display}

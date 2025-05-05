@@ -8,7 +8,7 @@ export const wallet: ApiPartial<Wallet> = {
         name: true,
         publicAddress: true,
         stakingAddress: true,
-        verified: true,
+        verifiedAt: true,
     },
 };
 

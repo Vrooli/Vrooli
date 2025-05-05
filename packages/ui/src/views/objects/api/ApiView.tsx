@@ -1,5 +1,5 @@
 import $RefParser from "@apidevtools/json-schema-ref-parser";
-import { ApiVersion, BookmarkFor, CodeLanguage, ResourceList as ResourceListType, Tag, endpointsApiVersion, getTranslation } from "@local/shared";
+import { BookmarkFor, CodeLanguage, ResourceList as ResourceListType, ResourceVersion, Tag, getTranslation } from "@local/shared";
 import {
     Avatar,
     Box,
@@ -233,7 +233,7 @@ export function ApiView({
     const session = useContext(SessionContext);
     const { palette, breakpoints } = useTheme();
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -253,10 +253,7 @@ export function ApiView({
     const [requestParams, setRequestParams] = useState<Record<string, string>>({});
     const [responseData, setResponseData] = useState<any>(null);
 
-    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ApiVersion>({
-        ...endpointsApiVersion.findOne,
-        objectType: "ApiVersion",
-    });
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ResourceVersion>({ pathname });
 
     const availableLanguages = useMemo<string[]>(() => (apiVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [apiVersion?.translations]);
     useEffect(() => {

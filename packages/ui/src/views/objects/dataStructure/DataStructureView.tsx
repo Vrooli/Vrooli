@@ -136,7 +136,7 @@ export function DataStructureView({
                         {/* Date created */}
                         <DateDisplay
                             loading={isLoading}
-                            timestamp={existing?.created_at}
+                            timestamp={existing?.createdAt}
                         />
                         <VersionDisplay
                             currentVersion={existing}

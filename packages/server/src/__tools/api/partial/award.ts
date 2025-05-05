@@ -4,9 +4,9 @@ import { ApiPartial } from "../types.js";
 export const award: ApiPartial<Award> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
-        timeCurrentTierCompleted: true,
+        createdAt: true,
+        updatedAt: true,
+        tierCompletedAt: true,
         category: true,
         progress: true,
         title: true,

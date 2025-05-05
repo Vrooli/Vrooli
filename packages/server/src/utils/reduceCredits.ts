@@ -1,5 +1,5 @@
 import { DbProvider } from "../db/provider.js";
-import { emitSocketEvent } from "../sockets/events.js";
+import { SocketService } from "../sockets/io.js";
 
 /**
  * Reduces the credits of a user by the specified amount, and 
@@ -16,14 +16,11 @@ export async function reduceUserCredits(userId: string, decrement: number | bigi
     }
     // Update the user's credits
     const updatedUser = await DbProvider.get().user.update({
-        where: { id: userId },
+        where: { id: BigInt(userId) },
         data: {
             premium: {
                 upsert: {
-                    // Shouldn't call this when the user doesn't have a premium relation 
-                    // (i.e. never paid for or received free credits), but just in case
-                    create: { credits: 0, hasReceivedFreeTrial: false, isActive: false },
-                    // The actual update for most users
+                    create: { credits: 0 },
                     update: { credits: { decrement } },
                 },
             },
@@ -32,7 +29,7 @@ export async function reduceUserCredits(userId: string, decrement: number | bigi
     });
     // Send a socket event to update the user's credits in open sessions
     if (updatedUser.premium) {
-        emitSocketEvent("apiCredits", userId, {
+        SocketService.get().emitSocketEvent("apiCredits", userId, {
             credits: updatedUser.premium.credits + "", // Sent as a string because BigInt
         });
     }

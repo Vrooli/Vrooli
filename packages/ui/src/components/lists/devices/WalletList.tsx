@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { WalletInstallDialog, WalletSelectDialog } from "../../../components/dialogs/auth.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { hasWalletExtension, validateWallet } from "../../../utils/authentication/walletIntegration.js";
@@ -231,7 +231,7 @@ export function WalletList({
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],
-                verified: true,
+                verifiedAt: new Date(),
             }));
         }
     }, [handleUpdate, list, openWalletInstallDialog, selectedIndex]);

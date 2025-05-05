@@ -1,4 +1,5 @@
-import { API_CREDITS_MULTIPLIER, AutoPickFirstSelectionHandler, AutoPickRandomSelectionHandler, BotSettings, BotSettingsConfig, BranchProgress, CodeLanguage, CodeVersionConfig, ConfigCallDataGenerate, DecisionOption, DeferredDecisionData, FormElementBase, FormInputBase, HOURS_2_MS, InputGenerationStrategy, LlmTask, Location, LocationData, MINUTES_1_MS, PathSelectionHandler, PathSelectionStrategy, ProjectVersion, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, RoutineType, RoutineVersion, RoutineVersionConfig, RunBotConfig, RunConfig, RunIdentifier, RunLoader, RunNotifier, RunPersistence, RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, RunStateMachine, RunStatus, RunStatusChangeReason, RunSubroutineResult, RunTaskInfo, RunType, SECONDS_10_MS, SEEDED_IDS, SubroutineExecutionStrategy, SubroutineExecutor, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, Success, TaskStatus, getTranslation, navigatorFactory, uppercaseFirstLetter, type SessionUser } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, AutoPickFirstSelectionHandler, AutoPickRandomSelectionHandler, BotSettings, BotSettingsConfig, BranchProgress, CodeLanguage, CodeVersionConfig, ConfigCallDataGenerate, DecisionOption, DeferredDecisionData, FormElementBase, FormInputBase, HOURS_2_MS, InputGenerationStrategy, LlmTask, Location, LocationData, MINUTES_1_MS, PathSelectionHandler, PathSelectionStrategy, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, ResourceSubType, ResourceVersion, RoutineVersionConfig, Run, RunBotConfig, RunConfig, RunCreateInput, RunIdentifier, RunLoader, RunNotifier, RunPersistence, RunStateMachine, RunStatus, RunStatusChangeReason, RunSubroutineResult, RunTaskInfo, RunUpdateInput, SECONDS_10_MS, SEEDED_PUBLIC_IDS, SubroutineExecutionStrategy, SubroutineExecutor, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, Success, TaskStatus, getTranslation, navigatorFactory, uppercaseFirstLetter, type SessionUser } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import { Job } from "bull";
 import { createOneHelper } from "../../actions/creates.js";
 import { readOneHelper } from "../../actions/reads.js";
@@ -7,7 +8,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Notify } from "../../notify/notify.js";
-import { emitSocketEvent, roomHasOpenConnections } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { LlmTaskData, generateTaskExec } from "../../tasks/llm/converter.js";
 import { LlmServiceRegistry } from "../../tasks/llm/registry.js";
 import { generateResponseWithFallback } from "../../tasks/llm/service.js";
@@ -33,18 +34,27 @@ export const RUN_SHUTDOWN_GRACE_PERIOD_MS = SECONDS_10_MS;
  * The fields to select for various run-related objects
  */
 export const RunProcessSelect = {
-    RunProject: {
+    Run: {
         id: true,
         completedComplexity: true,
         contextSwitches: true,
         isPrivate: true,
+        io: {
+            select: {
+                id: true,
+                data: true,
+                nodeInputName: true,
+                nodeName: true,
+            },
+        },
         name: true,
-        projectVersion: {
+        resourceVersion: {
             select: {
                 id: true,
                 complexity: true,
                 isDeleted: true,
                 isPrivate: true,
+                resourceSubType: true,
                 root: {
                     select: {
                         id: true,
@@ -69,91 +79,42 @@ export const RunProcessSelect = {
         steps: {
             select: {
                 id: true,
-                contextSwitches: true,
-                name: true,
-                order: true,
-                step: true,
-                timeElapsed: true,
-            },
-        },
-        timeElapsed: true,
-    },
-    RunRoutine: {
-        id: true,
-        completedComplexity: true,
-        contextSwitches: true,
-        isPrivate: true,
-        inputs: {
-            select: {
-                id: true,
-                data: true,
-                input: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
-        },
-        outputs: {
-            select: {
-                id: true,
-                data: true,
-                output: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
-        },
-        name: true,
-        routineVersion: {
-            select: {
-                id: true,
                 complexity: true,
-                isDeleted: true,
-                isPrivate: true,
-                root: {
-                    select: {
-                        id: true,
-                        ownedByTeam: {
-                            select: {
-                                id: true,
-                                isPrivate: true,
-                            },
-                        },
-                        ownedByUser: {
-                            select: {
-                                id: true,
-                                isPrivate: true,
-                            },
-                        },
-                    },
-                },
-                simplicity: true,
-            },
-        },
-        status: true,
-        steps: {
-            select: {
-                id: true,
                 contextSwitches: true,
                 name: true,
                 nodeId: true,
                 order: true,
-                subroutineId: true,
-                step: true,
+                resourceInId: true,
+                resourceVersionId: true,
+                startedAt: true,
+                status: true,
                 timeElapsed: true,
             },
         },
         timeElapsed: true,
     },
-    ProjectVersion: {
+    ResourceVersion: {
         id: true,
+        codeLanguage: true,
+        config: true,
         complexity: true,
+        isAutomatable: true,
         isDeleted: true,
         isPrivate: true,
+        relatedVersions: {
+            select: {
+                id: true,
+                labels: true,
+                toVersion: {
+                    select: {
+                        id: true,
+                        codeLanguage: true,
+                        config: true,
+                    },
+                },
+            },
+        },
+        resourceSubType: true,
         root: {
             select: {
                 id: true,
@@ -169,6 +130,7 @@ export const RunProcessSelect = {
                         isPrivate: true,
                     },
                 },
+                resourceType: true,
             },
         },
         simplicity: true,
@@ -177,241 +139,7 @@ export const RunProcessSelect = {
                 id: true,
                 language: true,
                 description: true,
-                name: true,
-            },
-        },
-    },
-    RoutineVersion: {
-        id: true,
-        apiVersion: {
-            select: {
-                callLink: true,
-                schemaLanguage: true,
-                schemaText: true,
-                id: true,
-                isDeleted: true,
-                isPrivate: true,
-                root: {
-                    select: {
-                        hasCompleteVersion: true,
-                        id: true,
-                        isDeleted: true,
-                        isPrivate: true,
-                        permissions: true,
-                        ownedByTeam: {
-                            select: {
-                                id: true,
-                                isPrivate: true,
-                            },
-                        },
-                        ownedByUser: {
-                            select: {
-                                id: true,
-                                isPrivate: true,
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        codeVersion: {
-            select: {
-                codeLanguage: true,
-                codeType: true,
-                content: true,
-                default: true,
-                id: true,
-                isDeleted: true,
-                isPrivate: true,
-                root: {
-                    select: {
-                        hasCompleteVersion: true,
-                        id: true,
-                        isDeleted: true,
-                        isPrivate: true,
-                        permissions: true,
-                        ownedByTeam: {
-                            select: {
-                                id: true,
-                                isPrivate: true,
-                            },
-                        },
-                        ownedByUser: {
-                            select: {
-                                id: true,
-                                isPrivate: true,
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        configCallData: true,
-        configFormInput: true,
-        configFormOutput: true,
-        complexity: true,
-        inputs: {
-            select: {
-                id: true,
-                index: true,
-                isRequired: true,
-                name: true,
-                standardVersion: {
-                    select: {
-                        id: true,
-                        default: true,
-                        isFile: true,
-                        standardType: true,
-                        props: true,
-                    },
-                },
-                translations: {
-                    select: {
-                        id: true,
-                        language: true,
-                        description: true,
-                        helpText: true,
-                    },
-                },
-            },
-        },
-        isDeleted: true,
-        isPrivate: true,
-        nodeLinks: {
-            select: {
-                id: true,
-                from: {
-                    select: {
-                        id: true,
-                    },
-                },
-                operation: true,
-                to: {
-                    select: {
-                        id: true,
-                    },
-                },
-                whens: {
-                    select: {
-                        condition: true,
-                        translations: {
-                            select: {
-                                id: true,
-                                language: true,
-                                description: true,
-                                name: true,
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        nodes: {
-            select: {
-                id: true,
-                nodeType: true,
-                runConditions: true,
-                end: {
-                    select: {
-                        wasSuccessful: true,
-                    },
-                },
-                loop: {
-                    select: {
-                        loops: true,
-                        maxLoops: true,
-                        operation: true,
-                        whiles: {
-                            select: {
-                                condition: true,
-                                translations: {
-                                    select: {
-                                        id: true,
-                                        language: true,
-                                        description: true,
-                                        name: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                routineList: {
-                    select: {
-                        isOrdered: true,
-                        isOptional: true,
-                        items: {
-                            select: {
-                                id: true,
-                                index: true,
-                                isOptional: true,
-                                routineVersion: {
-                                    select: {
-                                        id: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                translations: {
-                    select: {
-                        id: true,
-                        language: true,
-                        description: true,
-                        name: true,
-                    },
-                },
-            },
-        },
-        outputs: {
-            select: {
-                id: true,
-                index: true,
-                name: true,
-                standardVersion: {
-                    select: {
-                        id: true,
-                        default: true,
-                        isFile: true,
-                        standardType: true,
-                        props: true,
-                    },
-                },
-                translations: {
-                    select: {
-                        id: true,
-                        language: true,
-                        description: true,
-                        helpText: true,
-                    },
-                },
-            },
-        },
-        root: {
-            select: {
-                id: true,
-                ownedByTeam: {
-                    select: {
-                        id: true,
-                        isPrivate: true,
-                    },
-                },
-                ownedByUser: {
-                    select: {
-                        id: true,
-                        isPrivate: true,
-                    },
-                },
-            },
-        },
-        routineType: true,
-        simplicity: true,
-        translations: {
-            select: {
-                id: true,
-                language: true,
-                description: true,
+                details: true,
                 instructions: true,
                 name: true,
             },
@@ -475,7 +203,7 @@ const runStatusToTaskStatus: Record<RunStatus, TaskStatus> = {
 
 //TODO need to persist time spent and steps to next step
 export async function doRunRoutine(data: RunRoutinePayload) {
-    const { type: runType, routineVersionId, startedById, runFrom, runId, taskId, userData } = data;
+    const { resourceVersionId, startedById, runFrom, runId, taskId, userData } = data;
     // Collect info for tracking limits and costs
     // Total cost allowed for this routine. User credits should already have deducted the cost of previous steps.
     // const maxCredits = calculateMaxCredits(
@@ -494,8 +222,8 @@ export async function doRunRoutine(data: RunRoutinePayload) {
     // const maxSteps = limits?.maxSteps || Number.MAX_SAFE_INTEGER; // By default, runs should only be limited by credits and time
 
     // Other info needed up save run progress
-    let run: RunProject | RunRoutine | undefined = undefined;
-    let runnableObject: RoutineVersion | undefined = undefined;
+    let run: Run | undefined = undefined;
+    let runnableObject: ResourceVersion | undefined = undefined;
     let formData: object = {};
     let statusChangeReason: RunStatusChangeReason | undefined = undefined;
     let runStatus: RunStatus = RunStatus.InProgress;
@@ -557,7 +285,7 @@ export async function doRunRoutine(data: RunRoutinePayload) {
 
             // Emit socket event to update the UI
             const status = runStatusToTaskStatus[runStatus];
-            const taskSocketInfo = { run, runFrom, runId, runType, startedById, statusChangeReason, runStatus: status as unknown as RunStatus, taskId } as const;
+            const taskSocketInfo = { run, runFrom, runId, startedById, statusChangeReason, runStatus: status as unknown as RunStatus, taskId } as const;
             // emitSocketEvent("runTask", runId, taskSocketInfo);
 
             // Reduce user's credits
@@ -581,21 +309,21 @@ export async function doRunRoutine(data: RunRoutinePayload) {
 
     try {
         // Let the UI know that the task is Running
-        emitSocketEvent("runTask", runId, { runStatus: RunStatus.InProgress, runId, runType, startedById, taskId } as any);
+        SocketService.get().emitSocketEvent("runTask", runId, { runStatus: RunStatus.InProgress, runId, startedById, taskId } as any);
         // Get the routine and run, in a way that throws an error if they don't exist or the user doesn't have permission
         const req = buildReq(userData);
-        run = await readOneHelper<RunProject | RunRoutine>({
-            info: RunProcessSelect[runType],
+        run = await readOneHelper<Run>({
+            info: RunProcessSelect.Run,
             input: { id: runId },
-            objectType: runType,
+            objectType: "Run",
             req,
-        }) as RunProject | RunRoutine;
-        runnableObject = await readOneHelper<RoutineVersion>({
-            info: RunProcessSelect.RoutineVersion,
-            input: { id: routineVersionId },
-            objectType: "RoutineVersion",
+        }) as Run;
+        runnableObject = await readOneHelper<ResourceVersion>({
+            info: RunProcessSelect.ResourceVersion,
+            input: { id: resourceVersionId },
+            objectType: "ResourceVersion",
             req,
-        }) as RoutineVersion;
+        }) as ResourceVersion;
         // Parse configs and form data
         const config = RoutineVersionConfig.deserialize(runnableObject, logger, { useFallbacks: true });
         // Collect fieldName, description, and helpText for each input and output element
@@ -726,7 +454,6 @@ export async function doRunRoutine(data: RunRoutinePayload) {
 const DEFAULT_MODEL_HANDLING: RunBotConfig["modelHandling"] = "OnlyWhenMissing";
 const DEFAULT_PROMPT_HANDLING: RunBotConfig["promptHandling"] = "Combine";
 const DEFAULT_RESPONDING_BOT_HANDLING: RunBotConfig["respondingBotHandling"] = "OnlyWhenMissing";
-const DEFAULT_BOT_ID = SEEDED_IDS.User.Valyxa;
 
 /**
  * Accepted output formats for AI-generated input and output values.
@@ -774,7 +501,7 @@ class SubroutineBotHandler {
   \`\`\``;
 
     // The subroutine 
-    private subroutine: RoutineVersion;
+    private subroutine: ResourceVersion;
     // The config to use for the subroutine
     private subroutineBotConfig: ConfigCallDataGenerate;
     // The user's data
@@ -783,7 +510,7 @@ class SubroutineBotHandler {
     // Data required to call the LLM
     private botInfo: BotInfo | null = null;
 
-    constructor(runBotConfig: RunBotConfig, subroutine: RoutineVersion, userData: SessionUser) {
+    constructor(runBotConfig: RunBotConfig, subroutine: ResourceVersion, userData: SessionUser) {
         // Store properties
         this.subroutine = subroutine;
         this.userData = userData;
@@ -791,6 +518,29 @@ class SubroutineBotHandler {
         const subroutineConfig = RoutineVersionConfig.deserialize(subroutine, logger, { useFallbacks: true });
         // Combine with the run's bot config to build the final bot config
         this.subroutineBotConfig = this.buildBotConfig(runBotConfig, subroutineConfig.callDataGenerate?.schema ?? {});
+    }
+
+    /**
+     * Safely gets the `where` clause for the bot to use.
+     * 
+     * @param respondingBotInfo The bot info to use
+     * @returns The `where` clause for the bot to use
+     */
+    private getBotWhereClause(respondingBotInfo: ConfigCallDataGenerate["respondingBot"] | null | undefined): Prisma.userWhereUniqueInput {
+        let where: Prisma.userWhereUniqueInput;
+        if (!respondingBotInfo) {
+            return { publicId: SEEDED_PUBLIC_IDS.Valyxa };
+        }
+        if (respondingBotInfo.id) {
+            where = { id: BigInt(respondingBotInfo.id) };
+        } else if (respondingBotInfo.publicId) {
+            where = { publicId: respondingBotInfo.publicId };
+        } else if (respondingBotInfo.handle) {
+            where = { handle: respondingBotInfo.handle };
+        } else {
+            where = { publicId: SEEDED_PUBLIC_IDS.Valyxa };
+        }
+        return where;
     }
 
     /**
@@ -905,9 +655,9 @@ class SubroutineBotHandler {
         }
 
         // Find the desired bot to use
-        const botId = this.subroutineBotConfig.respondingBot ?? DEFAULT_BOT_ID;
+        const where = this.getBotWhereClause(this.subroutineBotConfig.respondingBot);
         const botData = await DbProvider.get().user.findUnique({
-            where: { id: botId },
+            where,
             select: {
                 id: true,
                 // Used to check if you have access to the bot if it's marked as private
@@ -923,12 +673,12 @@ class SubroutineBotHandler {
             },
         });
         if (!botData) {
-            throw new CustomError("0224", "NotFound", { botId });
+            throw new CustomError("0224", "NotFound", { where });
         }
         // Verify that the user has access to the bot
-        const canUseBot = botData.isPrivate === false || botData.invitedByUser?.id === this.userData.id;
+        const canUseBot = botData.isPrivate === false || botData.invitedByUser?.id.toString() === this.userData.id;
         if (!canUseBot) {
-            throw new CustomError("0226", "Unauthorized", { botId });
+            throw new CustomError("0226", "Unauthorized", { where });
         }
         const botSettings = BotSettingsConfig.deserialize(botData, logger).schema;
 
@@ -939,7 +689,7 @@ class SubroutineBotHandler {
 
         // Set the bot info
         this.botInfo = {
-            id: botId,
+            id: botData.id.toString(),
             maxCredits: maxCredits ? BigInt(maxCredits) : undefined,
             settings: botSettings,
         };
@@ -1323,41 +1073,26 @@ export class ServerRunLoader extends RunLoader {
     }
 
     public async fetchLocation(location: Location): Promise<LocationData | null> {
-        let object: ProjectVersion | RoutineVersion | null = null;
-        let subroutine: RoutineVersion | null = null;
+        let object: ResourceVersion | null = null;
+        let subroutine: ResourceVersion | null = null;
 
         // Fetch the main object by its __typename and objectId
         const req = buildReq(this.userData);
-        switch (location.__typename) {
-            case "ProjectVersion":
-                object = await readOneHelper({
-                    info: RunProcessSelect.ProjectVersion,
-                    input: { id: location.objectId },
-                    objectType: "ProjectVersion" as const,
-                    req,
-                }) as ProjectVersion;
-                break;
-            case "RoutineVersion":
-                object = await readOneHelper({
-                    info: RunProcessSelect.RoutineVersion,
-                    input: { id: location.objectId },
-                    objectType: "RoutineVersion" as const,
-                    req,
-                }) as RoutineVersion;
-                break;
-            default:
-                // You can return null or throw an error if you prefer
-                throw new Error(`Unknown __typename: ${location.__typename}`);
-        }
+        object = await readOneHelper({
+            info: RunProcessSelect.ResourceVersion,
+            input: { id: location.objectId },
+            objectType: "ResourceVersion" as const,
+            req,
+        }) as ResourceVersion;
 
         // If there's a subroutineId, fetch that as well
         if (location.subroutineId) {
             subroutine = await readOneHelper({
-                info: RunProcessSelect.RoutineVersion,
+                info: RunProcessSelect.ResourceVersion,
                 input: { id: location.subroutineId },
-                objectType: "RoutineVersion" as const,
+                objectType: "ResourceVersion" as const,
                 req,
-            }) as RoutineVersion;
+            }) as ResourceVersion;
         }
 
         // If nothing was found for the main object, return null
@@ -1392,35 +1127,35 @@ export class ServerRunNotifier extends RunNotifier {
      * @returns "push" if the run has an active websocket connection, "websocket" otherwise
      */
     private getNotificationType(runId: string): "push" | "websocket" {
-        return roomHasOpenConnections(runId) ? "websocket" : "push";
+        return SocketService.get().roomHasOpenConnections(runId) ? "websocket" : "push";
     }
 
-    public emitProgressUpdate(runId: string, runType: RunType, payload: RunTaskInfo): void {
+    public emitProgressUpdate(runId: string, payload: RunTaskInfo): void {
         const notificationType = this.getNotificationType(runId);
         // Only needed if run has active websocket connection
         if (notificationType === "websocket") {
-            emitSocketEvent("runTask", runId, payload);
+            SocketService.get().emitSocketEvent("runTask", runId, payload);
         }
     }
 
-    public sendDecisionRequest(runId: string, runType: RunType, decision: DeferredDecisionData): void {
+    public sendDecisionRequest(runId: string, decision: DeferredDecisionData): void {
         const notificationType = this.getNotificationType(runId);
         // Send through websocket if run has active connection
         if (notificationType === "websocket") {
-            emitSocketEvent("runTaskDecisionRequest", runId, decision);
+            SocketService.get().emitSocketEvent("runTaskDecisionRequest", runId, decision);
         }
         // Otherwise, send through push notification
         else {
-            Notify(this.userData.languages).pushNewDecisionRequest(decision, runType, runId).toUser(this.userData.id);
+            Notify(this.userData.languages).pushNewDecisionRequest(decision, runId).toUser(this.userData.id);
         }
     }
 
-    public sendMissingInputsRequest(runId: string, runType: RunType, branch: BranchProgress): void {
+    public sendMissingInputsRequest(runId: string, branch: BranchProgress): void {
         const notificationType = this.getNotificationType(runId);
         //TODO
     }
 
-    public sendManualExecutionConfirmationRequest(runId: string, runType: RunType, branch: BranchProgress): void {
+    public sendManualExecutionConfirmationRequest(runId: string, branch: BranchProgress): void {
         const notificationType = this.getNotificationType(runId);
         //TODO
     }
@@ -1435,58 +1170,36 @@ class ServerRunPersistence extends RunPersistence {
         this.userData = userData;
     }
 
-    async createRunProject(input: RunProjectCreateInput): Promise<RunProject | null> {
+    async postRun(input: RunCreateInput): Promise<Run | null> {
         const req = buildReq(this.userData);
         const result = await createOneHelper({
-            info: RunProcessSelect.RunProject,
+            info: RunProcessSelect.Run,
             input,
-            objectType: "RunProject",
+            objectType: "Run",
             req,
-        }) as RunProject | null;
+        }) as Run | null;
         return result;
     }
 
-    async createRunRoutine(input: RunRoutineCreateInput): Promise<RunRoutine | null> {
-        const req = buildReq(this.userData);
-        const result = await createOneHelper({
-            info: RunProcessSelect.RunRoutine,
-            input,
-            objectType: "RunRoutine",
-            req,
-        }) as RunRoutine | null;
-        return result;
-    }
-
-    async updateRunProject(input: RunProjectUpdateInput): Promise<RunProject | null> {
+    async putRun(input: RunUpdateInput): Promise<Run | null> {
         const req = buildReq(this.userData);
         const result = await updateOneHelper({
-            info: RunProcessSelect.RunProject,
+            info: RunProcessSelect.Run,
             input,
-            objectType: "RunProject",
+            objectType: "Run",
             req,
-        }) as RunProject | null;
+        }) as Run | null;
         return result;
     }
 
-    async updateRunRoutine(input: RunRoutineUpdateInput): Promise<RunRoutine | null> {
-        const req = buildReq(this.userData);
-        const result = await updateOneHelper({
-            info: RunProcessSelect.RunRoutine,
-            input,
-            objectType: "RunRoutine",
-            req,
-        }) as RunRoutine | null;
-        return result;
-    }
-
-    async fetchRunProgress(run: RunIdentifier): Promise<RunProject | RunRoutine | null> {
+    async fetchRun(run: RunIdentifier): Promise<Run | null> {
         const req = buildReq(this.userData);
         const storedData = await readOneHelper({
-            info: RunProcessSelect[run.type],
+            info: RunProcessSelect.Run,
             input: { id: run.runId },
-            objectType: run.type,
+            objectType: "Run",
             req,
-        }) as RunProject | RunRoutine | null;
+        }) as Run | null;
         return storedData ?? null;
     }
 }
@@ -1523,7 +1236,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
      * @param runConfig The run config
      * @returns The current subroutine data
      */
-    private async getCurrentSubroutineData(subroutineInstanceId: string, routine: RoutineVersion, runConfig: RunConfig): Promise<CurrentSubroutineData> {
+    private async getCurrentSubroutineData(subroutineInstanceId: string, routine: ResourceVersion, runConfig: RunConfig): Promise<CurrentSubroutineData> {
         // If we already have the data, return it
         if (this.currentSubroutineData && this.currentSubroutineData.subroutineInstanceId === subroutineInstanceId) {
             return this.currentSubroutineData;
@@ -1540,33 +1253,33 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         return this.currentSubroutineData;
     }
 
-    private async runAction(routineVersion: RoutineVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
+    private async runAction(routine: ResourceVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
         const cost = BigInt(0).toString();
 
         // Deserialize the routine config
-        const routineVersionConfig = RoutineVersionConfig.deserialize(routineVersion, logger);
-        if (!routineVersionConfig.callDataAction) {
-            logger.error("No call data action found", { trace: "0647", routineVersionId: routineVersion.id });
+        const routineConfig = RoutineVersionConfig.deserialize(routine, logger);
+        if (!routineConfig.callDataAction) {
+            logger.error("No call data action found", { trace: "0647", resourceVersionId: routine.id });
             return { cost };
         }
 
         // Get the input
-        const taskInput = routineVersionConfig.callDataAction.buildTaskInput(ioMapping, this.userData.languages);
+        const taskInput = routineConfig.callDataAction.buildTaskInput(ioMapping, this.userData.languages);
 
         // Get the action handler
-        const taskExec = await generateTaskExec(routineVersionConfig.callDataAction.schema.task as Exclude<LlmTask, "Start">, this.userData.languages[0], this.userData);
+        const taskExec = await generateTaskExec(routineConfig.callDataAction.schema.task as Exclude<LlmTask, "Start">, this.userData.languages[0], this.userData);
 
         // Execute the action
         const result = await taskExec(taskInput as LlmTaskData);
 
         // Parse the result
-        routineVersionConfig.callDataAction.parseActionResult(ioMapping, result);
+        routineConfig.callDataAction.parseActionResult(ioMapping, result);
 
         // Return the cost (which shouldn't have changed with the current implementation)
         return { cost };
     }
 
-    private async runApi(routineVersion: RoutineVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
+    private async runApi(routine: ResourceVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
         const cost = BigInt(0).toString();
 
         //TODO
@@ -1575,41 +1288,41 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         };
     }
 
-    private async runCode(routineVersion: RoutineVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
+    private async runCode(routine: ResourceVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
         const cost = BigInt(0).toString();
 
-        const codeVersion = routineVersion.codeVersion;
-        if (!codeVersion) {
-            logger.error("No code version found", { trace: "0626", routineVersionId: routineVersion.id });
+        const code = routine.relatedVersions?.find(v => v.toVersion?.resourceSubType.startsWith("Code"))?.toVersion;
+        if (!code) {
+            logger.error("No code version found", { trace: "0626", resourceVersionId: routine.id });
             return { cost };
         }
 
         // Validate permissions to run code
         const hasPermissions = await permissionsCheck(
-            { [codeVersion.id]: { ...codeVersion, __typename: "CodeVersion" } },
-            { ["Read"]: [codeVersion.id] },
+            { [code.id]: { ...code, __typename: "ResourceVersion" } },
+            { ["Read"]: [code.id] },
             {},
             this.userData,
             true,
         );
         if (!hasPermissions) {
-            logger.error("User does not have permissions to run code", { trace: "0628", codeVersionId: codeVersion.id, userId: this.userData.id });
+            logger.error("User does not have permissions to run code", { trace: "0628", resourceVersionId: routine.id, userId: this.userData.id });
             return { cost };
         }
 
         // Deserialize the routine and code configs
-        const routineVersionConfig = RoutineVersionConfig.deserialize(routineVersion, logger);
-        const codeVersionConfig = CodeVersionConfig.deserialize(codeVersion, logger);
-        if (!routineVersionConfig.callDataCode) {
-            logger.error("No call data code found", { trace: "0633", routineVersionId: routineVersion.id });
+        const routineConfig = RoutineVersionConfig.deserialize(routine, logger);
+        const codeConfig = CodeVersionConfig.deserialize(code, logger);
+        if (!routineConfig.callDataCode) {
+            logger.error("No call data code found", { trace: "0633", resourceVersionId: routine.id });
             return { cost };
         }
 
         // Create the payload for running the code
-        const { input, shouldSpreadInput } = routineVersionConfig.callDataCode.buildSandboxInput(ioMapping, codeVersionConfig.inputConfig) ?? { input: undefined, shouldSpreadInput: false };
+        const { input, shouldSpreadInput } = routineConfig.callDataCode.buildSandboxInput(ioMapping, codeConfig.inputConfig) ?? { input: undefined, shouldSpreadInput: false };
         const payload: RunUserCodeInput = {
-            code: String.raw`${codeVersion.content}`,
-            codeLanguage: codeVersion.codeLanguage as CodeLanguage,
+            code: String.raw`${codeConfig.content}`,
+            codeLanguage: code.codeLanguage as CodeLanguage,
             input,
             shouldSpreadInput,
         };
@@ -1619,13 +1332,13 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         const sandboxOutput = await runUserCode(payload);
 
         // Parse the output (updates ioMapping)
-        routineVersionConfig.callDataCode.parseSandboxOutput(sandboxOutput, ioMapping, codeVersionConfig.outputConfig);
+        routineConfig.callDataCode.parseSandboxOutput(sandboxOutput, ioMapping, codeConfig.outputConfig);
 
         // Return the cost (which shouldn't have changed with the current implementation)
         return { cost };
     }
 
-    private async runData(routineVersion: RoutineVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
+    private async runData(routine: ResourceVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
         const cost = BigInt(0).toString();
 
         //TODO
@@ -1634,7 +1347,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         };
     }
 
-    private async runInformational(routineVersion: RoutineVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
+    private async runInformational(routine: ResourceVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
         const cost = BigInt(0).toString();
 
         //TODO
@@ -1643,7 +1356,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         };
     }
 
-    private async runSmartContract(routineVersion: RoutineVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
+    private async runSmartContract(routine: ResourceVersion, ioMapping: SubroutineIOMapping): Promise<ActionResult> {
         const cost = BigInt(0).toString();
 
         //TODO
@@ -1653,7 +1366,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
     }
 
     //TODO some inputs will have to be found through search instead of being generated
-    async generateMissingInputs(subroutineInstanceId: string, routine: RoutineVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<Omit<RunSubroutineResult, "updatedBranchStatus">> {
+    async generateMissingInputs(subroutineInstanceId: string, routine: ResourceVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<Omit<RunSubroutineResult, "updatedBranchStatus">> {
         const { botHandler } = await this.getCurrentSubroutineData(subroutineInstanceId, routine, runConfig);
         // Generate missing inputs
         const cost = await botHandler.generateInputs(ioMapping);
@@ -1665,7 +1378,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         };
     }
 
-    async runSubroutine(subroutineInstanceId: string, routine: RoutineVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<RunSubroutineResult> {
+    async runSubroutine(subroutineInstanceId: string, routine: ResourceVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<RunSubroutineResult> {
         const result: RunSubroutineResult = {
             cost: BigInt(0).toString(),
             inputs: ioMapping.inputs,
@@ -1677,7 +1390,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
 
         let ioCost = BigInt(0).toString();
         // For Generate subroutines, we can generate the missing inputs and outputs at the same time
-        if (routine.routineType === RoutineType.Generate) {
+        if (routine.resourceSubType === ResourceSubType.RoutineGenerate) {
             ioCost = await botHandler.generateInputsAndOutputs(ioMapping);
         }
         // For other subroutines types, generate missing inputs
@@ -1690,39 +1403,39 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         let actionResult: ActionResult;
         // Run the subroutine based on its type
         // NOTE: We don't support multi-step subroutines here
-        switch (routine.routineType) {
-            case "Action": {
+        switch (routine.resourceSubType) {
+            case ResourceSubType.RoutineAction: {
                 actionResult = await this.runAction(routine, ioMapping);
                 break;
             }
-            case "Api": {
+            case ResourceSubType.RoutineApi: {
                 actionResult = await this.runApi(routine, ioMapping);
                 break;
             }
-            case "Code": {
+            case ResourceSubType.RoutineCode: {
                 actionResult = await this.runCode(routine, ioMapping);
                 break;
             }
-            case "Data": {
+            case ResourceSubType.RoutineData: {
                 actionResult = await this.runData(routine, ioMapping);
                 break;
             }
-            case "Generate":
+            case ResourceSubType.RoutineGenerate:
                 // Do nothing. This is handled above
                 actionResult = {
                     cost: BigInt(0).toString(),
                 };
                 break;
-            case "Informational": {
+            case ResourceSubType.RoutineInformational: {
                 actionResult = await this.runInformational(routine, ioMapping);
                 break;
             }
-            case "SmartContract": {
+            case ResourceSubType.RoutineSmartContract: {
                 actionResult = await this.runSmartContract(routine, ioMapping);
                 break;
             }
             default:
-                throw new Error(`Unknown or unsupported routine type: ${routine.routineType}`);
+                throw new Error(`Unknown or unsupported routine type: ${routine.resourceSubType}`);
         }
         // Add the action cost to the total cost
         result.cost = (BigInt(actionResult.cost) + BigInt(result.cost)).toString();
@@ -1733,12 +1446,12 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         return result;
     }
 
-    async estimateCost(subroutineInstanceId: string, routine: RoutineVersion, runConfig: RunConfig): Promise<string> {
+    async estimateCost(subroutineInstanceId: string, routine: ResourceVersion, runConfig: RunConfig): Promise<string> {
         const { botHandler } = await this.getCurrentSubroutineData(subroutineInstanceId, routine, runConfig);
 
         let ioCost = BigInt(0).toString();
         // Estimate the cost to generate the inputs and outputs
-        if (routine.routineType === RoutineType.Generate) {
+        if (routine.resourceSubType === ResourceSubType.RoutineGenerate) {
             ioCost = await botHandler.estimateInputsAndOutputsCost(routine.inputsCount ?? routine.inputs.length, routine.outputsCount ?? routine.outputs.length);
         } else {
             ioCost = await botHandler.estimateInputsCost(routine.inputsCount ?? routine.inputs.length);
@@ -1747,11 +1460,11 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         const actionCost = BigInt(0).toString();
         // Estimate the cost to perform the subroutine action
         // Only some subroutine types have a cost associated with them
-        switch (routine.routineType) {
-            case "Api":
+        switch (routine.resourceSubType) {
+            case ResourceSubType.RoutineApi:
                 //TODO
                 break;
-            case "SmartContract":
+            case ResourceSubType.RoutineSmartContract:
                 //TODO
                 break;
             // NOTE: "Generate" cost is already estimated above
@@ -1866,7 +1579,7 @@ export async function runProcess({ data }: Job<RunRequestPayload>): Promise<Succ
         return { __typename: "Success" as const, success: true };
     }
 
-    const { config, isNewRun, runId, type: runType, userData } = data;
+    const { config, isNewRun, runId, userData } = data;
 
     // Set up the decision strategy based on the provided config (or a default)
     const pathSelectionStrategy = config?.decisionConfig?.pathSelection ?? PathSelectionStrategy.AutoPickFirst;
@@ -1950,7 +1663,7 @@ export async function runProcess({ data }: Job<RunRequestPayload>): Promise<Succ
         const startLocations = []; //TODO
         await stateMachine.initNewRun(startLocations, runConfig, userData);
     } else {
-        const runInfo: RunIdentifier = { type: runType, runId };
+        const runInfo: RunIdentifier = { runId };
         await stateMachine.initExistingRun(runInfo, userData);
     }
 

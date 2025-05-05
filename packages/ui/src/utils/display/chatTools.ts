@@ -1,4 +1,4 @@
-import { AITaskInfo, LlmTask, MINUTES_10_MS, uuid } from "@local/shared";
+import { AITaskInfo, LlmTask, MINUTES_10_MS, nanoid } from "@local/shared";
 import { getExistingAIConfig } from "../../api/ai.js";
 import { SetLocation } from "../../route/types.js";
 
@@ -43,7 +43,7 @@ export function taskToTaskInfo(task: LlmTask): AITaskInfo {
         lastUpdated: new Date().toISOString(),
         status: "Suggested",
         task,
-        taskId: `task-${uuid()}`,
+        taskId: `task-${nanoid()}`,
         properties: null,
     };
 }

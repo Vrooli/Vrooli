@@ -3,17 +3,19 @@ export const chat_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "openToAnyoneWithInvite": true,
             "participants": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "user": {
                     "id": true,
-                    "created_at": true,
-                    "updated_at": true,
+                    "publicId": true,
+                    "createdAt": true,
+                    "updatedAt": true,
                     "bannerImage": true,
                     "handle": true,
                     "isBot": true,
@@ -36,114 +38,6 @@ export const chat_findMany = {
                     }
                 }
             },
-            "restrictedToRoles": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "name": true,
-                "permissions": true,
-                "membersCount": true,
-                "team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "members": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isAdmin": true,
-                    "permissions": true,
-                    "roles": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "name": true,
-                        "permissions": true,
-                        "membersCount": true,
-                        "team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        }
-                    },
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    },
-                    "user": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true,
-                        "bookmarks": true,
-                        "reportsReceivedCount": true,
-                        "you": {
-                            "canDelete": true,
-                            "canReport": true,
-                            "canUpdate": true,
-                            "isBookmarked": true,
-                            "isViewed": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "bio": true
-                        }
-                    }
-                }
-            },
             "team": {
                 "id": true,
                 "bannerImage": true,
@@ -160,8 +54,8 @@ export const chat_findMany = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
                     }
@@ -173,17 +67,6 @@ export const chat_findMany = {
                 "canDelete": true,
                 "canInvite": true,
                 "canUpdate": true
-            },
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
             },
             "translations": {
                 "id": true,
@@ -197,5 +80,5 @@ export const chat_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1282532011"
+    "__cacheKey": "932711821"
 };

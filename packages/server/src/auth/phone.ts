@@ -19,7 +19,7 @@ export function generatePhoneVerificationCode(length = DEFAULT_PHONE_VERIFICATIO
 const phoneSelect = {
     id: true,
     lastVerificationCodeRequestAttempt: true,
-    verified: true,
+    verifiedAt: true,
     user: {
         select: {
             id: true,
@@ -76,7 +76,7 @@ export async function setupPhoneVerificationCode(
     sendSmsVerification(phoneNumber, verificationCode);
 }
 
-// TODO 2: Since credits are issued once per user AND once per phone number, we need to make sure that 1) the phone number is stored in a standard format 2) we disconnect phone numbers when removing them from accounts (and set verification stuff to false/null, EXCEPT for lastVerifiedTime), rather than deleting them
+// TODO 2: Since credits are issued once per user AND once per phone number, we need to make sure that 1) the phone number is stored in a standard format 2) we disconnect phone numbers when removing them from accounts (and set verification stuff to false/null, EXCEPT for verifiedAt), rather than deleting them
 /**
  * Validates phone number verification code and update user's account status
  * @param phoneNumber Phone number string
@@ -95,14 +95,13 @@ export async function validatePhoneVerificationCode(
         select: {
             id: true,
             userId: true,
-            verified: true,
             verificationCode: true,
-            lastVerifiedTime: true,
+            verifiedAt: true,
             lastVerificationCodeRequestAttempt: true,
         },
     });
     // Note if phone has been verified before, so we can determine if the user is eligible for free credits
-    const hasPhoneBeenVerifiedBefore = phone?.lastVerifiedTime !== null;
+    const hasPhoneBeenVerifiedBefore = phone?.verifiedAt !== null;
     if (!phone)
         throw new CustomError("0348", "PhoneNotFound");
     // Check that userId matches phone's userId
@@ -126,8 +125,7 @@ export async function validatePhoneVerificationCode(
     await DbProvider.get().phone.update({
         where: { id: phone.id },
         data: {
-            verified: true,
-            lastVerifiedTime: new Date().toISOString(),
+            verifiedAt: new Date().toISOString(),
             verificationCode: null,
             lastVerificationCodeRequestAttempt: null,
         },
@@ -140,13 +138,13 @@ export async function validatePhoneVerificationCode(
                 select: {
                     id: true,
                     credits: true,
-                    hasReceivedFreeTrial: true,
+                    receivedFreeTrialAt: true,
                 },
             },
         },
     });
     if (userData) {
-        const hasReceivedFreeTrial = userData.premium?.hasReceivedFreeTrial === true;
+        const hasReceivedFreeTrial = userData.premium?.receivedFreeTrialAt !== null;
         if (!hasReceivedFreeTrial && !hasPhoneBeenVerifiedBefore) {
             await DbProvider.get().user.update({
                 where: { id: userId },
@@ -154,11 +152,11 @@ export async function validatePhoneVerificationCode(
                     premium: {
                         upsert: {
                             create: {
-                                hasReceivedFreeTrial: true,
+                                receivedFreeTrialAt: new Date(),
                                 credits: API_CREDITS_FREE,
                             },
                             update: {
-                                hasReceivedFreeTrial: true,
+                                receivedFreeTrialAt: new Date(),
                                 credits: (userData.premium?.credits ?? BigInt(0)) + API_CREDITS_FREE,
                             },
                         },

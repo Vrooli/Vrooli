@@ -4,7 +4,7 @@ import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { CompletionBar } from "../../CompletionBar/CompletionBar.js";

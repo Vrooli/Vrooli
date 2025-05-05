@@ -1,8 +1,9 @@
-import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, SEEDED_IDS, uuid } from "@local/shared";
+import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -14,6 +15,7 @@ import { meeting_updateOne } from "../generated/meeting_updateOne.js";
 import { meeting } from "./meeting.js";
 
 // Test users and meeting IDs
+let adminId: string;
 const user1Id = uuid();
 const user2Id = uuid();
 const meeting1Id = uuid();
@@ -38,27 +40,22 @@ describe("EndpointsMeeting", () => {
         // Create two test users
         await DbProvider.get().user.create({
             data: {
-                id: user1Id, name: "Test User 1", handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+                ...defaultPublicUserData(),
+                id: user1Id,
+                name: "Test User 1",
             },
         });
         await DbProvider.get().user.create({
             data: {
-                id: user2Id, name: "Test User 2", handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
+                ...defaultPublicUserData(),
+                id: user2Id,
+                name: "Test User 2",
             },
         });
 
         // Ensure admin user exists for update tests
-        await DbProvider.get().user.upsert({
-            where: { id: SEEDED_IDS.User.Admin },
-            update: {},
-            create: {
-                id: SEEDED_IDS.User.Admin, name: "Admin User", handle: "admin", status: "Unlocked", isBot: false, isBotDepictingPerson: false, isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-            },
-        });
-
+        const admin = await seedMockAdminUser();
+        adminId = admin.id.toString();
         // Create two teams for meeting ownership
         team1 = await DbProvider.get().team.create({ data: { permissions: "{}" } });
         team2 = await DbProvider.get().team.create({ data: { permissions: "{}" } });
@@ -79,7 +76,7 @@ describe("EndpointsMeeting", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns meeting by id for any authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: FindByIdInput = { id: meeting1Id };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -96,7 +93,7 @@ describe("EndpointsMeeting", () => {
             });
 
             it("returns meeting by id with API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -111,34 +108,43 @@ describe("EndpointsMeeting", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns meetings without filters for any authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: MeetingSearchInput = { take: 10 };
+                const expectedIds = [
+                    meeting1Id,
+                    meeting2Id,
+                ];
                 const result = await meeting.findMany({ input }, { req, res }, meeting_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
-                const ids = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(ids).to.deep.equal([meeting1Id, meeting2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("returns meetings without filters for not authenticated user", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: MeetingSearchInput = { take: 10 };
+                const expectedIds = [
+                    meeting1Id,
+                    meeting2Id,
+                ];
                 const result = await meeting.findMany({ input }, { req, res }, meeting_findMany);
                 expect(result).to.not.be.null;
-                const ids = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(ids).to.deep.equal([meeting1Id, meeting2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
 
             it("returns meetings without filters for API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: MeetingSearchInput = { take: 10 };
+                const expectedIds = [
+                    meeting1Id,
+                    meeting2Id,
+                ];
                 const result = await meeting.findMany({ input }, { req, res }, meeting_findMany);
                 expect(result).to.not.be.null;
-                const ids = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(ids).to.deep.equal([meeting1Id, meeting2Id].sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
     });
@@ -146,7 +152,7 @@ describe("EndpointsMeeting", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a meeting for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const newMeetingId = uuid();
                 const input: MeetingCreateInput = { id: newMeetingId, teamConnect: team1.id };
                 const result = await meeting.createOne({ input }, { req, res }, meeting_createOne);
@@ -156,7 +162,7 @@ describe("EndpointsMeeting", () => {
             });
 
             it("API key with write permissions can create meeting", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -184,7 +190,7 @@ describe("EndpointsMeeting", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("allows admin to update a meeting", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
+                const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: MeetingUpdateInput = { id: meeting1Id, openToAnyoneWithInvite: false };
                 const result = await meeting.updateOne({ input }, { req, res }, meeting_updateOne);
@@ -195,7 +201,7 @@ describe("EndpointsMeeting", () => {
 
         describe("invalid", () => {
             it("denies update for non-admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: MeetingUpdateInput = { id: meeting1Id, openToAnyoneWithInvite: false };
                 try {
@@ -214,7 +220,7 @@ describe("EndpointsMeeting", () => {
             });
 
             it("throws when updating non-existent meeting as admin", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
+                const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: MeetingUpdateInput = { id: uuid(), openToAnyoneWithInvite: true };
                 try {

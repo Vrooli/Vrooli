@@ -30,7 +30,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => ({
-                id: data.id,
+                id: BigInt(data.id),
                 actionSuggested: data.actionSuggested,
                 details: noNull(data.details),
                 language: noNull(data.language),

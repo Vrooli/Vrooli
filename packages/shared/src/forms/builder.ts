@@ -1,8 +1,8 @@
 import * as Yup from "yup";
-import { RoutineType, RunRoutine } from "../api/types.js";
+import { ResourceSubTypeRoutine, RunRoutine } from "../api/types.js";
 import { InputType } from "../consts/model.js";
-import { uuid } from "../id/uuid.js";
-import { RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigFormOutputMap } from "../run/configs/routine.js";
+import { nanoid } from "../id/publicId.js";
+import { RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigFormOutputMap } from "../shape/configs/routine.js";
 import { isObject } from "../utils/objects.js";
 import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormElement, FormInputBase, FormInputType, FormSchema, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField, YupType } from "./types.js";
 
@@ -214,7 +214,7 @@ export class FormBuilder {
      */
     static generateInitialValuesFromRoutineConfig(
         config: RoutineVersionConfig,
-        routineType: RoutineType,
+        routineType: ResourceSubTypeRoutine,
         run?: Pick<RunRoutine, "io">,
     ): Record<string, never> {
         const formInput = config.formInput?.schema ?? defaultConfigFormInputMap[routineType]().schema;
@@ -356,7 +356,7 @@ export class FormBuilder {
      */
     static generateYupSchemaFromRoutineConfig(
         config: RoutineVersionConfig,
-        routineType: RoutineType,
+        routineType: ResourceSubTypeRoutine,
     ) {
         // Use the routine's formInput and formOutput schema, falling back to defaults if needed
         const formInput = config.formInput?.schema ?? defaultConfigFormInputMap[routineType]().schema;
@@ -425,7 +425,7 @@ export function createFormInput({
         type,
         props: healFormInputPropsMap[type](props),
         fieldName: fieldName ?? "",
-        id: id ?? uuid(),
+        id: id ?? nanoid(),
         label: label ?? "",
         yup: yup as YupField,
         ...rest,

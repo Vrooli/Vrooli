@@ -9,7 +9,7 @@ import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { CenteredContentPage, FormContainer, pagePaddingBottom } from "../../styles.js";

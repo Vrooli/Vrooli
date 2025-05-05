@@ -44,7 +44,6 @@ export function dataConverterInitialValues(
         codeLanguage: CodeLanguage.Haskell,
         codeType: CodeType.DataConvert,
         content: "",
-        directoryListings: [],
         isComplete: false,
         isPrivate: false,
         resourceList: {

@@ -12,8 +12,8 @@ export const memberInviteYou: ApiPartial<MemberInviteYou> = {
 export const memberInvite: ApiPartial<MemberInvite> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
         message: true,
         status: true,
         willBeAdmin: true,

@@ -10,451 +10,208 @@ datasource db {
 }
 
 model award {
-    id                       String        @id @default(uuid()) @db.Uuid
-    created_at               DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at               DateTime      @default(now()) @db.Timestamptz(6)
-    timeCurrentTierCompleted DateTime?     @db.Timestamptz(6)
-    category                 AwardCategory
-    progress                 Int           @default(0)
-    userId                   String        @db.Uuid
-    user                     user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id              BigInt    @id @db.BigInt
+    createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+    tierCompletedAt DateTime? @db.Timestamptz(6)
+    category        String    @db.VarChar(128)
+    progress        Int       @default(0)
+    userId          BigInt    @db.BigInt
+    user            user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, category])
-}
-
-model api {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    isDeleted          Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    createdBy          user?                       @relation("api_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
-    ownedByTeam        team?                       @relation("api_ownedByTeam", fields: [ownedByTeamId], references: [id])
-    ownedByUser        user?                       @relation("api_ownedByUser", fields: [ownedByUserId], references: [id])
-    parent             api_version?                @relation("api_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    tags               api_tags[]
-    issues             issue[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_api")
-    reactions          reaction[]                  @relation("reaction_api")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_api")
-    viewedBy           view[]                      @relation("view_api")
-    pullRequests       pull_request[]
-    versions           api_version[]
-    labels             api_labels[]
-    stats              stats_api[]
-    transfers          transfer[]                  @relation("transfer_api")
-    subscriptions      notification_subscription[]
-}
-
-model api_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   api    @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "api_labels_labelledid_labelid_unique")
-}
-
-model api_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
-    tagTag   String @db.VarChar(128)
-    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   api    @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "api_tags_taggedid_tagTag_unique")
-}
-
-model api_version {
-    id                      String                      @id @default(uuid()) @db.Uuid
-    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    completedAt             DateTime?                   @db.Timestamptz(6)
-    callLink                String                      @unique @db.VarChar(1024)
-    documentationLink       String?                     @db.VarChar(1024)
-    schemaLanguage          String?                     @db.VarChar(128)
-    schemaText              String?                     @db.VarChar(16384)
-    isComplete              Boolean                     @default(false)
-    isDeleted               Boolean                     @default(false)
-    isLatest                Boolean                     @default(false)
-    isLatestPublic          Boolean                     @default(false)
-    isPrivate               Boolean                     @default(false)
-    rootId                  String                      @db.Uuid
-    resourceListId          String?                     @unique @db.Uuid
-    versionIndex            Int                         @default(0)
-    versionLabel            String                      @default("1.0.0") @db.VarChar(16)
-    versionNotes            String?                     @db.VarChar(4096)
-    pullRequestId           String?                     @unique @db.Uuid
-    calledByRoutineVersions routine_version[]
-    comments                comment[]
-    reports                 report[]
-    root                    api                         @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    forks                   api[]                       @relation("api_version_fork")
-    intendToPullRequest     Boolean                     @default(false)
-    resourceList            resource_list?              @relation("resource_list_api_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    pullRequest             pull_request?               @relation("pull_request_from_api_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    translations            api_version_translation[]
-    directoryListings       project_version_directory[]
-
-    @@unique([rootId, versionIndex], name: "api_version_rootId_versionIndex_unique")
-}
-
-model api_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    name                 String                      @db.VarChar(128)
-    summary              String?                     @db.VarChar(1024)
-    details              String?                     @db.VarChar(8192)
-    language             String                      @db.VarChar(3)
-    apiVersionId         String                      @db.Uuid
-    apiVersion           api_version                 @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    @@unique([userId, category], name: "award_userId_category_unique")
+    @@index([userId], name: "idx_award_userId")
 }
 
 model api_key {
-    id          String    @id @default(uuid()) @db.Uuid
-    created_at  DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+    id          BigInt    @id @db.BigInt
+    createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
     creditsUsed BigInt    @default(0)
     disabledAt  DateTime? @db.Timestamptz(6)
     key         String    @unique @db.VarChar(255)
     limitHard   BigInt    @default(25000000000)
     limitSoft   BigInt?   @default(25000000000)
     name        String    @db.VarChar(128)
-    permissions String    @db.VarChar(4096)
+    permissions Json?     @default("{}")
     stopAtLimit Boolean   @default(true)
-    teamId      String?   @db.Uuid
-    userId      String?   @db.Uuid
+    teamId      BigInt?   @db.BigInt
+    userId      BigInt?   @db.BigInt
     team        team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user        user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId], name: "idx_api_key_userId")
+    @@index([teamId], name: "idx_api_key_teamId")
 }
 
 model api_key_external {
-    id         String    @id @default(uuid()) @db.Uuid
-    created_at DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at DateTime  @default(now()) @db.Timestamptz(6)
+    id         BigInt    @id @db.BigInt
+    createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
     key        String    @db.VarChar(255)
     disabledAt DateTime? @db.Timestamptz(6)
     name       String    @db.VarChar(128)
     service    String    @db.VarChar(128)
-    teamId     String?   @db.Uuid
-    userId     String?   @db.Uuid
+    teamId     BigInt?   @db.BigInt
+    userId     BigInt?   @db.BigInt
     team       team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user       user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, service, name], name: "api_key_external_userId_service_name_unique")
+    @@index([userId], name: "idx_api_key_external_userId")
+    @@index([teamId], name: "idx_api_key_external_teamId")
 }
 
 model bookmark {
-    id         String         @id @default(uuid()) @db.Uuid
-    created_at DateTime       @default(now()) @db.Timestamptz(6)
-    updated_at DateTime       @default(now()) @db.Timestamptz(6)
-    listId     String?        @db.Uuid
-    apiId      String?        @db.Uuid
-    codeId     String?        @db.Uuid
-    commentId  String?        @db.Uuid
-    issueId    String?        @db.Uuid
-    noteId     String?        @db.Uuid
-    projectId  String?        @db.Uuid
-    routineId  String?        @db.Uuid
-    standardId String?        @db.Uuid
-    tagId      String?        @db.Uuid
-    teamId     String?        @db.Uuid
-    userId     String?        @db.Uuid
+    id         BigInt         @id @db.BigInt
+    createdAt  DateTime       @default(now()) @db.Timestamptz(6)
+    updatedAt  DateTime       @updatedAt @db.Timestamptz(6)
+    listId     BigInt?        @db.BigInt
+    resourceId BigInt?        @db.BigInt
+    commentId  BigInt?        @db.BigInt
+    issueId    BigInt?        @db.BigInt
+    tagId      BigInt?        @db.BigInt
+    teamId     BigInt?        @db.BigInt
+    userId     BigInt?        @db.BigInt
     list       bookmark_list? @relation("bookmark_list", fields: [listId], references: [id], onDelete: Cascade)
-    api        api?           @relation("bookmark_api", fields: [apiId], references: [id], onDelete: Cascade)
-    code       code?          @relation("bookmark_code", fields: [codeId], references: [id], onDelete: Cascade)
+    resource   resource?      @relation("bookmark_resource", fields: [resourceId], references: [id], onDelete: Cascade)
     comment    comment?       @relation("bookmark_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue      issue?         @relation("bookmark_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note       note?          @relation("bookmark_note", fields: [noteId], references: [id], onDelete: Cascade)
-    project    project?       @relation("bookmark_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine    routine?       @relation("bookmark_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard   standard?      @relation("bookmark_standard", fields: [standardId], references: [id], onDelete: Cascade)
     tag        tag?           @relation("bookmark_tag", fields: [tagId], references: [id], onDelete: Cascade)
     team       team?          @relation("bookmark_team", fields: [teamId], references: [id], onDelete: Cascade)
     user       user?          @relation("bookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([listId, createdAt], name: "idx_bookmark_listId_createdAt")
+    @@index([commentId, createdAt], name: "idx_bookmark_commentId_createdAt")
+    @@index([issueId, createdAt], name: "idx_bookmark_issueId_createdAt")
+    @@index([resourceId, createdAt], name: "idx_bookmark_resourceId_createdAt")
+    @@index([tagId, createdAt], name: "idx_bookmark_tagId_createdAt")
+    @@index([teamId, createdAt], name: "idx_bookmark_teamId_createdAt")
+    @@index([userId, createdAt], name: "idx_bookmark_userId_createdAt")
 }
 
 model bookmark_list {
-    id         String     @id @default(uuid()) @db.Uuid
-    created_at DateTime   @default(now()) @db.Timestamptz(6)
-    updated_at DateTime   @default(now()) @db.Timestamptz(6)
-    index      Int
-    label      String     @db.VarChar(128)
-    userId     String     @db.Uuid
-    bookmarks  bookmark[] @relation("bookmark_list")
-    user       user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
+    id        BigInt     @id @db.BigInt
+    createdAt DateTime   @default(now()) @db.Timestamptz(6)
+    updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+    label     String     @db.VarChar(128)
+    userId    BigInt     @db.BigInt
+    bookmarks bookmark[] @relation("bookmark_list")
+    user      user       @relation("bookmark_list_user", fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([label], name: "bookmark_list_label_unique")
+    @@unique([label, userId], name: "bookmark_list_label_userId_unique")
+    @@index([userId], name: "idx_bookmark_list_userId")
 }
 
 model chat {
-    id                     String                      @id @default(uuid()) @db.Uuid
-    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
-    inviteId               String?                     @db.Uuid
+    id                     BigInt                      @id @db.BigInt
+    publicId               String                      @unique @db.VarChar(12)
+    createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
     isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
-    creatorId              String?                     @db.Uuid
-    teamId                 String?                     @db.Uuid
+    creatorId              BigInt?                     @db.BigInt
+    teamId                 BigInt?                     @db.BigInt
     creator                user?                       @relation(fields: [creatorId], references: [id], onDelete: SetNull)
     team                   team?                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    restrictedToRoles      chat_roles[]
     messages               chat_message[]
     participants           chat_participants[]
     invites                chat_invite[]
-    labels                 chat_labels[]
     translations           chat_translation[]
     subscriptions          notification_subscription[]
+
+    @@index([publicId], name: "idx_chat_publicId")
+    @@index([creatorId, createdAt], name: "idx_chat_creatorId_createdAt")
+    @@index([creatorId, updatedAt], name: "idx_chat_creatorId_updatedAt")
+    @@index([teamId, createdAt], name: "idx_chat_teamId_createdAt")
+    @@index([teamId, updatedAt], name: "idx_chat_teamId_updatedAt")
 }
 
 model chat_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    chatId               String                      @db.Uuid
-    chat                 chat                        @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    language             String                      @db.VarChar(3)
-    name                 String?                     @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
+    id                 BigInt                      @id @db.BigInt
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    chatId             BigInt                      @db.BigInt
+    chat               chat                        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    language           String                      @db.VarChar(3)
+    name               String?                     @db.VarChar(128)
+    description        String?                     @db.VarChar(2048)
 
     @@unique([chatId, language], name: "chat_translation_chatid_language_unique")
+    @@index([chatId], name: "idx_chat_translation_chatId")
 }
 
 model chat_message {
-    id                String                     @id @default(uuid()) @db.Uuid
-    created_at        DateTime                   @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime                   @default(now()) @db.Timestamptz(6)
-    metadata          String?                    @db.VarChar(4096)
-    score             Int                        @default(0)
-    sequence          Int                        @default(autoincrement())
-    versionIndex      Int                        @default(0)
-    parentId          String?                    @db.Uuid
-    userId            String?                    @db.Uuid
-    chatId            String?                    @db.Uuid
-    chat              chat?                      @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    parent            chat_message?              @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
-    children          chat_message[]             @relation("chat_message_parent")
-    user              user?                      @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
-    translations      chat_message_translation[]
-    reactions         reaction[]                 @relation("reaction_chat_message")
-    reactionSummaries reaction_summary[]         @relation("reaction_summary_chat_message")
+    id                BigInt             @id @db.BigInt
+    createdAt         DateTime           @default(now()) @db.Timestamptz(6)
+    updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
+    language          String             @db.VarChar(3)
+    metadata          String?            @db.VarChar(4096)
+    text              String             @db.VarChar(32768)
+    score             Int                @default(0)
+    sequence          Int                @default(autoincrement())
+    versionIndex      Int                @default(0)
+    parentId          BigInt?            @db.BigInt
+    userId            BigInt?            @db.BigInt
+    chatId            BigInt?            @db.BigInt
+    chat              chat?              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    parent            chat_message?      @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
+    children          chat_message[]     @relation("chat_message_parent")
+    user              user?              @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
+    reactions         reaction[]         @relation("reaction_chat_message")
+    reactionSummaries reaction_summary[] @relation("reaction_summary_chat_message")
     reports           report[]
-}
 
-model chat_message_translation {
-    id        String       @id @default(uuid()) @db.Uuid
-    text      String       @db.VarChar(32768)
-    language  String       @db.VarChar(3)
-    messageId String       @db.Uuid
-    message   chat_message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-    @@unique([messageId, language])
+    @@index([chatId, createdAt], name: "idx_chat_message_chatId_createdAt")
 }
 
 model chat_participants {
-    id         String   @id @default(uuid()) @db.Uuid
-    created_at DateTime @default(now()) @db.Timestamptz(6)
-    updated_at DateTime @default(now()) @db.Timestamptz(6)
-    hasUnread  Boolean  @default(true)
-    chatId     String   @db.Uuid
-    chat       chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    userId     String   @db.Uuid
-    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        BigInt   @id @db.BigInt
+    createdAt DateTime @default(now()) @db.Timestamptz(6)
+    updatedAt DateTime @updatedAt @db.Timestamptz(6)
+    hasUnread Boolean  @default(true)
+    chatId    BigInt   @db.BigInt
+    userId    BigInt   @db.BigInt
+    chat      chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([chatId, userId])
+    @@unique([chatId, userId], name: "chat_participants_chatid_userid_unique")
+    @@index([chatId], name: "idx_chat_participants_chatId")
+    @@index([userId], name: "idx_chat_participants_userId")
 }
 
 model chat_invite {
-    id         String           @id @default(uuid()) @db.Uuid
-    created_at DateTime         @default(now()) @db.Timestamptz(6)
-    updated_at DateTime         @default(now()) @db.Timestamptz(6)
-    status     ChatInviteStatus @default(Pending)
-    message    String?          @db.VarChar(4096)
-    chatId     String           @db.Uuid
-    chat       chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    userId     String           @db.Uuid
-    user       user             @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        BigInt       @id @db.BigInt
+    createdAt DateTime     @default(now()) @db.Timestamptz(6)
+    updatedAt DateTime     @updatedAt @db.Timestamptz(6)
+    status    InviteStatus @default(Pending)
+    message   String?      @db.VarChar(4096)
+    chatId    BigInt       @db.BigInt
+    userId    BigInt       @db.BigInt
+    chat      chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    user      user         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([chatId, userId], name: "chat_invite_chatid_userid_unique")
-}
-
-model chat_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   chat   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "chat_labels_labelledid_labelid_unique")
-}
-
-model chat_roles {
-    id     String @id @default(uuid()) @db.Uuid
-    chatId String @db.Uuid
-    chat   chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    roleId String @db.Uuid
-    role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-    @@unique([chatId, roleId], name: "chat_roles_chatid_roleid_unique")
-}
-
-model code {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    isDeleted          Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    createdBy          user?                       @relation("code_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    issues             issue[]
-    parent             code_version?               @relation("code_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    ownedByTeam        team?                       @relation("code_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
-    ownedByUser        user?                       @relation("code_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    labels             code_labels[]
-    tags               code_tags[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_code")
-    versions           code_version[]
-    viewedBy           view[]                      @relation("view_code")
-    reactions          reaction[]                  @relation("reaction_code")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_code")
-    pullRequests       pull_request[]
-    stats              stats_code[]
-    transfers          transfer[]                  @relation("transfer_code")
-    subscriptions      notification_subscription[]
-}
-
-model code_version {
-    id                      String                      @id @default(uuid()) @db.Uuid
-    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    codeLanguage            String                      @db.VarChar(128)
-    codeType                CodeType                    @default(DataConvert)
-    completedAt             DateTime?                   @db.Timestamptz(6)
-    data                    String?                     @db.VarChar(8192)
-    default                 String?                     @db.VarChar(2048)
-    content                 String                      @db.VarChar(8192)
-    isLatest                Boolean                     @default(false)
-    isLatestPublic          Boolean                     @default(false)
-    resourceListId          String?                     @unique @db.Uuid
-    rootId                  String                      @db.Uuid
-    versionIndex            Int                         @default(0)
-    versionLabel            String                      @default("1.0.0") @db.VarChar(16)
-    versionNotes            String?                     @db.VarChar(4096)
-    intendToPullRequest     Boolean                     @default(false)
-    pullRequestId           String?                     @unique @db.Uuid
-    isComplete              Boolean                     @default(false)
-    isDeleted               Boolean                     @default(false)
-    isPrivate               Boolean                     @default(false)
-    calledByRoutineVersions routine_version[]
-    comments                comment[]
-    contract                code_version_contract?
-    forks                   code[]                      @relation("code_version_fork")
-    pullRequest             pull_request?               @relation("pull_request_from_code_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    reports                 report[]
-    root                    code                        @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    resourceList            resource_list?              @relation("resource_list_code_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    translations            code_version_translation[]
-    directoryListings       project_version_directory[]
-
-    @@unique([rootId, versionIndex], name: "code_version_rootId_versionIndex_unique")
-}
-
-model code_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    name                 String                      @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
-    jsonVariable         String?                     @db.VarChar(8192)
-    codeVersionId        String                      @db.Uuid
-    language             String                      @db.VarChar(3)
-    codeVersion          code_version                @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([codeVersionId, language])
-}
-
-model code_version_contract {
-    id                String       @id @default(uuid()) @db.Uuid
-    address           String?      @db.VarChar(256)
-    blockchain        String       @db.VarChar(128)
-    codeVersionId     String       @unique @db.Uuid
-    contractType      String?      @db.VarChar(256)
-    hash              String?      @db.VarChar(256)
-    isAddressVerified Boolean      @default(false)
-    isHashVerified    Boolean      @default(false)
-    codeVersion       code_version @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
-}
-
-model code_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
-    tagTag   String @db.VarChar(128)
-    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   code   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "code_tags_taggedid_tagTag_unique")
-}
-
-model code_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   code   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "code_labels_labelledid_labelid_unique")
+    @@index([chatId], name: "idx_chat_invite_chatId")
+    @@index([userId], name: "idx_chat_invite_userId")
 }
 
 model comment {
-    id                String                      @id @default(uuid()) @db.Uuid
-    created_at        DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
-    ownedByTeamId     String?                     @db.Uuid
-    ownedByUserId     String?                     @db.Uuid
-    apiVersionId      String?                     @db.Uuid
-    codeVersionId     String?                     @db.Uuid
-    issueId           String?                     @db.Uuid
-    noteVersionId     String?                     @db.Uuid
-    parentId          String?                     @db.Uuid
-    projectVersionId  String?                     @db.Uuid
-    pullRequestId     String?                     @db.Uuid
-    routineVersionId  String?                     @db.Uuid
-    standardVersionId String?                     @db.Uuid
+    id                BigInt                      @id @db.BigInt
+    createdAt         DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt         DateTime                    @updatedAt @db.Timestamptz(6)
+    ownedByTeamId     BigInt?                     @db.BigInt
+    ownedByUserId     BigInt?                     @db.BigInt
+    resourceVersionId BigInt?                     @db.BigInt
+    issueId           BigInt?                     @db.BigInt
+    parentId          BigInt?                     @db.BigInt
+    pullRequestId     BigInt?                     @db.BigInt
     score             Int                         @default(0)
     bookmarks         Int                         @default(0)
-    apiVersion        api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
-    codeVersion       code_version?               @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
+    resourceVersion   resource_version?           @relation(fields: [resourceVersionId], references: [id], onDelete: Cascade)
     issue             issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
-    noteVersion       note_version?               @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
     parent            comment?                    @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
-    projectVersion    project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
     pullRequest       pull_request?               @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
-    routineVersion    routine_version?            @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    standardVersion   standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     ownedByTeam       team?                       @relation("comment_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
     ownedByUser       user?                       @relation("comment_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     translations      comment_translation[]
@@ -464,243 +221,167 @@ model comment {
     reactionSummaries reaction_summary[]          @relation("reaction_summary_comment")
     parents           comment[]                   @relation("comment_parent")
     subscriptions     notification_subscription[]
+
+    @@index([issueId, createdAt], name: "idx_comment_issueId_createdAt")
+    @@index([ownedByTeamId, createdAt], name: "idx_comment_ownedByTeamId_createdAt")
+    @@index([ownedByUserId, createdAt], name: "idx_comment_ownedByUserId_createdAt")
+    @@index([parentId], name: "idx_comment_parentId")
+    @@index([pullRequestId, createdAt], name: "idx_comment_pullRequestId_createdAt")
+    @@index([resourceVersionId, createdAt], name: "idx_comment_resourceVersionId_createdAt")
+    @@index([score], name: "idx_comment_score")
 }
 
 model comment_translation {
-    id        String  @id @default(uuid()) @db.Uuid
+    id        BigInt  @id @db.BigInt
     text      String  @db.VarChar(32768)
     language  String  @db.VarChar(3)
-    commentId String  @db.Uuid
+    commentId BigInt  @db.BigInt
     comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-    @@unique([commentId, language])
+    @@unique([commentId, language], name: "comment_translation_commentId_language_unique")
+    @@index([commentId], name: "idx_comment_translation_commentId")
 }
 
 model email {
-    id                                 String    @id @default(uuid()) @db.Uuid
-    created_at                         DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at                         DateTime  @default(now()) @db.Timestamptz(6)
+    id                                 BigInt    @id @db.BigInt
+    createdAt                          DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt                          DateTime  @updatedAt @db.Timestamptz(6)
     emailAddress                       String    @unique @db.Citext
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
+    verifiedAt                         DateTime? @db.Timestamptz(6)
     verificationCode                   String?   @db.VarChar(256)
     lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    teamId                             String?   @db.Uuid
-    userId                             String?   @db.Uuid
+    teamId                             BigInt?   @db.BigInt
+    userId                             BigInt?   @db.BigInt
     team                               team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([teamId], name: "idx_email_teamId")
+    @@index([userId], name: "idx_email_userId")
 }
 
 model issue {
-    id                      String                      @id @default(uuid()) @db.Uuid
-    status                  IssueStatus                 @default(Open)
-    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                    @updatedAt @db.Timestamptz(6)
-    closedAt                DateTime?                   @db.Timestamptz(6)
-    hasBeenClosedOrRejected Boolean                     @default(false)
-    score                   Int                         @default(0)
-    bookmarks               Int                         @default(0)
-    views                   Int                         @default(0)
-    apiId                   String?                     @db.Uuid
-    codeId                  String?                     @db.Uuid
-    noteId                  String?                     @db.Uuid
-    projectId               String?                     @db.Uuid
-    routineId               String?                     @db.Uuid
-    standardId              String?                     @db.Uuid
-    teamId                  String?                     @db.Uuid
-    closedById              String?                     @db.Uuid
-    createdById             String?                     @db.Uuid
-    referencedVersionId     String?                     @db.Uuid
-    api                     api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
-    code                    code?                       @relation(fields: [codeId], references: [id], onDelete: Cascade)
-    note                    note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
-    project                 project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine                 routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard                standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    closedBy                user?                       @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
-    createdBy               user?                       @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
-    comments                comment[]
-    labels                  issue_labels[]
-    reports                 report[]
-    team                    team?                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    translations            issue_translation[]
-    reactions               reaction[]                  @relation("reaction_issue")
-    reactionSummaries       reaction_summary[]          @relation("reaction_summary_issue")
-    bookmarkedBy            bookmark[]                  @relation("bookmark_issue")
-    viewedBy                view[]                      @relation("view_issue")
-    subscriptions           notification_subscription[]
-}
+    id                BigInt                      @id @db.BigInt
+    publicId          String                      @unique @db.VarChar(12)
+    status            IssueStatus                 @default(Open)
+    createdAt         DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt         DateTime                    @updatedAt @db.Timestamptz(6)
+    closedAt          DateTime?                   @db.Timestamptz(6)
+    score             Int                         @default(0)
+    bookmarks         Int                         @default(0)
+    views             Int                         @default(0)
+    resourceId        BigInt?                     @db.BigInt
+    teamId            BigInt?                     @db.BigInt
+    closedById        BigInt?                     @db.BigInt
+    createdById       BigInt?                     @db.BigInt
+    resource          resource?                   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+    closedBy          user?                       @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
+    createdBy         user?                       @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    comments          comment[]
+    reports           report[]
+    team              team?                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    translations      issue_translation[]
+    reactions         reaction[]                  @relation("reaction_issue")
+    reactionSummaries reaction_summary[]          @relation("reaction_summary_issue")
+    bookmarkedBy      bookmark[]                  @relation("bookmark_issue")
+    viewedBy          view[]                      @relation("view_issue")
+    subscriptions     notification_subscription[]
 
-model issue_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   issue  @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "issue_labels_labelledid_labelid_unique")
+    @@index([publicId], name: "idx_issue_publicId")
+    @@index([teamId, createdAt], name: "idx_issue_teamId_createdAt")
+    @@index([teamId, updatedAt], name: "idx_issue_teamId_updatedAt")
+    @@index([closedById, createdAt], name: "idx_issue_closedById_createdAt")
+    @@index([closedById, updatedAt], name: "idx_issue_closedById_updatedAt")
+    @@index([createdById, createdAt], name: "idx_issue_createdById_createdAt")
+    @@index([createdById, updatedAt], name: "idx_issue_createdById_updatedAt")
+    @@index([resourceId, createdAt], name: "idx_issue_resourceId_createdAt")
+    @@index([resourceId, updatedAt], name: "idx_issue_resourceId_updatedAt")
 }
 
 model issue_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    description          String?                     @db.VarChar(2048)
-    name                 String?                     @db.VarChar(128)
-    issueId              String                      @db.Uuid
-    language             String                      @db.VarChar(3)
-    issue                issue                       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    id                 BigInt                      @id @db.BigInt
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    description        String?                     @db.VarChar(2048)
+    name               String?                     @db.VarChar(128)
+    issueId            BigInt                      @db.BigInt
+    language           String                      @db.VarChar(3)
+    issue              issue                       @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
-    @@unique([issueId, language])
+    @@unique([issueId, language], name: "issue_translation_issueId_language_unique")
+    @@index([issueId], name: "idx_issue_translation_issueId")
 }
 
-model label {
-    id            String              @id @default(uuid()) @db.Uuid
-    created_at    DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime            @default(now()) @db.Timestamptz(6)
-    label         String              @unique @db.VarChar(128)
-    color         String?             @db.VarChar(7)
-    ownedByTeamId String?             @db.Uuid
-    ownedByUserId String?             @db.Uuid
-    apis          api_labels[]
-    codes         code_labels[]
-    chats         chat_labels[]
-    issues        issue_labels[]
-    meetings      meeting_labels[]
-    notes         note_labels[]
-    projects      project_labels[]
-    routines      routine_labels[]
-    schedules     schedule_labels[]
-    standards     standard_labels[]
-    ownedByTeam   team?               @relation(fields: [ownedByTeamId], references: [id], onDelete: Cascade)
-    ownedByUser   user?               @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
-    translations  label_translation[]
+model meeting {
+    id                     BigInt                      @id @db.BigInt
+    publicId               String                      @unique @db.VarChar(12)
+    createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
+    inviteId               BigInt?                     @db.BigInt
+    scheduleId             BigInt?                     @db.BigInt
+    openToAnyoneWithInvite Boolean                     @default(false)
+    showOnTeamProfile      Boolean                     @default(false)
+    teamId                 BigInt                      @db.BigInt
+    team                   team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    attendees              meeting_attendees[]
+    invites                meeting_invite[]
+    translations           meeting_translation[]
+    schedule               schedule?                   @relation("meeting_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    subscriptions          notification_subscription[]
 
-    @@unique([label, ownedByUserId, ownedByTeamId])
+    @@index([inviteId], name: "idx_meeting_inviteId")
+    @@index([publicId], name: "idx_meeting_publicId")
+    @@index([scheduleId], name: "idx_meeting_scheduleId")
+    @@index([teamId, createdAt], name: "idx_meeting_teamId_createdAt")
+    @@index([teamId, updatedAt], name: "idx_meeting_teamId_updatedAt")
 }
 
-model label_translation {
-    id          String @id @default(uuid()) @db.Uuid
-    description String @db.VarChar(2048)
-    labelId     String @db.Uuid
-    language    String @db.VarChar(3)
-    label       label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+model meeting_attendees {
+    id        BigInt  @id @db.BigInt
+    meetingId BigInt  @db.BigInt
+    userId    BigInt  @db.BigInt
+    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([labelId, language])
+    @@unique([meetingId, userId], name: "meeting_attendees_meetingid_userid_unique")
+    @@index([meetingId], name: "idx_meeting_attendees_meetingId")
+    @@index([userId], name: "idx_meeting_attendees_userId")
 }
 
-model note {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    isDeleted          Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    permissions        String                      @db.VarChar(4096)
-    parentId           String?                     @db.Uuid
-    createdById        String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    createdByTeamId    String?                     @db.Uuid
-    parent             note_version?               @relation("note_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    createdBy          user?                       @relation("note_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
-    ownedByTeam        team?                       @relation("note_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: Cascade)
-    ownedByUser        user?                       @relation("note_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: Cascade)
-    versions           note_version[]
-    pullRequests       pull_request[]
-    labels             note_labels[]
-    issues             issue[]
-    tags               note_tags[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_note")
-    viewedBy           view[]                      @relation("view_note")
-    reactions          reaction[]                  @relation("reaction_note")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_note")
-    transfers          transfer[]                  @relation("transfer_note")
-    subscriptions      notification_subscription[]
+model meeting_invite {
+    id        BigInt       @id @db.BigInt
+    createdAt DateTime     @default(now()) @db.Timestamptz(6)
+    updatedAt DateTime     @updatedAt @db.Timestamptz(6)
+    status    InviteStatus @default(Pending)
+    message   String?      @db.VarChar(4096)
+    meetingId BigInt       @db.BigInt
+    meeting   meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    userId    BigInt       @db.BigInt
+    user      user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([meetingId, userId], name: "meeting_invite_meetingid_userid_unique")
+    @@index([meetingId], name: "idx_meeting_invite_meetingId")
+    @@index([userId], name: "idx_meeting_invite_userId")
 }
 
-model note_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   note   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+model meeting_translation {
+    id                 BigInt                      @id @db.BigInt
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    meetingId          BigInt                      @db.BigInt
+    meeting            meeting                     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    language           String                      @db.VarChar(3)
+    name               String?                     @db.VarChar(128)
+    description        String?                     @db.VarChar(2048)
+    link               String?                     @db.VarChar(2048)
 
-    @@unique([labelledId, labelId], name: "note_labels_labelledid_labelid_unique")
-}
-
-model note_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
-    tagTag   String @db.VarChar(128)
-    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   note   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "note_tags_taggedid_tagTag_unique")
-}
-
-model note_version {
-    id                  String                      @id @default(uuid()) @db.Uuid
-    created_at          DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
-    completedAt         DateTime?                   @db.Timestamptz(6)
-    intendToPullRequest Boolean                     @default(true)
-    isComplete          Boolean                     @default(false)
-    isDeleted           Boolean                     @default(false)
-    isLatest            Boolean                     @default(false)
-    isLatestPublic      Boolean                     @default(false)
-    isPrivate           Boolean                     @default(false)
-    rootId              String                      @db.Uuid
-    pullRequestId       String?                     @unique @db.Uuid
-    versionIndex        Int                         @default(0)
-    versionLabel        String                      @default("1.0.0") @db.VarChar(16)
-    versionNotes        String?                     @db.VarChar(4096)
-    root                note                        @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    forks               note[]                      @relation("note_version_fork")
-    pullRequest         pull_request?               @relation("pull_request_from_note_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    comments            comment[]
-    reports             report[]
-    translations        note_version_translation[]
-    directoryListings   project_version_directory[]
-
-    @@unique([rootId, versionIndex], name: "note_version_rootId_versionIndex_unique")
-}
-
-model note_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    name                 String                      @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
-    language             String                      @db.VarChar(3)
-    noteVersionId        String                      @db.Uuid
-    noteVersion          note_version                @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
-    pages                note_page[]
-}
-
-model note_page {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    pageIndex            Int                         @default(0)
-    text                 String                      @db.VarChar(65536)
-    translationId        String                      @db.Uuid
-    translation          note_version_translation    @relation(fields: [translationId], references: [id], onDelete: Cascade)
-
-    @@unique([translationId, pageIndex], name: "translationId_pageIndex_unique")
+    @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
+    @@index([meetingId], name: "idx_meeting_translation_meetingId")
 }
 
 model notification {
-    id          String   @id @default(uuid()) @db.Uuid
-    created_at  DateTime @default(now()) @db.Timestamptz(6)
-    updated_at  DateTime @default(now()) @db.Timestamptz(6)
+    id          BigInt   @id @db.BigInt
+    createdAt   DateTime @default(now()) @db.Timestamptz(6)
+    updatedAt   DateTime @updatedAt @db.Timestamptz(6)
     category    String   @db.VarChar(64)
     isRead      Boolean  @default(false)
     title       String   @db.VarChar(128)
@@ -708,83 +389,88 @@ model notification {
     count       Int      @default(1)
     link        String?  @db.VarChar(2048)
     imgLink     String?  @db.VarChar(2048)
-    userId      String   @db.Uuid
+    userId      BigInt   @db.BigInt
     user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId, createdAt], name: "idx_notification_userId_createdAt")
+    @@index([userId, isRead], name: "idx_notification_userId_isRead")
+    @@index([userId, category], name: "idx_notification_userId_category")
+}
+
+model notification_subscription {
+    id            BigInt        @id @db.BigInt
+    createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+    context       String?       @db.VarChar(2048)
+    silent        Boolean       @default(false)
+    resourceId    BigInt?       @db.BigInt
+    chatId        BigInt?       @db.BigInt
+    commentId     BigInt?       @db.BigInt
+    issueId       BigInt?       @db.BigInt
+    meetingId     BigInt?       @db.BigInt
+    pullRequestId BigInt?       @db.BigInt
+    reportId      BigInt?       @db.BigInt
+    scheduleId    BigInt?       @db.BigInt
+    subscriberId  BigInt        @db.BigInt
+    teamId        BigInt?       @db.BigInt
+    resource      resource?     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+    chat          chat?         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    comment       comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+    issue         issue?        @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    meeting       meeting?      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    pullRequest   pull_request? @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+    report        report?       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+    schedule      schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    team          team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    subscriber    user          @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+    @@index([chatId], name: "idx_notification_subscription_chatId")
+    @@index([commentId], name: "idx_notification_subscription_commentId")
+    @@index([issueId], name: "idx_notification_subscription_issueId")
+    @@index([meetingId], name: "idx_notification_subscription_meetingId")
+    @@index([pullRequestId], name: "idx_notification_subscription_pullRequestId")
+    @@index([reportId], name: "idx_notification_subscription_reportId")
+    @@index([resourceId], name: "idx_notification_subscription_resourceId")
+    @@index([scheduleId], name: "idx_notification_subscription_scheduleId")
+    @@index([subscriberId], name: "idx_notification_subscription_subscriberId")
+    @@index([teamId], name: "idx_notification_subscription_teamId")
 }
 
 model push_device {
-    id       String    @id @default(uuid()) @db.Uuid
+    id       BigInt    @id @db.BigInt
     endpoint String    @unique @db.VarChar(1024)
     p256dh   String    @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
     expires  DateTime? @db.Timestamptz(6)
     name     String?   @db.VarChar(128)
-    userId   String    @db.Uuid
+    userId   BigInt    @db.BigInt
     user     user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
 
-model notification_subscription {
-    id            String        @id @default(uuid()) @db.Uuid
-    created_at    DateTime      @default(now()) @db.Timestamptz(6)
-    context       String?       @db.VarChar(2048)
-    silent        Boolean       @default(false)
-    apiId         String?       @db.Uuid
-    chatId        String?       @db.Uuid
-    codeId        String?       @db.Uuid
-    commentId     String?       @db.Uuid
-    issueId       String?       @db.Uuid
-    meetingId     String?       @db.Uuid
-    noteId        String?       @db.Uuid
-    projectId     String?       @db.Uuid
-    pullRequestId String?       @db.Uuid
-    reportId      String?       @db.Uuid
-    routineId     String?       @db.Uuid
-    scheduleId    String?       @db.Uuid
-    standardId    String?       @db.Uuid
-    teamId        String?       @db.Uuid
-    api           api?          @relation(fields: [apiId], references: [id], onDelete: Cascade)
-    chat          chat?         @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    code          code?         @relation(fields: [codeId], references: [id], onDelete: Cascade)
-    comment       comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
-    issue         issue?        @relation(fields: [issueId], references: [id], onDelete: Cascade)
-    meeting       meeting?      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    note          note?         @relation(fields: [noteId], references: [id], onDelete: Cascade)
-    project       project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    pullRequest   pull_request? @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
-    report        report?       @relation(fields: [reportId], references: [id], onDelete: Cascade)
-    routine       routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    schedule      schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    standard      standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    team          team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    subscriberId  String        @db.Uuid
-    subscriber    user          @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+    @@index([userId], name: "idx_push_device_userId")
 }
 
 model team {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
+    id                 BigInt                      @id @db.BigInt
+    publicId           String                      @unique @db.VarChar(12)
+    createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
     bannerImage        String?                     @db.VarChar(2048)
+    config             Json?                       @default("{}")
     handle             String?                     @unique @db.Citext
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
-    permissions        String                      @db.VarChar(4096)
+    languages          String[]                    @default([])
+    permissions        Json?                       @default("{}")
     profileImage       String?                     @db.VarChar(2048)
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
-    parentId           String?                     @db.Uuid
-    premiumId          String?                     @unique @db.Uuid
-    resourceListId     String?                     @unique @db.Uuid
-    createdById        String?                     @db.Uuid
+    parentId           BigInt?                     @db.BigInt
+    premiumId          BigInt?                     @unique @db.BigInt
+    createdById        BigInt?                     @db.BigInt
     stripeCustomerId   String?                     @unique @db.VarChar(255)
     createdBy          user?                       @relation("team_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     chats              chat[]
-    codes              code[]                      @relation("code_ownedByTeam")
     emails             email[]
     issues             issue[]
-    labels             label[]
-    notes              note[]                      @relation("note_ownedByTeam")
-    apis               api[]                       @relation("api_ownedByTeam")
     apiKeys            api_key[]
     apiKeysExternal    api_key_external[]
     comments           comment[]                   @relation("comment_ownedByTeam")
@@ -792,190 +478,109 @@ model team {
     paymentHistory     payment[]
     phones             phone[]
     premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
-    tags               team_tags[]
+    tags               team_tag[]
     translations       team_translation[]
     members            member[]
     memberInvites      member_invite[]
-    projects           project[]                   @relation("project_ownedByTeam")
     reports            report[]
-    resourceList       resource_list?              @relation("resource_list_team", fields: [resourceListId], references: [id], onDelete: SetNull)
-    routines           routine[]                   @relation("routine_ownedByTeam")
-    runRoutines        run_routine[]               @relation("run_routine_team")
-    runProjects        run_project[]               @relation("run_project_team")
-    standards          standard[]                  @relation("standard_ownedByTeam")
+    resources          resource[]                  @relation("resource_ownedByTeam")
+    runs               run[]                       @relation("run_team")
     bookmarkedBy       bookmark[]                  @relation("bookmark_team")
     viewedBy           view[]                      @relation("view_team")
     wallets            wallet[]
-    roles              role[]
-    languages          team_language[]
     transfersIncoming  transfer[]                  @relation("transfer_to_team")
     transfersOutgoing  transfer[]                  @relation("transfer_from_team")
     stats              stats_team[]
-    directoryListings  project_version_directory[]
     subscriptions      notification_subscription[]
     parent             team?                       @relation("team_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     forks              team[]                      @relation("team_version_fork")
-}
 
-model team_language {
-    id       String @id @default(uuid()) @db.Uuid
-    teamId   String @db.Uuid
-    language String @db.VarChar(3)
-    team     team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-    @@unique([teamId, language])
-}
-
-model meeting {
-    id                     String                      @id @default(uuid()) @db.Uuid
-    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
-    inviteId               String?                     @db.Uuid
-    scheduleId             String?                     @db.Uuid
-    openToAnyoneWithInvite Boolean                     @default(false)
-    showOnTeamProfile      Boolean                     @default(false)
-    teamId                 String                      @db.Uuid
-    team                   team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    restrictedToRoles      meeting_roles[]
-    attendees              meeting_attendees[]
-    invites                meeting_invite[]
-    labels                 meeting_labels[]
-    translations           meeting_translation[]
-    schedule               schedule?                   @relation("meeting_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
-    subscriptions          notification_subscription[]
-}
-
-model meeting_attendees {
-    id        String  @id @default(uuid()) @db.Uuid
-    meetingId String  @db.Uuid
-    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    userId    String  @db.Uuid
-    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([meetingId, userId])
-}
-
-model meeting_invite {
-    id         String              @id @default(uuid()) @db.Uuid
-    created_at DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at DateTime            @default(now()) @db.Timestamptz(6)
-    status     MeetingInviteStatus @default(Pending)
-    message    String?             @db.VarChar(4096)
-    meetingId  String              @db.Uuid
-    meeting    meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    userId     String              @db.Uuid
-    user       user                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([meetingId, userId], name: "meeting_invite_meetingid_userid_unique")
-}
-
-model meeting_labels {
-    id         String  @id @default(uuid()) @db.Uuid
-    labelledId String  @db.Uuid
-    labelId    String  @db.Uuid
-    labelled   meeting @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "meeting_labels_labelledid_labelid_unique")
-}
-
-model meeting_roles {
-    id        String  @id @default(uuid()) @db.Uuid
-    meetingId String  @db.Uuid
-    meeting   meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    roleId    String  @db.Uuid
-    role      role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-    @@unique([meetingId, roleId], name: "meeting_roles_meetingid_roleid_unique")
-}
-
-model meeting_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    meetingId            String                      @db.Uuid
-    meeting              meeting                     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    language             String                      @db.VarChar(3)
-    name                 String?                     @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
-    link                 String?                     @db.VarChar(2048)
-
-    @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
+    @@index([createdById], name: "idx_team_createdById")
+    @@index([parentId], name: "idx_team_parentId")
+    @@index([publicId], name: "idx_team_publicId")
 }
 
 model team_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    bio                  String?                     @db.VarChar(2048)
-    name                 String                      @db.VarChar(128)
-    language             String                      @db.VarChar(3)
-    teamId               String                      @db.Uuid
-    team                 team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    id                 BigInt                      @id @db.BigInt
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    bio                String?                     @db.VarChar(2048)
+    name               String                      @db.VarChar(128)
+    language           String                      @db.VarChar(3)
+    teamId             BigInt                      @db.BigInt
+    team               team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-    @@unique([teamId, language])
+    @@unique([teamId, language], name: "team_translation_teamId_language_unique")
+    @@index([teamId], name: "idx_team_translation_teamId")
 }
 
-model team_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
+model team_tag {
+    id       BigInt @id @db.BigInt
+    taggedId BigInt @db.BigInt
     tagTag   String @db.VarChar(128)
     tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
     tagged   team   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-    @@unique([taggedId, tagTag], name: "team_tags_taggedid_tagTag_unique")
+    @@unique([taggedId, tagTag], name: "team_tag_taggedId_tagTag_unique")
+    @@index([taggedId], name: "idx_team_tag_taggedId")
 }
 
 model member {
-    id          String   @id @default(uuid()) @db.Uuid
-    created_at  DateTime @default(now()) @db.Timestamptz(6)
-    updated_at  DateTime @default(now()) @db.Timestamptz(6)
+    id          BigInt   @id @db.BigInt
+    publicId    String   @unique @db.VarChar(12)
+    createdAt   DateTime @default(now()) @db.Timestamptz(6)
+    updatedAt   DateTime @updatedAt @db.Timestamptz(6)
     isAdmin     Boolean  @default(false)
-    permissions String   @db.VarChar(4096)
-    teamId      String   @db.Uuid
-    userId      String   @db.Uuid
+    permissions Json?    @default("{}")
+    teamId      BigInt   @db.BigInt
+    userId      BigInt   @db.BigInt
     team        team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    roles       role[]
 
     @@unique([teamId, userId], name: "member_teamid_userid_unique")
+    @@index([publicId], name: "idx_member_publicId")
+    @@index([teamId, createdAt], name: "idx_member_teamId_createdAt")
+    @@index([teamId, updatedAt], name: "idx_member_teamId_updatedAt")
+    @@index([userId], name: "idx_member_userId")
 }
 
 model member_invite {
-    id                  String             @id @default(uuid()) @db.Uuid
-    created_at          DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime           @default(now()) @db.Timestamptz(6)
-    status              MemberInviteStatus @default(Pending)
-    message             String?            @db.VarChar(4096)
-    willBeAdmin         Boolean            @default(false)
-    willHavePermissions String?            @db.VarChar(4096)
-    teamId              String             @db.Uuid
-    userId              String             @unique @db.Uuid
-    team                team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    user                user               @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                  BigInt       @id @db.BigInt
+    createdAt           DateTime     @default(now()) @db.Timestamptz(6)
+    updatedAt           DateTime     @updatedAt @db.Timestamptz(6)
+    status              InviteStatus @default(Pending)
+    message             String?      @db.VarChar(4096)
+    willBeAdmin         Boolean      @default(false)
+    willHavePermissions Json?        @default("{}")
+    teamId              BigInt       @db.BigInt
+    userId              BigInt       @db.BigInt
+    team                team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user                user         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, teamId])
+    @@unique([userId, teamId], name: "member_invite_userid_teamid_unique")
+    @@index([userId], name: "idx_member_invite_userId")
+    @@index([teamId], name: "idx_member_invite_teamId")
 }
 
 model phone {
-    id                                 String    @id @default(uuid()) @db.Uuid
+    id                                 BigInt    @id @db.BigInt
     phoneNumber                        String    @unique @db.VarChar(16)
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
+    verifiedAt                         DateTime? @db.Timestamptz(6)
     verificationCode                   String?   @db.VarChar(16)
     lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    teamId                             String?   @db.Uuid
-    userId                             String?   @db.Uuid
+    teamId                             BigInt?   @db.BigInt
+    userId                             BigInt?   @db.BigInt
     team                               team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId], name: "idx_phone_userId")
+    @@index([teamId], name: "idx_phone_teamId")
 }
 
 model payment {
-    id            String        @id @default(uuid()) @db.Uuid
-    created_at    DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime      @default(now()) @db.Timestamptz(6)
+    id            BigInt        @id @db.BigInt
+    createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+    updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
     amount        Int
     checkoutId    String        @db.VarChar(255)
     currency      String        @db.VarChar(255)
@@ -983,353 +588,192 @@ model payment {
     paymentMethod String        @db.VarChar(255)
     paymentType   PaymentType   @default(PremiumMonthly)
     status        PaymentStatus @default(Pending)
-    teamId        String?       @db.Uuid
-    userId        String?       @db.Uuid
+    teamId        BigInt?       @db.BigInt
+    userId        BigInt?       @db.BigInt
     team          team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
     user          user?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@index([teamId], name: "idx_payment_teamId")
+    @@index([userId], name: "idx_payment_userId")
 }
 
 model premium {
-    id                   String    @id @default(uuid()) @db.Uuid
-    credits              BigInt    @default(0)
-    customPlan           String?   @db.VarChar(2048)
-    enabledAt            DateTime? @db.Timestamptz(6)
-    expiresAt            DateTime? @db.Timestamptz(6)
-    hasReceivedFreeTrial Boolean   @default(false)
-    isActive             Boolean   @default(false)
-    team                 team?
-    user                 user?
-}
-
-model project {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    isDeleted          Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    handle             String?                     @unique @db.Citext
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    createdBy          user?                       @relation("project_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    ownedByTeam        team?                       @relation("project_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
-    ownedByUser        user?                       @relation("project_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    parent             project_version?            @relation("project_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    issues             issue[]
-    labels             project_labels[]
-    tags               project_tags[]
-    versions           project_version[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_project")
-    viewedBy           view[]                      @relation("view_project")
-    reactions          reaction[]                  @relation("reaction_project")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_project")
-    pullRequests       pull_request[]
-    stats              stats_project[]
-    transfers          transfer[]                  @relation("transfer_project")
-    subscriptions      notification_subscription[]
-}
-
-model project_version {
-    id                         String                        @id @default(uuid()) @db.Uuid
-    created_at                 DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at                 DateTime                      @default(now()) @db.Timestamptz(6)
-    completedAt                DateTime?                     @db.Timestamptz(6)
-    complexity                 Int                           @default(1)
-    intendToPullRequest        Boolean                       @default(false)
-    isComplete                 Boolean                       @default(true)
-    isDeleted                  Boolean                       @default(false)
-    isLatest                   Boolean                       @default(false)
-    isLatestPublic             Boolean                       @default(false)
-    isPrivate                  Boolean                       @default(false)
-    rootId                     String                        @db.Uuid
-    simplicity                 Int                           @default(1)
-    timesStarted               Int                           @default(0)
-    timesCompleted             Int                           @default(0)
-    resourceListId             String?                       @unique @db.Uuid
-    pullRequestId              String?                       @unique @db.Uuid
-    versionIndex               Int                           @default(0)
-    versionLabel               String                        @default("1.0.0") @db.VarChar(16)
-    versionNotes               String?                       @db.VarChar(4096)
-    comments                   comment[]
-    directories                project_version_directory[]   @relation("project_version_directory_project")
-    directoryListings          project_version_directory[]   @relation("project_version_directory_listing")
-    pullRequest                pull_request?                 @relation("pull_request_from_project_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    reports                    report[]
-    resourceList               resource_list?                @relation("resource_list_project_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    root                       project                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    forks                      project[]                     @relation("project_version_fork")
-    translations               project_version_translation[]
-    runProjects                run_project[]                 @relation("run_project_version")
-    suggestedNextByProject     project_version_end_next[]    @relation("project_version_end_next_to")
-    suggestedNextByProjectFrom project_version_end_next[]    @relation("project_version_end_next_from")
-
-    @@unique([rootId, versionIndex], name: "project_version_rootId_versionIndex_unique")
-}
-
-model project_version_directory {
-    id                    String                                  @id @default(uuid()) @db.Uuid
-    created_at            DateTime                                @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime                                @default(now()) @db.Timestamptz(6)
-    isRoot                Boolean                                 @default(false)
-    parentDirectoryId     String?                                 @db.Uuid
-    childOrder            String?                                 @db.VarChar(4096)
-    projectVersionId      String                                  @db.Uuid
-    parentDirectory       project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
-    projectVersion        project_version                         @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: Cascade)
-    children              project_version_directory[]             @relation("project_version_directory_parent")
-    childApiVersions      api_version[]
-    childCodeVersions     code_version[]
-    childNoteVersions     note_version[]
-    childProjectVersions  project_version[]                       @relation("project_version_directory_listing")
-    childRoutineVersions  routine_version[]
-    childStandardVersions standard_version[]
-    childTeams            team[]
-    runProjectSteps       run_project_step[]                      @relation("run_project_step_directory")
-    translations          project_version_directory_translation[]
-}
-
-model project_version_directory_translation {
-    id                        String                    @id @default(uuid()) @db.Uuid
-    description               String?                   @db.VarChar(2048)
-    name                      String?                   @db.VarChar(128)
-    language                  String                    @db.VarChar(3)
-    projectVersionDirectoryId String                    @db.Uuid
-    projectVersionDirectory   project_version_directory @relation(fields: [projectVersionDirectoryId], references: [id], onDelete: Cascade)
-
-    @@unique([projectVersionDirectoryId, language])
-}
-
-model project_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    description          String?                     @db.VarChar(2048)
-    name                 String                      @db.VarChar(128)
-    language             String                      @db.VarChar(3)
-    projectVersionId     String                      @db.Uuid
-    projectVersion       project_version             @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([projectVersionId, language])
-}
-
-model project_version_end_next {
-    id                   String          @id @default(uuid()) @db.Uuid
-    fromProjectVersionId String          @db.Uuid
-    toProjectVersionId   String          @db.Uuid
-    fromProjectVersion   project_version @relation("project_version_end_next_from", fields: [fromProjectVersionId], references: [id], onDelete: Cascade)
-    toProjectVersion     project_version @relation("project_version_end_next_to", fields: [toProjectVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([fromProjectVersionId, toProjectVersionId])
-}
-
-model project_tags {
-    id       String  @id @default(uuid()) @db.Uuid
-    taggedId String  @db.Uuid
-    tagTag   String  @db.VarChar(128)
-    tag      tag     @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   project @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "project_tags_taggedid_tagTag_unique")
-}
-
-model project_labels {
-    id         String  @id @default(uuid()) @db.Uuid
-    labelledId String  @db.Uuid
-    labelId    String  @db.Uuid
-    labelled   project @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "project_labels_labelledid_labelid_unique")
+    id                  BigInt    @id @db.BigInt
+    credits             BigInt    @default(0)
+    customPlan          String?   @db.VarChar(2048)
+    enabledAt           DateTime? @db.Timestamptz(6)
+    expiresAt           DateTime? @db.Timestamptz(6)
+    receivedFreeTrialAt DateTime? @db.Timestamptz(6)
+    team                team?
+    user                user?
 }
 
 model pull_request {
-    id                      String                      @id @default(uuid()) @db.Uuid
-    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    status                  PullRequestStatus           @default(Open)
-    hasBeenClosedOrRejected Boolean                     @default(false)
-    mergedOrRejectedAt      DateTime?                   @db.Timestamptz(6)
-    createdById             String?                     @db.Uuid
-    toApiId                 String?                     @db.Uuid
-    toCodeId                String?                     @db.Uuid
-    toNoteId                String?                     @db.Uuid
-    toProjectId             String?                     @db.Uuid
-    toRoutineId             String?                     @db.Uuid
-    toStandardId            String?                     @db.Uuid
-    createdBy               user?                       @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    toApi                   api?                        @relation(fields: [toApiId], references: [id], onDelete: Cascade)
-    fromApiVersion          api_version?                @relation("pull_request_from_api_version")
-    toCode                  code?                       @relation(fields: [toCodeId], references: [id], onDelete: Cascade)
-    fromCodeVersion         code_version?               @relation("pull_request_from_code_version")
-    toNote                  note?                       @relation(fields: [toNoteId], references: [id], onDelete: Cascade)
-    fromNoteVersion         note_version?               @relation("pull_request_from_note_version")
-    toProject               project?                    @relation(fields: [toProjectId], references: [id], onDelete: Cascade)
-    fromProjectVersion      project_version?            @relation("pull_request_from_project_version")
-    toRoutine               routine?                    @relation(fields: [toRoutineId], references: [id], onDelete: Cascade)
-    fromRoutineVersion      routine_version?            @relation("pull_request_from_routine_version")
-    toStandard              standard?                   @relation(fields: [toStandardId], references: [id], onDelete: Cascade)
-    fromStandardVersion     standard_version?           @relation("pull_request_from_standard_version")
-    comments                comment[]
-    subscriptions           notification_subscription[]
-    translations            pull_request_translation[]
+    id                  BigInt                      @id @db.BigInt
+    publicId            String                      @unique @db.VarChar(12)
+    createdAt           DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt           DateTime                    @updatedAt @db.Timestamptz(6)
+    status              PullRequestStatus           @default(Open)
+    closedAt            DateTime?                   @db.Timestamptz(6)
+    createdById         BigInt?                     @db.BigInt
+    toResourceId        BigInt?                     @db.BigInt
+    createdBy           user?                       @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    toResource          resource?                   @relation(fields: [toResourceId], references: [id], onDelete: Cascade)
+    fromResourceVersion resource_version?           @relation("pull_request_from_resource_version")
+    comments            comment[]
+    subscriptions       notification_subscription[]
+    translations        pull_request_translation[]
+
+    @@index([publicId], name: "idx_pull_request_publicId")
+    @@index([createdById, createdAt], name: "idx_pull_request_createdById_createdAt")
+    @@index([toResourceId, createdAt], name: "idx_pull_request_toResourceId_createdAt")
 }
 
 model pull_request_translation {
-    id            String       @id @default(uuid()) @db.Uuid
+    id            BigInt       @id @db.BigInt
     text          String       @db.VarChar(32768)
     language      String       @db.VarChar(3)
-    pullRequestId String       @db.Uuid
+    pullRequestId BigInt       @db.BigInt
     pullRequest   pull_request @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
 
-    @@unique([pullRequestId, language])
+    @@unique([pullRequestId, language], name: "pull_request_translation_pullRequestId_language_unique")
+    @@index([pullRequestId], name: "idx_pull_request_translation_pullRequestId")
 }
 
 model reaction {
-    id            String        @id @default(uuid()) @db.Uuid
-    created_at    DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime      @default(now()) @db.Timestamptz(6)
+    id            BigInt        @id @db.BigInt
+    createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+    updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
     emoji         String        @db.VarChar(32)
-    byId          String        @db.Uuid
-    apiId         String?       @db.Uuid
-    chatMessageId String?       @db.Uuid
-    codeId        String?       @db.Uuid
-    commentId     String?       @db.Uuid
-    issueId       String?       @db.Uuid
-    noteId        String?       @db.Uuid
-    projectId     String?       @db.Uuid
-    routineId     String?       @db.Uuid
-    standardId    String?       @db.Uuid
+    byId          BigInt        @db.BigInt
+    resourceId    BigInt?       @db.BigInt
+    chatMessageId BigInt?       @db.BigInt
+    commentId     BigInt?       @db.BigInt
+    issueId       BigInt?       @db.BigInt
     by            user          @relation("reaction_by", fields: [byId], references: [id], onDelete: Cascade)
-    api           api?          @relation("reaction_api", fields: [apiId], references: [id], onDelete: Cascade)
+    resource      resource?     @relation("reaction_resource", fields: [resourceId], references: [id], onDelete: Cascade)
     chatMessage   chat_message? @relation("reaction_chat_message", fields: [chatMessageId], references: [id], onDelete: Cascade)
-    code          code?         @relation("reaction_code", fields: [codeId], references: [id], onDelete: Cascade)
     comment       comment?      @relation("reaction_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue         issue?        @relation("reaction_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note          note?         @relation("reaction_note", fields: [noteId], references: [id], onDelete: Cascade)
-    project       project?      @relation("reaction_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine       routine?      @relation("reaction_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard      standard?     @relation("reaction_standard", fields: [standardId], references: [id], onDelete: Cascade)
+
+    @@index([byId, createdAt], name: "idx_reaction_byId_createdAt")
+    @@index([resourceId, createdAt], name: "idx_reaction_resourceId_createdAt")
+    @@index([chatMessageId, createdAt], name: "idx_reaction_chatMessageId_createdAt")
+    @@index([commentId, createdAt], name: "idx_reaction_commentId_createdAt")
+    @@index([issueId, createdAt], name: "idx_reaction_issueId_createdAt")
 }
 
 model reaction_summary {
-    id            String        @id @default(uuid()) @db.Uuid
-    created_at    DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime      @default(now()) @db.Timestamptz(6)
+    id            BigInt        @id @db.BigInt
+    createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+    updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
     emoji         String        @db.VarChar(32)
     count         Int           @default(0)
-    apiId         String?       @db.Uuid
-    chatMessageId String?       @db.Uuid
-    codeId        String?       @db.Uuid
-    commentId     String?       @db.Uuid
-    issueId       String?       @db.Uuid
-    noteId        String?       @db.Uuid
-    projectId     String?       @db.Uuid
-    routineId     String?       @db.Uuid
-    standardId    String?       @db.Uuid
-    api           api?          @relation("reaction_summary_api", fields: [apiId], references: [id], onDelete: Cascade)
+    resourceId    BigInt?       @db.BigInt
+    chatMessageId BigInt?       @db.BigInt
+    commentId     BigInt?       @db.BigInt
+    issueId       BigInt?       @db.BigInt
+    resource      resource?     @relation("reaction_summary_resource", fields: [resourceId], references: [id], onDelete: Cascade)
     chatMessage   chat_message? @relation("reaction_summary_chat_message", fields: [chatMessageId], references: [id], onDelete: Cascade)
-    code          code?         @relation("reaction_summary_code", fields: [codeId], references: [id], onDelete: Cascade)
     comment       comment?      @relation("reaction_summary_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue         issue?        @relation("reaction_summary_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note          note?         @relation("reaction_summary_note", fields: [noteId], references: [id], onDelete: Cascade)
-    project       project?      @relation("reaction_summary_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine       routine?      @relation("reaction_summary_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard      standard?     @relation("reaction_summary_standard", fields: [standardId], references: [id], onDelete: Cascade)
 
-    @@unique([emoji, apiId, chatMessageId, codeId, commentId, issueId, noteId, projectId, routineId, standardId], name: "reaction_summary_emoji_unique")
+    @@unique([emoji, resourceId, chatMessageId, commentId, issueId], name: "reaction_summary_emoji_unique")
+    @@index([resourceId, createdAt], name: "idx_reaction_summary_resourceId_createdAt")
+    @@index([chatMessageId, createdAt], name: "idx_reaction_summary_chatMessageId_createdAt")
+    @@index([commentId, createdAt], name: "idx_reaction_summary_commentId_createdAt")
+    @@index([issueId, createdAt], name: "idx_reaction_summary_issueId_createdAt")
 }
 
 model reminder_list {
-    id         String     @id @default(uuid()) @db.Uuid
-    created_at DateTime   @default(now()) @db.Timestamptz(6)
-    updated_at DateTime   @default(now()) @db.Timestamptz(6)
-    userId     String     @db.Uuid
-    reminders  reminder[]
-    user       user       @relation("reminder_list_user", fields: [userId], references: [id], onDelete: Cascade)
+    id        BigInt     @id @db.BigInt
+    createdAt DateTime   @default(now()) @db.Timestamptz(6)
+    updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+    userId    BigInt     @db.BigInt
+    reminders reminder[]
+    user      user       @relation("reminder_list_user", fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId, createdAt], name: "idx_reminder_list_userId_createdAt")
 }
 
 model reminder {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    created_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    name                 String                      @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
-    dueDate              DateTime?                   @db.Timestamptz(6)
-    index                Int
-    isComplete           Boolean                     @default(false)
-    reminderListId       String                      @db.Uuid
-    reminderItems        reminder_item[]
-    reminderList         reminder_list               @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+    id                 BigInt                      @id @db.BigInt
+    createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
+    completedAt        DateTime?                   @db.Timestamptz(6)
+    dueDate            DateTime?                   @db.Timestamptz(6)
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    name               String                      @db.VarChar(128)
+    description        String?                     @db.VarChar(2048)
+    index              Int
+    reminderListId     BigInt                      @db.BigInt
+    reminderItems      reminder_item[]
+    reminderList       reminder_list               @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+
+    @@index([reminderListId, createdAt], name: "idx_reminder_reminderListId_createdAt")
 }
 
 model reminder_item {
-    id          String    @id @default(uuid()) @db.Uuid
-    created_at  DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+    id          BigInt    @id @db.BigInt
+    createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+    completedAt DateTime? @db.Timestamptz(6)
+    dueDate     DateTime? @db.Timestamptz(6)
     name        String    @db.VarChar(128)
     description String?   @db.VarChar(2048)
-    dueDate     DateTime? @db.Timestamptz(6)
     index       Int
-    isComplete  Boolean   @default(false)
-    reminderId  String    @db.Uuid
+    reminderId  BigInt    @db.BigInt
     reminder    reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+    @@index([reminderId], name: "idx_reminder_item_reminderId")
 }
 
 model report {
-    id                String                      @id @default(uuid()) @db.Uuid
-    created_at        DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
+    id                BigInt                      @id @db.BigInt
+    publicId          String                      @unique @db.VarChar(12)
+    createdAt         DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt         DateTime                    @updatedAt @db.Timestamptz(6)
     reason            String                      @db.VarChar(128)
     details           String?                     @db.VarChar(8192)
     language          String                      @db.VarChar(3)
     status            ReportStatus
-    apiVersionId      String?                     @db.Uuid
-    chatMessageId     String?                     @db.Uuid
-    codeVersionId     String?                     @db.Uuid
-    commentId         String?                     @db.Uuid
-    issueId           String?                     @db.Uuid
-    noteVersionId     String?                     @db.Uuid
-    projectVersionId  String?                     @db.Uuid
-    routineVersionId  String?                     @db.Uuid
-    standardVersionId String?                     @db.Uuid
-    tagId             String?                     @db.Uuid
-    teamId            String?                     @db.Uuid
-    userId            String?                     @db.Uuid
-    createdById       String?                     @db.Uuid
-    apiVersion        api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    resourceVersionId BigInt?                     @db.BigInt
+    chatMessageId     BigInt?                     @db.BigInt
+    commentId         BigInt?                     @db.BigInt
+    issueId           BigInt?                     @db.BigInt
+    tagId             BigInt?                     @db.BigInt
+    teamId            BigInt?                     @db.BigInt
+    userId            BigInt?                     @db.BigInt
+    createdById       BigInt?                     @db.BigInt
+    resourceVersion   resource_version?           @relation(fields: [resourceVersionId], references: [id], onDelete: Cascade)
     chatMessage       chat_message?               @relation(fields: [chatMessageId], references: [id], onDelete: Cascade)
-    codeVersion       code_version?               @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
     comment           comment?                    @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue             issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
-    noteVersion       note_version?               @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
-    projectVersion    project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
-    routineVersion    routine_version?            @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    standardVersion   standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     tag               tag?                        @relation(fields: [tagId], references: [id], onDelete: Cascade)
     team              team?                       @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user              user?                       @relation("report_user", fields: [userId], references: [id], onDelete: Cascade)
     createdBy         user?                       @relation("report_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     responses         report_response[]
     subscriptions     notification_subscription[]
+
+    @@index([publicId], name: "idx_report_publicId")
+    @@index([createdById, createdAt], name: "idx_report_createdById_createdAt")
+    @@index([resourceVersionId, createdAt], name: "idx_report_resourceVersionId_createdAt")
+    @@index([chatMessageId, createdAt], name: "idx_report_chatMessageId_createdAt")
+    @@index([commentId, createdAt], name: "idx_report_commentId_createdAt")
+    @@index([issueId, createdAt], name: "idx_report_issueId_createdAt")
+    @@index([tagId, createdAt], name: "idx_report_tagId_createdAt")
+    @@index([teamId, createdAt], name: "idx_report_teamId_createdAt")
+    @@index([userId, createdAt], name: "idx_report_userId_createdAt")
 }
 
 model report_response {
-    id              String                @id @default(uuid()) @db.Uuid
-    created_at      DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime              @default(now()) @db.Timestamptz(6)
-    reportId        String                @db.Uuid
-    createdById     String                @db.Uuid
+    id              BigInt                @id @db.BigInt
+    createdAt       DateTime              @default(now()) @db.Timestamptz(6)
+    updatedAt       DateTime              @updatedAt @db.Timestamptz(6)
+    reportId        BigInt                @db.BigInt
+    createdById     BigInt                @db.BigInt
     actionSuggested ReportSuggestedAction
     details         String?               @db.VarChar(8192)
     language        String?               @db.VarChar(3)
@@ -1337,423 +781,281 @@ model report_response {
     createdBy       user                  @relation("report_response_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
 
     @@unique([reportId, createdById], name: "report_response_reportid_userid_unique")
+    @@index([reportId, createdAt], name: "idx_report_response_reportId_createdAt")
+    @@index([createdById, createdAt], name: "idx_report_response_createdById_createdAt")
 }
 
 model reputation_history {
-    id         String   @id @default(uuid()) @db.Uuid
-    created_at DateTime @default(now()) @db.Timestamptz(6)
-    updated_at DateTime @default(now()) @db.Timestamptz(6)
-    amount     Int
-    event      String   @db.VarChar(128)
-    objectId1  String?  @db.Uuid
-    objectId2  String?  @db.Uuid
-    userId     String   @db.Uuid
-    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        BigInt   @id @db.BigInt
+    createdAt DateTime @default(now()) @db.Timestamptz(6)
+    updatedAt DateTime @updatedAt @db.Timestamptz(6)
+    amount    Int
+    event     String   @db.VarChar(128)
+    objectId1 BigInt?  @db.BigInt
+    objectId2 BigInt?  @db.BigInt
+    userId    BigInt   @db.BigInt
+    user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId, createdAt], name: "idx_reputation_history_userId_createdAt")
+    @@index([userId, event], name: "idx_reputation_history_userId_event")
 }
 
 model resource {
-    id           String                 @id @default(uuid()) @db.Uuid
-    created_at   DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
-    index        Int?                   @default(0)
-    link         String                 @db.VarChar(1024)
-    usedFor      ResourceUsedFor        @default(Context)
-    listId       String                 @db.Uuid
-    list         resource_list          @relation(fields: [listId], references: [id], onDelete: Cascade)
+    id                 BigInt    @id @db.BigInt
+    publicId           String    @unique @db.VarChar(12)
+    createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+    resourceType       String    @db.VarChar(32)
+    completedAt        DateTime? @db.Timestamptz(6)
+    transferredAt      DateTime? @db.Timestamptz(6)
+    hasCompleteVersion Boolean   @default(false)
+    isDeleted          Boolean   @default(false)
+    isPrivate          Boolean   @default(false)
+    permissions        Json?     @default("{}")
+    score              Int       @default(0)
+    bookmarks          Int       @default(0)
+    views              Int       @default(0)
+    createdById        BigInt?   @db.BigInt
+    ownedByTeamId      BigInt?   @db.BigInt
+    ownedByUserId      BigInt?   @db.BigInt
+    parentId           BigInt?   @db.BigInt
+
+    // Relations
+    createdBy   user?             @relation("resource_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    ownedByTeam team?             @relation("resource_ownedByTeam", fields: [ownedByTeamId], references: [id])
+    ownedByUser user?             @relation("resource_ownedByUser", fields: [ownedByUserId], references: [id])
+    parent      resource_version? @relation("resource_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+
+    // Resource-specific searchable fields (minimal set)
+    isInternal Boolean? // For routines
+
+    // Child relations
+    versions          resource_version[]
+    tags              resource_tag[]
+    issues            issue[]
+    bookmarkedBy      bookmark[]                  @relation("bookmark_resource")
+    viewedBy          view[]                      @relation("view_resource")
+    reactions         reaction[]                  @relation("reaction_resource")
+    reactionSummaries reaction_summary[]          @relation("reaction_summary_resource")
+    pullRequests      pull_request[]
+    subscriptions     notification_subscription[]
+    transfers         transfer[]                  @relation("transfer_resource")
+    stats             stats_resource[]
+
+    @@index([publicId], name: "idx_resource_publicId")
+    @@index([resourceType, createdAt, isDeleted, isInternal], name: "idx_resource_resourceType_createdAt_isDeleted_isInternal")
+    @@index([resourceType, updatedAt, isDeleted, isInternal], name: "idx_resource_resourceType_updatedAt_isDeleted_isInternal")
+    @@index([resourceType, score, isDeleted, isInternal], name: "idx_resource_resourceType_score_isDeleted_isInternal")
+    @@index([resourceType, bookmarks, isDeleted, isInternal], name: "idx_resource_resourceType_bookmarks_isDeleted_isInternal")
+    @@index([resourceType, views, isDeleted, isInternal], name: "idx_resource_resourceType_views_isDeleted_isInternal")
+    @@index([createdById], name: "idx_resource_createdById")
+    @@index([ownedByTeamId], name: "idx_resource_ownedByTeamId")
+    @@index([ownedByUserId], name: "idx_resource_ownedByUserId")
+    @@index([parentId], name: "idx_resource_parentId")
+}
+
+model resource_version {
+    id                  BigInt    @id @db.BigInt
+    publicId            String    @unique @db.VarChar(12)
+    rootId              BigInt    @db.BigInt
+    versionIndex        Int       @default(0)
+    versionLabel        String    @default("1.0.0") @db.VarChar(16)
+    createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+    completedAt         DateTime? @db.Timestamptz(6)
+    config              Json?     @default("{}")
+    isComplete          Boolean   @default(false)
+    isDeleted           Boolean   @default(false)
+    isLatest            Boolean   @default(false)
+    isLatestPublic      Boolean   @default(false)
+    isPrivate           Boolean   @default(false)
+    intendToPullRequest Boolean   @default(false)
+    versionNotes        String?   @db.VarChar(4096)
+    pullRequestId       BigInt?   @unique @db.BigInt
+
+    // Type-specific searchable fields
+    codeLanguage    String?  @db.VarChar(128) // For code
+    resourceSubType String?  @db.VarChar(32)
+    isAutomatable   Boolean? // For routines
+    complexity      Int? // For routines & projects
+    simplicity      Int? // For routines & projects
+
+    // Run fields
+    timesStarted   Int        @default(0)
+    timesCompleted Int        @default(0)
+    runs           run[]      @relation("run_resource_version")
+    runSteps       run_step[] @relation("run_step_resource_version")
+
+    // Relations
+    root        resource      @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    pullRequest pull_request? @relation("pull_request_from_resource_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+
+    // For linking related versions (e.g., a routine linking to an API, subroutine)
+    relatedVersions resource_version_relation[] @relation("from_version")
+    referencedBy    resource_version_relation[] @relation("to_version")
+
+    // Child relations
+    forks        resource[]             @relation("resource_version_fork")
     translations resource_translation[]
+    comments     comment[]
+    reports      report[]
+
+    @@unique([rootId, versionIndex], name: "resource_version_rootId_versionIndex_unique")
+    @@index([rootId, createdAt], name: "idx_resource_version_rootId_createdAt")
+    @@index([rootId, updatedAt], name: "idx_resource_version_rootId_updatedAt")
+    @@index([rootId, isLatest], name: "idx_resource_version_rootId_isLatest")
+}
+
+model resource_version_relation {
+    id            BigInt   @id @db.BigInt
+    fromVersionId BigInt   @db.BigInt
+    toVersionId   BigInt   @db.BigInt
+    relationType  String   @db.VarChar(64) // e.g., "SUBROUTINE", "API_CALL", "CODE_CALL", etc.
+    labels        String[]
+
+    fromVersion resource_version @relation("from_version", fields: [fromVersionId], references: [id], onDelete: Cascade)
+    toVersion   resource_version @relation("to_version", fields: [toVersionId], references: [id], onDelete: Cascade)
+
+    @@unique([fromVersionId, toVersionId, relationType])
+    @@index([fromVersionId], name: "idx_resource_version_relation_fromVersionId")
+    @@index([toVersionId], name: "idx_resource_version_relation_toVersionId")
 }
 
 model resource_translation {
-    id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048)
-    name        String?  @db.VarChar(128)
-    language    String   @db.VarChar(3)
-    resourceId  String   @db.Uuid
-    resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+    id                 BigInt                      @id @db.BigInt
+    resourceVersionId  BigInt                      @db.BigInt
+    language           String                      @db.VarChar(3)
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
 
-    @@unique([resourceId, language])
-}
-
-model resource_list {
-    id              String                      @id @default(uuid()) @db.Uuid
-    created_at      DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime                    @default(now()) @db.Timestamptz(6)
-    apiVersion      api_version?                @relation("resource_list_api_version")
-    codeVersion     code_version?               @relation("resource_list_code_version")
-    projectVersion  project_version?            @relation("resource_list_project_version")
-    routineVersion  routine_version?            @relation("resource_list_routine_version")
-    standardVersion standard_version?           @relation("resource_list_standard_version")
-    resources       resource[]
-    team            team?                       @relation("resource_list_team")
-    translations    resource_list_translation[]
-}
-
-model resource_list_translation {
-    id          String        @id @default(uuid()) @db.Uuid
-    description String?       @db.VarChar(2048)
-    name        String?       @db.VarChar(128)
-    language    String        @db.VarChar(3)
-    listId      String        @db.Uuid
-    list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
-
-    @@unique([listId, language])
-}
-
-model role {
-    id           String             @id @default(uuid()) @db.Uuid
-    created_at   DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime           @default(now()) @db.Timestamptz(6)
-    name         String             @db.VarChar(128)
-    permissions  String             @db.VarChar(4096)
-    teamId       String             @db.Uuid
-    team         team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    members      member[]
-    meetings     meeting_roles[]
-    chats        chat_roles[]
-    translations role_translation[]
-
-    @@unique([teamId, name], name: "role_teamId_name_unique")
-}
-
-model role_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
+    // Common fields
     name        String  @db.VarChar(128)
-    language    String  @db.VarChar(3)
-    roleId      String  @db.Uuid
-    role        role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    description String? @db.VarChar(2048)
 
-    @@unique([roleId, language])
+    // Extended content (can store different fields based on resource type)
+    details      String? @db.VarChar(8192)
+    instructions String? @db.VarChar(8192)
+
+    // Relations
+    resourceVersion resource_version @relation(fields: [resourceVersionId], references: [id], onDelete: Cascade)
+
+    @@unique([resourceVersionId, language])
+    @@index([resourceVersionId], name: "idx_resource_translation_resourceVersionId")
 }
 
-model routine {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    isDeleted          Boolean                     @default(false)
-    isInternal         Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    createdBy          user?                       @relation("routine_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    issues             issue[]
-    parent             routine_version?            @relation("routine_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    ownedByTeam        team?                       @relation("routine_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
-    ownedByUser        user?                       @relation("routine_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    labels             routine_labels[]
-    tags               routine_tags[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_routine")
-    versions           routine_version[]
-    viewedBy           view[]                      @relation("view_routine")
-    reactions          reaction[]                  @relation("reaction_routine")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_routine")
-    pullRequests       pull_request[]
-    stats              stats_routine[]
-    transfers          transfer[]                  @relation("transfer_routine")
-    subscriptions      notification_subscription[]
+model resource_tag {
+    id       BigInt   @id @db.BigInt
+    taggedId BigInt   @db.BigInt
+    tagTag   String   @db.VarChar(128)
+    tagged   resource @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+    tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
+
+    @@unique([taggedId, tagTag], name: "resource_tag_taggedId_tagTag_unique")
+    @@index([taggedId], name: "idx_resource_tag_taggedId")
+    @@index([tagTag], name: "idx_resource_tag_tagTag")
 }
 
-model routine_version {
-    id                                String                        @id @default(uuid()) @db.Uuid
-    created_at                        DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at                        DateTime                      @default(now()) @db.Timestamptz(6)
-    completedAt                       DateTime?                     @db.Timestamptz(6)
-    config                            String?                       @db.VarChar(32768)
-    complexity                        Int                           @default(1)
-    intendToPullRequest               Boolean                       @default(false)
-    isAutomatable                     Boolean                       @default(false)
-    isComplete                        Boolean                       @default(true)
-    isDeleted                         Boolean                       @default(false)
-    isLatest                          Boolean                       @default(false)
-    isLatestPublic                    Boolean                       @default(false)
-    isPrivate                         Boolean                       @default(false)
-    rootId                            String                        @db.Uuid
-    routineType                       RoutineType                   @default(Informational)
-    simplicity                        Int                           @default(1)
-    timesStarted                      Int                           @default(0)
-    timesCompleted                    Int                           @default(0)
-    resourceListId                    String?                       @unique @db.Uuid
-    apiVersionId                      String?                       @db.Uuid
-    codeVersionId                     String?                       @db.Uuid
-    pullRequestId                     String?                       @unique @db.Uuid
-    versionIndex                      Int                           @default(0)
-    versionLabel                      String                        @default("1.0.0") @db.VarChar(16)
-    versionNotes                      String?                       @db.VarChar(4096)
-    apiVersion                        api_version?                  @relation(fields: [apiVersionId], references: [id], onDelete: SetNull)
-    codeVersion                       code_version?                 @relation(fields: [codeVersionId], references: [id], onDelete: SetNull)
-    comments                          comment[]
-    reports                           report[]
-    subroutineLinks                   routine_version_subroutine[]  @relation("routine_version_child")
-    parentRoutineLinks                routine_version_subroutine[]  @relation("routine_version_parent")
-    resourceList                      resource_list?                @relation("resource_list_routine_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    root                              routine                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    forks                             routine[]                     @relation("routine_version_fork")
-    inputs                            routine_version_input[]
-    outputs                           routine_version_output[]
-    pullRequest                       pull_request?                 @relation("pull_request_from_routine_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    translations                      routine_version_translation[]
-    runRoutines                       run_routine[]                 @relation("run_routine_version")
-    runSteps                          run_routine_step[]            @relation("run_routine_step_subroutine")
-    suggestedNextByRoutineVersion     routine_version_end_next[]    @relation("routine_version_end_next_to")
-    suggestedNextByRoutineVersionFrom routine_version_end_next[]    @relation("routine_version_end_next_from")
-    directoryListings                 project_version_directory[]
+model run {
+    id                  BigInt            @id @db.BigInt
+    createdAt           DateTime          @default(now()) @db.Timestamptz(6)
+    updatedAt           DateTime          @updatedAt @db.Timestamptz(6)
+    completedComplexity Int               @default(0)
+    contextSwitches     Int               @default(0)
+    data                String?           @db.VarChar(16384)
+    isPrivate           Boolean           @default(false)
+    scheduleId          BigInt?           @db.BigInt
+    wasRunAutomatically Boolean           @default(false)
+    startedAt           DateTime?         @db.Timestamptz(6)
+    timeElapsed         Int?
+    completedAt         DateTime?         @db.Timestamptz(6)
+    name                String            @db.VarChar(128)
+    status              RunStatus         @default(Scheduled)
+    resourceVersionId   BigInt?           @db.BigInt
+    teamId              BigInt?           @db.BigInt
+    userId              BigInt?           @db.BigInt
+    resourceVersion     resource_version? @relation("run_resource_version", fields: [resourceVersionId], references: [id], onDelete: SetNull)
+    schedule            schedule?         @relation("run_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    team                team?             @relation("run_team", fields: [teamId], references: [id], onDelete: SetNull)
+    user                user?             @relation("run_user", fields: [userId], references: [id], onDelete: Cascade)
+    steps               run_step[]        @relation("run_step_run")
+    io                  run_io[]          @relation("run_io_run")
 
-    @@unique([rootId, versionIndex], name: "routine_version_rootId_versionIndex_unique")
+    @@index([scheduleId], name: "idx_run_scheduleId")
+    @@index([resourceVersionId, createdAt], name: "idx_run_resourceVersionId_createdAt")
+    @@index([resourceVersionId, updatedAt], name: "idx_run_resourceVersionId_updatedAt")
+    @@index([teamId, createdAt], name: "idx_run_teamId_createdAt")
+    @@index([teamId, updatedAt], name: "idx_run_teamId_updatedAt")
+    @@index([userId, createdAt], name: "idx_run_userId_createdAt")
+    @@index([userId, updatedAt], name: "idx_run_userId_updatedAt")
+    @@index([status], name: "idx_run_status")
 }
 
-model routine_version_subroutine {
-    id              String          @id @default(uuid()) @db.Uuid
-    parentRoutineId String          @db.Uuid
-    subroutineId    String          @db.Uuid
-    parentRoutine   routine_version @relation("routine_version_parent", fields: [parentRoutineId], references: [id], onDelete: Cascade)
-    subroutine      routine_version @relation("routine_version_child", fields: [subroutineId], references: [id], onDelete: Cascade)
+model run_io {
+    id            BigInt   @id @db.BigInt
+    createdAt     DateTime @default(now()) @db.Timestamptz(6)
+    updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+    data          String   @db.VarChar(8192)
+    nodeInputName String   @db.VarChar(128)
+    nodeName      String   @db.VarChar(128)
+    runId         BigInt   @db.BigInt
+    run           run      @relation("run_io_run", fields: [runId], references: [id], onDelete: Cascade)
 
-    @@unique([parentRoutineId, subroutineId], name: "routine_version_subroutine_parentRoutineId_subroutineId_unique")
+    @@index([runId], name: "idx_run_io_runId")
 }
 
-model routine_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    description          String?                     @db.VarChar(2048)
-    instructions         String?                     @db.VarChar(8192)
-    name                 String                      @db.VarChar(128)
-    language             String                      @db.VarChar(3)
-    routineVersionId     String                      @db.Uuid
-    routineVersion       routine_version             @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+model run_step {
+    id                BigInt            @id @db.BigInt
+    completedAt       DateTime?         @db.Timestamptz(6)
+    complexity        Int               @default(0)
+    contextSwitches   Int               @default(0)
+    name              String            @db.VarChar(128)
+    nodeId            String            @db.Uuid
+    order             Int               @default(0)
+    resourceInId      String            @db.Uuid
+    startedAt         DateTime?         @db.Timestamptz(6)
+    status            RunStepStatus     @default(InProgress)
+    timeElapsed       Int?
+    runId             BigInt            @db.BigInt
+    resourceVersionId BigInt?           @db.BigInt
+    run               run               @relation("run_step_run", fields: [runId], references: [id], onDelete: Cascade)
+    resourceVersion   resource_version? @relation("run_step_resource_version", fields: [resourceVersionId], references: [id], onDelete: SetNull)
 
-    @@unique([routineVersionId, language])
-}
-
-model routine_version_input {
-    id                String                              @id @default(uuid()) @db.Uuid
-    index             Int?                                @default(0)
-    isRequired        Boolean                             @default(true)
-    name              String?                             @db.VarChar(128)
-    routineVersionId  String                              @db.Uuid
-    standardVersionId String?                             @db.Uuid
-    routineVersion    routine_version                     @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    standardVersion   standard_version?                   @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
-    translations      routine_version_input_translation[]
-    runIO             run_routine_io[]
-}
-
-model routine_version_input_translation {
-    id                    String                @id @default(uuid()) @db.Uuid
-    description           String?               @db.VarChar(2048)
-    helpText              String?               @db.VarChar(2048)
-    routineVersionInputId String                @db.Uuid
-    language              String                @db.VarChar(3)
-    routineVersionInput   routine_version_input @relation(fields: [routineVersionInputId], references: [id], onDelete: Cascade)
-
-    @@unique([routineVersionInputId, language])
-}
-
-model routine_version_output {
-    id                String                                @id @default(uuid()) @db.Uuid
-    index             Int?                                  @default(0)
-    name              String?                               @db.VarChar(128)
-    routineVersionId  String                                @db.Uuid
-    standardVersionId String?                               @db.Uuid
-    routineVersion    routine_version                       @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    standardVersion   standard_version?                     @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
-    translations      routine_verstion_output_translation[]
-    runIO             run_routine_io[]
-}
-
-model routine_verstion_output_translation {
-    id                   String                 @id @default(uuid()) @db.Uuid
-    description          String?                @db.VarChar(2048)
-    helpText             String?                @db.VarChar(2048)
-    routineOutputId      String                 @db.Uuid
-    language             String                 @db.VarChar(3)
-    routineVersionOutput routine_version_output @relation(fields: [routineOutputId], references: [id], onDelete: Cascade)
-
-    @@unique([routineOutputId, language])
-}
-
-model routine_version_end_next {
-    id                   String          @id @default(uuid()) @db.Uuid
-    fromRoutineVersionId String          @db.Uuid
-    toRoutineVersionId   String          @db.Uuid
-    fromRoutineVersion   routine_version @relation("routine_version_end_next_from", fields: [fromRoutineVersionId], references: [id], onDelete: Cascade)
-    toRoutineVersion     routine_version @relation("routine_version_end_next_to", fields: [toRoutineVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([fromRoutineVersionId, toRoutineVersionId])
-}
-
-model routine_tags {
-    id       String  @id @default(uuid()) @db.Uuid
-    taggedId String  @db.Uuid
-    tagTag   String  @db.VarChar(128)
-    tag      tag     @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   routine @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "routine_tags_taggedid_tagTag_unique")
-}
-
-model routine_labels {
-    id         String  @id @default(uuid()) @db.Uuid
-    labelledId String  @db.Uuid
-    labelId    String  @db.Uuid
-    labelled   routine @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "routine_labels_labelledid_labelid_unique")
-}
-
-model run_project {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    created_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    completedComplexity  Int                         @default(0)
-    contextSwitches      Int                         @default(0)
-    data                 String?                     @db.VarChar(16384)
-    isPrivate            Boolean                     @default(false)
-    scheduleId           String?                     @db.Uuid
-    startedAt            DateTime?                   @db.Timestamptz(6)
-    timeElapsed          Int?
-    completedAt          DateTime?                   @db.Timestamptz(6)
-    name                 String                      @db.VarChar(128)
-    status               RunStatus                   @default(Scheduled)
-    projectVersionId     String?                     @db.Uuid
-    teamId               String?                     @db.Uuid
-    userId               String?                     @db.Uuid
-    projectVersion       project_version?            @relation("run_project_version", fields: [projectVersionId], references: [id])
-    schedule             schedule?                   @relation("run_project_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
-    team                 team?                       @relation("run_project_team", fields: [teamId], references: [id], onDelete: Cascade)
-    user                 user?                       @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
-    steps                run_project_step[]          @relation("run_project_step_run")
-}
-
-model run_project_step {
-    id              String                     @id @default(uuid()) @db.Uuid
-    completedAt     DateTime?                  @db.Timestamptz(6)
-    complexity      Int                        @default(0)
-    contextSwitches Int                        @default(0)
-    name            String                     @db.VarChar(128)
-    order           Int                        @default(0)
-    directoryInId   String                     @db.Uuid
-    startedAt       DateTime?                  @db.Timestamptz(6)
-    status          RunStepStatus              @default(InProgress)
-    timeElapsed     Int?
-    directoryId     String?                    @db.Uuid
-    runProjectId    String                     @db.Uuid
-    directory       project_version_directory? @relation("run_project_step_directory", fields: [directoryId], references: [id], onDelete: SetNull)
-    runProject      run_project                @relation("run_project_step_run", fields: [runProjectId], references: [id], onDelete: Cascade)
-}
-
-model run_routine {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    created_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    completedComplexity  Int                         @default(0)
-    contextSwitches      Int                         @default(0)
-    data                 String?                     @db.VarChar(16384)
-    isPrivate            Boolean                     @default(false)
-    scheduleId           String?                     @db.Uuid
-    wasRunAutomatically  Boolean                     @default(false)
-    startedAt            DateTime?                   @db.Timestamptz(6)
-    timeElapsed          Int?
-    completedAt          DateTime?                   @db.Timestamptz(6)
-    name                 String                      @db.VarChar(128)
-    status               RunStatus                   @default(Scheduled)
-    routineVersionId     String?                     @db.Uuid
-    teamId               String?                     @db.Uuid
-    userId               String?                     @db.Uuid
-    routineVersion       routine_version?            @relation("run_routine_version", fields: [routineVersionId], references: [id])
-    schedule             schedule?                   @relation("run_routine_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
-    team                 team?                       @relation("run_routine_team", fields: [teamId], references: [id], onDelete: SetNull)
-    user                 user?                       @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
-    steps                run_routine_step[]          @relation("run_routine_step_run")
-    io                   run_routine_io[]            @relation("run_routine_io_run")
-}
-
-model run_routine_io {
-    id                     String                  @id @default(uuid()) @db.Uuid
-    created_at             DateTime                @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime                @default(now()) @db.Timestamptz(6)
-    data                   String                  @db.VarChar(8192)
-    nodeInputName          String                  @db.VarChar(128)
-    nodeName               String                  @db.VarChar(128)
-    runRoutineId           String                  @db.Uuid
-    routineVersionInputId  String?                 @db.Uuid
-    routineVersionOutputId String?                 @db.Uuid
-    runRoutine             run_routine             @relation("run_routine_io_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
-    routineVersionInput    routine_version_input?  @relation(fields: [routineVersionInputId], references: [id], onDelete: SetNull)
-    routineVersionOutput   routine_version_output? @relation(fields: [routineVersionOutputId], references: [id], onDelete: SetNull)
-}
-
-model run_routine_step {
-    id              String           @id @default(uuid()) @db.Uuid
-    completedAt     DateTime?        @db.Timestamptz(6)
-    complexity      Int              @default(0)
-    contextSwitches Int              @default(0)
-    name            String           @db.VarChar(128)
-    nodeId          String           @db.Uuid
-    order           Int              @default(0)
-    subroutineInId  String           @db.Uuid
-    startedAt       DateTime?        @db.Timestamptz(6)
-    status          RunStepStatus    @default(InProgress)
-    timeElapsed     Int?
-    runRoutineId    String           @db.Uuid
-    subroutineId    String?          @db.Uuid
-    runRoutine      run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
-    subroutine      routine_version? @relation("run_routine_step_subroutine", fields: [subroutineId], references: [id])
+    @@index([runId], name: "idx_run_step_runId")
+    @@index([resourceVersionId], name: "idx_run_step_resourceVersionId")
 }
 
 model schedule {
-    id            String                      @id @default(uuid()) @db.Uuid
-    created_at    DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime                    @default(now()) @db.Timestamptz(6)
+    id            BigInt                      @id @db.BigInt
+    publicId      String                      @unique @db.VarChar(12)
+    createdAt     DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt     DateTime                    @updatedAt @db.Timestamptz(6)
     startTime     DateTime
     endTime       DateTime
     timezone      String
     exceptions    schedule_exception[]
-    labels        schedule_labels[]
     meetings      meeting[]                   @relation("meeting_schedule")
     recurrences   schedule_recurrence[]
-    runProjects   run_project[]               @relation("run_project_schedule")
-    runRoutines   run_routine[]               @relation("run_routine_schedule")
+    runs          run[]                       @relation("run_schedule")
     subscriptions notification_subscription[]
-}
 
-model schedule_labels {
-    id         String   @id @default(uuid()) @db.Uuid
-    labelledId String   @db.Uuid
-    labelId    String   @db.Uuid
-    labelled   schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "schedule_labels_labelledid_labelid_unique")
+    @@index([publicId])
+    @@index([startTime], name: "idx_schedule_startTime")
 }
 
 model schedule_exception {
-    id                String    @id @default(uuid()) @db.Uuid
-    scheduleId        String    @db.Uuid
+    id                BigInt    @id @db.BigInt
+    scheduleId        BigInt    @db.BigInt
     schedule          schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     originalStartTime DateTime
     newStartTime      DateTime?
     newEndTime        DateTime?
+
+    @@index([scheduleId], name: "idx_schedule_exception_scheduleId")
 }
 
 model schedule_recurrence {
-    id             String                 @id @default(uuid()) @db.Uuid
-    scheduleId     String                 @db.Uuid
+    id             BigInt                 @id @db.BigInt
+    scheduleId     BigInt                 @db.BigInt
     schedule       schedule               @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     recurrenceType ScheduleRecurrenceType
     interval       Int                    @default(1)
@@ -1762,362 +1064,171 @@ model schedule_recurrence {
     month          Int?
     endDate        DateTime?
     duration       Int?
+
+    @@index([scheduleId], name: "idx_schedule_recurrence_scheduleId")
 }
 
-model standard {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    permissions        String                      @db.VarChar(4096)
-    isDeleted          Boolean                     @default(false)
-    isInternal         Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    parentId           String?                     @db.Uuid
-    createdById        String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    createdBy          user?                       @relation("standard_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    ownedByTeam        team?                       @relation("standard_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
-    ownedByUser        user?                       @relation("standard_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    issues             issue[]
-    labels             standard_labels[]
-    parent             standard_version?           @relation("standard_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    tags               standard_tags[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_standard")
-    versions           standard_version[]
-    viewedBy           view[]                      @relation("view_standard")
-    reactions          reaction[]                  @relation("reaction_standard")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_standard")
-    pullRequests       pull_request[]
-    stats              stats_standard[]
-    transfers          transfer[]                  @relation("transfer_standard")
-    subscriptions      notification_subscription[]
-}
+model stats_resource {
+    id                        BigInt     @id @db.BigInt
+    resourceId                BigInt     @db.BigInt
+    periodStart               DateTime   @db.Timestamptz(6)
+    periodEnd                 DateTime   @db.Timestamptz(6)
+    periodType                PeriodType
+    references                Int
+    referencedBy              Int
+    runsStarted               Int
+    runsCompleted             Int
+    runCompletionTimeAverage  Float
+    runContextSwitchesAverage Float
+    resource                  resource   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-model standard_version {
-    id                    String                         @id @default(uuid()) @db.Uuid
-    created_at            DateTime                       @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
-    completedAt           DateTime?                      @db.Timestamptz(6)
-    codeLanguage          String                         @default("json") @db.VarChar(128)
-    default               String?                        @db.VarChar(2048)
-    variant               StandardType                   @default(DataStructure)
-    props                 String                         @db.VarChar(8192)
-    isLatest              Boolean                        @default(false)
-    isLatestPublic        Boolean                        @default(false)
-    resourceListId        String?                        @unique @db.Uuid
-    rootId                String                         @db.Uuid
-    yup                   String?                        @db.VarChar(8192)
-    versionIndex          Int                            @default(0)
-    versionLabel          String                         @default("1.0.0") @db.VarChar(16)
-    versionNotes          String?                        @db.VarChar(4096)
-    intendToPullRequest   Boolean                        @default(false)
-    pullRequestId         String?                        @unique @db.Uuid
-    isComplete            Boolean                        @default(false)
-    isDeleted             Boolean                        @default(false)
-    isPrivate             Boolean                        @default(false)
-    isFile                Boolean                        @default(false)
-    comments              comment[]
-    directoryListings     project_version_directory[]
-    forks                 standard[]                     @relation("standard_version_fork")
-    pullRequest           pull_request?                  @relation("pull_request_from_standard_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    reports               report[]
-    resourceList          resource_list?                 @relation("resource_list_standard_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    root                  standard                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    routineVersionInputs  routine_version_input[]
-    routineVersionOutputs routine_version_output[]
-    translations          standard_version_translation[]
-
-    @@unique([rootId, versionIndex], name: "standard_version_rootId_versionIndex_unique")
-}
-
-model standard_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    name                 String                      @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
-    jsonVariable         String?                     @db.VarChar(8192)
-    standardVersionId    String                      @db.Uuid
-    language             String                      @db.VarChar(3)
-    standardVersion      standard_version            @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([standardVersionId, language])
-}
-
-model standard_tags {
-    id       String   @id @default(uuid()) @db.Uuid
-    taggedId String   @db.Uuid
-    tagTag   String   @db.VarChar(128)
-    tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   standard @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "standard_tags_taggedid_tagTag_unique")
-}
-
-model standard_labels {
-    id         String   @id @default(uuid()) @db.Uuid
-    labelledId String   @db.Uuid
-    labelId    String   @db.Uuid
-    labelled   standard @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "standard_labels_labelledid_labelid_unique")
+    @@unique([resourceId, periodStart, periodEnd, periodType])
+    @@index([resourceId], name: "idx_stats_resource_resourceId")
+    @@index([periodType, periodStart], name: "idx_stats_resource_periodType_periodStart")
 }
 
 model stats_site {
-    id                               String     @id @default(uuid()) @db.Uuid
-    periodStart                      DateTime   @db.Timestamptz(6)
-    periodEnd                        DateTime   @db.Timestamptz(6)
-    periodType                       PeriodType
-    activeUsers                      Int
-    apiCalls                         Int
-    apisCreated                      Int
-    codesCreated                     Int
-    codesCompleted                   Int
-    codeCompletionTimeAverage        Float
-    codeCalls                        Int
-    projectsCreated                  Int
-    projectsCompleted                Int
-    projectCompletionTimeAverage     Float
-    routinesCreated                  Int
-    routinesCompleted                Int
-    routineCompletionTimeAverage     Float
-    routineSimplicityAverage         Float
-    routineComplexityAverage         Float
-    runProjectsStarted               Int
-    runProjectsCompleted             Int
-    runProjectCompletionTimeAverage  Float
-    runProjectContextSwitchesAverage Float
-    runRoutinesStarted               Int
-    runRoutinesCompleted             Int
-    runRoutineCompletionTimeAverage  Float
-    runRoutineContextSwitchesAverage Float
-    standardsCreated                 Int
-    standardsCompleted               Int
-    standardCompletionTimeAverage    Float
-    teamsCreated                     Int
-    verifiedEmailsCreated            Int
-    verifiedWalletsCreated           Int
-}
+    id          BigInt     @id @db.BigInt
+    periodStart DateTime   @db.Timestamptz(6)
+    periodEnd   DateTime   @db.Timestamptz(6)
+    periodType  PeriodType
 
-model stats_api {
-    id              String     @id @default(uuid()) @db.Uuid
-    apiId           String     @db.Uuid
-    periodStart     DateTime   @db.Timestamptz(6)
-    periodEnd       DateTime   @db.Timestamptz(6)
-    periodType      PeriodType
-    calls           Int
-    routineVersions Int
-    api             api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
-}
+    activeUsers            Int
+    teamsCreated           Int
+    verifiedEmailsCreated  Int
+    verifiedWalletsCreated Int
 
-model stats_code {
-    id              String     @id @default(uuid()) @db.Uuid
-    codeId          String     @db.Uuid
-    periodStart     DateTime   @db.Timestamptz(6)
-    periodEnd       DateTime   @db.Timestamptz(6)
-    periodType      PeriodType
-    calls           Int
-    routineVersions Int
-    code            code       @relation(fields: [codeId], references: [id], onDelete: Cascade)
-}
+    resourcesCreatedByType              Json? // { "ROUTINE": 100, "CODE": 50 }
+    resourcesCompletedByType            Json?
+    resourceCompletionTimeAverageByType Json? // { "ROUTINE": 120.5, "CODE": 60.2 }
 
-model stats_project {
-    id                        String     @id @default(uuid()) @db.Uuid
-    projectId                 String     @db.Uuid
-    periodStart               DateTime   @db.Timestamptz(6)
-    periodEnd                 DateTime   @db.Timestamptz(6)
-    periodType                PeriodType
-    directories               Int
-    apis                      Int
-    codes                     Int
-    notes                     Int
-    projects                  Int
-    routines                  Int
-    standards                 Int
+    routineSimplicityAverage  Float
+    routineComplexityAverage  Float
     runsStarted               Int
     runsCompleted             Int
     runCompletionTimeAverage  Float
     runContextSwitchesAverage Float
-    teams                     Int
-    project                   project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
 
-model stats_routine {
-    id                        String     @id @default(uuid()) @db.Uuid
-    routineId                 String     @db.Uuid
-    periodStart               DateTime   @db.Timestamptz(6)
-    periodEnd                 DateTime   @db.Timestamptz(6)
-    periodType                PeriodType
-    runsStarted               Int
-    runsCompleted             Int
-    runCompletionTimeAverage  Float
-    runContextSwitchesAverage Float
-    routine                   routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
-}
-
-model stats_standard {
-    id             String     @id @default(uuid()) @db.Uuid
-    standardId     String     @db.Uuid
-    periodStart    DateTime   @db.Timestamptz(6)
-    periodEnd      DateTime   @db.Timestamptz(6)
-    periodType     PeriodType
-    linksToInputs  Int
-    linksToOutputs Int
-    standard       standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    @@unique([periodStart, periodEnd, periodType])
+    @@index([periodType, periodStart], name: "idx_stats_site_periodType_periodStart")
 }
 
 model stats_team {
-    id                               String     @id @default(uuid()) @db.Uuid
-    teamId                           String     @db.Uuid
-    periodStart                      DateTime   @db.Timestamptz(6)
-    periodEnd                        DateTime   @db.Timestamptz(6)
-    periodType                       PeriodType
-    apis                             Int
-    codes                            Int
-    members                          Int
-    notes                            Int
-    projects                         Int
-    routines                         Int
-    runRoutinesStarted               Int
-    runRoutinesCompleted             Int
-    runRoutineCompletionTimeAverage  Float
-    runRoutineContextSwitchesAverage Float
-    standards                        Int
-    team                             team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    id                        BigInt     @id @db.BigInt
+    teamId                    BigInt     @db.BigInt
+    periodStart               DateTime   @db.Timestamptz(6)
+    periodEnd                 DateTime   @db.Timestamptz(6)
+    periodType                PeriodType
+    resources                 Int
+    members                   Int
+    runsStarted               Int
+    runsCompleted             Int
+    runCompletionTimeAverage  Float
+    runContextSwitchesAverage Float
+    team                      team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+    @@unique([teamId, periodStart, periodEnd, periodType])
+    @@index([teamId], name: "idx_stats_team_teamId")
+    @@index([periodType, periodStart], name: "idx_stats_team_periodType_periodStart")
 }
 
 model stats_user {
-    id                               String     @id @default(uuid()) @db.Uuid
-    userId                           String     @db.Uuid
-    periodStart                      DateTime   @db.Timestamptz(6)
-    periodEnd                        DateTime   @db.Timestamptz(6)
-    periodType                       PeriodType
-    apisCreated                      Int
-    codesCreated                     Int
-    codesCompleted                   Int
-    codeCompletionTimeAverage        Float
-    projectsCreated                  Int
-    projectsCompleted                Int
-    projectCompletionTimeAverage     Float
-    routinesCreated                  Int
-    routinesCompleted                Int
-    routineCompletionTimeAverage     Float
-    runProjectsStarted               Int
-    runProjectsCompleted             Int
-    runProjectCompletionTimeAverage  Float
-    runProjectContextSwitchesAverage Float
-    runRoutinesStarted               Int
-    runRoutinesCompleted             Int
-    runRoutineCompletionTimeAverage  Float
-    runRoutineContextSwitchesAverage Float
-    standardsCreated                 Int
-    standardsCompleted               Int
-    standardCompletionTimeAverage    Float
-    teamsCreated                     Int
-    user                             user       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                  BigInt     @id @db.BigInt
+    userId                              BigInt     @db.BigInt
+    periodStart                         DateTime   @db.Timestamptz(6)
+    periodEnd                           DateTime   @db.Timestamptz(6)
+    periodType                          PeriodType
+    resourcesCreatedByType              Json? // { "ROUTINE": 100, "CODE": 50 }
+    resourcesCompletedByType            Json?
+    resourceCompletionTimeAverageByType Json? // { "ROUTINE": 120.5, "CODE": 60.2 }
+    runsStarted                         Int
+    runsCompleted                       Int
+    runCompletionTimeAverage            Float
+    runContextSwitchesAverage           Float
+    teamsCreated                        Int
+    user                                user       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, periodStart, periodEnd, periodType])
+    @@index([userId], name: "idx_stats_user_userId")
+    @@index([periodType, periodStart], name: "idx_stats_user_periodType_periodStart")
 }
 
 model tag {
-    id           String            @id @default(uuid()) @db.Uuid
-    created_at   DateTime          @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime          @default(now()) @db.Timestamptz(6)
+    id           BigInt            @id @db.BigInt
+    createdAt    DateTime          @default(now()) @db.Timestamptz(6)
+    updatedAt    DateTime          @updatedAt @db.Timestamptz(6)
     tag          String            @unique @db.VarChar(128)
     bookmarks    Int               @default(0)
-    createdById  String?           @db.Uuid
+    createdById  BigInt?           @db.BigInt
     createdBy    user?             @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    apis         api_tags[]
-    codes        code_tags[]
-    notes        note_tags[]
-    projects     project_tags[]
     reports      report[]
-    routines     routine_tags[]
-    standards    standard_tags[]
-    teams        team_tags[]
+    resources    resource_tag[]
+    teams        team_tag[]
     bookmarkedBy bookmark[]        @relation("bookmark_tag")
     translations tag_translation[]
+
+    @@index([createdById], name: "idx_tag_createdById")
 }
 
 model tag_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    description          String?                     @db.VarChar(2048)
-    tagId                String                      @db.Uuid
-    language             String                      @db.VarChar(3)
-    tag                  tag                         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+    id                 BigInt                      @id @db.BigInt
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    description        String?                     @db.VarChar(2048)
+    tagId              BigInt                      @db.BigInt
+    language           String                      @db.VarChar(3)
+    tag                tag                         @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-    @@unique([tagId, language])
+    @@unique([tagId, language], name: "tag_translation_tagId_language_unique")
+    @@index([tagId], name: "idx_tag_translation_tagId")
 }
 
 model transfer {
-    id                    String         @id @default(uuid()) @db.Uuid
-    created_at            DateTime       @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime       @default(now()) @db.Timestamptz(6)
+    id                    BigInt         @id @db.BigInt
+    createdAt             DateTime       @default(now()) @db.Timestamptz(6)
+    updatedAt             DateTime       @updatedAt @db.Timestamptz(6)
     status                TransferStatus @default(Pending)
     initializedByReceiver Boolean        @default(false)
     message               String?        @db.VarChar(4096)
     denyReason            String?        @db.VarChar(2048)
-    fromTeamId            String?        @db.Uuid
-    fromUserId            String?        @db.Uuid
-    toTeamId              String?        @db.Uuid
-    toUserId              String?        @db.Uuid
-    apiId                 String?        @db.Uuid
-    codeId                String?        @db.Uuid
-    noteId                String?        @db.Uuid
-    projectId             String?        @db.Uuid
-    routineId             String?        @db.Uuid
-    standardId            String?        @db.Uuid
+    fromTeamId            BigInt?        @db.BigInt
+    fromUserId            BigInt?        @db.BigInt
+    toTeamId              BigInt?        @db.BigInt
+    toUserId              BigInt?        @db.BigInt
+    resourceId            BigInt?        @db.BigInt
     fromTeam              team?          @relation("transfer_from_team", fields: [fromTeamId], references: [id], onDelete: SetNull)
     fromUser              user?          @relation("transfer_from_user", fields: [fromUserId], references: [id], onDelete: SetNull)
     toTeam                team?          @relation("transfer_to_team", fields: [toTeamId], references: [id], onDelete: Cascade)
     toUser                user?          @relation("transfer_to_user", fields: [toUserId], references: [id], onDelete: Cascade)
-    api                   api?           @relation("transfer_api", fields: [apiId], references: [id], onDelete: Cascade)
-    code                  code?          @relation("transfer_code", fields: [codeId], references: [id], onDelete: Cascade)
-    note                  note?          @relation("transfer_note", fields: [noteId], references: [id], onDelete: Cascade)
-    project               project?       @relation("transfer_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine               routine?       @relation("transfer_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard              standard?      @relation("transfer_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    resource              resource?      @relation("transfer_resource", fields: [resourceId], references: [id], onDelete: Cascade)
+
+    @@index([fromTeamId, createdAt], name: "idx_transfer_fromTeamId_createdAt")
+    @@index([fromUserId, createdAt], name: "idx_transfer_fromUserId_createdAt")
+    @@index([toTeamId, createdAt], name: "idx_transfer_toTeamId_createdAt")
+    @@index([toUserId, createdAt], name: "idx_transfer_toUserId_createdAt")
+    @@index([resourceId, createdAt], name: "idx_transfer_resourceId_createdAt")
 }
 
 model user {
-    id                        String                      @id @default(uuid()) @db.Uuid
-    created_at                DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
+    id                        BigInt                      @id @db.BigInt
+    publicId                  String                      @unique @db.VarChar(12)
+    createdAt                 DateTime                    @default(now()) @db.Timestamptz(6)
+    updatedAt                 DateTime                    @updatedAt @db.Timestamptz(6)
     bannerImage               String?                     @db.VarChar(2048)
     confirmationCode          String?                     @unique @db.VarChar(256)
     confirmationCodeDate      DateTime?                   @db.Timestamptz(6)
-    invitedByUserId           String?                     @db.Uuid
+    invitedByUserId           BigInt?                     @db.BigInt
     isBot                     Boolean                     @default(false)
     isBotDepictingPerson      Boolean                     @default(false)
     isPrivate                 Boolean                     @default(false)
-    isPrivateApis             Boolean                     @default(false)
-    isPrivateApisCreated      Boolean                     @default(false)
-    isPrivateCodes            Boolean                     @default(false)
-    isPrivateCodesCreated     Boolean                     @default(false)
-    isPrivateNotes            Boolean                     @default(false)
-    isPrivateNotesCreated     Boolean                     @default(false)
     isPrivateMemberships      Boolean                     @default(false)
-    isPrivateProjects         Boolean                     @default(false)
-    isPrivateProjectsCreated  Boolean                     @default(false)
     isPrivatePullRequests     Boolean                     @default(false)
-    isPrivateRoles            Boolean                     @default(false)
-    isPrivateRoutines         Boolean                     @default(false)
-    isPrivateRoutinesCreated  Boolean                     @default(false)
-    isPrivateStandards        Boolean                     @default(false)
-    isPrivateStandardsCreated Boolean                     @default(false)
+    isPrivateResources        Boolean                     @default(false)
+    isPrivateResourcesCreated Boolean                     @default(false)
     isPrivateTeamsCreated     Boolean                     @default(false)
     isPrivateBookmarks        Boolean                     @default(false)
     isPrivateVotes            Boolean                     @default(false)
+    languages                 String[]                    @default([])
     lastExport                DateTime?                   @db.Timestamptz(6)
     lastLoginAttempt          DateTime                    @default(now()) @db.Timestamptz(6)
     logInAttempts             Int                         @default(0)
@@ -2134,11 +1245,9 @@ model user {
     bookmarks                 Int                         @default(0)
     views                     Int                         @default(0)
     reputation                Int                         @default(0)
-    premiumId                 String?                     @unique @db.Uuid
+    premiumId                 BigInt?                     @unique @db.BigInt
     stripeCustomerId          String?                     @unique @db.VarChar(255)
     status                    AccountStatus               @default(Unlocked)
-    apisCreated               api[]                       @relation("api_createdBy")
-    apis                      api[]                       @relation("api_ownedByUser")
     apiKeys                   api_key[]
     apiKeysExternal           api_key_external[]
     auths                     user_auth[]
@@ -2147,8 +1256,6 @@ model user {
     chats                     chat_participants[]
     chatsInvited              chat_invite[]
     chatMessages              chat_message[]              @relation("chat_message_user")
-    codesCreated              code[]                      @relation("code_createdBy")
-    codes                     code[]                      @relation("code_ownedByUser")
     comments                  comment[]                   @relation("comment_ownedByUser")
     emails                    email[]
     phones                    phone[]
@@ -2156,8 +1263,6 @@ model user {
     invitedUsers              user[]                      @relation("user_invitedByUser")
     issuesCreated             issue[]                     @relation("issue_createdBy")
     issuesClosed              issue[]                     @relation("issue_closedBy")
-    labels                    label[]
-    languages                 user_language[]
     meetingsAttending         meeting_attendees[]
     meetingsInvited           meeting_invite[]
     paymentHistory            payment[]
@@ -2167,28 +1272,21 @@ model user {
     memberships               member[]
     membershipsInvited        member_invite[]
     premium                   premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
-    projectsCreated           project[]                   @relation("project_createdBy")
-    projects                  project[]                   @relation("project_ownedByUser")
     pullRequests              pull_request[]              @relation("pull_request_createdBy")
     reminderLists             reminder_list[]             @relation("reminder_list_user")
     reportsReceived           report[]                    @relation("report_user")
     reportsCreated            report[]                    @relation("report_createdBy")
     reportResponses           report_response[]           @relation("report_response_createdBy")
     reputationHistory         reputation_history[]
-    routinesCreated           routine[]                   @relation("routine_createdBy")
-    routines                  routine[]                   @relation("routine_ownedByUser")
-    runProjects               run_project[]               @relation("run_project_user")
-    runRoutines               run_routine[]               @relation("run_routine_user")
-    standardsCreated          standard[]                  @relation("standard_createdBy")
-    standards                 standard[]                  @relation("standard_ownedByUser")
+    resourcesCreated          resource[]                  @relation("resource_createdBy")
+    resources                 resource[]                  @relation("resource_ownedByUser")
+    runs                      run[]                       @relation("run_user")
     bookmakLists              bookmark_list[]             @relation("bookmark_list_user")
     bookmarkedBy              bookmark[]                  @relation("bookmark_user")
     tags                      tag[]                       @relation("tag_createdBy")
     teamsCreated              team[]                      @relation("team_createdBy")
     transfersIncoming         transfer[]                  @relation("transfer_to_user")
     transfersOutgoing         transfer[]                  @relation("transfer_from_user")
-    notesCreated              note[]                      @relation("note_createdBy")
-    notes                     note[]                      @relation("note_ownedByUser")
     translations              user_translation[]
     viewed                    view[]                      @relation("view_by")
     viewedBy                  view[]                      @relation("view_user")
@@ -2196,109 +1294,101 @@ model user {
     sessions                  session[]
     stats                     stats_user[]
     wallets                   wallet[]
+
+    @@index([publicId], name: "idx_user_publicId")
+    @@index([invitedByUserId, createdAt], name: "idx_user_invitedByUserId_createdAt")
 }
 
 model user_auth {
-    id                              String    @id @default(uuid()) @db.Uuid
-    user_id                         String    @db.Uuid
+    id                              BigInt    @id @db.BigInt
+    user_id                         BigInt    @db.BigInt
     provider                        String
     provider_user_id                String?
     hashed_password                 String?
     resetPasswordCode               String?   @unique @db.VarChar(256)
     lastResetPasswordRequestAttempt DateTime? @db.Timestamptz(6)
-    created_at                      DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at                      DateTime  @updatedAt @db.Timestamptz(6)
+    createdAt                       DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt                       DateTime  @updatedAt @db.Timestamptz(6)
 
     user     user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
     sessions session[]
 
-    @@unique([provider, provider_user_id])
-    @@index([user_id])
+    @@unique([provider, provider_user_id], name: "user_auth_provider_provider_user_id_unique")
+    @@index([user_id, createdAt], name: "idx_user_auth_user_id_createdAt")
 }
 
 model session {
-    id              String   @id @default(uuid()) @db.Uuid
-    user_id         String   @db.Uuid
-    auth_id         String   @db.Uuid
-    last_refresh_at DateTime @default(now()) @db.Timestamptz(6)
-    created_at      DateTime @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime @updatedAt @db.Timestamptz(6)
-    expires_at      DateTime @db.Timestamptz(6)
-    revoked         Boolean  @default(false)
-    device_info     String?  @db.VarChar(1024)
-    ip_address      String?  @db.VarChar(45)
+    id              BigInt    @id @db.BigInt
+    user_id         BigInt    @db.BigInt
+    auth_id         BigInt    @db.BigInt
+    last_refresh_at DateTime  @default(now()) @db.Timestamptz(6)
+    createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+    expires_at      DateTime  @db.Timestamptz(6)
+    revokedAt       DateTime? @db.Timestamptz(6)
+    device_info     String?   @db.VarChar(1024)
+    ip_address      String?   @db.VarChar(45)
 
     user user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
     auth user_auth @relation(fields: [auth_id], references: [id], onDelete: Cascade)
 
-    @@index([user_id])
-    @@index([auth_id])
+    @@index([user_id], name: "idx_session_user_id")
+    @@index([auth_id], name: "idx_session_auth_id")
 }
 
 model user_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    bio                  String?                     @db.VarChar(2048)
-    userId               String                      @db.Uuid
-    language             String                      @db.VarChar(3)
-    user                 user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                 BigInt                      @id @db.BigInt
+    embedding          Unsupported("vector(768)")?
+    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    bio                String?                     @db.VarChar(2048)
+    userId             BigInt                      @db.BigInt
+    language           String                      @db.VarChar(3)
+    user               user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, language])
-}
-
-model user_language {
-    id       String @id @default(uuid()) @db.Uuid
-    userId   String @db.Uuid
-    language String @db.VarChar(3)
-    user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([userId, language])
+    @@unique([userId, language], name: "user_translation_userId_language_unique")
+    @@index([userId], name: "idx_user_translation_userId")
 }
 
 model view {
-    id           String    @id @default(uuid()) @db.Uuid
+    id           BigInt    @id @db.BigInt
     lastViewedAt DateTime  @default(now()) @db.Timestamptz(6)
     name         String    @db.VarChar(128)
-    byId         String    @db.Uuid
-    apiId        String?   @db.Uuid
-    codeId       String?   @db.Uuid
-    issueId      String?   @db.Uuid
-    noteId       String?   @db.Uuid
-    projectId    String?   @db.Uuid
-    routineId    String?   @db.Uuid
-    standardId   String?   @db.Uuid
-    teamId       String?   @db.Uuid
-    userId       String?   @db.Uuid
+    byId         BigInt    @db.BigInt
+    issueId      BigInt?   @db.BigInt
+    resourceId   BigInt?   @db.BigInt
+    teamId       BigInt?   @db.BigInt
+    userId       BigInt?   @db.BigInt
     by           user      @relation("view_by", fields: [byId], references: [id], onDelete: Cascade)
-    api          api?      @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
-    code         code?     @relation("view_code", fields: [codeId], references: [id], onDelete: Cascade)
     issue        issue?    @relation("view_issue", fields: [issueId], references: [id], onDelete: Cascade)
-    note         note?     @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
-    project      project?  @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine      routine?  @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard     standard? @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    resource     resource? @relation("view_resource", fields: [resourceId], references: [id], onDelete: Cascade)
     team         team?     @relation("view_team", fields: [teamId], references: [id], onDelete: Cascade)
     user         user?     @relation("view_user", fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([byId, lastViewedAt], name: "idx_view_byId_lastViewedAt")
+    @@index([issueId, lastViewedAt], name: "idx_view_issueId_lastViewedAt")
+    @@index([resourceId, lastViewedAt], name: "idx_view_resourceId_lastViewedAt")
+    @@index([teamId, lastViewedAt], name: "idx_view_teamId_lastViewedAt")
+    @@index([userId, lastViewedAt], name: "idx_view_userId_lastViewedAt")
 }
 
 model wallet {
-    id                String    @id @default(uuid()) @db.Uuid
-    created_at        DateTime  @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+    id                BigInt    @id @db.BigInt
+    createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+    updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
     stakingAddress    String    @unique @db.VarChar(128)
     publicAddress     String?   @unique @db.VarChar(128)
     name              String?   @db.VarChar(128)
     nonce             String?   @db.VarChar(8092)
     nonceCreationTime DateTime? @db.Timestamptz(6)
-    verified          Boolean   @default(false)
-    lastVerifiedTime  DateTime? @db.Timestamptz(6)
+    verifiedAt        DateTime? @db.Timestamptz(6)
     wasReported       Boolean   @default(false)
-    teamId            String?   @db.Uuid
-    userId            String?   @db.Uuid
+    teamId            BigInt?   @db.BigInt
+    userId            BigInt?   @db.BigInt
     team              team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
     user              user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([teamId], name: "idx_wallet_teamId")
+    @@index([userId], name: "idx_wallet_userId")
 }
 
 enum AccountStatus {
@@ -2308,41 +1398,10 @@ enum AccountStatus {
     HardLocked
 }
 
-enum AwardCategory {
-    AccountAnniversary
-    AccountNew
-    ApiCreate
-    CommentCreate
-    IssueCreate
-    NoteCreate
-    ObjectBookmark
-    ObjectReact
-    OrganizationCreate
-    OrganizationJoin
-    ProjectCreate
-    PullRequestCreate
-    PullRequestComplete
-    ReportEnd
-    ReportContribute
-    Reputation
-    RunRoutine
-    RunProject
-    RoutineCreate
-    SmartContractCreate
-    StandardCreate
-    Streak
-    UserInvite
-}
-
-enum ChatInviteStatus {
+enum InviteStatus {
     Pending
     Accepted
     Declined
-}
-
-enum CodeType {
-    DataConvert
-    SmartContract
 }
 
 enum IssueStatus {
@@ -2352,25 +1411,6 @@ enum IssueStatus {
     ClosedResolved
     ClosedUnresolved
     Rejected
-}
-
-enum MemberInviteStatus {
-    Pending
-    Accepted
-    Declined
-}
-
-enum MeetingInviteStatus {
-    Pending
-    Accepted
-    Declined
-}
-
-enum NodeType {
-    End
-    Redirect
-    RoutineList
-    Start
 }
 
 enum PaymentStatus {
@@ -2419,36 +1459,6 @@ enum ReportSuggestedAction {
     SuspendUser
 }
 
-enum ResourceUsedFor {
-    Community
-    Context
-    Developer
-    Donation
-    ExternalService
-    Feed
-    Install
-    Learning
-    Notes
-    OfficialWebsite
-    Proposal
-    Related
-    Researching
-    Scheduling
-    Social
-    Tutorial
-}
-
-enum RoutineType {
-    Action
-    Api
-    Code
-    Data
-    Generate
-    Informational
-    MultiStep
-    SmartContract
-}
-
 enum RunStatus {
     Scheduled
     InProgress
@@ -2469,11 +1479,6 @@ enum ScheduleRecurrenceType {
     Weekly
     Monthly
     Yearly
-}
-
-enum StandardType {
-    DataStructure
-    Prompt
 }
 
 enum TransferStatus {

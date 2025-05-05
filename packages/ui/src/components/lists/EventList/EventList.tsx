@@ -4,7 +4,7 @@ import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import { useBulkObjectActions } from "../../../hooks/objectActions.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
 import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
@@ -131,8 +131,7 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
     const { title, subtitle, DisplayIcon } = useMemo(() => {
         const scheduleOn =
             data.schedule.meetings?.[0] ??
-            data.schedule.runProjects?.[0] ??
-            data.schedule.runRoutines?.[0];
+            data.schedule.runs?.[0];
 
         const scheduleDisplay = getDisplay(data.schedule, getUserLanguages(session));
         const scheduleOnDisplay = getDisplay(scheduleOn, getUserLanguages(session));

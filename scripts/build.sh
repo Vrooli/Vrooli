@@ -402,8 +402,10 @@ else
 fi
 
 # Pull necessary images regardless of docker-compose success
-docker pull ankane/pgvector:v0.4.4
-docker pull redis:7.4.0-alpine
+DOCKER_IMAGE="pgvector/pgvector:pg15"
+REDIS_IMAGE="redis:7.4.0-alpine"
+docker pull ${DOCKER_IMAGE}
+docker pull ${REDIS_IMAGE}
 
 # Save and compress Docker images
 info "Saving Docker images..."
@@ -416,7 +418,7 @@ IMAGE_SUFFIX="prod"
 if [ "${ENVIRONMENT}" = "development" ]; then
     IMAGE_SUFFIX="dev"
 fi
-for IMAGE in "ui:${IMAGE_SUFFIX}" "server:${IMAGE_SUFFIX}" "jobs:${IMAGE_SUFFIX}" "ankane/pgvector:v0.4.4" "redis:7.4.0-alpine"; do
+for IMAGE in "ui:${IMAGE_SUFFIX}" "server:${IMAGE_SUFFIX}" "jobs:${IMAGE_SUFFIX}" "${DOCKER_IMAGE}" "${REDIS_IMAGE}"; do
     if docker image inspect "$IMAGE" >/dev/null 2>&1; then
         AVAILABLE_IMAGES+=("$IMAGE")
         info "Image $IMAGE found and will be saved"

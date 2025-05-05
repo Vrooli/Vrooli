@@ -79,10 +79,10 @@ export function sendMail(
 /** Adds a password reset link email to a task queue */
 export function sendResetPasswordLink(
     email: string,
-    userId: string,
+    userPublicId: string,
     code: string,
 ): Promise<Success> {
-    const link = `${UI_URL}${LINKS.ResetPassword}?code="${userId}:${code}"`;
+    const link = `${UI_URL}${LINKS.ResetPassword}?code="${userPublicId}:${code}"`;
     return addJobToQueue(emailQueue.getQueue(), {
         to: [email],
         subject: `${BUSINESS_NAME} Password Reset`,
@@ -94,11 +94,11 @@ export function sendResetPasswordLink(
 /** Adds a verification link email to a task queue */
 export function sendVerificationLink(
     email: string,
-    userId: string,
+    userPublicId: string,
     code: string,
 ): Promise<Success> {
     // Replace all "${VERIFY_LINK}" in welcomeTemplate with the the actual link
-    const link = `${UI_URL}${LINKS.Login}?code="${userId}:${code}"`;
+    const link = `${UI_URL}${LINKS.Login}?code="${userPublicId}:${code}"`;
     const html = welcomeTemplate.replace(/\$\{VERIFY_LINK\}/g, link);
     return addJobToQueue(emailQueue.getQueue(), {
         to: [email],

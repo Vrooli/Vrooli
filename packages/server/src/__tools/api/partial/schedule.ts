@@ -5,8 +5,9 @@ import { rel } from "../utils.js";
 export const schedule: ApiPartial<Schedule> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         startTime: true,
         endTime: true,
         timezone: true,
@@ -14,15 +15,11 @@ export const schedule: ApiPartial<Schedule> = {
         recurrences: async () => rel((await import("./scheduleRecurrence.js")).scheduleRecurrence, "list", { omit: "schedule" }),
     },
     full: {
-        labels: async () => rel((await import("./label.js")).label, "full"),
         meetings: async () => rel((await import("./meeting.js")).meeting, "full", { omit: "schedule" }),
-        runProjects: async () => rel((await import("./runProject.js")).runProject, "full", { omit: "schedule" }),
-        runRoutines: async () => rel((await import("./runRoutine.js")).runRoutine, "full", { omit: "schedule" }),
+        runs: async () => rel((await import("./run.js")).run, "full", { omit: "schedule" }),
     },
     list: {
-        labels: async () => rel((await import("./label.js")).label, "list"),
         meetings: async () => rel((await import("./meeting.js")).meeting, "list", { omit: "schedule" }),
-        runProjects: async () => rel((await import("./runProject.js")).runProject, "list", { omit: "schedule" }),
-        runRoutines: async () => rel((await import("./runRoutine.js")).runRoutine, "list", { omit: "schedule" }),
+        runs: async () => rel((await import("./run.js")).run, "list", { omit: "schedule" }),
     },
 };

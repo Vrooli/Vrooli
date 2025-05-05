@@ -32,8 +32,6 @@ export function meetingInitialValues(
             __typename: "Team" as const,
             id: DUMMY_ID,
         },
-        restrictedToRoles: [],
-        labels: [],
         schedule: null,
         ...existing,
         translations: orDefault(existing?.translations, [{

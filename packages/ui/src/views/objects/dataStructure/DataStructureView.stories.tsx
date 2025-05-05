@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, StandardType, StandardVersion, Tag, User, endpointsStandardVersion, getObjectUrl, uuid } from "@local/shared";
+import { CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, StandardType, StandardVersion, Tag, User, endpointsStandardVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataStructureView } from "./DataStructureView.js";
@@ -7,14 +7,12 @@ import { DataStructureView } from "./DataStructureView.js";
 // Create simplified mock data for DataStructure responses
 const mockDataStructureVersionData: StandardVersion = {
     __typename: "StandardVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     comments: [],
     commentsCount: 0,
     codeLanguage: CodeLanguage.Json,
-    created_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     default: null,
-    directoryListings: [],
-    directoryListingsCount: 0,
     forks: [],
     forksCount: 0,
     isComplete: true,
@@ -27,7 +25,7 @@ const mockDataStructureVersionData: StandardVersion = {
   "properties": {
     "id": {
       "type": "string",
-      "format": "uuid"
+      "format": "generatePKString"
     },
     "name": {
       "type": "string"
@@ -61,48 +59,48 @@ const mockDataStructureVersionData: StandardVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         listFor: {
             __typename: "StandardVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
         } as any,
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            id: generatePKString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
             link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                id: generatePKString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 language: "en",
                 name: `Resource ${Math.floor(Math.random() * 1000)}`,
                 description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
             }],
         })) as Resource[],
         translations: [],
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     root: {
         __typename: "Standard" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
         isInternal: false,
         hasCompleteVersion: true,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         parent: null,
         permissions: "{}",
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["Data Schema", "JSON Schema", "Database", "API", "Validation", "Data Modeling", "Other"][Math.floor(Math.random() * 7)],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         })) as Tag[],
         bookmarkedBy: [],
         bookmarks: 0,
@@ -111,7 +109,6 @@ const mockDataStructureVersionData: StandardVersion = {
         forksCount: 0,
         issues: [],
         issuesCount: 0,
-        labels: [],
         pullRequests: [],
         pullRequestsCount: 0,
         score: 0,
@@ -134,8 +131,8 @@ const mockDataStructureVersionData: StandardVersion = {
             canUpdate: true,
             isBookmarked: false,
         },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         isDeleted: false,
     } as any,
     translations: [{
@@ -147,7 +144,7 @@ const mockDataStructureVersionData: StandardVersion = {
         jsonVariable: null,
     }],
     translationsCount: 1,
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     variant: StandardType.DataStructure,
     versionIndex: 1,
     versionLabel: `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
@@ -172,7 +169,7 @@ export default {
 
 export function NoResult() {
     return (
-        <DataStructureView display="page" />
+        <DataStructureView display="Page" />
     );
 }
 NoResult.parameters = {
@@ -181,14 +178,14 @@ NoResult.parameters = {
 
 export function Loading() {
     return (
-        <DataStructureView display="page" />
+        <DataStructureView display="Page" />
     );
 }
 Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsStandardVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockDataStructureVersionData });
@@ -196,44 +193,44 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataStructureVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataStructureVersionData)}`,
     },
 };
 
 export function SignInWithResults() {
     return (
-        <DataStructureView display="page" />
+        <DataStructureView display="Page" />
     );
 }
 SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataStructureVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataStructureVersionData)}`,
     },
 };
 
 export function LoggedOutWithResults() {
     return (
-        <DataStructureView display="page" />
+        <DataStructureView display="Page" />
     );
 }
 LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataStructureVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataStructureVersionData)}`,
     },
 }; 

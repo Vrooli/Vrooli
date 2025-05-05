@@ -1,5 +1,5 @@
 import { ShapeModel } from "../../consts/commonTypes.js";
-import { DUMMY_ID, uuid } from "../../id/uuid.js";
+import { DUMMY_ID } from "../../id/snowflake.js";
 import { exists } from "../../utils/exists.js";
 import { hasObjectChanged } from "../general/objectTools.js";
 
@@ -110,12 +110,8 @@ export function createPrims<T, K extends keyof T>(
         return acc;
     }, {}) as CreatePrimsResult<T, K>;
 
-    // If no updates, return empty object
-    if (Object.keys(prims).length === 0) return {} as CreatePrimsResult<T, K>;
 
-    // If "id" is defined in fields, make sure it's not DUMMY_ID
-    if (!hasId) return prims;
-    return { ...prims, id: (prims as { id: string }).id === DUMMY_ID ? uuid() : (prims as { id: string }).id } as CreatePrimsResult<T, K>;
+    return prims;
 }
 
 /**
@@ -318,8 +314,7 @@ export function updatePrims<T, K extends keyof T, PK extends keyof T>(
 ): UpdatePrimsResult<T, K, PK> {
     function getPrimaryValue(): string | undefined {
         if (!primary) return undefined;
-        let primaryValue = (original?.[primary] ?? updated?.[primary]) as string | undefined;
-        if (primaryValue === DUMMY_ID) primaryValue = uuid();
+        const primaryValue = original?.[primary] ?? updated?.[primary];
         return primaryValue;
     }
     const primaryValue = getPrimaryValue();
@@ -341,7 +336,8 @@ export function updatePrims<T, K extends keyof T, PK extends keyof T>(
 
     // If no primary, return changed fields
     if (!primary || !primaryValue) return changedFields as UpdatePrimsResult<T, K, PK>;
-    // Return changed fields with primary key
+
+    // Return changed fields and primary key
     return { ...changedFields, [primary]: primaryValue } as UpdatePrimsResult<T, K, PK>;
 }
 
@@ -582,22 +578,6 @@ export function updateTransRel<
 ): UpdateRelOutput<"many", "Create" | "Update" | "Delete", "translations"> {
     applyPrimaryKey((original as { translations?: object[] }).translations ?? [], (updated as { translations?: object[] }).translations ?? [], "language");
     return updateRel(original, updated, "translations", ["Create", "Update", "Delete"], "many", shape);
-}
-
-/**
- * Like updateRel, but specifically for labels.
- * These are unique by label, so we treat the label as the primary key.
- */
-export function updateLabelsRel<
-    Item extends { labels?: object[] | null | undefined },
-    Shape extends ShapeModel<any, any, any>,
->(
-    original: Item,
-    updated: Item,
-    shape: Shape,
-): UpdateRelOutput<"many", "Create" | "Update" | "Delete", "labels"> {
-    applyPrimaryKey((original as { labels?: object[] }).labels ?? [], (updated as { labels?: object[] }).labels ?? [], "label");
-    return updateRel(original, updated, "labels", ["Create", "Update", "Delete"], "many", shape);
 }
 
 /**

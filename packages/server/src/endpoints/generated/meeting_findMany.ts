@@ -3,8 +3,9 @@ export const meeting_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "openToAnyoneWithInvite": true,
             "showOnTeamProfile": true,
             "team": {
@@ -23,118 +24,10 @@ export const meeting_findMany = {
                     "isViewed": true,
                     "yourMembership": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "isAdmin": true,
                         "permissions": true
-                    }
-                }
-            },
-            "restrictedToRoles": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "name": true,
-                "permissions": true,
-                "membersCount": true,
-                "team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true
-                },
-                "members": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isAdmin": true,
-                    "permissions": true,
-                    "roles": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "name": true,
-                        "permissions": true,
-                        "membersCount": true,
-                        "team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
-                            }
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true
-                        }
-                    },
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    },
-                    "user": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true,
-                        "bookmarks": true,
-                        "reportsReceivedCount": true,
-                        "you": {
-                            "canDelete": true,
-                            "canReport": true,
-                            "canUpdate": true,
-                            "isBookmarked": true,
-                            "isViewed": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "bio": true
-                        }
                     }
                 }
             },
@@ -145,21 +38,11 @@ export const meeting_findMany = {
                 "canInvite": true,
                 "canUpdate": true
             },
-            "labels": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "color": true,
-                "label": true,
-                "you": {
-                    "canDelete": true,
-                    "canUpdate": true
-                }
-            },
             "schedule": {
                 "id": true,
-                "created_at": true,
-                "updated_at": true,
+                "publicId": true,
+                "createdAt": true,
+                "updatedAt": true,
                 "startTime": true,
                 "endTime": true,
                 "timezone": true,
@@ -178,88 +61,7 @@ export const meeting_findMany = {
                     "month": true,
                     "endDate": true
                 },
-                "labels": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "color": true,
-                    "label": true,
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true
-                    }
-                },
-                "runProjects": {
-                    "id": true,
-                    "isPrivate": true,
-                    "completedComplexity": true,
-                    "contextSwitches": true,
-                    "startedAt": true,
-                    "timeElapsed": true,
-                    "completedAt": true,
-                    "name": true,
-                    "projectVersion": {
-                        "id": true,
-                        "complexity": true,
-                        "isLatest": true,
-                        "isPrivate": true,
-                        "versionIndex": true,
-                        "versionLabel": true,
-                        "root": {
-                            "id": true,
-                            "isPrivate": true
-                        },
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        }
-                    },
-                    "status": true,
-                    "stepsCount": true,
-                    "team": {
-                        "id": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "profileImage": true,
-                        "you": {
-                            "canAddMembers": true,
-                            "canDelete": true,
-                            "canBookmark": true,
-                            "canReport": true,
-                            "canUpdate": true,
-                            "canRead": true,
-                            "isBookmarked": true,
-                            "isViewed": true,
-                            "yourMembership": {
-                                "id": true,
-                                "created_at": true,
-                                "updated_at": true,
-                                "isAdmin": true,
-                                "permissions": true
-                            }
-                        }
-                    },
-                    "user": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "bannerImage": true,
-                        "handle": true,
-                        "isBot": true,
-                        "isBotDepictingPerson": true,
-                        "name": true,
-                        "profileImage": true
-                    },
-                    "you": {
-                        "canDelete": true,
-                        "canUpdate": true,
-                        "canRead": true
-                    },
-                    "lastStep": true
-                },
-                "runRoutines": {
+                "runs": {
                     "id": true,
                     "isPrivate": true,
                     "completedComplexity": true,
@@ -273,7 +75,7 @@ export const meeting_findMany = {
                     "ioCount": true,
                     "stepsCount": true,
                     "wasRunAutomatically": true,
-                    "routineVersion": {
+                    "resourceVersion": {
                         "id": true,
                         "complexity": true,
                         "isAutomatable": true,
@@ -286,11 +88,12 @@ export const meeting_findMany = {
                             "isInternal": true,
                             "isPrivate": true
                         },
-                        "routineType": true,
+                        "resourceSubType": true,
                         "translations": {
                             "id": true,
                             "language": true,
                             "description": true,
+                            "details": true,
                             "instructions": true,
                             "name": true
                         },
@@ -313,8 +116,8 @@ export const meeting_findMany = {
                             "isViewed": true,
                             "yourMembership": {
                                 "id": true,
-                                "created_at": true,
-                                "updated_at": true,
+                                "createdAt": true,
+                                "updatedAt": true,
                                 "isAdmin": true,
                                 "permissions": true
                             }
@@ -322,8 +125,8 @@ export const meeting_findMany = {
                     },
                     "user": {
                         "id": true,
-                        "created_at": true,
-                        "updated_at": true,
+                        "createdAt": true,
+                        "updatedAt": true,
                         "bannerImage": true,
                         "handle": true,
                         "isBot": true,
@@ -352,5 +155,5 @@ export const meeting_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "788081459"
+    "__cacheKey": "479618462"
 };

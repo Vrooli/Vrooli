@@ -9,7 +9,7 @@ import { DbProvider } from "../db/provider.js";
 import { Notify } from "../notify/notify.js";
 import { initializeRedis } from "../redisConn.js";
 import { API_URL, SERVER_URL } from "../server.js";
-import { io } from "../sockets/io.js";
+import { SocketService } from "../sockets/io.js";
 import { QueueStatus } from "../tasks/base/queue.js";
 import { emailQueue } from "../tasks/email/queue.js";
 import { exportQueue } from "../tasks/export/queue.js";
@@ -38,7 +38,7 @@ interface ServiceHealth {
     healthy: boolean;
     status: ServiceStatus;
     lastChecked: number;
-    details?: Record<string, unknown>;
+    details?: object;
 }
 
 interface SystemHealth {
@@ -553,7 +553,7 @@ export class HealthService {
 
             const results = await Promise.all(
                 endpointsToTest.map(async (endpoint) => {
-                    const url = `${API_URL}/${SERVER_VERSION}/rest${endpoint.endpoint}`;
+                    const url = `${API_URL}/${SERVER_VERSION}${endpoint.endpoint}`;
                     try {
                         const options = {
                             method: endpoint.method,
@@ -620,29 +620,36 @@ export class HealthService {
     }
 
     /**
-     * Check WebSocket server health
+     * Check WebSocket server health using SocketService
      */
     private checkWebSocket(): ServiceHealth {
         try {
-            // Check if Socket.IO server is initialized and running
-            const isRunning = !!(io && io.engine && io.sockets && io.sockets.adapter);
+            // Get the singleton instance
+            const socketService = SocketService.get();
+            // Get health details from the service
+            const details = socketService.getHealthDetails();
 
-            return {
-                healthy: isRunning,
-                status: isRunning ? ServiceStatus.Operational : ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: {
-                    connectedClients: io.engine?.clientsCount ?? 0,
-                    activeRooms: io.sockets?.adapter?.rooms?.size ?? 0,
-                    namespaces: io.sockets?.adapter?.nsp?.size ?? 0,
-                },
-            };
+            if (details) {
+                return {
+                    healthy: true,
+                    status: ServiceStatus.Operational,
+                    lastChecked: Date.now(),
+                    details,
+                };
+            } else {
+                return {
+                    healthy: false,
+                    status: ServiceStatus.Down,
+                    lastChecked: Date.now(),
+                    details: { error: "WebSocket service component not fully initialized." },
+                };
+            }
         } catch (error) {
             return {
                 healthy: false,
                 status: ServiceStatus.Down,
                 lastChecked: Date.now(),
-                details: { error: "Failed to check WebSocket server status" },
+                details: { error: (error as Error).message || "Failed to check WebSocket server status" },
             };
         }
     }
@@ -1028,7 +1035,7 @@ export function setupHealthCheck(app: Express): void {
             try {
                 // Fetch user languages to ensure proper notification translation
                 const user = await DbProvider.get().user.findUnique({
-                    where: { id: userId },
+                    where: { id: BigInt(userId) },
                     select: { languages: true },
                 });
 
@@ -1041,7 +1048,7 @@ export function setupHealthCheck(app: Express): void {
                 }
 
                 // Use a generic notification type or adapt as needed
-                await Notify(user.languages.map(lang => lang.language))
+                await Notify(user.languages)
                     .pushNewDeviceSignIn() // Using an existing simple notification for testing
                     .toUser(userId);
 

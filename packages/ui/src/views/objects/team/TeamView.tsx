@@ -1,4 +1,4 @@
-import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, endpointsTeam, getTranslation, uuidValidate } from "@local/shared";
+import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,15 +39,12 @@ export function TeamView({
 }: TeamViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
-    const [, setLocation] = useLocation();
+    const [{ pathname }, setLocation] = useLocation();
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({
-        ...endpointsTeam.findOne,
-        objectType: "Team",
-    });
+    const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({ pathname });
 
     const availableLanguages = useMemo<string[]>(() => (team?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [team?.translations]);
     useEffect(() => {
@@ -59,7 +56,7 @@ export function TeamView({
         const resourceList: ResourceListType | null | undefined = team?.resourceList;
         const { bio, name } = getTranslation(team, [language]);
         return {
-            bannerImageUrl: extractImageUrl(team?.bannerImage, team?.updated_at, 1000),
+            bannerImageUrl: extractImageUrl(team?.bannerImage, team?.updatedAt, 1000),
             bio: bio && bio.trim().length > 0 ? bio : undefined,
             handle: team?.handle,
             name,
@@ -162,7 +159,7 @@ export function TeamView({
                     <OverviewProfileAvatar
                         isBot={false}
                         profileColors={profileColors}
-                        src={extractImageUrl(team?.profileImage, team?.updated_at, 100)}
+                        src={extractImageUrl(team?.profileImage, team?.updatedAt, 100)}
                     >
                         <IconCommon name="Team" />
                     </OverviewProfileAvatar>
@@ -240,7 +237,7 @@ export function TeamView({
                             loading={isLoading}
                             showIcon={true}
                             textBeforeDate="Created"
-                            timestamp={team?.created_at}
+                            timestamp={team?.createdAt}
                         />
                         <ReportsLink object={team} />
                     </Stack>

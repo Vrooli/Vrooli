@@ -1,0 +1,28 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "og-worker",
+    "main": "src/index.ts",
+    "compatibility_date": "2025-04-30",
+    "workers_dev": false, // ← tells Wrangler we’re using zone routes
+    "routes": [
+        {
+            "pattern": "vrooli.com/*",
+            "zone_name": "vrooli.com"
+        },
+        {
+            "pattern": "*.vrooli.com/*",
+            "zone_name": "vrooli.com"
+        },
+        {
+            "pattern": "rustyisthebest.com/*",
+            "zone_name": "rustyisthebest.com"
+        },
+        {
+            "pattern": "*.rustyisthebest.com/*",
+            "zone_name": "rustyisthebest.com"
+        }
+    ],
+    "vars": {
+        "ORIGIN_HOST": "do-origin.vrooli.com"
+    }
+}

@@ -2,7 +2,8 @@ import { FindByIdInput, SEEDED_IDS, TagCreateInput, TagSearchInput, TagUpdateInp
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
-import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -21,14 +22,14 @@ const user2Id = uuid();
 const userTag1 = {
     id: uuid(),
     tag: "Test Tag 1",
-    created_at: new Date("2023-03-01"),
-    updated_at: new Date("2023-03-12"),
+    createdAt: new Date("2023-03-01"),
+    updatedAt: new Date("2023-03-12"),
 };
 const userTag2 = {
     id: uuid(),
     tag: "Test Tag 2",
-    created_at: new Date("2023-03-05"),
-    updated_at: new Date("2023-03-05"),
+    createdAt: new Date("2023-03-05"),
+    updatedAt: new Date("2023-03-05"),
 };
 
 // Array of all tag IDs for easier cleanup
@@ -50,26 +51,16 @@ describe("EndpointsTag", () => {
         // Create test users
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user1Id,
                 name: "Test User 1",
-                handle: "test-user-1",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         await DbProvider.get().user.create({
             data: {
+                ...defaultPublicUserData(),
                 id: user2Id,
                 name: "Test User 2",
-                handle: "test-user-2",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
             },
         });
         // Ensure admin user exists for update tests
@@ -104,7 +95,7 @@ describe("EndpointsTag", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns tag by id for any authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: FindByIdInput = { id: userTag1.id };
                 const result = await tag.findOne({ input }, { req, res }, tag_findOne);
@@ -121,7 +112,7 @@ describe("EndpointsTag", () => {
                 expect(result.tag).to.equal(userTag1.tag);
             });
             it("returns tag by id with API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -137,32 +128,32 @@ describe("EndpointsTag", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns tags without filters for any authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData, id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
                 const input: TagSearchInput = { take: 10 };
+                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("edges").that.is.an("array");
-                const resultTagIds = result.edges!.map(edge => edge!.node!.id).sort();
-                expect(resultTagIds).to.deep.equal(allTagIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
             it("returns tags without filters for not authenticated user", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: TagSearchInput = { take: 10 };
+                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).to.not.be.null;
-                const resultTagIds = result.edges!.map(e => e!.node!.id).sort();
-                expect(resultTagIds).to.deep.equal(allTagIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
             it("returns tags without filters for API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
                 const input: TagSearchInput = { take: 10 };
+                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
                 expect(result).to.not.be.null;
-                const resultTagIds = result.edges!.map(e => e!.node!.id).sort();
-                expect(resultTagIds).to.deep.equal(allTagIds.sort());
+                assertFindManyResultIds(expect, result, expectedIds);
             });
         });
     });
@@ -170,7 +161,7 @@ describe("EndpointsTag", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a tag for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const newTagId = uuid();
                 const input: TagCreateInput = { id: newTagId, tag: "New Test Tag" };
@@ -183,7 +174,7 @@ describe("EndpointsTag", () => {
             });
 
             it("API key with write permissions can create tag", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -213,7 +204,7 @@ describe("EndpointsTag", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("allows admin to update a tag", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
+                const adminUser = { ...loggedInUserNoPremiumData(), id: SEEDED_IDS.User.Admin };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: TagUpdateInput = { id: userTag1.id, tag: "Admin Updated Tag" };
                 const result = await tag.updateOne({ input }, { req, res }, tag_updateOne);
@@ -224,7 +215,7 @@ describe("EndpointsTag", () => {
 
         describe("invalid", () => {
             it("denies update for non-admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData, id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
                 const input: TagUpdateInput = { id: userTag1.id, tag: "Unauthorized Update" };
                 try {
@@ -243,7 +234,7 @@ describe("EndpointsTag", () => {
             });
 
             it("throws when updating non-existent tag as admin", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData, id: SEEDED_IDS.User.Admin };
+                const adminUser = { ...loggedInUserNoPremiumData(), id: SEEDED_IDS.User.Admin };
                 const { req, res } = await mockAuthenticatedSession(adminUser);
                 const input: TagUpdateInput = { id: uuid(), tag: "NoSuchTag" };
                 try {

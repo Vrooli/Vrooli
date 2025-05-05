@@ -23,7 +23,7 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
                     recurrenceType: data.recurrenceType,
                     interval: data.interval,
                     dayOfWeek: noNull(data.dayOfWeek),

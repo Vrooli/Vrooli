@@ -9,7 +9,6 @@ export function defaultPermissions({
     isLoggedIn,
     isPublic,
 }: { isAdmin: boolean, isDeleted: boolean, isLoggedIn: boolean, isPublic: boolean }) {
-    console.log("[defaultPermissions] data", { isAdmin, isDeleted, isLoggedIn, isPublic });
     return {
         canBookmark: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),
         canComment: () => isLoggedIn && !isDeleted && (isAdmin || isPublic),

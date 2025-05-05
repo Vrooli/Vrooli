@@ -1,10 +1,9 @@
-import { ModelType, RoutineVersion, RunStatus } from "../api/types.js";
+import { RunStatus } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
-import { uuid } from "../id/uuid.js";
+import { RoutineVersionConfig } from "../shape/configs/routine.js";
+import { RunProgressConfig } from "../shape/configs/run.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
-import { RoutineVersionConfig } from "./configs/routine.js";
-import { RunProgressConfig } from "./configs/run.js";
 import { DEFAULT_LOOP_DELAY_MULTIPLIER, DEFAULT_MAX_LOOP_DELAY_MS, DEFAULT_MAX_RUN_CREDITS, DEFAULT_ON_BRANCH_FAILURE, LATEST_RUN_CONFIG_VERSION, MAX_MAIN_LOOP_ITERATIONS, MAX_PARALLEL_BRANCHES } from "./consts.js";
 import { SubroutineContextManager } from "./context.js";
 import { SubroutineExecutor } from "./executor.js";
@@ -168,8 +167,8 @@ export class RunStateMachine {
         }
 
         // Make sure all start locations are in the same object
-        const startingAt = { __typename: firstLocation.__typename, objectId: firstLocation.objectId };
-        if (startLocations.some(loc => loc.__typename !== startingAt.__typename || loc.objectId !== startingAt.objectId)) {
+        const startingAt = { objectType: firstLocation.objectType, objectId: firstLocation.objectId };
+        if (startLocations.some(loc => loc.objectType !== startingAt.objectType || loc.objectId !== startingAt.objectId)) {
             throw new Error("All start locations must be in the same object");
         }
 
@@ -180,8 +179,7 @@ export class RunStateMachine {
         }
         const { object: startObject } = startLocationData;
 
-        const runId = uuid();
-        this.services.logger.info(`Initializing new run with ID ${runId}`);
+        this.services.logger.info("Initializing new run");
         const { description, instructions, name } = getTranslation(startObject as { translations: { language: string, name: string, description: string, instructions?: string }[] | null | undefined }, userData.languages, true);
         const subcontext: SubroutineContext = {
             ...SubroutineContextManager.initializeContext(),
@@ -202,20 +200,16 @@ export class RunStateMachine {
             metrics: RunProgressConfig.defaultMetrics(),
             name: name ?? "",
             owner: startObject.root?.owner ?? { id: userData.id, __typename: "User" as const },
-            runId,
             runOnObjectId: startObject.id,
             schedule: null,
             steps: [],
             status: RunStatus.InProgress,
             subcontexts: { [subroutineInstanceId]: subcontext },
-            type: startObject.__typename === "ProjectVersion"
-                ? "RunProject" as const
-                : "RunRoutine" as const,
         };
         // Determine if parallel execution is allowed
         let supportsParallelExecution = false;
-        if (startObject.__typename === ModelType.RoutineVersion) {
-            const routineConfig = RoutineVersionConfig.deserialize(startObject as RoutineVersion, this.services.logger, { useFallbacks: true });
+        if (startObject.resourceSubType.startsWith("Routine")) {
+            const routineConfig = RoutineVersionConfig.deserialize(startObject, this.services.logger, { useFallbacks: true });
             const graphConfig = routineConfig.graph;
             const navigator = graphConfig ? this.services.navigatorFactory.getNavigator(graphConfig.__type) : null;
             supportsParallelExecution = navigator?.supportsParallelExecution ?? false;
@@ -269,21 +263,25 @@ export class RunStateMachine {
      * @param userData - Session data for the user running the routine.
      * @returns The finalized run progress object.
      */
-    private async finalizeInit(run: RunProgress, userData: RunTriggeredBy): Promise<RunProgress> {
+    private async finalizeInit(run: Omit<RunProgress, "runId">, userData: RunTriggeredBy): Promise<RunProgress> {
         // Update the state machine's state
-        this.state.runIdentifier = { type: run.type, runId: run.runId };
         this.state.userData = userData;
 
         // Store the run in the database
         this.services.persistence.saveProgress(run);
         await this.services.persistence.finalizeSave(false);
+        const runId = this.services.persistence["_lastStoredShape"]?.id;
+        if (!runId) {
+            throw new Error("Run ID not found");
+        }
+        this.state.runIdentifier = { runId };
 
         // Update path decisions
         this.services.pathSelectionHandler.updateDecisionOptions(run);
 
         this.state.status = StateMachineStatus.Initialized;
 
-        return run;
+        return { ...run, runId };
     }
 
     /**
@@ -646,7 +644,7 @@ export class RunStateMachine {
         // Collect estimated max credits for each branch
         const costArray = await Promise.all(run.branches.map(async (branch) => {
             const currentObject = branchLocationDataMap[branch.branchId]?.object;
-            if (!currentObject || currentObject.__typename !== ModelType.RoutineVersion) {
+            if (!currentObject || !currentObject.resourceSubType.startsWith("Routine")) {
                 return BigInt(0);
             }
 

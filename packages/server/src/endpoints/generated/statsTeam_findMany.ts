@@ -6,18 +6,17 @@ export const statsTeam_findMany = {
             "periodStart": true,
             "periodEnd": true,
             "periodType": true,
-            "apis": true,
-            "codes": true,
+            "resources": true,
             "members": true,
-            "notes": true,
-            "projects": true,
-            "routines": true,
-            "standards": true
+            "runsStarted": true,
+            "runsCompleted": true,
+            "runCompletionTimeAverage": true,
+            "runContextSwitchesAverage": true
         }
     },
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1901195339"
+    "__cacheKey": "-555724487"
 };

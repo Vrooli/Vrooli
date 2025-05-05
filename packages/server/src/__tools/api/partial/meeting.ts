@@ -23,12 +23,12 @@ export const meetingYou: ApiPartial<MeetingYou> = {
 export const meeting: ApiPartial<Meeting> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         openToAnyoneWithInvite: true,
         showOnTeamProfile: true,
         team: async () => rel((await import("./team.js")).team, "nav"),
-        restrictedToRoles: async () => rel((await import("./role.js")).role, "full"),
         attendeesCount: true,
         invitesCount: true,
         you: () => rel(meetingYou, "full"),
@@ -36,12 +36,10 @@ export const meeting: ApiPartial<Meeting> = {
     full: {
         attendees: async () => rel((await import("./user.js")).user, "nav"),
         invites: async () => rel((await import("./meetingInvite.js")).meetingInvite, "list", { omit: "meeting" }),
-        labels: async () => rel((await import("./label.js")).label, "full"),
         schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "full"),
     },
     list: {
-        labels: async () => rel((await import("./label.js")).label, "list"),
         schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "list"),
     },

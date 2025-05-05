@@ -15,7 +15,7 @@ type OwnerShapeReturn = any;
 * NOTE: The result should be spread into the create/update object. 
 * That's why it has a different naming convention than other shape helpers.
 */
-export const ownerFields = async <
+export async function ownerFields<
     Types extends readonly ("Connect" | "Disconnect")[],
 >({
     data,
@@ -25,8 +25,7 @@ export const ownerFields = async <
     relation = "ownedBy",
     relTypes,
     ...rest
-}: OwnerShapeHelperProps<Types>):
-    Promise<OwnerShapeReturn> => {
+}: OwnerShapeHelperProps<Types>): Promise<OwnerShapeReturn> {
     // Check preMap to see if we're allowed to set the owner
     const requiresTransfer = rest.preMap[objectType].transferMap[data.id];
     // If a transfer is required
@@ -44,4 +43,4 @@ export const ownerFields = async <
         [orgRelName]: await shapeHelper({ ...rest, relation: orgRelName, relTypes, isOneToOne: true, objectType: "Team", parentRelationshipName, data }),
         [userRelName]: await shapeHelper({ ...rest, relation: userRelName, relTypes, isOneToOne: true, objectType: "User", parentRelationshipName, data }),
     };
-};
+}

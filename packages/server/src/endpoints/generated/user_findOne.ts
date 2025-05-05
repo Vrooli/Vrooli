@@ -1,7 +1,8 @@
 export const user_findOne = {
     "id": true,
-    "created_at": true,
-    "updated_at": true,
+    "publicId": true,
+    "createdAt": true,
+    "updatedAt": true,
     "bannerImage": true,
     "handle": true,
     "isBot": true,
@@ -23,5 +24,5 @@ export const user_findOne = {
         "language": true,
         "bio": true
     },
-    "__cacheKey": "-1272165009"
+    "__cacheKey": "-487847607"
 };

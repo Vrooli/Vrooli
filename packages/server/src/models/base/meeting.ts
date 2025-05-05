@@ -1,18 +1,16 @@
-import { MaxObjects, MeetingSortBy, getTranslation, meetingValidation } from "@local/shared";
+import { MaxObjects, MeetingSortBy, generatePublicId, getTranslation, meetingValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { MeetingFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
-import { ModelMap } from "./index.js";
-import { MeetingModelInfo, MeetingModelLogic, TeamModelLogic } from "./types.js";
+import { MeetingModelInfo, MeetingModelLogic } from "./types.js";
 
 type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
@@ -47,22 +45,13 @@ export const MeetingModel: MeetingModelLogic = ({
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as MeetingPre;
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                     showOnTeamProfile: noNull(data.showOnTeamProfile),
                     team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "meetings", data, ...rest }),
-                    restrictedToRoles: await shapeHelper({
-                        relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
-                            fieldName: "role",
-                            uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
-                            childIdFieldName: "roleId",
-                            parentIdFieldName: "meetingId",
-                            parentId: data.id ?? null,
-                        }, data, ...rest,
-                    }),
                     invites: await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -71,18 +60,8 @@ export const MeetingModel: MeetingModelLogic = ({
                 return {
                     openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
                     showOnTeamProfile: noNull(data.showOnTeamProfile),
-                    restrictedToRoles: await shapeHelper({
-                        relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
-                            fieldName: "role",
-                            uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
-                            childIdFieldName: "roleId",
-                            parentIdFieldName: "meetingId",
-                            parentId: data.id ?? null,
-                        }, data, ...rest,
-                    }),
                     invites: await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
-                    labels: await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
@@ -103,7 +82,6 @@ export const MeetingModel: MeetingModelLogic = ({
         sortBy: MeetingSortBy,
         searchFields: {
             createdTimeFrame: true,
-            labelsIds: true,
             openToAnyoneWithInvite: true,
             scheduleEndTimeFrame: true,
             scheduleStartTimeFrame: true,
@@ -114,7 +92,6 @@ export const MeetingModel: MeetingModelLogic = ({
         },
         searchStringQuery: () => ({
             OR: [
-                "labelsWrapped",
                 "transNameWrapped",
                 "transDescriptionWrapped",
             ],
@@ -151,7 +128,7 @@ export const MeetingModel: MeetingModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                    team: useVisibility("Team", "Own", data),
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
@@ -178,8 +155,8 @@ export const MeetingModel: MeetingModelLogic = ({
             attendingOrInvited: function getAttendingOrInvited(data) {
                 return {
                     OR: [
-                        { attendees: { some: { user: { id: data.userId } } } },
-                        { invites: { some: { user: { id: data.userId } } } },
+                        { attendees: { some: { user: { id: BigInt(data.userId) } } } },
+                        { invites: { some: { user: { id: BigInt(data.userId) } } } },
                     ],
                 };
             },

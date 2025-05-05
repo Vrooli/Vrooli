@@ -22,11 +22,11 @@ export const chatYou: ApiPartial<ChatYou> = {
 export const chat: ApiPartial<Chat> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        publicId: true,
+        createdAt: true,
+        updatedAt: true,
         openToAnyoneWithInvite: true,
         participants: async () => rel((await import("./chatParticipant.js")).chatParticipant, "list", { omit: "chat" }),
-        restrictedToRoles: async () => rel((await import("./role.js")).role, "full"),
         team: async () => rel((await import("./team.js")).team, "nav"),
         participantsCount: true,
         invitesCount: true,
@@ -35,12 +35,10 @@ export const chat: ApiPartial<Chat> = {
     full: {
         participants: async () => rel((await import("./chatParticipant.js")).chatParticipant, "list", { omit: "chat" }),
         invites: async () => rel((await import("./chatInvite.js")).chatInvite, "list", { omit: "chat" }),
-        labels: async () => rel((await import("./label.js")).label, "full"),
         // Messages are omitted here because they are handled by the chatMessageTree query
         translations: () => rel(chatTranslation, "full"),
     },
     list: {
-        labels: async () => rel((await import("./label.js")).label, "list"),
         translations: () => rel(chatTranslation, "list"),
     },
 };

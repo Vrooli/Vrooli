@@ -6,7 +6,7 @@ import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { withRedis } from "../redisConn.js";
 import { UI_URL } from "../server.js";
-import { emitSocketEvent } from "../sockets/events.js";
+import { SocketService } from "../sockets/io.js";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue.js";
 import { ResponseService } from "../utils/response.js";
 
@@ -276,7 +276,7 @@ export async function getVerifiedCustomerInfo({
         select: {
             id: true,
             emails: { select: { emailAddress: true } },
-            premium: { select: { isActive: true } },
+            premium: { select: { enabledAt: true } },
             stripeCustomerId: true,
         },
     });
@@ -285,7 +285,7 @@ export async function getVerifiedCustomerInfo({
         return result;
     }
     result.emails = user.emails || [];
-    result.hasPremium = user.premium?.isActive ?? false;
+    result.hasPremium = !!user.premium?.enabledAt && user.premium.enabledAt < new Date();
     result.stripeCustomerId = user.stripeCustomerId || null;
     result.userId = user.id;
     // Validate the stripeCustomerId by checking if it exists in Stripe
@@ -433,7 +433,7 @@ export async function processPayment(
     }) : await DbProvider.get().payment.create({
         data: {
             ...data,
-            user: userId ? { connect: { id: userId } } : undefined,
+            user: userId ? { connect: { id: BigInt(userId) } } : undefined,
         },
         select: paymentSelect,
     });
@@ -445,7 +445,7 @@ export async function processPayment(
     if (payment.paymentType === PaymentType.Credits) {
         const creditsToAward = (BigInt(payment.amount) * API_CREDITS_MULTIPLIER);
         await DbProvider.get().user.update({
-            where: { id: payment.user.id },
+            where: { id: BigInt(payment.user.id) },
             data: {
                 premium: {
                     upsert: {
@@ -486,7 +486,6 @@ export async function processPayment(
                 data: {
                     enabledAt,
                     expiresAt,
-                    isActive: true,
                     credits: API_CREDITS_PREMIUM,
                     user: { connect: { id: payment.user.id } }, // User should exist based on findMany query above
                 },
@@ -497,12 +496,11 @@ export async function processPayment(
                 data: {
                     enabledAt: premiums[0].enabledAt ?? enabledAt,
                     expiresAt,
-                    isActive: true,
                     credits: API_CREDITS_PREMIUM,
                 },
             });
         }
-        emitSocketEvent("apiCredits", payment.user.id, { credits: API_CREDITS_PREMIUM + "" });
+        SocketService.get().emitSocketEvent("apiCredits", payment.user.id.toString(), { credits: API_CREDITS_PREMIUM + "" });
     }
     // Send thank you notification
     for (const email of payment.user.emails) {
@@ -670,15 +668,21 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
                     emailAddress: true,
                 },
             },
+            premium: { select: { enabledAt: true } },
         },
     });
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found on customer.subscription.updated", "0457", { customerId });
     }
+    const existingEnabledAt = user.premium?.enabledAt ?? null;
 
     // Calculate new expiration date and active status. 
     // Should always be active, unless the new expiry date is somehow in the past
     const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
+    const enabledAt = isActive
+        ? existingEnabledAt ?? new Date()
+        : null;
+
     // Note that we're not updating the user's credits here, as that would only happen when 
     // activating a subscription. That's handled by the checkout.session.completed event.
     await DbProvider.get().user.update({
@@ -687,13 +691,12 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
             premium: {
                 upsert: {
                     create: {
-                        enabledAt: isActive ? new Date() : undefined,
+                        enabledAt,
                         expiresAt: newExpiresAt,
-                        isActive,
                     },
                     update: {
+                        enabledAt,
                         expiresAt: newExpiresAt,
-                        isActive,
                     },
                 },
             },
@@ -847,6 +850,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
             select: {
                 id: true,
                 emails: { select: { emailAddress: true } },
+                premium: { select: { enabledAt: true } },
             },
         },
     } as const;
@@ -898,6 +902,10 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
             return handlerResult(HttpStatus.InternalServerError, res, "Subscription not found", "0234", { customerId, invoice });
         }
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
+        const existingEnabledAt = payment.user?.premium?.enabledAt ?? null;
+        const enabledAt = isActive
+            ? existingEnabledAt ?? new Date()
+            : null;
         // Note that we're not updating the user's credits here, as that would only happen when 
         // activating a subscription. That's handled by the checkout.session.completed event.
         await DbProvider.get().user.update({
@@ -906,13 +914,12 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
                 premium: {
                     upsert: {
                         create: {
-                            enabledAt: isActive ? new Date() : undefined,
+                            enabledAt,
                             expiresAt: newExpiresAt,
-                            isActive,
                         },
                         update: {
+                            enabledAt,
                             expiresAt: newExpiresAt,
-                            isActive,
                         },
                     },
                 },
@@ -1225,7 +1232,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
                         data: {
                             ...paymentData,
                             description: "Credits Purchase",
-                            user: { connect: { id: customerInfo.userId } },
+                            user: { connect: { id: BigInt(customerInfo.userId) } },
                         },
                     }));
                 }
@@ -1238,7 +1245,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
         // If there are credits to award, award them and upsert payments in the database
         if (creditsToAward > 0) {
             const updateUserCredits = DbProvider.get().user.update({
-                where: { id: userId },
+                where: { id: BigInt(userId) },
                 data: {
                     premium: {
                         upsert: {

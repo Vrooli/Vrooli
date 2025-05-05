@@ -5,7 +5,7 @@ import { rel } from "../utils.js";
 export const notification: ApiPartial<Notification> = {
     full: {
         id: true,
-        created_at: true,
+        createdAt: true,
         category: true,
         isRead: true,
         title: true,

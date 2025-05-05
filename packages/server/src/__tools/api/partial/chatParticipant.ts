@@ -5,8 +5,8 @@ import { rel } from "../utils.js";
 export const chatParticipant: ApiPartial<ChatParticipant> = {
     common: {
         id: true,
-        created_at: true,
-        updated_at: true,
+        createdAt: true,
+        updatedAt: true,
     },
     list: {
         user: async () => rel((await import("./user.js")).user, "list"),

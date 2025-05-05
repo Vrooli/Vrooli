@@ -308,7 +308,7 @@ export class RequestService {
     }
 
     /**
-     * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
+     * Asserts that a request meets the specifiec requirements TODO need better api token validation
      * @param req Object with request data
      * @param conditions The conditions to check
      * @returns user data, if isUser or isOfficialUser is true

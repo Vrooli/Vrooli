@@ -1,8 +1,6 @@
-import { CalendarPageTabOption, ChatInviteStatus, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { IconInfo } from "../../icons/Icons.js";
-import { apiSearchParams } from "./schemas/api.js";
-import { apiVersionSearchParams } from "./schemas/apiVersion.js";
 import { SearchParams } from "./schemas/base.js";
 import { bookmarkSearchParams } from "./schemas/bookmark.js";
 import { bookmarkListSearchParams } from "./schemas/bookmarkList.js";
@@ -10,24 +8,15 @@ import { chatSearchParams } from "./schemas/chat.js";
 import { chatInviteSearchParams } from "./schemas/chatInvite.js";
 import { chatMessageSearchParams } from "./schemas/chatMessage.js";
 import { chatParticipantSearchParams } from "./schemas/chatParticipant.js";
-import { codeSearchParams } from "./schemas/code.js";
-import { codeVersionSearchParams } from "./schemas/codeVersion.js";
 import { commentSearchParams } from "./schemas/comment.js";
 import { issueSearchParams } from "./schemas/issue.js";
-import { labelSearchParams } from "./schemas/label.js";
 import { meetingSearchParams } from "./schemas/meeting.js";
 import { meetingInviteSearchParams } from "./schemas/meetingInvite.js";
 import { memberSearchParams } from "./schemas/member.js";
 import { memberInviteSearchParams } from "./schemas/memberInvite.js";
-import { noteSearchParams } from "./schemas/note.js";
-import { noteVersionSearchParams } from "./schemas/noteVersion.js";
 import { notificationSearchParams } from "./schemas/notification.js";
 import { notificationSubscriptionSearchParams } from "./schemas/notificationSubscription.js";
 import { popularSearchParams } from "./schemas/popular.js";
-import { projectSearchParams } from "./schemas/project.js";
-import { projectOrRoutineSearchParams } from "./schemas/projectOrRoutine.js";
-import { projectOrTeamSearchParams } from "./schemas/projectOrTeam.js";
-import { projectVersionSearchParams } from "./schemas/projectVersion.js";
 import { pullRequestSearchParams } from "./schemas/pullRequest.js";
 import { reactionSearchParams } from "./schemas/reaction.js";
 import { reminderSearchParams } from "./schemas/reminder.js";
@@ -35,23 +24,11 @@ import { reportSearchParams } from "./schemas/report.js";
 import { reportResponseSearchParams } from "./schemas/reportResponse.js";
 import { reputationHistorySearchParams } from "./schemas/reputationHistory.js";
 import { resourceSearchParams } from "./schemas/resource.js";
-import { resourceListSearchParams } from "./schemas/resourceList.js";
-import { roleSearchParams } from "./schemas/role.js";
-import { routineSearchParams } from "./schemas/routine.js";
-import { routineVersionSearchParams } from "./schemas/routineVersion.js";
-import { runProjectSearchParams } from "./schemas/runProject.js";
-import { runProjectOrRunRoutineSearchParams } from "./schemas/runProjectOrRunRoutine.js";
-import { runRoutineSearchParams } from "./schemas/runRoutine.js";
-import { runRoutineIOSearchParams } from "./schemas/runRoutineIO.js";
+import { runSearchParams } from "./schemas/run.js";
+import { runIOSearchParams } from "./schemas/runIO.js";
 import { scheduleSearchParams } from "./schemas/schedule.js";
-import { standardSearchParams } from "./schemas/standard.js";
-import { standardVersionSearchParams } from "./schemas/standardVersion.js";
-import { statsApiSearchParams } from "./schemas/statsApi.js";
-import { statsCodeSearchParams } from "./schemas/statsCode.js";
-import { statsProjectSearchParams } from "./schemas/statsProject.js";
-import { statsRoutineSearchParams } from "./schemas/statsRoutine.js";
+import { statsResourceSearchParams } from "./schemas/statsResource.js";
 import { statsSiteSearchParams } from "./schemas/statsSite.js";
-import { statsStandardSearchParams } from "./schemas/statsStandard.js";
 import { statsTeamSearchParams } from "./schemas/statsTeam.js";
 import { statsUserSearchParams } from "./schemas/statsUser.js";
 import { tagSearchParams } from "./schemas/tag.js";
@@ -111,7 +88,7 @@ export type SearchViewTabsInfo = {
     WhereParams: undefined;
 }
 
-export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
+export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Resource", "Team", "User"]> = [
     {
         iconInfo: { name: "Visible", type: "Common" } as const,
         key: SearchPageTabOption.All,
@@ -123,29 +100,43 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         iconInfo: { name: "Routine", type: "Routine" } as const,
         key: SearchPageTabOption.RoutineMultiStep,
         titleKey: "RoutineMultiStep",
-        searchType: "Routine",
-        where: () => ({ isInternal: false, latestVersionRoutineType: RoutineType.MultiStep } as const),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.RoutineMultiStep,
+            resourceType: ResourceType.Routine,
+        } as const),
     },
     {
         iconInfo: { name: "Action", type: "Common" } as const,
         key: SearchPageTabOption.RoutineSingleStep,
         titleKey: "RoutineSingleStep",
-        searchType: "Routine",
-        where: () => ({ isInternal: false, latestVersionRoutineTypes: Object.values(RoutineType).filter(type => type !== RoutineType.MultiStep) }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceTypes: Object.values(ResourceSubTypeRoutine).filter(type => type.toString() !== ResourceSubType.RoutineMultiStep.toString()) as unknown as ResourceSubType[],
+            resourceType: ResourceType.Routine,
+        } as const),
     },
     {
         iconInfo: { name: "Project", type: "Common" } as const,
         key: SearchPageTabOption.Project,
         titleKey: "Project",
-        searchType: "Project",
-        where: () => ({}),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            resourceType: ResourceType.Project,
+        }),
     },
     {
         iconInfo: { name: "Note", type: "Common" } as const,
         key: SearchPageTabOption.Note,
         titleKey: "Note",
-        searchType: "Note",
-        where: () => ({}),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            resourceType: ResourceType.Note,
+        }),
     },
     {
         iconInfo: { name: "Team", type: "Common" } as const,
@@ -165,15 +156,23 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         iconInfo: { name: "Article", type: "Common" } as const,
         key: SearchPageTabOption.Prompt,
         titleKey: "Prompt",
-        searchType: "Standard",
-        where: () => ({ isInternal: false, variantLatestVersion: StandardType.Prompt }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.StandardPrompt,
+            resourceType: ResourceType.Standard,
+        } as const),
     },
     {
         iconInfo: { name: "Object", type: "Common" } as const,
         key: SearchPageTabOption.DataStructure,
         titleKey: "DataStructure",
-        searchType: "Standard",
-        where: () => ({ isInternal: false, variantLatestVersion: StandardType.DataStructure }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.StandardDataStructure,
+            resourceType: ResourceType.Standard,
+        } as const),
     },
     // {
     //     iconInfo: { name: "Api", type: "Common" } as const,
@@ -186,8 +185,12 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         iconInfo: { name: "Terminal", type: "Common" } as const,
         key: SearchPageTabOption.DataConverter,
         titleKey: "DataConverter",
-        searchType: "Code",
-        where: () => ({ codeTypeLatestVersion: CodeType.DataConvert }),
+        searchType: "Resource",
+        where: () => ({
+            isInternal: false,
+            latestVersionResourceType: ResourceSubType.CodeDataConverter,
+            resourceType: ResourceType.Code,
+        } as const),
     },
     // {
     //     iconInfo: { name: "SmartContract", type: "Common" } as const,
@@ -290,16 +293,10 @@ export const calendarTabParams: TabParamSearchableList<CalendarTabsInfo, ["Sched
         where: () => ({ scheduleFor: ScheduleFor.Meeting }),
     },
     {
-        key: CalendarPageTabOption.RunRoutine,
-        titleKey: "Routine",
+        key: CalendarPageTabOption.Run,
+        titleKey: "Run",
         searchType: "Schedule",
-        where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
-    },
-    {
-        key: CalendarPageTabOption.RunProject,
-        titleKey: "Project",
-        searchType: "Schedule",
-        where: () => ({ scheduleFor: ScheduleFor.RunProject }),
+        where: () => ({ scheduleFor: ScheduleFor.Run }),
     },
 ];
 
@@ -309,7 +306,7 @@ export type HistoryTabsInfo = {
     WhereParams: undefined;
 }
 
-export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", "BookmarkList", "RunProjectOrRunRoutine"]> = [
+export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", "BookmarkList", "Run"]> = [
     {
         key: HistoryPageTabOption.Viewed,
         titleKey: "View",
@@ -325,7 +322,7 @@ export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", 
     {
         key: HistoryPageTabOption.RunsActive,
         titleKey: "Active",
-        searchType: "RunProjectOrRunRoutine",
+        searchType: "Run",
         where: () => ({
             statuses: [RunStatus.InProgress, RunStatus.Scheduled],
             visibility: VisibilityType.Own,
@@ -334,7 +331,7 @@ export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", 
     {
         key: HistoryPageTabOption.RunsCompleted,
         titleKey: "Complete",
-        searchType: "RunProjectOrRunRoutine",
+        searchType: "Run",
         where: () => ({
             statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed],
             visibility: VisibilityType.Own,
@@ -348,7 +345,7 @@ export type FindObjectTabsInfo = {
     WhereParams: undefined;
 }
 
-export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code", "Meeting", "RunRoutine", "RunProject"]> = [
+export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Note", "Team", "User", "Standard", "Api", "Code", "Meeting", "Run"]> = [
     ...searchViewTabParams,
     {
         iconInfo: { name: "Team", type: "Common" } as const,
@@ -358,17 +355,10 @@ export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["P
         where: () => ({}),
     },
     {
-        iconInfo: { name: "Routine", type: "Routine" } as const,
-        key: CalendarPageTabOption.RunRoutine,
-        titleKey: "RunRoutine",
-        searchType: "RunRoutine",
-        where: () => ({}),
-    },
-    {
-        iconInfo: { name: "Project", type: "Common" } as const,
-        key: CalendarPageTabOption.RunProject,
-        titleKey: "RunProject",
-        searchType: "RunProject",
+        iconInfo: { name: "Play", type: "Common" } as const,
+        key: CalendarPageTabOption.Run,
+        titleKey: "Run",
+        searchType: "Run",
         where: () => ({}),
     },
 ];
@@ -659,33 +649,21 @@ export const policyTabParams: TabParamBase<PolicyTabsInfo>[] = [
 
 /** Maps search types to values needed to query and display results */
 export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
-    Api: apiSearchParams,
-    ApiVersion: apiVersionSearchParams,
     Bookmark: bookmarkSearchParams,
     BookmarkList: bookmarkListSearchParams,
     Chat: chatSearchParams,
     ChatInvite: chatInviteSearchParams,
     ChatMessage: chatMessageSearchParams,
     ChatParticipant: chatParticipantSearchParams,
-    Code: codeSearchParams,
-    CodeVersion: codeVersionSearchParams,
     Comment: commentSearchParams,
     Issue: issueSearchParams,
-    Label: labelSearchParams,
     Meeting: meetingSearchParams,
     MeetingInvite: meetingInviteSearchParams,
     Member: memberSearchParams,
     MemberInvite: memberInviteSearchParams,
-    Note: noteSearchParams,
-    NoteVersion: noteVersionSearchParams,
     Notification: notificationSearchParams,
     NotificationSubscription: notificationSubscriptionSearchParams,
     Popular: popularSearchParams,
-    Project: projectSearchParams,
-    ProjectOrRoutine: projectOrRoutineSearchParams,
-    ProjectOrTeam: projectOrTeamSearchParams,
-    ProjectVersion: projectVersionSearchParams,
-    // ProjectVersionDirectory: projectVersionDirectorySearchParams,
     PullRequest: pullRequestSearchParams,
     Reaction: reactionSearchParams,
     Reminder: reminderSearchParams,
@@ -693,23 +671,11 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     ReportResponse: reportResponseSearchParams,
     ReputationHistory: reputationHistorySearchParams,
     Resource: resourceSearchParams,
-    ResourceList: resourceListSearchParams,
-    Role: roleSearchParams,
-    Routine: routineSearchParams,
-    RoutineVersion: routineVersionSearchParams,
-    RunProject: runProjectSearchParams,
-    RunProjectOrRunRoutine: runProjectOrRunRoutineSearchParams,
-    RunRoutine: runRoutineSearchParams,
-    RunRoutineIO: runRoutineIOSearchParams,
+    Run: runSearchParams,
+    RunIO: runIOSearchParams,
     Schedule: scheduleSearchParams,
-    Standard: standardSearchParams,
-    StandardVersion: standardVersionSearchParams,
-    StatsApi: statsApiSearchParams,
-    StatsCode: statsCodeSearchParams,
-    StatsProject: statsProjectSearchParams,
-    StatsRoutine: statsRoutineSearchParams,
+    StatsResource: statsResourceSearchParams,
     StatsSite: statsSiteSearchParams,
-    StatsStandard: statsStandardSearchParams,
     StatsTeam: statsTeamSearchParams,
     StatsUser: statsUserSearchParams,
     Tag: tagSearchParams,

@@ -1,8 +1,8 @@
-import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, RunTriggeredFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType, uuid } from "@local/shared";
+import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, nanoid, RunTriggeredFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType } from "@local/shared";
 import { RequestService } from "../../auth/request.js";
 import { requestBotResponse } from "../../tasks/llm/queue.js";
 import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask/queue.js";
-import { changeRunTaskStatus, getRunTaskStatuses, processRunProject, processRunRoutine } from "../../tasks/run/queue.js";
+import { changeRunTaskStatus, getRunTaskStatuses, processRun } from "../../tasks/run/queue.js";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue.js";
 import { ApiEndpoint } from "../../types.js";
 
@@ -48,31 +48,14 @@ export const task: EndpointsTask = {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
-        const taskId = `task-${uuid()}`;
-        const { projectVersionId, routineVersionId } = input;
-        if (projectVersionId) {
-            return processRunProject({
-                ...input,
-                projectVersionId,
-                runFrom: RunTriggeredFrom.RunView, // Can customize this later to change queue priority
-                startedById: userData.id,
-                taskId,
-                type: "RunProject",
-                userData,
-            });
-        } else if (routineVersionId) {
-            return processRunRoutine({
-                ...input,
-                routineVersionId,
-                runFrom: RunTriggeredFrom.RunView, // Can customize this later to change queue priority
-                startedById: userData.id,
-                taskId,
-                type: "RunRoutine",
-                userData,
-            });
-        } else {
-            return { __typename: "Success", success: false } as const;
-        }
+        const taskId = `task-${nanoid()}`;
+        return processRun({
+            ...input,
+            runFrom: RunTriggeredFrom.RunView, // Can customize this later to change queue priority
+            startedById: userData.id,
+            taskId,
+            userData,
+        });
     },
     cancelTask: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });

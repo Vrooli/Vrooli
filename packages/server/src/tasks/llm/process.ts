@@ -1,4 +1,4 @@
-import { BotSettingsConfig, ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, uuid } from "@local/shared";
+import { BotSettingsConfig, ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter.js";
@@ -7,7 +7,7 @@ import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findO
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { emitSocketEvent } from "../../sockets/events.js";
+import { SocketService } from "../../sockets/io.js";
 import { PreMapUserData, getChatParticipantData } from "../../utils/chat.js";
 import { reduceUserCredits } from "../../utils/reduceCredits.js";
 import { processLlmTask } from "../llmTask/queue.js";
@@ -156,7 +156,7 @@ export async function llmProcessBotMessage({
         }
 
         // Start typing indicator
-        emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
+        SocketService.get().emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
 
         let responseMessage: string | null = null;
         let botCommandsToRun: ServerLlmTaskInfo[] = [];
@@ -274,28 +274,23 @@ export async function llmProcessBotMessage({
         if (shouldStoreResponse) {
             // Store response in database 
             const select = InfoConverter.get().fromPartialApiToPrismaSelect(chatMessage_findOne);
-            const translation = {
-                id: uuid(),
-                language,
-                text: responseMessage,
-            } as const;
             const createdData = await DbProvider.get().chat_message.create({
                 data: {
-                    chat: { connect: { id: chatId } },
-                    parent: parentId ? { connect: { id: parentId } } : undefined,
-                    user: { connect: { id: respondingBotId } },
+                    text: responseMessage,
+                    chat: { connect: { id: BigInt(chatId) } },
+                    parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
+                    user: { connect: { id: BigInt(respondingBotId) } },
                     //TODO need to check existing number of parent's children to set versionIndex. Find somewhere to do this without having to call prisma again
-                    translations: { create: translation },
                 },
                 ...select,
             });
             // Store message in cache
-            await (new ChatContextManager(model, userData.languages)).addMessage({
+            await (new ChatContextManager(model)).addMessage({
                 __type: "Create",
                 chatId,
-                messageId: createdData.id,
+                messageId: createdData.id.toString(),
                 parentId: parentId ?? null,
-                translations: [translation],
+                text: responseMessage,
                 userId: respondingBotId,
             });
 
@@ -324,7 +319,7 @@ export async function llmProcessBotMessage({
 
         // Let the user know about commands that were run or are being suggested
         if (botCommandsToRun.length > 0 || botTasksToSuggest.length > 0) {
-            emitSocketEvent("llmTasks", chatId, {
+            SocketService.get().emitSocketEvent("llmTasks", chatId, {
                 tasks: [
                     ...botCommandsToRun.map((command) => ({
                         ...command,
@@ -351,7 +346,7 @@ export async function llmProcessBotMessage({
     }
     // Remove typing indicator
     if (chatId && respondingBotId) {
-        emitSocketEvent("typing", chatId, { stopping: [respondingBotId] });
+        SocketService.get().emitSocketEvent("typing", chatId, { stopping: [respondingBotId] });
     }
 }
 

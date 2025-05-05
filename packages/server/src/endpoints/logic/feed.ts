@@ -1,4 +1,4 @@
-import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, ReminderSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { HomeResult, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ReminderSortBy, ResourceSortBy, ScheduleSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { SessionService } from "../../auth/session.js";
@@ -19,15 +19,12 @@ export const feed: EndpointsFeed = {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
         const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "HomeResult",
-            recommended: "Resource",
             reminders: "Reminder",
             resources: "Resource",
             schedules: "Schedule",
         }, true);
         const take = 10;
         const commonReadParams = { req };
-        // Query recommended TODO
-        const recommended: object[] = [];
         // Query reminders
         const { nodes: reminders } = await readManyAsFeedHelper({
             ...commonReadParams,
@@ -58,7 +55,6 @@ export const feed: EndpointsFeed = {
         });
         // Add supplemental fields to every result
         const withSupplemental = await addSupplementalFieldsMultiTypes({
-            recommended,
             reminders,
             resources,
             schedules,
@@ -73,152 +69,85 @@ export const feed: EndpointsFeed = {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
         const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "PopularResult",
-            Api: "Api",
-            Code: "Code",
-            Note: "Note",
-            Project: "Project",
-            Routine: "Routine",
-            Standard: "Standard",
+            Resource: "Resource",
             Team: "Team",
             User: "User",
         }, true);
-        // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
-        const aftersCount = Object.entries(input).filter(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "").length;
-        const anyAfters = aftersCount > 0;
-        // Checks if object type should be included in results
-        function shouldInclude(objectType: `${PopularSearchInput["objectType"]}`) {
-            if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
-            return input.objectType ? input.objectType === objectType : true;
-        }
-        // Split take between each requested object type.
-        // If input.objectType is provided, take stays the same (as it's only querying one object type).
-        // If there are any "after" cursors, take is split evenly between each object type.
-        // If neither of the above are true, take is split evenly between each object type
-        const totalTake = 25;
-        const take = input.objectType ? totalTake : anyAfters ? Math.ceil(totalTake / aftersCount) : Math.ceil(totalTake / 9);
+        // Split take between each requested object type, favoring resources because they have more variations.
+        const totalTake = 50;
+        const resourceTake = input.objectType ? Math.ceil(totalTake * 4 / 6) : totalTake;
+        const teamTake = input.objectType ? Math.ceil(totalTake * 1 / 6) : totalTake;
+        const userTake = input.objectType ? Math.ceil(totalTake * 1 / 6) : totalTake;
         const commonReadParams = { req };
         const commonInputParams = {
             createdTimeFrame: input.createdTimeFrame,
-            take,
             updatedTimeFrame: input.updatedTimeFrame,
             visibility: input.visibility,
         };
-        // Query apis
-        const { nodes: apis, pageInfo: apisInfo } = shouldInclude("Api") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Api as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.apiAfter,
-                sortBy: (input.sortBy ?? ApiSortBy.ScoreDesc) as ApiSortBy,
-            },
-            objectType: "Api",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-        // Query notes
-        const { nodes: notes, pageInfo: notesInfo } = shouldInclude("Note") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Note as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.noteAfter,
-                sortBy: (input.sortBy ?? NoteSortBy.DateUpdatedDesc) as NoteSortBy,
-            },
-            objectType: "Note",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
+        // Query resources
+        let resources: object[] = [];
+        let resourcePageInfo: Partial<PageInfo> = {};
+        if (!input.objectType || input.objectType === "Resource") {
+            const { nodes, pageInfo } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { isDeleted: false, isInternal: false, isPrivate: false },
+                info: partial.Resource as PartialApiInfo,
+                input: {
+                    ...commonInputParams,
+                    after: input.resourceAfter,
+                    sortBy: input.sortBy ?? ResourceSortBy.ScoreDesc,
+                    take: resourceTake,
+                },
+                objectType: "Resource",
+            });
+            resources = nodes;
+            resourcePageInfo = pageInfo;
+        }
         // Query teams
-        const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Team as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.teamAfter,
-                sortBy: (input.sortBy ?? TeamSortBy.BookmarksDesc) as TeamSortBy,
-            },
-            objectType: "Team",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-        // Query projects
-        const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Project as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.projectAfter,
-                sortBy: (input.sortBy ?? ProjectSortBy.BookmarksDesc) as ProjectSortBy,
-            },
-            objectType: "Project",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-        // Query routines
-        const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Routine as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.routineAfter,
-                sortBy: (input.sortBy ?? RoutineSortBy.ScoreDesc) as RoutineSortBy,
-                isInternal: false,
-            },
-            objectType: "Routine",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-        // Query codes
-        const { nodes: codes, pageInfo: codesInfo } = shouldInclude("Code") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Code as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.codeAfter,
-                sortBy: (input.sortBy ?? CodeSortBy.ScoreDesc) as CodeSortBy,
-            },
-            objectType: "Code",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-        // Query standards
-        const { nodes: standards, pageInfo: standardsInfo } = shouldInclude("Standard") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.Standard as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.standardAfter,
-                sortBy: (input.sortBy ?? StandardSortBy.BookmarksDesc) as StandardSortBy,
-                isInternal: false,
-                type: "JSON",
-            },
-            objectType: "Standard",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
+        let teams: object[] = [];
+        let teamPageInfo: Partial<PageInfo> = {};
+        if (!input.objectType || input.objectType === "Team") {
+            const { nodes, pageInfo } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { isPrivate: false },
+                info: partial.Team as PartialApiInfo,
+                input: {
+                    ...commonInputParams,
+                    after: input.teamAfter,
+                    sortBy: input.sortBy ?? TeamSortBy.BookmarksDesc,
+                    take: teamTake,
+                },
+                objectType: "Team",
+            })
+            teams = nodes;
+            teamPageInfo = pageInfo;
+        }
         // Query users
-        const { nodes: users, pageInfo: usersInfo } = shouldInclude("User") ? await readManyAsFeedHelper({
-            ...commonReadParams,
-            additionalQueries: { isPrivate: false },
-            info: partial.User as PartialApiInfo,
-            input: {
-                ...commonInputParams,
-                after: input.userAfter,
-                sortBy: (input.sortBy ?? UserSortBy.DateUpdatedDesc) as UserSortBy,
-            },
-            objectType: "User",
-        }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
+        let users: object[] = [];
+        let userPageInfo: Partial<PageInfo> = {};
+        if (!input.objectType || input.objectType === "User") {
+            const { nodes, pageInfo } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { isPrivate: false },
+                info: partial.User as PartialApiInfo,
+                input: {
+                    ...commonInputParams,
+                    after: input.userAfter,
+                    sortBy: input.sortBy ?? UserSortBy.DateUpdatedDesc,
+                    take: userTake,
+                },
+                objectType: "User",
+            });
+            users = nodes;
+            userPageInfo = pageInfo;
+        }
         // Add supplemental fields to every result
         const withSupplemental = await addSupplementalFieldsMultiTypes({
-            apis,
-            codes,
-            notes,
-            projects,
-            routines,
-            standards,
+            resources,
             teams,
             users,
         }, {
-            apis: { type: "Api", ...(partial.Api as PartialApiInfo) },
-            codes: { type: "Code", ...(partial.Code as PartialApiInfo) },
-            notes: { type: "Note", ...(partial.Note as PartialApiInfo) },
-            projects: { type: "Project", ...(partial.Project as PartialApiInfo) },
-            routines: { type: "Routine", ...(partial.Routine as PartialApiInfo) },
-            standards: { type: "Standard", ...(partial.Standard as PartialApiInfo) },
+            resources: { type: "Resource", ...(partial.Resource as PartialApiInfo) },
             teams: { type: "Team", ...(partial.Team as PartialApiInfo) },
             users: { type: "User", ...(partial.User as PartialApiInfo) },
         }, SessionService.getUser(req));
@@ -234,23 +163,13 @@ export const feed: EndpointsFeed = {
             pageInfo: {
                 __typename: "PopularPageInfo" as const,
                 hasNextPage:
-                    apisInfo.hasNextPage
-                    || codesInfo.hasNextPage
-                    || notesInfo.hasNextPage
-                    || projectsInfo.hasNextPage
-                    || routinesInfo.hasNextPage
-                    || standardsInfo.hasNextPage
-                    || teamsInfo.hasNextPage
-                    || usersInfo.hasNextPage
+                    resourcePageInfo.hasNextPage
+                    || teamPageInfo.hasNextPage
+                    || userPageInfo.hasNextPage
                     || false,
-                endCursorApi: apisInfo.endCursor ?? "",
-                endCursorCode: codesInfo.endCursor ?? "",
-                endCursorNote: notesInfo.endCursor ?? "",
-                endCursorProject: projectsInfo.endCursor ?? "",
-                endCursorRoutine: routinesInfo.endCursor ?? "",
-                endCursorStandard: standardsInfo.endCursor ?? "",
-                endCursorTeam: teamsInfo.endCursor ?? "",
-                endCursorUser: usersInfo.endCursor ?? "",
+                endCursorResource: resourcePageInfo.endCursor ?? "",
+                endCursorTeam: teamPageInfo.endCursor ?? "",
+                endCursorUser: userPageInfo.endCursor ?? "",
             },
             edges: nodes.map((node) => ({ __typename: "PopularEdge" as const, cursor: node.id, node })),
         };

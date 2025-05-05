@@ -1,4 +1,4 @@
-import { Code, CodeShape, CodeVersionConfig, CodeVersionConfigObject, CodeVersionShape, ModelType, Owner, Routine, RoutineShape, RoutineVersionConfig, RoutineVersionConfigObject, RoutineVersionShape, SessionUser, Standard, StandardShape, StandardVersionShape, mergeDeep, shapeCode, shapeRoutine, shapeStandard } from "@local/shared";
+import { ApiVersionConfig, ApiVersionConfigObject, CodeVersionConfig, CodeVersionConfigObject, ModelType, NoteVersionConfig, NoteVersionConfigObject, Owner, ProjectVersionConfig, ProjectVersionConfigObject, Resource, ResourceShape, ResourceType, ResourceVersionShape, RoutineVersionConfig, RoutineVersionConfigObject, SessionUser, StandardVersionConfig, StandardVersionConfigObject, mergeDeep, shapeResource } from "@local/shared";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { createOneHelper } from "../actions/creates.js";
@@ -28,42 +28,20 @@ type ImportDataBase<Typename extends `${ModelType}`> = {
 
 type ShapeBase<Shape extends object, OmitFields extends string> = Omit<Shape, OmitFields | "__typename">;
 
-export type CodeImportData = ImportDataBase<"Code"> & {
-    shape: ShapeBase<CodeShape, "owner" | "versions"> & {
-        versions: CodeVersionImportData[];
+export type ResourceImportData = ImportDataBase<"Resource"> & {
+    shape: ShapeBase<ResourceShape, "owner" | "versions"> & {
+        versions: ResourceVersionImportData[];
     }
 }
 
-export type CodeVersionImportData = ImportDataBase<"CodeVersion"> & {
-    shape: ShapeBase<CodeVersionShape, "data"> & {
-        data: CodeVersionConfigObject;
+export type ResourceVersionImportData = ImportDataBase<"ResourceVersion"> & {
+    shape: ShapeBase<ResourceVersionShape, "config"> & {
+        config: ApiVersionConfigObject | CodeVersionConfigObject | NoteVersionConfigObject | ProjectVersionConfigObject | RoutineVersionConfigObject | StandardVersionConfigObject;
     }
-}
-
-export type RoutineImportData = ImportDataBase<"Routine"> & {
-    shape: ShapeBase<RoutineShape, "owner" | "versions"> & {
-        versions: RoutineVersionImportData[];
-    }
-}
-
-export type RoutineVersionImportData = ImportDataBase<"RoutineVersion"> & {
-    shape: ShapeBase<RoutineVersionShape, "config"> & {
-        config: RoutineVersionConfigObject;
-    }
-}
-
-export type StandardImportData = ImportDataBase<"Standard"> & {
-    shape: ShapeBase<StandardShape, "owner" | "versions"> & {
-        versions: StandardVersionImportData[];
-    }
-}
-
-export type StandardVersionImportData = ImportDataBase<"StandardVersion"> & {
-    shape: ShapeBase<StandardVersionShape, "">;
 }
 
 /** The list of objects being imported or exported. */
-type ImportObjects = CodeImportData | CodeVersionImportData | RoutineImportData | RoutineVersionImportData | StandardImportData | StandardVersionImportData;
+type ImportObjects = ResourceImportData | ResourceVersionImportData;
 
 /** The overall import/export data. */
 export type ImportData = {
@@ -254,170 +232,83 @@ abstract class AbstractImportExport<Import extends ImportDataBase<`${ModelType}`
     public abstract export(record: DbModel, config: ExportConfig): Promise<Import>;
 }
 
-class CodeImportExport extends AbstractImportExport<CodeImportData, Code> {
+export class ResourceImportExport extends AbstractImportExport<ResourceImportData, Resource> {
     public async getInfoCreate() {
-        const info = (await import("../endpoints/generated/code_findMany.js")).code_findMany;
+        const info = (await import("../endpoints/generated/resource_createOne.js")).resource_createOne;
         return info;
     }
 
     public async getInfoUpdate() {
-        const info = (await import("../endpoints/generated/code_updateOne.js")).code_updateOne;
+        const info = (await import("../endpoints/generated/resource_updateOne.js")).resource_updateOne;
         return info;
     }
 
-    private shapeData({ shape }: Pick<CodeImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): CodeShape {
+    private shapeData({ shape }: Pick<ResourceImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): ResourceShape {
         const versions = shape.versions.map(version => {
             // Return without "root" field
-            const { codeLanguage, content, data, root: _root, ...rest } = version.shape;
+            const { codeLanguage, config, resourceSubType, root, ...rest } = version.shape;
+            let configJson: string;
+            switch (root?.resourceType) {
+                case ResourceType.Api:
+                    configJson = new ApiVersionConfig({ config }).serialize("json");
+                    break;
+                case ResourceType.Code:
+                    configJson = new CodeVersionConfig({ codeLanguage, config }).serialize("json");
+                    break;
+                case ResourceType.Note:
+                    configJson = new NoteVersionConfig({ config }).serialize("json");
+                    break;
+                case ResourceType.Project:
+                    configJson = new ProjectVersionConfig({ config }).serialize("json");
+                    break;
+                case ResourceType.Routine:
+                    configJson = new RoutineVersionConfig({ config, resourceSubType }).serialize("json");
+                    break;
+                case ResourceType.Standard:
+                    configJson = new StandardVersionConfig({ config, resourceSubType }).serialize("json");
+                    break;
+                default:
+                    configJson = JSON.stringify({});
+                    break;
+            }
             // Serialize the config
             const codeVersionShape = {
                 ...rest,
-                __typename: "CodeVersion" as const,
+                __typename: "ResourceVersion" as const,
                 codeLanguage,
-                content,
-                data: new CodeVersionConfig({ content, codeLanguage, data }).serialize("json"),
+                config: configJson,
+                resourceSubType,
             };
             return codeVersionShape;
         });
-        const codeShape = {
+        const resourceShape = {
             ...shape,
-            __typename: "Code" as const,
+            __typename: "Resource" as const,
             owner: assignObjectsTo,
             versions,
         };
-        return codeShape;
+        return resourceShape;
     }
 
-    public async importCreate(data: CodeImportData, config: ImportConfig): Promise<Code> {
+    public async importCreate(data: ResourceImportData, config: ImportConfig): Promise<Resource> {
         const info = await this.getInfoCreate();
-        const codeShape = this.shapeData(data, config);
-        const input = shapeCode.create(codeShape);
+        const resourceShape = this.shapeData(data, config);
+        const input = shapeResource.create(resourceShape);
         const req = this.buildRequest(config);
-        const result = await createOneHelper({ info, input, objectType: "Code", req });
-        return result as Code;
+        const result = await createOneHelper({ info, input, objectType: "Resource", req });
+        return result as Resource;
     }
 
-    public async importUpdate(existing: Code, data: CodeImportData, config: ImportConfig): Promise<Code> {
+    public async importUpdate(existing: Resource, data: ResourceImportData, config: ImportConfig): Promise<Resource> {
         const info = await this.getInfoUpdate();
-        const codeShape = this.shapeData(data, config);
-        const input = shapeCode.update({ ...existing, owner: existing.owner ?? null }, codeShape);
+        const resourceShape = this.shapeData(data, config);
+        const input = shapeResource.update({ ...existing, owner: existing.owner ?? null }, resourceShape);
         const req = this.buildRequest(config);
-        const result = await updateOneHelper({ info, input, objectType: "Code", req });
-        return result as Code;
+        const result = await updateOneHelper({ info, input, objectType: "Resource", req });
+        return result as Resource;
     }
 
-    public async export(record: Code): Promise<CodeImportData> {
-        //TODO
-        return {} as any;
-    }
-}
-
-class RoutineImportExport extends AbstractImportExport<RoutineImportData, Routine> {
-    public async getInfoCreate() {
-        const info = (await import("../endpoints/generated/routine_createOne.js")).routine_createOne;
-        return info;
-    }
-
-    public async getInfoUpdate() {
-        const info = (await import("../endpoints/generated/routine_updateOne.js")).routine_updateOne;
-        return info;
-    }
-
-    private shapeData({ shape }: Pick<RoutineImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): RoutineShape {
-        const versions = shape.versions.map(version => {
-            // Return without "root" field
-            const { config, root: _root, ...rest } = version.shape;
-            // Serialize the config
-            const routineVersionShape = {
-                ...rest,
-                __typename: "RoutineVersion" as const,
-                config: new RoutineVersionConfig(config).serialize("json"),
-            };
-            return routineVersionShape;
-        });
-        const routineShape = {
-            ...shape,
-            __typename: "Routine" as const,
-            owner: assignObjectsTo,
-            versions,
-        };
-        return routineShape;
-    }
-
-    public async importCreate(data: RoutineImportData, config: ImportConfig): Promise<Routine> {
-        const info = await this.getInfoCreate();
-        const routineShape = this.shapeData(data, config);
-        const input = shapeRoutine.create(routineShape);
-        const req = this.buildRequest(config);
-        const result = await createOneHelper({ info, input, objectType: "Routine", req });
-        return result as Routine;
-    }
-
-    public async importUpdate(existing: Routine, data: RoutineImportData, config: ImportConfig): Promise<Routine> {
-        const info = await this.getInfoUpdate();
-        const routineShape = this.shapeData(data, config);
-        const input = shapeRoutine.update({ ...existing, owner: existing.owner ?? null }, routineShape);
-        const req = this.buildRequest(config);
-        const result = await updateOneHelper({ info, input, objectType: "Routine", req });
-        return result as Routine;
-    }
-
-    public async export(record: Routine): Promise<RoutineImportData> {
-        //TODO
-        return {} as any;
-    }
-}
-
-class StandardImportExport extends AbstractImportExport<StandardImportData, Standard> {
-    public async getInfoCreate() {
-        const info = (await import("../endpoints/generated/standard_createOne.js")).standard_createOne;
-        return info;
-    }
-
-    public async getInfoUpdate() {
-        const info = (await import("../endpoints/generated/standard_updateOne.js")).standard_updateOne;
-        return info;
-    }
-
-    private shapeData({ shape }: Pick<StandardImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): StandardShape {
-        const versions = shape.versions.map(version => {
-            // Return without "root" field
-            const { root: _root, ...rest } = version.shape;
-            // Serialize the config
-            const standardVersionShape = {
-                ...rest,
-                __typename: "StandardVersion" as const,
-            };
-            return standardVersionShape;
-        });
-        const standardShape = {
-            ...shape,
-            __typename: "Standard" as const,
-            owner: assignObjectsTo,
-            versions,
-        };
-        return standardShape;
-    }
-
-    public async importCreate(data: StandardImportData, config: ImportConfig): Promise<Standard> {
-        const info = await this.getInfoCreate();
-        const standardShape = this.shapeData(data, config);
-        const input = shapeStandard.create(standardShape);
-        const req = this.buildRequest(config);
-        const result = await createOneHelper({ info, input, objectType: "Standard", req });
-        return result as Standard;
-    }
-
-    public async importUpdate(existing: Standard, data: StandardImportData, config: ImportConfig): Promise<Standard> {
-        const info = await this.getInfoUpdate();
-        const standardShape = this.shapeData(data, config);
-        const input = shapeStandard.update({ ...existing, owner: existing.owner ?? null }, standardShape);
-        const req = this.buildRequest(config);
-        const result = await updateOneHelper({ info, input, objectType: "Standard", req });
-        return result as Standard;
-    }
-
-    public async export(record: Standard): Promise<StandardImportData> {
+    public async export(record: Resource): Promise<ResourceImportData> {
         //TODO
         return {} as any;
     }
@@ -525,12 +416,8 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
     for (const [objectType, objects] of Object.entries(groupedData)) {
         // Determine the importer instance based on objectType
         let importer: AbstractImportExport<ImportDataBase<`${ModelType}`>, object> | null = null;
-        if (objectType === ModelType.Code) {
-            importer = new CodeImportExport();
-        } else if (objectType === ModelType.Routine) {
-            importer = new RoutineImportExport();
-        } else if (objectType === ModelType.Standard) {
-            importer = new StandardImportExport();
+        if (objectType === ModelType.Resource) {
+            importer = new ResourceImportExport();
         } else {
             // Unsupported object type
             result.errors += objects.length;

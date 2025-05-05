@@ -3,8 +3,9 @@ export const user_findMany = {
         "cursor": true,
         "node": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "publicId": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -31,5 +32,5 @@ export const user_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-2064821393"
+    "__cacheKey": "-2079387191"
 };

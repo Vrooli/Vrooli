@@ -1,4 +1,4 @@
-import { ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
+import { ModelType, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
@@ -142,7 +142,8 @@ export async function versionsCheck({
         }
         // Check 3
         // If the root is not private and not internal (if applicable)
-        const isAdmin = userData.id === SEEDED_IDS.User.Admin;
+        const adminId = await DbProvider.getAdminId();
+        const isAdmin = userData.id === adminId;
         if (!isAdmin && !root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
             // Updating versions (which are not private) cannot be marked as complete, 
             // UNLESS this action is being performed by an admin

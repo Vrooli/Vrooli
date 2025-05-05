@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RunRoutine, RunStatus, Tag, User, endpointsRoutineVersion, endpointsRunRoutine, getObjectUrl, uuid } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, Run, RunStatus, Tag, User, endpointsRoutineVersion, endpointsRunRoutine, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
@@ -7,7 +7,7 @@ import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
 // Create simplified mock data for Routine responses
 const mockRoutineVersionData: RoutineVersion = {
     __typename: "RoutineVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     comments: [],
     commentsCount: 0,
@@ -78,9 +78,7 @@ const mockRoutineVersionData: RoutineVersion = {
             },
         },
     }),
-    created_at: new Date().toISOString(),
-    directoryListings: [],
-    directoryListingsCount: 0,
+    createdAt: new Date().toISOString(),
     forks: [],
     forksCount: 0,
     inputs: [],
@@ -97,40 +95,40 @@ const mockRoutineVersionData: RoutineVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
-        created_at: new Date().toISOString(),
+        id: generatePKString(),
+        createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            id: generatePKString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
             link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                id: generatePKString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 language: "en",
                 name: `Resource ${Math.floor(Math.random() * 1000)}`,
                 description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
             }],
         })) as any,
         translations: [],
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     root: {
         __typename: "Routine" as const,
-        id: uuid(),
+        id: generatePKString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         tags: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, () => ({
             __typename: "Tag" as const,
-            id: uuid(),
+            id: generatePKString(),
             tag: ["AI", "Generate", "Content", "Automation", "Workflow", "Productivity", "Tools", "Development"][Math.floor(Math.random() * 8)],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
         })) as Tag[],
         versions: [],
         views: Math.floor(Math.random() * 10000),
@@ -138,7 +136,6 @@ const mockRoutineVersionData: RoutineVersion = {
     routineType: RoutineType.Generate,
     simplicity: 5,
     subroutineLinks: [],
-    suggestedNextByRoutineVersion: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),
     translations: [{
@@ -149,7 +146,7 @@ const mockRoutineVersionData: RoutineVersion = {
         instructions: "Enter your prompt in the input field. Be as specific as possible for better results. Then click 'Run' to generate content.",
         name: "AI Content Generator",
     }],
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     versionIndex: 0,
     versionLabel: "1.0.0",
     versionNotes: "Initial version",
@@ -166,13 +163,13 @@ const mockRoutineVersionData: RoutineVersion = {
 };
 
 // Mock run data
-const mockRunRoutineData: RunRoutine = {
-    __typename: "RunRoutine" as const,
-    id: uuid(),
+const mockRunData: Run = {
+    __typename: "Run" as const,
+    id: generatePKString(),
     completedComplexity: 2,
     complexity: 2,
-    created_at: new Date().toISOString(),
-    creator: { __typename: "User" as const, id: uuid() } as User,
+    createdAt: new Date().toISOString(),
+    creator: { __typename: "User" as const, id: generatePKString() } as User,
     isCompleted: true,
     inputs: [],
     outputs: [],
@@ -182,7 +179,7 @@ const mockRunRoutineData: RunRoutine = {
     timeElapsed: 3240,
     timeStarted: new Date().toISOString(),
     totalComplexity: 2,
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     you: {
         canDelete: true,
         canRead: true,
@@ -198,7 +195,7 @@ export default {
 
 export function NoResult() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 NoResult.parameters = {
@@ -207,14 +204,14 @@ NoResult.parameters = {
 
 export function Loading() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockRoutineVersionData });
@@ -222,80 +219,80 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
     },
 };
 
 export function SignedInWithResults() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 SignedInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
     },
 };
 
 export function LoggedOutWithResults() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
     },
 };
 
 export function WithActiveRun() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 WithActiveRun.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
-            http.get(`${API_URL}/v2/rest${endpointsRunRoutine.findOne.endpoint}`, () => {
-                return HttpResponse.json({ data: mockRunRoutineData });
+            http.get(`${API_URL}/v2${endpointsRunRoutine.findOne.endpoint}`, () => {
+                return HttpResponse.json({ data: mockRunData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}?runId=${uuid()}`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}?runId=${generatePKString()}`,
     },
 };
 
 export function Own() {
     return (
-        <RoutineSingleStepView display="page" />
+        <RoutineSingleStepView display="Page" />
     );
 }
 Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsRoutineVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsRoutineVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockRoutineVersionData,
@@ -333,6 +330,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockRoutineVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
     },
 }; 

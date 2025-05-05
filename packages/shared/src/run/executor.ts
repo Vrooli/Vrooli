@@ -1,12 +1,12 @@
-import { ModelType, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RunStepStatus } from "../api/types.js";
+import { ModelType, ResourceSubType, ResourceVersion, RunStepStatus } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
 import { InputType } from "../consts/model.js";
 import { CodeLanguage } from "../consts/ui.js";
 import { FormInputType, FormSchema } from "../forms/types.js";
-import { DUMMY_ID } from "../id/uuid.js";
+import { DUMMY_ID } from "../id/snowflake.js";
+import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
-import { RoutineVersionConfig } from "./configs/routine.js";
 import { SubroutineContextManager } from "./context.js";
 import { BranchLocationDataMap, BranchProgress, BranchStatus, ExecuteStepResult, IOMap, InitializedRunState, InputGenerationStrategy, Location, RunConfig, RunProgress, RunProgressStep, RunStateMachineServices, SubroutineExecutionStrategy, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, SubroutineOutputDisplayInfoProps } from "./types.js";
 
@@ -50,8 +50,9 @@ export abstract class SubroutineExecutor {
      * @param routine The routine to check
      * @returns True if the routine is a single-step routine, false otherwise
      */
-    public isSingleStepRoutine(routine: RoutineVersion): boolean {
-        return routine.routineType !== RoutineType.MultiStep;
+    public isSingleStepRoutine(resource: ResourceVersion): boolean {
+        return resource.resourceSubType !== ResourceSubType.RoutineMultiStep
+            && resource.resourceSubType.startsWith("Routine");
     }
 
     /**
@@ -60,8 +61,8 @@ export abstract class SubroutineExecutor {
      * @param routine The routine to check
      * @returns True if the routine is a multi-step routine, false otherwise
      */
-    public isMultiStepRoutine(routine: RoutineVersion): boolean {
-        return routine.routineType === RoutineType.MultiStep;
+    public isMultiStepRoutine(resource: ResourceVersion): boolean {
+        return resource.resourceSubType === ResourceSubType.RoutineMultiStep;
     }
 
     /**
@@ -457,7 +458,7 @@ export abstract class SubroutineExecutor {
      * @param runConfig The overall run configuration
      * @returns The inputs and outputs of the subroutine (for updating the subcontext), as well as the cost of running the routine
      */
-    public abstract runSubroutine(subroutineInstanceId: string, routine: RoutineVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<Omit<RunSubroutineResult, "updatedBranchStatus">>;
+    public abstract runSubroutine(subroutineInstanceId: string, routine: ResourceVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<Omit<RunSubroutineResult, "updatedBranchStatus">>;
 
     /**
      * Generates missing inputs for a subroutine.
@@ -470,7 +471,7 @@ export abstract class SubroutineExecutor {
      * @param runConfig The overall run configuration
      * @returns The missing inputs
      */
-    public abstract generateMissingInputs(subroutineInstanceId: string, routine: RoutineVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<Omit<RunSubroutineResult, "updatedBranchStatus">>;
+    public abstract generateMissingInputs(subroutineInstanceId: string, routine: ResourceVersion, ioMapping: SubroutineIOMapping, runConfig: RunConfig): Promise<Omit<RunSubroutineResult, "updatedBranchStatus">>;
 
     /**
      * Runs a subroutine.
@@ -487,7 +488,7 @@ export abstract class SubroutineExecutor {
      * @returns The inputs and outputs of the subroutine (for updating the subcontext), as well as the cost of running the routine
      */
     public async run(
-        routine: RoutineVersion,
+        routine: ResourceVersion,
         providedInputs: IOMap,
         runConfig: RunConfig,
         branch: BranchProgress,
@@ -557,7 +558,7 @@ export abstract class SubroutineExecutor {
     * @param runConfig The overall run configuration
     * @returns The maximum cost in credits of running the subroutine, as a stringified bigint
     */
-    public abstract estimateCost(subroutineInstanceId: string, routine: RoutineVersion, runConfig: RunConfig): Promise<string>;
+    public abstract estimateCost(subroutineInstanceId: string, routine: ResourceVersion, runConfig: RunConfig): Promise<string>;
 
     /**
      * Initializes a new run step progress
@@ -569,7 +570,7 @@ export abstract class SubroutineExecutor {
      */
     private createStepProgress(
         location: Location,
-        subroutine: RoutineVersion | null,
+        subroutine: ResourceVersion | null,
         state: InitializedRunState,
     ): RunProgressStep {
         return {
@@ -841,7 +842,7 @@ export abstract class SubroutineExecutor {
             run.decisions = updatedDecisions;
             // Send a decision request to the client
             for (const decision of stepResult.deferredDecisions) {
-                services.notifier?.sendDecisionRequest(state.runIdentifier.runId, run.type, decision);
+                services.notifier?.sendDecisionRequest(state.runIdentifier.runId, decision);
             }
             // If the branch is still active, put it in a waiting state
             if (branch.status === BranchStatus.Active) {

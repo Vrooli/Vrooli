@@ -1,4 +1,4 @@
-import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointsChatMessage, getTranslation, noop, uuid } from "@local/shared";
+import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointsChatMessage, getTranslation, noop } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { SessionContext } from "../contexts/session.js";
@@ -7,12 +7,12 @@ import { getUserLanguages } from "../utils/display/translationTools.js";
 import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "../utils/localStorage.js";
 import { PubSub } from "../utils/pubsub.js";
 import { UseChatTaskReturn } from "./tasks.js";
+import { useLazyFetch } from "./useFetch.js";
 import { useHistoryState } from "./useHistoryState.js";
-import { useLazyFetch } from "./useLazyFetch.js";
 
 export type MinimumChatMessage = {
     id: string;
-    created_at?: string;
+    createdAt?: string;
     parent?: {
         id: string;
         parent?: {
@@ -171,7 +171,7 @@ export class MessageTree<T extends MinimumChatMessage> {
         if (closestBySequence) return closestBySequence;
 
         // If no sequence match, find the closest lesser timestamp
-        const closestByTimestamp = this.findClosestByTimestamp(orphan.message.created_at);
+        const closestByTimestamp = this.findClosestByTimestamp(orphan.message.createdAt);
         if (closestByTimestamp) return closestByTimestamp;
 
         // If all else fails, the node will remain a root
@@ -214,7 +214,7 @@ export class MessageTree<T extends MinimumChatMessage> {
         let closestTimestamp = -Infinity;
 
         this.map.forEach((node, id) => {
-            const nodeCreatedAt = node.message.created_at;
+            const nodeCreatedAt = node.message.createdAt;
             if (!nodeCreatedAt) return;
 
             const nodeTimestamp = new Date(nodeCreatedAt).getTime();
@@ -697,15 +697,12 @@ export function useMessageActions({
         if (!chat || text.trim() === "") return;
         const taskContexts = await getTaskContexts();
         const message: ChatMessageCreateInput = {
-            id: uuid(),
+            id: DUMMY_ID,
             chatConnect: chat.id,
+            language,
             userConnect: getCurrentUser(session).id ?? "",
+            text,
             versionIndex: 0,
-            translationsCreate: [{
-                id: uuid(),
-                language,
-                text,
-            }],
         };
         fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
             fetch: postMessageEndpoint,
@@ -726,16 +723,13 @@ export function useMessageActions({
         // Create new version if we're in a bot-only chat. This branches the conversation and allows the bot to respond.
         if (isBotOnlyChat) {
             const message: ChatMessageCreateInput = {
-                id: uuid(),
+                id: DUMMY_ID,
                 chatConnect: chat.id,
+                language,
                 parentConnect: originalMessage.id,
+                text,
                 userConnect: getCurrentUser(session).id ?? "",
                 versionIndex: originalMessage.versionIndex + 1,
-                translationsCreate: [{
-                    id: uuid(),
-                    language,
-                    text,
-                }],
             };
             fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
                 fetch: postMessageEndpoint,
@@ -752,12 +746,7 @@ export function useMessageActions({
         else {
             const message: ChatMessageUpdateInput = {
                 id: originalMessage.id,
-                translationsDelete: originalMessage.translations.map((t) => t.id),
-                translationsCreate: [{
-                    id: uuid(),
-                    language,
-                    text,
-                }],
+                text,
             };
             fetchLazyWrapper<ChatMessageUpdateWithTaskInfoInput, ChatMessage>({
                 fetch: putMessageEndpoint,
@@ -794,16 +783,13 @@ export function useMessageActions({
         if (!chat || text.trim() === "") return;
         const taskContexts = await getTaskContexts();
         const message: ChatMessageCreateInput = {
-            id: uuid(),
+            id: DUMMY_ID,
             chatConnect: chat.id,
+            language,
             parentConnect: messageBeingRepliedTo.id,
+            text,
             userConnect: getCurrentUser(session).id ?? "",
             versionIndex: 0,
-            translationsCreate: [{
-                id: uuid(),
-                language,
-                text,
-            }],
         };
         fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
             fetch: postMessageEndpoint,
@@ -833,16 +819,13 @@ export function useMessageActions({
 
         // Prepare message input
         const message: ChatMessageCreateInput = {
-            id: uuid(), // Generate new id
+            id: DUMMY_ID,
             chatConnect: chat.id,
+            language,
             parentConnect: parent?.id ?? parentId ?? undefined,
+            text,
             userConnect: user?.id ?? getCurrentUser(session).id ?? "",
             versionIndex: versionIndex ?? 0,
-            translationsCreate: [{
-                id: uuid(),
-                language,
-                text,
-            }],
         };
 
         fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({

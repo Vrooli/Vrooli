@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, uuidValidate } from "@local/shared";
+import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, validatePublicId } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -46,7 +46,7 @@ export function ParticipantManageView({
     } = useTabs({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
-        canSearch: () => uuidValidate(chat.id),
+        canSearch: () => validatePublicId(chat.publicId),
         controlsUrl: display === "Page",
         searchType,
         take: 20,
@@ -78,8 +78,8 @@ export function ParticipantManageView({
         const asInvites: ChatInviteShape[] = (selectedData as User[]).map(user => ({
             __typename: "ChatInvite",
             id: DUMMY_ID,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             status: ChatInviteStatus.Pending,
             chat: { __typename: "Chat", id: chat.id },
             user,

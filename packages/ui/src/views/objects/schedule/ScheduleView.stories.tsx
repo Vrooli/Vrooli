@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Meeting, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, getObjectUrl, uuid } from "@local/shared";
+import { Meeting, Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleView } from "./ScheduleView.js";
 
 // Create simplified mock data for Schedule responses
 const mockScheduleData: Schedule = {
-    id: uuid(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    id: generatePKString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     startTime: new Date().toISOString(),
     endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
     timezone: "America/New_York",
@@ -18,7 +18,7 @@ const mockScheduleData: Schedule = {
     recurrences: [
         {
             __typename: "ScheduleRecurrence" as const,
-            id: uuid(),
+            id: generatePKString(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             dayOfWeek: 2, // Tuesday
@@ -31,12 +31,12 @@ const mockScheduleData: Schedule = {
     ],
     meetings: [{
         __typename: "Meeting" as const,
-        id: uuid(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        id: generatePKString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         translations: [{
             __typename: "MeetingTranslation" as const,
-            id: uuid(),
+            id: generatePKString(),
             language: "en",
             name: "Weekly Team Sync",
             description: "Regular team sync meeting to discuss progress and blockers",
@@ -52,9 +52,7 @@ const mockScheduleData: Schedule = {
             isParticipant: true,
         },
     } as unknown as Meeting],
-    runProjects: [],
-    runRoutines: [],
-    labels: [],
+    runs: [],
 } as any; // Cast as any to bypass type checking for stories
 
 export default {
@@ -82,7 +80,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockScheduleData });
@@ -90,7 +88,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 };
 
@@ -104,13 +102,13 @@ SignedIn.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 };
 
@@ -132,13 +130,13 @@ DialogView.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 };
 
@@ -152,12 +150,12 @@ LoggedOut.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsSchedule.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsSchedule.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockScheduleData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockScheduleData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockScheduleData)}`,
     },
 }; 

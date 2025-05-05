@@ -1,4 +1,4 @@
-import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, uuidValidate } from "@local/shared";
+import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, validatePublicId } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useMemo } from "react";
@@ -8,16 +8,13 @@ import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/Pas
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
-import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useLocation } from "../../route/router.js";
 import { CenteredContentPage, FormContainer, pagePaddingBottom } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { ResetPasswordViewProps } from "../types.js";
 import { FormSection } from "./authStyles.js";
 
-interface ResetPasswordFormProps {
-    onClose?: () => unknown;
-}
 type FormValues = typeof initialValues;
 
 const initialValues = {
@@ -32,31 +29,29 @@ const baseFormStyle = {
 } as const;
 
 
-function ResetPasswordForm({
-    onClose,
-}: ResetPasswordFormProps) {
+function ResetPasswordForm() {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailResetPassword, { loading }] = useLazyFetch<EmailResetPasswordInput, Session>(endpointsAuth.emailResetPassword);
 
-    // Get userId and code from url. Should be set if coming from email link
-    const { userId, code } = useMemo(() => {
+    // Get public ID and code from url. Should be set if coming from email link
+    const { userPublicId, code } = useMemo(() => {
         const params = UrlTools.parseSearchParams(LINKS.ResetPassword);
-        if (typeof params.code !== "string" || !params.code.includes(":")) return { userId: undefined, code: undefined };
-        const [userId, code] = params.code.split(":");
-        if (!uuidValidate(userId)) return { userId: undefined, code: undefined };
-        return { userId, code };
+        if (typeof params.code !== "string" || !params.code.includes(":")) return { userPublicId: undefined, code: undefined };
+        const [userPublicId, code] = params.code.split(":");
+        if (!validatePublicId(userPublicId)) return { userPublicId: undefined, code: undefined };
+        return { userPublicId, code };
     }, []);
 
     const onSubmit = useCallback(function onSubmitCallback(values: FormValues, helpers: FormikHelpers<FormValues>) {
-        // Check for valid userId and code
-        if (!userId || !code) {
+        // Check for valid userPublicId and code
+        if (!userPublicId || !code) {
             PubSub.get().publish("snack", { messageKey: "InvalidResetPasswordUrl", severity: "Error" });
             return;
         }
         fetchLazyWrapper<EmailResetPasswordInput, Session>({
             fetch: emailResetPassword,
-            inputs: { id: userId, code, newPassword: values.newPassword },
+            inputs: { publicId: userPublicId, code, newPassword: values.newPassword },
             onSuccess: (data) => {
                 PubSub.get().publish("session", data);
                 setLocation(LINKS.Home);
@@ -64,7 +59,7 @@ function ResetPasswordForm({
             successMessage: () => ({ messageKey: "PasswordReset" }),
             onCompleted: () => { helpers.setSubmitting(false); },
         });
-    }, [emailResetPassword, setLocation, userId, code]);
+    }, [emailResetPassword, setLocation, userPublicId, code]);
 
     return (
         <Formik
@@ -81,7 +76,6 @@ function ResetPasswordForm({
                     <FormSection>
                         <PasswordTextInput
                             fullWidth
-                            autoFocus
                             name="newPassword"
                             autoComplete="new-password"
                             label={t("PasswordNew")}
@@ -134,7 +128,7 @@ export function ResetPasswordView({
                     maxWidth={600}
                     width="100%"
                 >
-                    <ResetPasswordForm onClose={onClose} />
+                    <ResetPasswordForm />
                 </Box>
             </Box>
         </CenteredContentPage>

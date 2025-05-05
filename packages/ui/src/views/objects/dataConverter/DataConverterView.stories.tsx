@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, CodeVersion, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, getObjectUrl, uuid } from "@local/shared";
+import { CodeLanguage, CodeType, CodeVersion, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { Meta } from "@storybook/react";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
@@ -45,7 +45,7 @@ const serializedData = JSON.stringify({
 // Create simplified mock data for DataConverter responses
 const mockDataConverterVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: uuid(),
+    id: generatePKString(),
     calledByRoutineVersionsCount: 3,
     codeLanguage: CodeLanguage.Javascript,
     codeType: CodeType.DataConvert,
@@ -69,11 +69,9 @@ function main(input) {
     return convertStringToNumberArray(input);
 }
     `,
-    created_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     data: serializedData,
     default: null,
-    directoryListings: [],
-    directoryListingsCount: 0,
     forks: [],
     forksCount: 0,
     isComplete: true,
@@ -85,41 +83,41 @@ function main(input) {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: uuid(),
+        id: generatePKString(),
         listFor: {
             __typename: "CodeVersion" as const,
-            id: uuid(),
+            id: generatePKString(),
         } as any,
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            id: generatePKString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
             link: `https://example.com/resource/${Math.floor(Math.random() * 1000)}`,
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: uuid(),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                id: generatePKString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
                 language: "en",
                 name: `Resource ${Math.floor(Math.random() * 1000)}`,
                 description: `Description for Resource ${Math.floor(Math.random() * 1000)}`,
             }],
         })) as Resource[],
         translations: [],
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     root: {
         __typename: "Code" as const,
-        id: uuid(),
+        id: generatePKString(),
         bookmarks: 5,
         likes: 10,
         views: 25,
         isPrivate: false,
-        owner: { __typename: "User" as const, id: uuid() } as User,
+        owner: { __typename: "User" as const, id: generatePKString() } as User,
         tags: [
             {
                 __typename: "Tag" as const,
@@ -145,7 +143,7 @@ function main(input) {
     },
     translations: [{
         __typename: "CodeVersionTranslation" as const,
-        id: uuid(),
+        id: generatePKString(),
         language: "en",
         description: `# String to Number Array Converter
 
@@ -171,7 +169,7 @@ Input should be a string where numbers are separated by commas. The converter wi
         jsonVariable: null,
     }],
     translationsCount: 1,
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     versionIndex: 1,
     versionLabel: "1.0.0",
     versionNotes: "Initial version",
@@ -202,7 +200,7 @@ export default {
 
 export function NoResult() {
     return (
-        <DataConverterView display="page" />
+        <DataConverterView display="Page" />
     );
 }
 NoResult.parameters = {
@@ -211,14 +209,14 @@ NoResult.parameters = {
 
 export function Loading() {
     return (
-        <DataConverterView display="page" />
+        <DataConverterView display="Page" />
     );
 }
 Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockDataConverterVersionData });
@@ -226,59 +224,59 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
 
 export function SignInWithResults() {
     return (
-        <DataConverterView display="page" />
+        <DataConverterView display="Page" />
     );
 }
 SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
 
 export function LoggedOutWithResults() {
     return (
-        <DataConverterView display="page" />
+        <DataConverterView display="Page" />
     );
 }
 LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
-console.log('yeet mocked url', `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`);
+console.log('yeet mocked url', `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`);
 
 export function Own() {
     return (
-        <DataConverterView display="page" />
+        <DataConverterView display="Page" />
     );
 }
 Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/rest${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockDataConverterVersionData,
@@ -307,6 +305,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2/rest${getObjectUrl(mockDataConverterVersionData)}`,
+        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };

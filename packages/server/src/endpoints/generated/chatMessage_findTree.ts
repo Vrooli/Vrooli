@@ -3,18 +3,17 @@ export const chatMessage_findTree = {
     "hasMoreDown": true,
     "messages": {
         "id": true,
-        "created_at": true,
-        "updated_at": true,
+        "createdAt": true,
         "sequence": true,
         "versionIndex": true,
         "parent": {
             "id": true,
-            "created_at": true
+            "createdAt": true
         },
         "user": {
             "id": true,
-            "created_at": true,
-            "updated_at": true,
+            "createdAt": true,
+            "updatedAt": true,
             "bannerImage": true,
             "handle": true,
             "isBot": true,
@@ -42,5 +41,5 @@ export const chatMessage_findTree = {
             "text": true
         }
     },
-    "__cacheKey": "1802350475"
+    "__cacheKey": "825546186"
 };

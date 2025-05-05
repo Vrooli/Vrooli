@@ -1,7 +1,7 @@
 import { RoutineVersion } from "../api/types.js";
 import { PassableLogger } from "../consts/commonTypes.js";
+import { GraphConfig, RoutineVersionConfig } from "../shape/configs/routine.js";
 import { getTranslation } from "../translations/translationTools.js";
-import { GraphConfig, RoutineVersionConfig } from "./configs/routine.js";
 import { RunSubroutineResult } from "./executor.js";
 import { IOKey, IOMap, IOValue, RunStateMachineServices, RunTriggeredBy, type SubroutineContext } from "./types.js";
 

@@ -1,4 +1,4 @@
-import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointsUser, findBotDataForForm, getAvailableModels, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { BookmarkFor, ChatShape, DUMMY_ID, LINKS, ListObject, User, UserPageTabOption, findBotDataForForm, getAvailableModels, getObjectUrl, getTranslation, noop, validatePK } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,19 +21,17 @@ import { Title } from "../../../components/text/Title.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
-import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTabs } from "../../../hooks/useTabs.js";
 import { IconCommon, IconRoutine } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox } from "../../../styles.js";
-import { PartialWithType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
-import { defaultYou, getDisplay, getYou, placeholderColor } from "../../../utils/display/listTools.js";
+import { getDisplay, placeholderColor } from "../../../utils/display/listTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "../../../utils/localStorage.js";
-import { UrlInfo, parseSingleItemUrl } from "../../../utils/navigation/urlTools.js";
+import { getCookieMatchingChat } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { userTabParams } from "../../../utils/search/objectToSearch.js";
 import { FeatureSlider } from "../bot/BotUpsert.js";
@@ -118,39 +116,7 @@ export function UserView({
     const { t } = useTranslation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    // Parse information from URL
-    const urlInfo = useMemo<UrlInfo & { isOwnProfile: boolean }>(() => {
-        // Use common function to parse URL
-        let urlInfo: UrlInfo & { isOwnProfile?: boolean } = parseSingleItemUrl({ pathname });
-        // If it returns the handle "profile", or the path it returns nothing, then it's the current user's profile
-        if (session && (urlInfo.handle === "profile" || Object.keys(urlInfo).length === 0)) {
-            urlInfo.isOwnProfile = true;
-            const currentUser = getCurrentUser(session);
-            urlInfo = { ...urlInfo, handle: currentUser?.handle ?? undefined, id: currentUser?.id };
-        } else {
-            urlInfo.isOwnProfile = false;
-        }
-        return urlInfo as UrlInfo & { isOwnProfile: boolean };
-    }, [pathname, session]);
-    // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointsUser.findOne);
-    const [getProfileData, { data: profileData, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointsUser.profile);
-    const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
-    // Get user or profile data
-    useEffect(() => {
-        if (urlInfo.isOwnProfile) getProfileData();
-        else if (urlInfo.id) getUserData({ id: urlInfo.id });
-        else if (urlInfo.handle) getUserData({ handle: urlInfo.handle });
-    }, [getUserData, getProfileData, urlInfo]);
-    // Set user data
-    useEffect(() => {
-        const knownData = userData ?? profileData;
-        // If there is knownData, update local storage
-        if (knownData) setCookiePartialData(knownData, "full");
-        setUser(knownData ?? getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
-    }, [userData, profileData, urlInfo]);
-    const permissions = useMemo(() => user ? getYou(user) : defaultYou, [user]);
-    const isLoading = useMemo(() => isUserLoading || isProfileLoading, [isUserLoading, isProfileLoading]);
+    const { isLoading, object: user, permissions, setObject: setUser } = useManagedObject<User>({ pathname });
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -164,7 +130,7 @@ export function UserView({
         const { model, creativity, verbosity, translations } = findBotDataForForm(language, availableModels, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
-        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, BANNER_IMAGE_TARGET_SIZE_PX);
+        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updatedAt, BANNER_IMAGE_TARGET_SIZE_PX);
         if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
         return {
             adornments,
@@ -191,7 +157,7 @@ export function UserView({
     } = useTabs({ id: "user-tabs", tabParams: availableTabs, display });
 
     const findManyData = useFindMany<ListObject>({
-        canSearch: () => uuidValidate(user?.id ?? ""),
+        canSearch: () => validatePK(user?.id),
         controlsUrl: display === "Page",
         searchType,
         take: 20,
@@ -243,11 +209,11 @@ export function UserView({
 
     /** Starts a new chat */
     const handleStartChat = useCallback(() => {
-        if (!user || !user.id) return;
-        const yourId = getCurrentUser(session).id;
-        if (!yourId) return;
+        if (!user || !user.publicId) return;
+        const currentUser = getCurrentUser(session);
+        if (!currentUser.publicId) return;
         // Check for last chat you opened with this user
-        const existingChatId = getCookieMatchingChat([yourId, user.id]);
+        const existingChatId = getCookieMatchingChat([currentUser.publicId, user.publicId]);
         console.log("got existing chat id", existingChatId);
         // Use that to determine URL
         const url = existingChatId ? getObjectUrl({ __typename: "Chat" as const, id: existingChatId }) : `${LINKS.Chat}/add`;
@@ -257,7 +223,7 @@ export function UserView({
         const initialChatData = {
             invites: [{
                 __typename: "ChatInvite" as const,
-                id: uuid(),
+                id: DUMMY_ID,
                 user: { __typename: "User", id: user.id } as Partial<User>,
             }] as Partial<ChatShape["invites"]>,
             translations: [{
@@ -276,17 +242,14 @@ export function UserView({
             const startingMessage = bestTranslation.startingMessage ?? "";
             if (startingMessage.length > 0) {
                 (initialChatData as unknown as { messages: Partial<ChatShape["messages"]> }).messages = [{
-                    id: uuid(),
+                    id: DUMMY_ID,
+                    language,
                     status: "unsent",
-                    translations: [{
-                        __typename: "ChatMessageTranslation" as const,
-                        id: uuid(),
-                        language,
-                        text: startingMessage,
-                    }],
+                    text: startingMessage,
                     user: {
                         __typename: "User" as const,
                         id: user.id,
+                        publicId: user.publicId,
                     },
                 }] as Partial<ChatShape["messages"]>;
             }
@@ -332,7 +295,7 @@ export function UserView({
                     <OverviewProfileAvatar
                         isBot={user?.isBot ?? false}
                         profileColors={profileColors}
-                        src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
+                        src={extractImageUrl(user?.profileImage, user?.updatedAt, 100)}
                     >
                         <IconCommon name={user?.isBot ? "Bot" : "User"} />
                     </OverviewProfileAvatar>
@@ -402,7 +365,7 @@ export function UserView({
                             loading={isLoading}
                             showIcon={true}
                             textBeforeDate="Joined"
-                            timestamp={user?.created_at}
+                            timestamp={user?.createdAt}
                         />
                         <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                     </Stack>
@@ -519,12 +482,6 @@ export function UserView({
                 >
                     <IconCommon name="Edit" />
                 </IconButton> : null}
-                <IconButton
-                    aria-label={t("Share")}
-                    onClick={startActionShare}
-                >
-                    <IconCommon name="Export" />
-                </IconButton>
                 <IconButton
                     aria-label={t("AddToTeam")}
                     onClick={handleAddOrInvite}

@@ -9,7 +9,7 @@ async function processTableViewsInBatches(
 ): Promise<void> {
     try {
         await batch<FindManyArgs>({
-            // Convert the table name (e.g. "api") into the proper model name (e.g. "Api")
+            // Convert the table name (e.g. "resource") into the proper model name (e.g. "Resource")
             objectType: uppercaseFirstLetter(camelCase(tableName as string)) as ModelType,
             processBatch: async (batch) => {
                 for (const item of batch) {
@@ -45,14 +45,8 @@ async function processTableViewsInBatches(
 
 export async function countViews(): Promise<void> {
     const tableNames = [
-        "api",
-        "code",
         "issue",
-        "note",
-        "post",
-        "project",
-        "routine",
-        "standard",
+        "resource",
         "team",
         "user",
     ] as const;

@@ -207,7 +207,7 @@ export function NavListProfileButton() {
             <ProfileAvatar
                 id={ELEMENT_IDS.UserMenuProfileIcon}
                 isBot={false}
-                src={extractImageUrl(user.profileImage, user.updated_at, AVATAR_SIZE_PX)}
+                src={extractImageUrl(user.profileImage, user.updatedAt, AVATAR_SIZE_PX)}
                 onClick={openUserMenu}
                 profileColors={placeholderColor(user.id)}
             >

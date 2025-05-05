@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { findFirstRel } from "../../builders/findFirstRel.js";
@@ -7,15 +7,13 @@ import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
 import { ScheduleFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
     Meeting: "meetings",
-    RunProject: "runProjects",
-    RunRoutine: "runRoutines",
+    Run: "runs",
 };
 
 const __typename = "Schedule" as const;
@@ -42,18 +40,17 @@ export const ScheduleModel: ScheduleModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
-                    id: data.id,
+                    id: BigInt(data.id),
+                    publicId: generatePublicId(),
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
-                    labels: await labelShapeHelper({ relation: "labels", relTypes: ["Connect", "Create"], parentType: "Schedule", data, ...rest }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                     // These relations are treated as one-to-one in the API, but not in the database.
                     // Therefore, the key is pural, but the "relation" passed to shapeHelper is singular.
                     meetings: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "schedule", data, ...rest }),
-                    runProjects: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "schedule", data, ...rest }),
-                    runRoutines: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "schedule", data, ...rest }),
+                    runs: await shapeHelper({ relation: "run", relTypes: ["Connect"], isOneToOne: true, objectType: "Run", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -62,7 +59,6 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     endTime: noNull(data.endTime),
                     timezone: noNull(data.timezone),
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
-                    labels: await labelShapeHelper({ relation: "labels", relTypes: ["Connect", "Create", "Disconnect"], parentType: "Schedule", data, ...rest }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },

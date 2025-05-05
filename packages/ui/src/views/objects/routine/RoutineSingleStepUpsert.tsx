@@ -30,7 +30,7 @@ import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "../../../utils/search/schemas/routine.js";
+import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "../../../utils/search/schemas/resource.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "./RoutineTypeForms.js";
 import { RoutineSingleStepFormProps, RoutineSingleStepUpsertProps } from "./types.js";
@@ -45,7 +45,6 @@ export function routineSingleStepInitialValues(
         inputs: [],
         isComplete: false,
         isPrivate: false,
-        directoryListings: [],
         outputs: [],
         routineType: RoutineType.Informational,
         versionLabel: "1.0.0",

@@ -781,7 +781,6 @@ describe("determineModelType", () => {
             __typename: "Code",
             createdBy: "User",
             issues: "Issue",
-            labels: "Label",
             owner: {
                 ownedByTeam: "Team",
                 ownedByUser: "User",
@@ -1707,16 +1706,10 @@ describe("inputToMaps", () => {
         format = {
             apiRelMap: {
                 __typename: "User" as const,
-                api: "Api",
-                code: "Code",
-                project: "Project",
-                reports: "Report",
-                roles: "Role",
-                routine: "Routine",
-                standard: "Standard",
+                resource: "Resource",
             },
         };
-        closestWithId = { __typename: "Routine", id: "grandparentId", path: "version" };
+        closestWithId = { __typename: "Resource", id: "grandparentId", path: "version" };
     });
 
     after(() => {

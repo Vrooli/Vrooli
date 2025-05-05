@@ -1,5 +1,5 @@
 import { AUTH_PROVIDERS, DAYS_2_MS, MINUTES_15_MS, Session, TranslationKeyError } from "@local/shared";
-import { AccountStatus, PrismaPromise, email, premium, session, user_auth, user_language } from "@prisma/client";
+import { AccountStatus, PrismaPromise, email, premium, session, user, user_auth } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { DbProvider } from "../db/provider.js";
@@ -18,32 +18,13 @@ const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 15;
 const SOFT_LOCKOUT_DURATION = MINUTES_15_MS;
 const EMAIL_VERIFICATION_CODE_LENGTH = 8;
 
-export type UserDataForPasswordAuth = {
-    id: string;
-    handle: string | null;
-    lastLoginAttempt: Date | null;
-    logInAttempts: number;
-    name: string;
-    profileImage: string | null;
-    theme: string;
-    status: AccountStatus;
-    updated_at: Date;
+export type UserDataForPasswordAuth = Pick<user, "id" | "handle" | "languages" | "lastLoginAttempt" | "logInAttempts" | "name" | "profileImage" | "publicId" | "theme" | "status" | "updatedAt"> & {
     auths: Pick<user_auth, "id" | "provider" | "hashed_password">[];
     emails: Pick<email, "emailAddress">[];
-    languages: Pick<user_language, "language">[];
     premium: Pick<premium, "credits" | "expiresAt"> | null;
-    sessions: (Pick<session, "id" | "device_info" | "ip_address" | "last_refresh_at" | "revoked"> & {
+    sessions: (Pick<session, "id" | "device_info" | "ip_address" | "last_refresh_at" | "revokedAt"> & {
         auth: Pick<user_auth, "id" | "provider">;
     })[];
-    _count: {
-        apis: number;
-        codes: number;
-        memberships: number;
-        notes: number;
-        projects: number;
-        routines: number;
-        standards: number;
-    }
 }
 
 export class PasswordAuthService {
@@ -66,9 +47,10 @@ export class PasswordAuthService {
             logInAttempts: true,
             name: true,
             profileImage: true,
+            publicId: true,
             status: true,
             theme: true,
-            updated_at: true,
+            updatedAt: true,
             auths: {
                 select: {
                     id: true,
@@ -83,11 +65,7 @@ export class PasswordAuthService {
                     emailAddress: true,
                 },
             },
-            languages: {
-                select: {
-                    language: true,
-                },
-            },
+            languages: true,
             premium: {
                 select: {
                     credits: true,
@@ -100,24 +78,13 @@ export class PasswordAuthService {
                     device_info: true,
                     ip_address: true,
                     last_refresh_at: true,
-                    revoked: true,
+                    revokedAt: true,
                     auth: {
                         select: {
                             id: true,
                             provider: true,
                         },
                     },
-                },
-            },
-            _count: {
-                select: {
-                    apis: true,
-                    codes: true,
-                    memberships: true,
-                    notes: true,
-                    projects: true,
-                    routines: true,
-                    standards: true,
                 },
             },
         } as const;
@@ -215,7 +182,7 @@ export class PasswordAuthService {
         const matchingSession = user.sessions.find((s) =>
             s.device_info === deviceInfo
             && s.auth.provider === AUTH_PROVIDERS.Password
-            && s.revoked === false,
+            && !s.revokedAt,
         );
 
         // Find matching auth
@@ -239,7 +206,7 @@ export class PasswordAuthService {
                 }),
                 // Update log in attempts and last login attempt in user row
                 DbProvider.get().user.update({
-                    where: { id: user.id },
+                    where: { id: BigInt(user.id) },
                     data: {
                         logInAttempts: 0,
                         lastLoginAttempt: new Date(),
@@ -268,9 +235,9 @@ export class PasswordAuthService {
                             expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                             last_refresh_at: new Date(),
                             ip_address: ipAddress,
-                            revoked: false,
+                            revokedAt: null,
                             user: {
-                                connect: { id: user.id },
+                                connect: { id: BigInt(user.id) },
                             },
                             auth: {
                                 connect: { id: passwordAuth.id },
@@ -296,7 +263,7 @@ export class PasswordAuthService {
         // Reset log in fail counter if possible
         if (willResetLoginAttempts) {
             await DbProvider.get().user.update({
-                where: { id: user.id },
+                where: { id: BigInt(user.id) },
                 data: { logInAttempts: 1 }, // We just failed to log in, so set to 1
             });
         }
@@ -310,7 +277,7 @@ export class PasswordAuthService {
                 new_status = AccountStatus.SoftLocked;
             }
             await DbProvider.get().user.update({
-                where: { id: user.id },
+                where: { id: BigInt(user.id) },
                 data: {
                     status: new_status,
                     logInAttempts: log_in_attempts,
@@ -333,7 +300,7 @@ export class PasswordAuthService {
      * Updated user object with new password reset code, and sends email to user with reset link
      * @param user User object
      */
-    static async setupPasswordReset(user: Pick<UserDataForPasswordAuth, "id" | "emails" | "auths">): Promise<boolean> {
+    static async setupPasswordReset(user: Pick<UserDataForPasswordAuth, "id" | "publicId" | "emails" | "auths">): Promise<boolean> {
         // Make sure the user has at least one email to send the reset link to
         if (!user.emails || user.emails.length === 0) {
             throw new CustomError("0063", "NoEmails");
@@ -354,7 +321,7 @@ export class PasswordAuthService {
                     ...commonAuthData,
                     provider: AUTH_PROVIDERS.Password,
                     user: {
-                        connect: { id: user.id },
+                        connect: { id: BigInt(user.id) },
                     },
                 },
             });
@@ -370,7 +337,7 @@ export class PasswordAuthService {
         }
         // Send new verification emails
         for (const email of user.emails) {
-            sendResetPasswordLink(email.emailAddress, user.id, resetPasswordCode);
+            sendResetPasswordLink(email.emailAddress, user.publicId, resetPasswordCode);
         }
         return true;
     }
@@ -379,7 +346,7 @@ export class PasswordAuthService {
         return {
             id: true,
             lastVerificationCodeRequestAttempt: true,
-            verified: true,
+            verifiedAt: true,
             user: {
                 select: {
                     id: true,
@@ -396,6 +363,7 @@ export class PasswordAuthService {
     static async setupEmailVerificationCode(
         emailAddress: string,
         userId: string,
+        userPublicId: string,
         languages: string[] | undefined,
     ): Promise<void> {
         // Find the email
@@ -409,18 +377,18 @@ export class PasswordAuthService {
                 data: {
                     emailAddress,
                     user: {
-                        connect: { id: userId },
+                        connect: { id: BigInt(userId) },
                     },
                 },
                 select: this.emailVerificationCodeSelect(),
             });
         }
         // Check if it belongs to the user
-        if (email.user && email.user.id !== userId) {
+        if (email.user && email.user.id.toString() !== userId) {
             throw new CustomError("0064", "EmailNotYours");
         }
         // Check if it's already verified
-        if (email.verified) {
+        if (email.verifiedAt) {
             throw new CustomError("0059", "EmailAlreadyVerified");
         }
         // Generate new code
@@ -434,7 +402,7 @@ export class PasswordAuthService {
             },
         });
         // Send new verification email
-        sendVerificationLink(emailAddress, userId, verificationCode);
+        sendVerificationLink(emailAddress, userPublicId, verificationCode);
         // Warn of new verification email to existing devices (if applicable)
         Notify(languages).pushNewEmailVerification().toUser(userId);
     }
@@ -458,7 +426,7 @@ export class PasswordAuthService {
             select: {
                 id: true,
                 userId: true,
-                verified: true,
+                verifiedAt: true,
                 verificationCode: true,
                 lastVerificationCodeRequestAttempt: true,
             },
@@ -466,10 +434,10 @@ export class PasswordAuthService {
         if (!email)
             throw new CustomError("0062", "CannotVerifyEmailCode"); // Purposefully vague with duplicate code for security
         // Check that userId matches email's userId
-        if (email.userId !== userId)
+        if (email.userId?.toString() !== userId)
             throw new CustomError("0062", "CannotVerifyEmailCode"); // Purposefully vague with duplicate code for security
         // If email already verified, remove old verification code
-        if (email.verified) {
+        if (email.verifiedAt) {
             await DbProvider.get().email.update({
                 where: { id: email.id },
                 data: { verificationCode: null, lastVerificationCodeRequestAttempt: null },
@@ -489,8 +457,7 @@ export class PasswordAuthService {
                 await DbProvider.get().email.update({
                     where: { id: email.id },
                     data: {
-                        verified: true,
-                        lastVerifiedTime: new Date(),
+                        verifiedAt: new Date(),
                         verificationCode: null,
                         lastVerificationCodeRequestAttempt: null,
                     },
