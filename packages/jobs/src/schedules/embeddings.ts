@@ -7,9 +7,11 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { DbProvider, EmbeddableType, FindManyArgs, GenericModelLogic, ModelMap, batch, getEmbeddings, logger } from "@local/server";
+import { DbProvider, EmbeddableType, FindManyArgs, GenericModelLogic, ModelMap, batch, logger } from "@local/server";
 import { ModelType, RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
+// Try relative path again, going up three levels
+import { EmbeddingService } from "../../../server/src/services/embedding.js";
 
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
 // This will take a long time and should only be done during development or if something is 
@@ -78,7 +80,7 @@ async function processTranslatedBatchHelper(
     const sentences = extractTranslatedSentences(batch, model);
     if (sentences.length === 0) return;
     // Find embeddings for all versions in the batch
-    const embeddings = await getEmbeddings(objectType, sentences);
+    const embeddings = await EmbeddingService.get().getEmbeddings(objectType, sentences);
     // Update the embeddings for each stale translation
     await Promise.all(batch.map(async (curr, index) => {
         const translationsToUpdate = curr.translations.filter(t => !t.embeddingExpiredAt || t.embeddingExpiredAt <= new Date());
@@ -107,7 +109,7 @@ async function processUntranslatedBatchHelper(
     const sentences = batch.map(obj => model.display().embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
-    const embeddings = await getEmbeddings(objectType, sentences);
+    const embeddings = await EmbeddingService.get().getEmbeddings(objectType, sentences);
     // Update the embeddings for each object
     await Promise.all(
         batch.map(async (obj, index) => {
