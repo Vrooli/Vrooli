@@ -854,6 +854,7 @@ export class HealthService {
                 bucketAccess: false,
                 error: `S3 check failed: ${(error as Error).message}`,
             };
+            logger.error("S3 health check failed during HeadBucketCommand", { trace: "health-s3-fail", error });
         }
 
         // 2. Check NSFW Detection Service functionality by sending a safe image

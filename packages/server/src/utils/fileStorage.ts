@@ -52,8 +52,9 @@ export async function checkNSFW(buffer: Buffer, originalFileName: string): Promi
                 responseBody += chunk;
             });
             res.on("end", () => {
-                // Use HttpStatus.Ok and explicit 300 for range check
-                if (res.statusCode && res.statusCode >= HttpStatus.Ok && res.statusCode < 300) {
+                // Use HttpStatus.Ok and explicit upper bound for successful range
+                const HTTP_STATUS_REDIRECT_START = 300;
+                if (res.statusCode && res.statusCode >= HttpStatus.Ok && res.statusCode < HTTP_STATUS_REDIRECT_START) {
                     try {
                         const result = JSON.parse(responseBody) as SafeContentAIResponse;
                         resolve(result.is_nsfw); // Resolve with the boolean flag
@@ -172,7 +173,13 @@ async function uploadFile(
         ContentType: mimetype,
     });
     // Send the command to the S3 client.
-    await s3.send(command);
+    try {
+        await s3.send(command);
+    } catch (error) {
+        // Add detailed logging here
+        logger.error("Failed to upload file to S3", { trace: "s3-upload-fail", key, mimetype, error });
+        throw error; // Re-throw the error after logging
+    }
     // Return the URL of the uploaded file.
     return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
 }
