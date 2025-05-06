@@ -2,7 +2,7 @@ import { ResourceType } from "@local/shared";
 import { enumToYup } from "../utils/builders/convert.js";
 import { opt, req } from "../utils/builders/optionality.js";
 import { yupObj } from "../utils/builders/yupObj.js";
-import { bool, id, permissions } from "../utils/commonFields.js";
+import { bool, id, permissions, publicId } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 import { resourceVersionValidation } from "./resourceVersion.js";
 import { tagValidation } from "./tag.js";
@@ -12,6 +12,7 @@ const resourceType = enumToYup(ResourceType);
 export const resourceValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
+        publicId: opt(publicId),
         isInternal: opt(bool),
         isPrivate: opt(bool),
         permissions: opt(permissions),

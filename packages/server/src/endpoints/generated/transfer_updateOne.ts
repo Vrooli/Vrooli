@@ -2,7 +2,7 @@ export const transfer_updateOne = {
     "id": true,
     "createdAt": true,
     "updatedAt": true,
-    "mergedOrRejectedAt": true,
+    "closedAt": true,
     "status": true,
     "fromOwner": {
         "id": true,
@@ -138,5 +138,5 @@ export const transfer_updateOne = {
         "canDelete": true,
         "canUpdate": true
     },
-    "__cacheKey": "503524389"
+    "__cacheKey": "-1695143996"
 };

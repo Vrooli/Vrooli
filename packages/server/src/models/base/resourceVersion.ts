@@ -15,7 +15,7 @@ import { versionsCheck } from "../../validators/versionsCheck.js";
 import { ResourceVersionFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceModelLogic, ResourceVersionModelInfo, ResourceVersionModelLogic } from "./types.js";
+import { ResourceModelInfo, ResourceModelLogic, ResourceVersionModelInfo, ResourceVersionModelLogic } from "./types.js";
 
 type ResourceVersionPre = PreShapeVersionResult & {
     /** Map of routine version ID to graph complexity metrics */
@@ -82,7 +82,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
                     id: BigInt(data.id),
-                    publicId: generatePublicId(),
+                    publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
                     simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
                     complexity: preData.weightMap[data.id]?.complexity ?? 0,
                     config: noNull(data.config),

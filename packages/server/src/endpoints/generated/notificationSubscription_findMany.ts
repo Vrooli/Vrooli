@@ -280,7 +280,7 @@ export const notificationSubscription_findMany = {
                     "publicId": true,
                     "createdAt": true,
                     "updatedAt": true,
-                    "mergedOrRejectedAt": true,
+                    "closedAt": true,
                     "commentsCount": true,
                     "status": true,
                     "from": {
@@ -738,5 +738,5 @@ export const notificationSubscription_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "260267110"
+    "__cacheKey": "1160119365"
 };

@@ -32,7 +32,10 @@ function getTransports() {
     if (!(process.env.NODE_ENV || "").startsWith("prod")) {
         transports.push(
             new winston.transports.Console({
-                format: winston.format.simple(),
+                format: winston.format.combine(
+                    winston.format.errors({ stack: true }),
+                    winston.format.simple(),
+                ),
             }),
         );
     }
@@ -54,6 +57,7 @@ function getTransports() {
 export const logger = winston.createLogger({
     levels: winston.config.syslog.levels,
     format: winston.format.combine(
+        winston.format.errors({ stack: true }),
         winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
         winston.format.json(),
     ),

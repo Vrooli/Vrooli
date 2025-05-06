@@ -17,7 +17,7 @@ import { RunUserCodeInput } from "../../tasks/sandbox/types.js";
 import { type SessionData } from "../../types.js";
 import { reduceUserCredits } from "../../utils/reduceCredits.js";
 import { permissionsCheck } from "../../validators/permissions.js";
-import { type RunRequestPayload, type RunRoutinePayload } from "./queue.js";
+import { type RunPayload, type RunRequestPayload } from "./queue.js";
 
 /**
  * How long to wait before giving up on a run and marking it as failed.
@@ -148,7 +148,7 @@ export const RunProcessSelect = {
 } as const;
 
 /**
- * Builds the minimum Request object needed to perform CRUD operations for a RunProject or RunRoutine.
+ * Builds the minimum Request object needed to perform CRUD operations for a Run.
  * 
  * @param userData The user's session data
  * @returns The partial Request object
@@ -202,7 +202,7 @@ const runStatusToTaskStatus: Record<RunStatus, TaskStatus> = {
 };
 
 //TODO need to persist time spent and steps to next step
-export async function doRunRoutine(data: RunRoutinePayload) {
+export async function doRun(data: RunPayload) {
     const { resourceVersionId, startedById, runFrom, runId, taskId, userData } = data;
     // Collect info for tracking limits and costs
     // Total cost allowed for this routine. User credits should already have deducted the cost of previous steps.
@@ -261,9 +261,9 @@ export async function doRunRoutine(data: RunRoutinePayload) {
             //         const converted = InfoConverter.get().fromDbToApi(updateResult, partialInfo) as RunProject;
             //         run = converted;
             //     },
-            //     handleRunRoutineUpdate: async function updateRun(apiInput) {
+            //     handleRunUpdate: async function updateRun(apiInput) {
             //         // Update the run with the new data
-            //         const { format, mutate } = ModelMap.getLogic(["format", "mutate"], "RunRoutine", true, "run process update routine cast");
+            //         const { format, mutate } = ModelMap.getLogic(["format", "mutate"], "Run", true, "run process update routine cast");
             //         const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(apiInput, { stripUnknown: true });
             //         const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect: {}, preMap: {}, userData }) : input;
             //         const updateResult = await DbProvider.get().run_routine.update({
@@ -272,7 +272,7 @@ export async function doRunRoutine(data: RunRoutinePayload) {
             //             select: runRoutineSelect,
             //         });
             //         const partialInfo = InfoConverter.get().fromApiToPartialApi(runRoutineSelect, format.apiRelMap, true);
-            //         const converted = InfoConverter.get().fromDbToApi(updateResult, partialInfo) as RunRoutine;
+            //         const converted = InfoConverter.get().fromDbToApi(updateResult, partialInfo) as Run;
             //         run = converted;
             //     },
             //     isStepCompleted: false,// TODO will change for multi-step support
@@ -301,7 +301,7 @@ export async function doRunRoutine(data: RunRoutinePayload) {
      * Checks if the run should stop, and if so, manages the run state.
      * 
      * NOTE: Only call this function after run, runnableObject, and formData information has been set.
-     * @returns True if `doRunRoutine` should return, false if it should continue
+     * @returns True if `doRun` should return, false if it should continue
      */
     async function checkStop(): Promise<boolean> {
         return false;
@@ -335,8 +335,8 @@ export async function doRunRoutine(data: RunRoutinePayload) {
         //     configFormInput: config.formInput?.schema,
         //     configFormOutput: config.formOutput?.schema,
         //     logger,
-        //     runInputs: (run as RunRoutine)?.inputs,
-        //     runOutputs: (run as RunRoutine)?.outputs,
+        //     runInputs: (run as Run)?.inputs,
+        //     runOutputs: (run as Run)?.outputs,
         // });
         formData = {} as any;//TODO
         // Override generated inputs with provided inputs
@@ -403,7 +403,7 @@ export async function doRunRoutine(data: RunRoutinePayload) {
             // };
         }
         // // Determine if the routine being run is the overall routine or a sub-routine
-        // const isSubroutine = runType !== "RunRoutine" || (run as RunRoutine).routineVersion?.id !== routineVersion.id;
+        // const isSubroutine = runType !== "Run" || (run as Run).routineVersion?.id !== routineVersion.id;
         // What we do depends on the routine type
         // const routineFunction = runnableObject.routineType ? routineTypeToFunction[runnableObject.routineType] : undefined;
         // if (!routineFunction) {
@@ -420,7 +420,7 @@ export async function doRunRoutine(data: RunRoutinePayload) {
         //     outputData: outputFieldInfo,
         //     remainingCredits: maxCredits - totalStepCost,
         //     routineVersion: runnableObject,
-        //     run: run as RunRoutine,
+        //     run: run as Run,
         //     userData,
         // });
         // totalStepCost += BigInt(cost);

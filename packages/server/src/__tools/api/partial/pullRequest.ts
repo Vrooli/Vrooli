@@ -25,7 +25,7 @@ export const pullRequest: ApiPartial<PullRequest> = {
         publicId: true,
         createdAt: true,
         updatedAt: true,
-        mergedOrRejectedAt: true,
+        closedAt: true,
         commentsCount: true,
         status: true,
         from: {
@@ -51,7 +51,7 @@ export const pullRequest: ApiPartial<PullRequest> = {
         id: true,
         createdAt: true,
         updatedAt: true,
-        mergedOrRejectedAt: true,
+        closedAt: true,
         status: true,
     },
 };

@@ -65,7 +65,7 @@ export const comment_findOne = {
             "id": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "status": true
         },
         "ResourceVersion": {
@@ -99,5 +99,5 @@ export const comment_findOne = {
         "language": true,
         "text": true
     },
-    "__cacheKey": "-841009201"
+    "__cacheKey": "-832183216"
 };

@@ -241,7 +241,7 @@ export const schedule_findOne = {
                 "publicId": true,
                 "createdAt": true,
                 "updatedAt": true,
-                "mergedOrRejectedAt": true,
+                "closedAt": true,
                 "commentsCount": true,
                 "status": true,
                 "createdBy": {
@@ -379,5 +379,5 @@ export const schedule_findOne = {
             }
         }
     },
-    "__cacheKey": "1274982532"
+    "__cacheKey": "-540000699"
 };

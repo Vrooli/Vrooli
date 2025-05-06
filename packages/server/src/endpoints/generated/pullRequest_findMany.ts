@@ -6,7 +6,7 @@ export const pullRequest_findMany = {
             "publicId": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "commentsCount": true,
             "status": true,
             "from": {
@@ -275,5 +275,5 @@ export const pullRequest_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1006155730"
+    "__cacheKey": "-555558287"
 };

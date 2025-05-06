@@ -129,7 +129,13 @@ export class DbProvider {
             }
         } catch (seedError) {
             DbProvider.seedingSuccessful = false;
-            logger.error(`Seeding attempt ${DbProvider.seedAttemptCount} failed with error`, { error: seedError });
+            logger.error(`Seeding attempt ${DbProvider.seedAttemptCount} failed`, {
+                trace: "DB-SEED-ERROR",
+                attempt: DbProvider.seedAttemptCount,
+                name: seedError instanceof Error ? seedError.name : undefined,
+                message: seedError instanceof Error ? seedError.message : String(seedError),
+                stack: seedError instanceof Error && seedError.stack ? seedError.stack : undefined,
+            });
             DbProvider.scheduleRetry(seedError);
         }
     }
@@ -141,10 +147,12 @@ export class DbProvider {
         // Check if we've reached maximum retries before incrementing
         if (DbProvider.seedRetryCount >= SEED_MAX_RETRIES) {
             logger.error("Database seeding failed after maximum retry attempts", {
-                trace: "0013",
-                error,
+                trace: "DB-SEED-MAX-RETRIES",
                 maxRetries: SEED_MAX_RETRIES,
                 totalAttempts: DbProvider.seedAttemptCount,
+                name: error instanceof Error ? error.name : undefined,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error && error.stack ? error.stack : undefined,
             });
             return;
         }
@@ -155,12 +163,14 @@ export class DbProvider {
         const remainingRetries = SEED_MAX_RETRIES - DbProvider.seedRetryCount;
 
         logger.warning(`Database seeding failed, scheduling retry ${DbProvider.seedRetryCount} of ${SEED_MAX_RETRIES} in ${SEED_RETRY_MS}ms`, {
-            trace: "0012",
-            error,
+            trace: "DB-SEED-RETRY",
+            attempt: DbProvider.seedAttemptCount,
             retryCount: DbProvider.seedRetryCount,
             remainingRetries,
-            totalAttempts: DbProvider.seedAttemptCount,
             maxRetries: SEED_MAX_RETRIES,
+            name: error instanceof Error ? error.name : undefined,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error && error.stack ? error.stack : undefined,
         });
 
         // Clear any existing timeout

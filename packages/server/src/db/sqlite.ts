@@ -38,12 +38,19 @@ export class SQLiteDriver implements DatabaseService {
 
     public async seed(): Promise<boolean> {
         try {
+            logger.info("Starting SQLite seeding");
             // Could use a different seed script here if the default data is different when running SQLite (i.e. local)
             const { init } = await import("./seeds/init.js");
             await init(this.prisma);
+            logger.info("SQLite seeding completed successfully");
             return true;
         } catch (error) {
-            logger.error("SQLite seeding failed", { error });
+            logger.error("SQLite seeding failed", {
+                trace: "SQLITE-SEED",
+                name: error instanceof Error ? error.name : undefined,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error && error.stack ? error.stack : undefined,
+            });
             return false;
         }
     }

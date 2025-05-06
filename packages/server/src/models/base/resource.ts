@@ -84,7 +84,7 @@ export const ResourceModel: ResourceModelLogic = ({
                 const preData = rest.preMap[__typename] as ResourcePre;
                 return {
                     id: BigInt(data.id),
-                    publicId: generatePublicId(),
+                    publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
                     isInternal: noNull(data.isInternal),
                     isPrivate: data.isPrivate,
                     permissions: noNull(data.permissions) ?? JSON.stringify({}),

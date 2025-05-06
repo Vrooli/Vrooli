@@ -1190,6 +1190,7 @@ model transfer {
     status                TransferStatus @default(Pending)
     initializedByReceiver Boolean        @default(false)
     message               String?        @db.VarChar(4096)
+    closedAt              DateTime?      @db.Timestamptz(6)
     denyReason            String?        @db.VarChar(2048)
     fromTeamId            BigInt?        @db.BigInt
     fromUserId            BigInt?        @db.BigInt

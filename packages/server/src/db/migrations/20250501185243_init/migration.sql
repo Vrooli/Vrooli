@@ -912,6 +912,7 @@ CREATE TABLE "transfer" (
     "status" "TransferStatus" NOT NULL DEFAULT 'Pending',
     "initializedByReceiver" BOOLEAN NOT NULL DEFAULT false,
     "message" VARCHAR(4096),
+    "closedAt" TIMESTAMPTZ(6),
     "denyReason" VARCHAR(2048),
     "fromTeamId" BIGINT,
     "fromUserId" BIGINT,

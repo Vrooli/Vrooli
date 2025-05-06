@@ -20,6 +20,16 @@ export const SEEDED_PUBLIC_IDS = {
     // Users
     Admin: "vdk7auom87el",
     Valyxa: "ukrw9bbvf33l",
+    // Resources
+    ParseRunIOFromPlaintext: "40nuv22hbl45",
+    ParseSearchTermsFromPlaintext: "9dnp4fn8ke4e",
+    ListToPlaintext: "o4z2bmwz8gyl",
+    ListToNumberedPlaintext: "01nfmhzmuui0",
+    MintNativeToken: "avxsmcc6hzjk",
+    MintNFT: "24d3wryjnsr1",
+    ProjectKickoffChecklist: "16in71m4f7y2",
+    WorkoutPlanGenerator: "rg7eg7t2lulh",
+    CIP0025NFTMetadataStandard: "c1pkkxn9f38i",
 } as const;
 
 export const SEEDED_TAGS = {

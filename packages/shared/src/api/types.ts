@@ -1574,7 +1574,7 @@ export type PullRequest = DbObject<"PullRequest"> & {
     createdBy?: Maybe<User>;
     createdAt: Scalars["Date"];
     from: PullRequestFrom;
-    mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
+    closedAt?: Maybe<Scalars["Date"]>;
     publicId: Scalars["String"];
     status: PullRequestStatus;
     to: PullRequestTo;
@@ -2063,6 +2063,7 @@ export type Resource = DbObject<"Resource"> & {
 
 export type ResourceCreateInput = {
     id: Scalars["ID"];
+    publicId?: InputMaybe<Scalars["String"]>;
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
@@ -2230,6 +2231,7 @@ export type ResourceVersionCreateInput = BaseTranslatableCreateInput<ResourceVer
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
+    publicId?: InputMaybe<Scalars["String"]>;
     relatedVersionsCreate?: InputMaybe<Array<ResourceVersionRelationCreateInput>>;
     resourceSubType: ResourceSubType;
     rootConnect?: InputMaybe<Scalars["ID"]>;
@@ -3215,7 +3217,7 @@ export type TimeFrame = {
 export type Transfer = DbObject<"Transfer"> & {
     createdAt: Scalars["Date"];
     fromOwner?: Maybe<Owner>;
-    mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
+    closedAt?: Maybe<Scalars["Date"]>;
     object: TransferObject;
     status: TransferStatus;
     toOwner?: Maybe<Owner>;

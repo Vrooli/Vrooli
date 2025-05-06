@@ -250,22 +250,22 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
             let configJson: string;
             switch (root?.resourceType) {
                 case ResourceType.Api:
-                    configJson = new ApiVersionConfig({ config }).serialize("json");
+                    configJson = new ApiVersionConfig({ config: config as ApiVersionConfigObject }).serialize("json");
                     break;
                 case ResourceType.Code:
-                    configJson = new CodeVersionConfig({ codeLanguage, config }).serialize("json");
+                    configJson = new CodeVersionConfig({ codeLanguage, config: config as CodeVersionConfigObject }).serialize("json");
                     break;
                 case ResourceType.Note:
-                    configJson = new NoteVersionConfig({ config }).serialize("json");
+                    configJson = new NoteVersionConfig({ config: config as NoteVersionConfigObject }).serialize("json");
                     break;
                 case ResourceType.Project:
-                    configJson = new ProjectVersionConfig({ config }).serialize("json");
+                    configJson = new ProjectVersionConfig({ config: config as ProjectVersionConfigObject }).serialize("json");
                     break;
                 case ResourceType.Routine:
-                    configJson = new RoutineVersionConfig({ config, resourceSubType }).serialize("json");
+                    configJson = new RoutineVersionConfig({ config: config as RoutineVersionConfigObject, resourceSubType }).serialize("json");
                     break;
                 case ResourceType.Standard:
-                    configJson = new StandardVersionConfig({ config, resourceSubType }).serialize("json");
+                    configJson = new StandardVersionConfig({ config: config as StandardVersionConfigObject, resourceSubType }).serialize("json");
                     break;
                 default:
                     configJson = JSON.stringify({});
@@ -426,9 +426,10 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
 
         const { dbTable, format, idField, validate } = ModelMap.getLogic(["dbTable", "format", "idField", "validate"], objectType as `${ModelType}`);
 
-        // Gather all non-null IDs from this group.
-        const idsToCheck = objects
-            .map(obj => obj.shape[idField])
+
+        // Objects with publicIds can be updated. Everything else will be created
+        const publicIdsToCheck = objects
+            .map(obj => obj.shape["publicId"])
             .filter(id => id != null);
 
         // Select using all fields required for checking permissions, 
@@ -441,10 +442,10 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
         const partialInfoUpdate = InfoConverter.get().fromApiToPartialApi(await importer.getInfoUpdate(), format.apiRelMap) as PartialApiInfo;
         const selectImportUpdate = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfoUpdate)?.select;
         const combinedSelect = combineQueries([selectPermissions, selectImportCreate, selectImportUpdate], { mergeMode: "loose" });
-        // Do a single findMany query for all objects of this type that have an ID.
-        const existingObjectsPrisma = idsToCheck.length > 0
+        // Do a single findMany query for all objects of this type that have a publicId.
+        const existingObjectsPrisma = publicIdsToCheck.length > 0
             ? await DbProvider.get()[dbTable].findMany({
-                where: { [idField]: { in: idsToCheck } },
+                where: { publicId: { in: publicIdsToCheck } },
                 select: combinedSelect,
             })
             : [];
@@ -453,15 +454,15 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             return InfoConverter.get().fromDbToApi(obj, partialInfo);
         });
 
-        // Create a lookup map for existing objects by their ID.
+        // Create a lookup map for existing objects by their ID (not publicId, since permissions are checked by ID).
         const existingMap = new Map<string, object>();
         for (const existing of existingObjects) {
-            existingMap.set(existing[idField], existing);
+            existingMap.set(existing["id"], existing);
         }
 
         // Process each object in the group.
         for (const obj of objects) {
-            const objId = obj.shape[idField];
+            const objId = obj.shape["id"];
             const canSkipPermissions = config.onConflict === "overwrite" && config.skipPermissions === true;
             let canImport = canSkipPermissions || !objId;
 

@@ -485,12 +485,13 @@ export type ResourceShape = Pick<Resource, "id" | "isInternal" | "isPrivate" | "
     __typename: "Resource";
     owner: OwnerShape | null | undefined;
     parent?: CanConnect<ResourceVersionShape> | null;
+    publicId?: string | null;
     tags?: CanConnect<TagShape, "tag">[] | null;
     versions?: Omit<ResourceVersionShape, "root">[] | null;
 }
 export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, ResourceUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "isInternal", "isPrivate", "permissions", "resourceType"),
+        ...createPrims(d, "id", "isInternal", "isPrivate", "permissions", "publicId", "resourceType"),
         ...createOwner(d, "ownedBy"),
         ...createRel(d, "parent", ["Connect"], "one"),
         ...createRel(d, "tags", ["Connect", "Create"], "many", shapeTag),
@@ -509,6 +510,7 @@ export type ResourceVersionTranslationShape = Pick<ResourceVersionTranslation, "
 }
 export type ResourceVersionShape = Pick<ResourceVersion, "id" | "codeLanguage" | "config" | "isAutomatable" | "isComplete" | "isPrivate" | "resourceSubType" | "versionLabel" | "versionNotes"> & {
     __typename: "ResourceVersion";
+    publicId?: string | null;
     relatedVersions?: ResourceVersionRelationShape[] | null;
     root?: CanConnect<ResourceShape> | null;
     translations?: ResourceVersionTranslationShape[] | null;
@@ -519,7 +521,7 @@ export const shapeResourceVersionTranslation: ShapeModel<ResourceVersionTranslat
 };
 export const shapeResourceVersion: ShapeModel<ResourceVersionShape, ResourceVersionCreateInput, ResourceVersionUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "codeLanguage", "config", "isAutomatable", "isComplete", "isPrivate", "resourceSubType", "versionLabel", "versionNotes");
+        const prims = createPrims(d, "id", "codeLanguage", "config", "isAutomatable", "isComplete", "isPrivate", "publicId", "resourceSubType", "versionLabel", "versionNotes");
         return {
             ...prims,
             ...createRel(d, "relatedVersions", ["Create"], "many", shapeResourceVersionRelation),

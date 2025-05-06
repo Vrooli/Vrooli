@@ -14,7 +14,7 @@ export const transfer: ApiPartial<Transfer> = {
         id: true,
         createdAt: true,
         updatedAt: true,
-        mergedOrRejectedAt: true,
+        closedAt: true,
         status: true,
         fromOwner: async () => rel((await import("./user.js")).user, "nav"),
         toOwner: async () => rel((await import("./user.js")).user, "nav"),

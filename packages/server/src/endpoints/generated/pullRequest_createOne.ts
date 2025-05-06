@@ -3,7 +3,7 @@ export const pullRequest_createOne = {
     "publicId": true,
     "createdAt": true,
     "updatedAt": true,
-    "mergedOrRejectedAt": true,
+    "closedAt": true,
     "commentsCount": true,
     "status": true,
     "from": {
@@ -266,5 +266,5 @@ export const pullRequest_createOne = {
         "language": true,
         "text": true
     },
-    "__cacheKey": "1741242636"
+    "__cacheKey": "1776863565"
 };

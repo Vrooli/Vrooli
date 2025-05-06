@@ -44,11 +44,18 @@ export class PostgresDriver implements DatabaseService {
                 console.info("skipping seed in test environment");
                 return true;
             }
+            logger.info("Starting PostgreSQL seeding");
             const { init } = await import("./seeds/init.js");
             await init(this.prisma);
+            logger.info("PostgreSQL seeding completed successfully");
             return true;
         } catch (error) {
-            logger.error("PostgreSQL seeding failed", { error });
+            logger.error("PostgreSQL seeding failed", {
+                trace: "POSTGRES-SEED",
+                name: error instanceof Error ? error.name : undefined,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error && error.stack ? error.stack : undefined,
+            });
             return false;
         }
     }

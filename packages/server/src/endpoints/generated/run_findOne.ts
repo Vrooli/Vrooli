@@ -151,7 +151,7 @@ export const run_findOne = {
             "publicId": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "commentsCount": true,
             "status": true,
             "createdBy": {
@@ -288,5 +288,5 @@ export const run_findOne = {
             "versionLabel": true
         }
     },
-    "__cacheKey": "-238947153"
+    "__cacheKey": "727322190"
 };

@@ -138,7 +138,7 @@ export const resource_findOne = {
             "publicId": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "commentsCount": true,
             "status": true,
             "createdBy": {
@@ -201,5 +201,5 @@ export const resource_findOne = {
             "name": true
         }
     },
-    "__cacheKey": "478920778"
+    "__cacheKey": "-512604887"
 };
