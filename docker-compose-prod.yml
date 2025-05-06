@@ -217,6 +217,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  # Service for NSFW detection
+  nsfw-detector:
+    image: steelcityamir/safe-content-ai:latest
+    container_name: nsfw-detector
+    restart: always
+    networks:
+      - app
+    expose:
+      - 8000 # Expose port 8000 internally to the app network
+    # GPU resources are recommended for this container for performance.
+    # Configuration depends on your Docker setup (e.g., deploy.resources.reservations.devices)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      # Basic TCP check as the service doesn't have a dedicated health endpoint
+      test: ["CMD", "nc", "-z", "localhost", "8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Give it time to download/load the model
+
 networks:
   proxy:
     name: nginx-proxy
