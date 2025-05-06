@@ -1,5 +1,5 @@
 import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
-import { DAYS_1_S, GB_1_BYTES, HttpStatus, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
+import { DAYS_1_S, GB_1_BYTES, HOURS_1_MS, HttpStatus, MINUTES_15_MS, MINUTES_1_MS, MINUTES_2_S, MINUTES_30_MS, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
 import { exec as execCb } from "child_process";
 import { Express } from "express";
 import fs from "fs/promises";
@@ -75,8 +75,6 @@ interface SystemHealth {
     timestamp: number;
 }
 
-const CACHE_TIMEOUT_MS = 120_000;
-
 // Memory thresholds in bytes (80% and 90% of default Node.js heap)
 // eslint-disable-next-line no-magic-numbers
 const MEMORY_WARNING_THRESHOLD = 1.2 * GB_1_BYTES;
@@ -106,13 +104,37 @@ const CRON_WARNING_THRESHOLD = 1; // Number of failures before status is degrade
 // Define a test routine ID (replace with actual seeded ID when available)
 const MCP_TEST_ROUTINE_ID = "c9dd779d-ebf2-4e65-8429-4eef5c40aa4a"; // Daily Standup routine
 
+// Per-service cache durations
+const DEFAULT_SERVICE_CACHE_MS = MINUTES_2_S & SECONDS_1_MS; // 2 minutes
+const EMBEDDING_SERVICE_CACHE_MS = HOURS_1_MS; // 1 hour
+const STRIPE_SERVICE_CACHE_MS = MINUTES_30_MS; // 30 minutes
+const LLM_SERVICE_CACHE_MS = MINUTES_15_MS; // 15 minutes
+const API_SERVICE_CACHE_MS = MINUTES_1_MS; // 1 minute
+// eslint-disable-next-line no-magic-numbers
+const SSL_SERVICE_CACHE_MS = HOURS_1_MS * 6; // 6 hours
+
 /**
  * Service for checking and reporting system health status
  */
 export class HealthService {
     private static instance: HealthService;
-    private lastCheck: SystemHealth | null = null;
-    private readonly cacheTimeout = CACHE_TIMEOUT_MS;
+
+    // Cache properties for individual services
+    private apiHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private cronJobsHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private databaseHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private i18nHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private llmServicesCache: { health: { [key: string]: ServiceHealth }, expiresAt: number } | null = null;
+    private mcpHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private memoryHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private queuesHealthCache: { health: { [key: string]: ServiceHealth }, expiresAt: number } | null = null;
+    private redisHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private sslHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private stripeHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private systemHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private websocketHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private imageStorageHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private embeddingServiceHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -128,45 +150,62 @@ export class HealthService {
     }
 
     /**
-     * Check if a cached health check is still valid
+     * Helper function to get cached health data if it's still valid.
+     * @param cacheEntry The cache entry to check.
+     * @returns The cached ServiceHealth if valid, otherwise null.
      */
-    private isCacheValid(): boolean {
-        if (!this.lastCheck) return false;
-        return Date.now() - this.lastCheck.timestamp < this.cacheTimeout;
+    private getCachedHealthIfValid(cacheEntry: { health: ServiceHealth, expiresAt: number } | null): ServiceHealth | null {
+        if (cacheEntry && Date.now() < cacheEntry.expiresAt) {
+            return cacheEntry.health;
+        }
+        return null;
+    }
+
+    /**
+     * Helper function to create a service cache
+     */
+    private createServiceCache(status: ServiceStatus, cacheDurationMs: number, details?: object) {
+        const health: ServiceHealth = {
+            healthy: status === ServiceStatus.Operational,
+            status,
+            lastChecked: Date.now(),
+            details,
+        };
+        return { health, expiresAt: Date.now() + cacheDurationMs };
     }
 
     /**
      * Check database health
      */
     private async checkDatabase(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.databaseHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
+
         try {
             // First check if we're connected at all
             if (!DbProvider.isConnected()) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: {
-                        connection: false,
-                        message: "Database not connected",
-                    },
-                };
+                this.databaseHealthCache = this.createServiceCache(ServiceStatus.Down, DEFAULT_SERVICE_CACHE_MS, {
+                    connection: false,
+                    message: "Database not connected",
+                });
+                return this.databaseHealthCache.health;
             }
 
             // Then try a simple query to verify connection is still active
             try {
                 await DbProvider.get().$queryRaw`SELECT 1`;
             } catch (queryError) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: {
+                this.databaseHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    {
                         connection: false,
                         message: "Database connection lost",
                         error: (queryError as Error).message,
-                    },
-                };
+                    });
+                return this.databaseHealthCache.health;
             }
 
             // Check if seeding was successful
@@ -178,11 +217,10 @@ export class HealthService {
 
             // If connection works but seeding failed
             if (!seedingSuccessful) {
-                return {
-                    healthy: false,
-                    status: isRetrying ? ServiceStatus.Degraded : ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: {
+                this.databaseHealthCache = this.createServiceCache(
+                    isRetrying ? ServiceStatus.Degraded : ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    {
                         connection: true,
                         seeding: false,
                         isRetrying,
@@ -193,31 +231,31 @@ export class HealthService {
                         message: isRetrying
                             ? `Database connected but seeding failed, retry ${retryCount} of ${maxRetries} in progress`
                             : `Database connected but seeding failed after ${attemptCount} attempts (max retries: ${maxRetries})`,
-                    },
-                };
+                    });
+                return this.databaseHealthCache.health;
             }
 
-            return {
-                healthy: true,
-                status: ServiceStatus.Operational,
-                lastChecked: Date.now(),
-                details: {
+            this.databaseHealthCache = this.createServiceCache(
+                ServiceStatus.Operational,
+                DEFAULT_SERVICE_CACHE_MS,
+                {
                     connection: true,
                     seeding: true,
                     attemptCount,
                 },
-            };
+            );
+            return this.databaseHealthCache.health;
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: {
+            this.databaseHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                {
                     connection: false,
                     message: "Failed to check database health",
                     error: (error as Error).message,
                 },
-            };
+            );
+            return this.databaseHealthCache.health;
         }
     }
 
@@ -225,21 +263,29 @@ export class HealthService {
      * Check Redis health
      */
     private async checkRedis(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.redisHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
+
         try {
             const redisClient = await initializeRedis();
             if (!redisClient) throw new Error("Redis client not initialized");
             await redisClient.ping();
-            return {
-                healthy: true,
-                status: ServiceStatus.Operational,
-                lastChecked: Date.now(),
-            };
+            this.redisHealthCache = this.createServiceCache(
+                ServiceStatus.Operational,
+                DEFAULT_SERVICE_CACHE_MS,
+            );
+            return this.redisHealthCache.health;
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-            };
+            this.redisHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                {
+                    error: (error as Error).message,
+                },
+            );
+            return this.redisHealthCache.health;
         }
     }
 
@@ -247,6 +293,11 @@ export class HealthService {
      * Check queue health
      */
     private async checkQueues(): Promise<{ [key: string]: ServiceHealth }> {
+        if (this.queuesHealthCache && Date.now() < this.queuesHealthCache.expiresAt) {
+            return this.queuesHealthCache.health;
+        }
+        const now = Date.now();
+
         const queues = {
             email: emailQueue,
             export: exportQueue,
@@ -267,7 +318,7 @@ export class HealthService {
                 healthy: healthDetails.status === QueueStatus.Healthy,
                 status: healthDetails.status === QueueStatus.Healthy ? ServiceStatus.Operational :
                     healthDetails.status === QueueStatus.Degraded ? ServiceStatus.Degraded : ServiceStatus.Down,
-                lastChecked: Date.now(),
+                lastChecked: now,
                 details: {
                     counts: healthDetails.jobCounts,
                     activeJobs: healthDetails.activeJobs?.map(job => ({
@@ -288,6 +339,7 @@ export class HealthService {
             };
         }
 
+        this.queuesHealthCache = { health: queueHealth, expiresAt: now + DEFAULT_SERVICE_CACHE_MS };
         return queueHealth;
     }
 
@@ -295,24 +347,28 @@ export class HealthService {
      * Check memory usage health
      */
     private checkMemory(): ServiceHealth {
+        const cachedHealth = this.getCachedHealthIfValid(this.memoryHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         const used = process.memoryUsage();
         const heapUsedPercent = (used.heapUsed / used.heapTotal) * 100;
         const memoryStatus = used.heapUsed > MEMORY_CRITICAL_THRESHOLD ? ServiceStatus.Down :
             used.heapUsed > MEMORY_WARNING_THRESHOLD ? ServiceStatus.Degraded :
                 ServiceStatus.Operational;
 
-        return {
-            healthy: memoryStatus === ServiceStatus.Operational,
-            status: memoryStatus,
-            lastChecked: Date.now(),
-            details: {
+        this.memoryHealthCache = this.createServiceCache(
+            memoryStatus,
+            DEFAULT_SERVICE_CACHE_MS,
+            {
                 heapUsed: used.heapUsed,
                 heapTotal: used.heapTotal,
                 heapUsedPercent: Math.round(heapUsedPercent),
                 rss: used.rss,
                 external: used.external,
             },
-        };
+        );
+        return this.memoryHealthCache.health;
     }
 
     /**
@@ -338,6 +394,10 @@ export class HealthService {
      * Check system resources health (CPU and Disk)
      */
     private async checkSystem(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.systemHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         try {
             // Get CPU usage
             const cpuUsage = this.getCpuUsage();
@@ -351,11 +411,10 @@ export class HealthService {
                 cpuUsage > CPU_WARNING_THRESHOLD || diskUsagePercent > DISK_WARNING_THRESHOLD ? ServiceStatus.Degraded :
                     ServiceStatus.Operational;
 
-            return {
-                healthy: systemStatus === ServiceStatus.Operational,
-                status: systemStatus,
-                lastChecked: Date.now(),
-                details: {
+            this.systemHealthCache = this.createServiceCache(
+                systemStatus,
+                DEFAULT_SERVICE_CACHE_MS,
+                {
                     cpu: {
                         usage: cpuUsage,
                         cores: os.cpus().length,
@@ -368,14 +427,15 @@ export class HealthService {
                     uptime: os.uptime(),
                     loadAvg: os.loadavg(),
                 },
-            };
+            );
+            return this.systemHealthCache.health;
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: "Failed to check system resources" },
-            };
+            this.systemHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                { error: "Failed to check system resources" },
+            );
+            return this.systemHealthCache.health;
         }
     }
 
@@ -383,6 +443,11 @@ export class HealthService {
      * Check LLM services health
      */
     private checkLlmServices(): { [key: string]: ServiceHealth } {
+        if (this.llmServicesCache && Date.now() < this.llmServicesCache.expiresAt) {
+            return this.llmServicesCache.health;
+        }
+
+        const now = Date.now();
         const registry = LlmServiceRegistry.get();
         const services = registry["serviceStates"];
         const llmHealth: { [key: string]: ServiceHealth } = {};
@@ -393,14 +458,14 @@ export class HealthService {
                 status: state.state === LlmServiceState.Active ? ServiceStatus.Operational :
                     state.state === LlmServiceState.Cooldown ? ServiceStatus.Degraded :
                         ServiceStatus.Down,
-                lastChecked: Date.now(),
+                lastChecked: now,
                 details: {
                     state: state.state,
                     cooldownUntil: state.cooldownUntil,
                 },
             };
         }
-
+        this.llmServicesCache = { health: llmHealth, expiresAt: now + LLM_SERVICE_CACHE_MS };
         return llmHealth;
     }
 
@@ -408,14 +473,18 @@ export class HealthService {
      * Check Stripe API health
      */
     private async checkStripe(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.stripeHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         try {
             if (!process.env.STRIPE_SECRET_KEY) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: { error: "Stripe secret key not configured" },
-                };
+                this.stripeHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    STRIPE_SERVICE_CACHE_MS,
+                    { error: "Stripe secret key not configured" },
+                );
+                return this.stripeHealthCache.health;
             }
 
             const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -425,18 +494,18 @@ export class HealthService {
             // Make a simple API call that doesn't affect any data
             await stripe.balance.retrieve();
 
-            return {
-                healthy: true,
-                status: ServiceStatus.Operational,
-                lastChecked: Date.now(),
-            };
+            this.stripeHealthCache = this.createServiceCache(
+                ServiceStatus.Operational,
+                STRIPE_SERVICE_CACHE_MS,
+            );
+            return this.stripeHealthCache.health;
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: "Failed to connect to Stripe API" },
-            };
+            this.stripeHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                STRIPE_SERVICE_CACHE_MS,
+                { error: "Failed to connect to Stripe API" },
+            );
+            return this.stripeHealthCache.health;
         }
     }
 
@@ -444,15 +513,19 @@ export class HealthService {
      * Check SSL certificate health by attempting an HTTPS connection
      */
     private async checkSslCertificate(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.sslHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         try {
             const url = new URL(SERVER_URL);
             if (!url.protocol.startsWith("https")) {
-                return {
-                    healthy: true,
-                    status: ServiceStatus.Operational,
-                    lastChecked: Date.now(),
-                    details: { info: "SSL check skipped - not using HTTPS" },
-                };
+                this.sslHealthCache = this.createServiceCache(
+                    ServiceStatus.Operational,
+                    SSL_SERVICE_CACHE_MS,
+                    { info: "SSL check skipped - not using HTTPS" },
+                );
+                return this.sslHealthCache.health;
             }
 
             const response = await fetch(SERVER_URL, {
@@ -461,25 +534,19 @@ export class HealthService {
                 redirect: "manual",
             });
 
-            // Check if response is successful (2xx status code)
-            const healthy = response.ok;
-            return {
-                healthy,
-                status: healthy ? ServiceStatus.Operational : ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: {
-                    protocol: url.protocol,
-                    host: url.host,
-                    statusCode: response.status,
-                },
-            };
+            this.sslHealthCache = this.createServiceCache(
+                response.ok ? ServiceStatus.Operational : ServiceStatus.Down,
+                SSL_SERVICE_CACHE_MS,
+                { protocol: url.protocol, host: url.host, statusCode: response.status },
+            );
+            return this.sslHealthCache.health;
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: "Failed to verify HTTPS connection" },
-            };
+            this.sslHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                SSL_SERVICE_CACHE_MS,
+                { error: "Failed to verify HTTPS connection" },
+            );
+            return this.sslHealthCache.health;
         }
     }
 
@@ -487,7 +554,10 @@ export class HealthService {
      * Check MCP service health by performing an end-to-end transport + RPC test
      */
     private async checkMcp(): Promise<ServiceHealth> {
-        const checkTimestamp = Date.now();
+        const cachedHealth = this.getCachedHealthIfValid(this.mcpHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         let transportHealthy = false;
         let builtInHealthy = false;
         let routineHealthy = false;
@@ -531,22 +601,26 @@ export class HealthService {
             overallStatus = ServiceStatus.Down;
         }
 
-        return {
-            healthy: overallStatus === ServiceStatus.Operational,
-            status: overallStatus,
-            lastChecked: checkTimestamp,
-            details: {
+        this.mcpHealthCache = this.createServiceCache(
+            overallStatus === ServiceStatus.Operational ? ServiceStatus.Operational : ServiceStatus.Down,
+            DEFAULT_SERVICE_CACHE_MS,
+            {
                 transport: { healthy: transportHealthy, ...transportDetails },
                 builtInTools: { healthy: builtInHealthy, ...builtInDetails },
                 routineTools: { healthy: routineHealthy, ...routineDetails },
             },
-        };
+        );
+        return this.mcpHealthCache.health;
     }
 
     /**
      * Check API health by testing core endpoints
      */
     private async checkApi(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.apiHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         try {
             // Define critical API endpoints to test using the pairs objects
             const endpointsToTest = [
@@ -607,24 +681,20 @@ export class HealthService {
                 apiStatus = ServiceStatus.Degraded;
             }
 
-            return {
-                healthy: apiStatus === ServiceStatus.Operational,
-                status: apiStatus,
-                lastChecked: Date.now(),
-                details: {
-                    endpoints: results,
-                    working: workingEndpoints,
-                    total: totalEndpoints,
-                },
-            };
+            this.apiHealthCache = this.createServiceCache(
+                apiStatus,
+                API_SERVICE_CACHE_MS,
+                { endpoints: results, working: workingEndpoints, total: totalEndpoints },
+            );
+            return this.apiHealthCache.health;
         } catch (error) {
             console.error(`[HealthCheck] Error in checkApi: ${(error as Error).message}`);
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: "Failed to check API health" },
-            };
+            this.apiHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                API_SERVICE_CACHE_MS,
+                { error: "Failed to check API health" },
+            );
+            return this.apiHealthCache.health;
         }
     }
 
@@ -632,6 +702,10 @@ export class HealthService {
      * Check WebSocket server health using SocketService
      */
     private checkWebSocket(): ServiceHealth {
+        const cachedHealth = this.getCachedHealthIfValid(this.websocketHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         try {
             // Get the singleton instance
             const socketService = SocketService.get();
@@ -639,27 +713,27 @@ export class HealthService {
             const details = socketService.getHealthDetails();
 
             if (details) {
-                return {
-                    healthy: true,
-                    status: ServiceStatus.Operational,
-                    lastChecked: Date.now(),
+                this.websocketHealthCache = this.createServiceCache(
+                    ServiceStatus.Operational,
+                    DEFAULT_SERVICE_CACHE_MS,
                     details,
-                };
+                );
+                return this.websocketHealthCache.health;
             } else {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: { error: "WebSocket service component not fully initialized." },
-                };
+                this.websocketHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: "WebSocket service component not fully initialized." },
+                );
+                return this.websocketHealthCache.health;
             }
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: (error as Error).message || "Failed to check WebSocket server status" },
-            };
+            this.websocketHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                { error: (error as Error).message || "Failed to check WebSocket server status" },
+            );
+            return this.websocketHealthCache.health;
         }
     }
 
@@ -670,30 +744,34 @@ export class HealthService {
      * Each cron job records its success/failure to Redis.
      */
     private async checkCronJobs(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.cronJobsHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
+        const now = Date.now();
         try {
             const redis = await initializeRedis();
             if (!redis) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: { error: "Redis client not initialized" },
-                };
+                this.cronJobsHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: "Redis client not initialized" },
+                );
+                return this.cronJobsHealthCache.health;
             }
 
             // Get all registered cron jobs
             const jobNames = await redis.sMembers("cron:jobs");
 
             if (!jobNames.length) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: { error: "No cron jobs registered in Redis" },
-                };
+                this.cronJobsHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: "No cron jobs registered in Redis" },
+                );
+                return this.cronJobsHealthCache.health;
             }
 
-            const now = Date.now();
             let hasFailures = false;
             let hasCriticalFailures = false;
             const jobDetails: Record<string, any> = {};
@@ -737,22 +815,19 @@ export class HealthService {
             const cronStatus = hasCriticalFailures ? ServiceStatus.Down :
                 hasFailures ? ServiceStatus.Degraded : ServiceStatus.Operational;
 
-            return {
-                healthy: cronStatus === ServiceStatus.Operational,
-                status: cronStatus,
-                lastChecked: now,
-                details: {
-                    jobs: jobDetails,
-                    total: jobNames.length,
-                },
-            };
+            this.cronJobsHealthCache = this.createServiceCache(
+                cronStatus,
+                DEFAULT_SERVICE_CACHE_MS,
+                { jobs: jobDetails, total: jobNames.length },
+            );
+            return this.cronJobsHealthCache.health;
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: { error: "Failed to check cron job health" },
-            };
+            this.cronJobsHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                { error: "Failed to check cron job health" },
+            );
+            return this.cronJobsHealthCache.health;
         }
     }
 
@@ -760,17 +835,19 @@ export class HealthService {
      * Check i18next initialization
      */
     private checkI18n(): ServiceHealth {
+        const cachedHealth = this.getCachedHealthIfValid(this.i18nHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         try {
             // Check if i18next is initialized
             if (!i18next.isInitialized) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Down,
-                    lastChecked: Date.now(),
-                    details: {
-                        message: "i18next is not initialized",
-                    },
-                };
+                this.i18nHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: "i18next is not initialized" },
+                );
+                return this.i18nHealthCache.health;
             }
 
             // Check if we can translate a basic key
@@ -779,47 +856,35 @@ export class HealthService {
                 const isTranslated = translation !== "common:Yes" && typeof translation === "string" && translation.length > 0;
 
                 if (!isTranslated) {
-                    return {
-                        healthy: false,
-                        status: ServiceStatus.Degraded,
-                        lastChecked: Date.now(),
-                        details: {
-                            message: "i18next is initialized but translations are not working properly",
-                        },
-                    };
+                    this.i18nHealthCache = this.createServiceCache(
+                        ServiceStatus.Degraded,
+                        DEFAULT_SERVICE_CACHE_MS,
+                        { error: "i18next is initialized but translations are not working properly" },
+                    );
+                    return this.i18nHealthCache.health;
                 }
 
-                return {
-                    healthy: true,
-                    status: ServiceStatus.Operational,
-                    lastChecked: Date.now(),
-                    details: {
-                        language: i18next.language,
-                        languages: i18next.languages,
-                        namespaces: i18next.options.ns,
-                    },
-                };
+                this.i18nHealthCache = this.createServiceCache(
+                    ServiceStatus.Operational,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { language: i18next.language, languages: i18next.languages, namespaces: i18next.options.ns },
+                );
+                return this.i18nHealthCache.health;
             } catch (error) {
-                return {
-                    healthy: false,
-                    status: ServiceStatus.Degraded,
-                    lastChecked: Date.now(),
-                    details: {
-                        message: "i18next is initialized but failed to translate",
-                        error: (error as Error).message,
-                    },
-                };
+                this.i18nHealthCache = this.createServiceCache(
+                    ServiceStatus.Degraded,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: (error as Error).message || "i18next is initialized but failed to translate" },
+                );
+                return this.i18nHealthCache.health;
             }
         } catch (error) {
-            return {
-                healthy: false,
-                status: ServiceStatus.Down,
-                lastChecked: Date.now(),
-                details: {
-                    message: "Failed to check i18next",
-                    error: (error as Error).message,
-                },
-            };
+            this.i18nHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                { error: (error as Error).message || "Failed to check i18next" },
+            );
+            return this.i18nHealthCache.health;
         }
     }
 
@@ -827,7 +892,10 @@ export class HealthService {
      * Check image storage health (S3 and NSFW detection)
      */
     private async checkImageStorage(): Promise<ServiceHealth> {
-        const checkTimestamp = Date.now();
+        const cachedHealth = this.getCachedHealthIfValid(this.imageStorageHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
         let s3Healthy = false;
         let nsfwDetectionHealthy = false;
         let s3Details: Record<string, unknown> = {};
@@ -838,7 +906,12 @@ export class HealthService {
         try {
             s3Client = getS3Client(); // Make sure getS3Client is exported from fileStorage.ts
             if (!s3Client) {
-                throw new Error("S3 client not initialized");
+                this.imageStorageHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: "S3 client not initialized" },
+                );
+                return this.imageStorageHealthCache.health;
             }
             // Simple check: attempt to get bucket metadata (requires ListBucket permissions)
             // Replace 'vrooli-bucket' if the actual bucket name is different or stored in env vars
@@ -875,7 +948,12 @@ export class HealthService {
                 nsfwDetectionHealthy = true;
                 nsfwDetails = { serviceCalled: true, result: isNsfwResult };
             } else {
-                throw new Error(`checkNSFW returned non-boolean value: ${typeof isNsfwResult}`);
+                this.imageStorageHealthCache = this.createServiceCache(
+                    ServiceStatus.Down,
+                    DEFAULT_SERVICE_CACHE_MS,
+                    { error: `checkNSFW returned non-boolean value: ${typeof isNsfwResult}` },
+                );
+                return this.imageStorageHealthCache.health;
             }
         } catch (error) {
             // Handle file read errors or checkNSFW call errors
@@ -898,25 +976,48 @@ export class HealthService {
             overallStatus = ServiceStatus.Down;
         }
 
-        return {
-            healthy: overallStatus === ServiceStatus.Operational,
-            status: overallStatus,
-            lastChecked: checkTimestamp,
-            details: {
+        this.imageStorageHealthCache = this.createServiceCache(
+            overallStatus,
+            DEFAULT_SERVICE_CACHE_MS,
+            {
                 s3: { healthy: s3Healthy, ...s3Details },
                 nsfwDetection: { healthy: nsfwDetectionHealthy, ...nsfwDetails },
             },
-        };
+        );
+        return this.imageStorageHealthCache.health;
+    }
+
+    /**
+     * Check Embedding Service health
+     */
+    private async checkEmbeddingService(): Promise<ServiceHealth> {
+        const cachedHealth = this.getCachedHealthIfValid(this.embeddingServiceHealthCache);
+        if (cachedHealth) {
+            return cachedHealth;
+        }
+
+        try {
+            const health = await EmbeddingService.get().checkHealth();
+            this.embeddingServiceHealthCache = this.createServiceCache(
+                health.status,
+                EMBEDDING_SERVICE_CACHE_MS,
+                health.details,
+            );
+            return this.embeddingServiceHealthCache.health;
+        } catch (error) {
+            this.embeddingServiceHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                EMBEDDING_SERVICE_CACHE_MS,
+                { error: `Failed to check Embedding Service: ${(error instanceof Error) ? error.message : String(error)}` },
+            );
+            return this.embeddingServiceHealthCache.health;
+        }
     }
 
     /**
      * Get overall system health status
      */
     public async getHealth(): Promise<SystemHealth> {
-        // Return cached result if valid
-        if (this.isCacheValid() && this.lastCheck) {
-            return this.lastCheck;
-        }
 
         // Perform health checks in parallel
         const results = await Promise.allSettled([
@@ -934,7 +1035,7 @@ export class HealthService {
             this.checkSystem(),                // 11
             this.checkWebSocket(),             // 12
             this.checkImageStorage(),          // 13
-            EmbeddingService.get().checkHealth(), // 14
+            this.checkEmbeddingService(),      // 14
         ]);
 
         // Helper to create a default 'Down' status for failed checks
@@ -1011,7 +1112,6 @@ export class HealthService {
             timestamp: Date.now(),
         };
 
-        this.lastCheck = health;
         return health;
     }
 }
