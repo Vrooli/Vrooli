@@ -2,8 +2,8 @@ import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePublicId, getTranslat
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { getLabels } from "../../getters/getLabels.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
@@ -31,7 +31,7 @@ export const TeamModel: TeamModelLogic = ({
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     bio: trans.bio,
                     name: trans.name,
                 }, languages?.[0]);

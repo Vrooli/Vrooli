@@ -2,8 +2,8 @@ import { MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, re
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { calculateWeightData, type SubroutineWeightData } from "../../utils/routineComplexity.js";
 import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
@@ -40,7 +40,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             }),
             get: ({ root, translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,

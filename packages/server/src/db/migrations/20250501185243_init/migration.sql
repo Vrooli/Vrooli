@@ -128,7 +128,7 @@ CREATE TABLE "chat" (
 -- CreateTable
 CREATE TABLE "chat_translation" (
     "id" BIGINT NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "chatId" BIGINT NOT NULL,
     "language" VARCHAR(3) NOT NULL,
@@ -245,7 +245,7 @@ CREATE TABLE "issue" (
 -- CreateTable
 CREATE TABLE "issue_translation" (
     "id" BIGINT NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "description" VARCHAR(2048),
     "name" VARCHAR(128),
@@ -295,7 +295,7 @@ CREATE TABLE "meeting_invite" (
 -- CreateTable
 CREATE TABLE "meeting_translation" (
     "id" BIGINT NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "meetingId" BIGINT NOT NULL,
     "language" VARCHAR(3) NOT NULL,
@@ -383,7 +383,7 @@ CREATE TABLE "team" (
 -- CreateTable
 CREATE TABLE "team_translation" (
     "id" BIGINT NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "bio" VARCHAR(2048),
     "name" VARCHAR(128) NOT NULL,
@@ -545,7 +545,7 @@ CREATE TABLE "reminder" (
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "completedAt" TIMESTAMPTZ(6),
     "dueDate" TIMESTAMPTZ(6),
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "name" VARCHAR(128) NOT NULL,
     "description" VARCHAR(2048),
@@ -691,7 +691,7 @@ CREATE TABLE "resource_translation" (
     "id" BIGINT NOT NULL,
     "resourceVersionId" BIGINT NOT NULL,
     "language" VARCHAR(3) NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "name" VARCHAR(128) NOT NULL,
     "description" VARCHAR(2048),
@@ -895,7 +895,7 @@ CREATE TABLE "tag" (
 -- CreateTable
 CREATE TABLE "tag_translation" (
     "id" BIGINT NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "description" VARCHAR(2048),
     "tagId" BIGINT NOT NULL,
@@ -1000,7 +1000,7 @@ CREATE TABLE "session" (
 -- CreateTable
 CREATE TABLE "user_translation" (
     "id" BIGINT NOT NULL,
-    "embedding" vector(768),
+    "embedding" vector(1536),
     "embeddingExpiredAt" TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
     "bio" VARCHAR(2048),
     "userId" BIGINT NOT NULL,

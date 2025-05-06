@@ -157,6 +157,7 @@ export * from "./models/index.js";
 export * from "./notify/index.js";
 export * from "./redisConn.js";
 export * from "./server.js";
+export * from "./services/index.js";
 export * from "./sockets/io.js";
 export * from "./tasks/index.js";
 export * from "./utils/index.js";

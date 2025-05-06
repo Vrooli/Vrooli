@@ -13,9 +13,8 @@ import { getSearchStringQuery } from "../getters/getSearchStringQuery.js";
 import { ModelMap } from "../models/base/index.js";
 import { ViewModelLogic } from "../models/base/types.js";
 import { Searcher } from "../models/types.js";
+import { EmbeddingService } from "../services/embedding.js";
 import { RecursivePartial } from "../types.js";
-import { SearchEmbeddingsCache } from "../utils/embeddings/cache.js";
-import { getEmbeddings } from "../utils/embeddings/getEmbeddings.js";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
 import { SearchMap } from "../utils/searchMap.js";
 import { SortMap } from "../utils/sortMap.js";
@@ -315,8 +314,8 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     const { query: visibilityQuery, visibilityUsed } = visibilityBuilderPrisma(searchData);
 
     // Check cache for previously fetched IDs for this specific situation
-    const cacheKey = SearchEmbeddingsCache.createKey({ objectType, searchString: searchStringTrimmed, sortOption, userId: userData?.id, visibility: visibilityUsed });
-    const cachedResults = await SearchEmbeddingsCache.check({ cacheKey, offset, take });
+    const cacheKey = EmbeddingService.createSearchResultCacheKey({ objectType, searchString: searchStringTrimmed, sortOption, userId: userData?.id, visibility: visibilityUsed });
+    const cachedResults = await EmbeddingService.checkSearchResultCacheRange({ cacheKey, offset, take });
 
     // Add all cached results to the final results
     if (cachedResults && cachedResults.length > 0) {
@@ -339,7 +338,11 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
             SqlBuilder.equals(builder.field(objectType, "id"), builder.field(translationObjectType, camelCase(objectType) + "Id")),
         );
         // Get the embedding for the search string
-        const embeddings = await getEmbeddings(objectType, [searchStringTrimmed]);
+        const embeddings = await EmbeddingService.get().getEmbeddings(objectType, [searchStringTrimmed]);
+        // Handle potential null embedding if API failed
+        if (!embeddings[0]) {
+            throw new Error(`Failed to get embedding for search string: ${searchStringTrimmed}`);
+        }
         // Convert it to an equation based on the sort option
         // TODO embed field will change if versioned. Should update embedDistance, addSelect, and addWhere accordingly
         builder.embedPoints(translationObjectType, objectType, embeddings[0] as number[], sortOption);
@@ -355,35 +358,49 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
             builder.addSelect(objectType, "updatedAt");
             builder.addWhere(updatedAtDateLimit);
         }
-        builder.buildQueryFromPrisma(visibilityQuery); //TODO
+        // TODO: visibilityBuilderPrisma returns a Prisma query object. SqlBuilder needs raw SQL segments.
+        // This needs refactoring. For now, skipping visibility in raw SQL for embeddings search.
+        // builder.buildQueryFromPrisma(visibilityQuery);
+
         // Set order by, limit, and offset
         builder.addOrderByRaw("points " + (sortOption.endsWith("Desc") ? "DESC" : "ASC"));
-        builder.setLimit(take);
-        builder.setOffset(offset);
+        builder.setLimit(idsNeeded); // Fetch only the remaining needed IDs
+        builder.setOffset(newOffset); // Offset by the number already found in cache
         const rawQuery = builder.serialize();
 
         try {
             // Should be safe to use $queryRawUnsafe in this context, as the only user input is 
             // the search string, and that has been converted to embeddings
             const additionalResults = await DbProvider.get().$queryRawUnsafe(rawQuery) as Record<string, any>[];
-            finalResults = [...finalResults, ...additionalResults];
-            // Cache the newly fetched results
-            await SearchEmbeddingsCache.set({
+
+            // Combine cached and newly fetched results
+            const combinedResults = [
+                ...(cachedResults || []),
+                ...additionalResults.map(res => ({ id: res.id.toString() })), // Ensure IDs are strings like cache
+            ];
+
+            // Update the cache with the combined results for the *fetched range*
+            // Use EmbeddingService.setSearchResultCacheRange
+            await EmbeddingService.setSearchResultCacheRange({
                 cacheKey,
-                offset: newOffset,
+                offset: newOffset, // Cache starting from where we fetched
                 take: additionalResults.length,
-                results: additionalResults.map((res: any) => ({ id: res.id })),
+                results: additionalResults.map((res: any) => ({ id: res.id.toString() })),
             });
+
+            // Update finalResults (only up to the originally needed 'take' amount)
+            finalResults = combinedResults.slice(0, take);
+
         } catch (error) {
             logger.error("readManyWithEmbeddingsHelper: Failed to execute raw query", { trace: "0384", error, objectType, rawQuery });
             throw new CustomError("0384", "InternalError", { objectType });
         }
     }
 
-    // Remove last result if we fetched more than we needed (i.e. hasNextPage is true)
+    // Determine hasNextPage based on whether we retrieved more than desiredTake
     const hasNextPage = finalResults.length > desiredTake;
     if (hasNextPage) {
-        finalResults.pop();
+        finalResults.pop(); // Remove the extra item used for hasNextPage check
     }
 
     // If fetch mode is ids, return the IDs
@@ -407,13 +424,21 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     // Fetch additional data for the search results
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
     const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
-    finalResults = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
+    // Need to handle potential empty finalResults (e.g., cache miss and DB returns nothing)
+    if (finalResults.length === 0) {
+        return {
+            __typename: `${model.__typename}SearchResult` as const,
+            pageInfo: { __typename: "PageInfo", hasNextPage: false, endCursor: null },
+            edges: [],
+        };
+    }
+    const fetchedNodes = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
         where: { id: { in: finalResults.map(t => t.id) } },
         ...select,
     });
     //TODO validate that the user has permission to read all of the results, including relationships
     // Return formatted for GraphQL
-    let formattedNodes = finalResults.map(n => InfoConverter.get().fromDbToApi(n, partialInfo as PartialApiInfo));
+    let formattedNodes = fetchedNodes.map(n => InfoConverter.get().fromDbToApi(n, partialInfo as PartialApiInfo));
     // If fetch mode is "full", add supplemental fields
     if (fetchMode === "full") {
         formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);

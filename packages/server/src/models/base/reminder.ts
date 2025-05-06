@@ -2,8 +2,8 @@ import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ReminderFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
@@ -16,12 +16,12 @@ export const ReminderModel: ReminderModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
-            get: (select) => select.name,
+            get: (select) => select.name ?? "",
         },
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
-            get: ({ description, name }, languages) => {
-                return getEmbeddableString({ description, name }, languages?.[0]);
+            get: ({ name, description }, languages) => {
+                return EmbeddingService.getEmbeddableString({ description, name }, languages?.[0]);
             },
         },
     }),

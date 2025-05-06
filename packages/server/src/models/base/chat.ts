@@ -3,9 +3,9 @@ import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { ChatPre, populatePreMapForChatUpdates, prepareChatMessageOperations } from "../../utils/chat.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { preShapeEmbeddableTranslatable } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
@@ -27,7 +27,7 @@ export const ChatModel: ChatModelLogic = ({
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
                 }, languages?.[0]);

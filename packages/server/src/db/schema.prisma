@@ -128,14 +128,14 @@ model chat {
 }
 
 model chat_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    chatId             BigInt                      @db.BigInt
-    chat               chat                        @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    language           String                      @db.VarChar(3)
-    name               String?                     @db.VarChar(128)
-    description        String?                     @db.VarChar(2048)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    chatId             BigInt                       @db.BigInt
+    chat               chat                         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    language           String                       @db.VarChar(3)
+    name               String?                      @db.VarChar(128)
+    description        String?                      @db.VarChar(2048)
 
     @@unique([chatId, language], name: "chat_translation_chatid_language_unique")
     @@index([chatId], name: "idx_chat_translation_chatId")
@@ -298,14 +298,14 @@ model issue {
 }
 
 model issue_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    description        String?                     @db.VarChar(2048)
-    name               String?                     @db.VarChar(128)
-    issueId            BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    issue              issue                       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    description        String?                      @db.VarChar(2048)
+    name               String?                      @db.VarChar(128)
+    issueId            BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    issue              issue                        @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
     @@unique([issueId, language], name: "issue_translation_issueId_language_unique")
     @@index([issueId], name: "idx_issue_translation_issueId")
@@ -364,15 +364,15 @@ model meeting_invite {
 }
 
 model meeting_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    meetingId          BigInt                      @db.BigInt
-    meeting            meeting                     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    language           String                      @db.VarChar(3)
-    name               String?                     @db.VarChar(128)
-    description        String?                     @db.VarChar(2048)
-    link               String?                     @db.VarChar(2048)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    meetingId          BigInt                       @db.BigInt
+    meeting            meeting                      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    language           String                       @db.VarChar(3)
+    name               String?                      @db.VarChar(128)
+    description        String?                      @db.VarChar(2048)
+    link               String?                      @db.VarChar(2048)
 
     @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
     @@index([meetingId], name: "idx_meeting_translation_meetingId")
@@ -501,14 +501,14 @@ model team {
 }
 
 model team_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    bio                String?                     @db.VarChar(2048)
-    name               String                      @db.VarChar(128)
-    language           String                      @db.VarChar(3)
-    teamId             BigInt                      @db.BigInt
-    team               team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    bio                String?                      @db.VarChar(2048)
+    name               String                       @db.VarChar(128)
+    language           String                       @db.VarChar(3)
+    teamId             BigInt                       @db.BigInt
+    team               team                         @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
     @@unique([teamId, language], name: "team_translation_teamId_language_unique")
     @@index([teamId], name: "idx_team_translation_teamId")
@@ -697,19 +697,19 @@ model reminder_list {
 }
 
 model reminder {
-    id                 BigInt                      @id @db.BigInt
-    createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
-    updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    dueDate            DateTime?                   @db.Timestamptz(6)
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    name               String                      @db.VarChar(128)
-    description        String?                     @db.VarChar(2048)
+    id                 BigInt                       @id @db.BigInt
+    createdAt          DateTime                     @default(now()) @db.Timestamptz(6)
+    updatedAt          DateTime                     @updatedAt @db.Timestamptz(6)
+    completedAt        DateTime?                    @db.Timestamptz(6)
+    dueDate            DateTime?                    @db.Timestamptz(6)
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    name               String                       @db.VarChar(128)
+    description        String?                      @db.VarChar(2048)
     index              Int
-    reminderListId     BigInt                      @db.BigInt
+    reminderListId     BigInt                       @db.BigInt
     reminderItems      reminder_item[]
-    reminderList       reminder_list               @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+    reminderList       reminder_list                @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
 
     @@index([reminderListId, createdAt], name: "idx_reminder_reminderListId_createdAt")
 }
@@ -922,11 +922,11 @@ model resource_version_relation {
 }
 
 model resource_translation {
-    id                 BigInt                      @id @db.BigInt
-    resourceVersionId  BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    id                 BigInt                       @id @db.BigInt
+    resourceVersionId  BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
 
     // Common fields
     name        String  @db.VarChar(128)
@@ -1171,13 +1171,13 @@ model tag {
 }
 
 model tag_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    description        String?                     @db.VarChar(2048)
-    tagId              BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    tag                tag                         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    description        String?                      @db.VarChar(2048)
+    tagId              BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    tag                tag                          @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
     @@unique([tagId, language], name: "tag_translation_tagId_language_unique")
     @@index([tagId], name: "idx_tag_translation_tagId")
@@ -1337,13 +1337,13 @@ model session {
 }
 
 model user_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    bio                String?                     @db.VarChar(2048)
-    userId             BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    user               user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    bio                String?                      @db.VarChar(2048)
+    userId             BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    user               user                         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language], name: "user_translation_userId_language_unique")
     @@index([userId], name: "idx_user_translation_userId")

@@ -1,10 +1,13 @@
 import { DEFAULT_LANGUAGE, MINUTES_15_S, VisibilityType, WEEKS_1_S } from "@local/shared";
-import https from "https";
+import OpenAI from "openai";
 import stopword from "stopword";
 import { hashString } from "../auth/codes.js";
 import { logger } from "../events/logger.js";
 import { initializeRedis, withRedis } from "../redisConn.js";
 import { ServiceStatus, type ServiceHealth } from "./health.js";
+
+// Define constant for the embedding dimension
+const OPENAI_EMBEDDING_DIMENSION = 1536;
 
 /**
  * All object types that can be embedded.
@@ -54,34 +57,12 @@ type SetSearchEmbeddingsCacheProps = CheckSearchEmbeddingsCacheProps & {
     results: { id: string }[];
 };
 
-// The model used for embedding (instructor-base) requires an instruction
-// to create embeddings. This acts as a way to fine-tune the model for
-// a specific task. Most of our objects may end up using the same
-// instruction, but it's possible that some may need a different one.
-// See https://github.com/Vrooli/text-embedder-tests for more details.
-const INSTRUCTION_COMMON = "Embed this text";
-const Instructions: { [key in EmbeddableType]: string } = {
-    "Chat": INSTRUCTION_COMMON,
-    "Issue": INSTRUCTION_COMMON,
-    "Meeting": INSTRUCTION_COMMON,
-    "Reminder": INSTRUCTION_COMMON,
-    "ResourceVersion": INSTRUCTION_COMMON,
-    "Run": INSTRUCTION_COMMON,
-    "Tag": INSTRUCTION_COMMON,
-    "Team": INSTRUCTION_COMMON,
-    "User": INSTRUCTION_COMMON,
-};
-
 interface FetchEmbeddingsResponse {
     embeddings: number[][];
     model: string;
 }
 
-// Define timeout constant
-const HEALTH_CHECK_TIMEOUT_MS = 15_000;
-
 // Define constants for string processing
-const MAX_EMBEDDABLE_STRING_LENGTH = 128;
 const MAX_UNICODE_CHAR_CODE = 0xFFFF;
 
 /**
@@ -90,6 +71,7 @@ const MAX_UNICODE_CHAR_CODE = 0xFFFF;
  */
 export class EmbeddingService {
     private static instance: EmbeddingService;
+    private openaiClient: OpenAI;
 
     // --- Constants for Redis Keys ---
     private static readonly EMBEDDING_VECTOR_CACHE_PREFIX = "embeddings";
@@ -99,7 +81,17 @@ export class EmbeddingService {
 
     // Private constructor for singleton pattern
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    private constructor() { }
+    private constructor() {
+        // Initialize OpenAI client in the constructor
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            logger.warn("OPENAI_API_KEY not found in environment variables. Embedding service will not be able to fetch new embeddings.", { trace: "embedSvc-constructor-no-key" });
+            // Handle the absence of API key appropriately, maybe throw or use a dummy client
+            this.openaiClient = {} as OpenAI; // Assign a dummy object or handle error
+        } else {
+            this.openaiClient = new OpenAI({ apiKey });
+        }
+    }
 
     /**
      * Get the singleton instance of EmbeddingService.
@@ -145,10 +137,6 @@ export class EmbeddingService {
             words = Array.from(new Set(words));
             // Join the words back with a space
             str = words.join(" ");
-        }
-        // Limit the length of the field
-        if (str.length > MAX_EMBEDDABLE_STRING_LENGTH) { // Use constant
-            str = str.substring(0, MAX_EMBEDDABLE_STRING_LENGTH); // Use constant
         }
         return str;
     }
@@ -299,65 +287,68 @@ export class EmbeddingService {
     // --- Embedding Vector Fetching and Caching --- (Previously EmbeddingService methods)
 
     /**
-     * Internal function to fetch embeddings from the API endpoint.
+     * Internal function to fetch embeddings from the OpenAI API endpoint.
      * Renamed from fetchEmbeddingsFromApi.
      */
     private async fetchEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<FetchEmbeddingsResponse> {
+        const model = "text-embedding-3-small"; // Use the target model
+        if (sentences.length === 0) {
+            return { embeddings: [], model };
+        }
+        // Check if the client was initialized correctly
+        if (!this.openaiClient?.embeddings) {
+            logger.error("OpenAI client not initialized correctly. Cannot fetch embeddings.", { trace: "embedSvc-fetch-no-client" });
+            return { embeddings: [], model };
+        }
+
         try {
-            // Ensure the objectType exists in Instructions before proceeding
-            const instruction = Instructions[objectType as EmbeddableType];
-            if (!instruction) {
-                throw new Error(`Unsupported object type for embedding: ${objectType}`);
+            const response = await this.openaiClient.embeddings.create({
+                model,
+                input: sentences,
+                // Optionally specify dimensions if needed later, default is 1536 for small
+                // dimensions: 1536
+            });
+
+            // Ensure the response structure is as expected
+            if (!response || !response.data || !Array.isArray(response.data)) {
+                throw new Error("Invalid response structure from OpenAI embedding API");
             }
 
-            return new Promise((resolve, reject) => {
-                const data = JSON.stringify({ instruction, sentences });
-                const options = {
-                    hostname: "embedtext.com", // TODO: Move to config/env var?
-                    port: 443,
-                    path: "/",
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Content-Length": Buffer.byteLength(data, "utf8").toString(), // Use toString()
-                    },
-                    // Add timeout here
-                    signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
-                };
-                const apiRequest = https.request(options, apiRes => {
-                    let responseBody = "";
-                    apiRes.on("data", chunk => {
-                        responseBody += chunk;
-                    });
-                    apiRes.on("end", () => {
-                        try { // Add try-catch for JSON parsing
-                            const result = JSON.parse(responseBody);
-                            // Ensure result is of the expected type
-                            if (typeof result !== "object" || !Object.prototype.hasOwnProperty.call(result, "embeddings") || !Array.isArray(result.embeddings)) {
-                                const error = "Invalid response from embedding API";
-                                logger.error(error, { trace: "embedSvc-fetch-0021", result, data, options });
-                                reject(new Error(error));
-                            } else {
-                                resolve(result as FetchEmbeddingsResponse);
-                            }
-                        } catch (parseError) {
-                            const error = "Failed to parse JSON response from embedding API";
-                            logger.error(error, { trace: "embedSvc-fetch-0022", responseBody, parseError });
-                            reject(new Error(error));
-                        }
-                    });
+            // Sort embeddings based on the original index provided by OpenAI response
+            // to ensure they match the order of input sentences.
+            const sortedEmbeddings = response.data
+                .sort((a, b) => a.index - b.index)
+                .map(item => item.embedding);
+
+            // Verify that the number of embeddings matches the number of input sentences
+            if (sortedEmbeddings.length !== sentences.length) {
+                logger.error("Mismatch between input sentences and returned embeddings count", {
+                    trace: "embedSvc-fetch-mismatch",
+                    inputCount: sentences.length,
+                    outputCount: sortedEmbeddings.length,
                 });
-                apiRequest.on("error", error => {
-                    logger.error("Embedding API request error", { trace: "embedSvc-fetch-0023", error });
-                    reject(error);
-                });
-                apiRequest.write(data);
-                apiRequest.end();
+                // Handle mismatch - potentially return partial results or an empty array
+                // Returning empty for safety for now.
+                return { embeddings: [], model };
+            }
+
+
+            return {
+                embeddings: sortedEmbeddings,
+                model: response.model || model, // Use the model returned in the response if available
+            };
+
+        } catch (error: any) {
+            logger.error("Error fetching embeddings from OpenAI API", {
+                trace: "embedSvc-fetch-openai-err",
+                error: error.message || error,
+                statusCode: error.status,
+                // Avoid logging potentially large sentences array directly
+                sentenceCount: sentences.length,
+                objectType,
             });
-        } catch (error) {
-            logger.error("Error preparing fetch embeddings request", { trace: "embedSvc-fetch-0084", error });
-            // Return a default structure on error to prevent downstream issues
-            return { embeddings: [], model: "" };
+            // Return a default structure on error
+            return { embeddings: [], model };
         }
     }
 
@@ -445,53 +436,72 @@ export class EmbeddingService {
         const vectorDetails: Record<string, unknown> = {};
         const searchCacheDetails: Record<string, unknown> = {};
 
-        const redisClient = await initializeRedis(); // Get direct client for DEL
+        // Ensure OpenAI client is available for the health check part
+        if (!this.openaiClient?.embeddings) {
+            vectorDetails["error"] = "OpenAI client not initialized, skipping vector fetch check.";
+            vectorFetchCacheHealthy = false; // Mark as unhealthy if client is missing
+        } else {
+            // Only run vector fetch/cache test if client is available
+            const redisClient = await initializeRedis(); // Get direct client for DEL
+            try {
+                if (!redisClient) throw new Error("Redis client not available for health check");
 
-        // --- Test 1: Vector Fetching and Caching --- (API + embeddings: cache)
-        try {
-            if (!redisClient) throw new Error("Redis client not available for health check");
+                const testObjectType = "User"; // Use a common type
+                const testSentence = `health-check-${Date.now()}-${Math.random()}`;
+                const testHash = hashString(testSentence);
+                const embeddingCacheKey = `${EmbeddingService.EMBEDDING_VECTOR_CACHE_PREFIX}:${testObjectType}:${testHash}`;
 
-            const testObjectType = "User"; // Use a common type
-            const testSentence = `health-check-${Date.now()}-${Math.random()}`;
-            const testHash = hashString(testSentence);
-            const embeddingCacheKey = `${EmbeddingService.EMBEDDING_VECTOR_CACHE_PREFIX}:${testObjectType}:${testHash}`;
+                // 1a. Ensure cache key is initially clear
+                await redisClient.del(embeddingCacheKey);
+                vectorDetails["cacheCleared"] = true;
 
-            // 1a. Ensure cache key is initially clear
-            await redisClient.del(embeddingCacheKey);
+                // 1b. Call getEmbeddings - this should fetch via OpenAI and cache
+                const embeddingsResult = await this.getEmbeddings(testObjectType, [testSentence]);
+                vectorDetails["getEmbeddingsCalled"] = true;
 
-            // 1b. Call getEmbeddings - this should fetch and cache
-            const embeddingsResult = await this.getEmbeddings(testObjectType, [testSentence]);
 
-            // 1c. Verify an embedding was returned
-            if (!embeddingsResult || embeddingsResult.length !== 1 || !embeddingsResult[0] || embeddingsResult[0].length === 0) {
-                throw new Error("getEmbeddings did not return a valid vector.");
+                // 1c. Verify an embedding was returned
+                if (!embeddingsResult || embeddingsResult.length !== 1 || !embeddingsResult[0] || embeddingsResult[0].length === 0) {
+                    throw new Error(`getEmbeddings did not return a valid vector. Result: ${JSON.stringify(embeddingsResult)}`);
+                }
+                vectorDetails["fetchSuccess"] = true;
+                // Check the dimension, should be 1536 for text-embedding-3-small
+                vectorDetails["vectorLength"] = embeddingsResult[0].length;
+                if (embeddingsResult[0].length !== OPENAI_EMBEDDING_DIMENSION) {
+                    logger.warn("Health Check: Unexpected vector dimension from OpenAI", { expected: OPENAI_EMBEDDING_DIMENSION, got: embeddingsResult[0].length });
+                }
+
+
+                // 1d. Verify the embedding was cached in Redis
+                const cachedValue = await redisClient.get(embeddingCacheKey);
+                if (!cachedValue) {
+                    // Add a small delay and retry cache check, sometimes Redis needs a moment
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    const cachedValueRetry = await redisClient.get(embeddingCacheKey);
+                    if (!cachedValueRetry) {
+                        throw new Error("getEmbeddings did not cache the vector in Redis after retry.");
+                    }
+                }
+                vectorDetails["cacheSuccess"] = true;
+                vectorFetchCacheHealthy = true;
+
+
+            } catch (error) {
+                const errorMessage = (error instanceof Error) ? error.message : "Unknown error during vector fetch/cache check";
+                logger.error("Embedding vector fetch/cache health check failed", { trace: "embedSvc-HC-vector", error: errorMessage });
+                vectorDetails["error"] = errorMessage;
+                vectorFetchCacheHealthy = false;
             }
-            vectorDetails["fetchSuccess"] = true;
-            vectorDetails["vectorLength"] = embeddingsResult[0].length;
-
-            // 1d. Verify the embedding was cached
-            const cachedValue = await redisClient.get(embeddingCacheKey);
-            if (!cachedValue) {
-                throw new Error("getEmbeddings did not cache the vector in Redis.");
-            }
-            vectorDetails["cacheSuccess"] = true;
-            vectorFetchCacheHealthy = true;
-
-        } catch (error) {
-            const errorMessage = (error instanceof Error) ? error.message : "Unknown error during vector fetch/cache check";
-            logger.error("Embedding vector fetch/cache health check failed", { trace: "embedSvc-HC-vector", error: errorMessage });
-            vectorDetails["error"] = errorMessage;
-            vectorFetchCacheHealthy = false;
         }
 
-        // --- Test 2: Search Result Caching --- (search: cache)
+
+        // --- Test 2: Search Result Caching --- (search: cache) - This part remains the same
         try {
-            if (!redisClient) throw new Error("Redis client not available for health check");
+            const redisClient = await initializeRedis(); // Get client again for this part if needed
+            if (!redisClient) throw new Error("Redis client not available for search result cache health check");
 
             const testSearchString = `health-check-search-${Date.now()}`;
-            // Access enum directly
             const testSort = EmbedSortOption.EmbedTopDesc;
-            // Access enum directly
             const testVisibility = VisibilityType.Public;
             const testUserId = `health-check-user-${Date.now()}`;
             const testObjectType = "Tag";

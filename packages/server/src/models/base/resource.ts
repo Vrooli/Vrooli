@@ -3,8 +3,8 @@ import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { getLabels } from "../../getters/getLabels.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
@@ -31,7 +31,6 @@ export const ResourceModel: ResourceModelLogic = ({
                     {
                         isPrivate: false,
                         versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
-
                     },
                     {
                         isPrivate: true,
@@ -63,7 +62,7 @@ export const ResourceModel: ResourceModelLogic = ({
             get: ({ tags, versions }, languages) => {
                 const latestVersion = versions.find((version) => version.isLatestPublic || version.isLatest);
                 const trans = getTranslation(latestVersion as unknown as ResourceVersion, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     name: trans.name,
                     tags: (tags as unknown as Tag[]).map(({ tag }) => tag),
                     description: trans.description,
