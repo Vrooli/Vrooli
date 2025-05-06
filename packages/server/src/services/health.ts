@@ -1,11 +1,16 @@
+import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
 import { DAYS_1_S, GB_1_BYTES, HttpStatus, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
 import { exec as execCb } from "child_process";
 import { Express } from "express";
+import fs from "fs/promises";
 import i18next from "i18next";
 import os from "os";
+import path from "path";
 import Stripe from "stripe";
+import { fileURLToPath } from "url";
 import { promisify } from "util";
 import { DbProvider } from "../db/provider.js";
+import { logger } from "../events/logger.js";
 import { Notify } from "../notify/notify.js";
 import { initializeRedis } from "../redisConn.js";
 import { API_URL, SERVER_URL } from "../server.js";
@@ -21,6 +26,8 @@ import { pushQueue } from "../tasks/push/queue.js";
 import { runQueue } from "../tasks/run/queue.js";
 import { sandboxQueue } from "../tasks/sandbox/queue.js";
 import { smsQueue } from "../tasks/sms/queue.js";
+import { checkNSFW, getS3Client } from "../utils/fileStorage.js";
+import { EmbeddingService } from "./embedding.js";
 import { getMcpServer } from "./mcp/index.js";
 import { McpToolName } from "./mcp/registry.js";
 
@@ -34,7 +41,7 @@ export enum ServiceStatus {
     Down = "Down",
 }
 
-interface ServiceHealth {
+export interface ServiceHealth {
     healthy: boolean;
     status: ServiceStatus;
     lastChecked: number;
@@ -62,11 +69,13 @@ interface SystemHealth {
         stripe: ServiceHealth;
         system: ServiceHealth;
         websocket: ServiceHealth;
+        imageStorage: ServiceHealth;
+        embeddingService: ServiceHealth;
     };
     timestamp: number;
 }
 
-const CACHE_TIMEOUT_MS = 30_000;
+const CACHE_TIMEOUT_MS = 120_000;
 
 // Memory thresholds in bytes (80% and 90% of default Node.js heap)
 // eslint-disable-next-line no-magic-numbers
@@ -815,6 +824,91 @@ export class HealthService {
     }
 
     /**
+     * Check image storage health (S3 and NSFW detection)
+     */
+    private async checkImageStorage(): Promise<ServiceHealth> {
+        const checkTimestamp = Date.now();
+        let s3Healthy = false;
+        let nsfwDetectionHealthy = false;
+        let s3Details: Record<string, unknown> = {};
+        let nsfwDetails: Record<string, unknown> = {};
+        let s3Client: S3Client | undefined;
+
+        // 1. Check S3 Client and Bucket Access
+        try {
+            s3Client = getS3Client(); // Make sure getS3Client is exported from fileStorage.ts
+            if (!s3Client) {
+                throw new Error("S3 client not initialized");
+            }
+            // Simple check: attempt to get bucket metadata (requires ListBucket permissions)
+            // Replace 'vrooli-bucket' if the actual bucket name is different or stored in env vars
+            const bucketName = process.env.S3_BUCKET_NAME || "vrooli-bucket";
+            const command = new HeadBucketCommand({ Bucket: bucketName });
+            await s3Client.send(command);
+            s3Healthy = true;
+            s3Details = { initialized: true, bucketAccess: true, bucket: bucketName };
+        } catch (error) {
+            s3Healthy = false;
+            s3Details = {
+                initialized: !!s3Client,
+                bucketAccess: false,
+                error: `S3 check failed: ${(error as Error).message}`,
+            };
+        }
+
+        // 2. Check NSFW Detection Service functionality by sending a safe image
+        try {
+            // Correct way to get directory path in ESM
+            const currentFilePath = fileURLToPath(import.meta.url);
+            const currentDirPath = path.dirname(currentFilePath);
+            const safeImagePath = path.resolve(currentDirPath, "..", "..", "test-assets", "safe-test-image.webp");
+
+            // Read the safe image file
+            const safeImageBuffer = await fs.readFile(safeImagePath);
+
+            // Call the checkNSFW function (imported from fileStorage.ts)
+            const isNsfwResult = await checkNSFW(safeImageBuffer, "safe-test-image.png");
+
+            // Health check passes if the function returns a boolean without error
+            if (typeof isNsfwResult === "boolean") {
+                nsfwDetectionHealthy = true;
+                nsfwDetails = { serviceCalled: true, result: isNsfwResult };
+            } else {
+                throw new Error(`checkNSFW returned non-boolean value: ${typeof isNsfwResult}`);
+            }
+        } catch (error) {
+            // Handle file read errors or checkNSFW call errors
+            nsfwDetectionHealthy = false;
+            nsfwDetails = {
+                serviceCalled: false,
+                error: `NSFW detection check failed: ${(error as Error).message}`,
+            };
+            logger.warning("NSFW detection health check failed", { trace: "health-nsfw-fail", details: nsfwDetails });
+        }
+
+        // Determine overall status
+        let overallStatus: ServiceStatus;
+        if (s3Healthy && nsfwDetectionHealthy) {
+            overallStatus = ServiceStatus.Operational;
+        } else if (s3Healthy || nsfwDetectionHealthy) {
+            // If only one is down, consider it degraded
+            overallStatus = ServiceStatus.Degraded;
+        } else {
+            overallStatus = ServiceStatus.Down;
+        }
+
+        return {
+            healthy: overallStatus === ServiceStatus.Operational,
+            status: overallStatus,
+            lastChecked: checkTimestamp,
+            details: {
+                s3: { healthy: s3Healthy, ...s3Details },
+                nsfwDetection: { healthy: nsfwDetectionHealthy, ...nsfwDetails },
+            },
+        };
+    }
+
+    /**
      * Get overall system health status
      */
     public async getHealth(): Promise<SystemHealth> {
@@ -823,36 +917,54 @@ export class HealthService {
             return this.lastCheck;
         }
 
-        // Perform health checks
-        const [
-            apiHealth,
-            cronJobsHealth,
-            dbHealth,
-            i18nHealth,
-            llmHealth,
-            mcpHealth,
-            memoryHealth,
-            queueHealths,
-            redisHealth,
-            sslHealth,
-            stripeHealth,
-            systemHealth,
-            websocketHealth,
-        ] = await Promise.all([
-            this.checkApi(),
-            this.checkCronJobs(),
-            this.checkDatabase(),
-            this.checkI18n(),
-            this.checkLlmServices(),
-            this.checkMcp(),
-            this.checkMemory(),
-            this.checkQueues(),
-            this.checkRedis(),
-            this.checkSslCertificate(),
-            this.checkStripe(),
-            this.checkSystem(),
-            this.checkWebSocket(),
+        // Perform health checks in parallel
+        const results = await Promise.allSettled([
+            this.checkApi(),                   // 0
+            this.checkCronJobs(),              // 1
+            this.checkDatabase(),              // 2
+            this.checkI18n(),                  // 3
+            this.checkLlmServices(),           // 4
+            this.checkMcp(),                   // 5
+            this.checkMemory(),                // 6
+            this.checkQueues(),                // 7
+            this.checkRedis(),                 // 8
+            this.checkSslCertificate(),        // 9
+            this.checkStripe(),                // 10
+            this.checkSystem(),                // 11
+            this.checkWebSocket(),             // 12
+            this.checkImageStorage(),          // 13
+            EmbeddingService.get().checkHealth(), // 14
         ]);
+
+        // Helper to create a default 'Down' status for failed checks
+        function createDownStatus(serviceName: string, error: unknown): ServiceHealth {
+            return {
+                healthy: false,
+                status: ServiceStatus.Down,
+                lastChecked: Date.now(),
+                details: { error: `Failed to check ${serviceName}: ${(error instanceof Error) ? error.message : String(error)}` },
+            };
+        }
+
+        // Process results, providing defaults for rejected promises
+        const apiHealth = results[0].status === "fulfilled" ? results[0].value : createDownStatus("API", results[0].reason);
+        const cronJobsHealth = results[1].status === "fulfilled" ? results[1].value : createDownStatus("Cron Jobs", results[1].reason);
+        const dbHealth = results[2].status === "fulfilled" ? results[2].value : createDownStatus("Database", results[2].reason);
+        const i18nHealth = results[3].status === "fulfilled" ? results[3].value : createDownStatus("i18n", results[3].reason);
+        const llmHealth = results[4].status === "fulfilled" ? results[4].value : {}; // Handled differently as it's an object
+        if (results[4].status === "rejected") logger.error("LLM health check failed", { trace: "health-llm-fail", error: results[4].reason });
+        const mcpHealth = results[5].status === "fulfilled" ? results[5].value : createDownStatus("MCP", results[5].reason);
+        const memoryHealth = results[6].status === "fulfilled" ? results[6].value : createDownStatus("Memory", results[6].reason);
+        const queueHealths = results[7].status === "fulfilled" ? results[7].value : {}; // Handled differently as it's an object
+        if (results[7].status === "rejected") logger.error("Queue health check failed", { trace: "health-queue-fail", error: results[7].reason });
+        const redisHealth = results[8].status === "fulfilled" ? results[8].value : createDownStatus("Redis", results[8].reason);
+        const sslHealth = results[9].status === "fulfilled" ? results[9].value : createDownStatus("SSL", results[9].reason);
+        const stripeHealth = results[10].status === "fulfilled" ? results[10].value : createDownStatus("Stripe", results[10].reason);
+        const systemHealth = results[11].status === "fulfilled" ? results[11].value : createDownStatus("System", results[11].reason);
+        const websocketHealth = results[12].status === "fulfilled" ? results[12].value : createDownStatus("WebSocket", results[12].reason);
+        const imageStorageHealth = results[13].status === "fulfilled" ? results[13].value : createDownStatus("Image Storage", results[13].reason);
+        const embeddingServiceHealth = results[14].status === "fulfilled" ? results[14].value : createDownStatus("Embedding Service", results[14].reason);
+
 
         // Determine overall status
         const allServices = [
@@ -867,11 +979,13 @@ export class HealthService {
             stripeHealth,
             systemHealth,
             websocketHealth,
+            imageStorageHealth,
+            embeddingServiceHealth,
             ...Object.values(queueHealths),
             ...Object.values(llmHealth),
         ];
-        const overallStatus = allServices.every(s => s.status === ServiceStatus.Operational) ? ServiceStatus.Operational :
-            allServices.some(s => s.status === ServiceStatus.Down) ? ServiceStatus.Down : ServiceStatus.Degraded;
+        const overallStatus = allServices.every(s => s?.status === ServiceStatus.Operational) ? ServiceStatus.Operational :
+            allServices.some(s => s?.status === ServiceStatus.Down) ? ServiceStatus.Down : ServiceStatus.Degraded;
 
         const health: SystemHealth = {
             status: overallStatus,
@@ -890,6 +1004,8 @@ export class HealthService {
                 stripe: stripeHealth,
                 system: systemHealth,
                 websocket: websocketHealth,
+                imageStorage: imageStorageHealth,
+                embeddingService: embeddingServiceHealth,
             },
             timestamp: Date.now(),
         };

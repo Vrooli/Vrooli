@@ -1,11 +1,13 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { SessionUser, nanoid } from "@local/shared";
-import https from "https";
+import { HttpStatus, SessionUser, nanoid } from "@local/shared";
+import http from "http"; // Import http for internal service call
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints/rest.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { RequestFile } from "../types.js";
+// Import FormData for multipart request
+import FormData from "form-data";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -17,20 +19,63 @@ const BUCKET_NAME = "vrooli-bucket";
  * the environment variables are loaded from the secrets location, so they're 
  * not available at startup.
  */
-function getS3Client(): S3Client {
+export function getS3Client(): S3Client {
     if (!s3) {
         s3 = new S3Client({ region: REGION });
     }
     return s3 as S3Client;
 }
-interface NSFWCheckResult {
-    [key: string]: {
-        drawings: number,
-        hentai: number,
-        neutral: number,
-        porn: number,
-        sexy: number,
-    };
+
+/**
+ * Post the image to the NSFW detection API (running as a local Docker service) and get the results.
+ * @param buffer The image data.
+ * @param originalFileName The original name of the file (used by the API).
+ * @returns A boolean indicating if the image is NSFW.
+ */
+export async function checkNSFW(buffer: Buffer, originalFileName: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        // Use the original file name as expected by the API
+        formData.append("file", buffer, originalFileName);
+
+        const options: http.RequestOptions = {
+            hostname: "nsfw-detector", // Docker service name
+            port: 8000,              // Service internal port
+            path: "/v1/detect",
+            method: "POST",
+            headers: formData.getHeaders(), // Set headers from form-data library
+        };
+
+        const req = http.request(options, (res) => {
+            let responseBody = "";
+            res.on("data", (chunk) => {
+                responseBody += chunk;
+            });
+            res.on("end", () => {
+                // Use HttpStatus.Ok and explicit 300 for range check
+                if (res.statusCode && res.statusCode >= HttpStatus.Ok && res.statusCode < 300) {
+                    try {
+                        const result = JSON.parse(responseBody) as SafeContentAIResponse;
+                        resolve(result.is_nsfw); // Resolve with the boolean flag
+                    } catch (error) {
+                        logger.error("Failed to parse nsfw-detector response", { trace: "checkNSFW-parse-err", error, responseBody });
+                        reject(new Error("Failed to parse NSFW detection response"));
+                    }
+                } else {
+                    logger.error("nsfw-detector service returned error status", { trace: "checkNSFW-status-err", statusCode: res.statusCode, responseBody });
+                    reject(new Error(`NSFW detection service failed with status ${res.statusCode}`));
+                }
+            });
+        });
+
+        req.on("error", (error) => {
+            logger.error("Error calling nsfw-detector service", { trace: "checkNSFW-req-err", error });
+            reject(error);
+        });
+
+        // Pipe the form data to the request
+        formData.pipe(req);
+    });
 }
 
 // heic-convert has to defer initialization because (presumably) the wasm file messes up the compiler error logs
@@ -51,7 +96,8 @@ let fileTypeFromBuffer: (buffer: Uint8Array | ArrayBuffer) => Promise<FileTypeRe
 async function getFileType(buffer: Uint8Array | ArrayBuffer) {
     if (!fileTypeFromBuffer) {
         const fileTypePkg = await import("file-type");
-        const { fileTypeFromBuffer: func } = fileTypePkg.default;
+        // Adjust import based on likely package structure
+        const { fileTypeFromBuffer: func } = fileTypePkg;
         fileTypeFromBuffer = func;
     }
     return fileTypeFromBuffer(buffer);
@@ -79,60 +125,11 @@ export const bannerImageConfig = {
     ],
 };
 
-interface NSFWCheckResponse {
-    predictions: NSFWCheckResult;
-}
-
-/**
- * Post the image to the NSFW detection API and get the results.
- * @param buffer The image data.
- * @param hash The hash of the image data.
- * @returns The NSFW check result.
- */
-async function checkNSFW(buffer: Buffer, hash: string): Promise<NSFWCheckResult> {
-    // Convert the image data to base64
-    const base64Image = buffer.toString("base64");
-
-    // Prepare the POST data
-    const data = JSON.stringify({ images: [{ buffer: base64Image, hash }] });
-
-    return new Promise((resolve, reject) => {
-        const options = {
-            hostname: "nsfwdetect.com",
-            port: 443,
-            path: "/",
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Content-Length": data.length,
-            },
-        };
-
-        const apiRequest = https.request(options, apiRes => {
-            let responseBody = "";
-            apiRes.on("data", chunk => {
-                responseBody += chunk;
-            });
-            apiRes.on("end", () => {
-                try {
-                    const result = JSON.parse(responseBody) as NSFWCheckResponse;
-                    resolve(result.predictions);
-                } catch (error) {
-                    const message = "Failed to parse nsfwdetect response";
-                    logger.error(message, { trace: "0507", error });
-                    reject(new Error(message));
-                }
-            });
-        });
-
-        apiRequest.on("error", error => {
-            console.error(`Error: ${error}`);
-            reject(error);
-        });
-
-        apiRequest.write(data);
-        apiRequest.end();
-    });
+/** Response from the safe-content-ai API */
+interface SafeContentAIResponse {
+    file_name: string;
+    is_nsfw: boolean;
+    confidence_percentage: number;
 }
 
 async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") {
@@ -221,7 +218,7 @@ export async function processAndStoreFiles<TInput>(
         // Find extension using the beginning of the file buffer. 
         // This is safer than using the file extension from the original file name, 
         // as malicious users can spoof the file extension.
-        const fileType = await getFileType(file.buffer);
+        const fileType = await getFileType(Uint8Array.from(file.buffer));
         let extension = fileType?.ext;
         if (!extension) {
             throw new CustomError("0502", "InternalError", { file: file.originalname });
@@ -246,12 +243,11 @@ export async function processAndStoreFiles<TInput>(
 
         // If the file is an image, we must check for NSFW content and upload various sizes
         if (fileConfig?.imageSizes && IMAGE_TYPES.includes(extension.toLowerCase())) {
-            // Check for NSFW content TODO fix and add back
-            // const classificationsMap = await checkNSFW(buffer, hash);
-            // const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
-            // if (isNsfw) {
-            //     throw new CustomError("0503", "InternalError", { file: file.filename });
-            // }
+            // Check for NSFW content using the new service
+            const isNsfw = await checkNSFW(buffer, file.originalname);
+            if (isNsfw) {
+                throw new CustomError("0526", "ActionFailed", { reason: "NSFW content detected", file: file.originalname });
+            }
             // Upload image in various sizes, specified in fileConfig
             for (let i = 0; i < fileConfig.imageSizes.length; i++) {
                 const { width, height } = fileConfig.imageSizes[i];
