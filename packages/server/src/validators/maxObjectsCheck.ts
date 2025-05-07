@@ -146,7 +146,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(combinedData, userData.id);
             // Increment count for owner. We can assume we're the owner if no owner was provided
-            const ownerId: string | undefined = owners.Team?.id ?? owners.User?.id ?? userData.id;
+            const ownerId: string | undefined = owners.Team?.id?.toString() ?? owners.User?.id?.toString() ?? userData.id;
             // Initialize shape of counts for this owner
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
@@ -167,7 +167,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(authData, userData.id);
             // Decrement count for owner
-            const ownerId: string | undefined = owners.Team?.id ?? owners.User?.id;
+            const ownerId: string | undefined = owners.Team?.id?.toString() ?? owners.User?.id?.toString();
             if (!ownerId) throw new CustomError("0311", "InternalError", userData.languages);
             // Initialize shape of counts for this owner
             counts[authData.__typename] = counts[authData.__typename] || {};
@@ -199,9 +199,9 @@ export async function maxObjectsCheck(
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;
             // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
-            const maxObjects = validator.maxObjects;
+            const maxObjects = validator.maxObjects ?? 0;
             const ownerType = userData.id === ownerId ? "User" : "Team";
-            const hasPremium = userData.hasPremium;
+            const hasPremium = userData.hasPremium ?? false;
             checkObjectLimit({
                 count: currCountPrivate,
                 hasPremium,

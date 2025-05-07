@@ -12,6 +12,7 @@ import { UpdateManyHelperProps, UpdateOneHelperProps } from "./types.js";
  * @returns GraphQL response object
  */
 export async function updateManyHelper<ObjectModel>({
+    adminFlags,
     additionalData,
     info,
     input,
@@ -25,6 +26,7 @@ export async function updateManyHelper<ObjectModel>({
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
+        adminFlags,
         additionalData,
         info: partialInfo,
         inputData: input.map(d => ({

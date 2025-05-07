@@ -89,7 +89,6 @@ export const resource_findMany = {
                 "isLatest": true,
                 "isPrivate": true,
                 "resourceSubType": true,
-                "simplicity": true,
                 "timesStarted": true,
                 "timesCompleted": true,
                 "versionIndex": true,

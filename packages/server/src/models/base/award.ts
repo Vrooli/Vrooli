@@ -67,7 +67,7 @@ export const AwardModel: AwardModelLogic = ({
         visibility: {
             own: function getOwn(data) {
                 return {
-                    user: { id: data.userId },
+                    user: { id: BigInt(data.userId) },
                 };
             },
             // Always private, so it's the same as "own"

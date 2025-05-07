@@ -138,7 +138,6 @@ export const run_updateOne = {
         "updatedAt": true,
         "codeLanguage": true,
         "completedAt": true,
-        "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
         "commentsCount": true,

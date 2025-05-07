@@ -24,13 +24,15 @@ export async function translationShapeHelper<
         data: {
             translationsCreate: data.translationsCreate?.map(({ language, ...rest }) => ({
                 ...rest,
+                id: BigInt(rest.id),
                 language,
-                embeddingNeedsUpdate: embeddingNeedsUpdate[language] ?? undefined,
+                embeddingExpiredAt: embeddingNeedsUpdate[language] === true ? new Date() : undefined,
             })),
             translationsUpdate: data.translationsUpdate?.map(({ language, ...rest }) => ({
                 ...rest,
+                id: BigInt(rest.id),
                 language,
-                embeddingNeedsUpdate: embeddingNeedsUpdate[language] ?? undefined,
+                embeddingExpiredAt: embeddingNeedsUpdate[language] === true ? new Date() : undefined,
             })),
         },
         isOneToOne: false,

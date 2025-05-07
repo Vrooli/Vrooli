@@ -12,7 +12,7 @@ const baseRoot = {
 const baseRootShape = {
     isPrivate: false,
     permissions: JSON.stringify({}),
-    tags: [{ __typename: "Tag" as const, tag: SEEDED_TAGS.Vrooli }],
+    tags: [{ __typename: "Tag" as const, id: nanoid(), tag: SEEDED_TAGS.Vrooli }],
 };
 
 const baseVersion = {
@@ -1452,8 +1452,8 @@ const standards: ResourceImportData[] = [
             resourceType: ResourceType.Standard,
             tags: [
                 ...baseRootShape.tags,
-                { __typename: "Tag" as const, tag: SEEDED_TAGS.Cardano },
-                { __typename: "Tag" as const, tag: SEEDED_TAGS.Cip },
+                { __typename: "Tag" as const, id: nanoid(), tag: SEEDED_TAGS.Cardano },
+                { __typename: "Tag" as const, id: nanoid(), tag: SEEDED_TAGS.Cip },
             ],
             versions: [{
                 ...baseVersion,

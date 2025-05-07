@@ -24,7 +24,7 @@ export const TagModel: TagModelLogic = ({
             get: (select) => select.tag,
         },
         embed: {
-            select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, description: true } } }),
+            select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, description: true } } }),
             get: ({ tag, translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
                 return EmbeddingService.getEmbeddableString({
@@ -52,7 +52,7 @@ export const TagModel: TagModelLogic = ({
                 return {
                     id: BigInt(data.id),
                     tag: data.tag,
-                    createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
+                    createdBy: data.anonymous ? undefined : { connect: { id: BigInt(rest.userData.id) } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.tag], data, ...rest }),
                 };
             },
@@ -86,7 +86,7 @@ export const TagModel: TagModelLogic = ({
             getSuppFields: async ({ ids, objects, userData }) => ({
                 you: {
                     isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
-                    isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+                    isOwn: objects.map((x) => Boolean(userData) && ((x.createdBy && x.createdBy.id.toString() === userData?.id) || (x.createdByUserId && x.createdByUserId.toString() === userData?.id))),
                 },
             }),
         },

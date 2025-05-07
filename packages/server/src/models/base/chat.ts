@@ -24,7 +24,7 @@ export const ChatModel: ChatModelLogic = ({
             get: ({ translations }, languages) => getTranslation({ translations }, languages).name ?? "",
         },
         embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
+            select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
                 return EmbeddingService.getEmbeddableString({

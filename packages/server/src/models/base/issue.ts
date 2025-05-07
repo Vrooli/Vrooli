@@ -33,7 +33,7 @@ export const IssueModel: IssueModelLogic = ({
             get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
+            select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
                 return EmbeddingService.getEmbeddableString({

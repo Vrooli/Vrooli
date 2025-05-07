@@ -51,11 +51,11 @@ export const ResourceModel: ResourceModelLogic = ({
                 OR: [
                     {
                         isPrivate: false,
-                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } } },
+                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } } },
                     },
                     {
                         isPrivate: true,
-                        versions: { select: { id: true, isLatest: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } } },
+                        versions: { select: { id: true, isLatest: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } } },
                     },
                 ],
             }),
@@ -88,7 +88,8 @@ export const ResourceModel: ResourceModelLogic = ({
                     isInternal: noNull(data.isInternal),
                     isPrivate: data.isPrivate,
                     permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    createdBy: rest.userData?.id ? { connect: { id: BigInt(rest.userData.id) } } : undefined,
+                    resourceType: data.resourceType,
                     ...preData.versionMap[data.id],
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "resources", isCreate: true, objectType: __typename, data, ...rest })),
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "forks", data, ...rest }),

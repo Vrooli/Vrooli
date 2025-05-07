@@ -13,6 +13,7 @@ import { CreateManyHelperProps, CreateOneHelperProps } from "./types.js";
  * @returns API response object
  */
 export async function createManyHelper<ObjectModel>({
+    adminFlags,
     additionalData,
     info,
     input,
@@ -25,6 +26,7 @@ export async function createManyHelper<ObjectModel>({
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
+        adminFlags,
         additionalData,
         info: partialInfo,
         inputData: input.map(d => ({

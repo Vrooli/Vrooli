@@ -1,5 +1,5 @@
 import { DbProvider, logger } from "@local/server";
-import { ResourceType } from "@local/shared";
+import { generatePK, ResourceType } from "@local/shared";
 import { PeriodType, Prisma } from "@prisma/client";
 
 /**
@@ -15,6 +15,7 @@ export async function logSiteStats(
 ) {
     // Initialize stats object with new structure
     const data: Prisma.stats_siteCreateInput = {
+        id: generatePK(),
         periodStart,
         periodEnd,
         periodType,
@@ -25,7 +26,6 @@ export async function logSiteStats(
         resourcesCreatedByType: {},
         resourcesCompletedByType: {},
         resourceCompletionTimeAverageByType: {},
-        routineSimplicityAverage: 0,
         routineComplexityAverage: 0,
         runsStarted: 0,
         runsCompleted: 0,
@@ -127,7 +127,7 @@ export async function logSiteStats(
         data.resourcesCompletedByType = resourcesCompletedByType;
         data.resourceCompletionTimeAverageByType = resourceCompletionTimeAverageByType;
 
-        // --- Routine Complexity/Simplicity (Query 'resource_version' for completed routines) ---
+        // --- Routine Complexity (Query 'resource_version' for completed routines) ---
         const completedRoutinesCount = resourcesCompletedByType[ResourceType.Routine] ?? 0;
         if (completedRoutinesCount > 0) {
             const latestCompletedRoutineVersions = await DbProvider.get().resource_version.findMany({
@@ -149,14 +149,11 @@ export async function logSiteStats(
                 },
                 _sum: {
                     complexity: true,
-                    simplicity: true,
                 },
             });
             data.routineComplexityAverage = (routineAggregates._sum.complexity ?? 0) / completedRoutinesCount;
-            data.routineSimplicityAverage = (routineAggregates._sum.simplicity ?? 0) / completedRoutinesCount;
         } else {
             data.routineComplexityAverage = 0;
-            data.routineSimplicityAverage = 0;
         }
 
         // --- Runs Started (Query consolidated 'run' table) ---

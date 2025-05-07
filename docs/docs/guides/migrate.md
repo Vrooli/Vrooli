@@ -4,9 +4,9 @@ This guide will walk you through migrating the database. If you want to read mor
 Database migrations require an interactive terminal, which means they cannot be a part of the docker-compose setup process. 
 
 ## Getting DB_URL
-To use Prisma, you'll need to make sure that the `DB_URL` environment variable is set. Since we calculate this in `scripts.sh` instead of directly as a docker-compose environment variable, it won't be available automatically. Instead, we'll need to export it manually whenever we're in the container. To do this, enter `export DB_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432;`, where `DB_USER` and `DB_PASSWORD` are the values you set in your `.env` file.
+To use Prisma, you'll need to make sure that the `DB_URL` environment variable is set. Since we calculate this in `scripts.sh` instead of directly as a docker-compose environment variable, it won't be available automatically. Instead, we'll need to export it manually whenever we're in the container. To do this, enter `export DB_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432;`, where `DB_USER` and `DB_PASSWORD` are the values you set in your `.env` file.
 
-For a development environment where you haven't changed the environment variables, you can use `export DB_URL=postgresql://site:databasepassword@db:5432;`.
+For a development environment where you haven't changed the environment variables, you can use `export DB_URL=postgresql://site:databasepassword@postgres:5432;`.
 
 ## Initial Migration
 Before you even think about migrating your schema, make sure you have already created an initial migration. To do this:  
@@ -42,8 +42,8 @@ If that doesn't work, you might need to resort to more drastic measures. One suc
 
 1. **VERY IMPORTANT:** Make a copy of the database (`data/postgres`) and put it somewhere safe. This is your backup in case something goes wrong.
 2. Start the app with `docker-compose up`.
-3. Wait for the `db` container to be `healthy` (see `docker ps -a`).
-4. Enter the container using `docker exec -it db sh`.
+3. Wait for the `postgres` container to be `healthy` (see `docker ps -a`).
+4. Enter the container using `docker exec -it postgres sh`.
 5. If you want to export the whole database, run `pg_dump -U <DB_USER> postgres > /tmp/dump.sql`. If you want to export specific tables, use `pg_dump -U <DB_USER> -t table1 -t table2 postgres > /tmp/dump.sql`. Replace `<DB_USER>` with the actual database user name defined in your `.env` file.
 
 At this point, you have a backup of your database (or selected tables) saved inside the Docker container. Next, you'll delete and recreate the database.
@@ -65,12 +65,12 @@ And that's it! You've now deleted and reimported your database. If there were an
 In the above steps, we exported, deleted, and reimported the database using the same Docker container. However, there might be scenarios where you need to export the database from one container and import it into another. In that case, you would need to transfer the database dump to your local machine first. Here's how you do that:
 
 1. After exporting the database (Step 5 above), exit the container using `exit`.
-2. Move the dump file to your local machine using `docker cp db:/tmp/dump.sql .`.
+2. Move the dump file to your local machine using `docker cp postgres:/tmp/dump.sql .`.
 
 To import the dump into a different Docker container:
 
-1. Copy the dump file from your local machine to the new Docker container using `docker cp ./dump.sql db:/tmp/`.
-2. Enter the new container using `docker exec -it db sh`.
+1. Copy the dump file from your local machine to the new Docker container using `docker cp ./dump.sql postgres:/tmp/`.
+2. Enter the new container using `docker exec -it postgres sh`.
 3. Import the database dump using `psql -U <DB_USER> -d postgres -f /tmp/dump.sql`.
 4. Once the process completes, you can exit the container using `exit`.
 

@@ -124,11 +124,11 @@ export function groupPrismaData(
     }
     // Add data to objectIdsDataDict
     if (currType && (data as Record<string, any>).id) {
-        result.objectIdsDataDict[(data as Record<string, any>).id] = merge(result.objectIdsDataDict[(data as Record<string, any>).id] ?? {}, data);
+        result.objectIdsDataDict[(data as Record<string, any>).id.toString()] = merge(result.objectIdsDataDict[(data as Record<string, any>).id.toString()] ?? {}, data);
     }
     // Before returning, remove duplicate IDs from objectTypesIdsDict
     for (const [type, ids] of Object.entries(result.objectTypesIdsDict)) {
-        result.objectTypesIdsDict[type] = [...new Set(ids)];
+        result.objectTypesIdsDict[type] = [...new Set(ids.map(id => id.toString()))];
     }
     // Return dictionaries
     return result;

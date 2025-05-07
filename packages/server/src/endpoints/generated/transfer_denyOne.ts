@@ -115,7 +115,6 @@ export const transfer_denyOne = {
                 "isLatest": true,
                 "isPrivate": true,
                 "resourceSubType": true,
-                "simplicity": true,
                 "timesStarted": true,
                 "timesCompleted": true,
                 "versionIndex": true,

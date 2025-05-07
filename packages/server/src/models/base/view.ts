@@ -1,4 +1,4 @@
-import { Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, ModelType, SessionUser, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
+import { Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, ModelType, SessionUser, ViewFor, ViewSortBy, generatePK, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { onlyValidIds } from "../../builders/onlyValid.js";
@@ -162,7 +162,7 @@ export const ViewModel: ViewModelLogic = ({
             // Replace the nulls in the result array with true if viewed
             for (let i = 0; i < ids.length; i++) {
                 // Try to find this id in the isViewed array
-                result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
+                result[i] = Boolean(isViewedArray.find((view) => view[fieldName].toString() === ids[i]));
             }
             return result;
         },
@@ -244,9 +244,10 @@ export const ViewModel: ViewModelLogic = ({
         }
         // If view did not exist, create it
         else {
-            const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, userData.languages, "view");
+            const labels = await getLabels([input.forId], input.viewFor, userData.languages, "view");
             view = await DbProvider.get().view.create({
                 data: {
+                    id: generatePK(),
                     by: { connect: { id: BigInt(userData.id) } },
                     name: labels[0],
                     ...createMapper[input.viewFor](objectToView),

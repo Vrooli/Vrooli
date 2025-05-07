@@ -14,7 +14,6 @@ export const statsSite: ApiPartial<StatsSite> = {
         resourcesCreatedByType: true,
         resourcesCompletedByType: true,
         resourceCompletionTimeAverageByType: true,
-        routineSimplicityAverage: true,
         routineComplexityAverage: true,
         runsStarted: true,
         runsCompleted: true,

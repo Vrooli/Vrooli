@@ -282,7 +282,7 @@ async function replaceLabels(
         if (Object.keys(labelTranslations).length > 0) return;
         const { dbTable, display } = ModelMap.getLogic(["dbTable", "display"], objectType, true, "replaceLabels 1");
         const labels = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
-            where: { id: objectId },
+            where: { id: BigInt(objectId) },
             select: display().label.select(),
         });
         labelTranslations = labels ?? {};
@@ -379,7 +379,10 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                 where: {
                     teamId: BigInt(teamId),
                     isAdmin: true,
-                    ...(typeof excludedUsers === "string" ? [{ userId: { not: BigInt(excludedUsers) } }] : Array.isArray(excludedUsers) ? [{ userId: { notIn: excludedUsers.map(id => BigInt(id)) } }] : []),
+                    ...(typeof excludedUsers === "string" ?
+                        { userId: { not: BigInt(excludedUsers) } } :
+                        Array.isArray(excludedUsers) ? { userId: { notIn: excludedUsers.map(id => BigInt(id)) } } :
+                            {}),
                 },
                 select: {
                     user: {
@@ -436,7 +439,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                     select: { subscriberId: true, silent: true },
                     where: {
                         AND: [
-                            { [subscribableMapper[objectType]]: { id: objectId } },
+                            { [subscribableMapper[objectType]]: { id: BigInt(objectId) } },
                             ...(typeof excludedUsers === "string" ?
                                 [{ subscriberId: { not: BigInt(excludedUsers) } }] :
                                 Array.isArray(excludedUsers) ?
@@ -552,6 +555,7 @@ export function Notify(languages: string[] | undefined) {
                 else {
                     result = await DbProvider.get().push_device.create({
                         data: {
+                            id: generatePK(),
                             endpoint,
                             auth,
                             p256dh,

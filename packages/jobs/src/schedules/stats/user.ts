@@ -1,4 +1,5 @@
 import { batch, batchGroup, DbProvider, logger } from "@local/server";
+import { generatePK } from "@local/shared";
 import { PeriodType, Prisma } from "@prisma/client";
 
 type BatchTeamsResult = Record<string, {
@@ -42,7 +43,7 @@ const batchTeams = async (
                 batch.forEach(team => {
                     const userId = team.createdById;
                     if (!userId) return;
-                    const currResult = result[userId];
+                    const currResult = result[userId.toString()];
                     if (!currResult) return;
                     currResult.teamsCreated += 1;
                 });
@@ -88,7 +89,7 @@ const batchResources = async (
                 batch.forEach(resource => {
                     const userId = resource.createdById;
                     if (!userId) return;
-                    const currResult = result[userId];
+                    const currResult = result[userId.toString()];
                     if (!currResult) return;
                     currResult.resourcesCreated += 1;
                     if (resource.hasCompleteVersion) {
@@ -157,7 +158,7 @@ const batchRuns = async (
                 batch.forEach(run => {
                     const userId = run.user?.id;
                     if (!userId) return;
-                    const currResult = result[userId];
+                    const currResult = result[userId.toString()];
                     if (!currResult) return;
                     // If runStarted within period, increment runsStarted
                     if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
@@ -225,7 +226,7 @@ export async function logUserStats(
             objectType: "User",
             processBatch: async (batch) => {
                 // Get user ids, so we can query various tables for stats
-                const userIds = batch.map(user => user.id);
+                const userIds = batch.map(user => user.id.toString());
                 // Batch collect stats
                 const resourceStats = await batchResources(userIds, periodStart, periodEnd);
                 const runStats = await batchRuns(userIds, periodStart, periodEnd);
@@ -233,13 +234,14 @@ export async function logUserStats(
                 // Create stats for each user
                 await DbProvider.get().stats_user.createMany({
                     data: batch.map(user => ({
+                        id: generatePK(),
                         userId: user.id,
                         periodStart,
                         periodEnd,
                         periodType,
-                        ...(resourceStats[user.id] || { resourceCompletionTimeAverage: 0, resourcesCompleted: 0, resourcesCreated: 0 }),
-                        ...(runStats[user.id] || { runCompletionTimeAverage: 0, runContextSwitchesAverage: 0, runsCompleted: 0, runsStarted: 0 }),
-                        ...(teamStats[user.id] || { teamsCreated: 0 }),
+                        ...(resourceStats[user.id.toString()] || { resourceCompletionTimeAverage: 0, resourcesCompleted: 0, resourcesCreated: 0 }),
+                        ...(runStats[user.id.toString()] || { runCompletionTimeAverage: 0, runContextSwitchesAverage: 0, runsCompleted: 0, runsStarted: 0 }),
+                        ...(teamStats[user.id.toString()] || { teamsCreated: 0 }),
                     })),
                 });
             },

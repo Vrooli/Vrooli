@@ -112,7 +112,6 @@ export const resource_findOne = {
         "isLatest": true,
         "isPrivate": true,
         "resourceSubType": true,
-        "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
         "versionIndex": true,

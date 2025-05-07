@@ -110,10 +110,6 @@ Vrooli leverages a comprehensive set of metrics to evaluate the complexity, cost
 
 Note that these metrics focus on instances when the routine is run as a standalone process, not when it's part of a larger subroutine.
 
-### Simplicity and Complexity Scores
-- Simplicity: This score reflects how straightforward a routine is to run. It's calculated based on factors like the number of steps, the clarity of instructions within each step, and the presence of automatable actions.
-- Complexity: Conversely, this score assesses the intricacy of a routine. It considers elements like the depth of decision trees, the amount and diversity of inputs and outputs, and loops or cycles that suggest iterative processes.
-
 ### Metrics for Self-Improvement
 Bot teams employ these metrics to identify routines requiring further development or optimization. For instance, routines with high popularity but also high complexity can be targets for simplification efforts, making them more accessible and thereby potentially increasing their popularity even further.
 

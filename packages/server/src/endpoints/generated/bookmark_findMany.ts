@@ -162,7 +162,6 @@ export const bookmark_findMany = {
                         "isLatest": true,
                         "isPrivate": true,
                         "resourceSubType": true,
-                        "simplicity": true,
                         "timesStarted": true,
                         "timesCompleted": true,
                         "versionIndex": true,

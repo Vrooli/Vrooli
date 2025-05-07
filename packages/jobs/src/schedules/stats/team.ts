@@ -1,11 +1,12 @@
 import { batch, batchGroup, DbProvider, logger } from "@local/server";
+import { generatePK } from "@local/shared";
 import { PeriodType, Prisma } from "@prisma/client";
 
-type BatchRunRoutinesResult = Record<string, {
-    runRoutinesStarted: number;
-    runRoutinesCompleted: number;
-    runRoutineCompletionTimeAverage: number;
-    runRoutineContextSwitchesAverage: number;
+type BatchRunsResult = Record<string, {
+    runsStarted: number;
+    runsCompleted: number;
+    runCompletionTimeAverage: number;
+    runContextSwitchesAverage: number;
 }>
 
 /**
@@ -15,37 +16,37 @@ type BatchRunRoutinesResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of team IDs to run routine stats
  */
-async function batchRunRoutines(
+async function batchRuns(
     teamIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunRoutinesResult> {
+): Promise<BatchRunsResult> {
     const initialResult = Object.fromEntries(teamIds.map(id => [id, {
-        runRoutinesStarted: 0,
-        runRoutinesCompleted: 0,
-        runRoutineCompletionTimeAverage: 0,
-        runRoutineContextSwitchesAverage: 0,
+        runsStarted: 0,
+        runsCompleted: 0,
+        runCompletionTimeAverage: 0,
+        runContextSwitchesAverage: 0,
     }]));
     try {
-        return await batchGroup<Prisma.run_routineFindManyArgs, BatchRunRoutinesResult>({
+        return await batchGroup<Prisma.runFindManyArgs, BatchRunsResult>({
             initialResult,
             processBatch: async (batch, result) => {
                 // For each run, increment the counts for the routine version
                 batch.forEach(run => {
                     const teamId = run.team?.id;
                     if (!teamId) return;
-                    const currResult = result[teamId];
+                    const currResult = result[teamId.toString()];
                     if (!currResult) return;
                     // If runStarted within period, increment runsStarted
                     if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
-                        currResult.runRoutinesStarted += 1;
+                        currResult.runsStarted += 1;
                     }
                     // If runCompleted within period, increment runsCompleted 
                     // and update averages
                     if (run.completedAt !== null && new Date(run.completedAt) >= new Date(periodStart)) {
-                        currResult.runRoutinesCompleted += 1;
-                        if (run.timeElapsed !== null) currResult.runRoutineCompletionTimeAverage += run.timeElapsed;
-                        currResult.runRoutineContextSwitchesAverage += run.contextSwitches;
+                        currResult.runsCompleted += 1;
+                        if (run.timeElapsed !== null) currResult.runCompletionTimeAverage += run.timeElapsed;
+                        currResult.runContextSwitchesAverage += run.contextSwitches;
                     }
                 });
             },
@@ -54,14 +55,14 @@ async function batchRunRoutines(
                 Object.keys(result).forEach(teamId => {
                     const currResult = result[teamId];
                     if (!currResult) return;
-                    if (currResult.runRoutinesCompleted > 0) {
-                        currResult.runRoutineCompletionTimeAverage /= currResult.runRoutinesCompleted;
-                        currResult.runRoutineContextSwitchesAverage /= currResult.runRoutinesCompleted;
+                    if (currResult.runsCompleted > 0) {
+                        currResult.runCompletionTimeAverage /= currResult.runsCompleted;
+                        currResult.runContextSwitchesAverage /= currResult.runsCompleted;
                     }
                 });
                 return result;
             },
-            objectType: "RunRoutine",
+            objectType: "Run",
             select: {
                 id: true,
                 team: {
@@ -73,7 +74,7 @@ async function batchRunRoutines(
                 timeElapsed: true,
             },
             where: {
-                team: { id: { in: teamIds } },
+                team: { id: { in: teamIds.map(id => BigInt(id)) } },
                 OR: [
                     { startedAt: { gte: periodStart, lte: periodEnd } },
                     { completedAt: { gte: periodStart, lte: periodEnd } },
@@ -81,7 +82,7 @@ async function batchRunRoutines(
             },
         });
     } catch (error) {
-        logger.error("batchRunRoutines caught error", { error });
+        logger.error("batchRuns caught error", { error });
     }
     return initialResult;
 };
@@ -101,15 +102,17 @@ export async function logTeamStats(
         await batch<Prisma.teamFindManyArgs>({
             objectType: "Team",
             processBatch: async (batch) => {
-                const runRoutineStats = await batchRunRoutines(batch.map(team => team.id), periodStart, periodEnd);
+                const runStats = await batchRuns(batch.map(team => team.id.toString()), periodStart, periodEnd);
                 await DbProvider.get().stats_team.createMany({
                     data: batch.map(team => ({
+                        id: generatePK(),
                         teamId: team.id,
                         periodStart,
                         periodEnd,
                         periodType,
-                        ...team._count,
-                        ...runRoutineStats[team.id],
+                        members: team._count?.members ?? 0,
+                        resources: team._count?.resources ?? 0,
+                        ...runStats[team.id.toString()],
                     })),
                 });
             },
@@ -117,13 +120,8 @@ export async function logTeamStats(
                 id: true,
                 _count: {
                     select: {
-                        apis: true,
-                        codes: true,
                         members: true,
-                        notes: true,
-                        projects: true,
-                        routines: true,
-                        standards: true,
+                        resources: true,
                     },
                 },
             },

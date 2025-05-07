@@ -278,6 +278,7 @@ export async function init(client: InstanceType<typeof PrismaClient>) {
     const importConfig = {
         allowForeignData: true, // Skip foreign data checks
         assignObjectsTo: { __typename: "Team" as const, id: vrooliId.toString() }, // Assign to Vrooli team
+        isSeeding: true,
         onConflict: "overwrite" as const, //TODO need update option
         skipPermissions: true, // Skip permission checks
         userData, // Set user data

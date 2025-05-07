@@ -4,7 +4,7 @@ import { DbProvider } from "../../db/provider.js";
 import { ModelMap } from "../../models/base/index.js";
 
 type Version = {
-    id: string;
+    id: bigint;
     isLatest: boolean;
     isLatestPublic: boolean,
     isPrivate: boolean;
@@ -87,7 +87,7 @@ export function getChangedVersions(originalVersions: Version[], updatedVersions:
  */
 export function prepareVersionUpdates(root: { id: string, versions: Version[] }) {
     // Sort versions by versionLabel (using copy to avoid mutation of original array)
-    const versionsUpdated = sortVersions(JSON.parse(JSON.stringify(root.versions))) as Version[];
+    const versionsUpdated = sortVersions(root.versions.map(v => ({ ...v }))) as Version[];
     // Set version index for each version and reset flags
     for (let i = 0; i < versionsUpdated.length; i++) {
         versionsUpdated[i].versionIndex = i;
@@ -128,7 +128,7 @@ export async function afterMutationsVersion({ createdIds, deletedIds, objectType
     const versionIds = [...createdIds, ...updatedIds, ...deletedIds];
     // Use version ids to query root objects
     const rootData = await (DbProvider.get()[dbTableRoot] as PrismaDelegate).findMany({
-        where: { versions: { some: { id: { in: versionIds } } } },
+        where: { versions: { some: { id: { in: versionIds.map(id => BigInt(id)) } } } },
         select: {
             id: true,
             versions: {

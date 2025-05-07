@@ -56,7 +56,7 @@ graph TD
    - Background job processing
    - Scheduled tasks
 
-6. **Database (packages/db)**
+6. **Database (packages/postgres)**
    - Database schemas
    - Migrations
    - Seed data
@@ -122,7 +122,7 @@ vrooli/
 │   ├── shared/            # Shared code
 │   ├── jobs/             # Background jobs
 │   ├── docs/             # Documentation
-│   ├── db/               # Database
+│   ├── postgres/               # Database
 │   └── extension/        # Browser extension
 ├── scripts/              # Development scripts
 ├── assets/              # Project assets

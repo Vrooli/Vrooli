@@ -146,7 +146,7 @@ export interface SupplementalConverter<
     getSuppFields: ({ ids, objects, partial, userData }: {
         ids: string[],
         languages: string[] | undefined,
-        objects: ({ id: string } & DbObject)[],
+        objects: ({ id: string | bigint } & DbObject)[],
         partial: PartialApiInfo,
         userData: Pick<SessionUser, "id" | "languages"> | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;

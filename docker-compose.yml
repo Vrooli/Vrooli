@@ -108,7 +108,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      db:
+      postgres:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_API || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
@@ -174,10 +174,10 @@ services:
       server:
         condition: service_healthy
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/jobs.sh"
-  db:
+  postgres:
     image: pgvector/pgvector:pg15 
     restart: always
-    container_name: db
+    container_name: postgres
     environment:
       POSTGRES_PASSWORD: "${DB_PASSWORD}"
       POSTGRES_USER: "${DB_USER:-site}"
@@ -189,7 +189,7 @@ services:
       - app
     volumes:
       - ./data/postgres-dev:/var/lib/postgresql/data
-      - ./packages/db/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
+      - ./packages/postgres/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
       interval: 10s
@@ -224,14 +224,14 @@ services:
     environment:
       ADMINER_PLUGINS: login-env-vars
       ADMINER_DRIVER: pgsql
-      ADMINER_SERVER: db
+      ADMINER_SERVER: postgres
       ADMINER_USERNAME: "${DB_USER:-site}"
       ADMINER_PASSWORD: "${DB_PASSWORD}"
       ADMINER_DB: "${DB_NAME}"
     networks:
       - app
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     ports:
       - 8080:8080

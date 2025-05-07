@@ -90,7 +90,6 @@ export const feed_popular = {
                     "isLatest": true,
                     "isPrivate": true,
                     "resourceSubType": true,
-                    "simplicity": true,
                     "timesStarted": true,
                     "timesCompleted": true,
                     "versionIndex": true,

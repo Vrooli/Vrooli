@@ -93,6 +93,8 @@ export type ImportConfig = {
      * The user requesting the import/export.
      */
     userData: Pick<SessionUser, "id" | "languages">;
+    /** If this import is part of seeding */
+    isSeeding: boolean;
 }
 
 /**
@@ -295,7 +297,8 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         const resourceShape = this.shapeData(data, config);
         const input = shapeResource.create(resourceShape);
         const req = this.buildRequest(config);
-        const result = await createOneHelper({ info, input, objectType: "Resource", req });
+        const adminFlags = config.isSeeding ? { isSeeding: true } : undefined;
+        const result = await createOneHelper({ adminFlags, info, input, objectType: "Resource", req });
         return result as Resource;
     }
 
@@ -304,7 +307,8 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         const resourceShape = this.shapeData(data, config);
         const input = shapeResource.update({ ...existing, owner: existing.owner ?? null }, resourceShape);
         const req = this.buildRequest(config);
-        const result = await updateOneHelper({ info, input, objectType: "Resource", req });
+        const adminFlags = config.isSeeding ? { isSeeding: true } : undefined;
+        const result = await updateOneHelper({ adminFlags, info, input, objectType: "Resource", req });
         return result as Resource;
     }
 
@@ -424,13 +428,14 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             continue;
         }
 
-        const { dbTable, format, idField, validate } = ModelMap.getLogic(["dbTable", "format", "idField", "validate"], objectType as `${ModelType}`);
+        const { dbTable, format, validate } = ModelMap.getLogic(["dbTable", "format", "validate"], objectType as `${ModelType}`);
 
 
-        // Objects with publicIds can be updated. Everything else will be created
-        const publicIdsToCheck = objects
+        // Objects with publicIds can be updated during seeding. Everything else will be created
+        const publicIdsToCheck = config.isSeeding ? objects
             .map(obj => obj.shape["publicId"])
-            .filter(id => id != null);
+            .filter(publicId => publicId != null)
+            : [];
 
         // Select using all fields required for checking permissions, 
         // combined with the shape that is imported/exported.
@@ -446,7 +451,7 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
         const existingObjectsPrisma = publicIdsToCheck.length > 0
             ? await DbProvider.get()[dbTable].findMany({
                 where: { publicId: { in: publicIdsToCheck } },
-                select: combinedSelect,
+                select: { ...combinedSelect, id: true, publicId: true }, // Make sure ID and publicId are included
             })
             : [];
         const partialInfo = mergeDeep(partialInfoCreate, partialInfoUpdate);
@@ -454,21 +459,21 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             return InfoConverter.get().fromDbToApi(obj, partialInfo);
         });
 
-        // Create a lookup map for existing objects by their ID (not publicId, since permissions are checked by ID).
+        // Create a lookup map for existing objects by their publicId
         const existingMap = new Map<string, object>();
         for (const existing of existingObjects) {
-            existingMap.set(existing["id"], existing);
+            existingMap.set(existing["publicId"], existing);
         }
 
         // Process each object in the group.
         for (const obj of objects) {
-            const objId = obj.shape["id"];
+            const publicId = obj.shape["publicId"];
             const canSkipPermissions = config.onConflict === "overwrite" && config.skipPermissions === true;
-            let canImport = canSkipPermissions || !objId;
+            let canImport = canSkipPermissions || !publicId;
 
-            // If the object has an ID, it may already exist.
-            if (objId) {
-                const existing = existingMap.get(objId);
+            // If the object has a publicId, it may already exist.
+            if (publicId) {
+                const existing = existingMap.get(publicId);
                 if (!existing) {
                     canImport = true;
                 } else if (config.onConflict === "skip") {
@@ -480,13 +485,19 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
                 } else {
                     // Check that the user has permission to overwrite (i.e. delete) the object
                     try {
-                        await permissionsCheck(
-                            { [objId]: { __typename: objectType as `${ModelType}`, ...existing } },
-                            { ["Delete"]: [objId] },
-                            {},
-                            config.userData,
-                        );
-                        canImport = true;
+                        // Permissions use ID instead of publicId
+                        const id = obj["id"];
+                        if (!id) {
+                            canImport = false;
+                        } else {
+                            await permissionsCheck(
+                                { [id]: { __typename: objectType as `${ModelType}`, ...existing } },
+                                { ["Delete"]: [id] },
+                                {},
+                                config.userData,
+                            );
+                            canImport = true;
+                        }
                     } catch (error) {
                         result.errors++;
                         continue;
@@ -495,7 +506,7 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             }
 
             if (canImport) {
-                const existing = existingMap.get(objId);
+                const existing = publicId ? existingMap.get(publicId) : null;
                 if (existing) {
                     await importer.importUpdate(existing, obj, config);
                 } else {

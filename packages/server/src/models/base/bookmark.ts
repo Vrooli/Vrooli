@@ -141,7 +141,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // check if this id is in isBookmarkredArray
-                if (exists(ids[i]) && isBookmarkredArray.find((bookmark: any) => bookmark[fieldName] === ids[i])) {
+                if (exists(ids[i]) && isBookmarkredArray.find((bookmark) => bookmark[fieldName].toString() === ids[i])) {
                     result[i] = true;
                 }
             }

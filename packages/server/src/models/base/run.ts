@@ -48,7 +48,7 @@ export const RunModel: RunModelLogic = ({
             get: (select) => select.name ?? "",
         },
         embed: {
-            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            select: () => ({ id: true, embeddingExpiredAt: true, name: true }),
             get: ({ name }, languages) => {
                 return EmbeddingService.getEmbeddableString({ name }, languages?.[0]);
             },
@@ -67,7 +67,7 @@ export const RunModel: RunModelLogic = ({
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
                     data: noNull(data.data),
-                    embeddingNeedsUpdate: true,
+                    embeddingExpiredAt: new Date(),
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),

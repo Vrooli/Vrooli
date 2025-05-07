@@ -228,7 +228,6 @@ export const schedule_findOne = {
             "updatedAt": true,
             "codeLanguage": true,
             "completedAt": true,
-            "simplicity": true,
             "timesStarted": true,
             "timesCompleted": true,
             "commentsCount": true,

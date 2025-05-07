@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePublicId, getTranslation, teamValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePK, generatePublicId, getTranslation, teamValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { getLabels } from "../../getters/getLabels.js";
@@ -28,7 +28,7 @@ export const TeamModel: TeamModelLogic = ({
             get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
+            select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
                 return EmbeddingService.getEmbeddableString({
@@ -62,6 +62,7 @@ export const TeamModel: TeamModelLogic = ({
                     createdBy: { connect: { id: BigInt(rest.userData.id) } },
                     members: {
                         create: {
+                            id: generatePK(),
                             publicId: generatePublicId(),
                             isAdmin: true,
                             user: { connect: { id: BigInt(rest.userData.id) } },
@@ -157,7 +158,7 @@ export const TeamModel: TeamModelLogic = ({
             ...(userId ? {
                 members: {
                     where: {
-                        userId: BigInt(userId),
+                        user: { id: BigInt(userId) },
                     },
                     select: {
                         id: true,

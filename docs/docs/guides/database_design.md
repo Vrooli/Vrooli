@@ -69,7 +69,6 @@ A routine is owned by either a user or team. It can be transferred to another us
 - `isAutomatable` - Indicates if the routine can be run automatically, if all conditions are met
 - `isComplete` - If the routine is complete, or in a working state. Determined by the user
 - `isInternal` -  Indicates if the routine should appear in searches, or if it is only meant to be a subnode of another routine
-- `simplicity` - Opposite of completixy - 1 + (complexity of each subroutine) along the shortest path
 - `timesStarted` - Count of times the routine was started. Includes times started as subroutine, but excludes runs by the owner
 - `timesCompleted` - Count of times the routine was completed. Includes times completed as subroutine, but excludes runs by the owner
 

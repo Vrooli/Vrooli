@@ -19,7 +19,7 @@ export const ReminderModel: ReminderModelLogic = ({
             get: (select) => select.name ?? "",
         },
         embed: {
-            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
+            select: () => ({ id: true, embeddingExpiredAt: true, name: true, description: true }),
             get: ({ name, description }, languages) => {
                 return EmbeddingService.getEmbeddableString({ description, name }, languages?.[0]);
             },
@@ -30,7 +30,7 @@ export const ReminderModel: ReminderModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: BigInt(data.id),
-                embeddingNeedsUpdate: true,
+                embeddingExpiredAt: new Date(),
                 name: data.name,
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
@@ -39,7 +39,7 @@ export const ReminderModel: ReminderModelLogic = ({
                 reminderItems: await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                embeddingNeedsUpdate: (typeof data.name === "string" || typeof data.description === "string") ? true : undefined,
+                embeddingExpiredAt: (typeof data.name === "string" || typeof data.description === "string") ? new Date() : undefined,
                 name: noNull(data.name),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
