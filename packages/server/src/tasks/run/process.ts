@@ -72,7 +72,6 @@ export const RunProcessSelect = {
                         },
                     },
                 },
-                simplicity: true,
             },
         },
         status: true,
@@ -133,7 +132,6 @@ export const RunProcessSelect = {
                 resourceType: true,
             },
         },
-        simplicity: true,
         translations: {
             select: {
                 id: true,

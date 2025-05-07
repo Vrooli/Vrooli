@@ -2212,7 +2212,6 @@ export type ResourceVersion = DbObject<"ResourceVersion"> & {
     reportsCount: Scalars["Int"];
     root: Resource;
     resourceSubType: ResourceSubType;
-    simplicity: Scalars["Int"];
     timesCompleted: Scalars["Int"];
     timesStarted: Scalars["Int"];
     translations: Array<ResourceVersionTranslation>;
@@ -2275,13 +2274,11 @@ export type ResourceVersionSearchInput = BaseSearchInput<ResourceVersionSortBy> 
     maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
     maxComplexity?: InputMaybe<Scalars["Int"]>;
     maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxSimplicity?: InputMaybe<Scalars["Int"]>;
     maxTimesCompleted?: InputMaybe<Scalars["Int"]>;
     maxViewsRoot?: InputMaybe<Scalars["Int"]>;
     minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
     minComplexity?: InputMaybe<Scalars["Int"]>;
     minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minSimplicity?: InputMaybe<Scalars["Int"]>;
     minTimesCompleted?: InputMaybe<Scalars["Int"]>;
     minViewsRoot?: InputMaybe<Scalars["Int"]>;
     ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
@@ -2314,8 +2311,6 @@ export enum ResourceVersionSortBy {
     ForksDesc = "ForksDesc",
     RunsAsc = "RunsAsc",
     RunsDesc = "RunsDesc",
-    SimplicityAsc = "SimplicityAsc",
-    SimplicityDesc = "SimplicityDesc"
 }
 
 export type ResourceVersionTranslation = BaseTranslation<"ResourceVersionTranslation"> & {
@@ -2874,7 +2869,6 @@ export type StatsSite = DbObject<"StatsSite"> & {
     resourcesCreatedByType: Scalars["String"];
     resourcesCompletedByType: Scalars["String"];
     resourceCompletionTimeAverageByType: Scalars["String"];
-    routineSimplicityAverage: Scalars["Float"];
     routineComplexityAverage: Scalars["Float"];
     runCompletionTimeAverage: Scalars["Float"];
     runContextSwitchesAverage: Scalars["Float"];

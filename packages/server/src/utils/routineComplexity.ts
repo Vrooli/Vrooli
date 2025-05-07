@@ -1,417 +1,119 @@
-import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
+import { ResourceSubType } from "@local/shared";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 
-/**
- * Weight data for a subroutine, or all subroutines in a node combined.
- */
-export type SubroutineWeightData = {
-    simplicity: number,
-    complexity: number,
-    optionalInputs: number,
-    allInputs: number,
-}
+export async function calculateComplexity(
+    inputs: {
+        id: string,
+        resourceSubType?: string | null,
+        relatedVersionsCreate?: { toVersionConnect: string }[] | null,
+        relatedVersionsDisconnect?: string[] | null,
+    }[],
+    disallowIds: string[],
+): Promise<Record<string, number>> {
+    const inputIds = inputs.map(i => i.id);
+    if (inputIds.some(id => disallowIds.includes(id))) {
+        throw new CustomError("0370", "InvalidArgs", { detail: "Circular dependency detected." });
+    }
 
-type LinkData = {
-    fromId: string;
-    toId: string;
-    routineVersionId: string;
-};
-
-/**
- * Calculates the shortest AND longest weighted path on a directed cyclic graph. (loops are actually not the cyclic part, but redirects)
- * A routine with no nodes has a complexity equal to the number of its inputs.
- * Each decision the user makes (i.e. multiple edges coming out of a node) has a weight of 1.
- * Each node has a weight that is the summation of its contained subroutines.
- * @param nodes A map of node IDs to their weight (simplicity/complexity)
- * @param edges The edges of the graph, with each object containing a fromId and toId
- * @returns [shortestPath, longestPath] The shortest and longest weighted distance
- */
-export function calculateShortestLongestWeightedPath(
-    nodes: { [id: string]: SubroutineWeightData },
-    edges: LinkData[],
-): [number, number] {
-    // First, check that all edges point to valid nodes. 
-    // If this isn't the case, this algorithm could run into an error
-    for (const edge of edges) {
-        if (!nodes[edge.toId] || !nodes[edge.fromId]) {
-            throw new CustomError("0237", "UnlinkedNodes", { failedEdge: edge });
+    // Create a set of all IDs that we need to fetch.
+    // This includes the inputs, as well as any related versions that are being created/updated/deleted.
+    const fetchIds = new Set<string>(inputIds);
+    for (const input of inputs) {
+        if (input.relatedVersionsCreate) {
+            for (const rel of input.relatedVersionsCreate) {
+                fetchIds.add(rel.toVersionConnect);
+            }
+        }
+        if (input.relatedVersionsDisconnect) {
+            for (const rel of input.relatedVersionsDisconnect) {
+                fetchIds.add(rel);
+            }
         }
     }
-    // If no nodes or edges, return 1
-    if (Object.keys(nodes).length === 0 || edges.length === 0) return [1, 1];
-    // Create a dictionary of edges, where the key is a node ID and the value is an array of edges that END at that node
-    const edgesByNode: { [id: string]: { fromId: string, toId: string }[] } = {};
-    edges.forEach(edge => {
-        edgesByNode[edge.toId] = edgesByNode[edge.toId] ? edgesByNode[edge.toId].concat(edge) : [edge];
-    });
-    /**
-     * Calculates the shortest and longest weighted distance
-     * @param currentNodeId The current node ID
-     * @param visitedEdges The edges that have been visited so far
-     * @param currShortest The current shortest distance
-     * @param currLongest The current longest distance
-     * @returns [shortest, longest] The shortest and longest distance. -1 if doesn't 
-     * end with a start node (i.e. caught in a loop)
-     */
-    function getShortLong(currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] {
-        const fromEdges = edgesByNode[currentNodeId];
-        // If no from edges, must be start node. Return currShortest and currLongest unchanged
-        if (!fromEdges || fromEdges.length === 0) return [currShortest, currLongest];
-        // If edges but all have been visited, must be a loop. Return -1
-        if (fromEdges.every(edge => visitedEdges.some(visitedEdge => visitedEdge.fromId === edge.fromId && visitedEdge.toId === edge.toId))) return [-1, -1];
-        // Otherwise, calculate the shortest and longest distance
-        const edgeShorts: number[] = [];
-        const edgeLongs: number[] = [];
-        for (const edge of fromEdges) {
-            // Find the weight of the edge from the node's complexity. Add one if there are multiple edges,
-            // since the user has to make a decision
-            let weight = nodes[edge.fromId];
-            if (fromEdges.length > 1) weight = { ...weight, complexity: weight.complexity + 1, simplicity: weight.simplicity + 1 };
-            // Add edge to visited edges
-            const newVisitedEdges = visitedEdges.concat([edge]);
-            // Recurse on the next node 
-            const [shortest, longest] = getShortLong(
-                edge.fromId,
-                newVisitedEdges,
-                currShortest + weight.simplicity + weight.optionalInputs,
-                currLongest + weight.complexity + weight.allInputs);
-            // If shortest is not -1, add to edgeShorts
-            if (shortest !== -1) edgeShorts.push(shortest);
-            // If longest is not -1, add to edgeLongs
-            if (longest !== -1) edgeLongs.push(longest);
-        }
-        // Calculate the shortest and longest distance
-        const shortest = edgeShorts.length > 0 ? Math.min(...edgeShorts) : -1;
-        const longest = edgeLongs.length > 0 ? Math.max(...edgeLongs) : -1;
-        return [shortest, longest];
-    }
-    // Find all of the end nodes, by finding all nodes without any outgoing edges
-    const endNodes = Object.keys(nodes).filter(nodeId => !edges.find(e => e.fromId === nodeId));
-    // Calculate the shortest and longest for each end node
-    const distances: [number, number][] = endNodes.map(nodeId => getShortLong(nodeId, [], 0, 0));
-    // Return shortest short and longest long
-    return [
-        Math.min(...distances.map(d => d[0])),
-        Math.max(...distances.map(d => d[1])),
-    ];
-}
 
-/**
- * Select query for calculating the complexity of a routine version
- */
-const routineVersionSelect = ({
-    id: true,
-    nodeLinks: { select: { id: true, fromId: true, toId: true } },
-    nodes: {
+    // Find inputs that already exist in the database, and every subroutine they depend on.
+    const fetchedData = await DbProvider.get().resource_version.findMany({
+        where: { id: { in: Array.from(fetchIds).map(i => BigInt(i)) } },
         select: {
             id: true,
-            routineList: {
+            complexity: true,
+            config: true,
+            resourceSubType: true,
+            root: {
                 select: {
-                    id: true,
-                    items: {
+                    resourceType: true,
+                },
+            },
+            relatedVersions: {
+                select: {
+                    labels: true,
+                    toVersion: {
                         select: {
                             id: true,
-                            routineVersion: {
-                                select: {
-                                    id: true,
-                                    complexity: true,
-                                    simplicity: true,
-                                    inputs: {
-                                        select: {
-                                            isRequired: true,
-                                        },
-                                    },
-                                },
-                            },
+                            complexity: true,
+                            resourceSubType: true,
                         },
                     },
                 },
             },
         },
-    },
-    inputs: {
-        select: {
-            id: true,
-            isRequired: true,
-        },
-    },
-});
-
-type GroupRoutineVersionDataResult = {
-    linkData: { [linkId: string]: LinkData },
-    nodeData: { [nodeId: string]: { routineVersionId: string, subroutines: SubroutineWeightData[] } },
-    subroutineItemData: { [itemId: string]: string },
-    optionalRoutineVersionInputCounts: { [routineId: string]: number }
-    allRoutineVersionInputCounts: { [routineId: string]: number }
-}
-
-/**
- * Queries and groups existing routine data from the database into links, nodes, and a map of routineListItems to subroutines
- * @param ids The routine version IDs, and the id of the routine they're in, if they're a subroutine
- * @returns Object with linkData, nodeData, subroutineItemData, and input counts by routine version ID
- */
-async function groupRoutineVersionData(ids: { id: string, parentId: string | null }[]): Promise<GroupRoutineVersionDataResult> {
-    // Initialize data
-    const linkData: Pick<GroupRoutineVersionDataResult, "linkData">["linkData"] = {};
-    const nodeData: Pick<GroupRoutineVersionDataResult, "nodeData">["nodeData"] = {};
-    const subroutineItemData: Pick<GroupRoutineVersionDataResult, "subroutineItemData">["subroutineItemData"] = {};
-    const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
-    const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
-    // Query database. New routine versions will be ignored
-    const data = await DbProvider.get().routine_version.findMany({
-        where: { id: { in: ids.map(i => i.id) } },
-        select: routineVersionSelect,
     });
-    // Add existing links, nodes data, subroutineItemData, and input counts
-    for (const routineVersion of data) {
-        // Links
-        for (const link of (routineVersion as any).nodeLinks) { //TODO
-            linkData[link.id] = {
-                fromId: link.fromId,
-                toId: link.toId,
-                routineVersionId: routineVersion.id,
-            };
-        }
-        // Nodes and subroutineItemData
-        for (const node of (routineVersion as any).nodes) { //TODO
-            if (node.routineList) {
-                nodeData[node.id] = {
-                    routineVersionId: routineVersion.id,
-                    subroutines: node.routineList.items.map(item => {
-                        subroutineItemData[item.id] = item.routineVersion.id;
-                        return {
-                            id: item.routineVersion.id,
-                            complexity: item.routineVersion.complexity,
-                            simplicity: item.routineVersion.simplicity,
-                            allInputs: item.routineVersion.inputs.length,
-                            optionalInputs: item.routineVersion.inputs.filter(input => !input.isRequired).length,
-                        };
-                    }),
-                };
-            } else {
-                nodeData[node.id] = {
-                    routineVersionId: routineVersion.id,
-                    subroutines: [],
-                };
-            }
-        }
-    }
-    // Add input counts for main (i.e. not subroutines) routine version
-    for (const routineVersion of data) {
-        optionalRoutineVersionInputCounts[routineVersion.id] = routineVersion.inputs.filter(input => !input.isRequired).length;
-        allRoutineVersionInputCounts[routineVersion.id] = routineVersion.inputs.length;
-    }
-    // Return data
-    return {
-        linkData,
-        nodeData,
-        subroutineItemData,
-        optionalRoutineVersionInputCounts,
-        allRoutineVersionInputCounts,
-    };
-}
 
-type CalculateComplexityResult = {
-    updatingSubroutineIds: string[],
-    dataWeights: (SubroutineWeightData & { id: string })[],
-}
+    // Create a map of all resource versions (including related versions) by ID, so we can reference them later.
+    const resourceVersionsById = new Map<string, { complexity: number | null }>(
+        fetchedData.map(rv => [rv.id.toString(), rv])
+    );
+    for (const rv of fetchedData) {
+        if (rv.relatedVersions) {
+            for (const rel of rv.relatedVersions) {
+                resourceVersionsById.set(rel.toVersion.id.toString(), { complexity: rel.toVersion.complexity });
+            }
+        }
+    }
 
-/**
- * Calculates the weight data (complexity, simplicity, and num all/required inputs) of a list of 
- * routine versions based on the number of steps. 
- * Simplicity is a the minimum number of inputs and decisions required to complete the routine version, while 
- * complexity is the maximum. 
- * @param inputs The routine version's create or update input
- * @param disallowIds IDs of routine versions that are not allowed to be used. This is used to 
- * prevent multiple updates of the same version.
- * @returns Data used for recursion, as well as an array of weightData (in same order as inputs)
- */
-export async function calculateWeightData(
-    inputs: (RoutineVersionUpdateInput | RoutineVersionCreateInput)[],
-    disallowIds: string[],
-): Promise<CalculateComplexityResult> {
-    // Make sure inputs do not contain disallowed IDs
-    const inputIds = inputs.map(i => i.id);
-    if (inputIds.some(id => disallowIds.includes(id))) {
-        throw new CustomError("0370", "InvalidArgs");
-    }
-    // Initialize data used to calculate complexity/simplicity
-    const linkData: { [id: string]: LinkData } = {};
-    const nodeData: { [id: string]: { routineVersionId: string, subroutines: (SubroutineWeightData & { id: string })[] } } = {};
-    const subroutineItemData: { [id: string]: string } = {}; // Routine list item ID to subroutine ID
-    const optionalRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Excludes subroutine inputs
-    const allRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Includes subroutine inputs
-    // Initialize data used to query/recurse nested complexities/simplicities
-    const connectingSubroutineDataIds: { id: string, parentId: string | null }[] = []; // Subroutines that we need to query data for
-    const updatingSubroutineData: (RoutineVersionUpdateInput | RoutineVersionCreateInput)[] = []; // Subroutines that are being updated (we will recurse on these)
-    const updatingSubroutineIds: string[] = inputIds; // All recursed disallowIds, with the current inputs' IDs added
-    // Add existing links, nodes data, and subroutineItemData
-    const {
-        linkData: existingLinkData,
-        nodeData: existingNodeData,
-        subroutineItemData: existingSubroutineItemData,
-        optionalRoutineVersionInputCounts: existingOptionalRoutineVersionInputCounts,
-        allRoutineVersionInputCounts: existingAllRoutineVersionInputCounts,
-    } = await groupRoutineVersionData(inputs.map(i => ({ id: i.id, parentId: null })));
-    Object.assign(linkData, existingLinkData);
-    Object.assign(nodeData, existingNodeData);
-    Object.assign(subroutineItemData, existingSubroutineItemData);
-    Object.assign(optionalRoutineVersionInputCounts, existingOptionalRoutineVersionInputCounts);
-    Object.assign(allRoutineVersionInputCounts, existingAllRoutineVersionInputCounts);
-    // Add new/updated links and nodes data from inputs
-    for (const rVerCreateOrUpdate of inputs) {
-        // Adding links
-        for (const link of (rVerCreateOrUpdate as any).nodeLinksCreate ?? []) { //TODO
-            linkData[link.id] = {
-                fromId: link.fromConnect,
-                toId: link.toConnect,
-                routineVersionId: rVerCreateOrUpdate.id,
-            };
+    // Initialize result
+    const complexityById: Record<string, number> = {};
+
+    // Process inputs
+    for (const input of inputs) {
+        // Get the existing data
+        const existingData = resourceVersionsById.get(input.id);
+
+        // If the input is not a routine, return 0
+        const resourceSubType = input.resourceSubType ?? existingData?.resourceSubType;
+        if (!resourceSubType?.startsWith("Routine")) {
+            complexityById[input.id] = 0;
+            continue;
         }
-        // Updating links
-        const linksUpdate = (rVerCreateOrUpdate as any).nodeLinksUpdate ?? []; //TODO RoutineVersionUpdateInput
-        for (const link of linksUpdate) {
-            if (link.fromConnect) linkData[link.id].fromId = link.fromConnect;
-            if (link.toConnect) linkData[link.id].toId = link.toConnect;
-            linkData[link.id].routineVersionId = rVerCreateOrUpdate.id;
+        // If the input is not a multi-step routine, return 0
+        if (resourceSubType !== ResourceSubType.RoutineMultiStep) {
+            complexityById[input.id] = 0;
+            continue;
         }
-        // Removing links
-        const linksDelete = (rVerCreateOrUpdate as any).nodeLinksDelete ?? []; //TODO RoutineVersionUpdateInput
-        for (const linkId of linksDelete) {
-            delete linkData[linkId];
+
+        // If it doesn't exist (i.e. it's a new routine), sum all related versions that are routines
+        if (!existingData) {
+            // Find all related version in the resourceVersionsById map. Then filter out any that are not routines.
+            const relatedRoutineVersionsSum = input.relatedVersionsCreate?.map(rv => resourceVersionsById.get(rv.toVersionConnect))
+                .filter(rv => rv?.complexity !== null)
+                .map(rv => rv!.complexity)
+                .reduce((a, b) => a! + b!, 0);
+            complexityById[input.id] = relatedRoutineVersionsSum ?? 0;
         }
-        // Adding nodes
-        for (const node of (rVerCreateOrUpdate as any).nodesCreate ?? []) { //TODO
-            if (node.routineListCreate) {
-                // When adding nodes, subroutines can only be connected
-                const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => ({ id: item.routineVersionConnect, parentId: rVerCreateOrUpdate.id }));
-                connectingSubroutineDataIds.push(...subroutineIds);
-                nodeData[node.id] = {
-                    routineVersionId: rVerCreateOrUpdate.id,
-                    subroutines: subroutineIds.map(id => ({
-                        id: id.id,
-                        simplicity: 0,
-                        complexity: 0,
-                        optionalInputs: 0,
-                        allInputs: 0,
-                    })),
-                }; // Subroutine weight data added later
-            } else {
-                nodeData[node.id] = { routineVersionId: rVerCreateOrUpdate.id, subroutines: [] };
-            }
-        }
-        // Updating nodes
-        const nodesUpdate = (rVerCreateOrUpdate as any).nodesUpdate ?? []; //TODO RoutineVersionUpdateInput
-        for (const node of nodesUpdate) {
-            // Ignore if routine list is not being updated
-            if (!node.routineListUpdate) continue;
-            // Handle items being added. Only supports connecting existing subroutines
-            const itemsAdding = node.routineListUpdate.itemsCreate ?? [];
-            for (const item of itemsAdding) {
-                // Add to connecting subroutines so we can query data for them
-                connectingSubroutineDataIds.push({ id: item.routineVersionConnect, parentId: rVerCreateOrUpdate.id });
-            }
-            // Handle items being updated
-            const itemsUpdating = node.routineListUpdate.itemsUpdate ?? [];
-            for (const item of itemsUpdating) {
-                // Ignore if routine is not being updated
-                if (!item.routineVersionUpdate) continue;
-                // Add to list of subroutines being updated
-                updatingSubroutineData.push(item.routineVersionUpdate);
-            }
-            // Handle items being removed
-            const itemsRemoving = node.routineListUpdate.itemsDelete ?? [];
-            for (const itemId of itemsRemoving) {
-                // Find the subroutine being removed
-                const subroutineId = subroutineItemData[itemId];
-                // Remove subroutine from node
-                nodeData[node.id].subroutines = nodeData[node.id].subroutines.filter(subroutine => subroutine.id !== subroutineId);
-            }
-        }
-        // Removing nodes
-        const nodesDelete = (rVerCreateOrUpdate as any).nodesDelete ?? []; //TODO RoutineVersionUpdateInput
-        for (const nodeId of nodesDelete) {
-            delete nodeData[nodeId];
+        // If it does exist, do (existingComplexity + sum of new related routines - sum of deleted related routines)
+        else {
+            const relatedRoutineVersionsSum = input.relatedVersionsCreate?.map(rv => resourceVersionsById.get(rv.toVersionConnect))
+                .filter(rv => rv?.complexity !== null)
+                .map(rv => rv!.complexity)
+                .reduce((a, b) => a! + b!, 0);
+            complexityById[input.id] = (existingData.complexity ?? 0) + (relatedRoutineVersionsSum ?? 0) - (input.relatedVersionsDisconnect?.map(rv => resourceVersionsById.get(rv))
+                .filter(rv => rv?.complexity !== null)
+                .map(rv => rv!.complexity)
+                .reduce((a, b) => a! + b!, 0) ?? 0);
         }
     }
-    // Query for missing subroutine data
-    if (connectingSubroutineDataIds.length > 0) {
-        const {
-            linkData: connectingSubroutineLinkData,
-            nodeData: connectingSubroutineNodeData,
-            subroutineItemData: connectingSubroutineItemData,
-        } = await groupRoutineVersionData(connectingSubroutineDataIds);
-        updatingSubroutineIds.push(...connectingSubroutineDataIds.map(i => i.id));
-        Object.assign(linkData, connectingSubroutineLinkData);
-        Object.assign(nodeData, connectingSubroutineNodeData);
-        Object.assign(subroutineItemData, connectingSubroutineItemData);
-    }
-    // Recurse on subroutines being updated
-    if (updatingSubroutineData.length > 0) {
-        const {
-            updatingSubroutineIds: recursedUpdatingSubroutineIds,
-            dataWeights: recursedDataWeights,
-        } = await calculateWeightData(updatingSubroutineData, [...disallowIds, ...inputIds]);
-        updatingSubroutineIds.push(...recursedUpdatingSubroutineIds);
-        for (let i = 0; i < recursedDataWeights.length; i++) {
-            const currWeight = recursedDataWeights[i];
-            // Find nodes that contain the subroutine
-            const currNodes = Object.values(nodeData).filter(node => node.subroutines.some(subroutine => subroutine.id === updatingSubroutineData[i].id));
-            // Add or replace the weight data to each node's subroutines array
-            for (const node of currNodes) {
-                const subroutineIndex = node.subroutines.findIndex(subroutine => subroutine.id === updatingSubroutineData[i].id);
-                if (subroutineIndex === -1) {
-                    node.subroutines.push(currWeight);
-                } else {
-                    node.subroutines[subroutineIndex] = currWeight;
-                }
-            }
-        }
-    }
-    // Calculate weights for each main (i.e. not subroutines) routine version
-    // Map routineVersionId to nodes and links
-    const nodesByRVerId: { [routineVersionId: string]: { nodeId: string, subroutines: (SubroutineWeightData & { id: string })[] }[] } = {};
-    const linksByRVerId: { [routineVersionId: string]: LinkData[] } = {};
-    for (const nodeId in nodeData) {
-        const node = nodeData[nodeId];
-        if (!nodesByRVerId[node.routineVersionId]) nodesByRVerId[node.routineVersionId] = [];
-        nodesByRVerId[node.routineVersionId].push({ nodeId, subroutines: node.subroutines });
-    }
-    for (const linkId in linkData) {
-        const link = linkData[linkId];
-        if (!linksByRVerId[link.routineVersionId]) linksByRVerId[link.routineVersionId] = [];
-        linksByRVerId[link.routineVersionId].push(link);
-    }
-    // For each main (i.e. not subroutine) routine version, calculate the weights using its nodes and links
-    const dataWeights: (SubroutineWeightData & { id: string })[] = [];
-    for (const versionId in nodesByRVerId) {
-        const nodes = nodesByRVerId[versionId];
-        const links = linksByRVerId[versionId];
-        // Combine the weights of all subroutines in each node
-        const squishedNodes: { [nodeId: string]: SubroutineWeightData } = {};
-        for (const node of nodes) {
-            const squishedNode = node.subroutines.reduce((acc, { complexity, simplicity, optionalInputs, allInputs }) => {
-                return {
-                    complexity: acc.complexity + complexity,
-                    simplicity: acc.simplicity + simplicity,
-                    optionalInputs: acc.optionalInputs + optionalInputs,
-                    allInputs: acc.allInputs + allInputs,
-                };
-            }, { complexity: 0, simplicity: 0, optionalInputs: 0, allInputs: 0 });
-            squishedNodes[node.nodeId] = squishedNode;
-        }
-        // Calculate shortest and longest weighted paths
-        const [shortest, longest] = calculateShortestLongestWeightedPath(squishedNodes, links);
-        // Add with +1, so that nesting routines has a small (but not zero) factor in determining weight
-        dataWeights.push({
-            id: versionId,
-            complexity: longest + 1,
-            simplicity: shortest + 1,
-            // Use the inputs for the main routine version (i.e. ignore inputs for subroutines)
-            optionalInputs: optionalRoutineVersionInputCounts[versionId] ?? 0,
-            allInputs: allRoutineVersionInputCounts[versionId] ?? 0,
-        });
-    }
-    return { updatingSubroutineIds, dataWeights };
+
+    // Return the result
+    return complexityById;
 }

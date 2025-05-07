@@ -282,7 +282,6 @@ const mockRoutineVersionData: RoutineVersion = {
         views: Math.floor(Math.random() * 10000),
     },
     routineType: RoutineType.Standard,
-    simplicity: 3,
     subroutineLinks: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),

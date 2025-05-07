@@ -176,7 +176,7 @@
     "Unauthorized": "Unauthorized.",
     "UnauthorizedDetails": "You are not authorized to perform this action.",
     "UnlinkedNodes": "Failed to calculate routine shape.",
-    "UnlinkedNodesDetails": "Could not calculate the complexity or simplicity of this routine. There was an error matching edges to nodes.",
+    "UnlinkedNodesDetails": "Could not calculate the complexity of this routine. There was an error matching edges to nodes.",
     "UnsafeContent": "Unsafe content detected.",
     "UnsafeOrigin": "Unsafe origin",
     "UpdateNotSupported": "Cannot update this type of object",

@@ -286,7 +286,7 @@ function RoutineSingleStepTypeView({
 }
 
 const statsHelpText =
-    "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
+    "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\nThere will be many more statistics in the near future.";
 
 const excludedActionRowActions = [ObjectAction.Comment, ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
 const basicInfoStackStyle = {

@@ -668,7 +668,6 @@ CREATE TABLE "resource_version" (
     "resourceSubType" VARCHAR(32),
     "isAutomatable" BOOLEAN,
     "complexity" INTEGER,
-    "simplicity" INTEGER,
     "timesStarted" INTEGER NOT NULL DEFAULT 0,
     "timesCompleted" INTEGER NOT NULL DEFAULT 0,
 
@@ -834,7 +833,6 @@ CREATE TABLE "stats_site" (
     "resourcesCreatedByType" JSONB,
     "resourcesCompletedByType" JSONB,
     "resourceCompletionTimeAverageByType" JSONB,
-    "routineSimplicityAverage" DOUBLE PRECISION NOT NULL,
     "routineComplexityAverage" DOUBLE PRECISION NOT NULL,
     "runsStarted" INTEGER NOT NULL,
     "runsCompleted" INTEGER NOT NULL,

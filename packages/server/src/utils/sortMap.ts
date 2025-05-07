@@ -88,8 +88,6 @@ export const SortMap = {
     RunsDesc: { runs: { _count: Order.Desc } },
     ScoreAsc: { score: Order.Asc },
     ScoreDesc: { score: Order.Desc },
-    SimplicityAsc: { simplicity: Order.Asc },
-    SimplicityDesc: { simplicity: Order.Desc },
     StartTimeAsc: { startTime: Order.Asc },
     StartTimeDesc: { startTime: Order.Desc },
     StepsAsc: { steps: { _count: Order.Asc } },

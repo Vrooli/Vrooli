@@ -14,7 +14,6 @@ function createMockRoutineVersion(routineType: RoutineType): RoutineVersion {
         inputs: [],
         outputs: [],
         complexity: 1,
-        simplicity: 1,
         timesCompleted: 0,
         timesStarted: 0,
         nodeLinks: [],

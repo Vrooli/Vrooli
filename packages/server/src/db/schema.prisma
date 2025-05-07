@@ -878,7 +878,6 @@ model resource_version {
     resourceSubType String?  @db.VarChar(32)
     isAutomatable   Boolean? // For routines
     complexity      Int? // For routines & projects
-    simplicity      Int? // For routines & projects
 
     // Run fields
     timesStarted   Int        @default(0)
@@ -1102,7 +1101,6 @@ model stats_site {
     resourcesCompletedByType            Json?
     resourceCompletionTimeAverageByType Json? // { "ROUTINE": 120.5, "CODE": 60.2 }
 
-    routineSimplicityAverage  Float
     routineComplexityAverage  Float
     runsStarted               Int
     runsCompleted             Int
