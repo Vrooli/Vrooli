@@ -12,18 +12,12 @@ export enum McpToolName {
     DefineTool = "define_tool",
     /** Sends a message to a new or existing chat. Doubles as event bus for agents to react to events. */
     SendMessage = "send_message",
+    /** CRUD for *any* resource */
+    ResourceManage = "resource_manage",
     /** Run a routine (dynamic tool) inline (synchronous, no run object created) or as a job (asynchronous, run object created) */
     RunRoutine = "run_routine",
     /** Starts a session with a bot or team of bots */
     StartSession = "start_session",
-    /** Find notes, reminders, routines, users, etc. */
-    FindResources = "find_resources",
-    /** Create a note, reminder, routine, user, etc. */
-    AddResource = "add_resource",
-    /** Update a note, reminder, routine, user, etc. */
-    UpdateResource = "update_resource",
-    /** Delete a note, reminder, routine, user, etc. */
-    DeleteResource = "delete_resource",
 }
 
 /**
@@ -72,22 +66,21 @@ const resourceTypes = [
     [ResourceSubType.StandardPrompt, "AI prompt"],
     [ResourceSubType.StandardDataStructure, "Data structure"],
     // Organization
-    [ResourceType.Project],
+    [ResourceType.Project, "Group resources together"],
     // Other resources
-    [ResourceType.Note],
+    [ResourceType.Note, "Store short memos/thoughts/etc."],
     ["ExternalData", "KV bucket, table, S3 object, vector index, etc."]
 ]
 
 /**
  * Parameters for defining how to use a tool.
- * 
- * Useful for tools like AddResource, which can have multiple variants 
- * whose parameters are complex and would not be useful to provide until 
- * the user decided to add a resource od the given type.
  */
 export interface DefineToolParams {
-    toolName: McpToolName.AddResource | McpToolName.FindResources | McpToolName.UpdateResource;
-    variant?: string;
+    toolName: McpToolName.ResourceManage;
+    /** Resource subtype (e.g. "Note", "RoutineApi") */
+    variant: string;
+    /** Which CRUD op's parameter schema? */
+    op: "add" | "find" | "update" | "delete";
 }
 
 /**
@@ -107,17 +100,15 @@ export interface SendMessageParams {
 }
 
 /**
- * Parameters for finding resources (notes or routines).
+ * Parameters for managing a resource.
  */
-export interface FindResourcesParams {
-    /** Optional resource ID to fetch */
-    id?: string;
-    /** Optional search query to match resource names or content */
-    query?: string;
-    /** Type of resource: e.g. "Note" or "Routine" */
+export interface ResourceManageParams {
+    op: "add" | "find" | "update" | "delete";
+    id?: string; // required when op in update|delete
+    query?: string; // used when op=find
     resource_type: string;
-    /** Optional resource-specific filter parameters. Use DefineTool for schema. */
-    filters?: Record<string, any>;
+    attributes?: Record<string, any>; // add/update payload
+    filters?: Record<string, any>; // find filters
 }
 
 /**
@@ -151,35 +142,28 @@ export interface RunRoutineParams {
 }
 
 /**
- * Parameters for adding or updating a resource.
+ * Parameters for starting a session.
  */
-export interface AddResourceParams {
-    /** The type of resource to add */
-    resource_type: string;
-    /** Resource-specific attributes */
-    attributes: Record<string, any>;
-}
-
-/**
- * Parameters for updating a resource.
- */
-export interface UpdateResourceParams {
-    /** The public ID of the resource to update. */
-    id: string;
-    /** The type of resource being updated. This helps in applying the correct schema for attributes. */
-    resource_type: string;
-    /** Resource-specific attributes to update. Only provided fields will be updated. */
-    attributes: Record<string, any>;
-}
-
-/**
- * Parameters for deleting a resource.
- */
-export interface DeleteResourceParams {
-    /** The public ID of the resource to delete. */
-    id: string;
-    /** The type of resource to delete. */
-    resource_type: string;
+export interface StartSessionParams {
+    /** Either explicit bot IDs or a single team ID (one must be provided) */
+    bot_ids?: string[];
+    team_id?: string;
+    /** High‑level goal / intent for this session */
+    purpose?: string;
+    /** Arbitrary initial context shared with participants */
+    context?: string | JSONValue;
+    /** Governance or ACL settings */
+    policy?: {
+        type?: "open" | "restricted" | "private";
+        acl?: string[]; // allowed agent IDs
+    };
+    /** Usage caps & auto‑expiry */
+    limits?: {
+        max_messages?: number;
+        max_duration_minutes?: number;
+        max_credits?: number;
+        expires_at?: string; // ISO‑8601 timestamp
+    };
 }
 
 // Create a structure for JSON Schema oneOf with descriptions
@@ -191,30 +175,33 @@ const resourceVariantSchemaItems = resourceTypes.map(item => ({
 /**
  * How the user of the MCP sees what tools are available, what they do, and how to use them.
  */
-const toolDefinitions: Map<McpToolName, Tool> = new Map([
+const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
     [McpToolName.DefineTool, {
         name: McpToolName.DefineTool,
-        description: "Get the detailed input schema for adding, updating, or finding a specific type of resource variant.",
+        description: "Return the detailed input schema for ResourceManage given a resource variant *and* CRUD op.",
         inputSchema: {
             type: "object",
             properties: {
                 toolName: {
                     type: "string",
-                    description: "The core tool (AddResource, UpdateResource, FindResources) for which to get a detailed schema.",
-                    enum: [McpToolName.FindResources, McpToolName.AddResource, McpToolName.UpdateResource],
+                    enum: [McpToolName.ResourceManage],
                 },
                 variant: {
                     type: "string",
-                    description: "The specific type/variant of resource (e.g., Note, RoutineInternalAction, RoutineApi).",
                     oneOf: resourceVariantSchemaItems,
                 },
+                op: {
+                    type: "string",
+                    enum: ["add", "find", "update", "delete"],
+                },
             },
-            required: ["toolName", "variant"],
+            required: ["toolName", "variant", "op"],
+            additionalProperties: false,
         },
         annotations: {
             title: "Define Tool Parameters",
-            readOnlyHint: true, // Does not modify state
-            openWorldHint: false, // Does not interact with the real world
+            readOnlyHint: true,
+            openWorldHint: false,
         },
     }],
     [McpToolName.SendMessage, {
@@ -237,39 +224,111 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
             openWorldHint: false, // Does not interact with the real world
         },
     }],
+    [McpToolName.ResourceManage, {
+        name: McpToolName.ResourceManage,
+        description: "Find, add, update or delete a resource depending on 'op'.",
+        inputSchema: {
+            oneOf: [
+                {
+                    title: "Find Resource",
+                    type: "object",
+                    properties: {
+                        op: { const: "find" },
+                        resource_type: { type: "string", oneOf: resourceVariantSchemaItems },
+                        id: { type: "string" },
+                        query: { type: "string" },
+                        filters: { type: "object", additionalProperties: true },
+                    },
+                    required: ["op", "resource_type"],
+                    additionalProperties: false,
+                },
+                {
+                    title: "Add Resource",
+                    type: "object",
+                    properties: {
+                        op: { const: "add" },
+                        resource_type: { type: "string", oneOf: resourceVariantSchemaItems },
+                        attributes: { type: "object", additionalProperties: true },
+                    },
+                    required: ["op", "resource_type", "attributes"],
+                    additionalProperties: false,
+                },
+                {
+                    title: "Update Resource",
+                    type: "object",
+                    properties: {
+                        op: { const: "update" },
+                        resource_type: { type: "string", oneOf: resourceVariantSchemaItems },
+                        id: { type: "string" },
+                        attributes: { type: "object", additionalProperties: true, minProperties: 1 },
+                    },
+                    required: ["op", "resource_type", "id", "attributes"],
+                    additionalProperties: false,
+                },
+                {
+                    title: "Delete Resource",
+                    type: "object",
+                    properties: {
+                        op: { const: "delete" },
+                        resource_type: { type: "string", oneOf: resourceVariantSchemaItems },
+                        id: { type: "string" },
+                    },
+                    required: ["op", "resource_type", "id"],
+                    additionalProperties: false,
+                }
+            ]
+        },
+        annotations: {
+            title: "Resource Manage",
+            readOnlyHint: false,
+            openWorldHint: false,
+        },
+    }],
     [McpToolName.RunRoutine, {
         name: McpToolName.RunRoutine,
         description: "Start or manage a routine run. Supports scheduling when mode = async & op = start.",
         inputSchema: {
-            type: "object",
-            properties: {
-                op: { type: "string", enum: ["start", "pause", "resume", "cancel", "status"], default: "start" },
-                run_id: { type: "string", description: "Existing run identifier (required for non-start ops)." },
-                routine_id: { type: "string", description: "Routine resource id (required when op = start)." },
-                mode: { type: "string", enum: ["sync", "async"], default: "sync" },
-                schedule: {
+            oneOf: [
+                {
+                    title: "Start Routine Run",
                     type: "object",
-                    description: "When mode=async & op=start: ISO date or cron pattern.",
                     properties: {
-                        at: { type: "string", format: "date-time" },
-                        cron: { type: "string" },
-                        timezone: { type: "string" }
+                        op: { const: "start" },
+                        routine_id: { type: "string" },
+                        mode: { type: "string", enum: ["sync", "async"], default: "sync" },
+                        schedule: {
+                            type: "object",
+                            properties: {
+                                at: { type: "string", format: "date-time" },
+                                cron: { type: "string" },
+                                timezone: { type: "string" },
+                            },
+                            additionalProperties: false,
+                        },
+                        time_sensitive: { type: "boolean", default: false },
+                        bot_config: {
+                            type: "object",
+                            properties: {
+                                starting_prompt: { type: "string" },
+                                responding_bot_id: { type: "string" },
+                            },
+                            additionalProperties: false,
+                        },
                     },
-                    additionalProperties: false
+                    required: ["op", "routine_id"],
+                    additionalProperties: false,
                 },
-                time_sensitive: { type: "boolean", default: false },
-                bot_config: {
+                {
+                    title: "Manage Existing Run",
                     type: "object",
                     properties: {
-                        starting_prompt: { type: "string" },
-                        responding_bot_id: { type: "string" }
+                        op: { type: "string", enum: ["pause", "resume", "cancel", "status"] },
+                        run_id: { type: "string" },
                     },
-                    additionalProperties: false
+                    required: ["op", "run_id"],
+                    additionalProperties: false,
                 }
-            },
-            // Validation rule (enforced in handler):
-            //   – if op === "start"  ⇒ routine_id required
-            //   – else                ⇒ run_id required
+            ]
         },
         annotations: {
             title: "Run Routine",
@@ -277,129 +336,264 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
             openWorldHint: true, // May interact with the real world
         },
     }],
-    [McpToolName.FindResources, {
-        name: McpToolName.FindResources,
-        description: "Find or search for resources by ID, query, and type.",
+    [McpToolName.StartSession, {
+        name: McpToolName.StartSession,
+        description: "Create a new session with selected bots or an existing team. Supports governance policy & usage limits.",
         inputSchema: {
             type: "object",
             properties: {
-                id: {
-                    type: "string",
-                    description: "The public ID of the resource to fetch, if not using a name.",
+                bot_ids: {
+                    type: "array",
+                    items: { type: "string" },
+                    minItems: 1,
+                    description: "Explicit list of bot IDs to include",
                 },
-                query: {
-                    type: "string",
-                    description: "The name or search query to find resources by, if not using an ID.",
-                },
-                resource_type: {
-                    type: "string",
-                    description: "The type of resource to fetch.",
-                    oneOf: resourceVariantSchemaItems,
-                },
-                filters: {
+                team_id: { type: "string", description: "Team ID (exclusive with bot_ids)" },
+                purpose: { type: "string", description: "High‑level goal for this session" },
+                context: { oneOf: [{ type: "string" }, { type: "object" }], description: "Initial shared context" },
+                policy: {
                     type: "object",
-                    description: "Optional resource-specific filter parameters. Use the 'DefineTool' with toolName 'FindResources' and the desired 'variant' to get the specific schema for these filters.",
-                    additionalProperties: true,
+                    description: "Governance/ACL rules",
+                    properties: {
+                        type: { type: "string", enum: ["open", "restricted", "private"] },
+                        acl: {
+                            type: "array",
+                            items: { type: "string" },
+                            description: "Allowed agent IDs when type=restricted/private",
+                        },
+                    },
+                    additionalProperties: false,
                 },
-            },
-            required: ["resource_type"],
-        },
-        annotations: {
-            title: "Find Resource",
-            readOnlyHint: true, // Does not modify state
-            openWorldHint: false, // Does not interact with the real world
-        },
-    }],
-    [McpToolName.AddResource, {
-        name: McpToolName.AddResource,
-        description: "Add a new resource. Use the 'DefineTool' with toolName 'AddResource' and the desired 'variant' to get the specific schema for the 'attributes' object based on the resource type.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                resource_type: {
-                    type: "string",
-                    description: "The type of resource to add (e.g., Note, RoutineInternalAction). This determines the expected structure of the 'attributes' object.",
-                    oneOf: resourceVariantSchemaItems,
-                },
-                attributes: {
+                limits: {
                     type: "object",
-                    description: "Resource-specific attributes. The exact schema for this object depends on the 'resource_type'. Use 'DefineTool' to get this schema.",
-                    additionalProperties: true, // Allows any properties; DefineTool will provide the specific schema.
+                    properties: {
+                        max_messages: { type: "integer", minimum: 1 },
+                        max_duration_minutes: { type: "integer", minimum: 1 },
+                        max_credits: { type: "integer", minimum: 1 },
+                        expires_at: { type: "string", format: "date-time" },
+                    },
+                    additionalProperties: false,
                 },
             },
-            required: ["resource_type", "attributes"],
+            oneOf: [
+                { required: ["bot_ids"] },
+                { required: ["team_id"] },
+            ],
+            additionalProperties: false,
         },
         annotations: {
-            title: "Add Resource",
+            title: "Start Session",
             readOnlyHint: false, // Modifies state
-            openWorldHint: false, // Does not interact with the real world
+            openWorldHint: true // Interacts with the real world
         },
     }],
-    [McpToolName.UpdateResource, {
-        name: McpToolName.UpdateResource,
-        description: "Update an existing resource. Use the 'DefineTool' with toolName 'UpdateResource' and the desired 'variant' to get the specific schema for the 'attributes' object based on the resource type. Only provided attributes will be updated.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                id: {
-                    type: "string",
-                    description: "The public ID of the resource to update.",
-                },
-                resource_type: {
-                    type: "string",
-                    description: "The type of resource being updated (e.g., Note, RoutineInternalAction). This determines the expected structure of the 'attributes' object for the update.",
-                    oneOf: resourceVariantSchemaItems, // Ensures it's one of the known types
-                },
-                attributes: {
-                    type: "object",
-                    description: "Resource-specific attributes to update. The exact schema for this object (and which fields are updatable) depends on the 'resource_type'. Use 'DefineTool' to get this schema. Only fields present in this object will be considered for update.",
-                    additionalProperties: true, // Allows any properties; DefineTool will provide the specific schema.
-                    minProperties: 1, // Expect at least one attribute to update
-                },
+]);
+
+export interface CheckSessionParams {
+    // No parameters
+}
+
+/**
+ * Parameters for mutating an existing session’s metadata, lifecycle, or routing.
+ */
+export interface UpdateSessionParams {
+    /** Session being updated. */
+    session_id: string;
+
+    /* ---------- high-level metadata ---------- */
+
+    /** Change the human-readable goal / purpose. */
+    purpose?: string;
+
+    /** Replace or extend the shared context blob. */
+    context?: string | JSONValue;
+
+    /** Patch governance rules (same shape as in `StartSessionParams`). */
+    policy?: {
+        type?: "open" | "restricted" | "private";
+        acl?: string[];          // full replacement of the ACL list
+    };
+
+    /** Adjust caps or expiry. Any field omitted leaves the old value intact. */
+    limits?: {
+        max_messages?: number;
+        max_duration_minutes?: number;
+        max_credits?: number;
+        expires_at?: string;     // ISO-8601 instant
+    };
+
+    /* ---------- event-routing table ---------- */
+
+    /** Add / replace routes that forward session events to teammates. */
+    event_routes?: {
+        /** Topic pattern (literal or glob, e.g. `"build/*"` or `"sensor/#"`). */
+        topic: string;
+        /** Who should receive matching events. */
+        recipients: "all" | string[];
+        /** Delivery style. `"buffer"` queues until the bot’s next turn. */
+        mode?: "push" | "buffer" | "ignore";
+        /** Auto-expire after N seconds. 0 or undefined = no TTL. */
+        ttl_seconds?: number;
+    }[];
+
+    /** IDs (or `"*"` wildcard) of previously created routes to delete. */
+    remove_routes?: string[];
+
+    /* ---------- lifecycle state ---------- */
+
+    /** Soft transition of the session’s state. */
+    state?: "active" | "paused" | "ended";
+    /** Reason for the state change; recorded in the audit log. */
+    state_reason?: string;
+}
+
+/**
+ * Parameters for gracefully or force-ending a session.
+ */
+export interface EndSessionParams {
+    /**
+     * How to end the session:
+     *  • "graceful" (default) – allow bots to finish their current turn  
+     *  • "force"             – cancel immediately, may interrupt routines
+     */
+    mode?: "graceful" | "force";
+    /** Reason for ending; sent to participants & saved to the audit trail. */
+    reason?: string;
+    /**
+     * When true (default) the server archives chat history & artifacts.
+     * When false transient data may be discarded permanently.
+     */
+    archive?: boolean;
+}
+
+export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
+    [
+        McpSessionToolName.CheckSession,
+        {
+            name: McpSessionToolName.CheckSession,
+            description: "Return the current metadata, limits, routing rules, and lifecycle state for this session.",
+            inputSchema: {
+                type: "object",
+                properties: {},
+                required: [],
             },
-            required: ["id", "resource_type", "attributes"],
-        },
-        annotations: {
-            title: "Update Resource",
-            readOnlyHint: false, // Modifies state
-            openWorldHint: false, // Does not interact with the real world
-        },
-    }],
-    [McpToolName.DeleteResource, {
-        name: McpToolName.DeleteResource,
-        description: "Delete a resource by its public ID and type.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                id: {
-                    type: "string",
-                    description: "The public ID of the resource to delete.",
+            annotations: {
+                title: "Check Session",
+                readOnlyHint: true,                 // pure read
+                openWorldHint: false
+            }
+        }
+    ],
+    [
+        McpSessionToolName.UpdateSession,
+        {
+            name: McpSessionToolName.UpdateSession,
+            description: "Mutate session metadata, limits, event-routing rules, lifecycle state, or append to the log.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    session_id: { type: "string" },
+
+                    /* metadata ------------------------------------------------------ */
+                    purpose: { type: "string" },
+                    context: {
+                        oneOf: [
+                            { type: "string" },
+                            { type: "object", additionalProperties: true }
+                        ]
+                    },
+                    policy: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", enum: ["open", "restricted", "private"] },
+                            acl: {
+                                type: "array",
+                                items: { type: "string" }
+                            }
+                        },
+                        additionalProperties: false
+                    },
+                    limits: {
+                        type: "object",
+                        properties: {
+                            max_messages: { type: "integer", minimum: 1 },
+                            max_duration_minutes: { type: "integer", minimum: 1 },
+                            max_credits: { type: "integer", minimum: 1 },
+                            expires_at: { type: "string", format: "date-time" }
+                        },
+                        additionalProperties: false
+                    },
+
+                    /* event routing -------------------------------------------------- */
+                    event_routes: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                topic: { type: "string" },
+                                recipients: {
+                                    oneOf: [
+                                        { const: "all" },
+                                        {
+                                            type: "array",
+                                            items: { type: "string" },
+                                            minItems: 1
+                                        }
+                                    ]
+                                },
+                                mode: { type: "string", enum: ["push", "buffer", "ignore"] },
+                                ttl_seconds: { type: "integer", minimum: 0 }
+                            },
+                            required: ["topic", "recipients"],
+                            additionalProperties: false
+                        }
+                    },
+                    remove_routes: {
+                        type: "array",
+                        items: { type: "string" }
+                    },
+
+                    /* lifecycle ------------------------------------------------------ */
+                    state: { type: "string", enum: ["active", "paused", "ended"] },
+                    state_reason: { type: "string" },
                 },
-                resource_type: {
-                    type: "string",
-                    description: "The type of the resource to delete (e.g., Note, RoutineInternalAction). This helps ensure the correct resource is targeted.",
-                    oneOf: resourceVariantSchemaItems, // Ensures it's one of the known types
-                },
+                required: ["session_id"],
+                additionalProperties: false
             },
-            required: ["id", "resource_type"],
-        },
-        annotations: {
-            title: "Delete Resource",
-            readOnlyHint: false, // Modifies state
-            openWorldHint: false, // Does not interact with the real world
-        },
-    }],
+            annotations: {
+                title: "Update Session",
+                readOnlyHint: false,                // mutates state
+                openWorldHint: false
+            }
+        }
+    ],
+    [
+        McpSessionToolName.EndSession,
+        {
+            name: McpSessionToolName.EndSession,
+            description: "Gracefully or forcibly terminate a session and (optionally) archive its artifacts.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    mode: { type: "string", enum: ["graceful", "force"], default: "graceful" },
+                    reason: { type: "string" },
+                    archive: { type: "boolean", default: true }
+                },
+                required: [],
+                additionalProperties: false
+            },
+            annotations: {
+                title: "End Session",
+                readOnlyHint: false,
+                openWorldHint: false
+            }
+        }
+    ]
 ]);
 
 /**
  * ---------------------------------------------------------------------------
  *  TOOL REGISTRY – *single source of truth* for the MCP root‑level interface
- * ---------------------------------------------------------------------------
- * ▪   Follows the “micro‑kernel” philosophy:
- *     – minimal verb set (communicate · discover/CRUD · act · introspect)
- *     – all long‑running work handled via a uniform Run lifecycle
- * ▪   Adds basic *scheduling* for asynchronous runs (ISO timestamp or cron)
- * ▪   Message verb doubles as a lightweight pub‑sub / event bus
  * ---------------------------------------------------------------------------
  */
 export class ToolRegistry {
@@ -437,7 +631,7 @@ export class ToolRegistry {
      * @returns Array of built-in tool definitions
      */
     getBuiltInDefinitions(): Tool[] {
-        return Array.from(toolDefinitions.values());
+        return Array.from(builtInToolDefinitions.values());
     }
 
     /**
