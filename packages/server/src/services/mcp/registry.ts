@@ -2,6 +2,7 @@ import { ModelType, ResourceSubType, ResourceType } from "@local/shared";
 import { Logger, Tool, ToolResponse } from "./types.js";
 
 type ToolHandler = (args: any, logger: Logger) => Promise<ToolResponse>;
+type JSONValue = null | boolean | number | string | JSONValue[] | { [key: string]: JSONValue };
 
 /**
  * Available root-level tools, ordered by (likely) frequency of use.
@@ -9,10 +10,14 @@ type ToolHandler = (args: any, logger: Logger) => Promise<ToolResponse>;
 export enum McpToolName {
     /** Get detailed parameters for other tools based on a variant */
     DefineTool = "define_tool",
+    /** Sends a message to a new or existing chat. Doubles as event bus for agents to react to events. */
+    SendMessage = "send_message",
+    /** Run a routine (dynamic tool) inline (synchronous, no run object created) or as a job (asynchronous, run object created) */
+    RunRoutine = "run_routine",
+    /** Starts a session with a bot or team of bots */
+    StartSession = "start_session",
     /** Find notes, reminders, routines, users, etc. */
     FindResources = "find_resources",
-    /** Run a routine (dynamic tool) */
-    RunRoutine = "run_routine",
     /** Create a note, reminder, routine, user, etc. */
     AddResource = "add_resource",
     /** Update a note, reminder, routine, user, etc. */
@@ -22,7 +27,22 @@ export enum McpToolName {
 }
 
 /**
+ * Available session-level tools, ordered by (likely) frequency of use.
+ */
+export enum McpSessionToolName {
+    /** Check session infomration/status/policy */
+    CheckSession = "check_session",
+    /** Update session status/logs */
+    UpdateSession = "update_session",
+    /** End the session */
+    EndSession = "end_session",
+}
+
+/**
  * Available routine-level tools, ordered by (likely) frequency of use.
+ * 
+ * These are only available when the MCP server is set up for a specific routine, 
+ * rather than the site as a whole
  */
 export enum McpRoutineToolName {
     /** Start a routine */
@@ -37,7 +57,7 @@ export enum McpRoutineToolName {
 const resourceTypes = [
     // Workflows
     [ResourceSubType.RoutineMultiStep, "A graph or sequence of routines"],
-    [ResourceSubType.RoutineAction, "Perform an action within Vrooli (e.g. 'create a new note')"],
+    [ResourceSubType.RoutineInternalAction, "Perform an action within Vrooli (e.g. 'create a new note')"],
     [ResourceSubType.RoutineApi, "Call an API"],
     [ResourceSubType.RoutineCode, "Run data conversion code"],
     [ResourceSubType.RoutineData, "Data (for passing into other routines)"],
@@ -55,9 +75,7 @@ const resourceTypes = [
     [ResourceType.Project],
     // Other resources
     [ResourceType.Note],
-    [ResourceSubType.CodeDataConverter, "Sandboxed JavaScript code for simple data conversions"],
-    [ResourceSubType.CodeSmartContract, "Smart contract"],
-    [ResourceType.Api],
+    ["ExternalData", "KV bucket, table, S3 object, vector index, etc."]
 ]
 
 /**
@@ -73,6 +91,22 @@ export interface DefineToolParams {
 }
 
 /**
+ * Parameters for sending a message or broadcasting an event.
+ */
+export interface SendMessageParams {
+    /** Recipient – single agent / team / chat thread or the literal string "broadcast" */
+    to: string;
+    /** Mode of the message (defaults to "chat") */
+    type?: "chat" | "event";
+    /** Optional topic / routing key for pub‑sub style delivery */
+    topic?: string;
+    /** Free‑form payload – plain text or structured JSON */
+    content: string | JSONValue;
+    /** Additional opaque metadata */
+    metadata?: Record<string, JSONValue>;
+}
+
+/**
  * Parameters for finding resources (notes or routines).
  */
 export interface FindResourcesParams {
@@ -84,6 +118,36 @@ export interface FindResourcesParams {
     resource_type: string;
     /** Optional resource-specific filter parameters. Use DefineTool for schema. */
     filters?: Record<string, any>;
+}
+
+/**
+ * Parameters for running a routine.
+ */
+export interface RunRoutineParams {
+    /** start | pause | resume | cancel | status (default: start) */
+    op?: "start" | "pause" | "resume" | "cancel" | "status";
+    /** Existing run identifier (required for non‑start ops) */
+    run_id?: string;
+    /** Routine to execute when op === "start" */
+    routine_id?: string;
+    /** sync (blocking) | async (background) – default is sync */
+    mode?: "sync" | "async";
+    /** ISO‑8601 timestamp OR cron expression (when mode === "async") */
+    schedule?: {
+        /** RFC 3339 instant, e.g. "2025-05-09T14:30:00Z" */
+        at?: string;
+        /** Cron pattern interpreted with server TZ unless timezone is given */
+        cron?: string;
+        /** Optional IANA TZ, e.g. "America/New_York" */
+        timezone?: string;
+    };
+    /** Mark run as time‑critical (may influence queue priority) */
+    time_sensitive?: boolean;
+    /** Fine‑tune the executing bot */
+    bot_config?: {
+        starting_prompt?: string;
+        responding_bot_id?: string;
+    };
 }
 
 /**
@@ -118,25 +182,6 @@ export interface DeleteResourceParams {
     resource_type: string;
 }
 
-/**
- * Parameters for running a routine.
- */
-export interface RunRoutineParams {
-    /** The ID of an existing run to resume. If provided, 'routine_id' should usually not be set. */
-    run_id?: string;
-    /** The resource ID of the routine to start for a new run. If provided, 'run_id' should usually not be set. */
-    routine_id?: string;
-    /** Indicates if the run is time-sensitive. Defaults to false. */
-    time_sensitive?: boolean;
-    /** Optional configuration for the bot executing the routine. */
-    bot_config?: {
-        /** An optional initial prompt for the bot. */
-        starting_prompt?: string;
-        /** The ID of a specific bot to respond/execute. */
-        responding_bot_id?: string;
-    };
-}
-
 // Create a structure for JSON Schema oneOf with descriptions
 const resourceVariantSchemaItems = resourceTypes.map(item => ({
     const: String(item[0]),
@@ -160,7 +205,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
                 },
                 variant: {
                     type: "string",
-                    description: "The specific type/variant of resource (e.g., Note, RoutineAction, Api).",
+                    description: "The specific type/variant of resource (e.g., Note, RoutineInternalAction, RoutineApi).",
                     oneOf: resourceVariantSchemaItems,
                 },
             },
@@ -170,6 +215,66 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
             title: "Define Tool Parameters",
             readOnlyHint: true, // Does not modify state
             openWorldHint: false, // Does not interact with the real world
+        },
+    }],
+    [McpToolName.SendMessage, {
+        name: McpToolName.SendMessage,
+        description: "Send a chat message or publish an event for agents to react to.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                to: { type: "string", description: "Recipient agent/team/thread or 'broadcast'." },
+                type: { type: "string", enum: ["chat", "event"], default: "chat" },
+                topic: { type: "string", description: "Topic / routing key (for events)." },
+                content: { oneOf: [{ type: "string" }, { type: "object" }], description: "Text or structured payload." },
+                metadata: { type: "object", additionalProperties: true, description: "Opaque extra data." }
+            },
+            required: ["to", "content"]
+        },
+        annotations: {
+            title: "Send Message",
+            readOnlyHint: false, // Modifies state
+            openWorldHint: false, // Does not interact with the real world
+        },
+    }],
+    [McpToolName.RunRoutine, {
+        name: McpToolName.RunRoutine,
+        description: "Start or manage a routine run. Supports scheduling when mode = async & op = start.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                op: { type: "string", enum: ["start", "pause", "resume", "cancel", "status"], default: "start" },
+                run_id: { type: "string", description: "Existing run identifier (required for non-start ops)." },
+                routine_id: { type: "string", description: "Routine resource id (required when op = start)." },
+                mode: { type: "string", enum: ["sync", "async"], default: "sync" },
+                schedule: {
+                    type: "object",
+                    description: "When mode=async & op=start: ISO date or cron pattern.",
+                    properties: {
+                        at: { type: "string", format: "date-time" },
+                        cron: { type: "string" },
+                        timezone: { type: "string" }
+                    },
+                    additionalProperties: false
+                },
+                time_sensitive: { type: "boolean", default: false },
+                bot_config: {
+                    type: "object",
+                    properties: {
+                        starting_prompt: { type: "string" },
+                        responding_bot_id: { type: "string" }
+                    },
+                    additionalProperties: false
+                }
+            },
+            // Validation rule (enforced in handler):
+            //   – if op === "start"  ⇒ routine_id required
+            //   – else                ⇒ run_id required
+        },
+        annotations: {
+            title: "Run Routine",
+            readOnlyHint: false, // Modifies state
+            openWorldHint: true, // May interact with the real world
         },
     }],
     [McpToolName.FindResources, {
@@ -205,51 +310,6 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
             openWorldHint: false, // Does not interact with the real world
         },
     }],
-    [McpToolName.RunRoutine, {
-        name: McpToolName.RunRoutine,
-        description: "Starts a new routine run or resumes an existing one.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                run_id: {
-                    type: "string",
-                    description: "The ID of an existing run to resume. If provided, 'routine_id' should usually not be set.",
-                },
-                routine_id: {
-                    type: "string",
-                    description: "The resource ID of the routine to start for a new run. If provided, 'run_id' should usually not be set.",
-                },
-                time_sensitive: {
-                    type: "boolean",
-                    description: "Indicates if the run is time-sensitive. Defaults to false.",
-                    default: false,
-                },
-                bot_config: {
-                    type: "object",
-                    description: "Optional configuration for the bot executing the routine.",
-                    properties: {
-                        starting_prompt: {
-                            type: "string",
-                            description: "An optional initial prompt for the bot.",
-                        },
-                        responding_bot_id: {
-                            type: "string",
-                            description: "The ID of a specific bot to respond/execute.",
-                        },
-                    },
-                    additionalProperties: false,
-                },
-            },
-            // 'required' could be dynamic based on whether run_id or routine_id is provided.
-            // For now, the handler will need to validate that at least one is present.
-            // Example: required: ["routine_id"] if it's always new, or handle complex logic in the tool handler.
-        },
-        annotations: {
-            title: "Run Routine",
-            readOnlyHint: false, // Modifies state
-            openWorldHint: true, // May interact with the real world
-        },
-    }],
     [McpToolName.AddResource, {
         name: McpToolName.AddResource,
         description: "Add a new resource. Use the 'DefineTool' with toolName 'AddResource' and the desired 'variant' to get the specific schema for the 'attributes' object based on the resource type.",
@@ -258,7 +318,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
             properties: {
                 resource_type: {
                     type: "string",
-                    description: "The type of resource to add (e.g., Note, RoutineAction). This determines the expected structure of the 'attributes' object.",
+                    description: "The type of resource to add (e.g., Note, RoutineInternalAction). This determines the expected structure of the 'attributes' object.",
                     oneOf: resourceVariantSchemaItems,
                 },
                 attributes: {
@@ -287,7 +347,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
                 },
                 resource_type: {
                     type: "string",
-                    description: "The type of resource being updated (e.g., Note, RoutineAction). This determines the expected structure of the 'attributes' object for the update.",
+                    description: "The type of resource being updated (e.g., Note, RoutineInternalAction). This determines the expected structure of the 'attributes' object for the update.",
                     oneOf: resourceVariantSchemaItems, // Ensures it's one of the known types
                 },
                 attributes: {
@@ -317,7 +377,7 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
                 },
                 resource_type: {
                     type: "string",
-                    description: "The type of the resource to delete (e.g., Note, RoutineAction). This helps ensure the correct resource is targeted.",
+                    description: "The type of the resource to delete (e.g., Note, RoutineInternalAction). This helps ensure the correct resource is targeted.",
                     oneOf: resourceVariantSchemaItems, // Ensures it's one of the known types
                 },
             },
@@ -332,7 +392,15 @@ const toolDefinitions: Map<McpToolName, Tool> = new Map([
 ]);
 
 /**
- * Registry for managing MCP tools.
+ * ---------------------------------------------------------------------------
+ *  TOOL REGISTRY – *single source of truth* for the MCP root‑level interface
+ * ---------------------------------------------------------------------------
+ * ▪   Follows the “micro‑kernel” philosophy:
+ *     – minimal verb set (communicate · discover/CRUD · act · introspect)
+ *     – all long‑running work handled via a uniform Run lifecycle
+ * ▪   Adds basic *scheduling* for asynchronous runs (ISO timestamp or cron)
+ * ▪   Message verb doubles as a lightweight pub‑sub / event bus
+ * ---------------------------------------------------------------------------
  */
 export class ToolRegistry {
     private toolbox: Map<McpToolName, ToolHandler> = new Map();
