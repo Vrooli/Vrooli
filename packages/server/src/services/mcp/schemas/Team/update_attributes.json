@@ -1,0 +1,145 @@
+{
+  "description": "Attributes for updating a 'Team' resource via MCP.\nAll properties are optional for an update.",
+  "title": "MCP Team Update Attributes",
+  "type": "object",
+  "properties": {
+    "isPrivate": {
+      "description": "New privacy status for the team.",
+      "type": "boolean",
+      "title": "isPrivate"
+    },
+    "handle": {
+      "description": "New handle for the team.",
+      "type": "string",
+      "title": "handle"
+    },
+    "config": {
+      "description": "New configuration object for the team.",
+      "$ref": "#/definitions/TeamConfigObject",
+      "title": "config"
+    }
+  },
+  "defaultProperties": [],
+  "additionalProperties": false,
+  "definitions": {
+    "TeamConfigObject": {
+      "description": "Represents all data that can be stored in a team's stringified config.\n\nThis includes configuration that doesn't need to be queried while searching\n(e.g., team settings, automation config, etc).\n\n## 🔍 New in vNEXT – `organizationModel`\nUse this section to declare **how the team is structured** so autonomous agents can\nreason about leadership, roles, and obligations.\n\n```json5\n{\n  \"organizationModel\": {\n    \"type\": \"MOISE+\",      // 👉 recommended default\n    \"version\": \"1.0\",      // optional – spec or dialect version\n    \"content\": \"\"\"          // raw model payload (string)\n    structure Swarm {\n      group devTeam {\n        role leader  cardinality 1..1\n        role member  cardinality 2..*\n        link leader > member\n      }\n    }\n    \"\"\"\n  }\n}\n```",
+      "title": "TeamConfigObject",
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "__version": {
+          "description": "Store the version number for future compatibility",
+          "type": "string",
+          "title": "__version"
+        },
+        "resources": {
+          "description": "Resources attached to this entity",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ConfigResource"
+          },
+          "title": "resources"
+        },
+        "structure": {
+          "description": "Declarative description of the team's organisational structure.\n\n* **type** – the standard you are using (`\"MOISE+\"`, `\"FIPA ACL\"`, `\"ArchiMate\"`, etc.).\n  *If you are unsure, start with **MOISE+** – purpose‑built for multi‑agent systems.*\n* **version** – (optional) version of the chosen spec/dialect.\n* **content** – raw payload (string). Could be a MOISE+ structural layer snippet, a FIPA ACL role ontology in Turtle, an ArchiMate XML export, etc.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "title": "type"
+            },
+            "version": {
+              "type": "string",
+              "title": "version"
+            },
+            "content": {
+              "type": "string",
+              "title": "content"
+            }
+          },
+          "defaultProperties": [],
+          "additionalProperties": false,
+          "required": [
+            "content",
+            "type"
+          ],
+          "title": "structure"
+        }
+      },
+      "required": [
+        "__version"
+      ]
+    },
+    "ConfigResource": {
+      "description": "Resource definition for storing links and external data",
+      "title": "ConfigResource",
+      "type": "object",
+      "properties": {
+        "link": {
+          "description": "Link to the resource",
+          "type": "string",
+          "title": "link"
+        },
+        "usedFor": {
+          "description": "Purpose of the resource",
+          "enum": [
+            "Community",
+            "Context",
+            "Developer",
+            "Donation",
+            "ExternalService",
+            "Feed",
+            "Install",
+            "Learning",
+            "Notes",
+            "OfficialWebsite",
+            "Proposal",
+            "Related",
+            "Researching",
+            "Scheduling",
+            "Social",
+            "Tutorial"
+          ],
+          "type": "string",
+          "title": "usedFor"
+        },
+        "translations": {
+          "description": "Display info",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": "string",
+                "title": "language"
+              },
+              "name": {
+                "type": "string",
+                "title": "name"
+              },
+              "description": {
+                "type": "string",
+                "title": "description"
+              }
+            },
+            "defaultProperties": [],
+            "additionalProperties": false,
+            "required": [
+              "language",
+              "name"
+            ]
+          },
+          "title": "translations"
+        }
+      },
+      "defaultProperties": [],
+      "additionalProperties": false,
+      "required": [
+        "link",
+        "translations"
+      ]
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

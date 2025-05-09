@@ -96,6 +96,7 @@
         "sinon": "^19.0.2",
         "testcontainers": "^10.18.0",
         "typescript": "5.4.5",
+        "typescript-json-schema": "^0.65.1",
         "why-is-node-running": "^2.3.0"
     },
     "mocha": {

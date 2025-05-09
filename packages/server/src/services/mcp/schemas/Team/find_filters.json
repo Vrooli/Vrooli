@@ -1,0 +1,25 @@
+{
+  "description": "Filters for finding 'Team' resources via MCP.",
+  "title": "MCP Team Find Filters",
+  "type": "object",
+  "properties": {
+    "handle": {
+      "description": "Filter by team handle (exact match).",
+      "type": "string",
+      "title": "handle"
+    },
+    "isPrivate": {
+      "description": "Filter by privacy status.",
+      "type": "boolean",
+      "title": "isPrivate"
+    },
+    "memberUserId": {
+      "description": "Find teams containing specific user IDs as members.",
+      "type": "string",
+      "title": "memberUserId"
+    }
+  },
+  "defaultProperties": [],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
