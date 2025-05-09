@@ -3,28 +3,8 @@
   "title": "MCP Team Update Attributes",
   "type": "object",
   "properties": {
-    "isPrivate": {
-      "description": "New privacy status for the team.",
-      "type": "boolean",
-      "title": "isPrivate"
-    },
-    "handle": {
-      "description": "New handle for the team.",
-      "type": "string",
-      "title": "handle"
-    },
     "config": {
       "description": "New configuration object for the team.",
-      "$ref": "#/definitions/TeamConfigObject",
-      "title": "config"
-    }
-  },
-  "defaultProperties": [],
-  "additionalProperties": false,
-  "definitions": {
-    "TeamConfigObject": {
-      "description": "Represents all data that can be stored in a team's stringified config.\n\nThis includes configuration that doesn't need to be queried while searching\n(e.g., team settings, automation config, etc).\n\n## 🔍 New in vNEXT – `organizationModel`\nUse this section to declare **how the team is structured** so autonomous agents can\nreason about leadership, roles, and obligations.\n\n```json5\n{\n  \"organizationModel\": {\n    \"type\": \"MOISE+\",      // 👉 recommended default\n    \"version\": \"1.0\",      // optional – spec or dialect version\n    \"content\": \"\"\"          // raw model payload (string)\n    structure Swarm {\n      group devTeam {\n        role leader  cardinality 1..1\n        role member  cardinality 2..*\n        link leader > member\n      }\n    }\n    \"\"\"\n  }\n}\n```",
-      "title": "TeamConfigObject",
       "additionalProperties": false,
       "type": "object",
       "properties": {
@@ -37,7 +17,72 @@
           "description": "Resources attached to this entity",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ConfigResource"
+            "description": "Resource definition for storing links and external data",
+            "type": "object",
+            "properties": {
+              "link": {
+                "description": "Link to the resource",
+                "type": "string",
+                "title": "link"
+              },
+              "usedFor": {
+                "description": "Purpose of the resource",
+                "enum": [
+                  "Community",
+                  "Context",
+                  "Developer",
+                  "Donation",
+                  "ExternalService",
+                  "Feed",
+                  "Install",
+                  "Learning",
+                  "Notes",
+                  "OfficialWebsite",
+                  "Proposal",
+                  "Related",
+                  "Researching",
+                  "Scheduling",
+                  "Social",
+                  "Tutorial"
+                ],
+                "type": "string",
+                "title": "usedFor"
+              },
+              "translations": {
+                "description": "Display info",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "language": {
+                      "type": "string",
+                      "title": "language"
+                    },
+                    "name": {
+                      "type": "string",
+                      "title": "name"
+                    },
+                    "description": {
+                      "type": "string",
+                      "title": "description"
+                    }
+                  },
+                  "defaultProperties": [],
+                  "additionalProperties": false,
+                  "required": [
+                    "language",
+                    "name"
+                  ]
+                },
+                "title": "translations"
+              }
+            },
+            "defaultProperties": [],
+            "additionalProperties": false,
+            "required": [
+              "link",
+              "translations"
+            ]
           },
           "title": "resources"
         },
@@ -69,77 +114,92 @@
       },
       "required": [
         "__version"
-      ]
+      ],
+      "title": "config"
     },
-    "ConfigResource": {
-      "description": "Resource definition for storing links and external data",
-      "title": "ConfigResource",
-      "type": "object",
-      "properties": {
-        "link": {
-          "description": "Link to the resource",
-          "type": "string",
-          "title": "link"
-        },
-        "usedFor": {
-          "description": "Purpose of the resource",
-          "enum": [
-            "Community",
-            "Context",
-            "Developer",
-            "Donation",
-            "ExternalService",
-            "Feed",
-            "Install",
-            "Learning",
-            "Notes",
-            "OfficialWebsite",
-            "Proposal",
-            "Related",
-            "Researching",
-            "Scheduling",
-            "Social",
-            "Tutorial"
-          ],
-          "type": "string",
-          "title": "usedFor"
-        },
-        "translations": {
-          "description": "Display info",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "language": {
-                "type": "string",
-                "title": "language"
-              },
-              "name": {
-                "type": "string",
-                "title": "name"
-              },
-              "description": {
-                "type": "string",
-                "title": "description"
-              }
-            },
-            "defaultProperties": [],
-            "additionalProperties": false,
-            "required": [
-              "language",
-              "name"
-            ]
+    "memberInvitesCreate": {
+      "description": "Optional list of new members to invite.\nUser IDs are expected.",
+      "type": "array",
+      "items": {
+        "description": "Represents a single member invitation item for MCP operations.",
+        "title": "MCP Member Invite Item",
+        "type": "object",
+        "properties": {
+          "userConnect": {
+            "description": "User ID of the member to invite.",
+            "type": "string",
+            "title": "userConnect"
           },
-          "title": "translations"
-        }
+          "message": {
+            "description": "Optional invitation message.",
+            "type": "string",
+            "title": "message"
+          },
+          "willBeAdmin": {
+            "description": "Grant admin privileges to the invited member upon joining.",
+            "type": "boolean",
+            "title": "willBeAdmin"
+          }
+        },
+        "defaultProperties": [],
+        "additionalProperties": false,
+        "required": [
+          "userConnect"
+        ]
       },
-      "defaultProperties": [],
-      "additionalProperties": false,
-      "required": [
-        "link",
-        "translations"
-      ]
+      "title": "memberInvitesCreate"
+    },
+    "memberInvitesDelete": {
+      "description": "Optional list of member invite IDs to delete.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "memberInvitesDelete"
+    },
+    "membersDelete": {
+      "description": "Optional list of member IDs to remove from the team.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "membersDelete"
+    },
+    "handle": {
+      "description": "Optional handle. Must be unique if provided.",
+      "minLength": 3,
+      "maxLength": 16,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "type": "string",
+      "title": "handle"
+    },
+    "isPrivate": {
+      "description": "Specifies if the resource is private or public.",
+      "default": false,
+      "type": "boolean",
+      "title": "isPrivate"
+    },
+    "tagsConnect": {
+      "description": "Optional list of tags to associate with the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "tagsConnect"
+    },
+    "tagsDisconnect": {
+      "description": "Optional list of tag IDs to remove from the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "tagsDisconnect"
     }
   },
+  "defaultProperties": [],
+  "additionalProperties": false,
+  "required": [
+    "isPrivate"
+  ],
   "$schema": "http://json-schema.org/draft-07/schema#"
 }

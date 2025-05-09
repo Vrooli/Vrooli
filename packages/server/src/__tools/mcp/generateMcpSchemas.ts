@@ -13,30 +13,13 @@ const monorepoRoot = path.resolve(packageServerRoot, '..');
 const shapesFile = path.resolve(packageServerRoot, 'src/__tools/mcp/shapes.ts');
 const outputDirBase = path.resolve(packageServerRoot, 'src/services/mcp/schemas');
 
-// --- REMOVED loading and parsing of shared tsconfig --- 
-// We will define a single comprehensive CompilerOptions below.
-
-// Helper function to map string values to TS enums (RETAINED, might be useful if we re-introduce tsconfig loading selectively)
-function mapStringToTsEnum(value: string | undefined, enumObject: any, defaultValue: any): any {
-    if (value && enumObject[value.toUpperCase() as any]) {
-        return enumObject[value.toUpperCase() as any];
-    }
-    if (value && enumObject[value as any]) {
-        return enumObject[value as any];
-    }
-    if (value && value.toLowerCase() === "react-jsx" && enumObject["ReactJSX"]) {
-        return enumObject["ReactJSX"];
-    }
-    return defaultValue;
-}
-
 // --- Configuration ---
 const settings: TJS.PartialArgs = {
     required: true,
     titles: true,
     defaultProps: true,
     validationKeywords: ["format", "pattern", "minLength", "maxLength", "minimum", "maximum", "enum", "default", "items", "properties"],
-    ref: true,
+    ref: false, // Adding refs makes the schemas slightly more complex, which isn't great for AI agents using them
     noExtraProps: true,
     ignoreErrors: true,
 };
@@ -89,34 +72,94 @@ const compilerOptionsForTJS: TJS.CompilerOptions = {
 // Define which types to generate schemas for.
 // This structure helps map variant+op to a specific TypeScript interface name.
 const schemasToGenerate: Array<{ variant: string; op: 'add' | 'update' | 'find'; typeName: string; outputName?: string }> = [
+    // RoutineMultiStep
+    { variant: 'RoutineMultiStep', op: 'add', typeName: 'RoutineMultiStepAddAttributes' },
+    { variant: 'RoutineMultiStep', op: 'update', typeName: 'RoutineMultiStepUpdateAttributes' },
+    { variant: 'RoutineMultiStep', op: 'find', typeName: 'RoutineMultiStepFindFilters', outputName: 'filters' },
+    // RoutineInternalAction
+    { variant: 'RoutineInternalAction', op: 'add', typeName: 'RoutineInternalActionAddAttributes' },
+    { variant: 'RoutineInternalAction', op: 'update', typeName: 'RoutineInternalActionUpdateAttributes' },
+    { variant: 'RoutineInternalAction', op: 'find', typeName: 'RoutineInternalActionFindFilters', outputName: 'filters' },
+    // RoutineApi
+    { variant: 'RoutineApi', op: 'add', typeName: 'RoutineApiAddAttributes' },
+    { variant: 'RoutineApi', op: 'update', typeName: 'RoutineApiUpdateAttributes' },
+    { variant: 'RoutineApi', op: 'find', typeName: 'RoutineApiFindFilters', outputName: 'filters' },
+    // RoutineCode
+    { variant: 'RoutineCode', op: 'add', typeName: 'RoutineCodeAddAttributes' },
+    { variant: 'RoutineCode', op: 'update', typeName: 'RoutineCodeUpdateAttributes' },
+    { variant: 'RoutineCode', op: 'find', typeName: 'RoutineCodeFindFilters', outputName: 'filters' },
+    // RoutineData
+    { variant: 'RoutineData', op: 'add', typeName: 'RoutineDataAddAttributes' },
+    { variant: 'RoutineData', op: 'update', typeName: 'RoutineDataUpdateAttributes' },
+    { variant: 'RoutineData', op: 'find', typeName: 'RoutineDataFindFilters', outputName: 'filters' },
+    // RoutineGenerate
+    { variant: 'RoutineGenerate', op: 'add', typeName: 'RoutineGenerateAddAttributes' },
+    { variant: 'RoutineGenerate', op: 'update', typeName: 'RoutineGenerateUpdateAttributes' },
+    { variant: 'RoutineGenerate', op: 'find', typeName: 'RoutineGenerateFindFilters', outputName: 'filters' },
+    // RoutineInformational
+    { variant: 'RoutineInformational', op: 'add', typeName: 'RoutineInformationalAddAttributes' },
+    { variant: 'RoutineInformational', op: 'update', typeName: 'RoutineInformationalUpdateAttributes' },
+    { variant: 'RoutineInformational', op: 'find', typeName: 'RoutineInformationalFindFilters', outputName: 'filters' },
+    // RoutineSmartContract
+    { variant: 'RoutineSmartContract', op: 'add', typeName: 'RoutineSmartContractAddAttributes' },
+    { variant: 'RoutineSmartContract', op: 'update', typeName: 'RoutineSmartContractUpdateAttributes' },
+    { variant: 'RoutineSmartContract', op: 'find', typeName: 'RoutineSmartContractFindFilters', outputName: 'filters' },
+    // RoutineWeb
+    { variant: 'RoutineWeb', op: 'add', typeName: 'RoutineWebAddAttributes' },
+    { variant: 'RoutineWeb', op: 'update', typeName: 'RoutineWebUpdateAttributes' },
+    { variant: 'RoutineWeb', op: 'find', typeName: 'RoutineWebFindFilters', outputName: 'filters' },
+    // Bot
+    { variant: 'Bot', op: 'add', typeName: 'BotAddAttributes' },
+    { variant: 'Bot', op: 'update', typeName: 'BotUpdateAttributes' },
+    { variant: 'Bot', op: 'find', typeName: 'BotFindFilters', outputName: 'filters' },
     // Team
-    { variant: 'Team', op: 'add', typeName: 'McpTeamAddAttributes' },
-    { variant: 'Team', op: 'update', typeName: 'McpTeamUpdateAttributes' },
-    { variant: 'Team', op: 'find', typeName: 'McpTeamFindFilters', outputName: 'filters' }, // For find, schema is for 'filters'
+    { variant: 'Team', op: 'add', typeName: 'TeamAddAttributes' },
+    { variant: 'Team', op: 'update', typeName: 'TeamUpdateAttributes' },
+    { variant: 'Team', op: 'find', typeName: 'TeamFindFilters', outputName: 'filters' },
+    // StandardPrompt
+    { variant: 'StandardPrompt', op: 'add', typeName: 'StandardPromptAddAttributes' },
+    { variant: 'StandardPrompt', op: 'update', typeName: 'StandardPromptUpdateAttributes' },
+    { variant: 'StandardPrompt', op: 'find', typeName: 'StandardPromptFindFilters', outputName: 'filters' },
+    // StandardDataStructure
+    { variant: 'StandardDataStructure', op: 'add', typeName: 'StandardDataStructureAddAttributes' },
+    { variant: 'StandardDataStructure', op: 'update', typeName: 'StandardDataStructureUpdateAttributes' },
+    { variant: 'StandardDataStructure', op: 'find', typeName: 'StandardDataStructureFindFilters', outputName: 'filters' },
+    // Project
+    { variant: 'Project', op: 'add', typeName: 'ProjectAddAttributes' },
+    { variant: 'Project', op: 'update', typeName: 'ProjectUpdateAttributes' },
+    { variant: 'Project', op: 'find', typeName: 'ProjectFindFilters', outputName: 'filters' },
     // Note
-    { variant: 'Note', op: 'add', typeName: 'McpNoteAddAttributes' },
-    // ... Add all your variant + op combinations and their corresponding TypeScript interface names
+    { variant: 'Note', op: 'add', typeName: 'NoteAddAttributes' },
+    { variant: 'Note', op: 'update', typeName: 'NoteUpdateAttributes' },
+    { variant: 'Note', op: 'find', typeName: 'NoteFindFilters', outputName: 'filters' },
+    // ExternalData
+    { variant: 'ExternalData', op: 'add', typeName: 'ExternalDataAddAttributes' },
+    { variant: 'ExternalData', op: 'update', typeName: 'ExternalDataUpdateAttributes' },
+    { variant: 'ExternalData', op: 'find', typeName: 'ExternalDataFindFilters', outputName: 'filters' },
 ];
 
-// --- Generation Logic ---
-console.log(`Generating MCP JSON Schemas from: ${shapesFile}`);
-console.log(`Outputting to: ${outputDirBase}`);
-console.log(`Using basePath for TS program: ${monorepoRoot}`);
-console.log('Using the following explicit CompilerOptions for TJS:', JSON.stringify(compilerOptionsForTJS, (key, value) =>
-    typeof value === 'number' && (key === 'target' || key === 'module' || key === 'moduleResolution' || key === 'jsx') ? ts[value] : value, 2));
+console.info(`Generating ${schemasToGenerate.length} MCP schemas...`);
+
+// Cleanup the output directory
+if (fs.existsSync(outputDirBase)) {
+    fs.rmSync(outputDirBase, { recursive: true, force: true }); // Deletes the directory and its contents
+}
+fs.mkdirSync(outputDirBase, { recursive: true });
+
+// --- Generation Logic (starts after cleanup) ---
 
 const program = TJS.getProgramFromFiles([shapesFile], compilerOptionsForTJS, monorepoRoot);
 
+// Ensure the base output directory exists (though cleanup should have recreated it)
 if (!fs.existsSync(outputDirBase)) {
     fs.mkdirSync(outputDirBase, { recursive: true });
 }
 
 for (const { variant, op, typeName, outputName } of schemasToGenerate) {
-    console.log(`  Generating for: Variant=${variant}, Op=${op}, Type=${typeName}`);
     try {
         const schema = TJS.generateSchema(program, typeName, settings);
         if (!schema) {
-            console.error(`    ERROR: Could not generate schema for ${typeName} (schema is null/undefined).`);
+            console.error(`\tERROR: Could not generate schema for ${typeName} (schema is null/undefined).`);
             continue;
         }
 
@@ -131,15 +174,10 @@ for (const { variant, op, typeName, outputName } of schemasToGenerate) {
         const outputPath = path.join(variantDir, schemaFileName);
 
         fs.writeFileSync(outputPath, JSON.stringify(schema, null, 2));
-        console.log(`    SUCCESS: Schema saved to ${outputPath}`);
 
     } catch (e: any) {
-        console.error(`    ERROR generating schema for ${typeName}: ${e.message || e}`);
-        // For more detailed error, especially compilation issues:
-        // if (e.diagnostics) { // typescript-json-schema might not expose diagnostics directly in catch
-        //     e.diagnostics.forEach((diag: any) => console.error(diag.messageText));
-        // }
+        console.error(`\tERROR generating schema for ${typeName}: ${e.message || e}`);
     }
 }
 
-console.log("Schema generation complete.");
+console.info("✅ Schema generation complete.");

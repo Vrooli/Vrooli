@@ -8,15 +8,74 @@
       "type": "string",
       "title": "handle"
     },
-    "isPrivate": {
-      "description": "Filter by privacy status.",
-      "type": "boolean",
-      "title": "isPrivate"
-    },
-    "memberUserId": {
+    "memberUserIds": {
       "description": "Find teams containing specific user IDs as members.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "memberUserIds"
+    },
+    "searchString": {
+      "description": "General search string for teams.",
       "type": "string",
-      "title": "memberUserId"
+      "title": "searchString"
+    },
+    "tags": {
+      "description": "Filter teams by associated tags.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "tags"
+    },
+    "isOpenToNewMembers": {
+      "description": "Filter teams by whether they are open to new members.",
+      "type": "boolean",
+      "title": "isOpenToNewMembers"
+    },
+    "sortBy": {
+      "description": "Sort order for the results.",
+      "enum": [
+        "BookmarksAsc",
+        "BookmarksDesc",
+        "DateCreatedAsc",
+        "DateCreatedDesc",
+        "DateUpdatedAsc",
+        "DateUpdatedDesc"
+      ],
+      "type": "string",
+      "title": "sortBy"
+    },
+    "ids": {
+      "description": "Filter by specific IDs.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "ids"
+    },
+    "visibility": {
+      "description": "Filter by visibility.",
+      "enum": [
+        "Own",
+        "OwnOrPublic",
+        "OwnPrivate",
+        "OwnPublic",
+        "Public"
+      ],
+      "type": "string",
+      "title": "visibility"
+    },
+    "take": {
+      "description": "Number of items to return.",
+      "type": "number",
+      "title": "take"
+    },
+    "after": {
+      "description": "Cursor for pagination.",
+      "type": "string",
+      "title": "after"
     }
   },
   "defaultProperties": [],

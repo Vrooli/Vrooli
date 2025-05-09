@@ -13,13 +13,13 @@
       "type": "string",
       "title": "content"
     },
-    "tags": {
-      "description": "Optional tags for categorizing the note.",
+    "tagsConnect": {
+      "description": "Optional list of tags to associate with the resource.",
       "type": "array",
       "items": {
         "type": "string"
       },
-      "title": "tags"
+      "title": "tagsConnect"
     }
   },
   "defaultProperties": [],
