@@ -108,6 +108,8 @@ model chat {
     publicId               String                      @unique @db.VarChar(12)
     createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
+    config                 Json?                       @default("{}")
+    turnCounter            BigInt                      @default(0)
     isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              BigInt?                     @db.BigInt
@@ -146,10 +148,9 @@ model chat_message {
     createdAt         DateTime           @default(now()) @db.Timestamptz(6)
     updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
     language          String             @db.VarChar(3)
-    metadata          String?            @db.VarChar(4096)
+    config            Json?              @default("{}")
     text              String             @db.VarChar(32768)
     score             Int                @default(0)
-    sequence          Int                @default(autoincrement())
     versionIndex      Int                @default(0)
     parentId          BigInt?            @db.BigInt
     userId            BigInt?            @db.BigInt

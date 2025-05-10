@@ -5,9 +5,9 @@ import { RedisClientType } from "redis";
 import sinon from "sinon";
 import { initializeRedis } from "../../redisConn.js";
 import { UI_URL } from "../../server.js";
+import { OpenAIService } from "../../tasks/llm/services/openai.js";
 import { PreMapMessageDataDelete, PreMapMessageDataUpdate } from "../../utils/chat.js";
-import { ChatContextManager, determineRespondingBots, processMentions, stringifyTaskContexts } from "./context.js";
-import { OpenAIService } from "./services/openai.js";
+import { ChatContextManager, determineRespondingBots, processMentions, stringifyTaskContexts } from "./contextBuilder.js";
 
 describe("ChatContextManager", () => {
     let chatContextManager: ChatContextManager;

@@ -3,10 +3,10 @@ import { cudHelper } from "../../actions/cuds.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
+import { ChatContextManager, CollectMessageContextInfoParams, MessageContextInfo } from "../../services/conversation/contextBuilder.js";
 import { SocketService } from "../../sockets/io.js";
 import { PreMapUserData } from "../../utils/chat.js";
 import { objectToYaml } from "../../utils/toYaml.js";
-import { ChatContextManager, CollectMessageContextInfoParams, MessageContextInfo } from "./context.js";
 import { LlmServiceErrorType, LlmServiceRegistry, LlmServiceState } from "./registry.js";
 import { GenerateContextParams, GenerateResponseResult, GetConfigObjectParams, GetOutputTokenLimitParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, SimpleChatMessageData } from "./types.js";
 

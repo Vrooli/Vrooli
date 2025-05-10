@@ -1402,7 +1402,7 @@ class ServerSubroutineExecutor extends SubroutineExecutor {
         // Run the subroutine based on its type
         // NOTE: We don't support multi-step subroutines here
         switch (routine.resourceSubType) {
-            case ResourceSubType.RoutineAction: {
+            case ResourceSubType.RoutineInternalAction: {
                 actionResult = await this.runAction(routine, ioMapping);
                 break;
             }

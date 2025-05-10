@@ -7,11 +7,11 @@ import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findO
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
+import { ChatContextManager, stringifyTaskContexts } from "../../services/conversation/contextBuilder.js";
 import { SocketService } from "../../sockets/io.js";
 import { PreMapUserData, getChatParticipantData } from "../../utils/chat.js";
 import { reduceUserCredits } from "../../utils/reduceCredits.js";
 import { processLlmTask } from "../llmTask/queue.js";
-import { ChatContextManager, stringifyTaskContexts } from "./context.js";
 import { type LlmRequestPayload, type RequestBotMessagePayload } from "./queue.js";
 import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service.js";
 

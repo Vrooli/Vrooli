@@ -35,7 +35,6 @@ export async function batch<T extends FindManyArgs>({
 
     do {
         // Find all entities according to the given options
-        console.log('in batch', objectType, JSON.stringify({ select, skip, take: batchSize, where }, null, 2));
         const batch = await delegate.findMany({
             select,
             skip,

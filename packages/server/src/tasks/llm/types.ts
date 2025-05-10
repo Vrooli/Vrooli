@@ -1,6 +1,6 @@
 import { BotSettings, LanguageModelResponseMode, LlmServiceId, LlmTask, ModelInfo, SessionUser } from "@local/shared";
+import { ContextInfo } from "../../services/conversation/contextBuilder.js";
 import { PreMapUserData } from "../../utils/chat.js";
-import { ContextInfo } from "./context.js";
 import { LlmServiceErrorType } from "./registry.js";
 
 export type SimpleChatMessageData = {
