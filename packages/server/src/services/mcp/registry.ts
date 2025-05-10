@@ -175,7 +175,7 @@ const resourceVariantSchemaItems = resourceTypes.map(item => ({
 /**
  * How the user of the MCP sees what tools are available, what they do, and how to use them.
  */
-const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
+export const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
     [McpToolName.DefineTool, {
         name: McpToolName.DefineTool,
         description: "Return the detailed input schema for ResourceManage given a resource variant *and* CRUD op.",
@@ -609,11 +609,11 @@ export class ToolRegistry {
      * Register built-in tools
      */
     private registerTools(): void {
-        // this.registerBuiltInTool(McpToolName.AddResource, addResource);
-        // this.registerBuiltInTool(McpToolName.DeleteResource, deleteResource);
-        // this.registerBuiltInTool(McpToolName.FindResources, findResources);
-        // this.registerBuiltInTool(McpToolName.RunRoutine, runRoutine);
-        // this.registerBuiltInTool(McpToolName.UpdateResource, updateResource);
+        this.registerBuiltInTool(McpToolName.DefineTool, defineTool);
+        this.registerBuiltInTool(McpToolName.SendMessage, sendMessage);
+        this.registerBuiltInTool(McpToolName.ResourceManage, resourceManage);
+        this.registerBuiltInTool(McpToolName.RunRoutine, runRoutine);
+        this.registerBuiltInTool(McpToolName.StartSession, startSession);
     }
 
     /**

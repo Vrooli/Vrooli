@@ -71,43 +71,43 @@ const compilerOptionsForTJS: TJS.CompilerOptions = {
 
 // Define which types to generate schemas for.
 // This structure helps map variant+op to a specific TypeScript interface name.
-const schemasToGenerate: Array<{ variant: string; op: 'add' | 'update' | 'find'; typeName: string; outputName?: string }> = [
+const schemasToGenerate: Array<{ variant: string; op: 'add' | 'update' | 'find'; typeName: string; outputName?: string; useRef?: boolean }> = [
     // RoutineMultiStep
-    { variant: 'RoutineMultiStep', op: 'add', typeName: 'RoutineMultiStepAddAttributes' },
-    { variant: 'RoutineMultiStep', op: 'update', typeName: 'RoutineMultiStepUpdateAttributes' },
-    { variant: 'RoutineMultiStep', op: 'find', typeName: 'RoutineMultiStepFindFilters', outputName: 'filters' },
+    { variant: 'RoutineMultiStep', op: 'add', typeName: 'RoutineMultiStepAddAttributes', useRef: true },
+    { variant: 'RoutineMultiStep', op: 'update', typeName: 'RoutineMultiStepUpdateAttributes', useRef: true },
+    { variant: 'RoutineMultiStep', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineInternalAction
-    { variant: 'RoutineInternalAction', op: 'add', typeName: 'RoutineInternalActionAddAttributes' },
-    { variant: 'RoutineInternalAction', op: 'update', typeName: 'RoutineInternalActionUpdateAttributes' },
-    { variant: 'RoutineInternalAction', op: 'find', typeName: 'RoutineInternalActionFindFilters', outputName: 'filters' },
+    { variant: 'RoutineInternalAction', op: 'add', typeName: 'RoutineInternalActionAddAttributes', useRef: true },
+    { variant: 'RoutineInternalAction', op: 'update', typeName: 'RoutineInternalActionUpdateAttributes', useRef: true },
+    { variant: 'RoutineInternalAction', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineApi
-    { variant: 'RoutineApi', op: 'add', typeName: 'RoutineApiAddAttributes' },
-    { variant: 'RoutineApi', op: 'update', typeName: 'RoutineApiUpdateAttributes' },
-    { variant: 'RoutineApi', op: 'find', typeName: 'RoutineApiFindFilters', outputName: 'filters' },
+    { variant: 'RoutineApi', op: 'add', typeName: 'RoutineApiAddAttributes', useRef: true },
+    { variant: 'RoutineApi', op: 'update', typeName: 'RoutineApiUpdateAttributes', useRef: true },
+    { variant: 'RoutineApi', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineCode
-    { variant: 'RoutineCode', op: 'add', typeName: 'RoutineCodeAddAttributes' },
-    { variant: 'RoutineCode', op: 'update', typeName: 'RoutineCodeUpdateAttributes' },
-    { variant: 'RoutineCode', op: 'find', typeName: 'RoutineCodeFindFilters', outputName: 'filters' },
+    { variant: 'RoutineCode', op: 'add', typeName: 'RoutineCodeAddAttributes', useRef: true },
+    { variant: 'RoutineCode', op: 'update', typeName: 'RoutineCodeUpdateAttributes', useRef: true },
+    { variant: 'RoutineCode', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineData
-    { variant: 'RoutineData', op: 'add', typeName: 'RoutineDataAddAttributes' },
-    { variant: 'RoutineData', op: 'update', typeName: 'RoutineDataUpdateAttributes' },
-    { variant: 'RoutineData', op: 'find', typeName: 'RoutineDataFindFilters', outputName: 'filters' },
+    { variant: 'RoutineData', op: 'add', typeName: 'RoutineDataAddAttributes', useRef: true },
+    { variant: 'RoutineData', op: 'update', typeName: 'RoutineDataUpdateAttributes', useRef: true },
+    { variant: 'RoutineData', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineGenerate
-    { variant: 'RoutineGenerate', op: 'add', typeName: 'RoutineGenerateAddAttributes' },
-    { variant: 'RoutineGenerate', op: 'update', typeName: 'RoutineGenerateUpdateAttributes' },
-    { variant: 'RoutineGenerate', op: 'find', typeName: 'RoutineGenerateFindFilters', outputName: 'filters' },
+    { variant: 'RoutineGenerate', op: 'add', typeName: 'RoutineGenerateAddAttributes', useRef: true },
+    { variant: 'RoutineGenerate', op: 'update', typeName: 'RoutineGenerateUpdateAttributes', useRef: true },
+    { variant: 'RoutineGenerate', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineInformational
-    { variant: 'RoutineInformational', op: 'add', typeName: 'RoutineInformationalAddAttributes' },
-    { variant: 'RoutineInformational', op: 'update', typeName: 'RoutineInformationalUpdateAttributes' },
-    { variant: 'RoutineInformational', op: 'find', typeName: 'RoutineInformationalFindFilters', outputName: 'filters' },
+    { variant: 'RoutineInformational', op: 'add', typeName: 'RoutineInformationalAddAttributes', useRef: true },
+    { variant: 'RoutineInformational', op: 'update', typeName: 'RoutineInformationalUpdateAttributes', useRef: true },
+    { variant: 'RoutineInformational', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineSmartContract
-    { variant: 'RoutineSmartContract', op: 'add', typeName: 'RoutineSmartContractAddAttributes' },
-    { variant: 'RoutineSmartContract', op: 'update', typeName: 'RoutineSmartContractUpdateAttributes' },
-    { variant: 'RoutineSmartContract', op: 'find', typeName: 'RoutineSmartContractFindFilters', outputName: 'filters' },
+    { variant: 'RoutineSmartContract', op: 'add', typeName: 'RoutineSmartContractAddAttributes', useRef: true },
+    { variant: 'RoutineSmartContract', op: 'update', typeName: 'RoutineSmartContractUpdateAttributes', useRef: true },
+    { variant: 'RoutineSmartContract', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // RoutineWeb
-    { variant: 'RoutineWeb', op: 'add', typeName: 'RoutineWebAddAttributes' },
-    { variant: 'RoutineWeb', op: 'update', typeName: 'RoutineWebUpdateAttributes' },
-    { variant: 'RoutineWeb', op: 'find', typeName: 'RoutineWebFindFilters', outputName: 'filters' },
+    { variant: 'RoutineWeb', op: 'add', typeName: 'RoutineWebAddAttributes', useRef: true },
+    { variant: 'RoutineWeb', op: 'update', typeName: 'RoutineWebUpdateAttributes', useRef: true },
+    { variant: 'RoutineWeb', op: 'find', typeName: 'ResourceFindFilters', outputName: 'filters', useRef: true },
     // Bot
     { variant: 'Bot', op: 'add', typeName: 'BotAddAttributes' },
     { variant: 'Bot', op: 'update', typeName: 'BotUpdateAttributes' },
@@ -117,13 +117,13 @@ const schemasToGenerate: Array<{ variant: string; op: 'add' | 'update' | 'find';
     { variant: 'Team', op: 'update', typeName: 'TeamUpdateAttributes' },
     { variant: 'Team', op: 'find', typeName: 'TeamFindFilters', outputName: 'filters' },
     // StandardPrompt
-    { variant: 'StandardPrompt', op: 'add', typeName: 'StandardPromptAddAttributes' },
-    { variant: 'StandardPrompt', op: 'update', typeName: 'StandardPromptUpdateAttributes' },
-    { variant: 'StandardPrompt', op: 'find', typeName: 'StandardPromptFindFilters', outputName: 'filters' },
+    { variant: 'StandardPrompt', op: 'add', typeName: 'StandardPromptAddAttributes', useRef: true },
+    { variant: 'StandardPrompt', op: 'update', typeName: 'StandardPromptUpdateAttributes', useRef: true },
+    { variant: 'StandardPrompt', op: 'find', typeName: 'StandardPromptFindFilters', outputName: 'filters', useRef: true },
     // StandardDataStructure
-    { variant: 'StandardDataStructure', op: 'add', typeName: 'StandardDataStructureAddAttributes' },
-    { variant: 'StandardDataStructure', op: 'update', typeName: 'StandardDataStructureUpdateAttributes' },
-    { variant: 'StandardDataStructure', op: 'find', typeName: 'StandardDataStructureFindFilters', outputName: 'filters' },
+    { variant: 'StandardDataStructure', op: 'add', typeName: 'StandardDataStructureAddAttributes', useRef: true },
+    { variant: 'StandardDataStructure', op: 'update', typeName: 'StandardDataStructureUpdateAttributes', useRef: true },
+    { variant: 'StandardDataStructure', op: 'find', typeName: 'DataStructureFindFilters', outputName: 'filters', useRef: true },
     // Project
     { variant: 'Project', op: 'add', typeName: 'ProjectAddAttributes' },
     { variant: 'Project', op: 'update', typeName: 'ProjectUpdateAttributes' },
@@ -155,13 +155,58 @@ if (!fs.existsSync(outputDirBase)) {
     fs.mkdirSync(outputDirBase, { recursive: true });
 }
 
-for (const { variant, op, typeName, outputName } of schemasToGenerate) {
+for (const { variant, op, typeName, outputName, useRef } of schemasToGenerate) {
     try {
-        const schema = TJS.generateSchema(program, typeName, settings);
+        // Clone the base settings and override 'ref' per schema
+        const schemaSettings = { ...settings, ref: useRef ?? settings.ref };
+        const schema = TJS.generateSchema(program, typeName, schemaSettings);
         if (!schema) {
             console.error(`\tERROR: Could not generate schema for ${typeName} (schema is null/undefined).`);
             continue;
         }
+
+        function stripTitles(node: any, isRoot = false): void {
+            if (!node || typeof node !== "object") return;
+
+            // Delete the title unless we're at the root
+            if (!isRoot && "title" in node) delete node.title;
+
+            // Recursively walk through child containers
+            if (Array.isArray(node)) {
+                node.forEach((item) => stripTitles(item, false));
+            } else {
+                Object.values(node).forEach((val) => stripTitles(val, false));
+            }
+        };
+        stripTitles(schema, true);
+
+        function stripBoilerplate(node: unknown): void {
+            if (Array.isArray(node)) {
+                node.forEach(stripBoilerplate);
+                return;
+            }
+            if (node && typeof node === "object") {
+                const o = node as Record<string, unknown>;
+
+                // ── 1.  Kill empty defaultProperties arrays ──────────────────────
+                if (
+                    "defaultProperties" in o &&
+                    Array.isArray(o.defaultProperties) &&
+                    o.defaultProperties.length === 0
+                ) {
+                    delete o.defaultProperties;
+                }
+
+                // ── 2.  Kill explicit `additionalProperties: false` ──────────────
+                if (o.additionalProperties === false) {
+                    delete o.additionalProperties;
+                }
+
+                // Recurse into children
+                Object.values(o).forEach(stripBoilerplate);
+            }
+        }
+        stripBoilerplate(schema);
 
         const variantDir = path.join(outputDirBase, variant);
         if (!fs.existsSync(variantDir)) {

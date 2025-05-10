@@ -14,6 +14,12 @@ export interface ToolAnnotations {
     openWorldHint?: boolean;
 }
 
+export interface ToolInputSchema {
+    type: string;
+    properties: Record<string, any>;
+    required?: string[];
+}
+
 /**
  * Interface representing a Tool in the MCP protocol.
  */
@@ -23,11 +29,7 @@ export interface Tool {
     /** Human-readable description */
     description?: string;
     /** JSON Schema for the tool's parameters */
-    inputSchema: {
-        type: string;
-        properties: Record<string, any>;
-        required?: string[];
-    };
+    inputSchema: ToolInputSchema | { oneOf: ToolInputSchema[] };
     /** Optional hints about tool behavior */
     annotations?: ToolAnnotations;
 }

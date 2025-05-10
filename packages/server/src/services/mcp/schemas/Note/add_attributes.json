@@ -5,25 +5,20 @@
   "properties": {
     "name": {
       "description": "The name or title of the note.",
-      "type": "string",
-      "title": "name"
+      "type": "string"
     },
     "content": {
       "description": "The content of the note.",
-      "type": "string",
-      "title": "content"
+      "type": "string"
     },
     "tagsConnect": {
-      "description": "Optional list of tags to associate with the resource.",
+      "description": "Tags to associate with the resource.",
       "type": "array",
       "items": {
         "type": "string"
-      },
-      "title": "tagsConnect"
+      }
     }
   },
-  "defaultProperties": [],
-  "additionalProperties": false,
   "required": [
     "content",
     "name"

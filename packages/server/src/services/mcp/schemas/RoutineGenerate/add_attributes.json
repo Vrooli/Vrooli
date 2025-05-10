@@ -1,0 +1,709 @@
+{
+  "description": "Defines the properties for adding a new Generate routine through the MCP.",
+  "title": "MCP Routine Generate Add Attributes",
+  "type": "object",
+  "properties": {
+    "config": {
+      "description": "Optional routine configuration object.",
+      "type": "object",
+      "properties": {
+        "__version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "formInput": {
+          "type": "object",
+          "properties": {
+            "__version": {
+              "type": "string",
+              "const": "1.0"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "elements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/FormElement"
+                  }
+                }
+              },
+              "required": [
+                "elements"
+              ]
+            }
+          },
+          "required": [
+            "__version",
+            "schema"
+          ]
+        },
+        "formOutput": {
+          "type": "object",
+          "properties": {
+            "__version": {
+              "type": "string",
+              "const": "1.0"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "elements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/FormElement"
+                  }
+                }
+              },
+              "required": [
+                "elements"
+              ]
+            }
+          },
+          "required": [
+            "__version",
+            "schema"
+          ]
+        },
+        "callDataGenerate": {
+          "description": "Holds model, bot style, etc.",
+          "type": "object",
+          "properties": {
+            "__version": {
+              "type": "string"
+            },
+            "schema": {
+              "description": "Represents how to call an LLM.\n\nNOTE: This can be provided to non-generate routines, and will allow \nautomated runs to customize how inputs are generated.",
+              "type": "object",
+              "properties": {
+                "botStyle": {
+                  "description": "Determines which bot personas to use for a routine.",
+                  "enum": [
+                    "Default",
+                    "None",
+                    "Specific"
+                  ],
+                  "type": "string"
+                },
+                "maxTokens": {
+                  "description": "The maximum number of tokens to generate.",
+                  "type": [
+                    "null",
+                    "number"
+                  ]
+                },
+                "model": {
+                  "description": "The model to use for the LLM.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "$ref": "#/definitions/TranslationKeyService"
+                        },
+                        "description": {
+                          "enum": [
+                            "Claude_3_5_Sonnet_Description_Short",
+                            "Claude_3_5_Sonnet_Name",
+                            "Claude_3_Haiku_Description_Short",
+                            "Claude_3_Haiku_Name",
+                            "Claude_3_Opus_Description_Short",
+                            "Claude_3_Opus_Name",
+                            "Claude_3_Sonnet_Description_Short",
+                            "Claude_3_Sonnet_Name",
+                            "GPT_4_Description_Short",
+                            "GPT_4_Name",
+                            "GPT_4_Turbo_Description_Short",
+                            "GPT_4_Turbo_Name",
+                            "GPT_4o_Description_Short",
+                            "GPT_4o_Mini_Description_Short",
+                            "GPT_4o_Mini_Name",
+                            "GPT_4o_Name",
+                            "Mistral_Codestral_Description_Short",
+                            "Mistral_Codestral_Name",
+                            "Mistral_Large_2_Description_Short",
+                            "Mistral_Large_2_Name",
+                            "Mistral_Nemo_Description_Short",
+                            "Mistral_Nemo_Name",
+                            "o1_Mini_Description_Short",
+                            "o1_Mini_Name",
+                            "o1_Preview_Description_Short",
+                            "o1_Preview_Name"
+                          ],
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "value"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "prompt": {
+                  "description": "The prompt to use for the LLM.",
+                  "type": [
+                    "null",
+                    "string"
+                  ]
+                },
+                "respondingBot": {
+                  "description": "The bot to use for the LLM.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "publicId": {
+                          "type": "string"
+                        },
+                        "handle": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "required": [
+            "__version",
+            "schema"
+          ]
+        }
+      },
+      "required": [
+        "__version",
+        "callDataGenerate",
+        "formInput",
+        "formOutput"
+      ]
+    },
+    "resourceSubType": {
+      "type": "string",
+      "const": "RoutineGenerate"
+    },
+    "rootCreate": {
+      "description": "Root resource information",
+      "type": "object",
+      "properties": {
+        "isPrivate": {
+          "default": false,
+          "type": "boolean"
+        },
+        "tagsConnect": {
+          "description": "Tags to associate with the resource.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resourceType": {
+          "type": "string",
+          "const": "Routine"
+        }
+      },
+      "required": [
+        "isPrivate",
+        "resourceType"
+      ]
+    },
+    "isComplete": {
+      "default": false,
+      "type": "boolean"
+    },
+    "versionLabel": {
+      "type": "string"
+    },
+    "isPrivate": {
+      "default": false,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "isPrivate",
+    "resourceSubType",
+    "rootCreate",
+    "versionLabel"
+  ],
+  "definitions": {
+    "FormElement": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "CheckboxInput",
+                "CodeInput",
+                "DropzoneInput",
+                "IntegerInput",
+                "LinkUrlInput",
+                "RadioInput",
+                "SelectorInput",
+                "SliderInput",
+                "SwitchInput",
+                "TextInput"
+              ],
+              "type": "string"
+            },
+            "id": {
+              "description": "ID for field",
+              "type": "string"
+            },
+            "fieldName": {
+              "description": "The name of the field, as will be used by formik",
+              "type": "string"
+            },
+            "label": {
+              "description": "The label to display for the field",
+              "type": "string"
+            },
+            "helpText": {
+              "description": "Longer help text. Markdown OK",
+              "type": "string"
+            },
+            "isRequired": {
+              "description": "If the field is required. Defaults to false.",
+              "type": "boolean"
+            },
+            "props": {
+              "description": "Type-specific props",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/CheckboxInputProps"
+                },
+                {
+                  "$ref": "#/definitions/CodeInputProps"
+                },
+                {
+                  "$ref": "#/definitions/DropzoneInputProps"
+                },
+                {
+                  "$ref": "#/definitions/IntegerInputProps"
+                },
+                {
+                  "$ref": "#/definitions/LinkUrlInputProps"
+                },
+                {
+                  "$ref": "#/definitions/RadioInputProps"
+                },
+                {
+                  "$ref": "#/definitions/SelectorInputProps"
+                },
+                {
+                  "$ref": "#/definitions/SliderInputProps"
+                },
+                {
+                  "$ref": "#/definitions/SwitchInputProps"
+                },
+                {
+                  "$ref": "#/definitions/TextInputProps"
+                }
+              ]
+            }
+          },
+          "required": [
+            "fieldName",
+            "id",
+            "label",
+            "props",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "Divider",
+                "Header",
+                "Image",
+                "QrCode",
+                "Tip",
+                "Video"
+              ],
+              "type": "string"
+            },
+            "id": {
+              "description": "ID for field",
+              "type": "string"
+            },
+            "label": {
+              "description": "The label to display for the field",
+              "type": "string"
+            },
+            "helpText": {
+              "description": "Longer help text. Markdown OK",
+              "type": "string"
+            },
+            "tag": {
+              "description": "Header tag if type is Header",
+              "enum": [
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6"
+              ],
+              "type": "string"
+            },
+            "icon": {
+              "description": "Icon type if type is Tip",
+              "enum": [
+                "Error",
+                "Info",
+                "Warning"
+              ],
+              "type": "string"
+            },
+            "link": {
+              "description": "URL if type is Tip",
+              "type": "string"
+            },
+            "url": {
+              "description": "URL of type is Image, QrCode, or Video",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "label",
+            "type"
+          ]
+        }
+      ]
+    },
+    "CheckboxInputProps": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "description": "Array of checkbox options",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ]
+          }
+        },
+        "allowCustomValues": {
+          "description": "Allow users to input custom values",
+          "type": "boolean"
+        },
+        "defaultValue": {
+          "description": "Array of booleans. One for each option in props",
+          "type": "array",
+          "items": {
+            "type": "boolean"
+          }
+        },
+        "maxCustomValues": {
+          "description": "Maximum number of custom values allowed",
+          "type": "number"
+        },
+        "maxSelection": {
+          "description": "The maximum number of checkboxes that can be selected. \nIf 0 or not set, there is no limit.",
+          "type": "number"
+        },
+        "minSelection": {
+          "description": "The minimum number of checkboxes that must be selected.\nIf 0 or not set, there is no minimum.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "CodeInputProps": {
+      "type": "object",
+      "properties": {
+        "defaultValue": {
+          "type": "string"
+        },
+        "limitTo": {
+          "description": "Limit the languages that can be selected in the language dropdown.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CodeLanguage"
+          }
+        }
+      }
+    },
+    "CodeLanguage": {
+      "type": "string",
+      "enum": [
+        "angular",
+        "cpp",
+        "css",
+        "dockerfile",
+        "go",
+        "graphql",
+        "groovy",
+        "haskell",
+        "html",
+        "java",
+        "javascript",
+        "json",
+        "jsonStandard",
+        "nginx",
+        "nix",
+        "php",
+        "powershell",
+        "protobuf",
+        "puppet",
+        "python",
+        "r",
+        "ruby",
+        "rust",
+        "sass",
+        "shell",
+        "solidity",
+        "spreadsheet",
+        "sql",
+        "svelte",
+        "swift",
+        "typescript",
+        "vb",
+        "vbscript",
+        "verilog",
+        "vhdl",
+        "vue",
+        "xml",
+        "yacas",
+        "yaml"
+      ]
+    },
+    "DropzoneInputProps": {
+      "type": "object",
+      "properties": {
+        "acceptedFileTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maxFiles": {
+          "type": "number"
+        }
+      }
+    },
+    "IntegerInputProps": {
+      "type": "object",
+      "properties": {
+        "max": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "defaultValue": {
+          "type": "number"
+        },
+        "allowDecimal": {
+          "type": "boolean"
+        },
+        "initial": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        }
+      }
+    },
+    "LinkUrlInputProps": {
+      "type": "object",
+      "properties": {
+        "defaultValue": {
+          "type": "string"
+        },
+        "acceptedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "RadioInputProps": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "description": "Radio button options.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ]
+          }
+        },
+        "defaultValue": {
+          "description": "The initial value of the radio button. Must be one of the values in the `options` prop.",
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "SelectorInputProps": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "isRequired": {
+          "type": "boolean"
+        },
+        "options": {
+          "type": "array",
+          "items": {}
+        },
+        "defaultValue": {},
+        "addOption": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "onSelect": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "label",
+            "onSelect"
+          ]
+        },
+        "multiple": {
+          "type": "boolean"
+        },
+        "noneOption": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "SliderInputProps": {
+      "type": "object",
+      "properties": {
+        "max": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "defaultValue": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        }
+      }
+    },
+    "SwitchInputProps": {
+      "type": "object",
+      "properties": {
+        "defaultValue": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TextInputProps": {
+      "type": "object",
+      "properties": {
+        "defaultValue": {
+          "description": "Initial value of the text field.",
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "autoComplete": {
+          "description": "Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password')",
+          "type": "string"
+        },
+        "isMarkdown": {
+          "description": "If true, displays RichInput instead of TextInput",
+          "type": "boolean"
+        },
+        "maxChars": {
+          "description": "Maximum number of characters for the text field. Defaults to 1000",
+          "type": "number"
+        }
+      }
+    },
+    "TranslationKeyService": {
+      "enum": [
+        "Claude_3_5_Sonnet_Description_Short",
+        "Claude_3_5_Sonnet_Name",
+        "Claude_3_Haiku_Description_Short",
+        "Claude_3_Haiku_Name",
+        "Claude_3_Opus_Description_Short",
+        "Claude_3_Opus_Name",
+        "Claude_3_Sonnet_Description_Short",
+        "Claude_3_Sonnet_Name",
+        "GPT_4_Description_Short",
+        "GPT_4_Name",
+        "GPT_4_Turbo_Description_Short",
+        "GPT_4_Turbo_Name",
+        "GPT_4o_Description_Short",
+        "GPT_4o_Mini_Description_Short",
+        "GPT_4o_Mini_Name",
+        "GPT_4o_Name",
+        "Mistral_Codestral_Description_Short",
+        "Mistral_Codestral_Name",
+        "Mistral_Large_2_Description_Short",
+        "Mistral_Large_2_Name",
+        "Mistral_Nemo_Description_Short",
+        "Mistral_Nemo_Name",
+        "o1_Mini_Description_Short",
+        "o1_Mini_Name",
+        "o1_Preview_Description_Short",
+        "o1_Preview_Name"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

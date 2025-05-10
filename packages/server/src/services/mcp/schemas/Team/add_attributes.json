@@ -4,14 +4,12 @@
   "type": "object",
   "properties": {
     "config": {
-      "description": "Optional team configuration object.\nThis should be the parsed TeamConfigObject, not a stringified version.",
-      "additionalProperties": false,
+      "description": "Optional team configuration object.",
       "type": "object",
       "properties": {
         "__version": {
           "description": "Store the version number for future compatibility",
-          "type": "string",
-          "title": "__version"
+          "type": "string"
         },
         "resources": {
           "description": "Resources attached to this entity",
@@ -22,8 +20,7 @@
             "properties": {
               "link": {
                 "description": "Link to the resource",
-                "type": "string",
-                "title": "link"
+                "type": "string"
               },
               "usedFor": {
                 "description": "Purpose of the resource",
@@ -45,8 +42,7 @@
                   "Social",
                   "Tutorial"
                 ],
-                "type": "string",
-                "title": "usedFor"
+                "type": "string"
               },
               "translations": {
                 "description": "Display info",
@@ -55,125 +51,96 @@
                   "type": "object",
                   "properties": {
                     "language": {
-                      "type": "string",
-                      "title": "language"
+                      "type": "string"
                     },
                     "name": {
-                      "type": "string",
-                      "title": "name"
+                      "type": "string"
                     },
                     "description": {
-                      "type": "string",
-                      "title": "description"
+                      "type": "string"
                     }
                   },
-                  "defaultProperties": [],
-                  "additionalProperties": false,
                   "required": [
                     "language",
                     "name"
                   ]
-                },
-                "title": "translations"
+                }
               }
             },
-            "defaultProperties": [],
-            "additionalProperties": false,
             "required": [
               "link",
               "translations"
             ]
-          },
-          "title": "resources"
+          }
         },
         "structure": {
           "description": "Declarative description of the team's organisational structure.\n\n* **type** – the standard you are using (`\"MOISE+\"`, `\"FIPA ACL\"`, `\"ArchiMate\"`, etc.).\n  *If you are unsure, start with **MOISE+** – purpose‑built for multi‑agent systems.*\n* **version** – (optional) version of the chosen spec/dialect.\n* **content** – raw payload (string). Could be a MOISE+ structural layer snippet, a FIPA ACL role ontology in Turtle, an ArchiMate XML export, etc.",
           "type": "object",
           "properties": {
             "type": {
-              "type": "string",
-              "title": "type"
+              "type": "string"
             },
             "version": {
-              "type": "string",
-              "title": "version"
+              "type": "string"
             },
             "content": {
-              "type": "string",
-              "title": "content"
+              "type": "string"
             }
           },
-          "defaultProperties": [],
-          "additionalProperties": false,
           "required": [
             "content",
             "type"
-          ],
-          "title": "structure"
+          ]
         }
       },
       "required": [
         "__version"
-      ],
-      "title": "config"
+      ]
     },
     "memberInvitesCreate": {
       "description": "Optional list of members to invite initially.\nUser IDs are expected.",
       "type": "array",
       "items": {
         "description": "Represents a single member invitation item for MCP operations.",
-        "title": "MCP Member Invite Item",
         "type": "object",
         "properties": {
           "userConnect": {
             "description": "User ID of the member to invite.",
-            "type": "string",
-            "title": "userConnect"
+            "type": "string"
           },
           "message": {
             "description": "Optional invitation message.",
-            "type": "string",
-            "title": "message"
+            "type": "string"
           },
           "willBeAdmin": {
             "description": "Grant admin privileges to the invited member upon joining.",
-            "type": "boolean",
-            "title": "willBeAdmin"
+            "type": "boolean"
           }
         },
-        "defaultProperties": [],
-        "additionalProperties": false,
         "required": [
           "userConnect"
         ]
-      },
-      "title": "memberInvitesCreate"
+      }
     },
     "handle": {
       "description": "Optional handle. Must be unique if provided.",
       "minLength": 3,
       "maxLength": 16,
       "pattern": "^[a-zA-Z0-9_-]+$",
-      "type": "string",
-      "title": "handle"
+      "type": "string"
     },
     "isPrivate": {
-      "description": "Specifies if the resource is private or public.",
       "default": false,
-      "type": "boolean",
-      "title": "isPrivate"
+      "type": "boolean"
     },
     "tagsConnect": {
-      "description": "Optional list of tags to associate with the resource.",
+      "description": "Tags to associate with the resource.",
       "type": "array",
       "items": {
         "type": "string"
-      },
-      "title": "tagsConnect"
+      }
     }
   },
-  "defaultProperties": [],
-  "additionalProperties": false,
   "required": [
     "isPrivate"
   ],

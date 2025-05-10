@@ -3,6 +3,7 @@ import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from "@modelcontextprotocol/sdk/types.js";
 import { Express } from "express";
 import { RequestService } from "../../auth/request.js";
+import { runWithMcpContext } from "./context.js";
 import { McpRoutineToolName, McpToolName, ToolRegistry } from "./registry.js";
 import { findRoutines, runRoutine } from "./tools.js";
 import { TransportManager } from "./transport.js";
@@ -298,27 +299,28 @@ export class McpServerApp {
 
         // 2. Message Endpoint for a specific tool's connection
         this.app.post("/mcp/tool/:tool_id/message", (req, res) => {
-            const { hasApiToken: hasApiTokenMessage } = RequestService.getRequestPermissions(req);
-            if (!hasApiTokenMessage) {
-                return res.status(HttpStatus.Unauthorized).json({ error: "Unauthorized" });
-            }
-            const toolId = req.params.tool_id;
-            this.logger.info(`Dynamic message POST received for tool ${toolId}. Path: ${req.path}`);
-
-            const manager = this.dynamicTransportManagers.get(toolId);
-
-            if (manager) {
-                this.logger.info(`Found TransportManager for tool ${toolId}, delegating POST handling.`);
-                // Let the specific manager handle the raw request
-                manager.handlePostMessage(req, res);
-            } else {
-                // This might happen if a POST arrives before any SSE connection for this tool
-                // or if the server restarted without persisting state.
-                this.logger.error(`No active TransportManager found for tool ${toolId} to handle POST request.`);
-                if (!res.headersSent) {
-                    res.status(HttpStatus.NotFound).json({ error: `No active session found for tool '${toolId}'. Please establish an SSE connection first.` });
+            runWithMcpContext(req, res, async () => {
+                const { hasApiToken: hasApiTokenMessage } = RequestService.getRequestPermissions(req);
+                if (!hasApiTokenMessage) {
+                    return res.status(HttpStatus.Unauthorized).json({ error: "Unauthorized" });
                 }
-            }
+                const toolId = req.params.tool_id;
+                this.logger.info(`Dynamic message POST received for tool ${toolId}. Path: ${req.path}`);
+
+                const manager = this.dynamicTransportManagers.get(toolId);
+                if (manager) {
+                    this.logger.info(`Found TransportManager for tool ${toolId}, delegating POST handling.`);
+                    manager.handlePostMessage(req, res);
+                } else {
+                    this.logger.error(`No active TransportManager found for tool ${toolId} to handle POST request.`);
+                    if (!res.headersSent) {
+                        res.status(HttpStatus.NotFound).json({ error: `No active session found for tool '${toolId}'. Please establish an SSE connection first.` });
+                    }
+                }
+            }).catch(error => {
+                this.logger.error("Error in MCP /mcp/tool/:tool_id/message handler:", error);
+                if (!res.headersSent) res.status(HttpStatus.InternalServerError).end();
+            });
         });
 
         // --- Standard MCP Routes (handled by TransportManager) ---
@@ -332,13 +334,17 @@ export class McpServerApp {
             this.getTransportManager().handleSseConnection(req, res);
         });
         this.app.post(this.config.messagePath, (req, res) => {
-            // Require write permission for built-in tool calls
-            const { permissions } = RequestService.getRequestPermissions(req);
-            if (!permissions[ApiKeyPermission.WritePrivate]) {
-                return res.status(HttpStatus.Unauthorized).json({ error: "Forbidden - missing write permission" });
-            }
-            this.logger.info("Handling standard message POST. Path: " + req.path);
-            this.getTransportManager().handlePostMessage(req, res);
+            runWithMcpContext(req, res, async () => {
+                const { permissions } = RequestService.getRequestPermissions(req);
+                if (!permissions[ApiKeyPermission.WritePrivate]) {
+                    return res.status(HttpStatus.Unauthorized).json({ error: "Forbidden - missing write permission" });
+                }
+                this.logger.info("Handling standard message POST. Path: " + req.path);
+                this.getTransportManager().handlePostMessage(req, res);
+            }).catch(error => {
+                this.logger.error("Error in MCP standard message handler:", error);
+                if (!res.headersSent) res.status(HttpStatus.InternalServerError).end();
+            });
         });
 
         this.logger.info(`${this.config.serverInfo.name} routes configured on provided Express app.`);
