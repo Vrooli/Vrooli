@@ -1,252 +1,16 @@
-// /**
-//  * Finds bot information for a given bot ID. 
-//  * First checks the redis cache, then falls back to the database.
-//  */
-// export async function getBotInfo(botId: string): Promise<PreMapUserData | null> {
-//     let botInfo: PreMapUserData | null = null;
-
-//     // Check Redis cache first
-//     await withRedis({
-//         process: async (redisClient) => {
-//             if (!redisClient) return;
-//             const key = ChatContextCache.get().botKey(botId);
-//             const rawData = await redisClient.hGetAll(key);
-//             if (rawData && Object.keys(rawData).length >= 4) {
-//                 // Convert isBot back to boolean
-//                 botInfo = {
-//                     ...rawData,
-//                     isBot: rawData.isBot === "true",
-//                 } as unknown as PreMapUserData;
-//             }
-//         },
-//         trace: "0233",
-//     });
-
-//     // If not found in cache, query the database
-//     if (!botInfo || Object.keys(botInfo).length < 4) { // There are 4 fields in PreMapUserData. Can add better check if needed
-//         const botData = await DbProvider.get().user.findUnique({
-//             where: { id: BigInt(botId) },
-//             select: {
-//                 id: true,
-//                 name: true,
-//                 isBot: true,
-//                 botSettings: true,
-//             },
-//         });
-//         botInfo = {
-//             ...botData,
-//             id: botData?.id.toString() ?? "",
-//         } as PreMapUserData;
-//         // Store the fetched data in Redis for future use
-//         await withRedis({
-//             process: async (redisClient) => {
-//                 if (!redisClient) return;
-//                 // Convert isBot to string, since Redis only accepts string values
-//                 const botInfoForRedis = {
-//                     ...botInfo,
-//                     isBot: botInfo!.isBot.toString(),
-//                 };
-//                 const key = ChatContextCache.get().botKey(botId);
-//                 await redisClient.hSet(key, botInfoForRedis);
-//                 await redisClient.expire(key, DAYS_1_S);
-//             },
-//             trace: "0235",
-//         });
-//     }
-
-//     return botInfo;
-// }
-
-// /**
-//  * @returns Valid mentions in a message
-//  */
-// export function processMentions(
-//     messageContent: string,
-//     chat: { botParticipants?: string[] },
-//     bots: Pick<PreMapUserData, "id" | "name">[],
-// ): string[] {
-//     // Find markdown links in the message
-//     const linkStrings = messageContent.match(/\[([^\]]+)\]\(([^)]+)\)/g);
-//     // Get the label and link for each link
-//     let links: { label: string, link: string }[] = linkStrings?.map(s => {
-//         const [label, link] = s.slice(1, -1).split("](");
-//         return { label, link };
-//     }) ?? [];
-
-//     // Filter out links where the that aren't a mention. Rules:
-//     // 1. Label must start with @
-//     // 2. Link must be to this site
-//     links = links.filter(l => {
-//         if (!l.label.startsWith("@")) return false;
-//         try {
-//             const url = new URL(l.link);
-//             return url.origin === UI_URL;
-//         } catch (e) {
-//             return false;
-//         }
-//     });
-
-//     let botsToRespond: string[] = [];
-//     // If one of the links is "@Everyone", all bots should respond
-//     if (links.some(l => l.label === "@Everyone")) {
-//         botsToRespond = chat?.botParticipants ?? [];
-//     }
-//     // Otherwise, find the bots that were mentioned by name (e.g. "@BotName")
-//     else {
-//         botsToRespond = links.map(l => {
-//             const botId = bots.find(b => b.name === l.label.slice(1))?.id;
-//             if (!botId) return null;
-//             return botId;
-//         }).filter(id => id !== null) as string[];
-
-//         botsToRespond = [...new Set(botsToRespond)];
-//     }
-//     return botsToRespond;
-// }
-
-// /**
-//  * Determines which bots should respond based on the message content and chat context.
-//  * 
-//  * Conditions:
-//  * 1. If the message content is blank (likely meaning the message was updated but not its actual content), then no bots should respond.
-//  * 2. If the message is not associated with your user ID, no bots should respond.
-//  * 3. If there are no bots in the chat, no bots should respond.
-//  * 4. If there is one bot in the chat and two participants (i.e., just you and the bot), the bot should respond.
-//  * 5. Otherwise, check the message to see if any bots were mentioned.
-//  * 
-//  * @param message - The message that might trigger bot responses.
-//  * @param messageFromUserId - The ID of the user who sent the message.
-//  * @param chat - Information about the chat where the message was sent.
-//  * @param bots - Information about the bots in the chat.
-//  * @param userId - The ID of the user sending the message.
-//  * @returns An array of botIds that should respond to the message.
-//  */
-// export function determineRespondingBots(
-//     message: string | null,
-//     messageFromUserId: string,
-//     chat: { botParticipants?: string[], participantsCount?: number },
-//     bots: Pick<PreMapUserData, "id" | "name">[],
-//     userId: string,
-// ): string[] {
-//     if (
-//         !chat ||
-//         !message ||
-//         message.trim() === "" ||
-//         !messageFromUserId ||
-//         messageFromUserId !== userId ||
-//         bots.length === 0
-//     ) {
-//         return [];
-//     }
-
-//     if (bots.length === 1 && chat.participantsCount === 2) {
-//         return [bots[0].id];
-//     } else {
-//         return processMentions(message, chat, bots);
-//     }
-// }
-
-// /**
-//  * Stringifies a list of task context objects. These are used to provide context to the LLM,
-//  * typically when referencing a form or other client-side data.
-//  * @param taskLabel The label for the current task type, which may be used in the template 
-//  * @param taskContexts The list of task context objects to stringify
-//  * @param contextTemplateDefault The default template to use for stringifying the data
-//  * @returns A stringified list of task context objects
-//  */
-// export function stringifyTaskContexts(
-//     taskLabel: string,
-//     taskContexts: TaskContextInfo[],
-//     contextTemplateDefault?: string,
-// ): string {
-//     let result = "";
-
-//     for (let i = 0; i < taskContexts.length; i++) {
-//         const { template, templateVariables, data } = taskContexts[i];
-
-//         let contextString = "";
-//         const stringifiedData = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-
-//         // If the template is defined, replace template variables with actual data
-//         if (template || contextTemplateDefault) {
-//             contextString = template || contextTemplateDefault || "";
-
-//             // Define template variables
-//             const variables = {
-//                 [templateVariables?.task || "<TASK>"]: taskLabel,
-//                 [templateVariables?.data || "<DATA>"]: stringifiedData,
-//             };
-//             // Sort variables from longest to shortest, to avoid issues with overlapping variable names
-//             const sortedVariables = Object.entries(variables).sort(
-//                 ([varNameA], [varNameB]) => varNameB.length - varNameA.length,
-//             );
-//             // Replace each variable in the template
-//             for (const [varName, value] of sortedVariables) {
-//                 // Escape regex special characters in variable names
-//                 const escapedVarName = varName.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-//                 const regex = new RegExp(escapedVarName, "g");
-//                 contextString = contextString.replace(regex, value);
-//             }
-//         }
-//         // Otherwise, default to displaying the data
-//         else {
-//             contextString = stringifiedData;
-//         }
-
-//         result += contextString;
-
-//         // Add spacing between contexts
-//         if (i < taskContexts.length - 1) {
-//             result += "\n\n";
-//         }
-//     }
-
-//     return result;
-// }
-
-
-/* -----------------------------------------------------------------------------
- * Conversation context assembly for Vrooli – **patched**
- * -----------------------------------------------------------------------------
- * Fixes applied
- *   1. Snowflake precision: use timestamp‑portion as score for Redis ZSET
- *   2. Key TTL: every cache write sets/reset a 7‑day TTL
- *   3. TokenCounter public getKey() instead of reflective access
- *   4. Atomic deleteMessage via MULTI pipeline
- *   5. Correct `truncated` flag computed inside collect()
- * ---------------------------------------------------------------------------*/
-
 /* eslint-disable no-magic-numbers */
+import { DAYS_1_S } from "@local/shared";
 import { RedisClientType } from "redis";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { withRedis } from "../../redisConn.js";
 import { LlmServiceRegistry } from "../../tasks/llm/registry.js";
 import { type LanguageModelService } from "../../tasks/llm/types.js";
-import { JsonSchema } from "./types.js";
+import { BotParticipant, ConversationState } from "./types.js";
 
 /* --------------------------------------------------------------------------
  *  Domain types (copied from shared contracts)                               
  * --------------------------------------------------------------------------*/
-export interface BotParticipant {
-    id: string;
-    name: string;
-    meta?: Readonly<Record<string, unknown>> & {
-        role?: string;
-        extraTools?: JsonSchema[];
-        disabledTools?: string[];
-        systemPrompt?: string;
-    };
-}
-
-export interface Conversation {
-    id: string;
-    participants: BotParticipant[];
-    meta: Record<string, unknown> & {
-        activeBotId?: string | null;
-    };
-}
-
 export interface ContextBuildResult {
     messages: Array<{
         role: "system" | "user" | "assistant";
@@ -259,16 +23,17 @@ export interface ContextBuildResult {
 }
 
 export abstract class ContextBuilder {
-    abstract build(conversation: Conversation, bot: BotParticipant): Promise<ContextBuildResult>;
+    abstract build(conversation: ConversationState, bot: BotParticipant): Promise<ContextBuildResult>;
 }
 
-const CACHE_TTL_S = 60 * 60 * 24 * 7; // 7 days
+const CACHE_TTL_S = DAYS_1_S * 7;
 
 /* --------------------------------------------------------------------------
  *  Redis cache helper                                                        
  * --------------------------------------------------------------------------*/
 class ChatContextCache {
     /* — singleton — */
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
     private static _instance: ChatContextCache | null = null;
     static get(): ChatContextCache {
@@ -461,7 +226,7 @@ export class ConversationAssembler {
                 await rc.expire(`msg:${messageId}`, CACHE_TTL_S);
                 await rc.expire(`chat:${chatId}`, CACHE_TTL_S);
                 if (parentId) await this.cache.addChild(rc, parentId, messageId);
-            }
+            },
         });
     }
 
@@ -487,7 +252,7 @@ export class ConversationAssembler {
                 if (userId) msg.userId = userId;
                 pipe.hSet(`msg:${messageId}`, msg as any).expire(`msg:${messageId}`, CACHE_TTL_S);
                 await pipe.exec();
-            }
+            },
         });
     }
 
@@ -512,7 +277,7 @@ export class ConversationAssembler {
                 // remove message keys & chat membership
                 pipe.del([`msg:${messageId}`, `children:${messageId}`]).zRem(`chat:${chatId}`, messageId);
                 await pipe.exec();
-            }
+            },
         });
     }
 
@@ -546,7 +311,7 @@ export class ConversationAssembler {
                     tokensUsed += size;
                     cur = details.parentId ?? null;
                 }
-            }
+            },
         });
 
         return { context: context.reverse(), truncated, totalTokens: tokensUsed };
@@ -580,7 +345,7 @@ export class RedisContextBuilder extends ContextBuilder {
         this.assembler = new ConversationAssembler(aiModel);
     }
 
-    async build(conversation: Conversation, bot: BotParticipant): Promise<ContextBuildResult> {
+    async build(conversation: ConversationState, bot: BotParticipant): Promise<ContextBuildResult> {
         const { context, truncated, totalTokens } = await this.assembler.collect({ chatId: conversation.id });
 
         const messages = context.map(ci => {

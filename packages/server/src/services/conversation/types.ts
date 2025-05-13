@@ -1,7 +1,7 @@
-import { ChatConfigObject } from "@local/shared";
+import { ChatConfigObject, MessageConfigObject } from "@local/shared";
 import OpenAI from "openai";
 
-/** A participant in a conversation – human or bot. */
+/** A participant in a conversation – human or bot. */
 export interface BotParticipant {
     /** Stable unique identifier (Snowflake, UUID, etc.) */
     id: string;
@@ -16,38 +16,18 @@ export interface BotParticipant {
     };
 }
 
-/** Persisted conversation header plus participants & metadata. */
-export interface Conversation {
-    id: string;
-    participants: BotParticipant[];
-    /** Free‑form JSON – goals, quotas, custom fields */
-    meta: ChatConfigObject;
-    turnCounter: number;
-}
-
-export interface MessageMetaPayload {
-    contextHints?: string[];
-    eventTopic?: string;
-    respondingBots?: Array<string | "@all">;
-    role?: "user" | "assistant" | "system";
-    turnId?: number;                 // Persisted for crash safety
-}
-
 /** A single chat message. */
-export interface Message {
+export interface MessageState {
     /** Database ID – absent before insert. */
     id?: string;
-    role: "user" | "assistant" | "system";
     /** Primary text payload (may contain @mentions etc). */
     content: string;
     /** Author bot ID (assistant role only). */
     botId?: string;
     createdAt: Date;
+    parentId?: string | null;
     language?: string;
-    contextHints?: MessageMetaPayload["contextHints"];
-    respondingBots?: MessageMetaPayload["respondingBots"];
-    eventTopic?: MessageMetaPayload["eventTopic"];
-    turnId?: MessageMetaPayload["turnId"];
+    config: MessageConfigObject;
 }
 
 /** Generic success/error wrapper returned by many collaborators. */
@@ -108,11 +88,6 @@ export interface ContextBuildResult {
     toolSchemas: JsonSchema[];
 }
 
-
-/* ------------------------------------------------------------------
- * AgentGraph – responder selection
- * ------------------------------------------------------------------ */
-
 /* ------------------------------------------------------------------
  * ToolRunner – executes MCP tool calls (or other functions)
  * ------------------------------------------------------------------ */
@@ -129,37 +104,42 @@ export interface ToolMeta {
 /** Reduced JSON Schema marker (compatible with OpenAI function‑calling). */
 export type JsonSchema = Record<string, unknown>;
 
-export namespace LLM {
-    /** Normalised streaming event emitted by the router. */
-    export type StreamEvent =
-        | {
-            type: "message";
-            content: string;
-            response_id: string;
-        }
-        | {
-            type: "function_call";
-            name: string;
-            arguments: unknown;
-            call_id: string;
-            response_id: string;
-        }
-        | {
-            type: "reasoning";
-            content: string;
-            response_id: string;
-        };
+/** 
+ * Buffer of events grouped by turnId. This is used to batch events for a given turnId together. 
+ * 
+ * Any events which should be responded to immediately (e.g. tool results, so 
+ * bots an use multiple tools in the same turn) are added to the existing turn buffer.
+ * 
+ * Any external events (e.g. user messages) are added to the buffer for the next turn, 
+ * so that the conversation can move forward.
+ */
+export type TurnQueue = Map<number, ConversationEvent[]>; // keyed by turnId
+
+/**
+ * Stats for a single turn. 
+ * This is not persisted to the database.
+ */
+export type TurnStats = {
+    /** Tool-calls made by ALL bots this turn (for maxToolCallsPerTurn) */
+    toolCalls: number;
+    /** Tool-calls made by the CURRENT bot this turn (for maxToolCallsPerBotTurn) */
+    botToolCalls: number;
+    /** Credits used this turn */
+    creditsUsed: bigint;
 }
 
-export interface StreamOptions {
-    /** Model name (provider‑specific). */
-    model: string;
-    /** Optional reference to continue a threaded conversation on provider side. */
-    previous_response_id?: string;
-    /** Message / input items per the Responses API. */
-    input: Array<Record<string, unknown>>;
-    /** JSON‑Schema tool list (built‑ins + custom). */
-    tools: JsonSchema[];
-    /** Allow model to emit several tool calls at once. */
-    parallel_tool_calls?: boolean;
+/**
+ * A conversation state
+ */
+export type ConversationState = {
+    /** The conversation ID, stringified */
+    id: string;
+    /** The most up-to-date config for the conversation (may not be synced to the database yet) */
+    config: ChatConfigObject;
+    /** Information about the bots (who can respond) in the conversation */
+    participants: BotParticipant[];
+    /** The queue of events for the conversation, keyed by turnId */
+    queue: TurnQueue;
+    /** The current turn's stats, for tracking limits */
+    turnStats: TurnStats;
 }

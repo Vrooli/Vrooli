@@ -1,4 +1,4 @@
-import { BotParticipant, Conversation, Message } from "./types.js";
+import { BotParticipant, Conversation, MessageState } from "./types.js";
 
 /**
  * Responsible for deciding **which bots** should act when a trigger arrives.
@@ -7,17 +7,17 @@ import { BotParticipant, Conversation, Message } from "./types.js";
 export abstract class AgentGraph {
     abstract selectResponders(
         conversation: Conversation,
-        trigger: Message | { type: "system"; content: string }
+        trigger: MessageState | { type: "system"; content: string }
     ): Promise<BotParticipant[]>;
 }
 
 /**
- * Reads {@link Message.respondingBots}. Ignores duplicates / invalid IDs.
+ * Reads {@link MessageState.respondingBots}. Ignores duplicates / invalid IDs.
  */
 export class DirectResponderGraph extends AgentGraph {
     async selectResponders(
         conversation: Conversation,
-        trigger: Message | { type: "system"; content: string }
+        trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
         // Only user/assistant messages can carry explicit responders
         if (!("respondingBots" in trigger) || !trigger.respondingBots) return [];
@@ -52,7 +52,7 @@ function matchTopic(pattern: string, topic: string): boolean {
 export class SubscriptionGraph extends AgentGraph {
     async selectResponders(
         conversation: Conversation,
-        trigger: Message | { type: "system"; content: string }
+        trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
         const topic =
             "eventTopic" in trigger && trigger.eventTopic ? trigger.eventTopic : undefined;
@@ -85,7 +85,7 @@ export class SubscriptionGraph extends AgentGraph {
 export class ActiveBotGraph extends AgentGraph {
     async selectResponders(
         conversation: Conversation,
-        _trigger: Message | { type: "system"; content: string }
+        _trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
         const active = conversation.meta.activeBotId;
         if (!active) {                         // no baton ⇒ arbitrator
@@ -109,7 +109,7 @@ export class CompositeGraph extends AgentGraph {
 
     async selectResponders(
         conversation: Conversation,
-        trigger: Message | { type: "system"; content: string }
+        trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
         // 1️⃣ explicit responders override everything
         const directRes = await this.direct.selectResponders(conversation, trigger);

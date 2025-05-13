@@ -1,11 +1,7 @@
 import { EventEmitter } from "node:events";
 import { createClient, RedisClientType } from "redis";
-
 import { getRedisUrl } from "../../redisConn.js";
-import {
-    ConversationEvent,
-    EventCallback,
-} from "./types.js";
+import { ConversationEvent, EventCallback } from "./types.js";
 
 
 /* ------------------------------------------------------------------
@@ -47,7 +43,7 @@ import {
  *  2. RedisPubSubBus     – same semantics as Node's EventEmitter but works
  *                          across processes / pods. At‑most‑once delivery.
  *  3. NatsJetStreamBus   – durable, at‑least‑once delivery with replay.
- *                          Light ops footprint (<30 MB binary).
+ *                          Light ops footprint (<30 MB binary).
  *                          Requires `nats-server -js`.
  *
  * ------------------------------------------------------------------ */
