@@ -11,6 +11,8 @@ import { initRestApi } from "./endpoints/rest.js";
 import { logger } from "./events/logger.js";
 import { initializeRedis } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
+import { BillingWorker } from "./services/billing.js";
+import { ConversationWorker } from "./services/conversation/conversationLoop.js";
 import { setupHealthCheck } from "./services/health.js";
 import { setupMCP } from "./services/mcp/index.js";
 import { setupStripe } from "./services/stripe.js";
@@ -55,6 +57,10 @@ async function main() {
     // Setup databases
     await initializeRedis();
     await DbProvider.init();
+
+    // Start event bus and its workers
+    await BillingWorker.start();
+    await ConversationWorker.start();
 
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));

@@ -1,12 +1,12 @@
 /* eslint-disable func-style */
 import { ChatConfig, LRUCache, MessageConfigObject, type ChatConfigObject } from "@local/shared";
 import { SocketService } from "../../sockets/io.js";
-import { EventBus } from "../eventBus.js";
-import { AgentGraph } from "./agentGraph.js";
-import { ContextBuilder } from "./contextBuilder.js";
-import { ChatPersistence } from "./persistence.js";
+import { BusWorker, EventBus } from "../bus.js";
+import { AgentGraph, CompositeGraph } from "./agentGraph.js";
+import { ContextBuilder, RedisContextBuilder } from "./contextBuilder.js";
+import { ChatPersistence, PrismaChatPersistence } from "./persistence.js";
 import { FunctionCallOutput, OutputGenerator } from "./responseUtils.js";
-import { FunctionCallStreamEvent, LlmRouter } from "./router.js";
+import { FallbackRouter, FunctionCallStreamEvent, LlmRouter } from "./router.js";
 import { ToolRunner } from "./toolRunner.js";
 import { BotParticipant, ConversationEvent, ConversationState, MessageCreatedEvent, MessageState, ScheduledTickEvent, ToolResultEvent, TurnStats } from "./types.js";
 
@@ -532,3 +532,32 @@ export class ConversationLoop {
         });
     }
 }
+
+export const chatStore = new PrismaChatPersistence();
+const contextBuilder = new RedisContextBuilder();
+const toolRunner = new McpToolRunner();
+const agentGraph = new CompositeGraph();
+const llmRouter = new FallbackRouter();
+
+export class ConversationWorker extends BusWorker {
+    protected static async init(bus: EventBus) {
+        return new ConversationLoop(
+            bus,
+            chatStore,
+            contextBuilder,
+            toolRunner,
+            agentGraph,
+            llmRouter,
+        );
+    }
+
+    static get(): ConversationLoop {
+        return super.get() as ConversationLoop;
+    }
+
+    protected static async shutdown() {
+        const loop = ConversationWorker.get();
+        await loop.dispose();
+    }
+}
+

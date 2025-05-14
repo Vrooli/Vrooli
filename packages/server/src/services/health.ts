@@ -27,6 +27,7 @@ import { runQueue } from "../tasks/run/queue.js";
 import { sandboxQueue } from "../tasks/sandbox/queue.js";
 import { smsQueue } from "../tasks/sms/queue.js";
 import { checkNSFW, getS3Client } from "../utils/fileStorage.js";
+import { BusService, RedisStreamBus } from "./bus.js";
 import { EmbeddingService } from "./embedding.js";
 import { getMcpServer } from "./mcp/index.js";
 import { McpToolName } from "./mcp/registry.js";
@@ -43,7 +44,7 @@ export enum ServiceStatus {
 
 export interface ServiceHealth {
     healthy: boolean;
-    status: ServiceStatus;
+    status: ServiceStatus | `${ServiceStatus}`;
     lastChecked: number;
     details?: object;
 }
@@ -53,6 +54,7 @@ interface SystemHealth {
     version: string;
     services: {
         api: ServiceHealth;
+        bus: ServiceHealth;
         cronJobs: ServiceHealth;
         database: ServiceHealth;
         i18n: ServiceHealth;
@@ -121,6 +123,7 @@ export class HealthService {
 
     // Cache properties for individual services
     private apiHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
+    private busHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
     private cronJobsHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
     private databaseHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
     private i18nHealthCache: { health: ServiceHealth, expiresAt: number } | null = null;
@@ -164,7 +167,7 @@ export class HealthService {
     /**
      * Helper function to create a service cache
      */
-    private createServiceCache(status: ServiceStatus, cacheDurationMs: number, details?: object) {
+    private createServiceCache(status: ServiceStatus | `${ServiceStatus}`, cacheDurationMs: number, details?: object) {
         const health: ServiceHealth = {
             healthy: status === ServiceStatus.Operational,
             status,
@@ -172,6 +175,40 @@ export class HealthService {
             details,
         };
         return { health, expiresAt: Date.now() + cacheDurationMs };
+    }
+
+    private async checkBus(): Promise<ServiceHealth> {
+        const cached = this.getCachedHealthIfValid(this.busHealthCache);
+        if (cached) return cached;
+
+        try {
+            // Ensure bus exists (lazy init is idempotent)
+            await BusService.get().startEventBus();
+            const bus = BusService.get().getBus();
+
+            // Default when no metrics() helper (e.g. InMemoryEventBus in tests)
+            let metrics: any = { connected: true };
+            if (typeof (bus as any).metrics === "function") {
+                metrics = await (bus as RedisStreamBus).metrics();
+            }
+
+            const backlog = Object.values(metrics.pendingPerCG ?? {}).reduce((a, b) => a + b, 0) as number;
+            const status =
+                !metrics.connected ? ServiceStatus.Down
+                    : backlog > 5000 ? ServiceStatus.Degraded   // tune threshold
+                        : ServiceStatus.Operational;
+
+            this.busHealthCache = this.createServiceCache(status, DEFAULT_SERVICE_CACHE_MS, metrics);
+            return this.busHealthCache.health;
+
+        } catch (err) {
+            this.busHealthCache = this.createServiceCache(
+                ServiceStatus.Down,
+                DEFAULT_SERVICE_CACHE_MS,
+                { error: (err as Error).message ?? "Bus metrics failed" },
+            );
+            return this.busHealthCache.health;
+        }
     }
 
     /**
@@ -1022,20 +1059,21 @@ export class HealthService {
         // Perform health checks in parallel
         const results = await Promise.allSettled([
             this.checkApi(),                   // 0
-            this.checkCronJobs(),              // 1
-            this.checkDatabase(),              // 2
-            this.checkI18n(),                  // 3
-            this.checkLlmServices(),           // 4
-            this.checkMcp(),                   // 5
-            this.checkMemory(),                // 6
-            this.checkQueues(),                // 7
-            this.checkRedis(),                 // 8
-            this.checkSslCertificate(),        // 9
-            this.checkStripe(),                // 10
-            this.checkSystem(),                // 11
-            this.checkWebSocket(),             // 12
-            this.checkImageStorage(),          // 13
-            this.checkEmbeddingService(),      // 14
+            this.checkBus(),                   // 1
+            this.checkCronJobs(),              // 2
+            this.checkDatabase(),              // 3
+            this.checkI18n(),                  // 4
+            this.checkLlmServices(),           // 5
+            this.checkMcp(),                   // 6
+            this.checkMemory(),                // 7
+            this.checkQueues(),                // 8
+            this.checkRedis(),                 // 9
+            this.checkSslCertificate(),        // 10
+            this.checkStripe(),                // 11
+            this.checkSystem(),                // 12
+            this.checkWebSocket(),             // 13
+            this.checkImageStorage(),          // 14
+            this.checkEmbeddingService(),      // 15
         ]);
 
         // Helper to create a default 'Down' status for failed checks
@@ -1050,27 +1088,29 @@ export class HealthService {
 
         // Process results, providing defaults for rejected promises
         const apiHealth = results[0].status === "fulfilled" ? results[0].value : createDownStatus("API", results[0].reason);
-        const cronJobsHealth = results[1].status === "fulfilled" ? results[1].value : createDownStatus("Cron Jobs", results[1].reason);
-        const dbHealth = results[2].status === "fulfilled" ? results[2].value : createDownStatus("Database", results[2].reason);
-        const i18nHealth = results[3].status === "fulfilled" ? results[3].value : createDownStatus("i18n", results[3].reason);
-        const llmHealth = results[4].status === "fulfilled" ? results[4].value : {}; // Handled differently as it's an object
-        if (results[4].status === "rejected") logger.error("LLM health check failed", { trace: "health-llm-fail", error: results[4].reason });
-        const mcpHealth = results[5].status === "fulfilled" ? results[5].value : createDownStatus("MCP", results[5].reason);
-        const memoryHealth = results[6].status === "fulfilled" ? results[6].value : createDownStatus("Memory", results[6].reason);
-        const queueHealths = results[7].status === "fulfilled" ? results[7].value : {}; // Handled differently as it's an object
-        if (results[7].status === "rejected") logger.error("Queue health check failed", { trace: "health-queue-fail", error: results[7].reason });
-        const redisHealth = results[8].status === "fulfilled" ? results[8].value : createDownStatus("Redis", results[8].reason);
-        const sslHealth = results[9].status === "fulfilled" ? results[9].value : createDownStatus("SSL", results[9].reason);
-        const stripeHealth = results[10].status === "fulfilled" ? results[10].value : createDownStatus("Stripe", results[10].reason);
-        const systemHealth = results[11].status === "fulfilled" ? results[11].value : createDownStatus("System", results[11].reason);
-        const websocketHealth = results[12].status === "fulfilled" ? results[12].value : createDownStatus("WebSocket", results[12].reason);
-        const imageStorageHealth = results[13].status === "fulfilled" ? results[13].value : createDownStatus("Image Storage", results[13].reason);
-        const embeddingServiceHealth = results[14].status === "fulfilled" ? results[14].value : createDownStatus("Embedding Service", results[14].reason);
+        const busHealth = results[1].status === "fulfilled" ? results[1].value : createDownStatus("Bus", results[1].reason);
+        const cronJobsHealth = results[2].status === "fulfilled" ? results[2].value : createDownStatus("Cron Jobs", results[2].reason);
+        const dbHealth = results[3].status === "fulfilled" ? results[3].value : createDownStatus("Database", results[3].reason);
+        const i18nHealth = results[4].status === "fulfilled" ? results[4].value : createDownStatus("i18n", results[4].reason);
+        const llmHealth = results[5].status === "fulfilled" ? results[5].value : {}; // Handled differently as it's an object
+        if (results[5].status === "rejected") logger.error("LLM health check failed", { trace: "health-llm-fail", error: results[5].reason });
+        const mcpHealth = results[6].status === "fulfilled" ? results[6].value : createDownStatus("MCP", results[6].reason);
+        const memoryHealth = results[7].status === "fulfilled" ? results[7].value : createDownStatus("Memory", results[7].reason);
+        const queueHealths = results[8].status === "fulfilled" ? results[8].value : {}; // Handled differently as it's an object
+        if (results[8].status === "rejected") logger.error("Queue health check failed", { trace: "health-queue-fail", error: results[8].reason });
+        const redisHealth = results[9].status === "fulfilled" ? results[9].value : createDownStatus("Redis", results[9].reason);
+        const sslHealth = results[10].status === "fulfilled" ? results[10].value : createDownStatus("SSL", results[10].reason);
+        const stripeHealth = results[11].status === "fulfilled" ? results[11].value : createDownStatus("Stripe", results[11].reason);
+        const systemHealth = results[12].status === "fulfilled" ? results[12].value : createDownStatus("System", results[12].reason);
+        const websocketHealth = results[13].status === "fulfilled" ? results[13].value : createDownStatus("WebSocket", results[13].reason);
+        const imageStorageHealth = results[14].status === "fulfilled" ? results[14].value : createDownStatus("Image Storage", results[14].reason);
+        const embeddingServiceHealth = results[15].status === "fulfilled" ? results[15].value : createDownStatus("Embedding Service", results[15].reason);
 
 
         // Determine overall status
         const allServices = [
             apiHealth,
+            busHealth,
             cronJobsHealth,
             dbHealth,
             i18nHealth,
@@ -1094,6 +1134,7 @@ export class HealthService {
             version: process.env.npm_package_version || "unknown",
             services: {
                 api: apiHealth,
+                bus: busHealth,
                 cronJobs: cronJobsHealth,
                 database: dbHealth,
                 i18n: i18nHealth,
