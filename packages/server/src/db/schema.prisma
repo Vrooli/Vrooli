@@ -109,7 +109,7 @@ model chat {
     createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
     config                 Json?                       @default("{}")
-    turnCounter            BigInt                      @default(0)
+    turnCounter            Int                         @default(0)
     isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              BigInt?                     @db.BigInt
@@ -465,11 +465,11 @@ model team {
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     parentId           BigInt?                     @db.BigInt
-    premiumId          BigInt?                     @unique @db.BigInt
     createdById        BigInt?                     @db.BigInt
     stripeCustomerId   String?                     @unique @db.VarChar(255)
     createdBy          user?                       @relation("team_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     chats              chat[]
+    creditAccount      credit_account?
     emails             email[]
     issues             issue[]
     apiKeys            api_key[]
@@ -478,7 +478,7 @@ model team {
     meetings           meeting[]
     paymentHistory     payment[]
     phones             phone[]
-    premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
+    plan               plan?
     tags               team_tag[]
     translations       team_translation[]
     members            member[]
@@ -598,15 +598,66 @@ model payment {
     @@index([userId], name: "idx_payment_userId")
 }
 
-model premium {
+model plan {
     id                  BigInt    @id @db.BigInt
-    credits             BigInt    @default(0)
     customPlan          String?   @db.VarChar(2048)
     enabledAt           DateTime? @db.Timestamptz(6)
     expiresAt           DateTime? @db.Timestamptz(6)
     receivedFreeTrialAt DateTime? @db.Timestamptz(6)
-    team                team?
-    user                user?
+    teamId              BigInt?   @unique @db.BigInt
+    userId              BigInt?   @unique @db.BigInt
+    team                team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user                user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model credit_account {
+    /// One account per *credit holder* (user *or* team).      
+    id             BigInt                @id @db.BigInt
+    /// Redundant but handy for quick queries & locking:
+    currentBalance BigInt                @default(0)
+    /// last ledger row applied – lets us “fast-fail” replays
+    lastEntryId    BigInt?               @unique
+    /// The entity this account belongs to.
+    userId         BigInt?               @unique @db.BigInt
+    teamId         BigInt?               @unique @db.BigInt
+    user           user?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+    team           team?                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    /// Ledger entries (1-N)
+    entries        credit_ledger_entry[]
+
+    @@index([userId], name: "idx_credit_account_userId")
+    @@index([teamId], name: "idx_credit_account_teamId")
+}
+
+model credit_ledger_entry {
+    id             BigInt             @id @db.BigInt
+    createdAt      DateTime           @default(now()) @db.Timestamptz(6)
+    /// idempotency key (UUID, Stripe id, etc.) – one ledger row per key
+    idempotencyKey String             @unique @db.VarChar(64)
+    /// ALWAYS signed. Positive = incoming, negative = outgoing.    
+    amount         BigInt
+    type           CreditEntryType
+    source         CreditSourceSystem
+    /// Free-form JSON – stores Stripe session id, turnId, etc.
+    meta           Json?
+
+    /// The account affected
+    accountId BigInt
+    account   credit_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+    /// Optional linkage to a payment row (so we keep all payment-processor
+    /// details in one table, but still have a single source of truth for
+    /// credits).  Null for internal or spend entries.
+    paymentId BigInt? @db.BigInt
+
+    /// For transfers we store *both* sides: one entry negative on the sender’s
+    /// account, one entry positive on the receiver’s account, both sharing the
+    /// same `transferGroup`.  That lets you JOIN the pair later.
+    transferGroup String? @db.VarChar(64)
+
+    @@index([accountId, createdAt], name: "idx_credit_ledger_entry_accountId_createdAt")
+    @@index([paymentId], name: "idx_credit_ledger_entry_paymentId")
+    @@index([transferGroup], name: "idx_credit_ledger_entry_transferGroup")
 }
 
 model pull_request {
@@ -1245,7 +1296,6 @@ model user {
     bookmarks                 Int                         @default(0)
     views                     Int                         @default(0)
     reputation                Int                         @default(0)
-    premiumId                 BigInt?                     @unique @db.BigInt
     stripeCustomerId          String?                     @unique @db.VarChar(255)
     status                    AccountStatus               @default(Unlocked)
     apiKeys                   api_key[]
@@ -1257,6 +1307,7 @@ model user {
     chatsInvited              chat_invite[]
     chatMessages              chat_message[]              @relation("chat_message_user")
     comments                  comment[]                   @relation("comment_ownedByUser")
+    creditAccount             credit_account?
     emails                    email[]
     phones                    phone[]
     invitedByUser             user?                       @relation("user_invitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
@@ -1271,7 +1322,7 @@ model user {
     notificationSubscriptions notification_subscription[]
     memberships               member[]
     membershipsInvited        member_invite[]
-    premium                   premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
+    plan                      plan?
     pullRequests              pull_request[]              @relation("pull_request_createdBy")
     reminderLists             reminder_list[]             @relation("reminder_list_user")
     reportsReceived           report[]                    @relation("report_user")
@@ -1396,6 +1447,41 @@ enum AccountStatus {
     Unlocked
     SoftLocked
     HardLocked
+}
+
+enum CreditEntryType {
+    // + incoming
+    Purchase
+    TransferIn
+    RollOver
+    Bonus
+    Refund
+    DonationReceived
+    MigrationImport
+    AdjustmentIncrease
+    // – outgoing
+    Spend
+    TransferOut
+    DonationGiven
+    Expire
+    Chargeback
+    AdjustmentDecrease
+    Penalty
+    // catch-all
+    Other
+}
+
+enum CreditSourceSystem {
+    Stripe
+    CryptoGateway
+    PartnerGateway
+    Scheduler
+    InternalAgent
+    Admin
+    MigrationScript
+    TestHarness
+    OtherProcessor
+    Other
 }
 
 enum InviteStatus {

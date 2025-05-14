@@ -31,7 +31,7 @@ export async function paymentsExpirePremium() {
             objectType: "Team",
             processBatch: async (batch) => {
                 // Remove premium status for teams
-                const premiumIds = batch.map(team => team.premium?.id).filter(id => id !== null) as string[];
+                const premiumIds = batch.map(team => team.premium?.id).filter(id => id !== null) as bigint[];
                 await DbProvider.get().premium.updateMany({
                     // Don't remove credits, as they may have paid for them
                     data: {
@@ -58,7 +58,7 @@ export async function paymentsExpirePremium() {
             objectType: "User",
             processBatch: async (batch) => {
                 // Remove premium status for users
-                const premiumIds = batch.map(user => user.premium?.id).filter(id => id !== null) as string[];
+                const premiumIds = batch.map(user => user.premium?.id).filter(id => id !== null) as bigint[];
                 await DbProvider.get().premium.updateMany({
                     // Don't remove credits, as they may have paid for them
                     data: {
@@ -79,4 +79,4 @@ export async function paymentsExpirePremium() {
     } catch (error) {
         logger.error("paymentsExpirePremium caught error for users", { error, trace: "0466" });
     }
-};
+}

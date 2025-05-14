@@ -1,4 +1,4 @@
-import { OkErr, ToolMeta } from "./types";
+import { OkErr, ToolMeta } from "./types.js";
 
 export abstract class ToolRunner {
     /**

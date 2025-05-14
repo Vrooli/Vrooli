@@ -1,5 +1,6 @@
 import { ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfigObject } from "@local/shared";
-import { chat_message, Prisma, PrismaClient, user } from "@prisma/client";
+import { chat_message, Prisma, user } from "@prisma/client";
+import { DbProvider } from "../../db/provider.js";
 import { BotParticipant, ConversationState, MessageState } from "./types.js";
 
 /* ------------------------------------------------------------------
@@ -251,12 +252,12 @@ function diffPatch<T extends object>(from: T, to: T): Partial<T> | null {
 
 
 export class PrismaChatPersistence extends ChatPersistence {
-    constructor(private readonly prisma: PrismaClient = new PrismaClient()) {
+    constructor() {
         super();
     }
 
     protected async fetchConfig(conversationId: string): Promise<ChatConfigObject> {
-        const row = await this.prisma.chat.findUnique({
+        const row = await DbProvider.get().chat.findUnique({
             where: { id: BigInt(conversationId) },
             select: { config: true },
         });
@@ -271,7 +272,7 @@ export class PrismaChatPersistence extends ChatPersistence {
         if (!patch) return;
 
         /* Prisma's JSON path update merges objects when path === [] */
-        await this.prisma.chat.update({
+        await DbProvider.get().chat.update({
             where: { id: BigInt(id) },
             data: {
                 config: {
@@ -283,7 +284,7 @@ export class PrismaChatPersistence extends ChatPersistence {
     }
 
     async saveMessage(conversationId: string, input: Omit<MessageState, "createdAt">): Promise<MessageState> {
-        const row = await this.prisma.chat_message.create({
+        const row = await DbProvider.get().chat_message.create({
             data: {
                 id: generatePK(),
                 config: input.config as unknown as Prisma.InputJsonValue,
@@ -300,7 +301,7 @@ export class PrismaChatPersistence extends ChatPersistence {
     }
 
     async getMessage(id: string): Promise<MessageState | null> {
-        const row = await this.prisma.chat_message.findUnique({
+        const row = await DbProvider.get().chat_message.findUnique({
             where: { id: BigInt(id) },
             select: chatMessageSelect,
         });
@@ -308,7 +309,7 @@ export class PrismaChatPersistence extends ChatPersistence {
     }
 
     async getConversation(id: string): Promise<ConversationState | null> {
-        const row = await this.prisma.chat.findUnique({
+        const row = await DbProvider.get().chat.findUnique({
             where: { id: BigInt(id) },
             select: {
                 id: true,

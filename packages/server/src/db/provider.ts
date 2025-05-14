@@ -307,14 +307,14 @@ export class DbProvider {
      * Only available in test mode.
      */
     public static async deleteAll(): Promise<void> {
-        if (process.env.NODE_ENV !== 'test') {
-            throw new Error('dropDatabase is only available in test mode');
+        if (process.env.NODE_ENV !== "test") {
+            throw new Error("dropDatabase is only available in test mode");
         }
         if (!DbProvider.dbService) {
-            throw new Error('Database service not initialized. Call init first.');
+            throw new Error("Database service not initialized. Call init first.");
         }
         await DbProvider.dbService.deleteAll();
-        logger.info('Database dropped for test environment');
+        logger.info("Database dropped for test environment");
     }
 
     /**
