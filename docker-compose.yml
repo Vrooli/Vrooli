@@ -238,7 +238,7 @@ services:
     command: /bin/sh -c "exec php -S [::]:8080 -t /var/www/html/"
   # Service for NSFW detection
   nsfw-detector:
-    image: steelcityamir/safe-content-ai:latest
+    image: steelcityamir/safe-content-ai:1.1.0
     container_name: nsfw-detector
     restart: always
     networks:

@@ -219,7 +219,7 @@ services:
       retries: 5
   # Service for NSFW detection
   nsfw-detector:
-    image: steelcityamir/safe-content-ai:latest
+    image: steelcityamir/safe-content-ai:1.1.0
     container_name: nsfw-detector
     restart: always
     networks:
