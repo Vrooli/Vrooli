@@ -3,53 +3,110 @@ import { EventEmitter } from "node:events";
 import { createClient } from "redis";
 import { logger } from "../events/logger.js";
 import { getRedisUrl } from "../redisConn.js";
-import { ConversationEvent, EventCallback } from "./conversation/types.js";
 import { type ServiceHealth } from "./health.js";
+
+/**
+ * Base interface for all events, requiring only a type discriminator.
+ */
+export interface BaseEvent {
+    type: string;
+}
+
+/**
+ * Events related to conversations, extending BaseEvent with conversation-specific fields.
+ */
+export interface ConversationBaseEvent extends BaseEvent {
+    conversationId: string;
+    turnId: number;
+}
+
+export interface MessageCreatedEvent extends ConversationBaseEvent {
+    type: "message.created";
+    messageId: string;
+}
+
+export interface ToolResultEvent extends ConversationBaseEvent {
+    type: "tool.result";
+    callerBotId: string;
+    callId: string;
+    output: unknown;
+}
+
+export interface ScheduledTickEvent extends ConversationBaseEvent {
+    type: "scheduled.tick";
+    topic: string;
+}
+
+export type ConversationEvent =
+    | MessageCreatedEvent
+    | ToolResultEvent
+    | ScheduledTickEvent;
+
+/**
+ * Events related to credit ledger updates.
+ */
+export interface CreditLedgerEvent extends BaseEvent {
+    type: "credit.update";
+    userId: string;
+    credits: string; // Stringified BigInt, as in socket events
+}
+
+/**
+ * Union type representing all possible application events.
+ * Add new event types here as needed.
+ */
+type AppEvent =
+    | MessageCreatedEvent
+    | ToolResultEvent
+    | ScheduledTickEvent
+    | CreditLedgerEvent;
+
+/**
+ * Callback signature for event subscribers.
+ */
+type EventCallback = (evt: AppEvent) => void | Promise<void>;
 
 type StreamMessage = { id: string; message: Record<string, string> };
 type XAutoClaimResult = { nextId: string; messages: Array<StreamMessage | null> };
 
 /* ------------------------------------------------------------------
- * eventBus.ts  –  Unified publish/subscribe spine for Vrooli
+ * eventBus.ts – Unified Publish/Subscribe Spine for Internal Server Events
  * ------------------------------------------------------------------
- * Why this exists
- * -------------------
- *  • ConversationLoop and other micro‑services interact *only* through the
- *    EventBus interface; they never call one another directly.
- *  • You can swap message back‑ends (in‑memory  → Redis  → JetStream)
- *    without touching domain code – just bind the desired concrete class.
  *
- *  **SINGLETON RULE**
- *  ------------------
- *  Create **exactly one EventBus instance per Node.js process / Kubernetes
- *  pod** and share it across *all* other singletons in that process that listen to events 
- *  (e.g. ConversationLoop, billing service, etc.).
- *  Each EventBus implementation maintains its own network sockets
- *  (Redis: 2, NATS: 1–2). Spawning a bus per conversation would exhaust
- *  file‑descriptors and overwhelm your broker.
+ * ### Overview
+ * The Event Bus is a core infrastructure component designed for **internal server-to-server communication**. It routes events like chat messages and credit ledger updates to a single server for processing, ensuring consistency and preventing race conditions. This system decouples backend services, allowing them to communicate efficiently without direct dependencies.
  *
- * Interface contract (recap)
- * -------------------------
- *  subscribe(cb) : fire callback for every new event **in order per channel**
- *  publish(evt)  : fire‑and‑forget, non‑blocking.
- *  close()       : flush & free resources on shutdown.
+ * ### Purpose
+ * - **Internal Event Handling:** Manages events within the backend, such as database updates or workflow triggers.
+ * - **Consistency:** Ensures events are processed by a single server, avoiding duplication or conflicts.
+ * - **Modularity:** Uses a publish-subscribe model to enhance backend service independence.
  *
- * Event shape (see ./types.ts)
- * ---------------------------
- *  {
- *    type:            "message.created" | "tool.result" | ...,
- *    conversationId:  "conv_…",
- *    turnId:          42,
- *    ...other fields
- *  }
+ * ### Key Differences from SocketService
+ * - **Event Bus:**
+ *   - **Scope:** Internal, server-to-server communication.
+ *   - **Purpose:** Processes backend events (e.g., chat message logging, credit updates).
+ *   - **Processing:** Guarantees exactly-once processing per consumer group (Redis implementation).
+ * - **SocketService:**
+ *   - **Scope:** External, server-to-client communication.
+ *   - **Purpose:** Sends real-time updates to users via websockets (e.g., notifications).
+ *   - **Processing:** Focuses on delivery, not internal consistency.
  *
- * Implementations
- * ---------------
- *  1. InMemoryEventBus   – single‑process dev & unit tests. Zero deps.
- *  2. RedisStreamBus     – same semantics as Node's EventEmitter but works
- *                          across processes/pods, sending events to a single
- *                          process/pod to scale horizontally and prevent duplicated work
+ * ### When to Use
+ * - **Use Event Bus:** For internal backend events requiring processing, such as updating a credit ledger or logging a chat message.
+ * - **Use SocketService:** For sending data directly to clients, like notifying a user of a new message.
  *
+ * ### Event Examples
+ * - `message.created`: A new chat message is created (processed internally, e.g., for logging).
+ * - `credit.update`: A user’s credit balance changes (updates the ledger).
+ *
+ * ### Technical Notes
+ * - **Publish-Subscribe:** Services publish events and subscribe to receive them.
+ * - **Backends:** InMemoryEventBus (testing), RedisStreamBus (production with exactly-once processing).
+ * - **Singleton Rule:** Create one instance per Node.js process to manage resources efficiently.
+ *
+ * ### Best Practices
+ * - Ensure event data is JSON-serializable.
+ * - Implement error handling in subscribers to maintain stability.
  * ------------------------------------------------------------------ */
 export abstract class EventBus {
     private readonly lifecycleEmitter = new EventEmitter();  // internal for life‑cycle
@@ -70,7 +127,7 @@ export abstract class EventBus {
      * 
      * @param event - The event to publish
      */
-    abstract publish(event: ConversationEvent): Promise<void>;
+    abstract publish(event: AppEvent): Promise<void>;
 
     /** 
      * Flush buffers and close connections.  
@@ -120,7 +177,7 @@ export class InMemoryEventBus extends EventBus {
         this.emitter.on("evt", cb);
     }
 
-    async publish(evt: ConversationEvent) {
+    async publish(evt: AppEvent) {
         this.emitter.emit("evt", evt);
     }
 
@@ -312,6 +369,7 @@ function getReconnectDelay(retries: number) {
 
 export class RedisStreamBus extends EventBus {
     private options: StreamBusOptions;
+    // Use a redis client that's separate from the global redis client
     private client = createClient({
         url: getRedisUrl(),
         socket: {
@@ -347,7 +405,7 @@ export class RedisStreamBus extends EventBus {
     }
 
     /** fire-and-forget publish */
-    async publish(event: ConversationEvent) {
+    async publish(event: AppEvent) {
         await this.ensure();
         let serializedEvent: string;
         try {
@@ -358,7 +416,6 @@ export class RedisStreamBus extends EventBus {
                 event,
                 trace: "REDIS-STREAM-BUS-PUBLISH-SERIALIZATION-ERROR",
                 eventType: event.type,
-                conversationId: event.conversationId,
                 error: error instanceof Error ? error.message : String(error),
             });
             throw new Error("Event serialization failed");
@@ -381,7 +438,6 @@ export class RedisStreamBus extends EventBus {
             logger.error("[RedisStreamBus] Failed to publish event", {
                 trace: "REDIS-STREAM-BUS-PUBLISH-ERROR",
                 eventType: event.type,
-                conversationId: event.conversationId,
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;
