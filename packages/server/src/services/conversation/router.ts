@@ -1,7 +1,10 @@
-import { API_CREDITS_MULTIPLIER, BotSettings, LanguageModelResponseMode, SessionUser } from "@local/shared";
+import { API_CREDITS_MULTIPLIER } from "@local/shared";
 import { CustomError } from "../../events/error.js";
-import { LlmServiceRegistry } from "../../tasks/llm/registry.js";
+import { LanguageModelMessage, ServiceStreamOptions } from "../../tasks/llm/types.js";
+import { ContextInfo } from "./contextBuilder.js";
 import { calculateMaxCredits } from "./credits.js";
+import { LlmServiceRegistry } from "./registry.js";
+import { ResponseStreamOptions } from "./services.js";
 import { JsonSchema } from "./types.js";
 
 export type MessageStreamEvent = {
@@ -42,29 +45,13 @@ export type StreamEvent =
     | ReasoningStreamEvent
     | DoneStreamEvent;
 
-export interface StreamOptions {
-    /** Model name (provider‑specific). */
-    model: string;
-    /** Optional reference to continue a threaded conversation on provider side. */
-    previous_response_id?: string;
-    /** Message / input items per the Responses API. */
-    input: Array<Record<string, unknown>>;
-    /** JSON‑Schema tool list (built‑ins + custom). */
-    tools: JsonSchema[];
-    /** Allow model to emit several tool calls at once. */
-    parallel_tool_calls?: boolean;
-}
+export type StreamOptions = ResponseStreamOptions;
 
 /** Limit chat responses to $0.50 for now */
 // eslint-disable-next-line no-magic-numbers
 const DEFAULT_MAX_RESPONSE_CREDITS = BigInt(50) * API_CREDITS_MULTIPLIER;
 
 export abstract class LlmRouter {
-    /**
-     * Return the name of the preferred model for a given bot. Could consult user
-     * subscription plan, provider health status, latency e.t.c.
-     */
-    abstract bestModelFor(botId: string): string;
 
     /** Built‑in tools to inject on **every** request (e.g. web_search). */
     abstract defaultTools(): JsonSchema[];
@@ -76,34 +63,14 @@ export abstract class LlmRouter {
     abstract stream(opts: StreamOptions): AsyncIterable<StreamEvent>;
 }
 
-export interface FallbackRouterCtorParams {
-    /** user profile => plan, credit, localisation */
-    userData: SessionUser;
-    /** responding bot config (persona, preferred model) */
-    botSettings: BotSettings;
-    /** Whether to stream partial tokens */
-    stream?: boolean;
-    /** Force command style (used by your old context manager) */
-    force?: boolean;
-    /** Max cents ×1e6 allowed per call */
-    maxCredits?: bigint;
-    /** Response mode (you had chat/command etc.) */
-    mode: LanguageModelResponseMode;
-}
-
 /**
  * Adapter: squeezes the old fallback helper behind the new `LlmRouter` iface.
  */
 export class FallbackRouter extends LlmRouter {
     private static readonly RETRY_LIMIT = 3;
 
-    constructor(private params: FallbackRouterCtorParams) {
+    constructor() {
         super();
-    }
-
-    bestModelFor(): string {
-        // Delegated to the old helper – it chooses inside generateResponseWithFallback.
-        return this.params.botSettings.model ?? "";
     }
 
     defaultTools(): JsonSchema[] {
@@ -111,31 +78,104 @@ export class FallbackRouter extends LlmRouter {
         return [];
     }
 
+    /**
+     * Orchestrates streaming responses from LLM services that implement the `LanguageModelService` interface.
+     *
+     * This method manages the process of sending a request to an LLM service and 
+     * transforming its output into a standardized stream of `StreamEvent` objects.
+     * It includes a retry mechanism for transient service errors and expects services
+     * to adhere to the modernized `generateResponseStreaming` signature defined in `LanguageModelService`.
+     *
+     * The process involves several key steps:
+     * 1. **Service Discovery and Initialization**: Identifies and retrieves the best available LLM service
+     *    based on the requested model.
+     * 2. **Context Preparation**: 
+     *    - Maps the raw `opts.input` to a `ContextInfo[]` structure.
+     *    - Calls the service's `generateContext` method to process this input, 
+     *      which typically involves incorporating conversation history and a system prompt.
+     *    - Finalizes the list of messages to be sent, ensuring the system message is correctly prioritized 
+     *      (from `generateContext` or `botSettings`).
+     * 3. **Input Safety and Token Budgeting**:
+     *    - Performs a safety check on the content of the finalized messages.
+     *    - Estimates the number of tokens in the input messages.
+     *    - Calculates the maximum number of output tokens (`tokenBudget`) the service is allowed to generate,
+     *      considering user credit limits, previously accumulated costs (e.g., safety check cost), and input token count.
+     * 4. **Service Call**: 
+     *    - Constructs the `ServiceStreamOptions` object tailored for the target LLM service's 
+     *      `generateResponseStreaming` method (as defined in the `LanguageModelService` interface),
+     *      including the finalized messages, tools, and token budget.
+     *    - Invokes `service.generateResponseStreaming`.
+     * 5. **Stream Processing and Event Yielding**:
+     *    - Generates a unique `responseId` for the entire interaction.
+     *    - Asynchronously iterates over the stream of events (`Omit<StreamEvent, 'responseId'>`) returned by the service.
+     *    - Adds the `responseId` to each event.
+     *    - For the final "done" event, it aggregates the cost from the safety check with the cost reported by the service.
+     *    - Yields each processed `StreamEvent` to the caller.
+     * 6. **Error Handling and Retries**:
+     *    - Catches errors that occur during the service call or stream processing.
+     *    - Updates the state of the service if an error occurs (e.g., marking it as potentially unavailable).
+     *    - Retries the entire process up to `RETRY_LIMIT` times for recoverable errors.
+     */
     async *stream(opts: StreamOptions): AsyncIterable<StreamEvent> {
         let attempts = 0;
         let accumulatedCost = 0;
 
         while (attempts++ < FallbackRouter.RETRY_LIMIT) {
+            // Step 1: Service Discovery and Initialization
             const registry = LlmServiceRegistry.get();
-            const serviceId = registry.getBestService(this.params.botSettings.model);
+            const serviceId = registry.getBestService(opts.model);
             if (!serviceId) throw new CustomError("0252", "ServiceUnavailable", {});
 
             const service = registry.getService(serviceId);
-            const model = service.getModel(this.params.botSettings.model);
+            const model = service.getModel(opts.model);
 
             try {
-                /* 1. input-safety & token window -------------------------------- */
-                const raw = JSON.stringify(opts.input);
-                const { cost: safetyCost, isSafe } = await service.safeInputCheck(raw);
+                // Step 2: Context Preparation
+                const contextInfoForGenerator: ContextInfo[] = (opts.input as any[]).map((item: any): ContextInfo => {
+                    if (item && typeof item.__type === "string") {
+                        return item as ContextInfo;
+                    }
+                    // Placeholder: This mapping needs to be robust based on actual structure of opts.input items.
+                    return { __type: "text", text: JSON.stringify(item), tokenSize: 0, userId: null };
+                });
+
+                const anyBotSettings = opts.botSettings as any;
+
+                const { messages: contextMessages, systemMessage: generatedSystemMessage } = await service.generateContext({
+                    model: opts.model,
+                    force: opts.force ?? false,
+                    contextInfo: contextInfoForGenerator,
+                    mode: opts.mode,
+                    respondingBotId: anyBotSettings?.id ?? "unknown-bot",
+                    respondingBotConfig: opts.botSettings,
+                    userData: opts.userData,
+                    task: undefined,
+                    taskMessage: undefined,
+                });
+
+                const finalMessages: LanguageModelMessage[] = [];
+                if (generatedSystemMessage && !contextMessages.some(m => m.role === "system")) {
+                    finalMessages.push({ role: "system", content: generatedSystemMessage });
+                }
+                finalMessages.push(...contextMessages);
+
+                const botSystemMessage = anyBotSettings?.persona?.system_message ?? anyBotSettings?.meta?.systemPrompt;
+                if (!finalMessages.some(m => m.role === "system") && botSystemMessage) {
+                    finalMessages.unshift({ role: "system", content: botSystemMessage });
+                }
+
+                // Step 3: Input Safety and Token Budgeting
+                const rawInputForSafetyCheck = JSON.stringify(finalMessages);
+                const { cost: safetyCost, isSafe } = await service.safeInputCheck(rawInputForSafetyCheck);
                 if (!isSafe) throw new CustomError("0605", "UnsafeContent", {});
                 accumulatedCost += safetyCost;
 
-                const inputTokens = service.estimateTokens({ aiModel: model, text: raw }).tokens;
+                const inputTokens = service.estimateTokens({ aiModel: model, text: rawInputForSafetyCheck }).tokens;
                 const tokenBudget = service.getMaxOutputTokensRestrained({
                     model,
                     maxCredits: calculateMaxCredits(
-                        this.params.userData.credits,
-                        this.params.maxCredits ?? DEFAULT_MAX_RESPONSE_CREDITS,
+                        opts.userData.credits,
+                        opts.maxCredits ?? DEFAULT_MAX_RESPONSE_CREDITS,
                         accumulatedCost,
                     ),
                     inputTokens,
@@ -143,30 +183,34 @@ export class FallbackRouter extends LlmRouter {
                 if (tokenBudget !== null && tokenBudget <= 0)
                     throw new CustomError("0604", "CostLimitExceeded", {});
 
-                /* 2. fire request ------------------------------------------------- */
-                const stream = service.generateResponseStreaming({
-                    messages: opts.input as any,        // ← legacy signature, fine
-                    maxTokens: tokenBudget,
-                    mode: this.params.mode,
-                    model,
-                    systemMessage: "",                 // already baked into input
-                    userData: this.params.userData,
-                });
+                // Step 4: Service Call
+                const serviceParams: ServiceStreamOptions = {
+                    model: opts.model,
+                    previous_response_id: opts.previous_response_id,
+                    messages: finalMessages,
+                    tools: opts.tools,
+                    parallel_tool_calls: opts.parallel_tool_calls,
+                    userData: opts.userData,
+                    botSettings: opts.botSettings,
+                    mode: opts.mode,
+                    maxOutputTokens: tokenBudget,
+                };
 
+                const streamResponse = service.generateResponseStreaming(serviceParams);
+
+                // Step 5: Stream Processing and Event Yielding
                 const responseId = `${serviceId}:${crypto.randomUUID()}`;
-                for await (const chunk of stream) {
-                    if (chunk.__type === "stream") {
-                        yield { type: "message", content: chunk.message, responseId } satisfies MessageStreamEvent;
-                    } else if (chunk.__type === "end") {
-                        accumulatedCost += chunk.cost;
-                        yield { type: "message", content: chunk.message, responseId, final: true } satisfies MessageStreamEvent;
-                        yield { type: "done", cost: accumulatedCost, responseId } satisfies DoneStreamEvent;
-                    } else if (chunk.__type === "error") {
-                        throw new Error(chunk.message);
+                for await (const chunk of streamResponse) {
+                    if (chunk.type === "done") {
+                        const doneChunk = chunk as Omit<DoneStreamEvent, "responseId">;
+                        yield { ...doneChunk, cost: accumulatedCost + doneChunk.cost, responseId } satisfies DoneStreamEvent;
+                    } else {
+                        yield { ...chunk, responseId } as StreamEvent;
                     }
                 }
                 return;
             } catch (err) {
+                // Step 6: Error Handling and Retries
                 const errType = service.getErrorType(err);
                 registry.updateServiceState(serviceId, errType);
                 if (attempts >= FallbackRouter.RETRY_LIMIT) throw err;

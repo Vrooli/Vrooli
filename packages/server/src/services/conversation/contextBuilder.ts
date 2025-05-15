@@ -4,8 +4,8 @@ import { RedisClientType } from "redis";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { withRedis } from "../../redisConn.js";
-import { LlmServiceRegistry } from "../../tasks/llm/registry.js";
 import { type LanguageModelService } from "../../tasks/llm/types.js";
+import { LlmServiceRegistry } from "./registry.js";
 import { BotParticipant, ConversationState } from "./types.js";
 
 /* --------------------------------------------------------------------------
@@ -23,7 +23,7 @@ export interface ContextBuildResult {
 }
 
 export abstract class ContextBuilder {
-    abstract build(conversation: ConversationState, bot: BotParticipant): Promise<ContextBuildResult>;
+    abstract build(conversation: ConversationState, bot: BotParticipant, aiModel: string): Promise<ContextBuildResult>;
 }
 
 const CACHE_TTL_S = DAYS_1_S * 7;
@@ -339,13 +339,13 @@ export class ConversationAssembler {
  *  ContextBuilder implementation                                             
  * --------------------------------------------------------------------------*/
 export class RedisContextBuilder extends ContextBuilder {
-    private assembler: ConversationAssembler;
-    constructor(private aiModel: string) {
+    private assembler: ConversationAssembler | null = null;
+    constructor() {
         super();
-        this.assembler = new ConversationAssembler(aiModel);
     }
 
-    async build(conversation: ConversationState, bot: BotParticipant): Promise<ContextBuildResult> {
+    async build(conversation: ConversationState, bot: BotParticipant, aiModel: string): Promise<ContextBuildResult> {
+        this.assembler = new ConversationAssembler(aiModel);
         const { context, truncated, totalTokens } = await this.assembler.collect({ chatId: conversation.id });
 
         const messages = context.map(ci => {
@@ -367,7 +367,7 @@ interface ContextInfoBase { tokenSize: number; userId: string | null; }
 interface MessageCtx extends ContextInfoBase { __type: "message"; messageId: string; }
 interface TextCtx extends ContextInfoBase { __type: "text"; text: string; }
 
-type ContextInfo = MessageCtx | TextCtx;
+export type ContextInfo = MessageCtx | TextCtx;
 
 // TODO somewhere before collecting context, should determine tools the bot has available:
 // const tools = [
