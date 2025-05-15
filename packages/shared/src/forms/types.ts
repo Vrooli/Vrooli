@@ -573,6 +573,7 @@ export type GridContainer = GridContainerBase & {
 /* #endregion Layout Types */
 //==============================================================
 
+type FormLayout = Omit<GridContainerBase, "direction">;
 /**
  * Schema object that specifies the following properties of a form:
  * - Overall Layout
@@ -585,7 +586,7 @@ export interface FormSchema {
     /**
      * Contains information about the overall layout of the form
      */
-    layout?: Omit<GridContainerBase, "direction">;
+    layout?: FormLayout;
     /**
      * Contains information about subsections of the form. Subsections 
      * can only be one level deep. If this is empty, then all elements

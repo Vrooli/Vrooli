@@ -1,4 +1,5 @@
 /* c8 ignore start */
+import { MessageConfigObject } from "@local/shared";
 import { type RunConfig } from "../run/types.js";
 
 export type Maybe<T> = T | null;
@@ -409,6 +410,7 @@ export type ChatInviteYou = {
 };
 
 export type ChatMessage = DbObject<"ChatMessage"> & {
+    config: MessageConfigObject;
     chat: Chat;
     createdAt: Scalars["Date"];
     language: Scalars["String"];
@@ -426,6 +428,7 @@ export type ChatMessage = DbObject<"ChatMessage"> & {
 };
 
 export type ChatMessageCreateInput = {
+    config: MessageConfigObject;
     chatConnect: Scalars["ID"];
     id: Scalars["ID"];
     language: Scalars["String"];
@@ -484,6 +487,7 @@ export enum ChatMessageSortBy {
 
 export type ChatMessageUpdateInput = {
     id: Scalars["ID"];
+    config?: InputMaybe<MessageConfigObject>;
     text?: InputMaybe<Scalars["String"]>;
 };
 
@@ -2138,7 +2142,7 @@ export enum ResourceType {
 }
 
 export enum ResourceSubTypeRoutine {
-    RoutineAction = "RoutineAction",
+    RoutineInternalAction = "RoutineInternalAction",
     RoutineApi = "RoutineApi",
     RoutineCode = "RoutineCode",
     RoutineData = "RoutineData",
@@ -2160,7 +2164,7 @@ export enum ResourceSubTypeStandard {
 }
 
 export enum ResourceSubType {
-    RoutineAction = "RoutineAction",
+    RoutineInternalAction = "RoutineInternalAction",
     RoutineApi = "RoutineApi",
     RoutineCode = "RoutineCode",
     RoutineData = "RoutineData",

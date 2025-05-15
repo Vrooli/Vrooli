@@ -1,14 +1,6 @@
-import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
+import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageYou } from "@local/shared";
 import { ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
-
-export const chatMessageTranslation: ApiPartial<ChatMessageTranslation> = {
-    common: {
-        id: true,
-        language: true,
-        text: true,
-    },
-};
 
 export const chatMessageYou: ApiPartial<ChatMessageYou> = {
     common: {
@@ -35,10 +27,12 @@ export const chatMessage: ApiPartial<ChatMessage> = {
         you: () => rel(chatMessageYou, "full"),
     },
     full: {
-        translations: () => rel(chatMessageTranslation, "full"),
+        config: true,
+        text: true,
     },
     list: {
-        translations: () => rel(chatMessageTranslation, "list"),
+        config: true,
+        text: true,
     },
 };
 
