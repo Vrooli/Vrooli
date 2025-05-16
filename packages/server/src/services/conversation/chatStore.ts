@@ -1,7 +1,7 @@
-import { ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfigObject } from "@local/shared";
-import { chat_message, Prisma, user } from "@prisma/client";
+import { ChatConfig, ChatConfigObject, LRUCache } from "@local/shared";
+import { Prisma, user } from "@prisma/client";
 import { DbProvider } from "../../db/provider.js";
-import { BotParticipant, ConversationState, MessageState } from "./types.js";
+import { BotParticipant, ConversationState } from "./types.js";
 
 /* ------------------------------------------------------------------
  * Config & helper types                                              
@@ -29,23 +29,19 @@ interface PendingConversationState {
 }
 
 type ParticipantDbData = { user: Pick<user, "id" | "name" | "handle" | "isBot"> };
-type MessageDbData = Pick<chat_message, "id" | "text" | "createdAt" | "config"> & {
-    user?: Pick<user, "id" | "name" | "handle" | "isBot"> | null
-    parent?: Pick<chat_message, "id"> | null
-};
 
 /* ------------------------------------------------------------------
  * Abstract base                                                      
  * ------------------------------------------------------------------*/
 
 /**
- * ChatPersistence is a write‑behind cache for long‑lived conversation
+ * ChatStore is a write‑behind cache for long‑lived conversation
  * metadata.  Consumers call `saveState()` whenever they mutate
  * `ChatConfigObject.stats`.  Heavy mutations within a short window are
  * collapsed into a single DB write, dramatically lowering steady‑state
  * write QPS while still guaranteeing eventual consistency.
  */
-export abstract class ChatPersistence {
+export abstract class ChatStore {
     private readonly debounceMs: number;
     protected readonly state = new Map<string, PendingConversationState>();
 
@@ -58,8 +54,6 @@ export abstract class ChatPersistence {
     protected abstract upsertConfig(conversationId: string, config: ChatConfigObject): Promise<void>;
     protected abstract fetchConfig(conversationId: string): Promise<ChatConfigObject>;
 
-    abstract saveMessage(conversationId: string, input: Omit<MessageState, "createdAt">): Promise<MessageState>;
-    abstract getMessage(id: string): Promise<MessageState | null>;
     abstract getConversation(id: string): Promise<ConversationState | null>;
 
     /* ---------------- PUBLIC API (used by ConversationLoop) -------- */
@@ -160,10 +154,11 @@ export abstract class ChatPersistence {
         }
     }
 
-    public initializeTurnState(): Pick<ConversationState, "queue" | "turnStats"> {
+    public initializeTurnState(): Pick<ConversationState, "queue" | "turnStats" | "turnCounter"> {
         return {
             queue: new Map(),
             turnStats: { toolCalls: 0, botToolCalls: 0, creditsUsed: 0n },
+            turnCounter: 0,
         };
     }
 }
@@ -172,25 +167,6 @@ export abstract class ChatPersistence {
  * Concrete Prisma implementation                                     
  * ------------------------------------------------------------------*/
 
-const chatMessageSelect = {
-    id: true,
-    text: true,
-    createdAt: true,
-    config: true,
-    parent: {
-        select: {
-            id: true,
-        },
-    },
-    user: {
-        select: {
-            id: true,
-            handle: true,
-            isBot: true,
-            name: true,
-        },
-    },
-} satisfies Prisma.chat_messageSelect;
 
 const chatParticipantSelect = {
     id: true,
@@ -212,20 +188,7 @@ function mapParticipant(participant: ParticipantDbData): BotParticipant {
     };
 }
 
-function mapMessage(message: MessageDbData): MessageState {
-    const config = (message.config ?? {}) as unknown as MessageConfigObject;
-    // const role = config.role ?? (message.user?.isBot ? "assistant" : "user");
-    const botId = message.user?.id.toString();
 
-    return {
-        id: message.id.toString(),
-        botId,
-        content: message.text,
-        createdAt: message.createdAt,
-        parentId: message.parent?.id?.toString() ?? null,
-        config,
-    } satisfies MessageState;
-}
 
 function diffPatch<T extends object>(from: T, to: T): Partial<T> | null {
     let changed = false;
@@ -251,7 +214,7 @@ function diffPatch<T extends object>(from: T, to: T): Partial<T> | null {
 }
 
 
-export class PrismaChatPersistence extends ChatPersistence {
+export class PrismaChatStore extends ChatStore {
     constructor() {
         super();
     }
@@ -283,31 +246,6 @@ export class PrismaChatPersistence extends ChatPersistence {
         });
     }
 
-    async saveMessage(conversationId: string, input: Omit<MessageState, "createdAt">): Promise<MessageState> {
-        const row = await DbProvider.get().chat_message.create({
-            data: {
-                id: generatePK(),
-                config: input.config as unknown as Prisma.InputJsonValue,
-                createdAt: new Date(),
-                text: input.content,
-                language: input.language ?? DEFAULT_LANGUAGE,
-                chat: { connect: { id: BigInt(conversationId) } },
-                parent: input.parentId ? { connect: { id: BigInt(input.parentId) } } : undefined,
-                ...(input.botId ? { user: { connect: { id: BigInt(input.botId) } } } : {}),
-            },
-            select: chatMessageSelect,
-        });
-        return mapMessage(row);
-    }
-
-    async getMessage(id: string): Promise<MessageState | null> {
-        const row = await DbProvider.get().chat_message.findUnique({
-            where: { id: BigInt(id) },
-            select: chatMessageSelect,
-        });
-        return row ? mapMessage(row) : null;
-    }
-
     async getConversation(id: string): Promise<ConversationState | null> {
         const row = await DbProvider.get().chat.findUnique({
             where: { id: BigInt(id) },
@@ -320,13 +258,117 @@ export class PrismaChatPersistence extends ChatPersistence {
         });
         if (!row) return null;
         const state: ConversationState = {
+            // Initialize runtime state
+            ...this.initializeTurnState(),
             // Grab persisted data
             id: row.id.toString(),
             config: (row.config ?? {}) as unknown as ChatConfigObject,
             participants: row.participants.map(mapParticipant),
-            // Initialize runtime state
-            ...this.initializeTurnState(),
+            turnCounter: row.turnCounter,
         };
         return state;
+    }
+}
+
+/**
+ * Abstraction over both persistent config and in-memory runtime state.
+ */
+export interface ConversationStateStore {
+    /**
+     * Load (or reload) the full conversation state.
+     * @param invalidate force a fresh load from the persistent store
+     */
+    get(conversationId: string, invalidate?: boolean): Promise<ConversationState | null>;
+
+    /**
+     * Persist an updated config (debounced internally by ChatStore).
+     */
+    updateConfig(conversationId: string, config: ChatConfigObject): void;
+
+    /**
+     * Persist an updated turn counter.
+     */
+    updateTurnCounter(conversationId: string, turnCounter: number): void;
+
+    /**
+     * Remove the state from the in-memory cache (LRU eviction or manual).
+     */
+    del(conversationId: string): void;
+}
+
+const DEFAULT_MAX_CONCURRENT_CONVERSATIONS = 1_000;
+
+/**
+ * Implements ConversationStateStore by wrapping a ChatStore and an LRU cache.
+ * 
+ * This allows us to use the database for storing long-term conversation state,
+ * while keeping a small number of conversations in memory for quick access 
+ * and additional short-term state.
+ */
+export class CachedConversationStateStore implements ConversationStateStore {
+    private readonly cache: LRUCache<string, ConversationState>;
+
+    constructor(
+        private readonly chatStore: ChatStore,
+        maxEntries = DEFAULT_MAX_CONCURRENT_CONVERSATIONS,
+    ) {
+        this.cache = new LRUCache<string, ConversationState>(maxEntries);
+    }
+
+    public async get(
+        conversationId: string,
+        invalidate = false,
+    ): Promise<ConversationState | null> {
+        // If forced reload or not cached, fetch fresh
+        if (invalidate || this.cache.get(conversationId) === undefined) {
+            const fresh = await this.chatStore.getConversation(conversationId);
+            if (!fresh) return null;
+            this.cache.set(conversationId, fresh);
+        }
+        // Guaranteed to exist after above
+        return this.cache.get(conversationId) ?? null;
+    }
+
+    public updateConfig(
+        conversationId: string,
+        config: ChatConfigObject,
+    ): void {
+        // Update in-memory cache
+        const existingState = this.cache.get(conversationId);
+        const result = {
+            // Fallback and existing state
+            participants: [],
+            ...this.chatStore.initializeTurnState(),
+            ...existingState,
+            id: conversationId,
+            // Updated config
+            config,
+        } satisfies ConversationState;
+        this.cache.set(conversationId, result);
+        // Delegate persistence (debounced/diff-patched) to ChatStore
+        this.chatStore.saveState(conversationId, config);
+    }
+
+    public updateTurnCounter(
+        conversationId: string,
+        turnCounter: number,
+    ): void {
+        // Update in-memory cache
+        const existingState = this.cache.get(conversationId);
+        const result = {
+            // Fallback and existing state
+            config: ChatConfig.default().export(),
+            participants: [],
+            ...this.chatStore.initializeTurnState(),
+            ...existingState,
+            id: conversationId,
+            // Updated turn counter
+            turnCounter,
+        } satisfies ConversationState;
+        this.cache.set(conversationId, result);
+    }
+
+    public del(conversationId: string): void {
+        this.cache.delete(conversationId);
     }
 }

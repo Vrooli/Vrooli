@@ -1,5 +1,6 @@
-import { ChatConfigObject, MessageConfigObject } from "@local/shared";
+import { ChatConfigObject, ChatMessage } from "@local/shared";
 import OpenAI from "openai";
+import { ConversationEvent } from "../bus";
 
 /** A participant in a conversation – human or bot. */
 export interface BotParticipant {
@@ -17,59 +18,19 @@ export interface BotParticipant {
 }
 
 /** A single chat message. */
-export interface MessageState {
-    /** Database ID – absent before insert. */
-    id?: string;
-    /** Primary text payload (may contain @mentions etc). */
-    content: string;
-    /** Author bot ID (assistant role only). */
-    botId?: string;
-    createdAt: Date;
-    parentId?: string | null;
-    language?: string;
-    config: MessageConfigObject;
+export type MessageState = Pick<ChatMessage, "id" | "config" | "language" | "text"> & {
+    parent?: {
+        id: string;
+    } | null;
+    user?: {
+        id: string;
+    } | null;
 }
 
 /** Generic success/error wrapper returned by many collaborators. */
 export type OkErr<T = unknown> =
     | { ok: true; data: T }
     | { ok: false; error: { code: string; message: string } };
-
-/* ------------------------------------------------------------------
- * Event‑bus contracts
- * ------------------------------------------------------------------ */
-
-/** Base shape for every domain event flowing through the system. */
-export interface ConversationEvent {
-    type: string;
-    conversationId: string;
-    turnId: number;            // <-- NEW
-    payload: unknown;          // (messageId, tool result …)
-}
-
-export interface MessageCreatedEvent extends ConversationEvent {
-    type: "message.created";
-    conversationId: string;
-    messageId: string;
-}
-
-export interface ToolResultEvent extends ConversationEvent {
-    type: "tool.result";
-    conversationId: string;
-    callerBotId: string;
-    callId: string;
-    output: unknown;
-}
-
-export interface ScheduledTickEvent extends ConversationEvent {
-    type: "scheduled.tick";
-    conversationId: string;
-    topic: string;
-}
-
-/** Callback signature used when subscribing to the EventBus. */
-export type EventCallback = (evt: ConversationEvent) => void | Promise<void>;
-
 
 
 /* ------------------------------------------------------------------
@@ -140,6 +101,8 @@ export type ConversationState = {
     participants: BotParticipant[];
     /** The queue of events for the conversation, keyed by turnId */
     queue: TurnQueue;
+    /** The current turn counter for the conversation */
+    turnCounter: number;
     /** The current turn's stats, for tracking limits */
     turnStats: TurnStats;
 }

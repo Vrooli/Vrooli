@@ -1,22 +1,15 @@
 /* eslint-disable func-style */
-import { ChatConfig, LRUCache, MessageConfigObject, type ChatConfigObject } from "@local/shared";
+import { ChatConfig, MessageConfigObject, type ChatConfigObject } from "@local/shared";
 import { SocketService } from "../../sockets/io.js";
-import { BusWorker, EventBus } from "../bus.js";
+import { BusWorker, ConversationBaseEvent, ConversationEvent, EventBus, MessageCreatedEvent, ScheduledTickEvent } from "../bus.js";
 import { AgentGraph, CompositeGraph } from "./agentGraph.js";
+import { ConversationStateStore, PrismaChatStore } from "./chatStore.js";
 import { ContextBuilder, RedisContextBuilder } from "./contextBuilder.js";
-import { ChatPersistence, PrismaChatPersistence } from "./persistence.js";
+import { MessageStore, PrismaRedisMessageStore } from "./messageStore.js";
 import { FunctionCallOutput, OutputGenerator } from "./responseUtils.js";
 import { FallbackRouter, FunctionCallStreamEvent, LlmRouter } from "./router.js";
-import { ToolRunner } from "./toolRunner.js";
-import { BotParticipant, ConversationEvent, ConversationState, MessageCreatedEvent, MessageState, ScheduledTickEvent, ToolResultEvent, TurnStats } from "./types.js";
-
-/**
- * Maximum number of conversations that we can hold in memory at once.
- * This is a safeguard to prevent excessive memory usage.
- */
-const MAX_CONCURRENT_CONVERSATIONS = 1_000;
-/** Maximum number of messages to keep in memory */
-const MAX_RECENT_MESSAGES = 5_000;
+import { CompositeToolRunner, ToolRunner } from "./toolRunner.js";
+import { BotParticipant, ConversationState, TurnStats } from "./types.js";
 
 function incrementToolStats(
     turn: TurnStats,
@@ -40,8 +33,12 @@ function incrementCreditStats(
 }
 
 // TODO make sure that when messages/chats/particpants are added/updated/deleted (ModelLogic trigger), this class handles it correctly (including adding to context collector cache)
+// TODO make sure that chat updates update or invalidate the conversation state cache
 // TODO I don't think reduceUserCredits is being called in the right places (or anywhere). Need to carefully validate that the code reduces spent credits.
 // TODO Tthe failure cases could be handled better. E.g. emitting event to show retry button
+//TODO handle message updates (branching conversation)
+// TODO make sure preferred model is stored in the conversation state
+//TODO canceling responses
 /* 
 * ------------------------------------------------------------------
 * A coordinator that advances a chat or swarm conversation forward.
@@ -61,30 +58,33 @@ function incrementCreditStats(
 */
 export class ConversationLoop {
     private disposed = false;
-    /** per‑conversation turn buffer */
-    private convoStates = new LRUCache<string, ConversationState>(MAX_CONCURRENT_CONVERSATIONS);
     /** conversations currently under drain */
     private processing = new Set<string>();
-    /** Recent messages */
-    private messageData = new LRUCache<string, MessageState>(MAX_RECENT_MESSAGES);
 
     /**
-     * @param bus            EventBus implementation (Redis/NATS etc.) so other services can listen for events
-     * @param repo           Conversation‑aware persistence adapter
-     * @param contextBuilder Prepares the prompt slice + tool list for a bot turn. Typically passed into Responses API
-     * @param toolRunner     Executes MCP tool calls (performs the actual work of a tool).
-     * @param agentGraph     Strategy for picking responding bots (e.g. direct mentions, OpenAI Swarm).
-     * @param llmRouter      Streams Responses‑API calls to chosen LLM provider (e.g. OpenAI, Anthropic).
+     * @param agentGraph         Strategy for picking responding bots (e.g. direct mentions, OpenAI Swarm).
+     * @param bus                EventBus implementation (Redis/NATS etc.) so other services can listen for events
+     * @param conversationStore  Efficient storage and retrieval of conversation state
+     * @param contextBuilder     Collects all chat history that can fit into the context window of a bot turn.
+     * @param llmRouter          Streams Responses‑API calls to chosen LLM provider (e.g. OpenAI, Anthropic).
+     * @param messageStore       Efficient storage and retrieval of message state
+     * @param toolRunner         Executes MCP tool calls (performs the actual work of a tool).
      */
     constructor(
-        private readonly bus: EventBus,
-        private readonly store: ChatPersistence,
-        private readonly contextBuilder: ContextBuilder,
-        private readonly toolRunner: ToolRunner,
         private readonly agentGraph: AgentGraph,
+        private readonly bus: EventBus,
+        private readonly conversationStore: ConversationStateStore,
+        private readonly contextBuilder: ContextBuilder,
         private readonly llmRouter: LlmRouter,
+        private readonly messageStore: MessageStore,
+        private readonly toolRunner: ToolRunner,
     ) {
-        this.bus.subscribe((evt) => this.enqueueEvent(evt).catch(console.error));
+        this.bus.subscribe((event) => {
+            // Ensure that we only process events that are relevant to the conversation loop
+            if ("conversationId" in event && "turnId" in event) {
+                this.enqueueEvent(event).catch(console.error);
+            }
+        });
     }
 
     /**
@@ -96,76 +96,13 @@ export class ConversationLoop {
     }
 
     /**
-     * Gets conversation-specific turn queue and config, or creates them if they don't exist.
-     * 
-     * @param conversationId - The ID of the conversation to get the state for.
-     * @param invalidate - If true, the cached state will be invalidated and the conversation will be reloaded from the database.
-     */
-    private async getConversationState(conversationId: string, invalidate = false): Promise<ConversationState | null> {
-        // Check for cached state
-        const existingState = this.convoStates.get(conversationId);
-        if (existingState && !invalidate) return existingState;
-        // Check for persisted state
-        const persistedState = await this.store.getConversation(conversationId);
-        if (persistedState) {
-            this.convoStates.set(conversationId, persistedState);
-            return persistedState;
-        }
-        return null;
-    }
-
-    /**
-     * Updates the conversation config in memory.
-     */
-    private async updateConversationState(conversationId: string, updatedState: Partial<ConversationState>) {
-        const existingState = await this.getConversationState(conversationId);
-        const result = {
-            config: ChatConfig.default().export(),
-            participants: [],
-            ...this.store.initializeTurnState(),
-            ...existingState,
-            ...updatedState,
-            id: conversationId,
-        } satisfies ConversationState;
-        // Update in memory
-        this.convoStates.set(conversationId, result);
-        // Persist to database (debounced)
-        this.store.saveState(conversationId, result.config);
-    }
-
-    /**
-     * Removes a conversation from memory only (stills persists to db)
-     */
-    private removeConversation(conversationId: string) {
-        this.convoStates.delete(conversationId);
-    }
-
-    /**
-     * Gets a message from the message cache.
-     */
-    private async getMessage(messageId: string): Promise<MessageState | null> {
-        const cached = this.messageData.get(messageId);
-        if (cached) return cached;
-        const persisted = await this.store.getMessage(messageId);
-        if (persisted) this.messageData.set(messageId, persisted);
-        return persisted ?? null;
-    }
-
-    /**
-     * Removes a message from the message cache.
-     */
-    private removeMessage(messageId: string) {
-        this.messageData.delete(messageId);
-    }
-
-    /**
      * Push a fresh event into the per‑conversation queue, enforce MAX_TURN_EVENTS,
      * and trigger drain if nobody is currently processing that conversation.
      */
-    private async enqueueEvent(event: ConversationEvent) {
+    private async enqueueEvent(event: ConversationBaseEvent) {
         if (this.disposed) return;
 
-        const state = await this.getConversationState(event.conversationId);
+        const state = await this.conversationStore.get(event.conversationId);
         if (!state) return;
 
         const chatConfigInstance = new ChatConfig({ config: state.config });
@@ -192,7 +129,7 @@ export class ConversationLoop {
     private async drainTurns(conversationId: string) {
         this.processing.add(conversationId);
         try {
-            const state = await this.getConversationState(conversationId);
+            const state = await this.conversationStore.get(conversationId);
             if (!state) return;
 
             while (!this.disposed && state.queue && state.queue.size) {
@@ -214,7 +151,7 @@ export class ConversationLoop {
      */
     private async processTurnBatch(events: ConversationEvent[]) {
         const sample = events[0];
-        const state = await this.getConversationState(sample.conversationId, true); // Invalidate cache to reload from DB and reset turn stats
+        const state = await this.conversationStore.get(sample.conversationId, true); // Invalidate cache to reload from DB and reset turn stats
         if (!state) {
             console.error("Conversation not found", sample.conversationId);
             return;
@@ -225,17 +162,18 @@ export class ConversationLoop {
         for (const event of events) {
             switch (event.type) {
                 case "message.created":
-                    await this.handleMessageForResponderCalc(event as MessageCreatedEvent, state, responderSet);
+                    await this.handleMessageCreatedEvent(event, state, responderSet);
                     break;
                 case "scheduled.tick":
-                    await this.handleTickForResponderCalc(event as ScheduledTickEvent, state, responderSet);
+                    await this.handleTickEvent(event, state, responderSet);
                     break;
                 case "tool.result":
-                    // tool results usually only matter to the originating bot; handled inline later
-                    await this.handleToolResult(event as ToolResultEvent);
+                    await this.handleToolResultEvent(event);
                     break;
                 default:
+                    // @ts-expect-error Property 'type' is expected to cause an error here due to 'never' type
                     console.warn("ConversationLoop: unknown event type", event.type);
+                    break;
             }
         }
 
@@ -254,12 +192,12 @@ export class ConversationLoop {
      * Handle a MessageCreatedEvent to determine additional responders and add
      * them to `responderSet`.
      */
-    private async handleMessageForResponderCalc(
+    private async handleMessageCreatedEvent(
         event: MessageCreatedEvent,
         conversation: ConversationState,
         responders: Map<string, BotParticipant>,
     ) {
-        const message = await this.getMessage(event.messageId);
+        const message = await this.messageStore.getMessage(event.messageId);
 
         // escape‑hatch early exit
         if (
@@ -279,7 +217,7 @@ export class ConversationLoop {
     /**
      * Expand responders for a ScheduledTickEvent based on agentGraph rules.
      */
-    private async handleTickForResponderCalc(
+    private async handleTickEvent(
         event: ScheduledTickEvent,
         conversation: ConversationState,
         responders: Map<string, BotParticipant>,
@@ -298,7 +236,7 @@ export class ConversationLoop {
         conversation: ConversationState,
         bot: BotParticipant,
     ) {
-        const state = await this.getConversationState(conversation.id);
+        const state = await this.conversationStore.get(conversation.id);
         if (!state) return;
 
         state.turnStats.botToolCalls = 0;
@@ -342,7 +280,7 @@ export class ConversationLoop {
         let finalTurnCost = BigInt(0);
 
         // Compute effective conversation limits and turn stats
-        const state = await this.getConversationState(conversation.id);
+        const state = await this.conversationStore.get(conversation.id);
         if (!state) return;
         const { config, turnStats } = state;
         const limits = (new ChatConfig({ config })).getEffectiveLimits();
@@ -445,7 +383,7 @@ export class ConversationLoop {
 
         // Update conversation state
         config.stats.lastTurnEndedAt = Date.now();
-        this.updateConversationState(conversation.id, { config, turnStats });
+        this.conversationStore.update(conversation.id, { config, turnStats });
     }
 
     /**
@@ -468,18 +406,19 @@ export class ConversationLoop {
             return OutputGenerator.functionCallOutputError(event.callId, "TURN_TOOL_LIMIT_EXCEEDED", "Turn tool‑call cap hit");
         }
 
-        // Assume toolRunner.run returns { output: any, creditsUsed: bigint }
-        // We'll get the cost after running the tool.
         let toolCost = BigInt(0);
         let toolOutputResult: any;
 
         try {
-            const { output, creditsUsed } = await this.toolRunner.run(event.name, event.arguments, {
+            const result = await this.toolRunner.run(event.name, event.arguments, {
                 conversationId: conversation.id,
                 callerBotId: botId,
             });
-            toolOutputResult = output;
-            toolCost = creditsUsed ?? BigInt(0);
+            if (!result.ok) {
+                return OutputGenerator.functionCallOutputError(event.callId, "TOOL_ERROR", result.error.message);
+            }
+            toolOutputResult = result.data.output;
+            toolCost = result.data.creditsUsed;
 
             incrementToolStats(turnStats, config, 1);
             incrementCreditStats(turnStats, config, toolCost);
@@ -493,7 +432,6 @@ export class ConversationLoop {
             }
 
             return OutputGenerator.functionCallOutputSuccess(event.callId, toolOutputResult);
-
         } catch (err) {
             console.error("Tool execution failed", event.name, err);
             // If tool itself failed, we might still have incurred cost if toolRunner reported it before throwing
@@ -518,7 +456,7 @@ export class ConversationLoop {
             role: "assistant",
             turnId,
         };
-        const saved = await this.store.saveMessage(conversationId, {
+        const saved = await this.messageStore.addMessage(conversationId, {
             config,
             content: draft.trim(),
             botId,
@@ -531,23 +469,77 @@ export class ConversationLoop {
             turnId, // same turn, so no new turn queued
         });
     }
+
+    /**
+     * Handles a ToolResultEvent by updating message state and notifying clients.
+     * This ensures that the result of a tool call is properly processed and surfaced to the UI.
+     *
+     * @param event - The ToolResultEvent containing the tool call result and metadata.
+     */
+    private async handleToolResultEvent(event: ToolResultEvent): Promise<void> {
+        // Extract relevant fields from the event
+        const { conversationId, callId, output, callerBotId, payload } = event;
+
+        // If the event is associated with a message, update the message cache/state
+        // Convention: payload may contain messageId
+        let messageId: string | undefined = undefined;
+        if (typeof payload === "object" && payload !== null && "messageId" in payload) {
+            messageId = (payload as { messageId: string }).messageId;
+        }
+
+        if (messageId) {
+            const message = await this.messageStore.getMessage(messageId);
+            if (message && message.config.toolCalls) {
+                // Find the tool call by id and update its result
+                const updatedToolCalls = message.config.toolCalls.map(tc => {
+                    if (tc.id === callId) {
+                        return {
+                            ...tc,
+                            result: { success: true, output },
+                        };
+                    }
+                    return tc;
+                });
+                message.config.toolCalls = updatedToolCalls;
+                this.messageStore.updateMessage(messageId, message);
+            }
+        }
+
+        // Emit a socket event to notify the client/UI of the tool result
+        SocketService.get().emitSocketEvent("toolResult", conversationId, {
+            callId,
+            output,
+            callerBotId,
+            messageId,
+        });
+
+        // If the result indicates an error, log it and optionally emit a retry UI event
+        if (error) {
+            console.error(`Tool call failed (toolCallId: ${toolCallId}, botId: ${botId}):`, error);
+            // Optionally, emit a retry UI event or update conversation state for retry logic
+            // SocketService.get().emitSocketEvent("toolResultRetry", conversationId, { toolCallId, error, messageId, botId });
+            // TODO: Integrate retry logic if required by the UI/UX
+        }
+    }
 }
 
-export const chatStore = new PrismaChatPersistence();
+export const chatStore = new PrismaChatStore();
+export const messageStore = new PrismaRedisMessageStore();
 const contextBuilder = new RedisContextBuilder();
-const toolRunner = new McpToolRunner();
+const toolRunner = new CompositeToolRunner();
 const agentGraph = new CompositeGraph();
 const llmRouter = new FallbackRouter();
 
 export class ConversationWorker extends BusWorker {
     protected static async init(bus: EventBus) {
         return new ConversationLoop(
+            agentGraph,
             bus,
             chatStore,
             contextBuilder,
-            toolRunner,
-            agentGraph,
             llmRouter,
+            messageStore,
+            toolRunner,
         );
     }
 

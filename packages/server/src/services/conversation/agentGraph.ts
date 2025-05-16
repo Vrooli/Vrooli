@@ -1,4 +1,4 @@
-import { BotParticipant, Conversation, MessageState } from "./types.js";
+import { BotParticipant, ConversationState, MessageState } from "./types.js";
 
 /**
  * Responsible for deciding **which bots** should act when a trigger arrives.
@@ -6,7 +6,7 @@ import { BotParticipant, Conversation, MessageState } from "./types.js";
  */
 export abstract class AgentGraph {
     abstract selectResponders(
-        conversation: Conversation,
+        conversation: ConversationState,
         trigger: MessageState | { type: "system"; content: string }
     ): Promise<BotParticipant[]>;
 }
@@ -16,16 +16,16 @@ export abstract class AgentGraph {
  */
 export class DirectResponderGraph extends AgentGraph {
     async selectResponders(
-        conversation: Conversation,
+        conversation: ConversationState,
         trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
-        // Only user/assistant messages can carry explicit responders
-        if (!("respondingBots" in trigger) || !trigger.respondingBots) return [];
-
         const allBots = conversation.participants;
-        const { respondingBots } = trigger;
+        const respondingBots = (trigger as MessageState).config?.respondingBots;
 
-        if (respondingBots.includes("@all")) return allBots;
+        if (allBots.length === 0 || !respondingBots) return [];
+
+        // if (respondingBots.includes("@all")) return allBots;
+        if (respondingBots.some(id => id === "@all")) return allBots;
 
         return allBots.filter((p) => respondingBots.includes(p.id));
     }
@@ -38,7 +38,8 @@ export class DirectResponderGraph extends AgentGraph {
 function matchTopic(pattern: string, topic: string): boolean {
     // TODO: replace with minimatch/mqtt‑pattern implementation
     if (pattern === topic) return true;
-    if (pattern.endsWith("/#")) return topic.startsWith(pattern.slice(0, -2));
+    const wildcard = "/#";
+    if (pattern.endsWith(wildcard)) return topic.startsWith(pattern.slice(0, -wildcard.length));
     return false;
 }
 
@@ -51,15 +52,13 @@ function matchTopic(pattern: string, topic: string): boolean {
  */
 export class SubscriptionGraph extends AgentGraph {
     async selectResponders(
-        conversation: Conversation,
+        conversation: ConversationState,
         trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
-        const topic =
-            "eventTopic" in trigger && trigger.eventTopic ? trigger.eventTopic : undefined;
+        const topic = (trigger as MessageState).config?.eventTopic;
         if (!topic) return [];
 
-        const subs: Record<string, string[]> =
-            (conversation.meta.eventSubscriptions as any) ?? {};
+        const subs: Record<string, string[]> = conversation.config.eventSubscriptions ?? {};
 
         const responders = new Set<string>();
         for (const [pattern, botIds] of Object.entries(subs)) {
@@ -84,10 +83,10 @@ export class SubscriptionGraph extends AgentGraph {
  */
 export class ActiveBotGraph extends AgentGraph {
     async selectResponders(
-        conversation: Conversation,
+        conversation: ConversationState,
         _trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
-        const active = conversation.meta.activeBotId;
+        const active = conversation.config.activeBotId;
         if (!active) {                         // no baton ⇒ arbitrator
             const arb = conversation.participants.find(p => p.meta?.role === "arbitrator");
             return arb ? [arb] : [];             // should always exist
@@ -108,7 +107,7 @@ export class CompositeGraph extends AgentGraph {
     ) { super(); }
 
     async selectResponders(
-        conversation: Conversation,
+        conversation: ConversationState,
         trigger: MessageState | { type: "system"; content: string },
     ): Promise<BotParticipant[]> {
         // 1️⃣ explicit responders override everything

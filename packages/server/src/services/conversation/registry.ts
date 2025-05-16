@@ -1,10 +1,10 @@
 import { LlmServiceId, MINUTES_15_MS, aiServicesInfo } from "@local/shared";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { LanguageModelService } from "../../tasks/llm/types.js";
+import { AIService } from "./services.js";
 
 /** States a service can be in */
-export enum LlmServiceState {
+export enum AIServiceState {
     /** The service is active and can be used */
     Active = "Active",
     /** The service is in a cooldown period and cannot be used until the cooldown period has elapsed */
@@ -17,7 +17,7 @@ export enum LlmServiceState {
  * General errors a service may send, which are 
  * mapped from the service's actual error types.
  */
-export enum LlmServiceErrorType {
+export enum AIServiceErrorType {
     /** An internal error occurred in the API */
     ApiError = "ApiError",
     /** The API key is invalid or has incorrect permissions */
@@ -29,17 +29,17 @@ export enum LlmServiceErrorType {
     /** We've sent to many requests too quickly */
     RateLimit = "RateLimit",
 }
-const CRITICAL_ERRORS = [LlmServiceErrorType.Authentication];
-const COOLDOWN_ERRORS = [LlmServiceErrorType.RateLimit, LlmServiceErrorType.ApiError, LlmServiceErrorType.Overloaded];
+const CRITICAL_ERRORS = [AIServiceErrorType.Authentication];
+const COOLDOWN_ERRORS = [AIServiceErrorType.RateLimit, AIServiceErrorType.ApiError, AIServiceErrorType.Overloaded];
 
 /** Maps cooldown errors to their cooldown time in milliseconds */
-const COOLDOWN_TIMES: Partial<Record<LlmServiceErrorType, number>> = {
-    [LlmServiceErrorType.RateLimit]: MINUTES_15_MS,
-    [LlmServiceErrorType.ApiError]: MINUTES_15_MS,
-    [LlmServiceErrorType.Overloaded]: MINUTES_15_MS,
+const COOLDOWN_TIMES: Partial<Record<AIServiceErrorType, number>> = {
+    [AIServiceErrorType.RateLimit]: MINUTES_15_MS,
+    [AIServiceErrorType.ApiError]: MINUTES_15_MS,
+    [AIServiceErrorType.Overloaded]: MINUTES_15_MS,
 };
 
-const serviceInstances: Partial<Record<LlmServiceId, LanguageModelService<any>>> = {};
+const serviceInstances: Partial<Record<LlmServiceId, AIService<any>>> = {};
 
 /**
  * Singleton class for managing the states of registered LLM (Large Language Model) services, 
@@ -47,9 +47,9 @@ const serviceInstances: Partial<Record<LlmServiceId, LanguageModelService<any>>>
  * 
  * It tracks each service's state, handling cooldown periods and disabling services as necessary based on errors received.
  */
-export class LlmServiceRegistry {
-    private static instance: LlmServiceRegistry | undefined;
-    private serviceStates: Map<string, { state: LlmServiceState; cooldownUntil?: Date }> = new Map();
+export class AIServiceRegistry {
+    private static instance: AIServiceRegistry | undefined;
+    private serviceStates: Map<string, { state: AIServiceState; cooldownUntil?: Date }> = new Map();
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -58,25 +58,25 @@ export class LlmServiceRegistry {
      * Gets the singleton instance of the LLM service registry.
      * @returns The singleton instance of the LLM service registry.
      */
-    public static get(): LlmServiceRegistry {
-        if (!LlmServiceRegistry.instance) {
-            LlmServiceRegistry.instance = new LlmServiceRegistry();
+    public static get(): AIServiceRegistry {
+        if (!AIServiceRegistry.instance) {
+            AIServiceRegistry.instance = new AIServiceRegistry();
         }
-        return LlmServiceRegistry.instance;
+        return AIServiceRegistry.instance;
     }
 
     /**
      * Initializes all service instances. This should be called at server startup.
      */
     static async init() {
-        const registry = LlmServiceRegistry.get();
+        const registry = AIServiceRegistry.get();
 
         for (const [serviceIdKey, serviceInfo] of Object.entries(aiServicesInfo.services)) {
             const serviceId = serviceIdKey as LlmServiceId;
 
             if (!serviceInfo.enabled) {
                 // Set service state to Disabled
-                registry.registerService(serviceId, LlmServiceState.Disabled);
+                registry.registerService(serviceId, AIServiceState.Disabled);
                 logger.info(`Service ${serviceId} is disabled in configuration.`);
                 continue;
             }
@@ -85,19 +85,19 @@ export class LlmServiceRegistry {
             switch (serviceId) {
                 case LlmServiceId.Anthropic:
                     {
-                        const { AnthropicService } = await import("../../tasks/llm/services/anthropic.js");
+                        const { AnthropicService } = await import("./services.js");
                         serviceInstances[LlmServiceId.Anthropic] = new AnthropicService();
                     }
                     break;
                 case LlmServiceId.Mistral:
                     {
-                        const { MistralService } = await import("../../tasks/llm/services/mistral.js");
+                        const { MistralService } = await import("./services.js");
                         serviceInstances[LlmServiceId.Mistral] = new MistralService();
                     }
                     break;
                 case LlmServiceId.OpenAI:
                     {
-                        const { OpenAIService } = await import("../../tasks/llm/services/openai.js");
+                        const { OpenAIService } = await import("./services.js");
                         serviceInstances[LlmServiceId.OpenAI] = new OpenAIService();
                     }
                     break;
@@ -107,7 +107,7 @@ export class LlmServiceRegistry {
             }
 
             // Set service state to Active
-            registry.registerService(serviceId, LlmServiceState.Active);
+            registry.registerService(serviceId, AIServiceState.Active);
         }
     }
 
@@ -132,8 +132,8 @@ export class LlmServiceRegistry {
      * @param serviceId The unique identifier for the LLM service.
      * @returns The current state of the service, or Disabled if the service is not registered.
      */
-    getServiceState(serviceId: string): LlmServiceState {
-        return this.serviceStates.get(serviceId)?.state || LlmServiceState.Disabled;
+    getServiceState(serviceId: string): AIServiceState {
+        return this.serviceStates.get(serviceId)?.state || AIServiceState.Disabled;
     }
 
     /**
@@ -146,10 +146,10 @@ export class LlmServiceRegistry {
     getService(serviceId: LlmServiceId): LanguageModelService<any> {
         // Check if the service is active
         const state = this.getServiceState(serviceId.toString());
-        if (state !== LlmServiceState.Active) {
-            const registry = LlmServiceRegistry.get();
+        if (state !== AIServiceState.Active) {
+            const registry = AIServiceRegistry.get();
             const availableServices = Object.entries(serviceInstances)
-                .filter(([serviceIdKey, _]) => registry.getServiceState(serviceIdKey) === LlmServiceState.Active)
+                .filter(([serviceIdKey, _]) => registry.getServiceState(serviceIdKey) === AIServiceState.Active)
                 .map(([serviceIdKey]) => serviceIdKey);
             throw new CustomError("0652", "ServiceDisabled", { serviceId, availableServices });
         }
@@ -173,7 +173,7 @@ export class LlmServiceRegistry {
     getBestService(model: string | undefined): LlmServiceId | null {
         // Try requested service first
         const serviceId = this.getServiceId(model);
-        if (this.getServiceState(serviceId.toString()) === LlmServiceState.Active) {
+        if (this.getServiceState(serviceId.toString()) === AIServiceState.Active) {
             return serviceId;
         }
 
@@ -185,7 +185,7 @@ export class LlmServiceRegistry {
         // Try fallbacks
         for (const fallback of fallbacksForModel) {
             const fallbackServiceId = this.getServiceId(fallback);
-            if (this.getServiceState(fallbackServiceId.toString()) === LlmServiceState.Active) {
+            if (this.getServiceState(fallbackServiceId.toString()) === AIServiceState.Active) {
                 return fallbackServiceId;
             }
         }
@@ -194,7 +194,7 @@ export class LlmServiceRegistry {
         return null;
     }
 
-    registerService(serviceId: string, state: LlmServiceState = LlmServiceState.Active) {
+    registerService(serviceId: string, state: AIServiceState = AIServiceState.Active) {
         this.serviceStates.set(serviceId, { state });
     }
 
@@ -202,9 +202,9 @@ export class LlmServiceRegistry {
      * Updates the state of a registered LLM service based on an error type.
      * This could place the service in a cooldown period or disable it.
      * @param {string} serviceId - The unique identifier for the LLM service.
-     * @param {LlmServiceErrorType} errorType - The type of error received from the LLM service.
+     * @param {AIServiceErrorType} errorType - The type of error received from the LLM service.
      */
-    updateServiceState(serviceId: string, errorType: LlmServiceErrorType) {
+    updateServiceState(serviceId: string, errorType: AIServiceErrorType) {
         if (!this.serviceStates.has(serviceId)) {
             this.registerService(serviceId);
         }
@@ -212,11 +212,11 @@ export class LlmServiceRegistry {
 
         if (CRITICAL_ERRORS.includes(errorType)) {
             logger.error(`Critical error received from service ${serviceId}: ${errorType}. Disabling service.`, { trace: "0240" });
-            service.state = LlmServiceState.Disabled;
+            service.state = AIServiceState.Disabled;
             this.serviceStates.set(serviceId, service);
         } else if (COOLDOWN_ERRORS.includes(errorType)) {
             logger.warning(`Cooldown error received from service ${serviceId}: ${errorType}. Placing service in cooldown.`, { trace: "0241" });
-            service.state = LlmServiceState.Cooldown;
+            service.state = AIServiceState.Cooldown;
             service.cooldownUntil = new Date(Date.now() + (COOLDOWN_TIMES[errorType] || MINUTES_15_MS));
             this.serviceStates.set(serviceId, service);
             this.resetServiceStateAfterCooldown(serviceId);
@@ -230,10 +230,10 @@ export class LlmServiceRegistry {
      */
     private resetServiceStateAfterCooldown(serviceId: string) {
         const service = this.serviceStates.get(serviceId);
-        if (service && service.state === LlmServiceState.Cooldown && service.cooldownUntil) {
+        if (service && service.state === AIServiceState.Cooldown && service.cooldownUntil) {
             const cooldownPeriod = service.cooldownUntil.getTime() - Date.now();
             setTimeout(() => {
-                service.state = LlmServiceState.Active;
+                service.state = AIServiceState.Active;
                 this.serviceStates.set(serviceId, service);
             }, cooldownPeriod);
         }
