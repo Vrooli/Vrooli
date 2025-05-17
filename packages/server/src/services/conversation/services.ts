@@ -1,7 +1,7 @@
 import { LlmServiceId, ModelInfo, OpenAIModel, SessionUser, openAIServiceInfo } from "@local/shared";
 import { ToolFunctionCall } from "@local/shared/src/shape/configs/message.js";
 import OpenAI from "openai";
-import { LlmServiceErrorType } from "./registry.js";
+import { AIServiceErrorType } from "./registry.js";
 import { TokenEstimationRegistry } from "./tokens.js";
 import { JsonSchema, MessageState } from "./types.js";
 import { WorldModel, WorldModelConfig } from "./worldModel.js";
@@ -255,7 +255,7 @@ export abstract class AIService<GenerateNameType extends string> {
      * @param error - The error to convert.
      * @returns The converted error.
      */
-    abstract getErrorType(error: unknown): LlmServiceErrorType;
+    abstract getErrorType(error: unknown): AIServiceErrorType;
     /** 
      * Checks if the input contains potentially harmful content 
      * 
@@ -305,13 +305,13 @@ export class OpenAIService extends AIService<OpenAIModel> {
         supportsStatefulConversations: true,
     };
 
-    constructor(options: {
+    constructor(options?: {
         apiKey?: string,
         defaultModel?: OpenAIModel,
     }) {
         super();
-        this.client = new OpenAI({ apiKey: options.apiKey ?? process.env.OPENAI_API_KEY ?? "" });
-        this.defaultModel = options.defaultModel ?? OpenAIModel.Gpt4o_Mini;
+        this.client = new OpenAI({ apiKey: options?.apiKey ?? process.env.OPENAI_API_KEY ?? "" });
+        this.defaultModel = options?.defaultModel ?? OpenAIModel.Gpt4o_Mini;
     }
 
     /** Helper method to process tool calls and add them to the context */
@@ -558,28 +558,28 @@ export class OpenAIService extends AIService<OpenAIModel> {
         return this.defaultModel;
     }
 
-    getErrorType(error: unknown): LlmServiceErrorType {
-        if (!error || typeof error !== "object" || typeof (error as { error?: unknown }).error !== "object") return LlmServiceErrorType.ApiError;
+    getErrorType(error: unknown): AIServiceErrorType {
+        if (!error || typeof error !== "object" || typeof (error as { error?: unknown }).error !== "object") return AIServiceErrorType.ApiError;
         const { type, code } = (error as { error: { type?: string, code?: string } }).error;
 
         if (code === "invalid_api_key") {
-            return LlmServiceErrorType.Authentication;
+            return AIServiceErrorType.Authentication;
         }
 
         switch (type) {
             case "invalid_request_error":
             case "not_found_error":
             case "tokens_exceeded_error":
-                return LlmServiceErrorType.InvalidRequest;
+                return AIServiceErrorType.InvalidRequest;
             case "authentication_error":
             case "permission_error":
-                return LlmServiceErrorType.Authentication;
+                return AIServiceErrorType.Authentication;
             case "rate_limit_error":
-                return LlmServiceErrorType.RateLimit;
+                return AIServiceErrorType.RateLimit;
             case "server_error":
-                return LlmServiceErrorType.ApiError;
+                return AIServiceErrorType.ApiError;
             default:
-                return LlmServiceErrorType.ApiError;
+                return AIServiceErrorType.ApiError;
         }
     }
 

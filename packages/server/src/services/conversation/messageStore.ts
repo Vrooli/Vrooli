@@ -1,8 +1,8 @@
 import { DAYS_1_S, DEFAULT_LANGUAGE, MessageConfig, MessageConfigObject, WEEKS_1_DAYS, generatePK } from "@local/shared";
-import { Prisma, chat_message, user } from "@prisma/client";
-import { RedisClientType } from "redis";
+import { Prisma, chat, chat_message, user } from "@prisma/client";
+import { type Redis as IoRedis, type Cluster as IoRedisCluster } from "ioredis";
 import { DbProvider } from "../../db/provider.js";
-import { withRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { AIServiceRegistry } from "./registry.js";
 import { AIService } from "./services.js";
 import { MessageState } from "./types.js";
@@ -113,6 +113,7 @@ export interface MessageStore {
  * The shape of a message from the database.
  */
 type MessageDbData = Pick<chat_message, "id" | "text" | "createdAt" | "config" | "language"> & {
+    chat: Pick<chat, "id">;
     user?: Pick<user, "id" | "name" | "handle" | "isBot"> | null
     parent?: Pick<chat_message, "id"> | null
 };
@@ -123,6 +124,11 @@ const chatMessageSelect = {
     createdAt: true,
     config: true,
     language: true,
+    chat: {
+        select: {
+            id: true,
+        },
+    },
     parent: {
         select: {
             id: true,
@@ -173,6 +179,7 @@ interface CachedChatMessage {
     tokenCounts: string; // stringified StoredTokenCounts
     parentId?: string;
     userId?: string;
+    chatId: string;
 }
 
 /**
@@ -314,7 +321,7 @@ class ChatContextCache {
      * @param rc - The Redis client.
      * @param keys - The keys to set expiration on.
      */
-    private async _expire(rc: RedisClientType, ...keys: string[]) {
+    private async _expire(rc: IoRedis | IoRedisCluster, ...keys: string[]) {
         const pipe = rc.multi();
         for (const k of keys) pipe.expire(k, this.ttl_s);
         await pipe.exec();
@@ -324,39 +331,39 @@ class ChatContextCache {
     /**
      * Retrieves a message from the Redis cache.
      *
-     * @param rc - The Redis client.
      * @param id - The message ID.
      * @returns The cached message data or null if not found or Redis is unavailable.
      */
-    async getMessage(rc: RedisClientType | null, id: string) {
-        if (!rc) return null;
-        const data = await rc.hGetAll(this.messageKey(id));
+    async getMessage(id: string) {
+        const rawClient = await CacheService.get().raw();
+        if (!rawClient) return null; // Should not happen if CacheService.ensure works
+        const data = await rawClient.hgetall(this.messageKey(id));
         return Object.keys(data).length ? (data as unknown as CachedChatMessage) : null;
     }
 
     /**
     * Stores a message in the Redis cache.
     *
-    * @param rc - The Redis client.
     * @param id - The message ID.
     * @param data - The message data to cache.
     */
-    async setMessage(rc: RedisClientType, id: string, data: CachedChatMessage) {
-        await rc.hSet(this.messageKey(id), data as any);
-        await this._expire(rc, this.messageKey(id));
+    async setMessage(id: string, data: CachedChatMessage) {
+        const rawClient = await CacheService.get().raw();
+        await rawClient.hset(this.messageKey(id), data as any);
+        await this._expire(rawClient, this.messageKey(id));
     }
 
     /**
      * Updates a specific field of a message in the Redis cache.
      *
-     * @param rc - The Redis client.
      * @param id - The message ID.
      * @param field - The field to update.
      * @param val - The new value for the field.
      */
-    async setMessageField(rc: RedisClientType, id: string, field: string, val: string) {
-        await rc.hSet(this.messageKey(id), field, val);
-        await this._expire(rc, this.messageKey(id));
+    async setMessageField(id: string, field: string, val: string) {
+        const rawClient = await CacheService.get().raw();
+        await rawClient.hset(this.messageKey(id), field, val);
+        await this._expire(rawClient, this.messageKey(id));
     }
 
     // ===== ZSET helpers =====
@@ -375,111 +382,112 @@ class ChatContextCache {
     /**
      * Adds a message to a chat's sorted set in Redis.
      *
-     * @param rc - The Redis client.
      * @param chatId - The chat ID.
      * @param messageId - The message ID to add.
      */
-    async addMessageToChat(rc: RedisClientType, chatId: string, messageId: string) {
+    async addMessageToChat(chatId: string, messageId: string) {
+        const rawClient = await CacheService.get().raw();
         const score = this.scoreFromSnowflake(messageId);
-        await rc.zAdd(this.chatKey(chatId), { score, value: messageId });
-        await this._expire(rc, this.chatKey(chatId));
+        await rawClient.zadd(this.chatKey(chatId), score, messageId);
+        await this._expire(rawClient, this.chatKey(chatId));
     }
 
     /**
     * Retrieves the latest message ID from a chat's sorted set.
     *
-    * @param rc - The Redis client.
     * @param chatId - The chat ID.
     * @returns The latest message ID or null if not found or Redis is unavailable.
     */
-    async getLatestMessage(rc: RedisClientType | null, chatId: string) {
-        if (!rc) return null;
-        const res = await rc.zRange(this.chatKey(chatId), -1, -1);
+    async getLatestMessage(chatId: string) {
+        const rawClient = await CacheService.get().raw();
+        if (!rawClient) return null;
+        const res = await rawClient.zrange(this.chatKey(chatId), -1, -1);
         return res[0] ?? null;
     }
 
     /**
      * Retrieves all message IDs from a chat's sorted set, with an optional limit.
      * 
-     * @param rc - The Redis client instance or null.
      * @param chatId - The chat ID.
      * @param limit - Optional maximum number of message IDs to retrieve (default: 100).
      * @returns An array of message IDs or an empty array if Redis is unavailable.
      */
-    async getAllMessages(rc: RedisClientType | null, chatId: string, limit = 100) {
-        if (!rc) return [] as string[];
-        return rc.zRange(this.chatKey(chatId), 0, limit - 1);
+    async getAllMessages(chatId: string, limit = 100) {
+        const rawClient = await CacheService.get().raw();
+        if (!rawClient) return [] as string[];
+        return rawClient.zrange(this.chatKey(chatId), 0, limit - 1);
     }
 
     /**
      * Removes a message from a chat's sorted set.
      *
-     * @param rc - The Redis client.
      * @param chatId - The chat ID.
      * @param messageId - The message ID to remove.
      */
-    async removeMessageFromChat(rc: RedisClientType, chatId: string, messageId: string) {
-        await rc.zRem(this.chatKey(chatId), messageId);
+    async removeMessageFromChat(chatId: string, messageId: string) {
+        const rawClient = await CacheService.get().raw();
+        await rawClient.zrem(this.chatKey(chatId), messageId);
     }
 
     // ===== Children helpers =====
     /**
      * Adds a child message to a parent's set in Redis.
      *
-     * @param rc - The Redis client.
      * @param parent - The parent message ID.
      * @param child - The child message ID.
      */
-    async addChild(rc: RedisClientType, parent: string, child: string) {
-        await rc.sAdd(this.childrenKey(parent), child);
-        await this._expire(rc, this.childrenKey(parent));
+    async addChild(parent: string, child: string) {
+        const rawClient = await CacheService.get().raw();
+        await rawClient.sadd(this.childrenKey(parent), child);
+        await this._expire(rawClient, this.childrenKey(parent));
     }
 
     /**
      * Removes a child message from a parent's set in Redis.
      *
-     * @param rc - The Redis client.
      * @param parent - The parent message ID.
      * @param child - The child message ID.
      */
-    async removeChild(rc: RedisClientType, parent: string, child: string) {
-        await rc.sRem(this.childrenKey(parent), child);
+    async removeChild(parent: string, child: string) {
+        const rawClient = await CacheService.get().raw();
+        await rawClient.srem(this.childrenKey(parent), child);
     }
 
     /**
      * Retrieves the child message IDs of a parent message.
      *
-     * @param rc - The Redis client.
      * @param id - The parent message ID.
      * @returns An array of child message IDs or an empty array if not found or Redis is unavailable.
      */
-    async getChildren(rc: RedisClientType | null, id: string) {
-        if (!rc) return [] as string[];
-        return rc.sMembers(this.childrenKey(id));
+    async getChildren(id: string) {
+        const rawClient = await CacheService.get().raw();
+        if (!rawClient) return [] as string[];
+        return rawClient.smembers(this.childrenKey(id));
     }
 
     // ===== Bulk helpers =====
     /**
      * Deletes multiple keys from Redis.
      *
-     * @param rc - The Redis client.
      * @param keys - The keys to delete.
      */
-    async deleteKeys(rc: RedisClientType, keys: string[]) {
-        if (keys.length) await rc.del(keys);
+    async deleteKeys(keys: string[]) {
+        if (keys.length) {
+            const rawClient = await CacheService.get().raw();
+            await rawClient.del(keys);
+        }
     }
 
     /**
      * Clears all cached data for a chat, including the chat's message list and all message data.
      *
-     * @param rc - The Redis client.
      * @param chatId - The chat ID.
      */
-    async clearChat(rc: RedisClientType, chatId: string) {
-        const messageIds = await this.getAllMessages(rc, chatId);
+    async clearChat(chatId: string) {
+        const messageIds = await this.getAllMessages(chatId);
         const keys: string[] = [this.chatKey(chatId)];
         for (const m of messageIds) keys.push(this.messageKey(m), this.childrenKey(m));
-        await this.deleteKeys(rc, keys);
+        await this.deleteKeys(keys);
     }
 }
 
@@ -532,23 +540,18 @@ export class PrismaRedisMessageStore implements MessageStore {
         }
 
         // Update Redis
-        await withRedis({
-            trace: "store:add",
-            process: async (rc) => {
-                if (!rc) return;
-                const cachedMessage: CachedChatMessage = {
-                    id: messageId.toString(),
-                    tokenCounts: "{}", // Initially empty, computed on demand
-                    parentId,
-                    userId,
-                };
-                await this.cache.setMessage(rc, cachedMessage.id, cachedMessage);
-                await this.cache.addMessageToChat(rc, conversationId, cachedMessage.id);
-                if (parentId) {
-                    await this.cache.addChild(rc, parentId, cachedMessage.id);
-                }
-            },
-        });
+        const cachedMessage: CachedChatMessage = {
+            id: messageId.toString(),
+            tokenCounts: "{}", // Initially empty, computed on demand
+            parentId,
+            userId,
+            chatId: conversationId,
+        };
+        await this.cache.setMessage(cachedMessage.id, cachedMessage);
+        await this.cache.addMessageToChat(conversationId, cachedMessage.id);
+        if (parentId) {
+            await this.cache.addChild(parentId, cachedMessage.id);
+        }
 
         return messageState;
     }
@@ -580,30 +583,25 @@ export class PrismaRedisMessageStore implements MessageStore {
         }
 
         // Invalidate the cache
-        await withRedis({
-            trace: "store:update",
-            process: async (rc) => {
-                if (!rc) return;
-                const existing = await this.cache.getMessage(rc, messageId);
-                if (!existing) return;
-                const msg: CachedChatMessage = {
-                    ...existing,
-                    tokenCounts: "{}", // Invalidate token counts
-                    parentId: parentId ?? existing.parentId,
-                    userId: userId ?? existing.userId,
-                };
-                await this.cache.setMessage(rc, messageId, msg);
-                if (parentId !== undefined) {
-                    if (existing.parentId && (parentId !== existing.parentId || parentId === null)) {
-                        await this.cache.removeChild(rc, existing.parentId, messageId);
-                    }
-                    if (typeof parentId === "string") {
-                        await this.cache.addChild(rc, parentId, messageId);
-                    }
+        const existing = await this.cache.getMessage(messageId);
+        if (existing) {
+            const msg: CachedChatMessage = {
+                ...existing,
+                tokenCounts: "{}", // Invalidate token counts
+                parentId: parentId ?? existing.parentId,
+                userId: userId ?? existing.userId,
+                chatId: existing.chatId, // Preserve chatId from the existing cached message
+            };
+            await this.cache.setMessage(messageId, msg);
+            if (parentId !== undefined) {
+                if (existing.parentId && (parentId !== existing.parentId || parentId === null)) {
+                    await this.cache.removeChild(existing.parentId, messageId);
                 }
-            },
-        });
-
+                if (typeof parentId === "string") {
+                    await this.cache.addChild(parentId, messageId);
+                }
+            }
+        }
         return updated;
     }
 
@@ -613,25 +611,17 @@ export class PrismaRedisMessageStore implements MessageStore {
         }
 
         // Update Redis
-        await withRedis({
-            trace: "store:delete",
-            process: async (rc) => {
-                if (!rc) return;
-                const msg = await this.cache.getMessage(rc, messageId);
-                if (!msg) return;
-                if (msg.parentId) {
-                    await this.cache.removeChild(rc, msg.parentId, messageId);
-                }
-                const chatId = (await this.prisma.chat_message.findUnique({
-                    where: { id: BigInt(messageId) },
-                    select: { chatId: true },
-                }))?.chatId?.toString();
-                if (chatId) {
-                    await this.cache.removeMessageFromChat(rc, chatId, messageId);
-                }
-                await this.cache.deleteKeys(rc, [this.cache.messageKey(messageId), this.cache.childrenKey(messageId)]);
-            },
-        });
+        const msgCacheEntry = await this.cache.getMessage(messageId);
+        if (msgCacheEntry) {
+            if (msgCacheEntry.parentId) {
+                await this.cache.removeChild(msgCacheEntry.parentId, messageId);
+            }
+
+            if (msgCacheEntry.chatId) {
+                await this.cache.removeMessageFromChat(msgCacheEntry.chatId, messageId);
+            }
+        }
+        await this.cache.deleteKeys([this.cache.messageKey(messageId), this.cache.childrenKey(messageId)]);
     }
 
     async getMessage(messageId: string): Promise<MessageState | null> {
@@ -643,24 +633,21 @@ export class PrismaRedisMessageStore implements MessageStore {
         if (row) message = messageDbToMessageState(row);
 
         // Sync Redis if not present
-        await withRedis({
-            trace: "store:get",
-            process: async (rc) => {
-                if (!rc || !message) return;
-                const cached = await this.cache.getMessage(rc, messageId);
-                if (!cached) {
-                    const parentId = message.parent?.id.toString(); // Cast in case it's still a bigint
-                    const userId = message.user?.id.toString(); // Cast in case it's still a bigint
-                    const msg: CachedChatMessage = {
-                        id: messageId,
-                        tokenCounts: "{}",
-                        parentId,
-                        userId,
-                    };
-                    await this.cache.setMessage(rc, messageId, msg);
-                }
-            },
-        });
+        if (message && row) {
+            const cached = await this.cache.getMessage(messageId);
+            if (!cached) {
+                const parentId = message.parent?.id.toString();
+                const userId = message.user?.id.toString();
+                const msgToCache: CachedChatMessage = {
+                    id: messageId,
+                    tokenCounts: "{}",
+                    parentId,
+                    userId,
+                    chatId: row.chat.id.toString(),
+                };
+                await this.cache.setMessage(messageId, msgToCache);
+            }
+        }
 
         return message;
     }
@@ -683,37 +670,32 @@ export class PrismaRedisMessageStore implements MessageStore {
         const messages = rows.map(messageDbToMessageState);
 
         // Sync Redis and remove stale entries
-        await withRedis({
-            trace: "store:getConversation",
-            process: async (rc) => {
-                if (!rc) return;
-                const cachedIds = await this.cache.getAllMessages(rc, conversationId);
-                const fetchedIds = messages.map(m => m.id!);
-                const staleIds = cachedIds.filter(id => !fetchedIds.includes(id));
-                for (const staleId of staleIds) {
-                    await this.cache.removeMessageFromChat(rc, conversationId, staleId);
-                    await this.cache.deleteKeys(rc, [this.cache.messageKey(staleId), this.cache.childrenKey(staleId)]);
-                }
-                const missing = messages.filter(missingMessage => missingMessage.id && !cachedIds.includes(missingMessage.id));
-                for (const missingMessage of missing) {
-                    const messageId = missingMessage.id;
-                    if (!messageId) continue;
-                    const parentId = missingMessage.parent?.id.toString(); // Cast in case it's still a bigint
-                    const userId = missingMessage.user?.id.toString(); // Cast in case it's still a bigint
-                    const msg: CachedChatMessage = {
-                        id: messageId,
-                        tokenCounts: "{}",
-                        parentId: parentId ?? undefined,
-                        userId: userId ?? undefined,
-                    };
-                    await this.cache.setMessage(rc, messageId, msg);
-                    await this.cache.addMessageToChat(rc, conversationId, messageId);
-                    if (parentId) {
-                        await this.cache.addChild(rc, parentId, messageId);
-                    }
-                }
-            },
-        });
+        const cachedIds = await this.cache.getAllMessages(conversationId);
+        const fetchedIds = messages.map(m => m.id);
+        const staleIds = cachedIds.filter(id => !fetchedIds.includes(id));
+        for (const staleId of staleIds) {
+            await this.cache.removeMessageFromChat(conversationId, staleId);
+            await this.cache.deleteKeys([this.cache.messageKey(staleId), this.cache.childrenKey(staleId)]);
+        }
+        const missing = messages.filter(missingMessage => missingMessage.id && !cachedIds.includes(missingMessage.id));
+        for (const missingMessage of missing) {
+            const currentMessageId = missingMessage.id;
+            if (!currentMessageId) continue; // Should not happen
+            const parentId = missingMessage.parent?.id.toString();
+            const userId = missingMessage.user?.id.toString();
+            const msgToCache: CachedChatMessage = {
+                id: currentMessageId,
+                tokenCounts: "{}",
+                parentId: parentId ?? undefined,
+                userId: userId ?? undefined,
+                chatId: conversationId,
+            };
+            await this.cache.setMessage(currentMessageId, msgToCache);
+            await this.cache.addMessageToChat(conversationId, currentMessageId);
+            if (parentId) {
+                await this.cache.addChild(parentId, currentMessageId);
+            }
+        }
 
         return messages;
     }
@@ -725,27 +707,30 @@ export class PrismaRedisMessageStore implements MessageStore {
         const message = await this.getMessage(messageId);
         if (!message) return null;
 
-        let tokenSize: number;
-        await withRedis({
-            trace: "store:getWithToken",
-            process: async (rc) => {
-                if (!rc) return;
-                const cached = await this.cache.getMessage(rc, messageId);
-                const service = this.tokenService.getService(this.tokenService.getServiceId(aiModel));
-                const tokenCounter = new TokenCounter(service, aiModel);
-                const key = tokenCounter.getKey();
-                const counts = tokenCounter.parse(cached?.tokenCounts);
-                if (counts[key] === undefined) {
-                    const { counts: updatedCounts, size } = tokenCounter.ensure(message, counts);
-                    tokenSize = size;
-                    await this.cache.setMessageField(rc, messageId, "tokenCounts", JSON.stringify(updatedCounts));
-                } else {
-                    tokenSize = counts[key];
-                }
-            },
-        });
+        let tokenSize: number | undefined;
+        const cached = await this.cache.getMessage(messageId);
+        const service = this.tokenService.getService(this.tokenService.getServiceId(aiModel));
+        const tokenCounter = new TokenCounter(service, aiModel);
+        const key = tokenCounter.getKey();
+        const counts = tokenCounter.parse(cached?.tokenCounts);
 
-        return { message, tokenSize: tokenSize! };
+        if (counts[key] === undefined) {
+            const { counts: updatedCounts, size } = tokenCounter.ensure(message, counts);
+            tokenSize = size;
+            await this.cache.setMessageField(messageId, "tokenCounts", JSON.stringify(updatedCounts));
+        } else {
+            tokenSize = counts[key];
+        }
+
+        if (tokenSize === undefined) {
+            // This case should ideally not be reached if logic is correct
+            // but as a fallback, compute and store if still undefined.
+            const { counts: finalCounts, size } = tokenCounter.ensure(message, counts);
+            tokenSize = size;
+            await this.cache.setMessageField(messageId, "tokenCounts", JSON.stringify(finalCounts));
+        }
+
+        return { message, tokenSize };
     }
 }
 
