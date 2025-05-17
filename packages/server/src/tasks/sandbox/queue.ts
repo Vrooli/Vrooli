@@ -1,8 +1,5 @@
 import { Success, TaskStatus, TaskStatusInfo } from "@local/shared";
-import Bull from "bull";
-import winston from "winston";
-import { BaseQueue } from "../base/queue.js";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
+import { addJobToQueue, changeTaskStatus, getTaskStatuses } from "../queueHelper.js";
 import { SandboxProcessPayload } from "./types.js";
 
 export type SandboxTestPayload = {
@@ -10,34 +7,6 @@ export type SandboxTestPayload = {
 };
 
 export type SandboxRequestPayload = SandboxProcessPayload | SandboxTestPayload;
-
-let logger: winston.Logger;
-let sandboxProcess: (job: Bull.Job<SandboxProcessPayload>) => Promise<unknown>;
-export let sandboxQueue: BaseQueue<SandboxProcessPayload>;
-const FOLDER = "sandbox";
-
-// Call this on server startup
-export async function setupSandboxQueue() {
-    try {
-        logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
-        sandboxProcess = (await import(getProcessPath(FOLDER))).sandboxProcess;
-
-        // Initialize the Bull queue
-        sandboxQueue = new BaseQueue<SandboxProcessPayload>(FOLDER, {
-            redis: REDIS_URL,
-            defaultJobOptions: DEFAULT_JOB_OPTIONS,
-        });
-        sandboxQueue.process(sandboxProcess);
-    } catch (error) {
-        const errorMessage = "Failed to setup sandbox queue";
-        if (logger) {
-            logger.error(errorMessage, { trace: "0553", error });
-        } else {
-            console.error(errorMessage, error);
-        }
-    }
-}
 
 export function runSandboxedCode(data: SandboxProcessPayload): Promise<Success> {
     return addJobToQueue(sandboxQueue.getQueue(), data, {});

@@ -15,19 +15,11 @@ import { Notify } from "../notify/notify.js";
 import { initializeRedis } from "../redisConn.js";
 import { API_URL, SERVER_URL } from "../server.js";
 import { SocketService } from "../sockets/io.js";
-import { QueueStatus } from "../tasks/base/queue.js";
-import { emailQueue } from "../tasks/email/queue.js";
-import { exportQueue } from "../tasks/export/queue.js";
-import { importQueue } from "../tasks/import/queue.js";
-import { llmQueue } from "../tasks/llm/queue.js";
-import { llmTaskQueue } from "../tasks/llmTask/queue.js";
-import { pushQueue } from "../tasks/push/queue.js";
-import { runQueue } from "../tasks/run/queue.js";
-import { sandboxQueue } from "../tasks/sandbox/queue.js";
-import { smsQueue } from "../tasks/sms/queue.js";
+import { QueueStatus } from "../tasks/queueFactory.js";
+import { QueueService } from "../tasks/queues.js";
 import { checkNSFW, getS3Client } from "../utils/fileStorage.js";
 import { BusService, RedisStreamBus } from "./bus.js";
-import { LlmServiceRegistry, LlmServiceState } from "./conversation/registry.js";
+import { AIServiceRegistry, AIServiceState } from "./conversation/registry.js";
 import { EmbeddingService } from "./embedding.js";
 import { getMcpServer } from "./mcp/index.js";
 import { McpToolName } from "./mcp/registry.js";
@@ -334,43 +326,30 @@ export class HealthService {
             return this.queuesHealthCache.health;
         }
         const now = Date.now();
-
-        const queues = {
-            email: emailQueue,
-            export: exportQueue,
-            import: importQueue,
-            llm: llmQueue,
-            llmTask: llmTaskQueue,
-            push: pushQueue,
-            run: runQueue,
-            sandbox: sandboxQueue,
-            sms: smsQueue,
-        };
-
+        const queueSvc = QueueService.get();
+        queueSvc.initializeAllQueues();   // forces lazy queues to materialise
         const queueHealth: { [key: string]: ServiceHealth } = {};
 
-        for (const [name, queue] of Object.entries(queues)) {
-            const healthDetails = await queue.checkHealth();
+        for (const [name, q] of Object.entries(queueSvc.queues)) {
+            const health = await q.checkHealth();
+
             queueHealth[name] = {
-                healthy: healthDetails.status === QueueStatus.Healthy,
-                status: healthDetails.status === QueueStatus.Healthy ? ServiceStatus.Operational :
-                    healthDetails.status === QueueStatus.Degraded ? ServiceStatus.Degraded : ServiceStatus.Down,
+                healthy: health.status === QueueStatus.Healthy,
+                status: health.status === QueueStatus.Healthy
+                    ? ServiceStatus.Operational
+                    : health.status === QueueStatus.Degraded
+                        ? ServiceStatus.Degraded
+                        : ServiceStatus.Down,
                 lastChecked: now,
                 details: {
-                    counts: healthDetails.jobCounts,
-                    activeJobs: healthDetails.activeJobs?.map(job => ({
-                        id: job.id,
-                        name: job.name,
-                        duration: job.duration,
-                        durationSeconds: Math.round(job.duration / SECONDS_1_MS),
-                        startedAt: job.processedOn,
-                    })),
+                    counts: health.jobCounts,
+                    activeJobs: health.activeJobs,
                     metrics: {
-                        queueLength: healthDetails.jobCounts.waiting + healthDetails.jobCounts.delayed,
-                        activeCount: healthDetails.jobCounts.active,
-                        failedCount: healthDetails.jobCounts.failed,
-                        completedCount: healthDetails.jobCounts.completed,
-                        totalJobs: healthDetails.jobCounts.total,
+                        queueLength: health.jobCounts.waiting + health.jobCounts.delayed,
+                        activeCount: health.jobCounts.active,
+                        failedCount: health.jobCounts.failed,
+                        completedCount: health.jobCounts.completed,
+                        totalJobs: health.jobCounts.total,
                     },
                 },
             };
@@ -485,15 +464,15 @@ export class HealthService {
         }
 
         const now = Date.now();
-        const registry = LlmServiceRegistry.get();
+        const registry = AIServiceRegistry.get();
         const services = registry["serviceStates"];
         const llmHealth: { [key: string]: ServiceHealth } = {};
 
         for (const [serviceId, state] of services.entries()) {
             llmHealth[serviceId] = {
-                healthy: state.state === LlmServiceState.Active,
-                status: state.state === LlmServiceState.Active ? ServiceStatus.Operational :
-                    state.state === LlmServiceState.Cooldown ? ServiceStatus.Degraded :
+                healthy: state.state === AIServiceState.Active,
+                status: state.state === AIServiceState.Active ? ServiceStatus.Operational :
+                    state.state === AIServiceState.Cooldown ? ServiceStatus.Degraded :
                         ServiceStatus.Down,
                 lastChecked: now,
                 details: {
@@ -1209,26 +1188,18 @@ export function setupHealthCheck(app: Express): void {
         app.get("/healthcheck/clear-queue-data", async (req, res) => {
             try {
                 const queueName = req.query.queue as string;
-                const queues = {
-                    email: emailQueue,
-                    export: exportQueue,
-                    import: importQueue,
-                    llm: llmQueue,
-                    llmTask: llmTaskQueue,
-                    push: pushQueue,
-                    run: runQueue,
-                    sandbox: sandboxQueue,
-                    sms: smsQueue,
-                };
+                const qs = QueueService.get();
+                const queues = qs.queues;
+                const cleanLimit = 10_000;
 
                 // Check if a specific queue was requested
                 if (queueName && queues[queueName as keyof typeof queues]) {
                     const queue = queues[queueName as keyof typeof queues];
-                    await queue.getQueue().clean(0, "completed");
-                    await queue.getQueue().clean(0, "failed");
-                    await queue.getQueue().clean(0, "delayed");
-                    await queue.getQueue().clean(0, "wait");
-                    await queue.getQueue().clean(0, "active");
+                    await queue.queue.clean(0, cleanLimit, "completed");
+                    await queue.queue.clean(0, cleanLimit, "failed");
+                    await queue.queue.clean(0, cleanLimit, "delayed");
+                    await queue.queue.clean(0, cleanLimit, "wait");
+                    await queue.queue.clean(0, cleanLimit, "active");
 
                     res.status(HttpStatus.Ok).json({
                         success: true,
@@ -1249,11 +1220,11 @@ export function setupHealthCheck(app: Express): void {
 
                     for (const [name, queue] of Object.entries(queues)) {
                         try {
-                            await queue.getQueue().clean(0, "completed");
-                            await queue.getQueue().clean(0, "failed");
-                            await queue.getQueue().clean(0, "delayed");
-                            await queue.getQueue().clean(0, "wait");
-                            await queue.getQueue().clean(0, "active");
+                            await queue.queue.clean(0, cleanLimit, "completed");
+                            await queue.queue.clean(0, cleanLimit, "failed");
+                            await queue.queue.clean(0, cleanLimit, "delayed");
+                            await queue.queue.clean(0, cleanLimit, "wait");
+                            await queue.queue.clean(0, cleanLimit, "active");
                             results[name] = true;
                         } catch (error) {
                             results[name] = false;

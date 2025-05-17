@@ -15,7 +15,7 @@
  *   - Add jobs to the queue using the `add` helper method, which abstracts away direct BullMQ usage.
  *   - Extend or override job and worker options as needed for specific queues.
  *
- * Horizontal Scaling:
+ * Horizontal Scaling:f
  *   - By using Redis as the central broker, multiple Node.js processes (across servers/containers) can run workers for the same queue.
  *   - Each worker instance will compete for jobs, enabling true distributed processing and high availability.
  *   - Graceful shutdown and event handling are built-in for robust operation in production environments.
@@ -29,10 +29,27 @@
  *   - https://guides.lib.berkeley.edu/how-to-write-good-documentation
  *   - https://github.com/resources/articles/software-development/tools-and-techniques-for-effective-code-documentation
  */
-import { DAYS_1_S, MINUTES_1_MS, SECONDS_10_MS } from "@local/shared";
+import { DAYS_1_S, MINUTES_1_MS, SECONDS_10_MS, Success } from "@local/shared";
 import { JobsOptions, Queue, QueueEvents, Worker, WorkerOptions } from "bullmq";
 import IORedis from "ioredis";
 import { logger } from "../events/logger.js";
+
+// ---------- base task type --------------------------------------------------
+
+/**
+ * Base interface for all task data types in the system.
+ * Every job added to any queue should at minimum include this information.
+ */
+export interface BaseTaskData {
+    /** The type of task being processed */
+    type: string;
+    /** Unique identifier for the task */
+    id: string;
+    /** User ID of the user who created/owns the task (optional for system tasks) */
+    userId?: string;
+    /** Current status of the task */
+    status?: string;
+}
 
 // ---------- shared objects --------------------------------------------------
 
@@ -78,6 +95,60 @@ export const BASE_WORKER_OPTS: Partial<WorkerOptions> = {
     concurrency: 4,
 };
 
+export enum QueueStatus {
+    Healthy = "healthy",
+    Degraded = "degraded",
+    Down = "down"
+}
+
+type ActiveJobInfo = {
+    id: string;
+    name: string;
+    duration: number;        // ms
+    processedOn?: number;    // epoch ms
+};
+
+/**
+* Cheap runtime probe that looks only at Redis metadata – no job bodies are loaded.
+* Tune the thresholds to your workload if you need something stricter.
+*/
+export async function getQueueHealth(
+    q: Queue,
+    thresholds = { backlog: 500, failed: 25 },
+): Promise<{ status: QueueStatus; jobCounts: JobCounts; activeJobs: ActiveJobInfo[] }> {
+
+    const jobCounts = await q.getJobCounts(
+        "waiting",
+        "delayed",
+        "active",
+        "failed",
+        "completed",
+        "paused",
+    );
+
+    const backlog = jobCounts.waiting + jobCounts.delayed;
+    const active = jobCounts.active;
+    const failed = jobCounts.failed;
+
+    let status = QueueStatus.Healthy;
+    if (failed > thresholds.failed || backlog > thresholds.backlog * 2) {
+        status = QueueStatus.Unhealthy;
+    } else if (failed > 0 || backlog > thresholds.backlog) {
+        status = QueueStatus.Degraded;
+    }
+
+    // grab a *small* sample of the oldest active jobs (cheap, bounded query)
+    const activeJobsRaw = await q.getJobs(["active"], 0, 9, false);
+    const activeJobs: ActiveJobInfo[] = activeJobsRaw.map(j => ({
+        id: j.id as string,
+        name: j.name,
+        duration: (Date.now() - (j.processedOn ?? Date.now())),
+        processedOn: j.processedOn,
+    }));
+
+    return { status, jobCounts, activeJobs };
+}
+
 // ---------- abstract queue class -------------------------------------------
 
 /**
@@ -95,6 +166,8 @@ export interface BaseQueueConfig<Data> {
     workerOpts?: Partial<WorkerOptions>;
     /** custom init hook (e.g. schedule cron, register state-machine) */
     onReady?(): Promise<void> | void;
+    /** optional validator function for tasks */
+    validator?: (data: Data) => { valid: boolean; errors?: string[] };
 }
 
 /**
@@ -126,6 +199,8 @@ export class ManagedQueue<Data> {
     public readonly events: QueueEvents;
     /** The name of this queue */
     private readonly queueName: string;
+    /** Optional validator function for tasks */
+    private readonly validator?: (data: Data) => { valid: boolean; errors?: string[] };
 
     /**
      * Constructs a new managed queue with the given configuration and Redis connection.
@@ -138,6 +213,7 @@ export class ManagedQueue<Data> {
         connection: IORedis,
     ) {
         this.queueName = cfg.name;
+        this.validator = cfg.validator;
 
         // 1. Queue: Handles job enqueuing and storage in Redis - using untyped Queue to avoid type issues
         this._queue = new Queue(cfg.name, {
@@ -189,5 +265,147 @@ export class ManagedQueue<Data> {
      */
     add(data: Data, opts: Partial<JobsOptions> = {}) {
         return this._queue.add(this.queueName, data, opts);
+    }
+
+    /**
+     * Helper function to add a task job to a queue with standardized error handling.
+     * 
+     * @param data The task data payload, which should extend BaseTaskData.
+     * @param opts Optional job options like delays, priority, etc.
+     * @returns A Success type with __typename indicator for GraphQL.
+     */
+    async addTask<T extends BaseTaskData & Data>(
+        data: T,
+        opts: Partial<JobsOptions> = {},
+    ): Promise<Success> {
+        try {
+            // Validate the task data if a validator is provided
+            if (this.validator) {
+                const validationResult = this.validator(data);
+                if (!validationResult.valid) {
+                    const errors = validationResult.errors || ["Task validation failed"];
+                    logger.error(`Task validation failed for ${this.queueName}`, {
+                        errors,
+                        data,
+                    });
+                    return { __typename: "Success" as const, success: false };
+                }
+            }
+
+            // Use the task ID as the job ID if available
+            const jobOpts: Partial<JobsOptions> = {
+                ...opts,
+            };
+
+            if (data.id) {
+                jobOpts.jobId = data.id;
+            }
+
+            const job = await this.add(data, jobOpts);
+
+            if (job) {
+                return { __typename: "Success" as const, success: true };
+            } else {
+                logger.error("Failed to queue the task.", { queueName: this.queueName, data });
+                return { __typename: "Success" as const, success: false };
+            }
+        } catch (error) {
+            logger.error("Error adding task to queue", {
+                queueName: this.queueName,
+                error,
+                data,
+            });
+            return { __typename: "Success" as const, success: false };
+        }
+    }
+
+    /**
+     * Get the statuses of multiple tasks from this queue.
+     * 
+     * @param taskIds - Array of task IDs for which to fetch the statuses.
+     * @returns Promise that resolves to an array of objects with task ID and status.
+     */
+    async getTaskStatuses<T extends BaseTaskData>(taskIds: string[]): Promise<Array<{ id: string, status: string | null }>> {
+        return Promise.all(taskIds.map(async (taskId) => {
+            try {
+                const job = await this._queue.getJob(taskId);
+                if (job) {
+                    const data = job.data as T;
+                    return {
+                        id: taskId,
+                        status: data.status || null,
+                    };
+                } else {
+                    return { id: taskId, status: null };  // Task not found
+                }
+            } catch (error) {
+                logger.error(`Failed to retrieve task ${taskId}`, { error });
+                return { id: taskId, status: null };  // Error fetching the job
+            }
+        }));
+    }
+
+    /**
+     * Update a task's status with authentication check.
+     * Tasks without a userId cannot have their status updated.
+     * 
+     * @param taskId - The task ID to update
+     * @param status - The new status to set
+     * @param userId - The user ID of the requester (for authorization)
+     * @returns Promise resolving to a Success type with __typename
+     */
+    async changeTaskStatus<T extends BaseTaskData>(
+        taskId: string,
+        status: string,
+        userId: string,
+    ): Promise<Success> {
+        try {
+            const job = await this._queue.getJob(taskId);
+
+            if (!job) {
+                // If job isn't found but we're changing to a terminal state, consider it a success
+                if (["Completed", "Failed", "Suggested"].includes(status)) {
+                    logger.info(`Task with id ${taskId} not found, but considered a success for terminal status.`);
+                    return { __typename: "Success" as const, success: true };
+                }
+
+                logger.error(`Task with id ${taskId} not found.`);
+                return { __typename: "Success" as const, success: false };
+            }
+
+            const data = job.data as T;
+
+            // Check if the task has a userId - if not, it cannot have its status updated
+            if (!data.userId) {
+                logger.error(`Task ${taskId} does not have a userId and cannot have its status updated`);
+                return { __typename: "Success" as const, success: false };
+            }
+
+            // Check if the user has permission to change the status
+            if (data.userId !== userId) {
+                logger.error(`User ${userId} not authorized to change status of task ${taskId}.`);
+                return { __typename: "Success" as const, success: false };
+            }
+
+            // Update the job data with the new status
+            await job.updateData({
+                ...data,
+                status,
+            });
+
+            return { __typename: "Success" as const, success: true };
+        } catch (error) {
+            logger.error(`Failed to change status for task ${taskId}`, { error });
+            return { __typename: "Success" as const, success: false };
+        }
+    }
+
+    /**
+     * Check the health of the queue.
+     * 
+     * @returns Promise resolving to a QueueHealth object
+     */
+    async checkHealth() {
+        return getQueueHealth(this._queue);
     }
 }

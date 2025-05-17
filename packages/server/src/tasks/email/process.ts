@@ -1,7 +1,7 @@
-import { Job } from "bull";
+import { Job } from "bullmq";
 import nodemailer from "nodemailer";
 import { logger } from "../../events/logger.js";
-import { EmailProcessPayload } from "./queue.js";
+import { EmailTask } from "../taskTypes.js";
 
 const HOST = "smtp.gmail.com";
 const PORT = 465;
@@ -27,24 +27,38 @@ export function setupTransporter() {
     }
 }
 
-export async function emailProcess(job: Job<EmailProcessPayload>) {
+/**
+ * Process an email job from the queue
+ * 
+ * @param job The email job to process
+ * @returns Result with success indicator and email info
+ */
+export async function emailProcess(job: Job<EmailTask>) {
     setupTransporter();
-    transporter?.sendMail({
-        from: `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,
-        to: job.data.to.join(", "),
-        subject: job.data.subject,
-        text: job.data.text,
-        html: job.data.html,
-    }).then((info: any) => {
+
+    if (!transporter) {
+        logger.error("Email transporter not initialized", { jobId: job.id });
+        return { success: false };
+    }
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,
+            to: job.data.to.join(", "),
+            subject: job.data.subject,
+            text: job.data.text,
+            html: job.data.html,
+        });
+
         return {
-            "success": info.rejected.length === 0,
+            success: info.rejected.length === 0,
             info,
         };
-    }).catch((error: any) => {
-        logger.error("Caught error using email transporter", { trace: "0012", error });
+    } catch (error) {
+        logger.error("Caught error using email transporter", { trace: "0012", error, jobId: job.id });
         return {
-            "success": false,
+            success: false,
         };
-    });
+    }
 }
 

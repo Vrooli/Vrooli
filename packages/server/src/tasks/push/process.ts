@@ -1,7 +1,7 @@
-import { Job } from "bull";
+import { Job } from "bullmq";
 import webpush from "web-push";
 import { logger } from "../../events/logger.js";
-import { PushPayload, PushSubscription } from "./queue.js";
+import { PushNotificationTask } from "../taskTypes.js";
 
 let vapidDetailsSet = false;
 
@@ -21,18 +21,11 @@ export function setVapidDetails() {
     }
 }
 
-export async function pushProcess({ data }: Job<PushSubscription & PushPayload>) {
+export async function pushProcess({ data }: Job<PushNotificationTask>) {
     try {
-        const { endpoint, keys, body, icon, link, title } = data;
+        const { subscription, payload } = data;
         setVapidDetails();
-        const subscription = {
-            endpoint,
-            keys: {
-                p256dh: keys.p256dh,
-                auth: keys.auth,
-            },
-        };
-        await webpush.sendNotification(subscription, JSON.stringify({ body, icon, link, title }));
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
     } catch (err) {
         logger.error("Error sending push notification", { trace: "0308" });
     }

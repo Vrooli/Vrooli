@@ -1,9 +1,9 @@
-import { Job } from "bull";
+import { Job } from "bullmq";
 import { importData } from "../../builders/importExport.js";
 import { logger } from "../../events/logger.js";
-import { ImportProcessPayload } from "./queue.js";
+import { ImportUserDataTask } from "../taskTypes.js";
 
-export async function importProcess(job: Job<ImportProcessPayload>) {
+export async function importProcess(job: Job<ImportUserDataTask>) {
     try {
         const { data, config } = job.data;
         const result = await importData(data, config);

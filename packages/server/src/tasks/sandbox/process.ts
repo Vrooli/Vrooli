@@ -1,5 +1,5 @@
 import { CodeLanguage, CodeVersion, HOURS_1_S } from "@local/shared";
-import { Job } from "bull";
+import { Job } from "bullmq";
 import { readOneHelper } from "../../actions/reads.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
