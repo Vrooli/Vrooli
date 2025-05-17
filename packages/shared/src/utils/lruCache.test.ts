@@ -1,19 +1,25 @@
 import { expect } from "chai";
-import { LRUCache } from "./lruCache.js";
 import sinon from "sinon";
+import { LRUCache } from "./lruCache.js";
 
 describe("LRUCache", () => {
     let cache: LRUCache<string, number>;
     let consoleWarnStub: sinon.SinonStub;
+    let clock: sinon.SinonFakeTimers;
 
     before(() => {
         consoleWarnStub = sinon.stub(console, "warn");
     });
 
     beforeEach(() => {
-        // Initialize a new cache before each test with a limit of 3 items
-        cache = new LRUCache<string, number>(3);
+        // Fake timers for TTL tests (won't affect sync tests)
+        clock = sinon.useFakeTimers();
+        cache = new LRUCache({ limit: 3 });
         consoleWarnStub.resetHistory();
+    });
+
+    afterEach(() => {
+        clock.restore();
     });
 
     after(() => {
@@ -39,9 +45,9 @@ describe("LRUCache", () => {
         cache.set("item1", 1);
         cache.set("item2", 2);
         cache.set("item3", 3);
-        cache.set("item4", 4); // This should evict 'item1'
+        cache.set("item4", 4); // should evict 'item1'
 
-        expect(cache.get("item1")).to.be.undefined; // 'item1' should have been evicted
+        expect(cache.get("item1")).to.be.undefined;
         expect(cache.get("item2")).to.equal(2);
         expect(cache.get("item3")).to.equal(3);
         expect(cache.get("item4")).to.equal(4);
@@ -52,12 +58,9 @@ describe("LRUCache", () => {
         cache.set("item2", 2);
         cache.set("item3", 3);
 
-        // Access 'item1' so it becomes the most recently used
-        expect(cache.get("item1")).to.equal(1);
+        expect(cache.get("item1")).to.equal(1); // now most recently used
 
-        // Add another item, which should evict 'item2' instead of 'item1'
-        cache.set("item4", 4);
-
+        cache.set("item4", 4); // should evict 'item2'
         expect(cache.get("item1")).to.equal(1);
         expect(cache.get("item2")).to.be.undefined;
         expect(cache.get("item3")).to.equal(3);
@@ -65,57 +68,72 @@ describe("LRUCache", () => {
     });
 
     it("should handle a large number of items", () => {
-        const largeCache = new LRUCache<string, number>(1000);
+        const largeCache = new LRUCache<string, number>({ limit: 1000 });
         for (let i = 0; i < 2000; i++) {
             largeCache.set("item" + i, i);
         }
 
-        // The cache should not grow beyond 1000 items
         expect(largeCache.size()).to.equal(1000);
 
-        // The first 1000 items should be evicted
         for (let i = 0; i < 1000; i++) {
             expect(largeCache.get("item" + i)).to.be.undefined;
         }
-
-        // The last 1000 items should be present
         for (let i = 1000; i < 2000; i++) {
             expect(largeCache.get("item" + i)).to.equal(i);
         }
     });
 
     it("should not add items over a certain size", () => {
-        // Initialize a cache with a max size of 10 bytes
-        const smallCache = new LRUCache<string, string>(3, 10);
+        const smallCache = new LRUCache<string, string>({ limit: 3, maxSizeBytes: 10 });
 
-        smallCache.set("smallItem", "small"); // This should be added
-        smallCache.set("largeItem", "This is a large item"); // This should be skipped
+        smallCache.set("smallItem", "small"); // ~5 bytes
+        smallCache.set("largeItem", "This is a large item"); // >10 bytes, skipped
 
         expect(smallCache.get("smallItem")).to.equal("small");
         expect(smallCache.get("largeItem")).to.be.undefined;
     });
 
     it("should evict the least recently used item, respecting size limits", () => {
-        // Initialize a cache with a max size of 10 bytes
-        const smallCache = new LRUCache<string, string>(3, 10);
+        const smallCache = new LRUCache<string, string>({ limit: 3, maxSizeBytes: 10 });
 
-        smallCache.set("item1", "12345"); // 5 bytes
-        smallCache.set("item2", "1234567890"); // 10 bytes, at the limit
-        smallCache.set("item3", "12345"); // 5 bytes, 'item1' should be evicted next if needed
+        smallCache.set("item1", "12345");        // 5 bytes
+        smallCache.set("item2", "1234567890");   // 10 bytes
+        smallCache.set("item3", "12345");        // 5 bytes
 
-        // Access 'item2' to make it recently used
-        expect(smallCache.get("item2")).to.equal("1234567890");
+        expect(smallCache.get("item2")).to.equal("1234567890"); // mark used
 
-        // Attempt to add an item that would exceed the size limit
-        smallCache.set("largeItem", "This is a large item"); // This should be skipped
+        smallCache.set("largeItem", "This is a large item"); // skipped
 
-        // 'item1' should still be evicted as 'largeItem' wasn't added
-        smallCache.set("item4", "12345"); // 'item1' should be evicted
+        smallCache.set("item4", "12345");        // should evict 'item1'
 
         expect(smallCache.get("item1")).to.be.undefined;
         expect(smallCache.get("item2")).to.equal("1234567890");
         expect(smallCache.get("item3")).to.equal("12345");
         expect(smallCache.get("item4")).to.equal("12345");
-        expect(smallCache.get("largeItem")).to.be.undefined; // 'largeItem' was never added
+        expect(smallCache.get("largeItem")).to.be.undefined;
+    });
+
+    // --- TTL-specific tests ---
+
+    it("should not expire entries without TTL", () => {
+        cache.set("perm", 7);
+        clock.tick(10_000);
+        expect(cache.get("perm")).to.equal(7);
+    });
+
+    it("should expire entries after the default TTL", () => {
+        const ttlCache = new LRUCache<string, number>({ limit: 3, defaultTTL: 100 });
+        ttlCache.set("temp", 123);
+        expect(ttlCache.get("temp")).to.equal(123);
+        clock.tick(101);
+        expect(ttlCache.get("temp")).to.be.undefined;
+    });
+
+    it("should expire entries after a per-entry TTL override", () => {
+        const ttlCache = new LRUCache<string, number>({ limit: 3 });
+        ttlCache.set("override", 456, 50);
+        expect(ttlCache.get("override")).to.equal(456);
+        clock.tick(51);
+        expect(ttlCache.get("override")).to.be.undefined;
     });
 });
