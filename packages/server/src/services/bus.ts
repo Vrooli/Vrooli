@@ -1,6 +1,6 @@
 import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@local/shared";
+import IORedis, { Redis } from "ioredis";
 import { EventEmitter } from "node:events";
-import { createClient } from "redis";
 import { logger } from "../events/logger.js";
 import { getRedisUrl } from "../redisConn.js";
 import { type ServiceHealth } from "./health.js";
@@ -37,10 +37,15 @@ export interface ScheduledTickEvent extends ConversationBaseEvent {
     topic: string;
 }
 
+export interface MessageCacheInvalidationEvent extends ConversationBaseEvent {
+    type: "message.cache.invalidate";
+}
+
 export type ConversationEvent =
     | MessageCreatedEvent
     | ToolResultEvent
-    | ScheduledTickEvent;
+    | ScheduledTickEvent
+    | MessageCacheInvalidationEvent;
 
 /**
  * Events related to credit ledger updates.
@@ -59,6 +64,7 @@ type AppEvent =
     | MessageCreatedEvent
     | ToolResultEvent
     | ScheduledTickEvent
+    | MessageCacheInvalidationEvent
     | CreditLedgerEvent;
 
 /**
@@ -66,8 +72,16 @@ type AppEvent =
  */
 type EventCallback = (evt: AppEvent) => void | Promise<void>;
 
-type StreamMessage = { id: string; message: Record<string, string> };
-type XAutoClaimResult = { nextId: string; messages: Array<StreamMessage | null> };
+/**
+ * Redis XINFO STREAM response structure
+ * The response is an array of alternating field names and values
+ */
+type XInfoStreamResponse = Array<string | number | null | Array<string | Array<[string, string]>>>;
+
+/** Wait helper – avoids re-implementing a back-off timer each time. */
+function sleep(ms: number) {
+    return new Promise(r => setTimeout(r, ms));
+}
 
 /* ------------------------------------------------------------------
  * eventBus.ts – Unified Publish/Subscribe Spine for Internal Server Events
@@ -97,7 +111,7 @@ type XAutoClaimResult = { nextId: string; messages: Array<StreamMessage | null> 
  *
  * ### Event Examples
  * - `message.created`: A new chat message is created (processed internally, e.g., for logging).
- * - `credit.update`: A user’s credit balance changes (updates the ledger).
+ * - `credit.update`: A user's credit balance changes (updates the ledger).
  *
  * ### Technical Notes
  * - **Publish-Subscribe:** Services publish events and subscribe to receive them.
@@ -361,28 +375,16 @@ const DEFAULT_STREAM_OPTIONS: StreamBusOptions = {
  * The delay increases up to a maximum of 5 seconds.
  * 
  * @param retries - The number of retries
+ * @param opts - The stream bus options
  * @returns The reconnection delay in milliseconds
  */
-function getReconnectDelay(retries: number) {
-    return Math.min(retries * DEFAULT_STREAM_OPTIONS.reconnectDelayMultiplier, DEFAULT_STREAM_OPTIONS.maxReconnectDelayMs);
+function getReconnectDelay(retries: number, opts: StreamBusOptions) {
+    return Math.min(retries * opts.reconnectDelayMultiplier, opts.maxReconnectDelayMs);
 }
 
 export class RedisStreamBus extends EventBus {
     private options: StreamBusOptions;
-    // Use a redis client that's separate from the global redis client
-    private client = createClient({
-        url: getRedisUrl(),
-        socket: {
-            reconnectStrategy: (retries: number) => {
-                if (retries > this.options.maxReconnectAttempts) {
-                    logger.error("[RedisStreamBus] Max retries reached");
-                    this.emitClose();
-                    return new Error("Max retries reached");
-                }
-                return getReconnectDelay(retries);
-            },
-        },
-    });
+    private client: Redis;
     private subRunning = false;
     private publishErrorCount = 0;
     private subscribeErrorCount = 0;
@@ -391,17 +393,29 @@ export class RedisStreamBus extends EventBus {
     constructor(options: Partial<StreamBusOptions> = {}) {
         super();
         this.options = { ...DEFAULT_STREAM_OPTIONS, ...options };
+        this.client = new IORedis(getRedisUrl(), {
+            retryStrategy: (retries) => {
+                if (retries > this.options.maxReconnectAttempts) {
+                    logger.error("[RedisStreamBus] Max retries reached");
+                    this.emitClose();
+                    return null;          // stop retrying
+                }
+                return getReconnectDelay(retries, this.options);
+            },
+        });
     }
 
     private async ensure() {
-        if (this.client.isOpen) return;
+        if (this.client.status === "ready") return;
         await this.client.connect();
         // Idempotent: create stream & consumer-group if they don't exist
-        await this.client.xGroupCreate(this.options.streamName,
-            this.options.groupName, // consumer group name
+        await this.client.xgroup(
+            "CREATE",
+            this.options.streamName,
+            this.options.groupName,
             "$", // start ID
-            { MKSTREAM: true }, // create stream if it doesn't exist
-        ).catch(() => { /* Ignore if group already exists */ });
+            "MKSTREAM", // create stream if it doesn't exist
+        ).catch(() => { /* already exists */ });
     }
 
     /** fire-and-forget publish */
@@ -421,17 +435,11 @@ export class RedisStreamBus extends EventBus {
             throw new Error("Event serialization failed");
         }
         try {
-            await this.client.xAdd(
+            await this.client.xadd(
                 this.options.streamName, // stream name
                 "*", // ID
-                { j: serializedEvent }, // message
-                {
-                    TRIM: { // trim (read: delete) old messages
-                        strategy: "MAXLEN", // trim strategy
-                        strategyModifier: "~", // trim strategy modifier (read: ~ means "greater than")
-                        threshold: this.options.maxStreamSize, // trim threshold
-                    },
-                },
+                "j", serializedEvent, // message
+                "MAXLEN", "~", this.options.maxStreamSize.toString(), // trim threshold
             );
         } catch (error) {
             this.publishErrorCount++;
@@ -458,45 +466,45 @@ export class RedisStreamBus extends EventBus {
             /* ── 1️⃣ normal consumption loop ────────────────────────── */
             const consumeLoop = async () => {
                 while (this.subRunning) {
-                    const res = await this.client.xReadGroup(
-                        this.options.groupName, // consumer group name
-                        consumer, // consumer name
-                        { key: this.options.streamName, id: ">" }, // read from the stream
-                        { COUNT: this.options.batchSize, BLOCK: this.options.blockMs }, // read options
-                    );
+                    const res = await this.client.xreadgroup(
+                        "GROUP", this.options.groupName, consumer,
+                        "COUNT", this.options.batchSize.toString(),
+                        "BLOCK", this.options.blockMs.toString(),
+                        "STREAMS", this.options.streamName, ">",
+                    ) as [string, [string, Record<string, string>][]][] | null;
+
                     if (!res) continue;
 
-                    for (const s of res) {
-                        for (const { id, message } of s.messages) {
+                    for (const [, messages] of res) {
+                        for (const [id, message] of messages) {
                             try {
-                                const event = JSON.parse(message.j as string);
-                                await callback(event);
-                                await this.client.xAck(this.options.streamName, this.options.groupName, id);
+                                await callback(JSON.parse(message.j));
+                                await this.client.xack(this.options.streamName, this.options.groupName, id);
                             } catch (e) {
                                 this.subscribeErrorCount++;
                                 logger.error("[RedisStreamBus] handler error", {
                                     trace: "REDIS-STREAM-BUS-CONSUME-LOOP",
                                     messageId: id,
-                                    name: e instanceof Error ? e.name : undefined,
                                     message: e instanceof Error ? e.message : String(e),
-                                    stack: e instanceof Error && e.stack ? e.stack : undefined,
                                 });
                                 // Acknowledge to prevent infinite retries.
-                                await this.client.xAck(this.options.streamName, this.options.groupName, id);
+                                await this.client.xack(this.options.streamName, this.options.groupName, id);
                                 // Send a new message to the stream with an incremented retry count
-                                const retryCount = message.retryCount ? parseInt(message.retryCount) + 1 : 1;
+                                const retryCount = message.retryCount ? Number(message.retryCount) + 1 : 1;
                                 if (retryCount < this.options.retryCount) {
-                                    await this.client.xAdd(this.options.streamName, "*", {
-                                        j: message.j,
-                                        retryCount: retryCount.toString(),
-                                    });
+                                    // Send a new message to the stream with an incremented retry count.
+                                    await this.client.xadd(
+                                        this.options.streamName, "*",
+                                        "j", message.j,
+                                        "retryCount", retryCount.toString(),
+                                    );
+                                } else {
+                                    // Send to a dead-letter stream after a max number of retries.
+                                    await this.client.xadd(
+                                        `${this.options.streamName}:dead-letter`, "*",
+                                        "j", message.j,
+                                    );
                                 }
-                                // If we've retried too many times, send to a dead-letter stream. 
-                                // This allows us to track and process these messages later.
-                                else {
-                                    await this.client.xAdd(`${this.options.streamName}:dead-letter`, "*", { j: message.j });
-                                }
-                                await this.client.xAck(this.options.streamName, this.options.groupName, id);
                             }
                         }
                     }
@@ -509,36 +517,31 @@ export class RedisStreamBus extends EventBus {
                     try {
                         let cursor = "0-0";
 
-                        const result: XAutoClaimResult = await this.client.xAutoClaim(
+                        const [nextStartId, claimedRaw] = await this.client.xautoclaim(
                             this.options.streamName,
                             this.options.groupName,
                             consumer,
                             this.options.autoClaimEveryMs,
                             cursor,
-                            { COUNT: 100 },
-                        );
-                        const msgs = result.messages.filter((m): m is StreamMessage => m !== null);
-                        if (msgs.length === 0) break;
-                        for (const { id, message } of msgs) {
+                            "COUNT",
+                            this.options.batchSize.toString(),
+                        ) as [string, Array<[string, Record<string, string>]>];  // ✨ only a *destructuring type annotation*
+
+                        for (const [id, message] of claimedRaw) {
                             try {
-                                const event = JSON.parse(message.j as string);
-                                await callback(event);
-                                await this.client.xAck(
-                                    this.options.streamName,
-                                    this.options.groupName,
-                                    id,
-                                );
-                            } catch (e) {
+                                await callback(JSON.parse(message.j));
+                                await this.client.xack(this.options.streamName, this.options.groupName, id);
+                            } catch (err) {
                                 this.subscribeErrorCount++;
                                 logger.error("[RedisStreamBus] autoclaim handler", {
                                     trace: "REDIS-STREAM-BUS-AUTOCLAIM-LOOP",
-                                    name: e instanceof Error ? e.name : undefined,
-                                    message: e instanceof Error ? e.message : String(e),
-                                    stack: e instanceof Error && e.stack ? e.stack : undefined,
+                                    messageId: id,
+                                    message: err instanceof Error ? err.message : String(err),
                                 });
                             }
                         }
-                        cursor = result.nextId;
+
+                        cursor = nextStartId;
                     } catch (err) {
                         logger.error("[RedisStreamBus] XAUTOCLAIM error", {
                             trace: "REDIS-STREAM-BUS-AUTOCLAIM-LOOP",
@@ -547,7 +550,7 @@ export class RedisStreamBus extends EventBus {
                             stack: err instanceof Error && err.stack ? err.stack : undefined,
                         });
                     }
-                    await new Promise(r => setTimeout(r, this.options.autoClaimEveryMs));
+                    await sleep(this.options.autoClaimEveryMs);
                 }
             };
 
@@ -560,8 +563,8 @@ export class RedisStreamBus extends EventBus {
         this.subRunning = false;
         this.emitClose();
         // Give loops a moment to finish current batch
-        await new Promise(resolve => setTimeout(resolve, this.options.closeTimeoutMs));
-        if (this.client.isOpen) await this.client.quit();
+        await sleep(this.options.closeTimeoutMs);
+        await this.client.quit();
     }
 
     /**
@@ -570,78 +573,89 @@ export class RedisStreamBus extends EventBus {
      */
     async metrics(): Promise<ServiceHealth> {
         const now = Date.now();
+
         try {
             await this.ensure();
-            await this.client.ping();
+            await this.client.ping();   // verifies connectivity
 
-            // Fetch stream information using XINFO STREAM
-            const streamInfoRaw = await this.client.sendCommand(["XINFO", "STREAM", this.options.streamName]) as any[];
-            const streamInfo = this.parseXInfoStream(streamInfoRaw);
-            const { length, firstId, lastId } = streamInfo;
+            /* ---------- STREAM BASICS -------------------------------- */
+            const streamInfoRaw = await this.client.call(
+                "XINFO", "STREAM", this.options.streamName,
+            ) as XInfoStreamResponse;
 
-            // Fetch consumer groups information using XINFO GROUPS
-            const groupsInfoRaw = await this.client.sendCommand(["XINFO", "GROUPS", this.options.streamName]) as any[];
-            const consumerGroups: Record<string, any> = {};
-            for (let i = 0; i < groupsInfoRaw.length; i += 2) {
-                const groupName = groupsInfoRaw[i];
-                const groupDetails = groupsInfoRaw[i + 1];
-                const consumersCount = parseInt(groupDetails[3]); // 'consumers'
-                const pending = parseInt(groupDetails[5]); // 'pending'
-                const lag = parseInt(groupDetails[7]); // 'lag'
+            const { length, firstId, lastId } = this.parseXInfoStream(streamInfoRaw);
 
-                // Fetch consumers for this group using XINFO CONSUMERS
-                const consumersInfoRaw = await this.client.sendCommand(["XINFO", "CONSUMERS", this.options.streamName, groupName]) as any[];
-                const consumers: Record<string, any> = {};
-                for (let j = 0; j < consumersInfoRaw.length; j += 2) {
-                    const consumerName = consumersInfoRaw[j];
-                    const consumerDetails = consumersInfoRaw[j + 1];
-                    consumers[consumerName] = {
-                        pending: parseInt(consumerDetails[1]), // 'pending'
-                        idle: parseInt(consumerDetails[3]), // 'idle'
-                    };
+            /* ---------- GROUPS / CONSUMERS --------------------------- */
+            const groupsInfoRaw = await this.client.call(
+                "XINFO", "GROUPS", this.options.streamName,
+            ) as any[];
+
+            const consumerGroups: Record<string, {
+                consumersCount: number;
+                pending: number;
+                lag: number;
+                consumers: Record<string, { pending: number; idle: number }>;
+            }> = {};
+
+            for (let i = 0; i < groupsInfoRaw.length; i += 1) {
+                const groupArr = groupsInfoRaw[i] as any[];
+                const grp = Object.fromEntries(
+                    new Array(groupArr.length / 2).fill(0).map((_, idx) => {
+                        return [groupArr[idx * 2], groupArr[idx * 2 + 1]];
+                    }),
+                ) as Record<string, string>;
+
+                const groupName = grp.name as string;
+                const consumersCount = Number(grp.consumers);
+                const pending = Number(grp.pending);
+                const lag = Number(grp.lag);
+
+                /* fetch consumers */
+                const consumersInfoRaw = await this.client.call(
+                    "XINFO", "CONSUMERS", this.options.streamName, groupName,
+                ) as any[];
+
+                const consumers: Record<string, { pending: number; idle: number }> = {};
+                for (const c of consumersInfoRaw) {
+                    const obj = Object.fromEntries(
+                        new Array(c.length / 2).fill(0).map((_, idx) => [c[idx * 2], c[idx * 2 + 1]]),
+                    ) as Record<string, string>;
+                    consumers[obj.name] = { pending: Number(obj.pending), idle: Number(obj.idle) };
                 }
 
-                consumerGroups[groupName] = {
-                    consumersCount,
-                    pending,
-                    lag,
-                    consumers,
-                };
+                consumerGroups[groupName] = { consumersCount, pending, lag, consumers };
             }
 
-            // Fetch dead-letter queue size
+            /* ---------- DEAD-LETTER --------------------------------- */
             const deadLetterStream = `${this.options.streamName}:dead-letter`;
-            const deadLetterQueueSize = await this.client.xLen(deadLetterStream).catch(() => 0);
-
-            const metrics: RedisBusMetrics = {
-                connected: true,
-                stream: { length, firstId, lastId },
-                consumerGroups,
-                deadLetterQueueSize,
-                publishErrorCount: this.publishErrorCount,
-                subscribeErrorCount: this.subscribeErrorCount,
-            };
+            const deadLetterQueueSize = await this.client.xlen(deadLetterStream).catch(() => 0);
 
             return {
                 healthy: true,
                 status: "Operational",
                 lastChecked: now,
-                details: metrics,
+                details: {
+                    connected: true,
+                    stream: { length, firstId, lastId },
+                    consumerGroups,
+                    deadLetterQueueSize,
+                    publishErrorCount: this.publishErrorCount,
+                    subscribeErrorCount: this.subscribeErrorCount,
+                },
             };
-        } catch (error) {
-            const defaultMetrics: RedisBusMetrics = {
-                connected: false,
-                stream: { length: 0, firstId: "", lastId: "" },
-                consumerGroups: {},
-                deadLetterQueueSize: 0,
-                publishErrorCount: this.publishErrorCount,
-                subscribeErrorCount: this.subscribeErrorCount,
-            };
+        } catch (err) {
             return {
                 healthy: false,
                 status: "Down",
                 lastChecked: now,
-                details: defaultMetrics,
+                details: {
+                    connected: false,
+                    stream: { length: 0, firstId: "", lastId: "" },
+                    consumerGroups: {},
+                    deadLetterQueueSize: 0,
+                    publishErrorCount: this.publishErrorCount,
+                    subscribeErrorCount: this.subscribeErrorCount,
+                },
             };
         }
     }
@@ -651,12 +665,12 @@ export class RedisStreamBus extends EventBus {
      * @param raw The raw response array from Redis.
      * @returns An object with length, firstId, and lastId.
      */
-    private parseXInfoStream(raw: any[]): { length: number; firstId: string; lastId: string } {
-        const length = parseInt(raw[1]); // 'length'
+    private parseXInfoStream(raw: XInfoStreamResponse): { length: number; firstId: string; lastId: string } {
+        const length = parseInt(String(raw[1])); // 'length'
         const firstEntry = raw[9]; // 'first-entry'
         const lastEntry = raw[11]; // 'last-entry'
-        const firstId = firstEntry ? firstEntry[0] : "";
-        const lastId = lastEntry ? lastEntry[0] : "";
+        const firstId = firstEntry && Array.isArray(firstEntry) ? String(firstEntry[0]) : "";
+        const lastId = lastEntry && Array.isArray(lastEntry) ? String(lastEntry[0]) : "";
         return { length, firstId, lastId };
     }
 }
