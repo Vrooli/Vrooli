@@ -1,9 +1,11 @@
 import { LlmServiceId, ModelInfo, OpenAIModel, SessionUser, openAIServiceInfo } from "@local/shared";
 import { ToolFunctionCall } from "@local/shared/src/shape/configs/message.js";
 import OpenAI from "openai";
-import { AIServiceErrorType } from "./registry.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { AIServiceErrorType, AIServiceRegistry } from "./registry.js";
 import { TokenEstimationRegistry } from "./tokens.js";
-import { JsonSchema, MessageState } from "./types.js";
+import { MessageState } from "./types.js";
 import { WorldModel, WorldModelConfig } from "./worldModel.js";
 
 export type ResponseStreamOptions = {
@@ -25,24 +27,32 @@ export type ResponseStreamOptions = {
      * Messages to include as context. These will be converted to the correct format by the service provider.
      * 
      * This shape mirrors how we fetch messages from the database/cache.
+     * 
+     * NOTE: If you're relying on previous_response_id, you'll still need to provide at least the last user message.
      */
     input: MessageState[];
     /** 
-     * JSON‑Schema tool list (built‑ins + custom). 
+     * OpenAI Tool definitions. Other services will need to adapt from this shape.
+     * 
+     * For our custom tools, we use the FunctionTool type.
      */
-    tools: JsonSchema[];
+    tools: OpenAI.Responses.Tool[];
     /** 
      * Allow model to emit several tool calls at once, if supported.
      */
     parallel_tool_calls?: boolean;
+    /**
+     * If reasoning is supported, the effort level to use.
+     */
+    reasoningEffort?: "low" | "medium" | "high";
     /** 
      * User profile => plan, credit, localisation.
      */
     userData: SessionUser;
     /** 
-     * Max cents (* API_CREDITS_MULTIPLIER) allowed per call.
+     * Maximum reasoning + output tokens allowed per call.
      */
-    maxCredits?: bigint;
+    maxTokens?: number;
     /**
      * Information about the conversation/world.
      */
@@ -58,7 +68,7 @@ type ContextMessage = OpenAI.Responses.ResponseInputItem;
 /**
  * Tool definition for function calling capabilities
  */
-interface Tool {
+interface ExecutableTool {
     name: string;
     description: string;
     parameters: Record<string, unknown>; // JSON schema for parameters
@@ -324,7 +334,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
                 id: toolCall.id, // Unique ID for this specific function call item in the input sequence
                 call_id: toolCall.id, // The ID for this specific call, to be referenced by the output
                 name: toolCall.function.name,
-                arguments: toolCall.function.arguments,
+                arguments: toolCall.function.arguments, // This is a string
                 type: "function_call", // Specifies the type of this item
             };
             contextMessages.push(functionCallItem);
@@ -343,6 +353,43 @@ export class OpenAIService extends AIService<OpenAIModel> {
         }
     }
 
+    /**
+     * Generates an array of context messages suitable for the OpenAI Responses API.
+     *
+     * This method translates an internal 'MessageState[]' into the 'ContextMessage[]'
+     * (OpenAI.Responses.ResponseInputItem[]) format required by 'client.responses.create()'.
+     *
+     * Key behaviors and differences from older Chat Completions API conventions:
+     * - **System Prompt**: Ensures a system prompt is always the first message. If not present
+     *   in the input 'messages', it generates one using the 'WorldModel'.
+     * - **Tool Call Handling**: Assistant messages with tool calls are expanded.
+     *   An assistant message with text and a tool call like:
+     *     { role: "assistant", text: "Okay, I will call the tool.", config: { toolCalls: [{ id: "t1", function: { name: "X", args: "{}"}, result: "Y" }] } }
+     *   is translated into a sequence:
+     *     1. { role: "assistant", content: "Okay, I will call the tool." }
+     *     2. { type: "function_call", id: "t1", call_id: "t1", name: "X", arguments: "{}" }
+     *     3. { type: "function_call_output", id: "t1_output", call_id: "t1", output: "Y" }
+     *   This allows the Responses API to understand the full lifecycle of an assistant's turn,
+     *   including its decision to use tools and the results of those tools.
+     * - **Role Alternation**: Unlike the stricter user/assistant/user/assistant alternation
+     *   often enforced by the Chat Completions API, the Responses API, when used with tools,
+     *   accommodates sequences like 'assistant' (text) -> 'function_call' -> 'function_call_output'
+     *   as part of a single logical assistant turn. The model can then continue generating
+     *   assistant output based on the tool results.
+     * - **Last Message**: The context doesn't strictly need to end with a 'user' message if the
+     *   assistant is in the middle of a turn (e.g., after a tool call output). The API
+     *   understands this and will prompt the model to continue the assistant's response.
+     *
+     * The primary responsibility for ensuring a logically sound conversational history (e.g.,
+     * for agent-to-agent communication where one agent's final output becomes the 'user'
+     * input for another) lies in how the input 'MessageState[]' is constructed before
+     * being passed to this method. This method focuses on faithful translation to the
+     * 'OpenAI.Responses.ResponseInputItem[]' format.
+     *
+     * @param messages - The input messages to generate context for.
+     * @param globalContext - The world model to use for the context if a system prompt is needed.
+     * @returns The generated context messages for the OpenAI Responses API.
+     */
     generateContext(messages: MessageState[], globalContext?: WorldModelConfig): ContextMessage[] {
         const contextMessages: ContextMessage[] = [];
 
@@ -353,7 +400,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
         if (!hasSystemMessage) {
             contextMessages.push({
                 role: "system",
-                content: WorldModel.serialize(globalContext),
+                content: (new WorldModel(globalContext)).serialize(),
             });
         }
 
@@ -369,7 +416,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
             // Add the base message content
             contextMessages.push({
                 role: role as "system" | "user" | "assistant",
-                content: message.content,
+                content: message.text,
             });
 
             // Handle tool calls if present
@@ -414,7 +461,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
      * Main streaming generator.
      * 
      * Uses the Responses API to stream the response. 
-     * DO NOT use the ChatCompletions API.
+     * DO NOT use the ChatCompletions API, as it is outdated!
      */
     async *generateResponseStreaming(opts: ResponseStreamOptions): AsyncGenerator<StreamEvent> {
         const {
@@ -423,14 +470,23 @@ export class OpenAIService extends AIService<OpenAIModel> {
             tools = [],
             userData,
             world,
-            maxCredits,
+            maxTokens,
             previous_response_id,
+            reasoningEffort,
         } = opts;
+
+        // Get the model info
+        const modelInfo = this.getModelInfo()[this.getModel(model)];
+        const canReason = modelInfo.supportsReasoning === true;
 
         /* ------------- 1  Build create() params ------------- */
         const createParams: OpenAI.Responses.ResponseCreateParamsStreaming = {
-            model: "gpt-4o",
-            max_output_tokens: tokenBudget,
+            model: modelInfo.name,
+            reasoning: canReason ? {
+                effort: reasoningEffort,
+                summary: "concise",
+            } : undefined,
+            max_output_tokens: maxTokens, // Includes reasoning tokens
             stream: true,
             input: [], // Set later
         };
@@ -438,20 +494,14 @@ export class OpenAIService extends AIService<OpenAIModel> {
         // Server-side state or full context
         if (previous_response_id) {
             createParams.previous_response_id = previous_response_id;
-            createParams.input = [{ role: "user", content: userInput }];
+            createParams.input = [{ role: "user", content: input[input.length - 1]?.text ?? "" }];
         } else {
             createParams.input = this.generateContext(input, world);
         }
 
         // Optional custom tools
         if (tools.length) {
-            createParams.tools = tools.map((t) => ({
-                type: "function",
-                name: t.name,
-                description: t.description,
-                parameters: t.parameters,
-                strict: true,
-            }));
+            createParams.tools = tools;
         }
 
         /* ------------- 2  Issue request & iterate events ------------- */
@@ -460,7 +510,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
         let currentText = "";
         let totalCost = 0;
         let responseId: string | undefined;
-        const pendingToolCalls: Array<{ name: string; callId: string }> = [];
+        const pendingToolCalls: Array<{ name: string; callId: string; arguments: Record<string, unknown> }> = [];
 
         for await (const ev of stream) {
             switch (ev.type) {
@@ -475,9 +525,22 @@ export class OpenAIService extends AIService<OpenAIModel> {
 
                 case "response.output_item.added":
                     if (ev.item.type === "function_call") {
+                        // ev.item is OpenAI.Responses.ResponseFunctionToolCallItem
+                        // ev.item.arguments is a string, needs parsing
+                        let parsedArgs: Record<string, unknown> = {};
+                        try {
+                            if (ev.item.arguments) {
+                                parsedArgs = JSON.parse(ev.item.arguments);
+                            }
+                        } catch (e) {
+                            logger.error("Failed to parse tool call arguments", { name: ev.item.name, args: ev.item.arguments, error: e });
+                            // Decide how to handle: skip tool, error, or call with empty args?
+                            // For now, will proceed with empty args if parsing fails.
+                        }
                         pendingToolCalls.push({
                             name: ev.item.name!,
                             callId: ev.item.id!,
+                            arguments: parsedArgs,
                         });
                     }
                     break;
@@ -497,15 +560,22 @@ export class OpenAIService extends AIService<OpenAIModel> {
 
         /* ------------- 3  If tools were requested, recurse ------------- */
         if (pendingToolCalls.length) {
-            const outputs = await this.handleToolCalls(pendingToolCalls, tools);
+            // Assume 'this.getRegisteredExecutableTools()' provides the List of our internal 'ExecutableTool' type
+            // This method needs to be implemented or these tools need to be passed via constructor.
+            const executableTools = this.getRegisteredExecutableTools();
+            const outputs = await this.handleToolCalls(pendingToolCalls, executableTools);
+
             const followUp: ResponseStreamOptions = {
                 model,
-                input,
-                tools,
+                input: input, // Simplified for now, TODO: Construct proper followup input with assistant response and tool results
+                tools: opts.tools,
                 userData,
                 world,
-                maxCredits,
-                // previous_response_id: responseId,
+                maxTokens,
+                // Only pass previous_response_id if we initially used it. 
+                // This is because previous_response_id stores the conversation with OpenAI, 
+                // but we typically want to generate the context ourselves.
+                previous_response_id: previous_response_id ? responseId : undefined,
             };
             yield* this.generateResponseStreaming(followUp);
             return;
@@ -515,19 +585,37 @@ export class OpenAIService extends AIService<OpenAIModel> {
         yield { type: "done", cost: totalCost };
     }
 
+    // Placeholder for fetching executable tools.
+    // This needs to be implemented, e.g., by injecting a tool registry/service.
+    private getRegisteredExecutableTools(): ExecutableTool[] {
+        // TODO: Implement this method to return the actual list of executable tools.
+        // This might involve fetching from a registry or a class member populated during construction.
+        // Example: return this.toolRegistry.getAll();
+        logger.warn("getRegisteredExecutableTools is a placeholder and needs implementation.");
+        return [];
+    }
+
     /* ------------------------------------------------------------ */
     private async handleToolCalls(
-        calls: Array<{ name: string; callId: string }>,
-        tools: Tool[],
+        calls: Array<{ name: string; callId: string; arguments: Record<string, unknown> }>,
+        executableTools: ExecutableTool[],
     ): Promise<unknown[]> {
         return Promise.all(
-            calls.map(async ({ name, callId }) => {
-                const tool = tools.find((t) => t.name === name);
+            calls.map(async ({ name, callId, arguments: args }) => {
+                const tool = executableTools.find((t) => t.name === name);
                 if (!tool) {
+                    // It's important to provide a result for each callId back to OpenAI
+                    // So, instead of just a string, we might need to conform to OpenAI's tool result format.
+                    // For now, returning a string indicating the error.
+                    logger.error("Executable tool not found", { name, callId });
                     return `Tool ${name} not found`;
                 }
-                const args = {}; // fetch streamed args via callId if needed
-                return tool.execute(args);
+                try {
+                    return await tool.execute(args);
+                } catch (error) {
+                    logger.error("Tool execution failed", { name, callId, error });
+                    return `Error executing tool ${name}: ${error instanceof Error ? error.message : String(error)}`;
+                }
             }),
         );
     }
@@ -599,7 +687,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
         } catch (error) {
             const trace = "0606";
             const errorType = this.getErrorType(error);
-            LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+            AIServiceRegistry.get().updateServiceState(this.__id, errorType);
             logger.error("Failed to call OpenAI moderation", { trace, error, errorType });
             // Instead of treating service errors as unsafe content,
             // throw the error to allow fallback mechanisms to work
