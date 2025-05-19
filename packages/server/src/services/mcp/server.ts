@@ -5,7 +5,6 @@ import { Express } from "express";
 import { RequestService } from "../../auth/request.js";
 import { runWithMcpContext } from "./context.js";
 import { McpRoutineToolName, McpToolName, ToolRegistry } from "./registry.js";
-import { findRoutines, runRoutine } from "./tools.js";
 import { TransportManager } from "./transport.js";
 import { Logger } from "./types.js";
 

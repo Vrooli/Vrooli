@@ -1,5 +1,6 @@
 import { ModelType, ResourceSubType, ResourceType } from "@local/shared";
-import { Logger, Tool, ToolResponse } from "./types.js";
+import { defineTool, resourceManage, runRoutine, sendMessage, startSession } from "./tools.js";
+import { type Logger, type Tool, type ToolResponse } from "./types.js";
 
 type ToolHandler = (args: any, logger: Logger) => Promise<ToolResponse>;
 type JSONValue = null | boolean | number | string | JSONValue[] | { [key: string]: JSONValue };
@@ -69,8 +70,8 @@ const resourceTypes = [
     [ResourceType.Project, "Group resources together"],
     // Other resources
     [ResourceType.Note, "Store short memos/thoughts/etc."],
-    ["ExternalData", "KV bucket, table, S3 object, vector index, etc."]
-]
+    ["ExternalData", "KV bucket, table, S3 object, vector index, etc."],
+];
 
 /**
  * Parameters for defining how to use a tool.
@@ -125,7 +126,7 @@ export interface RunRoutineParams {
     mode?: "sync" | "async";
     /** ISO‑8601 timestamp OR cron expression (when mode === "async") */
     schedule?: {
-        /** RFC 3339 instant, e.g. "2025-05-09T14:30:00Z" */
+        /** RFC 3339 instant, e.g. "2025-05-09T14:30:00Z" */
         at?: string;
         /** Cron pattern interpreted with server TZ unless timezone is given */
         cron?: string;
@@ -169,7 +170,7 @@ export interface StartSessionParams {
 // Create a structure for JSON Schema oneOf with descriptions
 const resourceVariantSchemaItems = resourceTypes.map(item => ({
     const: String(item[0]),
-    description: item[1] || String(item[0]) // Use provided description or the name itself
+    description: item[1] || String(item[0]), // Use provided description or the name itself
 }));
 
 /**
@@ -214,9 +215,9 @@ export const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
                 type: { type: "string", enum: ["chat", "event"], default: "chat" },
                 topic: { type: "string", description: "Topic / routing key (for events)." },
                 content: { oneOf: [{ type: "string" }, { type: "object" }], description: "Text or structured payload." },
-                metadata: { type: "object", additionalProperties: true, description: "Opaque extra data." }
+                metadata: { type: "object", additionalProperties: true, description: "Opaque extra data." },
             },
-            required: ["to", "content"]
+            required: ["to", "content"],
         },
         annotations: {
             title: "Send Message",
@@ -275,8 +276,8 @@ export const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
                     },
                     required: ["op", "resource_type", "id"],
                     additionalProperties: false,
-                }
-            ]
+                },
+            ],
         },
         annotations: {
             title: "Resource Manage",
@@ -327,8 +328,8 @@ export const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
                     },
                     required: ["op", "run_id"],
                     additionalProperties: false,
-                }
-            ]
+                },
+            ],
         },
         annotations: {
             title: "Run Routine",
@@ -384,7 +385,7 @@ export const builtInToolDefinitions: Map<McpToolName, Tool> = new Map([
         annotations: {
             title: "Start Session",
             readOnlyHint: false, // Modifies state
-            openWorldHint: true // Interacts with the real world
+            openWorldHint: true, // Interacts with the real world
         },
     }],
 ]);
@@ -394,7 +395,7 @@ export interface CheckSessionParams {
 }
 
 /**
- * Parameters for mutating an existing session’s metadata, lifecycle, or routing.
+ * Parameters for mutating an existing session's metadata, lifecycle, or routing.
  */
 export interface UpdateSessionParams {
     /** Session being updated. */
@@ -430,7 +431,7 @@ export interface UpdateSessionParams {
         topic: string;
         /** Who should receive matching events. */
         recipients: "all" | string[];
-        /** Delivery style. `"buffer"` queues until the bot’s next turn. */
+        /** Delivery style. `"buffer"` queues until the bot's next turn. */
         mode?: "push" | "buffer" | "ignore";
         /** Auto-expire after N seconds. 0 or undefined = no TTL. */
         ttl_seconds?: number;
@@ -441,7 +442,7 @@ export interface UpdateSessionParams {
 
     /* ---------- lifecycle state ---------- */
 
-    /** Soft transition of the session’s state. */
+    /** Soft transition of the session's state. */
     state?: "active" | "paused" | "ended";
     /** Reason for the state change; recorded in the audit log. */
     state_reason?: string;
@@ -480,9 +481,9 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
             annotations: {
                 title: "Check Session",
                 readOnlyHint: true,                 // pure read
-                openWorldHint: false
-            }
-        }
+                openWorldHint: false,
+            },
+        },
     ],
     [
         McpSessionToolName.UpdateSession,
@@ -499,8 +500,8 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
                     context: {
                         oneOf: [
                             { type: "string" },
-                            { type: "object", additionalProperties: true }
-                        ]
+                            { type: "object", additionalProperties: true },
+                        ],
                     },
                     policy: {
                         type: "object",
@@ -508,10 +509,10 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
                             type: { type: "string", enum: ["open", "restricted", "private"] },
                             acl: {
                                 type: "array",
-                                items: { type: "string" }
-                            }
+                                items: { type: "string" },
+                            },
                         },
-                        additionalProperties: false
+                        additionalProperties: false,
                     },
                     limits: {
                         type: "object",
@@ -519,9 +520,9 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
                             max_messages: { type: "integer", minimum: 1 },
                             max_duration_minutes: { type: "integer", minimum: 1 },
                             max_credits: { type: "integer", minimum: 1 },
-                            expires_at: { type: "string", format: "date-time" }
+                            expires_at: { type: "string", format: "date-time" },
                         },
-                        additionalProperties: false
+                        additionalProperties: false,
                     },
 
                     /* event routing -------------------------------------------------- */
@@ -537,20 +538,20 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
                                         {
                                             type: "array",
                                             items: { type: "string" },
-                                            minItems: 1
-                                        }
-                                    ]
+                                            minItems: 1,
+                                        },
+                                    ],
                                 },
                                 mode: { type: "string", enum: ["push", "buffer", "ignore"] },
-                                ttl_seconds: { type: "integer", minimum: 0 }
+                                ttl_seconds: { type: "integer", minimum: 0 },
                             },
                             required: ["topic", "recipients"],
-                            additionalProperties: false
-                        }
+                            additionalProperties: false,
+                        },
                     },
                     remove_routes: {
                         type: "array",
-                        items: { type: "string" }
+                        items: { type: "string" },
                     },
 
                     /* lifecycle ------------------------------------------------------ */
@@ -558,14 +559,14 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
                     state_reason: { type: "string" },
                 },
                 required: ["session_id"],
-                additionalProperties: false
+                additionalProperties: false,
             },
             annotations: {
                 title: "Update Session",
                 readOnlyHint: false,                // mutates state
-                openWorldHint: false
-            }
-        }
+                openWorldHint: false,
+            },
+        },
     ],
     [
         McpSessionToolName.EndSession,
@@ -577,18 +578,18 @@ export const sessionToolDefinitions: Map<McpSessionToolName, Tool> = new Map([
                 properties: {
                     mode: { type: "string", enum: ["graceful", "force"], default: "graceful" },
                     reason: { type: "string" },
-                    archive: { type: "boolean", default: true }
+                    archive: { type: "boolean", default: true },
                 },
                 required: [],
-                additionalProperties: false
+                additionalProperties: false,
             },
             annotations: {
                 title: "End Session",
                 readOnlyHint: false,
-                openWorldHint: false
-            }
-        }
-    ]
+                openWorldHint: false,
+            },
+        },
+    ],
 ]);
 
 /**
