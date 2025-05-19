@@ -27,6 +27,7 @@
         "sourceMap": true,
         "strictNullChecks": true,
         "removeComments": true,
+        "verbatimModuleSyntax": true,
         "types": [
             "mocha",
         ]
