@@ -1,6 +1,14 @@
 import { DbProvider, batch, batchGroup, logger } from "@local/server";
 import { generatePK } from "@local/shared";
-import { PeriodType, Prisma } from "@prisma/client";
+import { type PeriodType, type Prisma } from "@prisma/client";
+
+// Select shape for resource version batching
+const resourceVersionSelect = {
+    id: true,
+    root: { select: { id: true } },
+} as const;
+// Payload type for resource version batching
+type ResourceVersionPayload = Prisma.resource_versionGetPayload<{ select: typeof resourceVersionSelect }>;
 
 type BatchRunCountsResult = Record<string, {
     runsStarted: number;
@@ -85,7 +93,7 @@ async function batchRunCounts(
         logger.error("batchRunCounts caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Creates periodic stats for all resources
@@ -97,9 +105,9 @@ export async function logResourceStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) {
+): Promise<void> {
     try {
-        await batch<Prisma.resource_versionFindManyArgs>({
+        await batch<Prisma.resource_versionFindManyArgs, ResourceVersionPayload>({
             objectType: "ResourceVersion",
             processBatch: async (batch) => {
                 // Find and count all runs associated with the latest routine versions, which 
@@ -121,12 +129,7 @@ export async function logResourceStats(
                     }).filter((data): data is Exclude<typeof data, undefined> => !!data),
                 });
             },
-            select: {
-                id: true,
-                root: {
-                    select: { id: true },
-                },
-            },
+            select: resourceVersionSelect,
             where: {
                 isDeleted: false,
                 isLatest: true,
@@ -136,4 +139,4 @@ export async function logResourceStats(
     } catch (error) {
         logger.error("logRoutineStats caught error", { error, trace: "0422", periodType, periodStart, periodEnd });
     }
-};
+}

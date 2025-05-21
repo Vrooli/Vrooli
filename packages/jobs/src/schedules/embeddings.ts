@@ -7,7 +7,7 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { DbProvider, type EmbeddableType, type FindManyArgs, batch, logger } from "@local/server";
+import { DbProvider, type EmbeddableType, batch, logger } from "@local/server";
 import { type ModelType, RunStatus } from "@local/shared";
 import { type Prisma } from "@prisma/client";
 import { EmbeddingService } from "../../../server/src/services/embedding.js";
@@ -50,18 +50,39 @@ type ReminderEmbedPayload = Prisma.reminderGetPayload<{ select: typeof embedSele
 type RunEmbedPayload = Prisma.runGetPayload<{ select: typeof embedSelectMap.Run }>;
 
 // --- 3. Embeddable String Extraction Functions ---
-type EmbedGetFn<P> = (row: P) => string[];
 
-const embedGetMap: {
-    Chat: EmbedGetFn<ChatEmbedPayload>;
-    Issue: EmbedGetFn<IssueEmbedPayload>;
-    Meeting: EmbedGetFn<MeetingEmbedPayload>;
-    ResourceVersion: EmbedGetFn<ResourceVersionEmbedPayload>;
-    Team: EmbedGetFn<TeamEmbedPayload>;
-    Tag: EmbedGetFn<TagEmbedPayload>;
-    User: EmbedGetFn<UserEmbedPayload>;
-    Reminder: EmbedGetFn<ReminderEmbedPayload>;
-    Run: EmbedGetFn<RunEmbedPayload>;
+// New Mapped Type for specific payloads
+type SpecificPayloadMap = {
+    Chat: ChatEmbedPayload;
+    Issue: IssueEmbedPayload;
+    Meeting: MeetingEmbedPayload;
+    ResourceVersion: ResourceVersionEmbedPayload;
+    Team: TeamEmbedPayload;
+    Tag: TagEmbedPayload;
+    User: UserEmbedPayload;
+    Reminder: ReminderEmbedPayload;
+    Run: RunEmbedPayload;
+};
+
+// Map EmbeddableType to its specific Prisma FindManyArgs type
+type ModelFindManyArgsMap = {
+    Chat: Prisma.chatFindManyArgs;
+    Issue: Prisma.issueFindManyArgs;
+    Meeting: Prisma.meetingFindManyArgs;
+    ResourceVersion: Prisma.resource_versionFindManyArgs;
+    Team: Prisma.teamFindManyArgs;
+    Tag: Prisma.tagFindManyArgs;
+    User: Prisma.userFindManyArgs;
+    Reminder: Prisma.reminderFindManyArgs;
+    Run: Prisma.runFindManyArgs;
+};
+
+// New Typed Generic Function for embedGetMap
+type TypedEmbedGetFn<K extends EmbeddableType> = (row: SpecificPayloadMap[K]) => string[];
+
+// Strongly typed version of embedGetMap
+const typedEmbedGetMap: {
+    [K in EmbeddableType]: TypedEmbedGetFn<K>;
 } = {
     Chat: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
     Issue: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
@@ -77,13 +98,34 @@ const embedGetMap: {
 // ===== END CENTRALIZED LOGIC =====
 
 async function updateEmbedding(
-    objectType: EmbeddableType | `${EmbeddableType}`,
-    isTranslatableTable: boolean, // True if updating XYZTranslation table, false for main table
+    objectType: EmbeddableType, // Simplified type
+    isTranslatableTable: boolean,
     id: string,
     embeddings: number[],
 ): Promise<void> {
     const { ModelMap } = await import("@local/server");
-    const tableName = ModelMap.get(isTranslatableTable ? (objectType + "Translation" as ModelType) : objectType).dbTable;
+
+    // Define the type for keys constructed from EmbeddableType and isTranslatableTable logic
+    type ConstructedModelKey = EmbeddableType | `${EmbeddableType}Translation`;
+
+    // Construct the key for ModelMap
+    const modelKey: ConstructedModelKey = isTranslatableTable ? `${objectType}Translation` : objectType;
+
+    // Explicitly cast to ModelType. This cast assumes that any value of type
+    // 'ConstructedModelKey' is also a valid 'ModelType'. This assumption
+    // should ideally be validated against the actual definition of 'ModelType'.
+    const modelInfo = ModelMap.get(modelKey as ModelType);
+
+    if (!modelInfo || !modelInfo.dbTable) {
+        logger.error("Failed to find model information or dbTable in ModelMap", {
+            objectType,
+            isTranslatableTable,
+            derivedModelKey: modelKey,
+            foundModelInfo: !!modelInfo,
+        });
+        throw new Error(`Could not determine database table for objectType: ${objectType}, derived key: ${modelKey}`);
+    }
+    const tableName = modelInfo.dbTable;
     const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;
     await DbProvider.get().$executeRawUnsafe(
         `UPDATE ${tableName}
@@ -101,12 +143,15 @@ function hasPopulatedTranslations<T extends { translations?: Array<any> }>(
 }
 
 async function processEmbeddingBatch<
-    P extends { id: bigint; embeddingExpiredAt?: Date | null; translations?: Array<{ id: bigint; embeddingExpiredAt: Date | null; language: string }> }
+    K extends EmbeddableType, // Use K extends EmbeddableType
+    // P is now SpecificPayloadMap[K], ensuring consistency with K
+    P extends SpecificPayloadMap[K] & { id: bigint; embeddingExpiredAt?: Date | null; translations?: Array<{ id: bigint; embeddingExpiredAt: Date | null; language: string }> }
 >(
     batchOfP: P[],
-    objectType: EmbeddableType | `${EmbeddableType}`,
+    objectType: K, // objectType is now K
 ): Promise<void> {
-    const getFn = embedGetMap[objectType as keyof typeof embedGetMap] as unknown as EmbedGetFn<P> | undefined;
+    // getFn is now correctly typed based on K, no assertion needed
+    const getFn: TypedEmbedGetFn<K> | undefined = typedEmbedGetMap[objectType];
     if (!getFn) {
         logger.warn("No embed get function found for object type", { objectType });
         return;
@@ -181,29 +226,29 @@ async function processEmbeddingBatch<
 }
 
 // Type for EmbeddingBatchProps
-type EmbeddingBatchProps<T extends FindManyArgs, P> = {
-    objectType: EmbeddableType | `${EmbeddableType}`;
-    processBatch: (batch: P[], objectType: `${EmbeddableType}`) => Promise<void>;
+type EmbeddingBatchProps<K extends EmbeddableType, P extends SpecificPayloadMap[K]> = { // K extends EmbeddableType
+    objectType: K; // Use K
+    processBatch: (batch: P[], objectType: K) => Promise<void>; // Use K
     trace: string;
     traceObject?: Record<string, any>;
-    select: T["select"]; // 'select' is mandatory
-    where: T["where"];
+    select: ModelFindManyArgsMap[K]["select"]; // Use ModelFindManyArgsMap
+    where: ModelFindManyArgsMap[K]["where"];   // Use ModelFindManyArgsMap
 };
 
-async function embeddingBatch<T extends FindManyArgs, P>({
+async function embeddingBatch<K extends EmbeddableType, P extends SpecificPayloadMap[K]>({ // K extends EmbeddableType
     objectType,
-    processBatch: processBatchCallback, // Renamed to avoid confusion with Prisma's batch
+    processBatch: processBatchCallback,
     trace,
     traceObject,
     select,
     where,
-}: EmbeddingBatchProps<T, P>) {
+}: EmbeddingBatchProps<K, P>) { // Use K
     try {
-        await batch<T, P>({ // Prisma's batch utility
+        await batch<ModelFindManyArgsMap[K], P>({ // Use ModelFindManyArgsMap[K] for the first generic argument
             batchSize: API_BATCH_SIZE,
-            objectType, // For Prisma's batch utility context if needed
-            processBatch: async (rows) => processBatchCallback(rows, objectType), // Call the provided processBatch (i.e., processEmbeddingBatch)
-            select,     // This is Prisma.ModelFindManyArgs['select'], aligning with P
+            objectType,
+            processBatch: async (rows) => processBatchCallback(rows, objectType),
+            select,
             where,
         });
     } catch (error) {
@@ -214,17 +259,17 @@ async function embeddingBatch<T extends FindManyArgs, P>({
 // --- Update all batchEmbeddingsXYZ functions ---
 
 async function batchEmbeddingsChat() {
-    return embeddingBatch<Prisma.chatFindManyArgs, ChatEmbedPayload>({
+    return embeddingBatch<"Chat", ChatEmbedPayload>({ // Explicitly type K and P
         objectType: "Chat",
         select: embedSelectMap.Chat,
-        processBatch: processEmbeddingBatch, // Use the consolidated helper
+        processBatch: processEmbeddingBatch,
         trace: "0475",
         where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
     });
 }
 
 async function batchEmbeddingsIssue() {
-    return embeddingBatch<Prisma.issueFindManyArgs, IssueEmbedPayload>({
+    return embeddingBatch<"Issue", IssueEmbedPayload>({ // Explicitly type K and P
         objectType: "Issue",
         select: embedSelectMap.Issue,
         processBatch: processEmbeddingBatch,
@@ -234,7 +279,7 @@ async function batchEmbeddingsIssue() {
 }
 
 async function batchEmbeddingsMeeting() {
-    return embeddingBatch<Prisma.meetingFindManyArgs, MeetingEmbedPayload>({
+    return embeddingBatch<"Meeting", MeetingEmbedPayload>({ // Explicitly type K and P
         objectType: "Meeting",
         select: embedSelectMap.Meeting,
         processBatch: processEmbeddingBatch,
@@ -244,7 +289,7 @@ async function batchEmbeddingsMeeting() {
 }
 
 async function batchEmbeddingsTeam() {
-    return embeddingBatch<Prisma.teamFindManyArgs, TeamEmbedPayload>({
+    return embeddingBatch<"Team", TeamEmbedPayload>({ // Explicitly type K and P
         objectType: "Team",
         select: embedSelectMap.Team,
         processBatch: processEmbeddingBatch,
@@ -254,7 +299,7 @@ async function batchEmbeddingsTeam() {
 }
 
 async function batchEmbeddingsResourceVersion() {
-    return embeddingBatch<Prisma.resource_versionFindManyArgs, ResourceVersionEmbedPayload>({
+    return embeddingBatch<"ResourceVersion", ResourceVersionEmbedPayload>({ // Explicitly type K and P
         objectType: "ResourceVersion",
         select: embedSelectMap.ResourceVersion,
         processBatch: processEmbeddingBatch,
@@ -268,7 +313,7 @@ async function batchEmbeddingsResourceVersion() {
 }
 
 async function batchEmbeddingsTag() {
-    return embeddingBatch<Prisma.tagFindManyArgs, TagEmbedPayload>({
+    return embeddingBatch<"Tag", TagEmbedPayload>({ // Explicitly type K and P
         objectType: "Tag",
         select: embedSelectMap.Tag,
         processBatch: processEmbeddingBatch,
@@ -278,7 +323,7 @@ async function batchEmbeddingsTag() {
 }
 
 async function batchEmbeddingsUser() {
-    return embeddingBatch<Prisma.userFindManyArgs, UserEmbedPayload>({
+    return embeddingBatch<"User", UserEmbedPayload>({ // Explicitly type K and P
         objectType: "User",
         select: embedSelectMap.User,
         processBatch: processEmbeddingBatch,
@@ -288,7 +333,7 @@ async function batchEmbeddingsUser() {
 }
 
 async function batchEmbeddingsReminder() {
-    return embeddingBatch<Prisma.reminderFindManyArgs, ReminderEmbedPayload>({
+    return embeddingBatch<"Reminder", ReminderEmbedPayload>({ // Explicitly type K and P
         objectType: "Reminder",
         select: embedSelectMap.Reminder,
         processBatch: processEmbeddingBatch,
@@ -298,7 +343,7 @@ async function batchEmbeddingsReminder() {
 }
 
 async function batchEmbeddingsRun() {
-    return embeddingBatch<Prisma.runFindManyArgs, RunEmbedPayload>({
+    return embeddingBatch<"Run", RunEmbedPayload>({ // Explicitly type K and P
         objectType: "Run",
         select: embedSelectMap.Run,
         processBatch: processEmbeddingBatch,

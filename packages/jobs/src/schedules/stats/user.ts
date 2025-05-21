@@ -1,6 +1,11 @@
 import { batch, batchGroup, DbProvider, logger } from "@local/server";
 import { generatePK } from "@local/shared";
-import { PeriodType, Prisma } from "@prisma/client";
+import { type PeriodType, type Prisma } from "@prisma/client";
+
+// Select shape for user stats batching
+const userStatsSelect = { id: true } as const;
+// Payload type for user stats batching
+type UserPayload = Prisma.userGetPayload<{ select: typeof userStatsSelect }>;
 
 type BatchTeamsResult = Record<string, {
     teamsCreated: number;
@@ -27,11 +32,11 @@ type BatchRunsResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of user IDs to team stats
  */
-const batchTeams = async (
+async function batchTeams(
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchTeamsResult> => {
+): Promise<BatchTeamsResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
         teamsCreated: 0,
     }]));
@@ -62,7 +67,7 @@ const batchTeams = async (
         logger.error("batchTeams caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Batch collects resource stats for a list of users
@@ -71,11 +76,11 @@ const batchTeams = async (
  * @param periodEnd When the period ended
  * @returns A map of user IDs to resource stats
  */
-const batchResources = async (
+async function batchResources(
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchResourcesResult> => {
+): Promise<BatchResourcesResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
         resourcesCreated: 0,
         resourcesCompleted: 0,
@@ -130,7 +135,7 @@ const batchResources = async (
         logger.error("batchResources caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Batch collects run stats for a list of users
@@ -139,11 +144,11 @@ const batchResources = async (
  * @param periodEnd When the period ended
  * @returns A map of user IDs to run stats
  */
-const batchRuns = async (
+async function batchRuns(
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunsResult> => {
+): Promise<BatchRunsResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
@@ -208,7 +213,7 @@ const batchRuns = async (
         logger.error("batchRuns caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Creates periodic stats for all users
@@ -220,9 +225,9 @@ export async function logUserStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) {
+): Promise<void> {
     try {
-        await batch<Prisma.userFindManyArgs>({
+        await batch<Prisma.userFindManyArgs, UserPayload>({
             objectType: "User",
             processBatch: async (batch) => {
                 // Get user ids, so we can query various tables for stats
@@ -245,9 +250,7 @@ export async function logUserStats(
                     })),
                 });
             },
-            select: {
-                id: true,
-            },
+            select: userStatsSelect,
             where: {
                 updatedAt: {
                     gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
@@ -257,4 +260,4 @@ export async function logUserStats(
     } catch (error) {
         logger.error("logUserStats caught error", { error, trace: "0426", periodType, periodStart, periodEnd });
     }
-};
+}

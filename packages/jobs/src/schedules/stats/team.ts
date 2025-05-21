@@ -1,6 +1,14 @@
 import { batch, batchGroup, DbProvider, logger } from "@local/server";
 import { generatePK } from "@local/shared";
-import { PeriodType, Prisma } from "@prisma/client";
+import { type PeriodType, type Prisma } from "@prisma/client";
+
+// Select shape for team stats batching
+const teamStatsSelect = {
+    id: true,
+    _count: { select: { members: true, resources: true } },
+} as const;
+// Payload type for team stats batching
+type TeamPayload = Prisma.teamGetPayload<{ select: typeof teamStatsSelect }>;
 
 type BatchRunsResult = Record<string, {
     runsStarted: number;
@@ -85,7 +93,7 @@ async function batchRuns(
         logger.error("batchRuns caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Creates periodic stats for all teams
@@ -97,9 +105,9 @@ export async function logTeamStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) {
+): Promise<void> {
     try {
-        await batch<Prisma.teamFindManyArgs>({
+        await batch<Prisma.teamFindManyArgs, TeamPayload>({
             objectType: "Team",
             processBatch: async (batch) => {
                 const runStats = await batchRuns(batch.map(team => team.id.toString()), periodStart, periodEnd);
@@ -116,17 +124,9 @@ export async function logTeamStats(
                     })),
                 });
             },
-            select: {
-                id: true,
-                _count: {
-                    select: {
-                        members: true,
-                        resources: true,
-                    },
-                },
-            },
+            select: teamStatsSelect,
         });
     } catch (error) {
         logger.error("logTeamStats caught error", { error, trace: "0419", periodType, periodStart, periodEnd });
     }
-};
+}
