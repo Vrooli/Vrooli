@@ -1,5 +1,35 @@
-import { DbProvider, FindManyArgs, batch, logger } from "@local/server";
-import { ModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
+import { DbProvider, batch, logger } from "@local/server";
+import { type ModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
+
+// Declare select shape and payload type for individual reactions
+const reactionSelect = { emoji: true } as const;
+type ReactionPayload = Prisma.reactionGetPayload<{ select: typeof reactionSelect }>;
+
+// Declare select shape and payload type for update batch
+const objectSelect = {
+    id: true,
+    score: true,
+    reactionSummaries: {
+        select: {
+            id: true,
+            emoji: true,
+            count: true,
+        },
+    },
+} as const;
+
+type ObjectPayload =
+    Prisma.chat_messageGetPayload<{ select: typeof objectSelect }> |
+    Prisma.commentGetPayload<{ select: typeof objectSelect }> |
+    Prisma.issueGetPayload<{ select: typeof objectSelect }> |
+    Prisma.resourceGetPayload<{ select: typeof objectSelect }>;
+
+type UpdateArgs =
+    Prisma.chat_messageFindManyArgs |
+    Prisma.commentFindManyArgs |
+    Prisma.issueFindManyArgs |
+    Prisma.resourceFindManyArgs;
 
 /**
  * Processes reactions for a single object, calculating the total score and building a map of reaction summaries.
@@ -15,7 +45,7 @@ async function processReactionsForObject(
     let totalScore = 0;
     const reactionSummaries = new Map<string, number>();
 
-    await batch<FindManyArgs>({
+    await batch<Prisma.reactionFindManyArgs, ReactionPayload>({
         objectType: "Reaction",
         processBatch: async (batch) => {
             batch.forEach(reaction => {
@@ -23,14 +53,12 @@ async function processReactionsForObject(
                 reactionSummaries.set(reaction.emoji, (reactionSummaries.get(reaction.emoji) || 0) + 1);
             });
         },
-        select: {
-            emoji: true,
-        },
+        select: reactionSelect,
         where: { [`${camelCase(tableName)}Id`]: objectId },
     });
 
     return { totalScore, reactionSummaries };
-};
+}
 
 /**
  * Represents an operation to update a reaction summary (create, update, or delete).
@@ -49,11 +77,11 @@ type ReactionSummaryUpdateOperation = {
  */
 async function updateReactionsForTable(tableName: string): Promise<void> {
     try {
-        await batch({
+        await batch<UpdateArgs, ObjectPayload>({
             objectType: uppercaseFirstLetter(camelCase(tableName)) as ModelType,
             processBatch: async (batch) => {
                 for (const object of batch) {
-                    const { totalScore, reactionSummaries } = await processReactionsForObject(tableName, object.id);
+                    const { totalScore, reactionSummaries } = await processReactionsForObject(tableName, object.id.toString());
 
                     // Compare with existing data and prepare update operations
                     const existingSummaries = Object.fromEntries(object.reactionSummaries.map(s => [s.emoji, s.count]));
@@ -104,22 +132,12 @@ async function updateReactionsForTable(tableName: string): Promise<void> {
                     }
                 }
             },
-            select: {
-                id: true,
-                score: true,
-                reactionSummaries: {
-                    select: {
-                        id: true,
-                        emoji: true,
-                        count: true,
-                    },
-                },
-            },
+            select: objectSelect,
         });
     } catch (error) {
         logger.error("processTableInBatches caught error", { error, trace: "0164" });
     }
-};
+}
 
 export async function countReacts(): Promise<void> {
     const tableNames = [
@@ -132,4 +150,4 @@ export async function countReacts(): Promise<void> {
     for (const tableName of tableNames) {
         await updateReactionsForTable(tableName);
     }
-};
+}

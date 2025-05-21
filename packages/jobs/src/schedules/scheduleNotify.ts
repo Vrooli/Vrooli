@@ -1,6 +1,6 @@
-import { Notify, ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
-import { ModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { Notify, type ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
+import { type ModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 
 /**
  * For a list of scheduled events, finds subscribers and schedules notifications for them
@@ -11,7 +11,7 @@ import { Prisma } from "@prisma/client";
 async function scheduleNotifications(
     scheduleId: string,
     occurrences: { start: Date, end: Date }[],
-) {
+): Promise<void> {
     await withRedis({
         process: async (redisClient) => {
             await batch<Prisma.notification_subscriptionFindManyArgs>({
@@ -109,7 +109,7 @@ async function scheduleNotifications(
 /**
  * Caches upcoming scheduled events in the database.
  */
-export async function scheduleNotify() {
+export async function scheduleNotify(): Promise<void> {
     try {
         // Define window for start and end dates. 
         // Should be looking for all events that occur within the next 25 hours. 

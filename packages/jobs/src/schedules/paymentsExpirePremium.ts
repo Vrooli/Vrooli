@@ -1,6 +1,6 @@
 import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@local/server";
 import { nanoid } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { type Prisma } from "@prisma/client";
 
 type TeamWithPlanAndEmails = Pick<Prisma.teamGetPayload<{
     select: {
@@ -36,7 +36,7 @@ const commonSelect = {
             id: true,
         },
     },
-};
+} as const;
 
 const commonWhere = {
     plan: {
@@ -48,6 +48,10 @@ const commonWhere = {
     },
 };
 
+// Declare payload types for teams and users using commonSelect
+type TeamPayload = Prisma.teamGetPayload<{ select: typeof commonSelect }>;
+type UserPayload = Prisma.userGetPayload<{ select: typeof commonSelect }>;
+
 /**
  * Expires plan status for users and teams
  * @returns Promise that resolves when the operation is complete
@@ -55,7 +59,7 @@ const commonWhere = {
 export async function paymentsExpirePlan(): Promise<void> {
     // Expire for teams
     try {
-        await batch<Prisma.teamFindManyArgs>({
+        await batch<Prisma.teamFindManyArgs, TeamPayload>({
             objectType: "Team",
             processBatch: async (batch: TeamWithPlanAndEmails[]) => {
                 // Remove plan status for teams
@@ -95,7 +99,7 @@ export async function paymentsExpirePlan(): Promise<void> {
 
     // Expire for users
     try {
-        await batch<Prisma.userFindManyArgs>({
+        await batch<Prisma.userFindManyArgs, UserPayload>({
             objectType: "User",
             processBatch: async (batch: UserWithPlanAndEmails[]) => {
                 // Remove plan status for users

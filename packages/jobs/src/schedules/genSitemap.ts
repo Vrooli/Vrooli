@@ -1,5 +1,5 @@
-import { DbProvider, ModelMap, PrismaDelegate, UI_URL_REMOTE, logger } from "@local/server";
-import { LINKS, ResourceSubType, ResourceType, SitemapEntryContent, generateSitemap, generateSitemapIndex } from "@local/shared";
+import { DbProvider, ModelMap, type PrismaDelegate, UI_URL_REMOTE, logger } from "@local/server";
+import { LINKS, ResourceSubType, ResourceType, type SitemapEntryContent, generateSitemap, generateSitemapIndex } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -53,7 +53,7 @@ function getLink(objectType: typeof sitemapObjectTypes[number], properties: any)
         default:
             return "";
     }
-};
+}
 
 // Where to save the sitemap index and files
 const __filename = fileURLToPath(import.meta.url);
@@ -166,7 +166,7 @@ async function genSitemapForObject(
     } while (currentBatchSize === BATCH_SIZE);
     // Return sitemap file names
     return sitemapFileNames;
-};
+}
 
 /**
  * Generates sitemap index file and calls genSitemapForObject for each object type
@@ -199,8 +199,8 @@ export async function genSitemap(): Promise<void> {
     } catch (error) {
         logger.error("genSitemap caught error", { error, trace: "0463", routeSitemapFileName, sitemapDir });
     }
-};
+}
 
 export async function isSitemapMissing(): Promise<boolean> {
     return !fs.existsSync(`${sitemapIndexDir}/sitemap.xml`);
-};
+}

@@ -1,6 +1,6 @@
 import { DbProvider, Notify, batch, emitSocketEvent, logger } from "@local/server";
 import { API_CREDITS_PREMIUM } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 const MAX_MONTHS_ACCRUED = 6;
 /**
@@ -12,8 +12,21 @@ const MAX_FREE_CREDITS = BigInt(MAX_MONTHS_ACCRUED) * API_CREDITS_PREMIUM;
  * Provides free credits to premium users.
  */
 export async function paymentsCreditsFreePremium(): Promise<void> {
+    // Declare select shape and payload type for free credits
+    const freeCreditsSelect: Prisma.userFindManyArgs["select"] = {
+        id: true,
+        languages: true,
+        premium: {
+            select: {
+                id: true,
+                isActive: true,
+                credits: true,
+            },
+        },
+    } as const;
+    type FreeCreditsPayload = Prisma.userGetPayload<{ select: typeof freeCreditsSelect }>;
     try {
-        await batch<Prisma.userFindManyArgs>({
+        await batch<Prisma.userFindManyArgs, FreeCreditsPayload>({
             objectType: "User",
             processBatch: async (batch) => {
                 for (const user of batch) {
@@ -44,17 +57,7 @@ export async function paymentsCreditsFreePremium(): Promise<void> {
                     emitSocketEvent("apiCredits", user.id, { credits: user.premium.credits + "" });
                 }
             },
-            select: {
-                id: true,
-                languages: true,
-                premium: {
-                    select: {
-                        id: true,
-                        isActive: true,
-                        credits: true,
-                    },
-                },
-            },
+            select: freeCreditsSelect,
             where: {
                 isBot: false,
             },

@@ -1,15 +1,25 @@
 import { DbProvider, batch, logger, sendPaymentFailed } from "@local/server";
-import { PaymentStatus, PaymentType, WEEKS_1_MS } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { PaymentStatus, type PaymentType, WEEKS_1_MS } from "@local/shared";
+import { type Prisma } from "@prisma/client";
+
+// Select shape for pending payments
+const paymentSelect = {
+    id: true,
+    paymentType: true,
+    team: { select: { emails: { select: { emailAddress: true } } } },
+    user: { select: { emails: { select: { emailAddress: true } } } },
+} as const;
+// Payload type for pending payments
+type PaymentPayload = Prisma.paymentGetPayload<{ select: typeof paymentSelect }>;
 
 const PENDING_TIMEOUT = WEEKS_1_MS;
 
 /**
  * Updates pending payments to failed if they have been stuck in pending for a long time
  */
-export async function paymentsFail() {
+export async function paymentsFail(): Promise<void> {
     try {
-        await batch<Prisma.paymentFindManyArgs>({
+        await batch<Prisma.paymentFindManyArgs, PaymentPayload>({
             objectType: "Payment",
             processBatch: async (batch) => {
                 // Set payments to failed
@@ -27,20 +37,7 @@ export async function paymentsFail() {
                     sendPaymentFailed(email, paymentType);
                 }
             },
-            select: {
-                id: true,
-                paymentType: true,
-                team: {
-                    select: {
-                        emails: { select: { emailAddress: true } },
-                    },
-                },
-                user: {
-                    select: {
-                        emails: { select: { emailAddress: true } },
-                    },
-                },
-            },
+            select: paymentSelect,
             where: {
                 status: PaymentStatus.Pending,
                 updatedAt: { lte: new Date(Date.now() - PENDING_TIMEOUT) },
@@ -49,4 +46,4 @@ export async function paymentsFail() {
     } catch (error) {
         logger.error("paymentsFail caught error", { error, trace: "0222" });
     }
-};
+}
