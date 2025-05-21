@@ -1,12 +1,13 @@
+import OpenAI from "openai";
 import { McpToolName, ToolRegistry } from "../mcp/registry.js";
 import { OkErr, ToolMeta } from "./types.js";
 
 /**
  * The result of a tool call, including the output and the number of credits used.
  */
-export interface ToolCallResult {
+interface ToolCallResult {
     output: unknown;
-    creditsUsed: bigint;
+    creditsUsed: string; // stringified BigInt
 }
 
 /**
@@ -33,24 +34,90 @@ export abstract class ToolRunner {
  * This class should be extended to support additional OpenAI tools as needed.
  */
 export class OpenAIToolRunner extends ToolRunner {
+    private readonly openaiClient: OpenAI;
+
+    /**
+     * @param openaiClient - The OpenAI client instance.
+     */
+    constructor(openaiClient: OpenAI) {
+        super();
+        this.openaiClient = openaiClient;
+    }
+
     /**
      * Executes an OpenAI built-in tool call.
-     * @param name - The tool name (e.g., 'web_search', 'file_search', 'function').
-     * @param _args - The arguments for the tool.
-     * @param _meta - Metadata about the tool call.
+     * @param name - The tool name (e.g., "web_search", "file_search", "function").
+     * @param args - The arguments for the tool.
+     * @param meta - Metadata about the tool call.
      * @returns A promise resolving to a ToolCallResult or an error.
      */
-    async run(name: string, _args: unknown, _meta: ToolMeta): Promise<OkErr<ToolCallResult>> {
-        // TODO: Integrate with OpenAI Responses API for built-in tools.
-        // This is a stub implementation for now.
-        // See: https://medium.com/@odhitom09/openai-responses-api-a-comprehensive-guide-ad546132b2ed
-        return {
-            ok: false,
-            error: {
-                code: "NOT_IMPLEMENTED",
-                message: `OpenAIToolRunner is not yet implemented for tool: ${name}`,
-            },
-        };
+    async run(name: string, args: unknown, meta: ToolMeta): Promise<OkErr<ToolCallResult>> {
+        // TODO: Replace placeholder with actual OpenAI API client initialization/access.
+        // This client might be injected via the constructor or accessed from the 'meta' object.
+        // const openaiClient = meta.openaiClient || new SomeOpenAIClient();
+
+        try {
+            let toolOutput: unknown;
+            let creditsUsed: string = "0"; // Default, should be updated from API response if possible.
+
+            // Hypothetical structure for calling OpenAI tools.
+            // The actual implementation depends on the specific "OpenAI Responses API" SDK/client.
+            switch (name) {
+                case "web_search":
+                    // Example: const searchArgs = args as YourWebSearchArgsType;
+                    // const response = await openaiClient.performWebSearch(searchArgs, meta.userContext);
+                    // toolOutput = response.results;
+                    // creditsUsed = response.usageInfo.credits.toString();
+                    toolOutput = `Simulated web search for tool "${name}" with args: ${JSON.stringify(args)}`;
+                    // Simulate credits used, e.g. based on args complexity or a fixed value
+                    creditsUsed = "10";
+                    break;
+
+                case "file_search":
+                    // Example: const fileArgs = args as YourFileSearchArgsType;
+                    // const response = await openaiClient.performFileSearch(fileArgs, meta.userContext);
+                    // toolOutput = response.results;
+                    // creditsUsed = response.usageInfo.credits.toString();
+                    toolOutput = `Simulated file search for tool "${name}" with args: ${JSON.stringify(args)}`;
+                    creditsUsed = "5";
+                    break;
+
+                // TODO: Add cases for other supported OpenAI tools (e.g., "function", "code_interpreter")
+                // case "function":
+                //     const functionArgs = args as YourFunctionArgsType;
+                //     // ... logic to call the function tool ...
+                //     toolOutput = resultOfFunctionCall;
+                //     creditsUsed = ...;
+                //     break;
+
+                default:
+                    return {
+                        ok: false,
+                        error: {
+                            code: "UNKNOWN_OPENAI_TOOL",
+                            message: `OpenAI tool named "${name}" is not recognized or supported by this runner.`,
+                        },
+                    };
+            }
+
+            return {
+                ok: true,
+                data: {
+                    output: toolOutput,
+                    creditsUsed: creditsUsed,
+                },
+            };
+        } catch (error) {
+            // Log the error for debugging purposes
+            // console.error(`Error executing OpenAI tool "${name}":`, error);
+            return {
+                ok: false,
+                error: {
+                    code: "OPENAI_API_ERROR",
+                    message: `An error occurred while executing OpenAI tool "${name}": ${(error instanceof Error) ? error.message : String(error)}`,
+                },
+            };
+        }
     }
 }
 
@@ -95,7 +162,7 @@ export class McpToolRunner extends ToolRunner {
                     ok: false,
                     error: {
                         code: "MCP_TOOL_EXECUTION_FAILED",
-                        message: response.content?.[0]?.text || `MCP tool '${name}' execution failed`,
+                        message: response.content?.[0]?.text || `MCP tool "${name}" execution failed`,
                     },
                 };
             }
@@ -104,7 +171,7 @@ export class McpToolRunner extends ToolRunner {
                 ok: true,
                 data: {
                     output: response,
-                    creditsUsed: BigInt(0),
+                    creditsUsed: BigInt(0).toString(),
                 },
             };
         } catch (error) {
@@ -112,7 +179,7 @@ export class McpToolRunner extends ToolRunner {
                 ok: false,
                 error: {
                     code: "MCP_TOOL_EXECUTION_ERROR",
-                    message: `MCP tool '${name}' execution error: ${(error as Error).message}`,
+                    message: `MCP tool "${name}" execution error: ${(error as Error).message}`,
                 },
             };
         }

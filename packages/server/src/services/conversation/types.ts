@@ -1,15 +1,18 @@
-import { ChatConfigObject, ChatMessage } from "@local/shared";
-import OpenAI from "openai";
-import { ConversationEvent } from "../bus";
+import { type BotConfigObject, type ChatConfigObject, type ChatMessage } from "@local/shared";
+import type OpenAI from "openai";
+import { type ConversationEvent } from "../bus.js";
+import type { ToolInputSchema } from "../mcp/types.js";
+import type { WorldModel } from "./worldModel.js";
 
 /** A participant in a conversation – human or bot. */
 export interface BotParticipant {
     /** Stable unique identifier (Snowflake, UUID, etc.) */
     id: string;
+    config: BotConfigObject;
     /** Display name (for mentions/UX) */
     name: string;
     /** Arbitrary metadata (roles, capabilities, preferences) */
-    meta?: Record<string, unknown> & {
+    meta?: {
         role?: string;
         extraTools?: JsonSchema[];   // bot-specific
         disabledTools?: string[];    // names to hide
@@ -17,8 +20,12 @@ export interface BotParticipant {
     };
 }
 
-/** A single chat message. */
-export type MessageState = Pick<ChatMessage, "id" | "config" | "language" | "text"> & {
+/** 
+ * A single chat message. 
+ * 
+ * If this is a new message that hasn't been persisted yet, the `id` and `createdAt` fields will be dummy values.
+ */
+export type MessageState = Pick<ChatMessage, "id" | "createdAt" | "config" | "language" | "text"> & {
     parent?: {
         id: string;
     } | null;
@@ -105,4 +112,21 @@ export type ConversationState = {
     turnCounter: number;
     /** The current turn's stats, for tracking limits */
     turnStats: TurnStats;
+    /** The available tools (schemas) for this conversation */
+    availableTools: ToolInputSchema[];
+    /** The world model configuration for this conversation */
+    worldModel: WorldModel;
 }
+
+// Added Swarm event type definitions
+export interface SwarmInternalEvent {
+    type: string;
+    conversationId: string;
+    payload?: any;
+}
+
+export interface SwarmStartedEvent extends SwarmInternalEvent {
+    type: "swarm_started";
+    goal: string;
+}
+// End of added Swarm event type definitions

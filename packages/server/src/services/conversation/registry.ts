@@ -1,7 +1,7 @@
 import { LlmServiceId, MINUTES_15_MS, aiServicesInfo } from "@local/shared";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { AIService } from "./services.js";
+import { type AIService } from "./services.js";
 
 /** States a service can be in */
 export enum AIServiceState {
@@ -85,14 +85,16 @@ export class AIServiceRegistry {
             switch (serviceId) {
                 case LlmServiceId.Anthropic:
                     {
-                        const { AnthropicService } = await import("./services.js");
-                        serviceInstances[LlmServiceId.Anthropic] = new AnthropicService();
+                        //TODO implement
+                        // const { AnthropicService } = await import("./services.js");
+                        // serviceInstances[LlmServiceId.Anthropic] = new AnthropicService();
                     }
                     break;
                 case LlmServiceId.Mistral:
                     {
-                        const { MistralService } = await import("./services.js");
-                        serviceInstances[LlmServiceId.Mistral] = new MistralService();
+                        //TODO implement
+                        // const { MistralService } = await import("./services.js");
+                        // serviceInstances[LlmServiceId.Mistral] = new MistralService();
                     }
                     break;
                 case LlmServiceId.OpenAI:
@@ -143,7 +145,7 @@ export class AIServiceRegistry {
      * @returns The service instance, or throws an error if the service is not active 
      * or not registered.
      */
-    getService(serviceId: LlmServiceId): LanguageModelService<any> {
+    getService(serviceId: LlmServiceId): AIService<any> {
         // Check if the service is active
         const state = this.getServiceState(serviceId.toString());
         if (state !== AIServiceState.Active) {

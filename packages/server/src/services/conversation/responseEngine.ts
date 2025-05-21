@@ -1,48 +1,51 @@
 /* eslint-disable func-style */
-import { ChatConfig, type ChatConfigObject } from "@local/shared";
+import { ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfig, type SessionUser, type SessionUserSession, type ToolFunctionCall } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
+import type OpenAI from "openai";
+import { logger } from "../../events/logger.js";
 import { SocketService } from "../../sockets/io.js";
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
-import { BusService, BusWorker, type EventBus } from "../bus.js";
+import { BusService, type EventBus } from "../bus.js";
 import { type ToolInputSchema } from "../mcp/types.js";
 import { type AgentGraph, CompositeGraph } from "./agentGraph.js";
-import { type ConversationStateStore, PrismaChatStore } from "./chatStore.js";
+import { CachedConversationStateStore, type ConversationStateStore, PrismaChatStore } from "./chatStore.js";
 import { type ContextBuilder, RedisContextBuilder } from "./contextBuilder.js";
-import { type MessageStore } from "./messageStore.js";
+import { type MessageStore, RedisMessageStore } from "./messageStore.js";
+import type { FunctionCallStreamEvent } from "./router.js";
 import { FallbackRouter, type LlmRouter } from "./router.js";
 import { CompositeToolRunner, type ToolRunner } from "./toolRunner.js";
-import { type BotParticipant, type MessageState, type TurnStats } from "./types.js";
+import { type BotParticipant, type MessageState, type SwarmInternalEvent, type SwarmStartedEvent, type TurnStats } from "./types.js";
 import { WorldModel } from "./worldModel.js";
 
-/** Maximum iterations for the drain loop, if something goes wrong with normal limit logic */
-const MAX_DRAIN_ITERATIONS = 1_000;
+// /** Maximum iterations for the drain loop, if something goes wrong with normal limit logic */
+// const MAX_DRAIN_ITERATIONS = 1_000;
 
-/**
- * Increment the tool call counter for the given turn and conversation config.
- */
-function bumpToolStats(
-    turn: TurnStats,
-    convoCfg: ChatConfigObject,
-    amount = 1,
-) {
-    turn.toolCalls += amount;      // whole-turn cap
-    turn.botToolCalls += amount;      // per-bot cap
-    convoCfg.stats.totalToolCalls += amount; // conversation-wide
-}
+// /**
+//  * Increment the tool call counter for the given turn and conversation config.
+//  */
+// function bumpToolStats(
+//     turn: TurnStats,
+//     convoCfg: ChatConfigObject,
+//     amount = 1,
+// ) {
+//     turn.toolCalls += amount;      // whole-turn cap
+//     turn.botToolCalls += amount;      // per-bot cap
+//     convoCfg.stats.totalToolCalls += amount; // conversation-wide
+// }
 
-/**
- * Increment the total credits used for the given turn and conversation config.
- */
-function bumpCreditStats(
-    turn: TurnStats,
-    convoCfg: ChatConfigObject,
-    amount: bigint,
-) {
-    turn.creditsUsed += amount;
-    convoCfg.stats.totalCredits = (
-        BigInt(convoCfg.stats.totalCredits) + amount
-    ).toString();
-}
+// /**
+//  * Increment the total credits used for the given turn and conversation config.
+//  */
+// function bumpCreditStats(
+//     turn: TurnStats,
+//     convoCfg: ChatConfigObject,
+//     amount: bigint,
+// ) {
+//     turn.creditsUsed += amount;
+//     convoCfg.stats.totalCredits = (
+//         BigInt(convoCfg.stats.totalCredits) + amount
+//     ).toString();
+// }
 
 // TODO make sure that when messages/chats/particpants are added/updated/deleted (ModelLogic trigger), this class handles it correctly (including adding to context collector cache)
 // TODO make sure that chat updates update or invalidate the conversation state cache
@@ -52,7 +55,10 @@ function bumpCreditStats(
 // TODO make sure preferred model is stored in the conversation state
 //TODO canceling responses
 // TODO need turn timeouts
-//TODO
+//TODO make sure all limiting logic is in place and functioning correctly
+// TODO add mechanism for swarm and routine state machines to have a delay set by config that schedules any runs and resource mutations instead of running them immediately. This would be clearly defined in the context, and a list of schedules tool calls would be included in the context too. This enables the swarm to plan around the schedule, which is needed for users to approve/reject scheduled tool calls for safety reasons.
+// TODO swarm world model should suggest starting a metacognition loop to best complete the goal, and adding to to the chat context. Can search for existing prompts.
+//TODO conversation context should be able to store recommended routines to call for certain scenarios, pulled from the team config if available.
 
 
 /**
@@ -113,54 +119,77 @@ export class ReasoningEngine {
     ) { }
 
     /**
-   * Executes a single reasoning loop for a bot:
-   *  1. Constructs context window using the provided messages, world model, and tool schemas
-   *  2. Emits events for clients to update the UI (e.g. typing, thinking)
-   *  3. Streams LLM responses (chunks, function_call, done)
-   *  4. Handles tool calls inline and feeds results back
-   *  5. Deducts credits & tool calls via CacheService
-   * 
-   * @param messageHistory - The messages to include in the context window
-   * @param worldModel - The world model to use for the context window
-   * @param availableTools - The tools available to the bot
-   * @param bot - Information about the bot that's running the loop
-   * @param creditAccountId - The credit account to charge for the response (tied to a user or team)
-   * @param chatId - The chat this loop is for, if applicable
-   * 
-   * @returns - A MessageState object representing the final message from the bot, 
-   * including any tool calls and their results, and any bots directly mentioned in the message. 
-   * It is the responsibility of the caller to decide what to do with the message, 
-   * including whether to persist it, whether to trigger responses for the bots mentioned, etc.
-   */
+     * Executes a single reasoning loop for a bot.
+     * @param startMessage - Either an object with {id} to start from existing history, or {text} for standalone prompts
+     * @param worldModel - The world model to use for the context window
+     * @param availableTools - The tools available to the bot
+     * @param bot - Information about the bot that's running the loop
+     * @param creditAccountId - The credit account to charge for the response (tied to a user or team)
+     * @param config - The conversation configuration
+     * @param userData - Additional data related to the session
+     * @param chatId - The chat this loop is for, if applicable
+     * @param model - The model to use for the LLM call
+     * @returns A MessageState object representing the final message from the bot
+     */
     async runLoop(
-        messageHistory: MessageState[],
+        startMessage: { id: string } | { text: string },
         worldModel: WorldModel,
         availableTools: ToolInputSchema[],
         bot: BotParticipant,
         creditAccountId: string,
-        chatId: string | undefined,
-    ): Promise<void> {
+        config: ChatConfigObject,
+        userData: SessionUser,
+        chatId?: string,
+        model?: string,
+    ): Promise<MessageState> {
         // Signal typing start
         if (chatId) {
             SocketService.get().emitSocketEvent("typing", chatId, { starting: [bot.id] });
         }
 
-        // Build context and available tools
-        const { contextMessages } = await this.contextBuilder.build({
-            availableTools,
-            bot,
-            messageHistory,
-            worldModel,
-        });
-
-        let inputs = messageHistory;
+        // Build context if we have a chatId + message ID, else wrap a text prompt
+        let inputs: MessageState[];
+        if (chatId && "id" in startMessage) {
+            // Build context, reserving tokens for tools (none for now) and world-model
+            const toolsForLLM: OpenAI.Responses.Tool[] = []; //TODO: add tools
+            const { messages } = await this.contextBuilder.build(
+                chatId,
+                bot,
+                model ?? DEFAULT_LANGUAGE,
+                startMessage.id,
+                { tools: toolsForLLM, world: worldModel },
+            );
+            inputs = messages;
+        } else if ("text" in startMessage) {
+            // Standalone prompt
+            const tmp: MessageState = {
+                id: generatePK().toString(),
+                createdAt: new Date(),
+                config: MessageConfig.default().export(),
+                language: DEFAULT_LANGUAGE,
+                text: startMessage.text,
+                parent: null,
+                user: { id: bot.id },
+            } as MessageState;
+            inputs = [tmp];
+        } else {
+            throw new Error("Invalid startMessage for runLoop");
+        }
         let tools: ToolInputSchema[] = availableTools;
         let draftMessage = "";
+        // Collect all tool calls made during this loop
+        const toolCalls: ToolFunctionCall[] = [];
         let previousResponseId: string | undefined;
         const turnStats: TurnStats = { toolCalls: 0, botToolCalls: 0, creditsUsed: 0n };
 
         // Compute limits
-        const limits = new ChatConfig({ config: convo.config }).getEffectiveLimits();
+        const limits = new ChatConfig({ config }).getEffectiveLimits();
+        // If the bot has a custom system prompt, merge it into the world model config
+        if (bot.meta?.systemPrompt) {
+            // Append bot-specific system prompt to existing system message
+            const existing = worldModel.getConfig().systemMessage;
+            worldModel.updateConfig({ systemMessage: `${existing}\n${bot.meta.systemPrompt}` });
+        }
         const exceeded = () =>
             turnStats.toolCalls >= limits.maxToolCallsPerTurn ||
             turnStats.botToolCalls >= limits.maxToolCallsPerBotTurn ||
@@ -168,12 +197,22 @@ export class ReasoningEngine {
 
         try {
             while (inputs.length && !exceeded()) {
+                const chosenModel = model ?? bot.config?.model ?? "";
+                // Convert our tool schemas to LLM-compatible tool definitions
+                const toolSchemas: OpenAI.Responses.Tool[] = (tools as ToolInputSchema[]).map(ts => ({
+                    name: ts.type,
+                    description: "",
+                    parameters: ts.properties,
+                } as any)); //TODO fix type
                 const stream = this.llmRouter.stream({
-                    model: this.llmRouter.bestModelFor(bot.id),
+                    model: chosenModel,
                     previous_response_id: previousResponseId,
                     input: inputs,
-                    tools,
+                    tools: toolSchemas,
                     parallel_tool_calls: true,
+                    world: worldModel.getConfig(),
+                    maxCredits: BigInt(limits.maxCreditsPerTurn),
+                    userData,
                 });
 
                 const nextInputs: any[] = [];
@@ -202,13 +241,38 @@ export class ReasoningEngine {
                             }
                             break;
                         case "function_call": {
-                            // Process tool call and get structured output
-                            const out = await this.processFunctionCall(convo, bot.id, ev, turnStats);
-                            nextInputs.push(out.toolResult);
+                            // Execute the tool call (sync or async) and record result
+                            const { toolResult, functionCallEntry } = await this.processFunctionCall(
+                                chatId,
+                                bot.id,
+                                ev as FunctionCallStreamEvent,
+                            );
+
+                            // Format toolResult (the raw output) into a MessageState for the LLM
+                            const toolResponseMessage: MessageState = {
+                                id: generatePK().toString(), // New ID for this tool response message
+                                createdAt: new Date(),
+                                config: {
+                                    role: "tool",
+                                    toolCallId: ev.callId, // Link to the original function call request ID
+                                    // Ensure __version and other MessageConfig defaults are included if necessary
+                                    // For simplicity, assuming MessageConfig.default() handles this or it's added later.
+                                    // Let's use a minimal config for now and refine if MessageState creation fails.
+                                    __version: "1.0.0", // Example, ensure this aligns with MessageConfig
+                                },
+                                text: JSON.stringify(toolResult), // Content is the stringified output of the tool
+                                language: DEFAULT_LANGUAGE, // Or derive from context
+                                parent: previousResponseId ? { id: previousResponseId } : null, // Should this link to the assistant's msg that made the call?
+                                user: { id: bot.id }, // Or a generic system/tool user ID
+                                // Ensure all other potentially required fields of MessageState are populated
+                            } as MessageState; // Cast to MessageState
+
+                            nextInputs.push(toolResponseMessage);
+                            toolCalls.push(functionCallEntry);
                             break;
                         }
 
-                        case "done":
+                        case "done": {
                             // Deduct cost for model usage
                             const cost = BigInt(ev.cost);
                             turnStats.creditsUsed += cost;
@@ -221,6 +285,7 @@ export class ReasoningEngine {
                                 });
                             }
                             break;
+                        }
                     }
                     previousResponseId = ev.responseId;
                 }
@@ -250,25 +315,61 @@ export class ReasoningEngine {
             }
         }
 
-        // TODO: Build and return a MessageState object for the final bot response.
-        // Implementation outline:
-        //   - Use `draftMessage` as the `text` field.
-        //   - Generate or acquire a unique `id` for the message.
-        //   - Set `createdAt` to the current timestamp.
-        //   - Include the conversation `config` (ChatConfigObject) and response `language`.
-        //   - Attach any tool call outputs collected during this loop.
-        //   - Reference the previous response via `parent: { id: previousResponseId }`, if applicable.
-        //   - Return an object matching the MessageState type, e.g.:
-        //       return {
-        //         id: "<generated-id>",
-        //         createdAt: new Date(),
-        //         config: <ChatConfigObject>,
-        //         language: "<language-code>",
-        //         text: draftMessage,
-        //         parent: previousResponseId ? { id: previousResponseId } : null,
-        //         user: { id: bot.id },
-        //       };
-        // Replace this placeholder with actual implementation when ready.
+        // Build and return the final MessageState for the bot response.
+        // Generate message-level configuration with default values and set role to 'assistant'.
+        const msgConfig = MessageConfig.default();
+        msgConfig.setRole("assistant");
+        // Attach the tool calls recorded during execution
+        msgConfig.setToolCalls(toolCalls);
+        const configObj = msgConfig.export();
+        const language = inputs.length > 0 ? inputs[inputs.length - 1].language : DEFAULT_LANGUAGE;
+        // Construct the MessageState
+        const responseMessage: MessageState = {
+            id: generatePK().toString(),
+            createdAt: new Date(),
+            config: configObj,
+            language,
+            text: draftMessage,
+            parent: previousResponseId ? { id: previousResponseId } : null,
+            user: { id: bot.id },
+        };
+        return responseMessage;
+    }
+
+    // --------------------------------------------------------------------------
+    // Helper: process a function_call event, handling sync vs async tools
+    private async processFunctionCall(
+        conversationId: string | undefined,
+        callerBotId: string,
+        ev: FunctionCallStreamEvent,
+    ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall }> {
+        // Determine if this call is async (only routines can be async)
+        const args = ev.arguments as Record<string, any>;
+        const isAsync = args.isAsync === true;
+        // Prepare the function call entry
+        const fnEntryBase = {
+            id: ev.callId,
+            function: { name: ev.name, arguments: JSON.stringify(ev.arguments) },
+        } as Omit<ToolFunctionCall, "result">;
+        if (isAsync) {
+            // TODO: emit async routine start event via bus
+            // Acknowledge immediately
+            const ack = { status: "started", callId: ev.callId };
+            const entry: ToolFunctionCall = { ...fnEntryBase, result: { success: true, output: ack } };
+            return { toolResult: ack, functionCallEntry: entry };
+        } else {
+            // Synchronous execution
+            const res = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId });
+            let entry: ToolFunctionCall;
+            let output: unknown = null;
+            if (res.ok) {
+                output = res.data.output;
+                entry = { ...fnEntryBase, result: { success: true, output: res.data.output } };
+            } else {
+                entry = { ...fnEntryBase, result: { success: false, error: res.error } };
+            }
+            return { toolResult: output, functionCallEntry: entry };
+        }
     }
 }
 
@@ -322,69 +423,184 @@ export class CompletionService {
         chatId,
         messageId,
         model,
-        taskContexts,
         userData,
-    }: LLMCompletionTask) {
-        // Get message and conversation state
-        const messageState = await this.messageStore.getMessage(messageId);
+    }: LLMCompletionTask): Promise<MessageState[]> {
+        // Get conversation state
         const conversationState = await this.conversationStore.get(chatId);
-        if (!messageState || !conversationState) {
+        if (!conversationState) {
+            logger.error("Message or conversation state not found in respond", { chatId });
             throw new Error("Message or conversation state not found");
         }
 
-        // Get available tools
-        const availableTools = conversationState.availableTools;
+        // Load the triggering message
+        const messageState = await this.messageStore.getMessage(messageId);
+        if (!messageState) {
+            logger.error("Message not found in cache in respond", { messageId });
+            throw new Error(`Message ${messageId} not found in cache`);
+        }
 
-        // Get world model
+        // Determine credit account TODO this is NOT the user Id, but the ID of credit_account table associated with the user
+        const creditAccountId = "";
+
+        // Get available tools & world model from conversation state
+        const availableTools = conversationState.availableTools;
         const worldModel = conversationState.worldModel;
 
         // Determine responders
-        const responders = this.agentGraph.selectResponders(conversationState, messageState);
+        const { responders } = await this.agentGraph.selectResponders(conversationState, messageState);
 
         // Initialize results
         const results: MessageState[] = [];
 
         // Run reasoning loop for each responder in parallel
         await Promise.all(responders.map(async (responder) => {
-            const response = await this.reasoningEngine.runLoop(messageState, worldModel, availableTools, responder, chatId);
+            const response = await this.reasoningEngine.runLoop(
+                { id: messageId },
+                worldModel,
+                availableTools,
+                responder,
+                creditAccountId,
+                conversationState.config,
+                userData,
+                chatId,
+                model,
+            );
             results.push(response);
         }));
 
-        // Store responses
-        await this.messageStore.storeMessages(results);
+        // Store responses by adding each message to cache
+        await Promise.all(results.map(m => this.messageStore.addMessage(chatId, m)));
 
         return results;
     }
-}
 
-/*──────────────────────── factory wiring ───────────────────────────────────*/
-export const chatStore = new PrismaChatStore();
-export const messageStore = new PrismaRedisMessageStore();
-const contextBuilder = new RedisContextBuilder();
-const toolRunner = new CompositeToolRunner();
-const agentGraph = new CompositeGraph();
-const llmRouter = new FallbackRouter();
+    async handleInternalEvent(event: SwarmInternalEvent): Promise<void> {
+        const { conversationId, type } = event;
+        logger.info(`CompletionService handling internal event: ${type} for convo: ${conversationId}`);
 
-export class ConversationWorker extends BusWorker {
-    protected static async init(bus: EventBus) {
-        return new ReasoningEngine(
-            agentGraph,
-            bus,
-            chatStore,
-            contextBuilder,
-            llmRouter,
-            messageStore,
-            toolRunner,
-        );
-    }
+        const conversationState = await this.conversationStore.get(conversationId);
+        if (!conversationState) {
+            logger.error(`Conversation state not found for ${conversationId} in handleInternalEvent`);
+            throw new Error(`Conversation state not found for ${conversationId}`);
+        }
 
-    static get(): ReasoningEngine {
-        return super.get() as ReasoningEngine;
-    }
+        // TODO: Resolve how to get the actual SessionUser for Swarm-initiated events.
+        // This placeholder is for type-checking only.
+        const placeholderSessionUserSession: SessionUserSession = {
+            __typename: "SessionUserSession",
+            id: "placeholder_session_id",
+            lastRefreshAt: new Date(),
+        };
+        const placeholderUserData: SessionUser = {
+            __typename: "SessionUser",
+            credits: "0",
+            hasPremium: false,
+            id: "system_user_id_for_swarm", // ID for the SessionUser
+            languages: [DEFAULT_LANGUAGE],
+            publicId: "system_user_public_id_for_swarm",
+            session: placeholderSessionUserSession,
+            // Optional fields can be omitted or set to undefined/null if appropriate
+            handle: undefined,
+            name: "System (Swarm)",
+            profileImage: undefined,
+            theme: undefined,
+            updatedAt: new Date(),
+            // Add any other non-optional fields from SessionUser with defaults
+        };
 
-    protected static async shutdown() {
-        const loop = ConversationWorker.get();
-        await loop.dispose();
+        // TODO: Resolve how to get the correct creditAccountId for Swarm-initiated events.
+        // This ID is crucial for billing and should map to the user/entity responsible for the swarm's costs.
+        const creditAccountIdForRunLoop = "unknown_credit_account_for_swarm";
+
+        const results: MessageState[] = [];
+
+        switch (event.type) {
+            case "swarm_started": {
+                const swarmStartEvent = event as SwarmStartedEvent;
+                const goal = swarmStartEvent.goal;
+                const systemMessageText = `Swarm initiated. Goal: ${goal}.`;
+
+                const startMessage = { text: systemMessageText };
+
+                const msgCfg = MessageConfig.default();
+                msgCfg.setRole("system");
+                const systemMessageConfigExport = msgCfg.export();
+
+                const syntheticMessageForSelection: MessageState = {
+                    id: generatePK().toString(),
+                    createdAt: new Date(),
+                    config: systemMessageConfigExport, // Use exported config
+                    text: systemMessageText,
+                    language: DEFAULT_LANGUAGE,
+                    parent: null,
+                    user: { id: placeholderUserData.id },
+                } as MessageState;
+
+                const { responders } = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection);
+
+                if (!responders || responders.length === 0) {
+                    logger.warn(`No responders found for swarm_started in convo ${conversationId}`);
+                    return;
+                }
+
+                await Promise.all(responders.map(async (responder) => {
+                    const response = await this.reasoningEngine.runLoop(
+                        startMessage,
+                        conversationState.worldModel,
+                        conversationState.availableTools,
+                        responder,
+                        creditAccountIdForRunLoop, // Use placeholder credit account ID
+                        conversationState.config,
+                        placeholderUserData,
+                        conversationId,
+                    );
+                    results.push(response);
+                }));
+                break;
+            }
+            case "external_message_created": {
+                if (!event.payload || !event.payload.messageId) {
+                    logger.error("external_message_created event missing messageId in payload", { event });
+                    return;
+                }
+                const { messageId } = event.payload;
+                const messageState = await this.messageStore.getMessage(messageId);
+                if (!messageState) {
+                    logger.error(`Message ${messageId} not found for external_message_created in ${conversationId}`);
+                    return;
+                }
+                const { responders: msgResponders } = await this.agentGraph.selectResponders(conversationState, messageState);
+
+                if (!msgResponders || msgResponders.length === 0) {
+                    logger.warn(`No responders found for external_message_created in convo ${conversationId}`, { messageId });
+                    return;
+                }
+
+                await Promise.all(msgResponders.map(async (responder) => {
+                    const response = await this.reasoningEngine.runLoop(
+                        { id: messageId },
+                        conversationState.worldModel,
+                        conversationState.availableTools,
+                        responder,
+                        creditAccountIdForRunLoop, // Use placeholder credit account ID
+                        conversationState.config,
+                        placeholderUserData,
+                        conversationId,
+                    );
+                    results.push(response);
+                }));
+                break;
+            }
+            default: {
+                logger.warn(`Unhandled SwarmInternalEvent type: ${event.type} in convo ${conversationId}`);
+                return;
+            }
+        }
+
+        if (results.length > 0) {
+            await Promise.all(results.map(m => this.messageStore.addMessage(conversationId, m)));
+            // TODO: Consider emitting events that these responses were created (e.g., via this.bus)
+        }
     }
 }
 
@@ -446,19 +662,15 @@ export class SwarmStateMachine {
 
     // ── Constructor & private fields ───────────────────────────────────
     private state: State = SwarmStateMachine.State.UNINITIALIZED;
-    private readonly eventQueue: InternalEvent[] = [];
+    private readonly eventQueue: SwarmInternalEvent[] = [];
     private worldModel: WorldModel | null = null;
 
     constructor(
         private readonly bus: EventBus,
-        private readonly completionService: CompletionService,
+        private readonly completion: CompletionService,
     ) {
-        this.bus.subscribe((evt) => {
-            if (this.disposed) return;
-            if ("conversationId" in evt) {
-                this.enqueue(evt as ConversationEvent).catch(logger.error);
-            }
-        });
+        // SwarmStateMachine will now rely on explicit handleEvent calls
+        // or internal event generation.
     }
 
     // ── World‑model helper ------------------------------------------------------
@@ -505,31 +717,65 @@ export class SwarmStateMachine {
         try {
             // Inject world‑model as a system message (stub – real impl via MessageStore)
             const systemPrompt = this.buildWorldModel(goal);
-            // TODO: persist systemPrompt in conversation
+            logger.info("Starting swarm", { conversationId: convoId, goal, systemPrompt: systemPrompt.getConfig().systemMessage });
+            // TODO: persist systemPrompt in conversation state/messageStore if it should be a visible message
 
             this.state = SwarmStateMachine.State.ACTIVE;
-            // Kick off arbitrator / first agent via ConversationService (stub)
-            await this.convoService.handleInternalEvent(convoId, { type: "swarm_started" } as any);
+            // Kick off arbitrator / first agent via completion
+            const startEvent: SwarmStartedEvent = { type: "swarm_started", conversationId: convoId, goal };
+            await this.completion.handleInternalEvent(startEvent);
         } catch (err) {
             this.fail(err);
         }
     }
 
-    async handleEvent(convoId: string, ev: InternalEvent): Promise<void> {
+    async handleEvent(ev: SwarmInternalEvent): Promise<void> {
         if (this.state === SwarmStateMachine.State.TERMINATED) return;
-        // Enqueue and maybe drain if ACTIVE/IDLE
         this.eventQueue.push(ev);
-        if (this.state === SwarmStateMachine.State.IDLE) this.drain(convoId).catch(console.error);
+        if (this.state === SwarmStateMachine.State.IDLE && ev.conversationId) {
+            this.drain(ev.conversationId).catch(err => logger.error("Error draining swarm queue from handleEvent", { error: err, event: ev }));
+        }
     }
 
     private async drain(convoId: string) {
         if (this.state === SwarmStateMachine.State.PAUSED) return;
-        this.state = SwarmStateMachine.State.ACTIVE;
-        while (this.eventQueue.length) {
-            const ev = this.eventQueue.shift()!;
-            await this.convoService.handleInternalEvent(convoId, ev);
+        if (this.eventQueue.length === 0) { // Check if queue is empty before setting to active
+            this.state = SwarmStateMachine.State.IDLE;
+            return;
         }
-        this.state = SwarmStateMachine.State.IDLE;
+        this.state = SwarmStateMachine.State.ACTIVE;
+        // Process only one event per drain call to prevent re-entrancy issues if handleInternalEvent is slow
+        // or if it itself queues more events.
+        // For a full drain loop, a while loop would be here, but that can lead to very long event loop blocking.
+        // A more robust solution might involve setImmediate or a microtask queue for sequential processing without blocking.
+        // For now, processing one and then relying on subsequent triggers to call drain again.
+        if (this.eventQueue.length > 0) {
+            const ev = this.eventQueue.shift()!;
+            if (ev.conversationId !== convoId) {
+                logger.warn("Swarm drain called with convoId mismatch", { expected: convoId, actual: ev.conversationId });
+                // Re-queue or handle error? For now, re-queue and log.
+                this.eventQueue.unshift(ev);
+                this.state = SwarmStateMachine.State.IDLE; // Reset state
+                return;
+            }
+            try {
+                await this.completion.handleInternalEvent(ev);
+            } catch (error) {
+                logger.error("Error processing event in SwarmStateMachine drain", { error, event: ev });
+                // Decide on error handling: fail the swarm, retry the event, or ignore?
+                // For now, log and continue to set IDLE if queue empty.
+            }
+        }
+
+        if (this.eventQueue.length === 0) {
+            this.state = SwarmStateMachine.State.IDLE;
+        } else {
+            // If there are more events, schedule another drain to continue processing without blocking.
+            // This avoids a deep recursion or a long-running while loop.
+            // Note: This assumes `drain` can be called again safely.
+            // Using setImmediate to yield to the event loop before continuing.
+            setImmediate(() => this.drain(convoId).catch(err => logger.error("Error in scheduled subsequent drain", { error: err, conversationId: convoId })));
+        }
     }
 
     async pause(): Promise<void> {
@@ -540,18 +786,55 @@ export class SwarmStateMachine {
 
     async resume(convoId: string): Promise<void> {
         if (this.state === SwarmStateMachine.State.PAUSED) {
-            this.state = SwarmStateMachine.State.IDLE; // mark idle so drain() sets to ACTIVE
+            this.state = SwarmStateMachine.State.IDLE; // mark idle so drain() sets to ACTIVE if queue has items
             await this.drain(convoId);
         }
     }
 
     async shutdown(): Promise<void> {
+        this.disposed = true; // Mark as disposed first
         this.eventQueue.length = 0;
         this.state = SwarmStateMachine.State.TERMINATED;
+        logger.info("SwarmStateMachine shutdown complete.");
     }
 
     private fail(err: unknown) {
-        console.error("Swarm failure", err);
+        logger.error("Swarm failure", { error: err });
         this.state = SwarmStateMachine.State.FAILED;
+        // Optionally, perform cleanup or notify other services
     }
 }
+
+
+// Instantiate stores and services that are dependencies
+const prismaChatStore = new PrismaChatStore();
+// Wrap PrismaChatStore with CachedConversationStateStore
+export const conversationStateStore = new CachedConversationStateStore(prismaChatStore);
+export const messageStore = new RedisMessageStore(); // Export if used directly elsewhere
+
+const contextBuilder = new RedisContextBuilder();
+const toolRunner = new CompositeToolRunner();
+const agentGraphInstance = new CompositeGraph();
+const llmRouter = new FallbackRouter();
+const bus = BusService.get().getBus();
+
+// Instantiate core engines/services
+const reasoningEngine = new ReasoningEngine(
+    contextBuilder,
+    llmRouter,
+    toolRunner,
+);
+
+export const completionService = new CompletionService(
+    reasoningEngine,
+    agentGraphInstance,
+    bus,
+    conversationStateStore, // Use the wrapped CachedConversationStateStore instance
+    messageStore,
+);
+
+// SwarmStateMachine class definition must come before this instantiation
+export const swarmStateMachine = new SwarmStateMachine(
+    bus,
+    completionService,
+);

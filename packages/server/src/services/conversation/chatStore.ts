@@ -1,7 +1,8 @@
-import { ChatConfig, ChatConfigObject, LRUCache } from "@local/shared";
-import { Prisma, user } from "@prisma/client";
+import { BotConfig, ChatConfig, type ChatConfigObject, LRUCache } from "@local/shared";
+import { type Prisma, type user } from "@prisma/client";
 import { DbProvider } from "../../db/provider.js";
-import { BotParticipant, ConversationState } from "./types.js";
+import { type BotParticipant, type ConversationState } from "./types.js";
+import { WorldModel } from "./worldModel.js";
 
 /* ------------------------------------------------------------------
  * Config & helper types                                              
@@ -18,26 +19,27 @@ const FINALIZE_TIMEOUT_MS = 10_000; // guard to avoid hanging shutdown
 const FINALIZE_POLL_MS = 100;
 
 interface PendingConversationState {
-    /** Full config after caller mutation – will be persisted */
-    config: ChatConfigObject;
+    /** Full state after caller mutation – will be persisted */
+    state: ConversationState;
     /** Last version that made it to the DB (null = never) */
-    lastStored?: ChatConfigObject | null;
+    lastStored?: ConversationState | null;
     /** debouncer handle */
     timer?: NodeJS.Timeout | null;
     /** write lock */
     storeInProgress: boolean;
 }
 
-type ParticipantDbData = { user: Pick<user, "id" | "name" | "handle" | "isBot"> };
+type ParticipantDbData = { user: Pick<user, "id" | "name" | "handle" | "isBot" | "botSettings"> };
 
 /* ------------------------------------------------------------------
  * Abstract base                                                      
  * ------------------------------------------------------------------*/
 
+//TODO updating local config isn't ideal. Should first send bus event to invalidate cache, then another event to update cache. Need setup similar to sockets, where we can successfully remove from the correct server(s) cache.
 /**
  * ChatStore is a write‑behind cache for long‑lived conversation
  * metadata.  Consumers call `saveState()` whenever they mutate
- * `ChatConfigObject.stats`.  Heavy mutations within a short window are
+ * `ChatConfigObject.stats`, `turnCounter`, etc..  Heavy mutations within a short window are
  * collapsed into a single DB write, dramatically lowering steady‑state
  * write QPS while still guaranteeing eventual consistency.
  */
@@ -51,48 +53,59 @@ export abstract class ChatStore {
 
     /* --------------- ABSTRACT LOW‑LEVEL DB OPS -------------------- */
 
-    protected abstract upsertConfig(conversationId: string, config: ChatConfigObject): Promise<void>;
-    protected abstract fetchConfig(conversationId: string): Promise<ChatConfigObject>;
+    protected abstract upsertState(conversationId: string, state: ConversationState): Promise<void>;
+    protected abstract fetchState(conversationId: string): Promise<ConversationState>;
 
     abstract getConversation(id: string): Promise<ConversationState | null>;
 
     /* ---------------- PUBLIC API (used by ConversationLoop) -------- */
 
     /**
-     * Loads the canonical config for `conversationId` into memory (if not
+     * Loads the canonical state for `conversationId` into memory (if not
      * already cached) and returns a **deep clone** that callers may mutate
      * freely without affecting the cache until `saveState` is invoked.
      */
-    public async loadConfig(conversationId: string): Promise<ChatConfigObject> {
+    public async loadState(conversationId: string): Promise<ConversationState> {
         const pending = this.state.get(conversationId);
         if (pending) {
             // return clone so caller cannot mutate in‑cache copy directly
-            return structuredClone(pending.config);
+            return structuredClone(pending.state);
         }
 
-        const cfg = await this.fetchConfig(conversationId);
+        const state = await this.fetchState(conversationId);
         this.state.set(conversationId, {
-            config: structuredClone(cfg),
-            lastStored: cfg,
+            state: structuredClone(state),
+            lastStored: state,
             storeInProgress: false,
             timer: null,
         });
-        return structuredClone(cfg);
+        return structuredClone(state);
     }
 
     /**
-     * Mark a **previously cloned & mutated** config as the new source of
+     * Loads the canonical config for `conversationId` into memory (if not
+     * already cached) and returns a **deep clone** that callers may mutate
+     * freely without affecting the cache until `saveState` is invoked.
+     * @deprecated Use loadState instead
+     */
+    public async loadConfig(conversationId: string): Promise<ChatConfigObject> {
+        const state = await this.loadState(conversationId);
+        return state.config;
+    }
+
+    /**
+     * Mark a **previously cloned & mutated** state as the new source of
      * truth and schedule a debounced persist.
      */
     public saveState(
         conversationId: string,
-        updatedConfig: ChatConfigObject,
+        updatedState: ConversationState,
     ): void {
         const entry = this.state.get(conversationId);
         if (!entry) {
-            // Edge‑case: caller forgot to call loadConfig first – treat as new
+            // Edge‑case: caller forgot to call loadState first – treat as new
             this.state.set(conversationId, {
-                config: structuredClone(updatedConfig),
+                state: structuredClone(updatedState),
                 lastStored: null,
                 timer: null,
                 storeInProgress: false,
@@ -102,7 +115,7 @@ export abstract class ChatStore {
         }
 
         // overwrite in‑memory copy
-        entry.config = structuredClone(updatedConfig);
+        entry.state = structuredClone(updatedState);
         // debouncer is reset on every mutation burst
         this.schedule(conversationId, entry);
     }
@@ -133,7 +146,7 @@ export abstract class ChatStore {
         stateEntry.timer = setTimeout(() => this.flush(conversationId).catch(console.error), this.debounceMs);
     }
 
-    /** Flushes one conversation's pending config (called by debounce). */
+    /** Flushes one conversation's pending state (called by debounce). */
     private async flush(conversationId: string): Promise<void> {
         const rec = this.state.get(conversationId);
         if (!rec || rec.storeInProgress) return; // already flushing or removed
@@ -141,14 +154,14 @@ export abstract class ChatStore {
         rec.timer = null;
         rec.storeInProgress = true;
         try {
-            await this.upsertConfig(conversationId, rec.config);
-            rec.lastStored = structuredClone(rec.config);
+            await this.upsertState(conversationId, rec.state);
+            rec.lastStored = structuredClone(rec.state);
         } catch (err) {
             console.error("ChatPersistence flush failed", conversationId, err);
         } finally {
             rec.storeInProgress = false;
             // If callers mutated again while we were flushing, ensure another flush
-            if (rec.timer === null && rec.lastStored !== rec.config) {
+            if (rec.timer === null && rec.lastStored !== rec.state) {
                 this.schedule(conversationId, rec);
             }
         }
@@ -176,15 +189,18 @@ const chatParticipantSelect = {
             handle: true,
             isBot: true,
             name: true,
+            botSettings: true,
         },
     },
 } satisfies Prisma.chat_participantsSelect;
 
 function mapParticipant(participant: ParticipantDbData): BotParticipant {
+    const { id, name } = participant.user;
     return {
-        id: participant.user.id.toString(),
-        name: participant.user.name,
-        meta: {}, //TODO need to get this somewhere. Isn't stored in the user because it's chat-specific
+        id: id.toString(),
+        config: BotConfig.parse(participant.user, logger),
+        name,
+        meta: {}, //TODO need to get this somewhere else, since it contains information calculated by the current conversation/swarm/routine, rather than information tied to the bot object itself and stored in the database
     };
 }
 
@@ -219,29 +235,41 @@ export class PrismaChatStore extends ChatStore {
         super();
     }
 
-    protected async fetchConfig(conversationId: string): Promise<ChatConfigObject> {
-        const row = await DbProvider.get().chat.findUnique({
-            where: { id: BigInt(conversationId) },
-            select: { config: true },
-        });
-        if (!row?.config) return {} as ChatConfigObject; // fallback
-        return row.config as unknown as ChatConfigObject;
+    protected async fetchState(conversationId: string): Promise<ConversationState> {
+        return await this.getConversation(conversationId) || this.createEmptyState(conversationId);
     }
 
-    protected async upsertConfig(id: string, cfg: ChatConfigObject): Promise<void> {
-        const entry = this.state.get(id);
-        const last = entry?.lastStored ?? {};
-        const patch = diffPatch(last, cfg);
-        if (!patch) return;
+    private createEmptyState(conversationId: string): ConversationState {
+        return {
+            ...this.initializeTurnState(),
+            id: conversationId,
+            config: {} as ChatConfigObject,
+            participants: [],
+            turnCounter: 0,
+            availableTools: [],
+            worldModel: new WorldModel(),
+        };
+    }
 
-        /* Prisma's JSON path update merges objects when path === [] */
+    protected async upsertState(id: string, state: ConversationState): Promise<void> {
+        const entry = this.state.get(id);
+        const last = entry?.lastStored ?? this.createEmptyState(id);
+
+        // For config, we use diffPatch to efficiently update only changed parts
+        const configPatch = diffPatch(last.config, state.config);
+
         await DbProvider.get().chat.update({
             where: { id: BigInt(id) },
             data: {
-                config: {
-                    path: [],
-                    value: patch as Prisma.InputJsonValue,
-                },
+                // Update config if changed
+                ...(configPatch && {
+                    config: {
+                        path: [],
+                        value: configPatch as Prisma.InputJsonValue,
+                    },
+                }),
+                // Always update turnCounter directly
+                turnCounter: state.turnCounter,
             },
         });
     }
@@ -265,6 +293,8 @@ export class PrismaChatStore extends ChatStore {
             config: (row.config ?? {}) as unknown as ChatConfigObject,
             participants: row.participants.map(mapParticipant),
             turnCounter: row.turnCounter,
+            availableTools: [],
+            worldModel: new WorldModel(),
         };
         return state;
     }
@@ -320,7 +350,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
         invalidate = false,
     ): Promise<ConversationState | null> {
         // If forced reload or not cached, fetch fresh
-        if (invalidate || this.cache.get(conversationId) === undefined) {
+        if (invalidate || !this.cache.has(conversationId)) {
             const fresh = await this.chatStore.getConversation(conversationId);
             if (!fresh) return null;
             this.cache.set(conversationId, fresh);
@@ -343,10 +373,13 @@ export class CachedConversationStateStore implements ConversationStateStore {
             id: conversationId,
             // Updated config
             config,
+            // Preserve or default new fields
+            availableTools: existingState?.availableTools ?? [],
+            worldModel: existingState?.worldModel ?? new WorldModel(),
         } satisfies ConversationState;
         this.cache.set(conversationId, result);
-        // Delegate persistence (debounced/diff-patched) to ChatStore
-        this.chatStore.saveState(conversationId, config);
+        // Update the state in the database
+        this.chatStore.saveState(conversationId, result);
     }
 
     public updateTurnCounter(
@@ -364,8 +397,13 @@ export class CachedConversationStateStore implements ConversationStateStore {
             id: conversationId,
             // Updated turn counter
             turnCounter,
+            // Preserve or default new fields
+            availableTools: existingState?.availableTools ?? [],
+            worldModel: existingState?.worldModel ?? new WorldModel(),
         } satisfies ConversationState;
         this.cache.set(conversationId, result);
+        // Update the state in the database
+        this.chatStore.saveState(conversationId, result);
     }
 
     public del(conversationId: string): void {
