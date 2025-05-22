@@ -2,8 +2,8 @@
 import { COOKIE, MINUTES_15_MS, SECONDS_1_MS } from "@local/shared";
 import { expect } from "chai";
 import { generateKeyPairSync } from "crypto";
-import { Response } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import { type Response } from "express";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import { UI_URL_REMOTE } from "../server.js";
 import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
 
@@ -54,7 +54,7 @@ describe("JsonWebToken", () => {
             const instance = JsonWebToken.get();
             const token = instance.basicToken();
             expect(token.iss).to.equal(UI_URL_REMOTE);
-            expect(token.iat).to.be.at.most(Date.now());
+            expect(token.iat * SECONDS_1_MS).to.be.at.most(Date.now());
             expect(Math.abs((token.exp * SECONDS_1_MS) - ACCESS_TOKEN_EXPIRATION_MS - Date.now())).to.be.at.most(SECONDS_1_MS);
         });
 

@@ -1,27 +1,27 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { DEFAULT_LANGUAGE, SessionUser, uuid } from "@local/shared";
+import { DEFAULT_LANGUAGE, type SessionUser, generatePK } from "@local/shared";
 import { expect } from "chai";
-import { Request } from "express";
-import { RedisClientType } from "redis";
+import { type Request } from "express";
+import type { Cluster, Redis } from "ioredis";
 import sinon from "sinon";
-import { Socket } from "socket.io";
+import { type Socket } from "socket.io";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
-import { initializeRedis } from "../redisConn.js";
-import { SessionData } from "../types.js";
+import { CacheService } from "../redisConn.js";
+import { type SessionData } from "../types.js";
 import { RequestService } from "./request.js";
 import { SessionService } from "./session.js";
 
 describe("RequestService", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
-    let redisClient: RedisClientType | null = null;
+    let redisClient: Redis | Cluster | null = null;
 
     before(async function before() {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
 
-        redisClient = await initializeRedis();
+        redisClient = await CacheService.get().raw();
     });
 
     after(async function after() {
@@ -29,7 +29,7 @@ describe("RequestService", () => {
         loggerInfoStub.restore();
 
         if (redisClient) {
-            await redisClient.flushAll();
+            await redisClient.flushall();
         }
     });
 
@@ -298,7 +298,7 @@ describe("RequestService", () => {
                 fromSafeOrigin: true,
             };
             userData = {
-                id: uuid(),
+                id: generatePK().toString(),
                 username: "testuser",
             } as unknown as SessionUser;
         });
@@ -317,7 +317,7 @@ describe("RequestService", () => {
                 const req = { session: sessionData };
                 const conditions = { isApiToken: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.be.undefined;
+                expect(result).to.deep.equal({});
             });
 
             it("should throw MustUseApiToken when isApiToken is true but request is not from API token", () => {
@@ -438,12 +438,12 @@ describe("RequestService", () => {
             });
         });
 
-        it("should return undefined when no conditions are specified", () => {
+        it("should return an empty object when no conditions are specified", () => {
             sandbox.stub(SessionService, "getUser").returns(userData);
             const req = { session: sessionData };
             const conditions = {};
             const result = RequestService.assertRequestFrom(req, conditions);
-            expect(result).to.be.undefined;
+            expect(result).to.deep.equal({});
         });
     });
 
@@ -463,9 +463,8 @@ describe("RequestService", () => {
             await setRateLimitTokens("key1", 100, now);
             await setRateLimitTokens("key2", 100, now);
 
-            await expect(
-                RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates),
-            ).to.be.fulfilled;
+            // Should complete without throwing
+            await RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates);
         });
 
         it("should throw CustomError if any key is not allowed", async () => {
@@ -499,19 +498,17 @@ describe("RequestService", () => {
             await setRateLimitTokens("key2", 100, now);
 
             // Simulate NOSCRIPT by flushing scripts
-            await redisClient?.scriptFlush();
+            await redisClient?.script("FLUSH");
 
-            // Execute the rate limit check
-            await expect(
-                RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates),
-            ).to.be.fulfilled;
+            // Execute the rate limit check without throwing
+            await RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates);
 
             // Verify the script was loaded (SHA is set)
             expect(RequestService["tokenBucketScriptSha"]).to.be.a("string");
         });
 
         it("should not throw if client is null", async () => {
-            await expect(RequestService.get().checkRateLimit(null, ["key1"], [100], [1])).to.be.fulfilled;
+            await RequestService.get().checkRateLimit(null, ["key1"], [100], [1]);
         });
     });
 
@@ -535,7 +532,8 @@ describe("RequestService", () => {
             await setRateLimitTokens(apiKey, 100, Date.now());
             await setRateLimitTokens(ipKey, 100, Date.now());
 
-            await expect(RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 })).to.be.fulfilled;
+            // Should complete without throwing
+            await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
         });
 
         it("should throw if API rate limit is exceeded (GraphQL)", async () => {
@@ -586,7 +584,8 @@ describe("RequestService", () => {
 
             await setRateLimitTokens(ipKey, 100, now);
 
-            await expect(RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 })).to.be.fulfilled;
+            // Should complete without throwing
+            await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
         });
 
         it("should throw if IP rate limit is exceeded (no API token, safe origin, REST)", async () => {
@@ -640,7 +639,7 @@ describe("RequestService", () => {
         it("should not throw if rate limit is not exceeded for logged-in user (other request)", async () => {
             const path = "/other";
             const ip = "192.168.1.1";
-            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const userData = { id: generatePK().toString(), languages: [] } as unknown as SessionUser;
             const req = {
                 session: {
                     apiToken: null,
@@ -655,13 +654,14 @@ describe("RequestService", () => {
 
             await setRateLimitTokens(ipKey, 100, Date.now());
 
-            await expect(RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 })).to.be.fulfilled;
+            // Should complete without throwing
+            await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
         });
 
         it("should throw if user rate limit is exceeded", async () => {
             const path = "/other";
             const ip = "192.168.1.1";
-            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const userData = { id: generatePK().toString(), languages: [] } as unknown as SessionUser;
             const req = {
                 session: {
                     apiToken: null,
@@ -723,7 +723,7 @@ describe("RequestService", () => {
         it("should not return error if rate limit is not exceeded for logged-in user socket", async () => {
             const socketId = "socket3";
             const ip = "192.168.1.1";
-            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const userData = { id: generatePK().toString(), languages: [] } as unknown as SessionUser;
             const socket = {
                 session: { isLoggedIn: true, users: [userData] },
                 req: { ip },
@@ -742,7 +742,7 @@ describe("RequestService", () => {
         it("should return error if user rate limit is exceeded for logged-in user socket", async () => {
             const socketId = "socket4";
             const ip = "192.168.1.1";
-            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const userData = { id: generatePK().toString(), languages: [] } as unknown as SessionUser;
             const socket = {
                 session: { isLoggedIn: true, users: [userData] },
                 req: { ip },

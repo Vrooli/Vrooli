@@ -1,12 +1,12 @@
-import { apiKeyValidation, MaxObjects } from "@local/shared";
+import { apiKeyValidation, generatePK, MaxObjects } from "@local/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
-import { withRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ApiKeyFormat } from "../formats.js";
-import { ApiKeyModelLogic } from "./types.js";
+import { type ApiKeyModelLogic } from "./types.js";
 
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
@@ -24,6 +24,7 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
     mutate: {
         shape: {
             create: async ({ userData, data }) => ({
+                id: generatePK(),
                 creditsUsedBeforeLimit: 0,
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                 limitHard: BigInt(data.limitHard),
@@ -53,14 +54,11 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                     where: { id: { in: ids.map(id => BigInt(id)) } },
                     select: { key: true },
                 });
-                // Clear cached permissions in Redis
-                await withRedis({
-                    process: async (redisClient) => {
-                        if (!redisClient) return;
-                        await redisClient.del(records.map(r => `apiKeyPerm:${r.key}`));
-                    },
-                    trace: "0902",
-                });
+                // Clear cached permissions in Redis using CacheService
+                const cacheService = CacheService.get();
+                await Promise.all(
+                    records.map(record => cacheService.del(`apiKeyPerm:${record.key}`)),
+                );
             },
         },
         yup: apiKeyValidation,

@@ -3,7 +3,7 @@ import { type Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { logger } from "../events/logger.js";
 import { UI_URL_REMOTE } from "../server.js";
-import { AccessToken, BasicToken } from "../types.js";
+import { type AccessToken, type BasicToken } from "../types.js";
 
 /**
  * How long to treat a session as valid before checking 
@@ -116,7 +116,7 @@ export class JsonWebToken {
         exp?: number,
     ): BasicToken {
         return {
-            iat: Date.now(),
+            iat: Math.floor(Date.now() / SECONDS_1_MS),
             iss,
             exp: exp ?? Math.floor((Date.now() + ACCESS_TOKEN_EXPIRATION_MS) / SECONDS_1_MS),
         };
