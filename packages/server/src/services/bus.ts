@@ -1,10 +1,12 @@
 import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@local/shared";
-import IORedis, { Redis } from "ioredis";
+import { type CreditEntryType, type CreditSourceSystem } from "@prisma/client";
+import IORedis, { type Redis } from "ioredis";
 import { EventEmitter } from "node:events";
 import { logger } from "../events/logger.js";
 import { getRedisUrl } from "../redisConn.js";
 import { type ServiceHealth } from "./health.js";
 
+/*──────────────────────── base event ───────────────────*/
 /**
  * Base interface for all events, requiring only a type discriminator.
  */
@@ -12,60 +14,67 @@ export interface BaseEvent {
     type: string;
 }
 
+/*──────────────────────── financial events ───────────────────*/
+export interface BillingEvent extends BaseEvent {
+    type: "billing:event";
+    /** idempotency key (UUID v4 from emitter) */
+    id: string;
+    /** credit_account PK (user *or* team), NOT the teamId or userId */
+    accountId: string;          // bigint → string for JSON safety
+    /** signed amount.  + = top-up, – = spend. Represented as string for JSON safety. */
+    delta: string;
+    /** typed reason */
+    entryType: CreditEntryType;
+    /** system that emitted it (Stripe, Scheduler, LLM, …) */
+    source: CreditSourceSystem;
+    /** any additional data you want to inspect later */
+    meta: Record<string, unknown>;
+}
+
+export interface BillingNegativeBalanceEvent extends BaseEvent {
+    type: "billing.negative_balance";
+    payload: {
+        accountId: string;
+        currentBalance: string; // bigint -> string for JSON safety
+    };
+}
+
+/*──────────────────────── tool execution ───────────────────*/
+
+/*──────────────────────── routine execution ───────────────────*/
+
+
+/*──────────────────────── conversation execution ───────────────────*/
 /**
  * Events related to conversations, extending BaseEvent with conversation-specific fields.
  */
 export interface ConversationBaseEvent extends BaseEvent {
     conversationId: string;
-    turnId: number;
-}
-
-export interface MessageCreatedEvent extends ConversationBaseEvent {
-    type: "message.created";
-    messageId: string;
+    turnId?: number;
 }
 
 export interface ToolResultEvent extends ConversationBaseEvent {
     type: "tool.result";
-    callerBotId: string;
-    callId: string;
-    output: unknown;
+    toolCallId: string;
+    result: any;
 }
 
 export interface ScheduledTickEvent extends ConversationBaseEvent {
     type: "scheduled.tick";
-    topic: string;
-}
-
-export interface MessageCacheInvalidationEvent extends ConversationBaseEvent {
-    type: "message.cache.invalidate";
 }
 
 export type ConversationEvent =
-    | MessageCreatedEvent
     | ToolResultEvent
-    | ScheduledTickEvent
-    | MessageCacheInvalidationEvent;
-
-/**
- * Events related to credit ledger updates.
- */
-export interface CreditLedgerEvent extends BaseEvent {
-    type: "credit.update";
-    userId: string;
-    credits: string; // Stringified BigInt, as in socket events
-}
+    | ScheduledTickEvent;
 
 /**
  * Union type representing all possible application events.
  * Add new event types here as needed.
  */
-type AppEvent =
-    | MessageCreatedEvent
-    | ToolResultEvent
-    | ScheduledTickEvent
-    | MessageCacheInvalidationEvent
-    | CreditLedgerEvent;
+export type AppEvent =
+    | ConversationEvent
+    | BillingEvent
+    | BillingNegativeBalanceEvent;
 
 /**
  * Callback signature for event subscribers.
@@ -121,9 +130,19 @@ function sleep(ms: number) {
  * ### Best Practices
  * - Ensure event data is JSON-serializable.
  * - Implement error handling in subscribers to maintain stability.
+ * 
+ * ### Future Work
+ * - Implement instance-affinity for RedisStreamBus, so events are processed by the same worker that published them 
+ * under normal circumstances, and work is "stolen" by other workers when experiencing high load. This would 
+ * improve cache efficiency during multi-turn conversations by reducing the number of servers that respond to the same conversation.
  * ------------------------------------------------------------------ */
 export abstract class EventBus {
     private readonly lifecycleEmitter = new EventEmitter();  // internal for life‑cycle
+
+    /**
+     * Initialize the event bus (e.g. connect to Redis).
+     */
+    abstract init(): Promise<void>;
 
     /**
      * Subscribe to *all* events.  Called on startup by ConversationLoop
@@ -185,6 +204,11 @@ export abstract class EventBus {
  */
 export class InMemoryEventBus extends EventBus {
     private readonly emitter = new EventEmitter();
+
+    async init(): Promise<void> {
+        // No-op for in-memory bus
+        return Promise.resolve();
+    }
 
     /** Register a listener. Duplicate registrations are allowed. */
     subscribe(cb: EventCallback) {
@@ -388,6 +412,7 @@ export class RedisStreamBus extends EventBus {
     private subRunning = false;
     private publishErrorCount = 0;
     private subscribeErrorCount = 0;
+    private initialized = false; // Added to track initialization
 
     // Constructor
     constructor(options: Partial<StreamBusOptions> = {}) {
@@ -405,8 +430,14 @@ export class RedisStreamBus extends EventBus {
         });
     }
 
+    async init(): Promise<void> {
+        if (this.initialized) return;
+        await this.ensure();
+        this.initialized = true;
+    }
+
     private async ensure() {
-        if (this.client.status === "ready") return;
+        if (this.client.status === "ready" || this.client.status === "connect" || this.client.status === "connecting" || this.client.status === "reconnecting") return;
         await this.client.connect();
         // Idempotent: create stream & consumer-group if they don't exist
         await this.client.xgroup(
@@ -709,6 +740,7 @@ export class BusService {
         this.bus = process.env.NODE_ENV === "test"
             ? new InMemoryEventBus()
             : new RedisStreamBus();
+        await this.bus.init(); // Await the init method
         this.started = true;
     }
 
