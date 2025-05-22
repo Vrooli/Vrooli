@@ -1,5 +1,5 @@
-import { Wallet, WalletUpdateInput } from "../../api/types.js";
-import { ShapeModel } from "../../consts/commonTypes.js";
+import { type Wallet, type WalletUpdateInput } from "../../api/types.js";
+import { type ShapeModel } from "../../consts/commonTypes.js";
 import { shapeUpdate } from "./tools.js";
 
 export type WalletShape = Pick<Wallet, "id"> & {

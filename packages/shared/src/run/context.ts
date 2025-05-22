@@ -1,9 +1,9 @@
-import { RoutineVersion } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
-import { GraphConfig, RoutineVersionConfig } from "../shape/configs/routine.js";
+import { type RoutineVersion } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
+import { type GraphConfig, RoutineVersionConfig } from "../shape/configs/routine.js";
 import { getTranslation } from "../translations/translationTools.js";
-import { RunSubroutineResult } from "./executor.js";
-import { IOKey, IOMap, IOValue, RunStateMachineServices, RunTriggeredBy, type SubroutineContext } from "./types.js";
+import { type RunSubroutineResult } from "./executor.js";
+import { type IOKey, type IOMap, type IOValue, type RunStateMachineServices, type RunTriggeredBy, type SubroutineContext } from "./types.js";
 
 /**
  * Handles context management for running subroutines.
@@ -98,7 +98,7 @@ export class SubroutineContextManager {
         services: RunStateMachineServices,
     ): Promise<IOMap | null> {
         // Deserialize the parent's graph configuration.
-        const { graph: parentGraph } = RoutineVersionConfig.deserialize(parentRoutine, services.logger, { useFallbacks: true });
+        const { graph: parentGraph } = RoutineVersionConfig.parse(parentRoutine, services.logger, { useFallbacks: true });
         if (!parentGraph) {
             services.logger.error("mapParentContextToSubroutineInputs: Invalid parent graph configuration.");
             return null;
@@ -287,7 +287,7 @@ export class SubroutineContextManager {
         logger: PassableLogger,
     ): Pick<RunSubroutineResult, "inputs" | "outputs"> | null {
         // Deserialize the parent's graph configuration.
-        const { graph: parentGraph } = RoutineVersionConfig.deserialize(parentRoutine, logger, { useFallbacks: true });
+        const { graph: parentGraph } = RoutineVersionConfig.parse(parentRoutine, logger, { useFallbacks: true });
         if (!parentGraph) {
             logger.error("mapSubroutineResultToParentKeys: Invalid parent graph configuration.");
             return null;

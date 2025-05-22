@@ -1,6 +1,6 @@
 import BpmnModdle from "bpmn-moddle";
 import { APP_URL, BUSINESS_NAME } from "../consts/businessData.js";
-import { BpmnSchema, GraphBpmnConfig, GraphBpmnConfigObject } from "../shape/configs/routine.js";
+import { type BpmnSchema, type GraphBpmnConfig, type GraphBpmnConfigObject } from "../shape/configs/routine.js";
 
 // TODO need to support multiple processes for multi-user support, message flows for sending data between processes, interrupting and non-interrupting boundary events (related to messaging), intermediate catch events (also related to messaging), tasks for single-step subroutines, call activities for multi-step subroutines, etc.
 // Should already have low-level functions to generate the bpmn elements for most of these, but need to add higher-level functions to that can be used in the UI.

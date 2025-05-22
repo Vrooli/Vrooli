@@ -1,5 +1,5 @@
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { LATEST_CONFIG_VERSION, parseObject, stringifyObject, type StringifyMode } from "./utils.js";
+import { LATEST_CONFIG_VERSION, type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
@@ -63,26 +63,18 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
     /**
      * Helper for subclasses to parse stringified config, auto-fill version/resources/etc., and forward to a factory.
      */
-    protected static parseConfig<T extends BaseConfigObject, C>(
-        data: string | null | undefined,
+    protected static parseBase<T extends BaseConfigObject, C>(
+        data: T | null | undefined,
         logger: PassableLogger,
         factory: (config: T) => C,
         { mode = DEFAULT_STRINGIFY_MODE }: { mode?: StringifyMode } = {},
     ): C {
-        const obj = data ? parseObject<T>(data, mode, logger) : null;
         const full = {
-            __version: obj?.__version ?? LATEST_CONFIG_VERSION,
-            resources: obj?.resources ?? [],
-            ...obj,
+            __version: data?.__version ?? LATEST_CONFIG_VERSION,
+            resources: data?.resources ?? [],
+            ...data,
         } as T;
         return factory(full);
-    }
-
-    /**
-     * Serializes the config to a string
-     */
-    serialize(mode: StringifyMode = DEFAULT_STRINGIFY_MODE): string {
-        return stringifyObject(this.export(), mode);
     }
 
     /**

@@ -1,13 +1,13 @@
 import BpmnModdle from "bpmn-moddle";
-import { DbObject } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { type DbObject } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { nanoid } from "../id/publicId.js";
-import { GraphBpmnConfig, GraphConfig } from "../shape/configs/routine.js";
+import { type GraphBpmnConfig, type GraphConfig } from "../shape/configs/routine.js";
 import { LRUCache } from "../utils/lruCache.js";
-import { RoutineGraphType } from "../utils/routineGraph.js";
+import { type RoutineGraphType } from "../utils/routineGraph.js";
 import { BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES, BPMN_DEFINITIONS_CACHE_LIMIT, BPMN_ELEMENT_CACHE_LIMIT, BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES } from "./consts.js";
-import { PathSelectionHandler } from "./pathSelection.js";
-import { DecisionOption, DeferredDecisionData, Id, Location, RunConfig, RunStateMachineServices, SubroutineContext } from "./types.js";
+import { type PathSelectionHandler } from "./pathSelection.js";
+import { type DecisionOption, type DeferredDecisionData, type Id, type Location, type RunConfig, type RunStateMachineServices, type SubroutineContext } from "./types.js";
 
 /**
  * Represents how to proceed after a node has been executed
@@ -312,10 +312,17 @@ export class BpmnNavigator implements IRoutineStepNavigator {
 
     private bpmnModdle = new BpmnModdle();
 
-    // Store parsed BPMN definitions to avoid re-parsing the same XML
-    private definitionsCache = new LRUCache<string, BpmnModdle.Definitions>(BPMN_DEFINITIONS_CACHE_LIMIT, BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES);
-    // Store mappings of definitionId to { [elementId: string]: BpmnElement }
-    private elementCache = new LRUCache<string, Map<string, BpmnModdle.BaseElement>>(BPMN_ELEMENT_CACHE_LIMIT, BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES);
+    /** Cache for parsed BPMN XML definitions */
+    private definitionsCache = new LRUCache<string, BpmnModdle.Definitions>({
+        limit: BPMN_DEFINITIONS_CACHE_LIMIT,
+        maxSizeBytes: BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES,
+    });
+
+    /** Cache for individual BPMN elements, keyed by definitions ID */
+    private elementCache = new LRUCache<string, Map<string, BpmnModdle.BaseElement>>({
+        limit: BPMN_ELEMENT_CACHE_LIMIT,
+        maxSizeBytes: BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES,
+    });
 
     private END_STATE: NavigationDecison = {
         deferredDecisions: [],
@@ -711,7 +718,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     /**
-     * Finds all StartEvent elements across the BPMN diagram’s processes.
+     * Finds all StartEvent elements across the BPMN diagram's processes.
      * @param definitions The BPMN definitions to search
      * @returns StartEvent elements, grouped by process ID
      */

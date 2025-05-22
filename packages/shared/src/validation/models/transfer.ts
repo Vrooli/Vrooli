@@ -1,5 +1,5 @@
 import { TransferObjectType } from "../../api/types.js";
-import { YupMutateParams } from "../../validation/utils/types.js";
+import { type YupMutateParams } from "../../validation/utils/types.js";
 import { enumToYup } from "../utils/builders/convert.js";
 import { opt, req } from "../utils/builders/optionality.js";
 import { yupObj } from "../utils/builders/yupObj.js";

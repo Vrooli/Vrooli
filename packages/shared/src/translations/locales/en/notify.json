@@ -78,5 +78,13 @@
     "TransferRejected_Title": "Transfer rejected",
     "TransferRejected_Body": "Your transfer request has been rejected.",
     "TransferRejectedWithName_Body": "Your transfer request for \"{{objectName}}\" has been rejected.",
-    "UserInvite_Body": "{{friendUsername}} has created an account using your invite code! Enjoy your free month of Premium!😎"
+    "UserInvite_Body": "{{friendUsername}} has created an account using your invite code! Enjoy your free month of Premium!😎",
+    "Time_Now": "now",
+    "Time_FewSeconds": "in a few seconds",
+    "Time_Minutes_one": "in {{count}} minute",
+    "Time_Minutes_other": "in {{count}} minutes",
+    "Time_Hours_one": "in {{count}} hour",
+    "Time_Hours_other": "in {{count}} hours",
+    "Time_Days_one": "in {{count}} day",
+    "Time_Days_other": "in {{count}} days"
 }

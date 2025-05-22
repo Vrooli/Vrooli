@@ -1,19 +1,19 @@
 import { RunStatus } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { RunProgressConfig } from "../shape/configs/run.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
 import { DEFAULT_LOOP_DELAY_MULTIPLIER, DEFAULT_MAX_LOOP_DELAY_MS, DEFAULT_MAX_RUN_CREDITS, DEFAULT_ON_BRANCH_FAILURE, LATEST_RUN_CONFIG_VERSION, MAX_MAIN_LOOP_ITERATIONS, MAX_PARALLEL_BRANCHES } from "./consts.js";
 import { SubroutineContextManager } from "./context.js";
-import { SubroutineExecutor } from "./executor.js";
+import { type SubroutineExecutor } from "./executor.js";
 import { RunLimitsManager } from "./limits.js";
-import { RunLoader } from "./loader.js";
-import { BpmnNavigator, NavigatorFactory, NavigatorRegistry } from "./navigator.js";
-import { RunNotifier } from "./notifier.js";
-import { PathSelectionHandler } from "./pathSelection.js";
-import { RunPersistence } from "./persistence.js";
-import { BranchLocationDataMap, BranchStatus, ConcurrencyMode, InitializedRunState, Location, RunConfig, RunIdentifier, RunProgress, RunRequestLimits, RunStateMachineServices, RunStateMachineState, RunStatusChangeReason, RunTriggeredBy, StateMachineStatus, SubroutineContext } from "./types.js";
+import { type RunLoader } from "./loader.js";
+import { BpmnNavigator, NavigatorFactory, type NavigatorRegistry } from "./navigator.js";
+import { type RunNotifier } from "./notifier.js";
+import { type PathSelectionHandler } from "./pathSelection.js";
+import { type RunPersistence } from "./persistence.js";
+import { type BranchLocationDataMap, BranchStatus, type ConcurrencyMode, type InitializedRunState, type Location, type RunConfig, type RunIdentifier, type RunProgress, type RunRequestLimits, type RunStateMachineServices, type RunStateMachineState, RunStatusChangeReason, type RunTriggeredBy, StateMachineStatus, type SubroutineContext } from "./types.js";
 
 /** Maps graph types to navigators */
 const navigatorRegistry: NavigatorRegistry = {
@@ -208,8 +208,8 @@ export class RunStateMachine {
         };
         // Determine if parallel execution is allowed
         let supportsParallelExecution = false;
-        if (startObject.resourceSubType.startsWith("Routine")) {
-            const routineConfig = RoutineVersionConfig.deserialize(startObject, this.services.logger, { useFallbacks: true });
+        if (startObject.resourceSubType && startObject.resourceSubType.startsWith("Routine")) {
+            const routineConfig = RoutineVersionConfig.parse(startObject, this.services.logger, { useFallbacks: true });
             const graphConfig = routineConfig.graph;
             const navigator = graphConfig ? this.services.navigatorFactory.getNavigator(graphConfig.__type) : null;
             supportsParallelExecution = navigator?.supportsParallelExecution ?? false;

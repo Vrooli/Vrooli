@@ -1,7 +1,7 @@
-import { AITaskInfo, MessageStream } from "../ai/types.js";
-import { ChatMessage, ChatParticipant, Notification } from "../api/types.js";
-import { DeferredDecisionData, RunTaskInfo } from "../run/types.js";
-import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api.js";
+import { type AITaskInfo } from "../ai/types.js";
+import { type ChatMessage, type ChatParticipant, type Notification } from "../api/types.js";
+import { type DeferredDecisionData, type RunTaskInfo } from "../run/types.js";
+import { type JOIN_CHAT_ROOM_ERRORS, type JOIN_RUN_ROOM_ERRORS, type JOIN_USER_ROOM_ERRORS, type LEAVE_CHAT_ROOM_ERRORS, type LEAVE_RUN_ROOM_ERRORS, type LEAVE_USER_ROOM_ERRORS } from "./api.js";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinRunRoom" | "leaveRunRoom" | "joinUserRoom" | "leaveUserRoom";
@@ -32,7 +32,24 @@ export type ChatSocketEventPayloads = {
         updated?: (Partial<ChatMessage> & { id: string })[];
         removed?: string[];
     }
-    responseStream: MessageStream;
+    responseStream: {
+        /** The state of the stream */
+        __type: "stream" | "end" | "error";
+        /** The ID of the bot sending the message */
+        botId?: string;
+        /** The current text stream (not the accumulated text) */
+        chunk?: string;
+        /** The full constructed message, if the stream is ended */
+        finalMessage?: string;
+    };
+    modelReasoningStream: {
+        /** The state of the stream */
+        __type: "stream" | "end" | "error";
+        /** The ID of the bot sending the reasoning */
+        botId?: string;
+        /** The current reasoning text stream (not the accumulated text) */
+        chunk: string;
+    };
     typing: {
         /** IDs of users who started typing */
         starting?: string[];

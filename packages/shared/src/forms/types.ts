@@ -1,9 +1,9 @@
 /* c8 ignore start */
-import { TimeFrame } from "../api/types.js";
-import { InputType } from "../consts/model.js";
-import { SearchPageTabOption } from "../consts/search.js";
-import { CodeLanguage } from "../consts/ui.js";
-import { TagShape } from "../shape/models/models.js";
+import { type TimeFrame } from "../api/types.js";
+import { type InputType } from "../consts/model.js";
+import { type SearchPageTabOption } from "../consts/search.js";
+import { type CodeLanguage } from "../consts/ui.js";
+import { type TagShape } from "../shape/models/models.js";
 
 /**
  * Non-input form elements

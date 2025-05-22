@@ -1,4 +1,4 @@
-import { ObjectSchema, ValidationError } from "yup";
+import { type ObjectSchema, type ValidationError } from "yup";
 
 type YupTest = {
     OPTIONS: {

@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import { describe } from "mocha";
 import sinon from "sinon";
-import { ResourceVersion } from "../../api/types.js";
+import { type ResourceVersion } from "../../api/types.js";
 import { CodeLanguage } from "../../consts/index.js";
-import { CodeVersionConfig, CodeVersionConfigObject } from "./code.js";
+import { CodeVersionConfig, type CodeVersionConfigObject } from "./code.js";
 import { LATEST_CONFIG_VERSION } from "./utils.js";
 
 type PartialCodeVersion = Pick<ResourceVersion, "codeLanguage" | "content" | "data">;
@@ -56,7 +56,7 @@ describe("CodeVersionConfig", () => {
                     };
                     const validDataString = JSON.stringify(validData);
                     const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validData.inputConfig);
                 });
@@ -82,7 +82,7 @@ describe("CodeVersionConfig", () => {
                     };
                     const validDataString = JSON.stringify(validData);
                     const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validData.inputConfig);
                 });
@@ -108,7 +108,7 @@ describe("CodeVersionConfig", () => {
                     };
                     const validDirectDataString = JSON.stringify(validDirectData);
                     const codeVersion = { ...sampleCodeVersionDirect, data: validDirectDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validDirectData.inputConfig);
                 });
@@ -140,7 +140,7 @@ describe("CodeVersionConfig", () => {
                     };
                     const validDirectDataString = JSON.stringify(validDirectData);
                     const codeVersion = { ...sampleCodeVersionDirect, data: validDirectDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validDirectData.inputConfig);
                 });
@@ -148,7 +148,7 @@ describe("CodeVersionConfig", () => {
 
             it("null input", () => {
                 const codeVersion = { ...sampleCodeVersionDirect, data: null } as CodeVersion;
-                const config = CodeVersionConfig.deserialize(codeVersion, console);
+                const config = CodeVersionConfig.parse(codeVersion, console);
                 const defaultConfig = CodeVersionConfig.default(codeVersion);
                 expect(config.__version).to.equal(defaultConfig.__version);
                 expect(config.inputConfig).to.deep.equal(defaultConfig.inputConfig);
@@ -166,7 +166,7 @@ describe("CodeVersionConfig", () => {
                     } as CodeVersionConfigObject;
                     const validDataString = JSON.stringify(validData);
                     const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validData.inputConfig);
                     expect(config.outputConfig).to.deep.equal({ type: "string" });
@@ -189,7 +189,7 @@ describe("CodeVersionConfig", () => {
                     } as CodeVersionConfigObject;
                     const validDataString = JSON.stringify(validData);
                     const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validData.inputConfig);
                     expect(config.outputConfig).to.deep.equal(validData.outputConfig);
@@ -213,7 +213,7 @@ describe("CodeVersionConfig", () => {
                     } as CodeVersionConfigObject;
                     const validDataString = JSON.stringify(validData);
                     const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
+                    const config = CodeVersionConfig.parse(codeVersion, console);
                     expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                     expect(config.inputConfig).to.deep.equal(validData.inputConfig);
                     expect(config.outputConfig).to.deep.equal(validData.outputConfig);
@@ -228,7 +228,7 @@ describe("CodeVersionConfig", () => {
                 };
                 const validDataString = JSON.stringify(validData);
                 const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                const config = CodeVersionConfig.deserialize(codeVersion, console);
+                const config = CodeVersionConfig.parse(codeVersion, console);
                 expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
                 expect(config.inputConfig).to.deep.equal(validData.inputConfig);
                 expect(config.outputConfig).to.deep.equal(CodeVersionConfig.defaultOutputConfig());
@@ -237,7 +237,7 @@ describe("CodeVersionConfig", () => {
 
         it("correctly falls back to defaults on invalid data", () => {
             const codeVersion = { ...sampleCodeVersionSpread, data: "invalid json" } as CodeVersion;
-            const config = CodeVersionConfig.deserialize(codeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion, console);
             const defaultConfig = CodeVersionConfig.default(codeVersion);
             expect(config.__version).to.equal(defaultConfig.__version);
             expect(config.inputConfig).to.deep.equal(defaultConfig.inputConfig);
@@ -254,10 +254,8 @@ describe("CodeVersionConfig", () => {
             };
             const validDataString = JSON.stringify(validData);
             const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-            const config = CodeVersionConfig.deserialize(codeVersion, console);
-            const serialized = config.serialize("json");
+            const config = CodeVersionConfig.parse(codeVersion, console);
             const expected = JSON.stringify(config.export());
-            expect(serialized).to.equal(expected);
             expect(expected).to.equal(validDataString);
         });
 
@@ -270,10 +268,8 @@ describe("CodeVersionConfig", () => {
             };
             const validDataString = JSON.stringify(validData);
             const codeVersion = { ...sampleCodeVersionDirect, data: validDataString } as CodeVersion;
-            const config = CodeVersionConfig.deserialize(codeVersion, console);
-            const serialized = config.serialize("json");
+            const config = CodeVersionConfig.parse(codeVersion, console);
             const expected = JSON.stringify(config.export());
-            expect(serialized).to.equal(expected);
             expect(expected).to.equal(validDataString);
         });
     });
@@ -300,7 +296,7 @@ describe("CodeVersionConfig", () => {
                 content: "function sum(a, b, c) { return a + b + c; }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox() {
                 return { output: 6 };
@@ -335,7 +331,7 @@ describe("CodeVersionConfig", () => {
                 content: "function sum(a, b, c) { return a + b + c; }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox() {
                 return { output: 6 };
@@ -371,7 +367,7 @@ describe("CodeVersionConfig", () => {
                 content: "function sum(a, b, c) { throw new Error('Test error'); }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox() {
                 return { error: "Test error" };
@@ -412,7 +408,7 @@ describe("CodeVersionConfig", () => {
                 content: "function sum(a, b, c) { return a + b + c; }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as number[];
@@ -456,7 +452,7 @@ describe("CodeVersionConfig", () => {
                 content: "function add(obj) { return obj.a + obj.b; }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as { a: number; b: number };
@@ -492,7 +488,7 @@ describe("CodeVersionConfig", () => {
                 content: "function greet(obj) { return { greeting: `Hello, ${obj.name}` }; }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as { name: string };
@@ -528,7 +524,7 @@ describe("CodeVersionConfig", () => {
                 content: "function greet(obj) { return { greeting: `Hello, ${obj.name}` }; }",
                 data: JSON.stringify(configData),
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const config = CodeVersionConfig.parse(codeVersion as CodeVersion, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as { name: string };

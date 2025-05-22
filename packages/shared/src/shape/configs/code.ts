@@ -1,7 +1,7 @@
-import { ResourceVersion } from "../../api/types.js";
+import { type ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { CodeLanguage } from "../../consts/ui.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
+import { type CodeLanguage } from "../../consts/ui.js";
+import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
 import { type StringifyMode } from "./utils.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
@@ -190,13 +190,13 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
         this.codeLanguage = codeLanguage;
     }
 
-    static deserialize(
-        version: Pick<ResourceVersion, "codeLanguage" | "config">,
+    static parse(
+        version: Pick<ResourceVersion, "config" | "codeLanguage">,
         logger: PassableLogger,
         opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): CodeVersionConfig {
-        return this.parseConfig<CodeVersionConfigObject, CodeVersionConfig>(
-            version.config,
+        return super.parseBase<CodeVersionConfigObject, CodeVersionConfig>(
+            version.config as CodeVersionConfigObject,
             logger,
             (cfg) => {
                 // ensure defaults for input/output/testcases

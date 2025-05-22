@@ -1,10 +1,10 @@
 import * as Yup from "yup";
-import { ResourceSubTypeRoutine, RunRoutine } from "../api/types.js";
+import { type ResourceSubTypeRoutine, type RunRoutine } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { nanoid } from "../id/publicId.js";
-import { RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigFormOutputMap } from "../shape/configs/routine.js";
+import { type RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigFormOutputMap } from "../shape/configs/routine.js";
 import { isObject } from "../utils/objects.js";
-import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormElement, FormInputBase, FormInputType, FormSchema, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField, YupType } from "./types.js";
+import { type CheckboxFormInputProps, type CodeFormInputProps, type DropzoneFormInputProps, type FormElement, type FormInputBase, type FormInputType, type FormSchema, type IntegerFormInputProps, type LanguageFormInputProps, type LinkItemFormInputProps, type LinkUrlFormInputProps, type RadioFormInputProps, type SelectorFormInputOption, type SelectorFormInputProps, type SliderFormInputProps, type SwitchFormInputProps, type TagSelectorFormInputProps, type TextFormInputProps, type YupField, type YupType } from "./types.js";
 
 const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;

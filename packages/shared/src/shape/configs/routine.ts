@@ -1,6 +1,6 @@
 import i18next from "i18next";
-import { LlmTask, ResourceSubType, StartLlmTaskInput, type ResourceVersion } from "../../api/types.js";
-import { HttpMethod } from "../../consts/api.js";
+import { LlmTask, ResourceSubType, type ResourceVersion, type StartLlmTaskInput } from "../../api/types.js";
+import { type HttpMethod } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { InputType } from "../../consts/model.js";
 import { DEFAULT_LANGUAGE } from "../../consts/ui.js";
@@ -8,10 +8,10 @@ import { type FormInputBase, type FormSchema } from "../../forms/types.js";
 import { nanoid } from "../../id/publicId.js";
 import { BotStyle, type SubroutineIOMapping } from "../../run/types.js";
 import { getDotNotationValue } from "../../utils/objects.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
+import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
 import { type LlmModel } from "./bot.js";
-import { CodeVersionConfigObject, JsonSchema } from "./code.js";
-import { stringifyObject, type StringifyMode } from "./utils.js";
+import { type CodeVersionConfigObject, type JsonSchema } from "./code.js";
+import { type StringifyMode } from "./utils.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -247,6 +247,62 @@ type GraphBaseConfigObject = {
     __version: string;
     __type: GraphType;
 };
+/**
+ * Map of BPMN call activity ID to subroutine information.
+ * 
+ * Specifying subroutine information here instead of in the BPMN diagram allows us to:
+ * - Keep the BPMN diagram clean and focused on the process
+ * - Import and export the BPMN diagram to other platforms more easily
+ * - Dynamically change the subroutine based on the context
+ * 
+ * To connect the BPMN diagram to the subroutine, simply use a call activity with 
+ * `calledElement` set to a key in this map, and the corresponding value will be the subroutine ID and 
+ * input/output mappings.
+ * 
+ * Full example:
+ * <bpmn:callActivity id="callActivityA" name="Call A" calledElement="A">
+ *     <bpmn:extensionElements>
+ *       <vrooli:ioMapping>
+ *         // The optional `fromContext` field allows for connecting an input to another input or output
+ *         <vrooli:input name="inputA" fromContext="callActivityB.inputC" />
+ *         <vrooli:iput name="inputB" />
+ *         // `fromContext` with the `root` keyword allows for connecting to data passed into the routine, instead of another subroutine
+ *         <vrooli:iput name="inputC"  fromContext="root.inputD" />
+ *         <vrooli:output name="outputX" />
+ *         // The optional `toRootContext` field allows for exporting the output to the parent context when the routine is done, rather than the 
+ *         // default behavior of keeping the output in the scope of the current routine
+ *         <vrooli:output name="outputY" toRootContext="outputZ" />
+ *       </vrooli:ioMapping>
+ *     </bpmn:extensionElements>
+ * </bpmn:callActivity>
+ * 
+ * {
+ *   callActivityA: {
+ *       subroutineId: "123-456-789",
+ *       inputMap: {
+ *           inputA: "subroutineInputA",
+ *           inputB: "subroutineInputB",
+ *       },
+ *       outputMap: {
+ *           outputB: "subroutineOutputB",
+ *       },
+ * }
+ */
+type ActivityMap = Record<string, {
+    /** The ID of the subroutine */
+    subroutineId: string;
+    /** A map of call activity input name to subroutine input name */
+    inputMap: Record<string, string>;
+    /** A map of call activity output name to subroutine output name */
+    outputMap: Record<string, string>;
+}>;
+/**
+ * Map of root context name to routine (not subroutine) input/output name
+ */
+type RootContext = {
+    inputMap: Record<string, string>;
+    outputMap: Record<string, string>;
+};
 export type BpmnSchema = {
     /** How the BPMN diagram data is stored */
     __format: "xml";
@@ -273,62 +329,8 @@ export type BpmnSchema = {
     //       </bpmn:completionCondition>
     //     </bpmn:multiInstanceLoopCharacteristics>
     //   </bpmn:callActivity> 
-    /**
-     * Map of BPMN call activity ID to subroutine information.
-     * 
-     * Specifying subroutine information here instead of in the BPMN diagram allows us to:
-     * - Keep the BPMN diagram clean and focused on the process
-     * - Import and export the BPMN diagram to other platforms more easily
-     * - Dynamically change the subroutine based on the context
-     * 
-     * To connect the BPMN diagram to the subroutine, simply use a call activity with 
-     * `calledElement` set to a key in this map, and the corresponding value will be the subroutine ID and 
-     * input/output mappings.
-     * 
-     * Full example:
-     * <bpmn:callActivity id="callActivityA" name="Call A" calledElement="A">
-     *     <bpmn:extensionElements>
-     *       <vrooli:ioMapping>
-     *         // The optional `fromContext` field allows for connecting an input to another input or output
-     *         <vrooli:input name="inputA" fromContext="callActivityB.inputC" />
-     *         <vrooli:iput name="inputB" />
-     *         // `fromContext` with the `root` keyword allows for connecting to data passed into the routine, instead of another subroutine
-     *         <vrooli:iput name="inputC"  fromContext="root.inputD" />
-     *         <vrooli:output name="outputX" />
-     *         // The optional `toRootContext` field allows for exporting the output to the parent context when the routine is done, rather than the 
-     *         // default behavior of keeping the output in the scope of the current routine
-     *         <vrooli:output name="outputY" toRootContext="outputZ" />
-     *       </vrooli:ioMapping>
-     *     </bpmn:extensionElements>
-     * </bpmn:callActivity>
-     * 
-     * {
-     *   callActivityA: {
-     *       subroutineId: "123-456-789",
-     *       inputMap: {
-     *           inputA: "subroutineInputA",
-     *           inputB: "subroutineInputB",
-     *       },
-     *       outputMap: {
-     *           outputB: "subroutineOutputB",
-     *       },
-     * }
-     */
-    activityMap: Record<string, {
-        /** The ID of the subroutine */
-        subroutineId: string;
-        /** A map of call activity input name to subroutine input name */
-        inputMap: Record<string, string>;
-        /** A map of call activity output name to subroutine output name */
-        outputMap: Record<string, string>;
-    }>;
-    /**
-     * Map of root context name to routine (not subroutine) input/output name
-     */
-    rootContext: {
-        inputMap: Record<string, string>;
-        outputMap: Record<string, string>;
-    }
+    activityMap: ActivityMap;
+    rootContext: RootContext;
 };
 export type GraphBpmnConfigObject = GraphBaseConfigObject & {
     __type: "BPMN-2.0";
@@ -457,7 +459,7 @@ function defaultSchemaOutputGenerate(): FormOutputConfigObject {
 }
 
 export const defaultConfigFormInputMap = {
-    [ResourceSubType.RoutineAction]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineInternalAction]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineData]: () => defaultSchemaInput(),
@@ -468,7 +470,7 @@ export const defaultConfigFormInputMap = {
 };
 
 export const defaultConfigFormOutputMap = {
-    [ResourceSubType.RoutineAction]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineInternalAction]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineData]: () => defaultSchemaOutput(),
@@ -513,12 +515,12 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
         this.graph = config.graph ? GraphConfig.create(config.graph) : undefined;
     }
 
-    static deserialize(
+    static parse(
         version: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
         opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): RoutineVersionConfig {
-        return this.parseConfig<RoutineVersionConfigObject, RoutineVersionConfig>(
+        return super.parseBase<RoutineVersionConfigObject, RoutineVersionConfig>(
             version.config,
             logger,
             (cfg) => {
@@ -536,10 +538,6 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
             },
             { mode: opts?.mode },
         );
-    }
-
-    serialize(mode: StringifyMode): string {
-        return stringifyObject(this.export(), mode);
     }
 
     export(): RoutineVersionConfigObject {

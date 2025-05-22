@@ -3,7 +3,7 @@
 import { expect } from "chai";
 import * as yup from "yup";
 import { uuid } from "../../../id/uuid.js";
-import { YupModel } from "../types.js";
+import { type YupModel } from "../types.js";
 import { rel } from "./rel.js";
 import { yupObj } from "./yupObj.js";
 

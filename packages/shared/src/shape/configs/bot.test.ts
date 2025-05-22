@@ -2,8 +2,8 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { OpenAIModel } from "../../ai/services.js";
-import { User } from "../../api/types.js";
-import { BotSettingsConfig, LlmModel, findBotDataForForm } from "./bot.js";
+import { type User } from "../../api/types.js";
+import { BotSettingsConfig, type LlmModel, findBotDataForForm } from "./bot.js";
 
 // Valid bot data
 const validBot1Settings = {
@@ -42,7 +42,7 @@ describe("BotSettingsConfig", () => {
     });
 
     it("parses valid bot settings correctly", () => {
-        const botConfigObject = BotSettingsConfig.deserialize(validBot1, console);
+        const botConfigObject = BotSettingsConfig.parse(validBot1, console);
         // Should add the name to the schema
         expect(botConfigObject).to.deep.equal({
             ...validBot1Settings,
@@ -59,8 +59,6 @@ describe("BotSettingsConfig", () => {
                 name: validBot1.name,
             },
         });
-        // Serialize shouldn't include the name
-        expect(botConfigObject.serialize()).to.deep.equal(JSON.stringify(validBot1Settings));
     });
 
     describe("handles invalid bot settings", () => {
@@ -69,7 +67,7 @@ describe("BotSettingsConfig", () => {
                 name: "TestBot",
                 botSettings: "invalid string",
             };
-            const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+            const botConfigObject = BotSettingsConfig.parse(botData, console);
             expect(botConfigObject.schema).to.deep.equal({
                 ...BotSettingsConfig.defaultBotSettings(),
                 name: "TestBot",
@@ -81,7 +79,7 @@ describe("BotSettingsConfig", () => {
                 name: "Boop",
                 botSettings: undefined,
             };
-            const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+            const botConfigObject = BotSettingsConfig.parse(botData, console);
             expect(botConfigObject.schema).to.deep.equal({
                 ...BotSettingsConfig.defaultBotSettings(),
                 name: "Boop",
@@ -95,7 +93,7 @@ describe("BotSettingsConfig", () => {
                 botSettings: { __version: "1.0", schema: { some: "object" } },
             };
             // @ts-ignore: Testing runtime scenario
-            const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+            const botConfigObject = BotSettingsConfig.parse(botData, console);
             expect(botConfigObject.schema).to.deep.equal({
                 ...BotSettingsConfig.defaultBotSettings(),
                 name: "Hello world",
@@ -107,21 +105,21 @@ describe("BotSettingsConfig", () => {
         it("null input", () => {
             const botData = null;
             // @ts-ignore: Testing runtime scenario
-            const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+            const botConfigObject = BotSettingsConfig.parse(botData, console);
             expect(botConfigObject.schema).to.deep.equal(BotSettingsConfig.defaultBotSettings());
         });
 
         it("undefined input", () => {
             const botData = undefined;
             // @ts-ignore: Testing runtime scenario
-            const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+            const botConfigObject = BotSettingsConfig.parse(botData, console);
             expect(botConfigObject.schema).to.deep.equal(BotSettingsConfig.defaultBotSettings());
         });
 
         it("array input", () => {
             const botData = [];
             // @ts-ignore: Testing runtime scenario
-            const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+            const botConfigObject = BotSettingsConfig.parse(botData, console);
             expect(botConfigObject.schema).to.deep.equal(BotSettingsConfig.defaultBotSettings());
         });
     });
@@ -131,7 +129,7 @@ describe("BotSettingsConfig", () => {
             name: "TestBot",
             botSettings: "{}",
         };
-        const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+        const botConfigObject = BotSettingsConfig.parse(botData, console);
         expect(botConfigObject.schema).to.deep.equal({
             ...BotSettingsConfig.defaultBotSettings(),
             name: "TestBot",
@@ -144,7 +142,7 @@ describe("BotSettingsConfig", () => {
             name: "TestBot",
             botSettings: JSON.stringify(botSettings),
         };
-        const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+        const botConfigObject = BotSettingsConfig.parse(botData, console);
         expect(botConfigObject.export()).to.deep.equal({
             ...botSettings,
             schema: {
@@ -159,7 +157,7 @@ describe("BotSettingsConfig", () => {
             botSettings: JSON.stringify(validBot1Settings),
             translations: null,
         };
-        const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+        const botConfigObject = BotSettingsConfig.parse(botData, console);
         expect(botConfigObject.export()).to.deep.equal({
             ...validBot1Settings,
             schema: {
@@ -195,7 +193,7 @@ describe("BotSettingsConfig", () => {
             }],
             botSettings: JSON.stringify(userSettings),
         };
-        const userConfigObject = BotSettingsConfig.deserialize(userData, console);
+        const userConfigObject = BotSettingsConfig.parse(userData, console);
         // Should add the name and additional translation fields to the schema
         expect(userConfigObject).to.deep.equal({
             ...userSettings,
@@ -213,21 +211,6 @@ describe("BotSettingsConfig", () => {
                 },
             },
         });
-        // Serialize shouldn't include the name, but SHOULD keep additional translation fields
-        expect(userConfigObject.serialize()).to.deep.equal(JSON.stringify({
-            ...userSettings,
-            schema: {
-                ...userSettings.schema,
-                // Name is not included
-                translations: {
-                    en: {
-                        tone: "humorous",
-                        otherField: "Other Field",
-                        bias: "Neutral",
-                    },
-                },
-            },
-        }));
     });
 
     it("should handle ill-formed creativty/verbosity values", () => {
@@ -251,7 +234,7 @@ describe("BotSettingsConfig", () => {
             name: "Mr. Bean",
             botSettings: JSON.stringify(botSettings),
         };
-        const botConfigObject = BotSettingsConfig.deserialize(botData, console);
+        const botConfigObject = BotSettingsConfig.parse(botData, console);
         expect(botConfigObject).to.deep.equal({
             ...botSettings,
             schema: {

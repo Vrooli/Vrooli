@@ -1,4 +1,4 @@
-import { BranchProgress, DecisionOption, DeferredDecisionData, PathSelectionStrategy, ResolvedDecisionData, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, RunProgress, SubroutineContext } from "./types.js";
+import { type BranchProgress, type DecisionOption, type DeferredDecisionData, PathSelectionStrategy, type ResolvedDecisionData, type ResolvedDecisionDataChooseMultiple, type ResolvedDecisionDataChooseOne, type RunProgress, type SubroutineContext } from "./types.js";
 
 /**
  * Handles making path selections when there are multiple possible next steps.

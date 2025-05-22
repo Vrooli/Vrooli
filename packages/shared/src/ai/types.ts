@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { LlmTask, TaskStatus } from "../api/types.js";
+import { type LlmTask, type TaskStatus } from "../api/types.js";
 
 export type MessageStream = {
     /** The state of the stream */

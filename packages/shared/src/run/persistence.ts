@@ -1,9 +1,9 @@
-import { Run, RunCreateInput, RunUpdateInput } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { type Run, type RunCreateInput, type RunUpdateInput } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { RunProgressConfig } from "../shape/configs/run.js";
-import { RunShape, RunStepShape, shapeRun } from "../shape/models/models.js";
+import { type RunShape, type RunStepShape, shapeRun } from "../shape/models/models.js";
 import { FINALIZE_RUN_POLL_INTERVAL_MS, FINALIZE_RUN_TIMEOUT_MS, STORE_RUN_PROGRESS_DEBOUNCE_MS } from "./consts.js";
-import { RunIdentifier, RunMetrics, RunProgress, RunProgressStep, RunTriggeredBy } from "./types.js";
+import { type RunIdentifier, type RunMetrics, type RunProgress, type RunProgressStep, type RunTriggeredBy } from "./types.js";
 
 /**
  * Handles saving and loading run progress. This includes:
@@ -531,7 +531,7 @@ export abstract class RunPersistence {
     ): RunProgress {
         const { name, id: runId, status } = storedData;
         const { __version, branches, config, decisions, metrics: partialMetrics, subcontexts } = storedData.data
-            ? RunProgressConfig.deserialize(storedData, logger)
+            ? RunProgressConfig.parse(storedData, logger)
             : RunProgressConfig.default();
         const metrics = this.storedDataToMetrics(storedData, partialMetrics.creditsSpent);
         const owner = this.storedDataToOwner(storedData, userData);

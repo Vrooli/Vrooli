@@ -1,7 +1,7 @@
-import { DbObject, ModelType, ProjectVersion, RoutineVersion } from "../api/types.js";
+import { type DbObject, ModelType, type ProjectVersion, type RoutineVersion } from "../api/types.js";
 import { LRUCache } from "../utils/lruCache.js";
 import { PROJECT_CACHE_LIMIT, PROJECT_CACHE_MAX_SIZE_BYTES, ROUTINE_CACHE_LIMIT, ROUTINE_CACHE_MAX_SIZE_BYTES } from "./consts.js";
-import { Id, Location, LocationData, LocationStack, RunConfig } from "./types.js";
+import { type Id, type Location, type LocationData, type LocationStack, type RunConfig } from "./types.js";
 
 /**
  * Handles loading routine and project information required for running a routine or project.
@@ -12,11 +12,17 @@ export abstract class RunLoader {
     /**
      * Map of loaded routine versions, keyed by routine ID.
      */
-    protected routineCache: LRUCache<Id, RoutineVersion> = new LRUCache(ROUTINE_CACHE_LIMIT, ROUTINE_CACHE_MAX_SIZE_BYTES);
+    protected routineCache: LRUCache<Id, RoutineVersion> = new LRUCache({
+        limit: ROUTINE_CACHE_LIMIT,
+        maxSizeBytes: ROUTINE_CACHE_MAX_SIZE_BYTES,
+    });
     /**
      * Map of loaded project versions, keyed by project ID.
      */
-    protected projectCache: LRUCache<Id, ProjectVersion> = new LRUCache(PROJECT_CACHE_LIMIT, PROJECT_CACHE_MAX_SIZE_BYTES);
+    protected projectCache: LRUCache<Id, ProjectVersion> = new LRUCache({
+        limit: PROJECT_CACHE_LIMIT,
+        maxSizeBytes: PROJECT_CACHE_MAX_SIZE_BYTES,
+    });
 
     /**
      * Fetch the object and subroutine (if applicable) for a given location.

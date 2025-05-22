@@ -1,5 +1,5 @@
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
+import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
 import { type StringifyMode } from "./utils.js";
 
 /** Increment when the schema of MessageConfigObject changes. */
@@ -46,7 +46,7 @@ export interface MessageConfigObject extends BaseConfigObject {
      */
     respondingBots?: Array<string | "@all">;
     /** Author's role at the time this message was created. */
-    role?: "user" | "assistant" | "system";
+    role?: "user" | "assistant" | "system" | "tool";
     /**
      * Turn number this message belongs to.
      * Persisted so we can resume a crashed ConversationLoop exactly
@@ -91,12 +91,12 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
      * If useFallbacks is true, missing fields are populated with sensible
      * defaults to avoid null-checks downstream.
      */
-    static deserialize(
-        version: { config: string | null | undefined },
+    static parse(
+        version: { config: MessageConfigObject },
         logger: PassableLogger,
         opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): MessageConfig {
-        return this.parseConfig<MessageConfigObject, MessageConfig>(
+        return super.parseBase<MessageConfigObject, MessageConfig>(
             version.config,
             logger,
             (cfg) => {

@@ -1,4 +1,4 @@
-import { Moment } from "moment-timezone";
+import { type Moment } from "moment-timezone";
 import { type Schedule, type ScheduleRecurrence } from "../api/types.js";
 import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/numbers.js";
 
@@ -30,13 +30,11 @@ async function ensureMomentTimezone() {
  */
 export function validateTimeFrame(timeframeStart: Date, timeframeEnd: Date): boolean {
     if (timeframeStart.getTime() > timeframeEnd.getTime()) {
-        console.error("Start date is after end date", { trace: "0232", timeframeStart, timeframeEnd });
-        return false;
+        throw new Error("Start date is after end date");
     }
     const timeframeDuration = timeframeEnd.getTime() - timeframeStart.getTime();
     if (timeframeDuration > YEARS_1_MS) {
-        console.error("Time frame too large", { trace: "0432", timeframeStart, timeframeEnd });
-        return false;
+        throw new Error("Time frame too large");
     }
     return true;
 }
@@ -193,7 +191,6 @@ export async function jumpToFirstRelevantDailyOccurrence(
 
     // Check if the timeframe start is before the schedule start
     if (timeframeStartMoment.isBefore(relevantStart)) {
-        console.error("Timeframe start is before the schedule start.");
         timeframeStartMoment = relevantStart.clone();
     }
 
@@ -238,7 +235,6 @@ export async function jumpToFirstRelevantWeeklyOccurrence(
 
     // Check if the timeframe start is before the schedule start
     if (timeframeStartMoment.isBefore(relevantStart)) {
-        console.error("Timeframe start is before the schedule start.");
         timeframeStartMoment = relevantStart.clone();
     }
 
@@ -290,7 +286,6 @@ export async function jumpToFirstRelevantMonthlyOccurrence(
 
     // Check if the timeframe start is before the schedule start
     if (timeframeStartMoment.isBefore(relevantStart)) {
-        console.error("Timeframe start is before the schedule start.");
         timeframeStartMoment = relevantStart.clone();
     }
 
@@ -349,7 +344,6 @@ export async function jumpToFirstRelevantYearlyOccurrence(
 
     // If the timeframe start is before the schedule start, we use the schedule start as the reference
     if (timeframeStartMoment.isBefore(scheduleStartMoment)) {
-        console.error("Timeframe start is before the schedule start.");
         timeframeStartMoment = scheduleStartMoment.clone();
     }
 
@@ -413,7 +407,7 @@ export async function jumpToFirstRelevantYearlyOccurrence(
  */
 export function applyExceptions(
     currentStartTime: Date,
-    schedule: Schedule,
+    schedule: Pick<Schedule, "exceptions">,
     duration: number,
     timeZone: string,
 ): { start: Date; end: Date } | null | undefined {
@@ -470,15 +464,17 @@ async function calculateNextOccurrence(currentStartTime: Date, recurrence: Sched
  * @returns An array of objects representing the occurrences of the scheduled event, each with UTC start and end times.
  */
 export async function calculateOccurrences(
-    schedule: Schedule,
+    schedule: Pick<Schedule, "startTime" | "endTime" | "recurrences" | "exceptions" | "timezone">,
     timeframeStart: Date,
     timeframeEnd: Date,
 ): Promise<Array<{ start: Date; end: Date }>> {
     const occurrences: Array<{ start: Date; end: Date }> = [];
     // Make sure that the time frame is no longer than a year, so that we don't overload the server
-    if (!validateTimeFrame(timeframeStart, timeframeEnd)) {
-        console.error("calculateOccurrences time frame too large", { trace: "0432", timeframeStart, timeframeEnd });
-        return occurrences;
+    try {
+        validateTimeFrame(timeframeStart, timeframeEnd);
+    } catch (error) {
+        console.error("calculateOccurrences validation error:", { error, trace: "0432_validation", timeframeStart, timeframeEnd });
+        return occurrences; // Return empty array if validation fails
     }
 
     const scheduleStartTime = new Date(schedule.startTime); // Direct Date object in UTC

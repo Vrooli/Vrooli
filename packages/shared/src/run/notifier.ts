@@ -1,6 +1,6 @@
 import { PERCENTS } from "../consts/numbers.js";
 import { SEND_PROGRESS_UPDATE_THROTTLE_MS } from "./consts.js";
-import { BranchProgress, DeferredDecisionData, IOKey, IOMap, IOValue, Id, MapDiff, RunProgress, RunStatusChangeReason, RunTaskInfo, SubcontextUpdates } from "./types.js";
+import { type BranchProgress, type DeferredDecisionData, type IOKey, type IOMap, type IOValue, type Id, type MapDiff, type RunProgress, type RunStatusChangeReason, type RunTaskInfo, type SubcontextUpdates } from "./types.js";
 
 /**
  * Handles emitting payloads to send run-related events to the client. This includes:

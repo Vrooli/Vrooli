@@ -1,6 +1,6 @@
 import { RunStatus } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
-import { RunLimitBehavior, RunProgress, RunRequestLimits, RunStatusChangeReason } from "./types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
+import { type RunLimitBehavior, type RunProgress, type RunRequestLimits, RunStatusChangeReason } from "./types.js";
 
 /**
  * Result of limit checking function when a limit has been reached.

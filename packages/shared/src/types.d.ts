@@ -1,11 +1,11 @@
 /* c8 ignore start */
-import { TFuncKey, TFunction } from "i18next";
-import award from "./translations/locales/en/award.json" with { type: "json" };
-import common from "./translations/locales/en/common.json" with { type: "json" };
-import error from "./translations/locales/en/error.json" with { type: "json" };
-import langs from "./translations/locales/en/langs.json" with { type: "json" };
-import notify from "./translations/locales/en/notify.json" with { type: "json" };
-import service from "./translations/locales/en/service.json" with { type: "json" };
+import { type TFuncKey, type TFunction } from "i18next";
+import type award from "./translations/locales/en/award.json" with { type: "json" };
+import type common from "./translations/locales/en/common.json" with { type: "json" };
+import type error from "./translations/locales/en/error.json" with { type: "json" };
+import type langs from "./translations/locales/en/langs.json" with { type: "json" };
+import type notify from "./translations/locales/en/notify.json" with { type: "json" };
+import type service from "./translations/locales/en/service.json" with { type: "json" };
 // import validate from "./translations/locales/en/validate.json" with { type: "json" };
 import "yup";
 

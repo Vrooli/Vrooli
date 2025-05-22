@@ -1,14 +1,14 @@
-import { ModelType, ResourceSubType, ResourceVersion, RunStepStatus } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { ModelType, ResourceSubType, type ResourceVersion, RunStepStatus } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { InputType } from "../consts/model.js";
 import { CodeLanguage } from "../consts/ui.js";
-import { FormInputType, FormSchema } from "../forms/types.js";
+import { type FormInputType, type FormSchema } from "../forms/types.js";
 import { DUMMY_ID } from "../id/snowflake.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
 import { SubroutineContextManager } from "./context.js";
-import { BranchLocationDataMap, BranchProgress, BranchStatus, ExecuteStepResult, IOMap, InitializedRunState, InputGenerationStrategy, Location, RunConfig, RunProgress, RunProgressStep, RunStateMachineServices, SubroutineExecutionStrategy, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, SubroutineOutputDisplayInfoProps } from "./types.js";
+import { type BranchLocationDataMap, type BranchProgress, BranchStatus, type ExecuteStepResult, type IOMap, type InitializedRunState, InputGenerationStrategy, type Location, type RunConfig, type RunProgress, type RunProgressStep, type RunStateMachineServices, SubroutineExecutionStrategy, type SubroutineIOMapping, type SubroutineInputDisplayInfo, type SubroutineOutputDisplayInfo, type SubroutineOutputDisplayInfoProps } from "./types.js";
 
 /**
  * The result of running a subroutine.
@@ -307,7 +307,7 @@ export abstract class SubroutineExecutor {
 
         // Some input information can be grabbed from the routine's inputs and outputs directly.
         // Other information can be found in the routine's form schemas
-        const { formInput, formOutput } = RoutineVersionConfig.deserialize(routine, logger, { useFallbacks: true });
+        const { formInput, formOutput } = RoutineVersionConfig.parse(routine, logger, { useFallbacks: true });
         const formInputSchema = formInput?.schema;
         const formOutputSchema = formOutput?.schema;
 
@@ -709,7 +709,7 @@ export abstract class SubroutineExecutor {
             const isMultiStep = this.isMultiStepRoutine(subroutine);
             if (isMultiStep) {
                 // Deserialize the child's graph configuration.
-                const { graph: childGraph } = RoutineVersionConfig.deserialize(subroutine, services.logger, { useFallbacks: true });
+                const { graph: childGraph } = RoutineVersionConfig.parse(subroutine, services.logger, { useFallbacks: true });
                 if (!childGraph) {
                     services.logger.error("executeStep: Invalid child graph configuration.");
                     result.branchStatus = BranchStatus.Failed;

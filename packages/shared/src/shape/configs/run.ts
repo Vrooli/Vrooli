@@ -1,6 +1,6 @@
 import { type Run } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { InputGenerationStrategy, PathSelectionStrategy, RunProgress, SubroutineExecutionStrategy } from "../../run/types.js";
+import { InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy, type RunProgress } from "../../run/types.js";
 import { LATEST_CONFIG_VERSION, parseObject, stringifyObject, type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
@@ -51,7 +51,7 @@ export class RunProgressConfig {
         this.subcontexts = data.subcontexts ?? RunProgressConfig.defaultSubcontexts();
     }
 
-    static deserialize(
+    static parse(
         { data }: Pick<Run, "data">,
         logger: PassableLogger, // or whichever logger you use
         { mode = DEFAULT_STRINGIFY_MODE }: { mode?: StringifyMode } = {},

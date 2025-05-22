@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
-import { ResourceSubTypeRoutine, RunRoutine } from "../api/types.js";
+import { ResourceSubTypeRoutine, type RunRoutine } from "../api/types.js";
 import { InputType } from "../consts/model.js";
-import { RoutineVersionConfig } from "../run/index.js";
+import { type RoutineVersionConfig } from "../run/index.js";
 import { FormBuilder } from "./builder.js";
-import { FormElement, FormSchema, FormStructureType } from "./types.js";
+import { type FormElement, type FormSchema, FormStructureType } from "./types.js";
 
 describe("FormBuilder", () => {
     describe("generateInitialValues", () => {

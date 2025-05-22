@@ -2,7 +2,7 @@
 import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS } from "../../consts/numbers.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
+import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
 import { type StringifyMode } from "./utils.js";
 
 // Keep track of config version for future compatibility
@@ -72,12 +72,12 @@ export class ChatConfig extends BaseConfig<ChatConfigObject> {
      * Parse and instantiate a ChatConfig from a serialized string.
      * Populates defaults when useFallbacks is true.
      */
-    static deserialize(
-        version: { config: string | null | undefined },
+    static parse(
+        version: { config: ChatConfigObject },
         logger: PassableLogger,
         opts?: { mode?: StringifyMode; useFallbacks?: boolean },
     ): ChatConfig {
-        return this.parseConfig<ChatConfigObject, ChatConfig>(
+        return super.parseBase<ChatConfigObject, ChatConfig>(
             version.config,
             logger,
             (cfg) => {

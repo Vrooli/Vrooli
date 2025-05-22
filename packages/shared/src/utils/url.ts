@@ -1,6 +1,6 @@
-import { Bookmark, ChatParticipant, Member, ModelType, Notification, Reaction, Resource, ResourceSubType, ResourceVersion, Schedule, Session, View } from "../api/types.js";
+import { type Bookmark, type ChatParticipant, type Member, type ModelType, type Notification, type Reaction, type Resource, ResourceSubType, type ResourceVersion, type Schedule, type Session, type View } from "../api/types.js";
 import { LINKS } from "../consts/ui.js";
-import { Run, TranslationKeyCommon } from "../types.js";
+import { type Run, type TranslationKeyCommon } from "../types.js";
 import { isOfType } from "./objects.js";
 
 export type UrlPrimitive = string | number | boolean | object;

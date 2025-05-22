@@ -10,7 +10,7 @@ import { ReportFor } from "../../api/types.js";
 import { validatePublicId } from "../../id/publicId.js";
 import { validatePK } from "../../id/snowflake.js";
 import { urlRegexDev } from "../../validation/utils/regex.js";
-import { YupMutateParams } from "../../validation/utils/types.js";
+import { type YupMutateParams } from "../../validation/utils/types.js";
 import { enumToYup } from "./builders/convert.js";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex.js";

@@ -42,7 +42,7 @@ export const resourceVersionValidation: YupModel<["create", "update"]> = {
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
-        resourceSubType: req(resourceSubType),
+        resourceSubType: opt(resourceSubType),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
