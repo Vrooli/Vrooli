@@ -1,9 +1,9 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, MINUTES_5_MS, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePK, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
-import { PrismaPromise } from "@prisma/client";
-import { Response } from "express";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, type EmailLogInInput, type EmailRequestPasswordChangeInput, type EmailResetPasswordInput, type EmailSignUpInput, MINUTES_5_MS, type Session, type Success, type SwitchCurrentAccountInput, type ValidateSessionInput, type WalletComplete, type WalletCompleteInput, type WalletInit, type WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePK, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@local/shared";
+import type { PrismaPromise } from "@prisma/client";
+import type { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
 import { randomString, validateCode } from "../../auth/codes.js";
-import { EMAIL_VERIFICATION_TIMEOUT, PasswordAuthService, UserDataForPasswordAuth } from "../../auth/email.js";
+import { EMAIL_VERIFICATION_TIMEOUT, PasswordAuthService, type UserDataForPasswordAuth } from "../../auth/email.js";
 import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "../../auth/jwt.js";
 import { RequestService } from "../../auth/request.js";
 import { SessionService } from "../../auth/session.js";
@@ -14,7 +14,7 @@ import { CustomError, createInvalidCredentialsError } from "../../events/error.j
 import { Trigger } from "../../events/trigger.js";
 import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user.js";
 import { SocketService } from "../../sockets/io.js";
-import { ApiEndpoint, SessionData } from "../../types.js";
+import type { ApiEndpoint, SessionData } from "../../types.js";
 import { hasProfanity } from "../../utils/censor.js";
 
 export type EndpointsAuth = {
@@ -171,6 +171,12 @@ export const auth: EndpointsAuth = {
                         hashed_password: PasswordAuthService.hashPassword(input.password),
                     },
                 },
+                creditAccount: {
+                    create: {
+                        id: generatePK(),
+                        currentBalance: BigInt(0),
+                    },
+                },
                 ...DEFAULT_USER_DATA,
             },
             select: PasswordAuthService.selectUserForPasswordAuth(),
@@ -288,6 +294,7 @@ export const auth: EndpointsAuth = {
             // Create new session
             DbProvider.get().session.create({
                 data: {
+                    id: generatePK(),
                     device_info: deviceInfo,
                     expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                     last_refresh_at: new Date(),
@@ -501,6 +508,7 @@ export const auth: EndpointsAuth = {
         if (!walletData) {
             walletData = await DbProvider.get().wallet.create({
                 data: {
+                    id: generatePK(),
                     stakingAddress: input.stakingAddress,
                     nonce,
                     nonceCreationTime: new Date().toISOString(),
@@ -561,14 +569,21 @@ export const auth: EndpointsAuth = {
             // Create new user
             const userData = await DbProvider.get().user.create({
                 data: {
+                    id: generatePK(),
                     publicId: generatePublicId(),
                     name: `user${randomString(DEFAULT_USER_NAME_LENGTH, "0123456789")}`,
                     wallets: {
                         connect: { id: walletData.id },
                     },
+                    creditAccount: {
+                        create: {
+                            id: generatePK(),
+                            currentBalance: BigInt(0),
+                        },
+                    },
                     ...DEFAULT_USER_DATA,
                 },
-                select: { id: true },
+                select: PasswordAuthService.selectUserForPasswordAuth(),
             });
             userId = userData.id;
             // Give user award for signing up

@@ -154,8 +154,8 @@ model chat_message {
     versionIndex      Int                @default(0)
     parentId          BigInt?            @db.BigInt
     userId            BigInt?            @db.BigInt
-    chatId            BigInt?            @db.BigInt
-    chat              chat?              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    chatId            BigInt             @db.BigInt
+    chat              chat               @relation(fields: [chatId], references: [id], onDelete: Cascade)
     parent            chat_message?      @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
     children          chat_message[]     @relation("chat_message_parent")
     user              user?              @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
@@ -615,7 +615,7 @@ model credit_account {
     id             BigInt                @id @db.BigInt
     /// Redundant but handy for quick queries & locking:
     currentBalance BigInt                @default(0)
-    /// last ledger row applied – lets us “fast-fail” replays
+    /// last ledger row applied – lets us "fast-fail" replays
     lastEntryId    BigInt?               @unique
     /// The entity this account belongs to.
     userId         BigInt?               @unique @db.BigInt
@@ -650,8 +650,8 @@ model credit_ledger_entry {
     /// credits).  Null for internal or spend entries.
     paymentId BigInt? @db.BigInt
 
-    /// For transfers we store *both* sides: one entry negative on the sender’s
-    /// account, one entry positive on the receiver’s account, both sharing the
+    /// For transfers we store *both* sides: one entry negative on the sender's
+    /// account, one entry positive on the receiver's account, both sharing the
     /// same `transferGroup`.  That lets you JOIN the pair later.
     transferGroup String? @db.VarChar(64)
 
@@ -1291,7 +1291,7 @@ model user {
     currentStreak             Int                         @default(0)
     longestStreak             Int                         @default(0)
     accountTabsOrder          String?                     @db.VarChar(255)
-    botSettings               String?                     @db.VarChar(4096)
+    botSettings               Json?                       @default("{}")
     notificationSettings      String?                     @db.VarChar(2048)
     bookmarks                 Int                         @default(0)
     views                     Int                         @default(0)

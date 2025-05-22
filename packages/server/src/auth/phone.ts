@@ -1,7 +1,8 @@
-import { API_CREDITS_FREE, MINUTES_15_S, MINUTES_2_S } from "@local/shared";
+import { API_CREDITS_FREE, BUSINESS_NAME, MINUTES_15_S, MINUTES_2_S, generatePK } from "@local/shared";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
-import { sendSmsVerification } from "../tasks/sms/queue.js";
+import { QueueService } from "../tasks/queues.js";
+import { QueueTaskType } from "../tasks/taskTypes.js";
 import { randomString, validateCode } from "./codes.js";
 
 export const PHONE_VERIFICATION_TIMEOUT_MS = MINUTES_15_S;
@@ -45,20 +46,21 @@ export async function setupPhoneVerificationCode(
     if (!phone) {
         phone = await DbProvider.get().phone.create({
             data: {
+                id: generatePK(),
                 phoneNumber,
                 user: {
-                    connect: { id: userId },
+                    connect: { id: BigInt(userId) },
                 },
             },
             select: phoneSelect,
         });
     }
     // Check if it belongs to the user
-    if (phone.user && phone.user.id !== userId) {
+    if (phone.user && phone.user.id.toString() !== userId) {
         throw new CustomError("0061", "PhoneNotYours");
     }
     // Check if it's already verified
-    if (phone.verified) {
+    if (phone.verifiedAt) {
         throw new CustomError("0059", "PhoneAlreadyVerified");
     }
     // Check if code was sent recently
@@ -73,7 +75,12 @@ export async function setupPhoneVerificationCode(
         data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
     });
     // Send new verification text
-    sendSmsVerification(phoneNumber, verificationCode);
+    QueueService.get().sms.addTask({
+        type: QueueTaskType.SMS_MESSAGE,
+        id: `${phoneNumber}-${verificationCode}`, // Overrides any existing verification code to the same phone number
+        to: [phoneNumber],
+        body: `${verificationCode} is your ${BUSINESS_NAME} verification code`,
+    });
 }
 
 // TODO 2: Since credits are issued once per user AND once per phone number, we need to make sure that 1) the phone number is stored in a standard format 2) we disconnect phone numbers when removing them from accounts (and set verification stuff to false/null, EXCEPT for verifiedAt), rather than deleting them
@@ -105,10 +112,10 @@ export async function validatePhoneVerificationCode(
     if (!phone)
         throw new CustomError("0348", "PhoneNotFound");
     // Check that userId matches phone's userId
-    if (phone.userId !== userId)
+    if (phone.userId?.toString() !== userId)
         throw new CustomError("0351", "PhoneNotYours");
     // If phone already verified, remove old verification code
-    if (phone.verified) {
+    if (phone.verifiedAt) {
         await DbProvider.get().phone.update({
             where: { id: phone.id },
             data: { verificationCode: null, lastVerificationCodeRequestAttempt: null },
@@ -132,9 +139,9 @@ export async function validatePhoneVerificationCode(
     });
     // If this is the first time verifying (both for the user and the phone), give free credits
     const userData = await DbProvider.get().user.findUnique({
-        where: { id: userId },
+        where: { id: BigInt(userId) },
         select: {
-            premium: {
+            plan: {
                 select: {
                     id: true,
                     credits: true,
@@ -144,20 +151,21 @@ export async function validatePhoneVerificationCode(
         },
     });
     if (userData) {
-        const hasReceivedFreeTrial = userData.premium?.receivedFreeTrialAt !== null;
+        const hasReceivedFreeTrial = userData.plan?.receivedFreeTrialAt !== null;
         if (!hasReceivedFreeTrial && !hasPhoneBeenVerifiedBefore) {
             await DbProvider.get().user.update({
-                where: { id: userId },
+                where: { id: BigInt(userId) },
                 data: {
-                    premium: {
+                    plan: {
                         upsert: {
                             create: {
+                                id: generatePK(),
                                 receivedFreeTrialAt: new Date(),
                                 credits: API_CREDITS_FREE,
                             },
                             update: {
                                 receivedFreeTrialAt: new Date(),
-                                credits: (userData.premium?.credits ?? BigInt(0)) + API_CREDITS_FREE,
+                                credits: (userData.plan?.credits ?? BigInt(0)) + API_CREDITS_FREE,
                             },
                         },
                     },

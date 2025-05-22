@@ -16,7 +16,7 @@
  *  • Separating concerns keeps both classes smaller & easier to test.
  * ------------------------------------------------------------------ */
 import { LRUCache, MINUTES_15_S, SECONDS_1_MS } from "@local/shared";
-import IORedis, { Cluster, Redis } from "ioredis";
+import IORedis, { type Cluster, type Redis } from "ioredis";
 import { logger } from "./events/logger.js";
 import { type ServiceHealth } from "./services/health.js";
 

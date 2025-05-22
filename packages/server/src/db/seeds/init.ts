@@ -3,13 +3,14 @@
  * This is written so that it can be called multiple times without duplicating data.
  */
 import { AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, TeamConfig } from "@local/shared";
+import type { Prisma } from "@prisma/client";
 import pkg from "@prisma/client";
 import { readManyHelper } from "../../actions/reads.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { importData } from "../../builders/importExport.js";
 import type { PaginatedSearchResult } from "../../builders/types.js";
 import { logger } from "../../events/logger.js";
-import { withRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { RunProcessSelect } from "../../tasks/run/process.js";
 import { data as resourceData } from "./data/resources.js";
 import { data as tags } from "./data/tags.js";
@@ -201,7 +202,7 @@ async function initTeams(client: InstanceType<typeof PrismaClient>) {
                             },
                         ],
                     },
-                })).serialize("json"),
+                })).export() as unknown as Prisma.InputJsonValue,
                 handle: vrooliHandle,
                 createdBy: { connect: { publicId: SEEDED_PUBLIC_IDS.Admin } },
                 translations: {
@@ -291,36 +292,32 @@ export async function init(client: InstanceType<typeof PrismaClient>) {
         ],
     }, importConfig);
 
-    // For codes, routines, and standards, we seeded them for use in basic routines. 
-    // To improve performance, let's cache them in memory
-    await withRedis({
-        process: async (redisClient) => {
-            if (!redisClient) return;
-            const info = RunProcessSelect.ResourceVersion;
-            const req = {
-                session: {
-                    apiToken: undefined,
-                    fromSafeOrigin: true,
-                    isLoggedIn: true,
-                    languages: [DEFAULT_LANGUAGE],
-                    users: [userData],
-                },
-            };
-            const baseInputFiltered = { isLatestPublic: true, ownedByUserIdRoot: userData.id };
-            let hasNextPage: boolean;
-            let afterCursor: string | undefined;
-            do {
-                const input = afterCursor ? { ...baseInputFiltered, after: afterCursor } : baseInputFiltered;
-                const page: PaginatedSearchResult = await readManyHelper({ info, input, objectType: "ResourceVersion", req });
-                for (const { node: rv } of page.edges) {
-                    await redisClient.set(`seeded:resourceVersion:${rv.id}`, JSON.stringify(rv));
-                }
-                hasNextPage = page.pageInfo.hasNextPage;
-                afterCursor = page.pageInfo.endCursor ?? undefined;
-            } while (hasNextPage);
-        },
-        trace: "0705",
-    });
+    // Cache seeded resource versions for performance using CacheService
+    {
+        const cacheService = CacheService.get();
+        const info = RunProcessSelect.ResourceVersion;
+        const req = {
+            session: {
+                apiToken: undefined,
+                fromSafeOrigin: true,
+                isLoggedIn: true,
+                languages: [DEFAULT_LANGUAGE],
+                users: [userData],
+            },
+        };
+        const baseInputFiltered = { isLatestPublic: true, ownedByUserIdRoot: userData.id };
+        let hasNextPage: boolean;
+        let afterCursor: string | undefined;
+        do {
+            const input = afterCursor ? { ...baseInputFiltered, after: afterCursor } : baseInputFiltered;
+            const page: PaginatedSearchResult = await readManyHelper({ info, input, objectType: "ResourceVersion", req });
+            for (const { node: rv } of page.edges) {
+                await cacheService.set(`seeded:resourceVersion:${rv.id}`, JSON.stringify(rv));
+            }
+            hasNextPage = page.pageInfo.hasNextPage;
+            afterCursor = page.pageInfo.endCursor ?? undefined;
+        } while (hasNextPage);
+    }
 
     logger.info("✅ Database seeding complete.");
 }
