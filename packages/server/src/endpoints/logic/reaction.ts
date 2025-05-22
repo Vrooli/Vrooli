@@ -1,8 +1,8 @@
-import { ReactInput, ReactionSearchInput, ReactionSearchResult, Success } from "@local/shared";
+import { type ReactInput, type ReactionSearchInput, type ReactionSearchResult, type Success } from "@local/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { ReactionModel } from "../../models/base/reaction.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsReaction = {
     findMany: ApiEndpoint<ReactionSearchInput, ReactionSearchResult>;

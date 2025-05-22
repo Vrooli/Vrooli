@@ -1,7 +1,7 @@
-import { ModelType } from "@local/shared";
+import { type ModelType } from "@local/shared";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { EmbedSortOption } from "../utils/embeddings/cache.js";
+import { type EmbedSortOption } from "../utils/embeddings/cache.js";
 
 export type SQLQuery = {
     select: (SelectClause | string)[];

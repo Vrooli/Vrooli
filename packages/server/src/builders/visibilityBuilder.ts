@@ -1,9 +1,9 @@
-import { ApiKeyPermission, DUMMY_ID, ModelType, VisibilityType } from "@local/shared";
+import { ApiKeyPermission, DUMMY_ID, type ModelType, VisibilityType } from "@local/shared";
 import { RequestService } from "../auth/request.js";
 import { CustomError } from "../events/error.js";
-import { GenericModelLogic, ModelMap } from "../models/base/index.js";
-import { VisibilityFunc, VisibilityFuncInput } from "../models/types.js";
-import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types.js";
+import { type GenericModelLogic, ModelMap } from "../models/base/index.js";
+import { type VisibilityFunc, type VisibilityFuncInput } from "../models/types.js";
+import { type VisibilityBuilderPrismaResult, type VisibilityBuilderProps } from "./types.js";
 
 // Create a map of visibility types to their corresponding function names
 const visibilityFuncNames = {

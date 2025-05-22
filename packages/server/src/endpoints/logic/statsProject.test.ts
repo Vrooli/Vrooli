@@ -1,5 +1,5 @@
-import { StatPeriodType, StatsProjectSearchInput, uuid } from "@local/shared";
-import { PeriodType, project as ProjectModelPrisma } from "@prisma/client"; // Correct import
+import { StatPeriodType, type StatsProjectSearchInput, uuid } from "@local/shared";
+import { PeriodType, type project as ProjectModelPrisma } from "@prisma/client"; // Correct import
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

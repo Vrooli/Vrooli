@@ -1,7 +1,7 @@
-import { Job } from "bull";
-import { Twilio } from "twilio";
+import { type Job } from "bullmq";
+import { type Twilio } from "twilio";
 import { logger } from "../../events/logger.js";
-import { SmsProcessPayload } from "./queue.js";
+import { type SMSTask } from "../taskTypes.js";
 
 let texting_client: Twilio | null = null;
 let phoneNumber: string | null = null;
@@ -35,7 +35,7 @@ export async function setupTextingClient() {
     }
 }
 
-export async function smsProcess(job: Job<SmsProcessPayload>) {
+export async function smsProcess(job: Job<SMSTask>) {
     try {
         await setupTextingClient();
         if (texting_client === null || phoneNumber === null) {

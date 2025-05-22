@@ -62,7 +62,7 @@ export async function calculateComplexity(
 
     // Create a map of all resource versions (including related versions) by ID, so we can reference them later.
     const resourceVersionsById = new Map<string, { complexity: number | null }>(
-        fetchedData.map(rv => [rv.id.toString(), rv])
+        fetchedData.map(rv => [rv.id.toString(), rv]),
     );
     for (const rv of fetchedData) {
         if (rv.relatedVersions) {

@@ -1,7 +1,7 @@
-import { StatsProjectSearchInput, StatsProjectSearchResult, VisibilityType } from "@local/shared";
+import { type StatsProjectSearchInput, type StatsProjectSearchResult, VisibilityType } from "@local/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsStatsProject = {
     findMany: ApiEndpoint<StatsProjectSearchInput, StatsProjectSearchResult>;

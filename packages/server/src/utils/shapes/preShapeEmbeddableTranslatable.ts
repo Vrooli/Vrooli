@@ -1,6 +1,6 @@
-import { ModelType } from "@local/shared";
+import { type ModelType } from "@local/shared";
 import { ModelMap } from "../../models/base/index.js";
-import { WithIdField } from "../../types.js";
+import { type WithIdField } from "../../types.js";
 
 type PreShapeEmbeddableTranslatableParams<IdField extends string = "id"> = {
     Create: {

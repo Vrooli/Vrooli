@@ -1,5 +1,5 @@
-import { ResourceVersionRelation } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type ResourceVersionRelation } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const resourceVersionRelation: ApiPartial<ResourceVersionRelation> = {

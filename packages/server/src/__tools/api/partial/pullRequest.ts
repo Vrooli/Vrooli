@@ -1,5 +1,5 @@
-import { PullRequest, PullRequestTranslation, PullRequestYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type PullRequest, type PullRequestTranslation, type PullRequestYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const pullRequestYou: ApiPartial<PullRequestYou> = {

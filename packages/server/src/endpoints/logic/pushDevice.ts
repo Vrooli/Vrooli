@@ -1,10 +1,10 @@
-import { PushDevice, PushDeviceCreateInput, PushDeviceTestInput, PushDeviceUpdateInput, Success } from "@local/shared";
+import { type PushDevice, type PushDeviceCreateInput, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success } from "@local/shared";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsPushDevice = {
     findMany: ApiEndpoint<undefined, PushDevice[]>;

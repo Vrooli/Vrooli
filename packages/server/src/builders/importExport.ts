@@ -1,9 +1,9 @@
-import { ApiVersionConfig, ApiVersionConfigObject, CodeVersionConfig, CodeVersionConfigObject, ModelType, NoteVersionConfig, NoteVersionConfigObject, Owner, ProjectVersionConfig, ProjectVersionConfigObject, Resource, ResourceShape, ResourceType, ResourceVersionShape, RoutineVersionConfig, RoutineVersionConfigObject, SessionUser, StandardVersionConfig, StandardVersionConfigObject, mergeDeep, shapeResource } from "@local/shared";
+import { ApiVersionConfig, type ApiVersionConfigObject, type BaseConfigObject, CodeVersionConfig, type CodeVersionConfigObject, ModelType, NoteVersionConfig, type NoteVersionConfigObject, type Owner, ProjectVersionConfig, type ProjectVersionConfigObject, type Resource, type ResourceShape, ResourceType, type ResourceVersionShape, RoutineVersionConfig, type RoutineVersionConfigObject, type SessionUser, StandardVersionConfig, type StandardVersionConfigObject, mergeDeep, shapeResource } from "@local/shared";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { createOneHelper } from "../actions/creates.js";
 import { updateOneHelper } from "../actions/updates.js";
-import { RequestService } from "../auth/request.js";
+import { type RequestService } from "../auth/request.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
@@ -12,7 +12,7 @@ import { permissionsCheck } from "../validators/permissions.js";
 import { combineQueries } from "./combineQueries.js";
 import { InfoConverter } from "./infoConverter.js";
 import { permissionsSelectHelper } from "./permissionsSelectHelper.js";
-import { PartialApiInfo } from "./types.js";
+import { type PartialApiInfo } from "./types.js";
 
 /** The current overall export format version. */
 const EXPORT_VERSION = "1.0.0";

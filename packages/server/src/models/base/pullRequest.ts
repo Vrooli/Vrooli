@@ -1,5 +1,5 @@
-import { generatePublicId, MaxObjects, ModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { generatePublicId, MaxObjects, type ModelType, type PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, type PullRequestToObjectType, pullRequestValidation } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -8,7 +8,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { PullRequestFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { PullRequestModelInfo, PullRequestModelLogic } from "./types.js";
+import { type PullRequestModelInfo, type PullRequestModelLogic } from "./types.js";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ResourceVersion: "fromResourceVersion",

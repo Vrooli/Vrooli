@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, ResourceVersion, Tag } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, type ResourceVersion, type Tag } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -14,7 +14,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ResourceFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, ReactionModelLogic, ResourceModelInfo, ResourceModelLogic, ViewModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type ReactionModelLogic, type ResourceModelInfo, type ResourceModelLogic, type ViewModelLogic } from "./types.js";
 
 type ResourcePre = PreShapeRootResult;
 
@@ -26,17 +26,9 @@ export const ResourceModel: ResourceModelLogic = ({
         label: {
             select: () => ({
                 id: true,
-                isDeleted: false,
-                OR: [
-                    {
-                        isPrivate: false,
-                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
-                    },
-                    {
-                        isPrivate: true,
-                        versions: { select: { id: true, isLatest: true, translations: { select: { language: true, name: true } } } },
-                    },
-                ],
+                isDeleted: true,
+                isPrivate: true,
+                versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
             }),
             get: (select, languages) => {
                 const latestVersion = select.versions.find((version) => version.isLatestPublic || version.isLatest);

@@ -7,7 +7,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ReminderFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types.js";
+import { type ReminderListModelInfo, type ReminderListModelLogic, type ReminderModelInfo, type ReminderModelLogic } from "./types.js";
 
 const __typename = "Reminder" as const;
 export const ReminderModel: ReminderModelLogic = ({

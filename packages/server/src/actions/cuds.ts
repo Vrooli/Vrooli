@@ -1,21 +1,21 @@
-import { generatePK, ModelType, SessionUser, validatePK, YupMutateParams } from "@local/shared";
-import { PrismaPromise } from "@prisma/client";
-import { AnyObjectSchema, ValidationError as YupError } from "yup";
+import { generatePK, type ModelType, type SessionUser, validatePK, type YupMutateParams } from "@local/shared";
+import { type PrismaPromise } from "@prisma/client";
+import { type AnyObjectSchema, ValidationError as YupError } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
-import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
+import { type PartialApiInfo, type PrismaCreate, type PrismaDelegate, type PrismaUpdate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
-import { PreMap } from "../models/types.js";
-import { cudInputsToMaps, CudInputsToMapsResult } from "../utils/cudInputsToMaps.js";
+import { type PreMap } from "../models/types.js";
+import { cudInputsToMaps, type CudInputsToMapsResult } from "../utils/cudInputsToMaps.js";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps.js";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
-import { CudInputData } from "../utils/types.js";
+import { type CudInputData } from "../utils/types.js";
 import { maxObjectsCheck } from "../validators/maxObjectsCheck.js";
 import { permissionsCheck } from "../validators/permissions.js";
 import { profanityCheck } from "../validators/profanityCheck.js";
-import { CudAdditionalData, CudHelperParams, CudHelperResult } from "./types.js";
+import { type CudAdditionalData, type CudHelperParams, type CudHelperResult } from "./types.js";
 
 type CudDataMaps = CudInputsToMapsResult;
 
@@ -70,7 +70,7 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
             throw new CustomError("0953", "InternalError", {
                 action,
                 objectType,
-                context: "Missing schema factory"
+                context: "Missing schema factory",
             });
         }
 
@@ -90,8 +90,8 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
                     errors: fieldErrors,
                     context: {
                         inputKeys: Object.keys(input),
-                        errorCount: fieldErrors.length
-                    }
+                        errorCount: fieldErrors.length,
+                    },
                 };
                 throw new CustomError("0558", "ValidationFailed", payload);
             }
@@ -99,11 +99,11 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
                 err: err instanceof Error ? {
                     name: err.name,
                     message: err.message,
-                    stack: err.stack
+                    stack: err.stack,
                 } : String(err),
                 objectType,
                 action,
-                context: "Validation failed"
+                context: "Validation failed",
             });
         }
     }

@@ -5,7 +5,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { StatsTeamFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { StatsTeamModelInfo, StatsTeamModelLogic, TeamModelInfo, TeamModelLogic } from "./types.js";
+import { type StatsTeamModelInfo, type StatsTeamModelLogic, type TeamModelInfo, type TeamModelLogic } from "./types.js";
 
 const __typename = "StatsTeam" as const;
 export const StatsTeamModel: StatsTeamModelLogic = ({

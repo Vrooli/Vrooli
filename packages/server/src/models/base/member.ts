@@ -6,7 +6,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { MemberFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { MemberModelInfo, MemberModelLogic, RoleModelLogic, TeamModelInfo, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
+import { type MemberModelInfo, type MemberModelLogic, type RoleModelLogic, type TeamModelInfo, type TeamModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
 
 const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({

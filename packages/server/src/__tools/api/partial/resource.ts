@@ -1,5 +1,5 @@
-import { Resource, ResourceYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Resource, type ResourceYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const resourceYou: ApiPartial<ResourceYou> = {

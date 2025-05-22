@@ -1,6 +1,6 @@
-import { ModelType, ResourceSubType, ResourceType, ScheduleFor, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
-import { PeriodType } from "@prisma/client";
-import { RequestService } from "../auth/request.js";
+import { type ModelType, type ResourceSubType, type ResourceType, type ScheduleFor, type TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
+import { type PeriodType } from "@prisma/client";
+import { type RequestService } from "../auth/request.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
 

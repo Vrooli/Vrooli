@@ -11,7 +11,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ReportResponseFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportResponseModelLogic } from "./types.js";
+import { type ReportModelInfo, type ReportModelLogic, type ReportResponseModelInfo, type ReportResponseModelLogic } from "./types.js";
 
 const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({

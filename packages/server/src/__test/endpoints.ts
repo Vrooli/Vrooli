@@ -1,7 +1,7 @@
 import { ApiKeyPermission } from "@local/shared";
 import { expect } from "chai";
 import { ApiKeyEncryptionService } from "../auth/apiKeyEncryption.js";
-import { UserDataForPasswordAuth } from "../auth/email.js";
+import { type UserDataForPasswordAuth } from "../auth/email.js";
 import { mockApiSession, mockLoggedOutSession } from "./session.js";
 
 /**

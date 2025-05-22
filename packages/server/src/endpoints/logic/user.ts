@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, BotCreateInput, BotUpdateInput, FindByPublicIdInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Success, User, UserSearchInput, UserSearchResult } from "@local/shared";
+import { AUTH_PROVIDERS, type BotCreateInput, type BotUpdateInput, type FindByPublicIdInput, type ImportCalendarInput, type ProfileEmailUpdateInput, profileEmailUpdateValidation, type ProfileUpdateInput, type Success, type User, type UserSearchInput, type UserSearchResult } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
@@ -7,7 +7,7 @@ import { PasswordAuthService } from "../../auth/email.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 import { parseICalFile } from "../../utils/calendar.js";
 import { user_profile } from "../generated/user_profile.js";
 

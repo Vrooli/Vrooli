@@ -5,7 +5,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { StatsUserFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
+import { type StatsUserModelInfo, type StatsUserModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
 
 const __typename = "StatsUser" as const;
 export const StatsUserModel: StatsUserModelLogic = ({

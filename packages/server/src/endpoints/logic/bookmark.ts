@@ -1,9 +1,9 @@
-import { Bookmark, BookmarkCreateInput, BookmarkSearchInput, BookmarkSearchResult, BookmarkUpdateInput, FindByIdInput, VisibilityType } from "@local/shared";
+import { type Bookmark, type BookmarkCreateInput, type BookmarkSearchInput, type BookmarkSearchResult, type BookmarkUpdateInput, type FindByIdInput, VisibilityType } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsBookmark = {
     findOne: ApiEndpoint<FindByIdInput, Bookmark>;

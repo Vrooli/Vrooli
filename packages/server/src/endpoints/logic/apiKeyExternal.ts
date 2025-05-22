@@ -1,8 +1,8 @@
-import { ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput } from "@local/shared";
+import { type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsApiKeyExternal = {
     createOne: ApiEndpoint<ApiKeyExternalCreateInput, ApiKeyExternal>;

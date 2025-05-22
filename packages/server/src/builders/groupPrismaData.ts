@@ -1,7 +1,7 @@
-import { ModelType, OrArray, isObject } from "@local/shared";
+import { type ModelType, type OrArray, isObject } from "@local/shared";
 import pkg from "lodash";
 import { isRelationshipObject } from "./isOfType.js";
-import { PartialApiInfo } from "./types.js";
+import { type PartialApiInfo } from "./types.js";
 
 const { merge } = pkg;
 

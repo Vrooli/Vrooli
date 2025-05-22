@@ -1,5 +1,5 @@
-import { RequestFile } from "@local/server";
-import { CalendarResponse, DateWithTimeZone } from "node-ical";
+import { type RequestFile } from "@local/server";
+import { type CalendarResponse, type DateWithTimeZone } from "node-ical";
 
 /**
  * Parses an iCalendar file.

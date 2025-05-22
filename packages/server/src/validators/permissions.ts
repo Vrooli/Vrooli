@@ -1,13 +1,13 @@
-import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
+import { DUMMY_ID, type ModelType, type SessionUser } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
-import { PrismaDelegate } from "../builders/types.js";
+import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
-import { Validator } from "../models/types.js";
-import { AuthDataById, AuthDataItem } from "../utils/getAuthenticatedData.js";
-import { InputsById, QueryAction } from "../utils/types.js";
+import { type Validator } from "../models/types.js";
+import { type AuthDataById, type AuthDataItem } from "../utils/getAuthenticatedData.js";
+import { type InputsById, type QueryAction } from "../utils/types.js";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck.js";
 
 /**

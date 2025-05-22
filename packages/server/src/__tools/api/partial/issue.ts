@@ -1,5 +1,5 @@
-import { Issue, IssueTranslation, IssueYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Issue, type IssueTranslation, type IssueYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const issueTranslation: ApiPartial<IssueTranslation> = {

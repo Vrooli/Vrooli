@@ -1,6 +1,6 @@
 import { validatePK } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
-import { RelationshipType } from "../../builders/types.js";
+import { shapeHelper, type ShapeHelperOutput, type ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { type RelationshipType } from "../../builders/types.js";
 
 // Types of objects which have tags
 type TaggedObjectType = "Resource" | "Team";

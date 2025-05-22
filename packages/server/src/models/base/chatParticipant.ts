@@ -3,7 +3,7 @@ import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ChatParticipantFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
+import { type ChatModelInfo, type ChatModelLogic, type ChatParticipantModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
 
 const __typename = "ChatParticipant" as const;
 export const ChatParticipantModel: ChatParticipantModelLogic = ({

@@ -9,7 +9,7 @@ import { translationShapeHelper } from "../../utils/shapes/translationShapeHelpe
 import { TagFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, TagModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type TagModelLogic } from "./types.js";
 
 type TagPre = PreShapeEmbeddableTranslatableResult;
 

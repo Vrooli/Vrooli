@@ -1,5 +1,5 @@
-import { StatPeriodType, StatsRoutineSearchInput, uuid } from "@local/shared";
-import { PeriodType, routine as RoutineModelPrisma } from "@prisma/client";
+import { StatPeriodType, type StatsRoutineSearchInput, uuid } from "@local/shared";
+import { PeriodType, type routine as RoutineModelPrisma } from "@prisma/client";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

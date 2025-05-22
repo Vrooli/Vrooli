@@ -2,7 +2,6 @@ import { MaxObjects, MeetingSortBy, generatePublicId, getTranslation, meetingVal
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
@@ -10,7 +9,7 @@ import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { MeetingFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
-import { MeetingModelInfo, MeetingModelLogic } from "./types.js";
+import { type MeetingModelInfo, type MeetingModelLogic } from "./types.js";
 
 type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
@@ -23,16 +22,6 @@ export const MeetingModel: MeetingModelLogic = ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => getTranslation(select, languages).name ?? "",
-        },
-        embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } }),
-            get: ({ translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
-                return EmbeddingService.getEmbeddableString({
-                    description: trans.description,
-                    name: trans.name,
-                }, languages?.[0]);
-            },
         },
     }),
     format: MeetingFormat,

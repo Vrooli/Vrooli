@@ -60,19 +60,19 @@ export class SQLiteDriver implements DatabaseService {
      */
     public async deleteAll(): Promise<void> {
         // Disable foreign key constraints to allow deletion in any order
-        await this.prisma.$executeRawUnsafe(`PRAGMA foreign_keys = OFF;`);
+        await this.prisma.$executeRawUnsafe("PRAGMA foreign_keys = OFF;");
         // Retrieve all user-defined tables in SQLite
         const tables: Array<{ name: string }> = await this.prisma.$queryRawUnsafe(
-            `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';",
         );
         // Delete all rows from each table
         for (const { name } of tables) {
             await this.prisma.$executeRawUnsafe(`DELETE FROM "${name}";`);
         }
         // Reset SQLite autoincrement sequences
-        await this.prisma.$executeRawUnsafe(`DELETE FROM sqlite_sequence;`);
+        await this.prisma.$executeRawUnsafe("DELETE FROM sqlite_sequence;");
         // Re-enable foreign key constraints
-        await this.prisma.$executeRawUnsafe(`PRAGMA foreign_keys = ON;`);
-        logger.info('Cleared all data from SQLite database tables');
+        await this.prisma.$executeRawUnsafe("PRAGMA foreign_keys = ON;");
+        logger.info("Cleared all data from SQLite database tables");
     }
 }

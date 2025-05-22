@@ -1,5 +1,5 @@
 import { MaxObjects, RunSortBy, runValidation } from "@local/shared";
-import { RunStatus, RunStepStatus } from "@prisma/client";
+import { RunStatus, type RunStepStatus } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -12,7 +12,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { RunFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceVersionModelLogic, RunModelInfo, RunModelLogic } from "./types.js";
+import { type ResourceVersionModelLogic, type RunModelInfo, type RunModelLogic } from "./types.js";
 
 const __typename = "Run" as const;
 export const RunModel: RunModelLogic = ({

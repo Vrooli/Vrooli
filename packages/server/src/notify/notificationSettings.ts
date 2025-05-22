@@ -1,8 +1,8 @@
-import { NotificationSettings, NotificationSettingsUpdateInput } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { type NotificationSettings, type NotificationSettingsUpdateInput } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import { DbProvider } from "../db/provider.js";
 import { parseJsonOrDefault } from "../utils/objectTools.js";
-import { NotificationCategory } from "./notify.js";
+import { type NotificationCategory } from "./notify.js";
 
 type NotificationRecipients = {
     pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, "user">>]: true } }>[],

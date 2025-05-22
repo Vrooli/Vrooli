@@ -1,7 +1,7 @@
-import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, generatePublicId, getTranslation, userValidation } from "@local/shared";
+import { type BotCreateInput, type BotUpdateInput, generatePublicId, getTranslation, MaxObjects, type ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { DbProvider } from "../../db/provider.js";
-import { withRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
@@ -11,7 +11,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { UserFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type UserModelInfo, type UserModelLogic, type ViewModelLogic } from "./types.js";
 
 
 type UserPre = PreShapeEmbeddableTranslatableResult;
@@ -137,14 +137,9 @@ export const UserModel: UserModelLogic = ({
             afterMutations: async ({ deletedIds, updatedIds }) => {
                 // Remove all updated and deleted users from botSettings cache
                 if (deletedIds.length || updatedIds.length) {
-                    await withRedis({
-                        process: async (redisClient) => {
-                            if (!redisClient) return;
-                            const keys = [...deletedIds, ...updatedIds].map((id) => `bot:${id}`);
-                            await redisClient.del(...keys as never); // Redis' types are being weird
-                        },
-                        trace: "0236",
-                    });
+                    const cacheService = CacheService.get();
+                    const keys = [...deletedIds, ...updatedIds].map((id) => `bot:${id}`);
+                    await Promise.all(keys.map(key => cacheService.del(key)));
                 }
             },
         },

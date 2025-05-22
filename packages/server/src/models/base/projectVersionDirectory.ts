@@ -7,7 +7,7 @@ import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { ProjectVersionDirectoryFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ProjectVersionDirectoryModelInfo, ProjectVersionDirectoryModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types.js";
+import { type ProjectVersionDirectoryModelInfo, type ProjectVersionDirectoryModelLogic, type ProjectVersionModelInfo, type ProjectVersionModelLogic } from "./types.js";
 
 const __typename = "ProjectVersionDirectory" as const;
 export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = ({

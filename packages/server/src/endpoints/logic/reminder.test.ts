@@ -1,4 +1,4 @@
-import { FindByIdInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, uuid } from "@local/shared";
+import { type FindByIdInput, type ReminderCreateInput, type ReminderSearchInput, type ReminderUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";

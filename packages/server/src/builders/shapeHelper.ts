@@ -1,11 +1,11 @@
-import { ModelType, SessionUser, generatePK, lowercaseFirstLetter, validatePK } from "@local/shared";
-import { CudHelperParams } from "../actions/types.js";
+import { type ModelType, type SessionUser, generatePK, lowercaseFirstLetter, validatePK } from "@local/shared";
+import { type CudHelperParams } from "../actions/types.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { PreMap } from "../models/types.js";
-import { IdsCreateToConnect } from "../utils/types.js";
+import { type PreMap } from "../models/types.js";
+import { type IdsCreateToConnect } from "../utils/types.js";
 import { shapeRelationshipData } from "./shapeRelationshipData.js";
-import { RelationshipType } from "./types.js";
+import { type RelationshipType } from "./types.js";
 
 type OrMany<T, IsOneToOne extends boolean> = IsOneToOne extends true ? T : T[];
 type OrBoolean<T, IsOneToOne extends boolean> = IsOneToOne extends true ? boolean : T[];
@@ -248,7 +248,7 @@ export async function shapeHelper<
                         [joinData.uniqueFieldName]: {
                             [joinData.childIdFieldName]: shapeId(idField, data.where[idField]),
                             [joinData.parentIdFieldName]: shapeId("id", joinData.parentId!),
-                        }
+                        },
                     },
                     data: { [joinData.fieldName]: { update: data.data } },
                 };

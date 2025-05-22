@@ -3,7 +3,7 @@ import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { StatsSiteFormat } from "../formats.js";
-import { StatsSiteModelLogic } from "./types.js";
+import { type StatsSiteModelLogic } from "./types.js";
 
 const __typename = "StatsSite" as const;
 export const StatsSiteModel: StatsSiteModelLogic = ({

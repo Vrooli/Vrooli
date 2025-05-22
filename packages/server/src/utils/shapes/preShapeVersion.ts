@@ -1,6 +1,6 @@
-import { ModelType } from "@local/shared";
-import { WithIdField } from "../../types.js";
-import { EmbeddingLanguageUpdateMap, preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable.js";
+import { type ModelType } from "@local/shared";
+import { type WithIdField } from "../../types.js";
+import { type EmbeddingLanguageUpdateMap, preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable.js";
 
 type PreShapeVersionParams<IdField extends string = "id"> = {
     Create: {

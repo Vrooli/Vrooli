@@ -1,7 +1,7 @@
-import { ModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
-import { RelationshipType } from "../../builders/types.js";
-import { EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable.js";
+import { type ModelType } from "@local/shared";
+import { shapeHelper, type ShapeHelperOutput, type ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { type RelationshipType } from "../../builders/types.js";
+import { type EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable.js";
 
 type TranslationShapeHelperProps<
     Types extends readonly RelationshipType[],

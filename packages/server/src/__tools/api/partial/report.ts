@@ -1,5 +1,5 @@
-import { Report, ReportYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Report, type ReportYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const reportYou: ApiPartial<ReportYou> = {

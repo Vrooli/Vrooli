@@ -1,9 +1,9 @@
-import { ApiKey, ApiKeyCreateInput, ApiKeyCreated, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE } from "@local/shared";
+import { type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyUpdateInput, type ApiKeyValidateInput, COOKIE } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
 import { CustomError } from "../../events/error.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsApiKey = {
     createOne: ApiEndpoint<ApiKeyCreateInput, ApiKeyCreated>;

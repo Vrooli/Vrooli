@@ -1,11 +1,11 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { type BotCreateInput, type BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, type ServerError, type SessionUser, type TeamCreateInput, type TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
-import { Express, NextFunction, Request, Response, Router } from "express";
+import { type Express, type NextFunction, type Request, type Response, Router } from "express";
 import { SessionService } from "../auth/session.js";
-import { PartialApiInfo } from "../builders/types.js";
+import { type PartialApiInfo } from "../builders/types.js";
 import { CustomError } from "../events/error.js";
 import { context } from "../middleware/context.js";
-import { ApiEndpoint } from "../types.js";
+import { type ApiEndpoint } from "../types.js";
 import { processAndStoreFiles } from "../utils/fileStorage.js";
 import { ResponseService } from "../utils/response.js";
 

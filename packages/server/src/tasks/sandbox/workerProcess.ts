@@ -2,7 +2,7 @@
 import ivm from "isolated-vm";
 // import SuperJSON from "superjson";
 import { DEFAULT_HEARTBEAT_SEND_INTERVAL_MS, DEFAULT_JOB_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts.js";
-import { SandboxWorkerInput, SandboxWorkerMessage } from "./types.js";
+import { type SandboxWorkerInput, type SandboxWorkerMessage } from "./types.js";
 import { bufferRegister, bufferWrapper, getBufferClassString, getFunctionDetails, getURLClassString, urlRegister, urlWrapper } from "./utils.js";
 
 // Maximum length of code that can be executed

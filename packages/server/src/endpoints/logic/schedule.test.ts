@@ -1,4 +1,4 @@
-import { FindVersionInput, ScheduleCreateInput, ScheduleRecurrenceType, ScheduleSearchInput, ScheduleUpdateInput, uuid } from "@local/shared";
+import { type FindVersionInput, type ScheduleCreateInput, ScheduleRecurrenceType, type ScheduleSearchInput, type ScheduleUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

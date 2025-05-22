@@ -1,5 +1,5 @@
-import { PushDevice } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type PushDevice } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const pushDevice: ApiPartial<PushDevice> = {
     full: {

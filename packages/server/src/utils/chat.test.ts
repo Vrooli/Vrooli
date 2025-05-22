@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ChatMessageCreateResult, ChatMessageOperations, ChatMessageOperationsResult, ChatMessageOperationsSummaryResult, ChatPreBranchInfo, buildChatParticipantMessageQuery, populateMessageDataMap, prepareChatMessageOperations } from "./chat.js";
+import { type ChatMessageCreateResult, type ChatMessageOperations, type ChatMessageOperationsResult, type ChatMessageOperationsSummaryResult, type ChatPreBranchInfo, buildChatParticipantMessageQuery, populateMessageDataMap, prepareChatMessageOperations } from "./chat.js";
 
 /**
  * Recursively checks that each object within a 'select' object

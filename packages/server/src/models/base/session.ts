@@ -2,7 +2,7 @@ import { MaxObjects } from "@local/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { SessionFormat } from "../formats.js";
-import { SessionModelLogic } from "./types.js";
+import { type SessionModelLogic } from "./types.js";
 
 const __typename = "Session" as const;
 export const SessionModel: SessionModelLogic = ({

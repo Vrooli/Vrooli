@@ -1,4 +1,4 @@
-import { CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, FindByIdInput, generatePK, generatePublicId } from "@local/shared";
+import { type CommentCreateInput, CommentFor, type CommentSearchInput, type CommentUpdateInput, type FindByIdInput, generatePK, generatePublicId } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

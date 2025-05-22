@@ -1,7 +1,7 @@
-import { ModelType } from "@local/shared";
+import { type ModelType } from "@local/shared";
 import { isRelationshipObject } from "../builders/isOfType.js";
 import { ModelMap } from "../models/base/index.js";
-import { SearchStringQuery, SearchStringQueryParams } from "../models/types.js";
+import { type SearchStringQuery, type SearchStringQueryParams } from "../models/types.js";
 import { SearchStringMap } from "../utils/searchStringMap.js";
 
 /**

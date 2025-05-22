@@ -1,4 +1,4 @@
-import { FindByIdInput, generatePK, generatePublicId, ReportCreateInput, ReportFor, ReportSearchInput, ReportStatus, ReportUpdateInput } from "@local/shared";
+import { type FindByIdInput, generatePK, generatePublicId, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

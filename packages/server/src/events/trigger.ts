@@ -1,9 +1,9 @@
-import { AwardCategory, BookmarkFor, ChatMessage, CopyType, IssueStatus, ModelType, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
+import { type AwardCategory, type BookmarkFor, type ChatMessage, type CopyType, type IssueStatus, type ModelType, type PullRequestStatus, type ReactionFor, type ReportStatus } from "@local/shared";
 import { PasswordAuthService } from "../auth/email.js";
 import { DbProvider } from "../db/provider.js";
 import { Notify, isObjectSubscribable } from "../notify/notify.js";
 import { SocketService } from "../sockets/io.js";
-import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat.js";
+import { type PreMapMessageData, type PreMapMessageDataDelete } from "../utils/chat.js";
 import { Award, objectAwardCategory } from "./awards.js";
 import { logger } from "./logger.js";
 import { Reputation, objectReputationEvent } from "./reputation.js";

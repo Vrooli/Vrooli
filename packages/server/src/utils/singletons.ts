@@ -1,9 +1,9 @@
 import { i18nConfig } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from "../models/base/index.js";
+import { AIServiceRegistry } from "../services/conversation/registry.js";
+import { TokenEstimationRegistry } from "../services/conversation/tokens.js";
 import { SocketService } from "../sockets/io.js";
-import { LlmServiceRegistry } from "../tasks/llm/registry.js";
-import { TokenEstimationRegistry } from "../tasks/llm/tokenEstimator.js";
 import { initializeProfanity } from "./censor.js";
 
 const debug = process.env.NODE_ENV === "development";
@@ -15,7 +15,7 @@ export async function initSingletons() {
     // Initialize singletons
     await SocketService.init();
     await ModelMap.init();
-    await LlmServiceRegistry.init();
+    await AIServiceRegistry.init();
     await TokenEstimationRegistry.init();
 
     // Initialize censor dictionary

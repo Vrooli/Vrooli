@@ -1,4 +1,4 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, FindByIdInput, generatePK, generatePublicId } from "@local/shared";
+import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput, generatePK, generatePublicId } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";

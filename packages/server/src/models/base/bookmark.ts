@@ -1,5 +1,5 @@
-import { BookmarkFor, BookmarkSortBy, MaxObjects, ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { type BookmarkFor, BookmarkSortBy, MaxObjects, type ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
@@ -10,7 +10,7 @@ import { Trigger } from "../../events/trigger.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { BookmarkFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { BookmarkListModelInfo, BookmarkListModelLogic, BookmarkModelLogic } from "./types.js";
+import { type BookmarkListModelInfo, type BookmarkListModelLogic, type BookmarkModelLogic } from "./types.js";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Comment: "comment",

@@ -4,13 +4,14 @@ import { generateKeyPairSync } from "crypto";
 import * as http from "http";
 import * as https from "https";
 import sinon from "sinon";
-import { GenericContainer, StartedTestContainer } from "testcontainers";
+import { GenericContainer, type StartedTestContainer } from "testcontainers";
 import { DbProvider } from "../index.js";
 import { closeRedis, initializeRedis } from "../redisConn.js";
 import { AnthropicService } from "../tasks/llm/services/anthropic.js";
 import { MistralService } from "../tasks/llm/services/mistral.js";
 import { OpenAIService } from "../tasks/llm/services/openai.js";
-import { closeTaskQueues, setupTaskQueues } from "../tasks/setup.js";
+import { QueueService } from "../tasks/queues.js";
+import { setupTaskQueues } from "../tasks/setup.js";
 import { initSingletons } from "../utils/singletons.js";
 
 const SETUP_TIMEOUT_MS = 120_000;
@@ -130,7 +131,7 @@ after(async function teardown() {
     sinon.restore();
 
     // Properly close all task queues and their Redis connections
-    await closeTaskQueues();
+    await QueueService.get().shutdown();
 
     // Close the Redis client connection
     await closeRedis();

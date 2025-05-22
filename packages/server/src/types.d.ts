@@ -1,6 +1,6 @@
-import { ApiKeyPermission, ModelType, SessionUser } from "@local/shared";
-import { PartialApiInfo } from "./api/types.js";
-import { Context } from "./middleware/context.js";
+import { type ApiKeyPermission, type ModelType, type SessionUser } from "@local/shared";
+import { type PartialApiInfo } from "./api/types.js";
+import { type Context } from "./middleware/context.js";
 
 declare module "@local/server";
 // eslint-disable-next-line import/extensions

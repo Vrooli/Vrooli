@@ -13,7 +13,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { TeamFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, TeamModelInfo, TeamModelLogic, ViewModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type TeamModelInfo, type TeamModelLogic, type ViewModelLogic } from "./types.js";
 
 type TeamPre = PreShapeEmbeddableTranslatableResult;
 

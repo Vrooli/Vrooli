@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, SessionUser, uuid } from "@local/shared";
+import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, uuid } from "@local/shared";
 import { expect } from "chai";
 import { generateKeyPairSync } from "crypto";
-import { Response } from "express";
+import { type Response } from "express";
 import jwt from "jsonwebtoken";
 import sinon from "sinon";
 import { DbProvider } from "../db/provider.js";

@@ -1,6 +1,6 @@
-import { ModelType, SessionUser, validatePK } from "@local/shared";
+import { type ModelType, type SessionUser, validatePK } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
-import { PrismaDelegate, PrismaSelect } from "../builders/types.js";
+import { type PrismaDelegate, type PrismaSelect } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";

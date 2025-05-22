@@ -1,8 +1,8 @@
-import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from "@local/shared";
+import { type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsReminderList = {
     createOne: ApiEndpoint<ReminderListCreateInput, ReminderList>;

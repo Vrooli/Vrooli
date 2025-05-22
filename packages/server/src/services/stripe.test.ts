@@ -1,7 +1,7 @@
 import { DAYS_180_MS, DAYS_1_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint, uuid } from "@local/shared";
 import { expect } from "chai";
 import sinon from "sinon";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import StripeMock from "../__test/stripe.js";
 import { DbProvider } from "../db/provider.js";
 import * as loggerModule from "../events/logger.js";

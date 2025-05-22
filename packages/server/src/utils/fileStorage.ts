@@ -1,11 +1,11 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { HttpStatus, SessionUser, nanoid } from "@local/shared";
+import { HttpStatus, type SessionUser, nanoid } from "@local/shared";
 import http from "http"; // Import http for internal service call
 import sharp from "sharp";
-import { UploadConfig } from "../endpoints/rest.js";
+import { type UploadConfig } from "../endpoints/rest.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
-import { RequestFile } from "../types.js";
+import { type RequestFile } from "../types.js";
 // Import FormData for multipart request
 import FormData from "form-data";
 

@@ -1,10 +1,10 @@
-import { FindByIdInput, MemberSearchInput, MemberUpdateInput } from "@local/shared";
+import { type FindByIdInput, type MemberSearchInput, type MemberUpdateInput } from "@local/shared";
 import { expect } from "chai";
 import sinon from "sinon";
 import * as reads from "../../actions/reads.js";
 import * as updates from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { Context as ApiContext } from "../../middleware/context.js";
+import { type Context as ApiContext } from "../../middleware/context.js";
 import { member } from "./member.js"; // Adjust the import path as necessary
 
 /**

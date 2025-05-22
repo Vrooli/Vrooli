@@ -1,5 +1,5 @@
-import { StatPeriodType, StatsTeamSearchInput, uuid } from "@local/shared";
-import { PeriodType, team as TeamModelPrisma } from "@prisma/client";
+import { StatPeriodType, type StatsTeamSearchInput, uuid } from "@local/shared";
+import { PeriodType, type team as TeamModelPrisma } from "@prisma/client";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

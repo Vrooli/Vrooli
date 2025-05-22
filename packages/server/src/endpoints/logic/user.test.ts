@@ -1,4 +1,4 @@
-import { SEEDED_IDS, SessionUser, uuid } from "@local/shared";
+import { SEEDED_IDS, type SessionUser, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
@@ -6,7 +6,7 @@ import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } 
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
-import { PrismaCreate } from "../../builders/types.js";
+import { type PrismaCreate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { initializeRedis } from "../../redisConn.js";

@@ -1,5 +1,5 @@
 import { JOIN_CHAT_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS } from "@local/shared";
-import { Socket } from "socket.io";
+import { type Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";

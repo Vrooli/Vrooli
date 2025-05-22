@@ -1,10 +1,10 @@
-import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentUpdateInput, FindByIdInput } from "@local/shared";
+import { type Comment, type CommentCreateInput, type CommentSearchInput, type CommentSearchResult, type CommentUpdateInput, type FindByIdInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
 import { CommentModel } from "../../models/base/comment.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsComment = {
     findOne: ApiEndpoint<FindByIdInput, Comment>;

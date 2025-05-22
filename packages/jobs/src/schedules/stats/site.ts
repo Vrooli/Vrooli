@@ -1,6 +1,6 @@
 import { DbProvider, logger } from "@local/server";
 import { generatePK, ResourceType } from "@local/shared";
-import { PeriodType, Prisma } from "@prisma/client";
+import { type PeriodType, Prisma } from "@prisma/client";
 
 /**
  * Creates periodic site-wide stats
@@ -46,7 +46,7 @@ export async function logSiteStats(
 
         // Get distinct user IDs active in the period
         const activeUserGroups = await DbProvider.get().session.groupBy({
-            by: ['user_id'],
+            by: ["user_id"],
             where: {
                 last_refresh_at: {
                     gte: periodStart,
@@ -61,8 +61,8 @@ export async function logSiteStats(
             data.activeUsers = await DbProvider.get().user.count({
                 where: {
                     id: { in: activeUserIds },
-                    isBot: false // Filter out bots
-                }
+                    isBot: false, // Filter out bots
+                },
             });
         } else {
             data.activeUsers = 0;
@@ -77,7 +77,7 @@ export async function logSiteStats(
 
         // --- Resources Created (Query 'resource' table by type) ---
         const resourceTypesToCountCreate: ResourceType[] = [
-            ResourceType.Api, ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard // Use PascalCase
+            ResourceType.Api, ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard, // Use PascalCase
         ];
         for (const type of resourceTypesToCountCreate) {
             resourcesCreatedByType[type] = await DbProvider.get().resource.count({
@@ -93,7 +93,7 @@ export async function logSiteStats(
 
         // --- Resources Completed & Completion Time (Query 'resource' table by type) ---
         const resourceTypesToCountComplete: ResourceType[] = [
-            ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard // Use PascalCase
+            ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard, // Use PascalCase
         ];
 
         for (const type of resourceTypesToCountComplete) {
@@ -140,12 +140,12 @@ export async function logSiteStats(
                     },
                     isLatest: true,
                 },
-                select: { id: true }
+                select: { id: true },
             });
 
             const routineAggregates = await DbProvider.get().resource_version.aggregate({
                 where: {
-                    id: { in: latestCompletedRoutineVersions.map(v => v.id) }
+                    id: { in: latestCompletedRoutineVersions.map(v => v.id) },
                 },
                 _sum: {
                     complexity: true,
@@ -158,7 +158,7 @@ export async function logSiteStats(
 
         // --- Runs Started (Query consolidated 'run' table) ---
         data.runsStarted = await DbProvider.get().run.count({
-            where: { startedAt: { gte: periodStart, lte: periodEnd } }
+            where: { startedAt: { gte: periodStart, lte: periodEnd } },
         });
 
         // --- Runs Completed & Completion Time & Context Switches (Query consolidated 'run' table) ---
@@ -220,7 +220,7 @@ export async function logSiteStats(
             periodStart,
             periodEnd,
             calculatedData: data,
-            trace: "0423"
+            trace: "0423",
         });
     }
-};
+}

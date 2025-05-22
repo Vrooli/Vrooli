@@ -1,5 +1,5 @@
 // Tests for the ReportResponse endpoint (findOne, findMany, createOne, updateOne)
-import { FindByIdInput, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS, uuid } from "@local/shared";
+import { type FindByIdInput, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

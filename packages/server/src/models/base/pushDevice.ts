@@ -3,7 +3,7 @@ import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PushDeviceFormat } from "../formats.js";
-import { PushDeviceModelLogic } from "./types.js";
+import { type PushDeviceModelLogic } from "./types.js";
 
 const __typename = "PushDevice" as const;
 export const PushDeviceModel: PushDeviceModelLogic = ({

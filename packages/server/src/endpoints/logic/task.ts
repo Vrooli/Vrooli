@@ -1,10 +1,8 @@
-import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, nanoid, RunTriggeredFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType } from "@local/shared";
+import { type CancelTaskInput, type CheckTaskStatusesInput, type CheckTaskStatusesResult, nanoid, RunTriggeredFrom, type StartLlmTaskInput, type StartRunTaskInput, type Success, TaskType } from "@local/shared";
 import { RequestService } from "../../auth/request.js";
-import { requestBotResponse } from "../../tasks/llm/queue.js";
-import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask/queue.js";
 import { changeRunTaskStatus, getRunTaskStatuses, processRun } from "../../tasks/run/queue.js";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsTask = {
     checkStatuses: ApiEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
@@ -37,12 +35,14 @@ export const task: EndpointsTask = {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
-        return requestBotResponse({
-            ...input,
-            mode: "json",
-            parentMessage: null,
-            userData,
-        });
+        //TODO
+        // return QueueService.get().llm.addTask({
+        //     type: QueueTaskType.LLM_COMPLETION,
+        //     id: input.parentId.messageId, // Use messageId so we override any existing task for the same message
+        //     chatId: input.chatId,
+        //     messageId: input.parentId
+        // });
+        return {} as any;
     },
     startRunTask: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
@@ -53,7 +53,7 @@ export const task: EndpointsTask = {
             ...input,
             runFrom: RunTriggeredFrom.RunView, // Can customize this later to change queue priority
             startedById: userData.id,
-            taskId,
+            id: taskId,
             userData,
         });
     },

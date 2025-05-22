@@ -9,10 +9,9 @@ import { AuthService } from "./auth/auth.js";
 import { DbProvider } from "./db/provider.js";
 import { initRestApi } from "./endpoints/rest.js";
 import { logger } from "./events/logger.js";
-import { initializeRedis } from "./redisConn.js";
+import { CacheService } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { BillingWorker } from "./services/billing.js";
-import { ConversationWorker } from "./services/conversation/conversationLoop.js";
 import { setupHealthCheck } from "./services/health.js";
 import { setupMCP } from "./services/mcp/index.js";
 import { setupStripe } from "./services/stripe.js";
@@ -20,7 +19,7 @@ import { SocketService } from "./sockets/io.js";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
 import { runSocketRoomHandlers } from "./sockets/rooms/run.js";
 import { userSocketRoomHandlers } from "./sockets/rooms/user.js";
-import { setupTaskQueues } from "./tasks/setup.js";
+import { QueueService } from "./tasks/queues.js";
 import { initSingletons } from "./utils/singletons.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,15 +51,12 @@ async function main() {
 
     // Initialize singletons
     await initSingletons();
-    // Setup queues
-    await setupTaskQueues();
     // Setup databases
-    await initializeRedis();
     await DbProvider.init();
-
+    CacheService.get();
+    QueueService.get().initializeAllQueues();
     // Start event bus and its workers
     await BillingWorker.start();
-    await ConversationWorker.start();
 
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));

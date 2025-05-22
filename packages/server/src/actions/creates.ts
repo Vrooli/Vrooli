@@ -1,11 +1,11 @@
-import { SessionUser } from "@local/shared";
+import { type SessionUser } from "@local/shared";
 import { SessionService } from "../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { RecursivePartial } from "../types.js";
+import { type RecursivePartial } from "../types.js";
 import { cudHelper } from "./cuds.js";
-import { CreateManyHelperProps, CreateOneHelperProps } from "./types.js";
+import { type CreateManyHelperProps, type CreateOneHelperProps } from "./types.js";
 
 /**
  * Helper function for creating multiple objects of the same type in a single line.

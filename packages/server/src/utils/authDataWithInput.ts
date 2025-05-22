@@ -1,6 +1,6 @@
 import { getActionFromFieldName } from "./getActionFromFieldName.js";
-import { AuthDataById } from "./getAuthenticatedData.js";
-import { InputsById } from "./types.js";
+import { type AuthDataById } from "./getAuthenticatedData.js";
+import { type InputsById } from "./types.js";
 
 /**
  * Combines input data with existing data to estimate what the updated data will look like. 

@@ -1,5 +1,5 @@
-import { MaxObjects, ModelType, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, generatePK, getReactionScore, lowercaseFirstLetter, removeModifiers } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { MaxObjects, type ModelType, type ReactInput, ReactionFor, type ReactionSearchInput, ReactionSortBy, type SessionUser, camelCase, exists, generatePK, getReactionScore, lowercaseFirstLetter, removeModifiers } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
@@ -8,13 +8,13 @@ import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
 import { SocketService } from "../../sockets/io.js";
-import { PrismaDelegate } from "../../types.js";
+import { type PrismaDelegate } from "../../types.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { calculatePermissions } from "../../validators/permissions.js";
 import { ReactionFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ReactionModelInfo, ReactionModelLogic } from "./types.js";
+import { type ReactionModelInfo, type ReactionModelLogic } from "./types.js";
 
 const forMapper: { [key in ReactionFor]?: keyof Prisma.reactionUpsertArgs["create"] } = {
     ChatMessage: "chatMessage",

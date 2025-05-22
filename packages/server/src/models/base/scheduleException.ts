@@ -6,7 +6,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ScheduleExceptionFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
+import { type ScheduleExceptionModelInfo, type ScheduleExceptionModelLogic, type ScheduleModelInfo, type ScheduleModelLogic } from "./types.js";
 
 const __typename = "ScheduleException" as const;
 export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({

@@ -1,10 +1,10 @@
-import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, MaxObjects, ModelType, SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { Request } from "express";
+import { type Comment, type CommentFor, type CommentSearchInput, type CommentSearchResult, CommentSortBy, type CommentThread, MaxObjects, type ModelType, type SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
+import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";
 import { combineQueries } from "../../builders/combineQueries.js";
 import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter.js";
-import { PartialApiInfo } from "../../builders/types.js";
+import { type PartialApiInfo } from "../../builders/types.js";
 import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { getSearchStringQuery } from "../../getters/getSearchStringQuery.js";
@@ -18,7 +18,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { CommentFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type CommentModelInfo, type CommentModelLogic, type ReactionModelLogic } from "./types.js";
 
 const DEFAULT_TAKE = 10;
 

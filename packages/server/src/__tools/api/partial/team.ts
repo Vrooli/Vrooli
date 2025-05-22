@@ -1,5 +1,5 @@
-import { Team, TeamTranslation, TeamYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Team, type TeamTranslation, type TeamYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const teamTranslation: ApiPartial<TeamTranslation> = {

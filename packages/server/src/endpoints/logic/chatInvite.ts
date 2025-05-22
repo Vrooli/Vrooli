@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSearchResult, ChatInviteUpdateInput, FindByIdInput, validatePK } from "@local/shared";
+import { type ChatInvite, type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteSearchResult, type ChatInviteUpdateInput, type FindByIdInput, validatePK } from "@local/shared";
 import { createManyHelper, createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";
@@ -8,8 +8,8 @@ import { InfoConverter } from "../../builders/infoConverter.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { ModelMap } from "../../models/base/index.js";
-import { ChatInviteModelLogic } from "../../models/base/types.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ChatInviteModelLogic } from "../../models/base/types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsChatInvite = {
     findOne: ApiEndpoint<FindByIdInput, ChatInvite>;

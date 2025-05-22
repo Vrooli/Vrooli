@@ -1,5 +1,5 @@
-import { ModelType, validatePK } from "@local/shared";
-import { PrismaDelegate } from "../builders/types.js";
+import { type ModelType, validatePK } from "@local/shared";
+import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";

@@ -1,4 +1,4 @@
-import { ServerError, type TranslationKeyError } from "@local/shared";
+import { type ServerError, type TranslationKeyError } from "@local/shared";
 import { randomString } from "../auth/codes.js";
 import { logger } from "./logger.js";
 

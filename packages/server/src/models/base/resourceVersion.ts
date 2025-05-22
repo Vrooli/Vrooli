@@ -15,7 +15,7 @@ import { versionsCheck } from "../../validators/versionsCheck.js";
 import { ResourceVersionFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceModelInfo, ResourceModelLogic, ResourceVersionModelInfo, ResourceVersionModelLogic } from "./types.js";
+import { type ResourceModelInfo, type ResourceModelLogic, type ResourceVersionModelInfo, type ResourceVersionModelLogic } from "./types.js";
 
 type ResourceVersionPre = PreShapeVersionResult & {
     /** Map of routine version ID to graph complexity */

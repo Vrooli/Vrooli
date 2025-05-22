@@ -1,5 +1,5 @@
-import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, type ModelType, type ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { noNull } from "../../builders/noNull.js";
@@ -9,7 +9,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ScheduleFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
+import { type MeetingModelLogic, type ScheduleModelInfo, type ScheduleModelLogic } from "./types.js";
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
     Meeting: "meetings",

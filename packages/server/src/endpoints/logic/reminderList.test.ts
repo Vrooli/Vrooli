@@ -1,4 +1,4 @@
-import { ReminderListCreateInput, ReminderListUpdateInput, uuid } from "@local/shared";
+import { type ReminderListCreateInput, type ReminderListUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

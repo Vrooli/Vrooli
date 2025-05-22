@@ -1,6 +1,6 @@
 import winston from "winston";
 // eslint-disable-next-line import/extensions
-import { ConsoleTransportInstance, FileTransportInstance } from "winston/lib/winston/transports";
+import { type ConsoleTransportInstance, type FileTransportInstance } from "winston/lib/winston/transports";
 
 const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
 const MAX_LOG_SIZE = 5_242_880; // 5MB

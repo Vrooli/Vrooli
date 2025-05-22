@@ -4,7 +4,7 @@ import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { WalletFormat } from "../formats.js";
-import { WalletModelLogic } from "./types.js";
+import { type WalletModelLogic } from "./types.js";
 
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({

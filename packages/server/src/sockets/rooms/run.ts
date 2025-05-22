@@ -1,9 +1,9 @@
 import { JOIN_RUN_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS } from "@local/shared";
-import { Socket } from "socket.io";
+import { type Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";
 import { logger } from "../../events/logger.js";
-import { RunModelInfo } from "../../models/base/types.js";
+import { type RunModelInfo } from "../../models/base/types.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { SocketService } from "../io.js";
 

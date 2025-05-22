@@ -1,8 +1,8 @@
-import { ModelType } from "@local/shared";
+import { type ModelType } from "@local/shared";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { ModelLogicType } from "../models/types.js";
-import { IdsByAction, InputsById } from "./types.js";
+import { type ModelLogicType } from "../models/types.js";
+import { type IdsByAction, type InputsById } from "./types.js";
 
 type CudOutputData<Model extends {
     ApiCreate: ModelLogicType["ApiCreate"],

@@ -1,5 +1,5 @@
-import { Chat, ChatTranslation, ChatYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Chat, type ChatTranslation, type ChatYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const chatTranslation: ApiPartial<ChatTranslation> = {

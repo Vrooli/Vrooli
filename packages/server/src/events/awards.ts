@@ -3,7 +3,7 @@
  * award
  */
 
-import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, ModelType } from "@local/shared";
+import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, type ModelType } from "@local/shared";
 import i18next from "i18next";
 import { DbProvider } from "../db/provider.js";
 import { Notify } from "../notify/notify.js";

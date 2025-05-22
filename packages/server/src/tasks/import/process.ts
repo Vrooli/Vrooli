@@ -1,7 +1,7 @@
-import { Job } from "bullmq";
+import { type Job } from "bullmq";
 import { importData } from "../../builders/importExport.js";
 import { logger } from "../../events/logger.js";
-import { ImportUserDataTask } from "../taskTypes.js";
+import { type ImportUserDataTask } from "../taskTypes.js";
 
 export async function importProcess(job: Job<ImportUserDataTask>) {
     try {
