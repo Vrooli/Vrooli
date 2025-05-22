@@ -1,5 +1,5 @@
 import $RefParser from "@apidevtools/json-schema-ref-parser";
-import { BookmarkFor, CodeLanguage, ResourceList as ResourceListType, ResourceVersion, Tag, getTranslation } from "@local/shared";
+import { BookmarkFor, CodeLanguage, type ResourceList as ResourceListType, type ResourceVersion, type Tag, getTranslation } from "@local/shared";
 import {
     Avatar,
     Box,
@@ -18,7 +18,7 @@ import {
     useTheme,
 } from "@mui/material";
 import yaml from "js-yaml";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
@@ -41,7 +41,7 @@ import { ScrollBox } from "../../../styles.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { ApiViewProps } from "./types.js";
+import { type ApiViewProps } from "./types.js";
 
 /**
  * Function to parse and process API schemas in JSON or YAML format

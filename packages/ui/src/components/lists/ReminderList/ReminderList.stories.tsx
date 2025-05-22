@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Reminder, ReminderList as ReminderListType, generatePKString } from "@local/shared";
+import { type Reminder, type ReminderList as ReminderListType, generatePKString } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";

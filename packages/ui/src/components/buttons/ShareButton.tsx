@@ -1,10 +1,10 @@
-import { ListObject } from "@local/shared";
+import { type ListObject } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
 import { ShareObjectDialog } from "../dialogs/ShareObjectDialog/ShareObjectDialog.js";
-import { ShareButtonProps } from "./types.js";
+import { type ShareButtonProps } from "./types.js";
 
 export function ShareButton({
     object,

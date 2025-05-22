@@ -1,11 +1,11 @@
-import { HttpMethod, ServerResponse, TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
+import { type HttpMethod, type ServerResponse, type TranslationKeyCommon, type TranslationKeyError, exists } from "@local/shared";
 import i18next from "i18next";
 import { useCallback } from "react";
 import { ELEMENT_IDS } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 import { fetchData } from "./fetchData.js";
 import { ServerResponseParser } from "./responseParser.js";
-import { LazyRequestWithResult } from "./types.js";
+import { type LazyRequestWithResult } from "./types.js";
 
 const DEFAULT_SPINNER_DELAY_MS = 1000;
 

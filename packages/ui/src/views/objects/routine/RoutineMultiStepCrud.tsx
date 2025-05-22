@@ -1,10 +1,10 @@
-import { DUMMY_ID, DefinedArrayElement, RoutineVersion, RoutineVersionShape, Session, addToArray, deleteArrayIndex, exists, getTranslation, shapeRoutineVersion, updateArray, uuid } from "@local/shared";
+import { DUMMY_ID, type DefinedArrayElement, type RoutineVersion, type RoutineVersionShape, type Session, addToArray, deleteArrayIndex, exists, getTranslation, shapeRoutineVersion, updateArray, uuid } from "@local/shared";
 import { Box, Button, Divider, Grid, IconButton, styled, useTheme } from "@mui/material";
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";
 import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid.js";
 import { LoadableButton } from "../../../components/buttons/LoadableButton.js";
-import { StatusMessageArray } from "../../../components/buttons/types.js";
+import { type StatusMessageArray } from "../../../components/buttons/types.js";
 // eslint-disable-next-line import/extensions
 // import Canvas from "diagram-js/lib/core/Canvas";
 import { useCallback, useMemo } from "react";
@@ -12,8 +12,8 @@ import { useTranslation } from "react-i18next";
 import { useErrorPopover } from "../../../hooks/useErrorPopover.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { pagePaddingBottom } from "../../../styles.js";
-import { FormErrors, FormProps } from "../../../types.js";
-import { RoutineMultiStepCrudProps } from "./types.js";
+import { type FormErrors, type FormProps } from "../../../types.js";
+import { type RoutineMultiStepCrudProps } from "./types.js";
 
 enum NodeType {
     Redirect = "Redirect",

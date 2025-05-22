@@ -6,7 +6,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
-import { LinkInputBaseProps, LinkInputProps } from "../types.js";
+import { type LinkInputBaseProps, type LinkInputProps } from "../types.js";
 
 const MAX_LINK_TITLE_CHARS = 100;
 

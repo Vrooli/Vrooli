@@ -1,4 +1,4 @@
-import { Box, Dialog, DialogContent, IconButton, Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Dialog, DialogContent, IconButton, type Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,7 +8,7 @@ import { IconCommon, IconText } from "../../icons/Icons.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { keyComboToString } from "../../utils/display/device.js";
 import { SEARCH_HIGHLIGHT_CURRENT, highlightText } from "../../utils/display/documentTools.js";
-import { MenuPayloads } from "../../utils/pubsub.js";
+import { type MenuPayloads } from "../../utils/pubsub.js";
 import { TextInput } from "../inputs/TextInput/TextInput.js";
 
 function commonButtonSx(palette: Palette, isEnabled: boolean) {

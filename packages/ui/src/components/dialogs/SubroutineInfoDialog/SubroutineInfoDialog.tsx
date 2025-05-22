@@ -1,5 +1,5 @@
 import { Box, IconButton, Typography, styled } from "@mui/material";
-import { SubroutineFormProps, SubroutineInfoDialogProps } from "../types.js";
+import { type SubroutineFormProps, type SubroutineInfoDialogProps } from "../types.js";
 
 const emptyArray = [] as const;
 

@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { Icon } from "../../icons/Icons.js";
-import { EllipsisActionButtonProps } from "./types.js";
+import { type EllipsisActionButtonProps } from "./types.js";
 
 export function EllipsisActionButton({
     children,

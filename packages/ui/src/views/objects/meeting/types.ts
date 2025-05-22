@@ -1,5 +1,5 @@
-import { Meeting, MeetingShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { type Meeting, type MeetingShape } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type MeetingUpsertPropsPage = CrudPropsPage;
 type MeetingUpsertPropsDialog = CrudPropsDialog<Meeting>;

@@ -1,6 +1,6 @@
-import { Box, BoxProps, Button, Typography, styled, useTheme } from "@mui/material";
+import { Box, type BoxProps, Button, Typography, styled, useTheme } from "@mui/material";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
-import { TIDCardProps, TIDCardSize } from "../types.js";
+import { type TIDCardProps, type TIDCardSize } from "../types.js";
 
 interface OuterCardProps extends BoxProps {
     isClickable: boolean;

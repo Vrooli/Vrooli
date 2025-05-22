@@ -1,10 +1,10 @@
-import { AITaskInfo, ChatMessageShape, ChatParticipantShape, ListObject, LlmTask, getTranslation } from "@local/shared";
-import { Box, Chip, ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { type AITaskInfo, type ChatMessageShape, type ChatParticipantShape, type ListObject, LlmTask, getTranslation } from "@local/shared";
+import { Box, Chip, type ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import useDraggableScroll from "../../../hooks/gestures.js";
-import { UseChatTaskReturn } from "../../../hooks/tasks.js";
+import { type UseChatTaskReturn } from "../../../hooks/tasks.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { ViewDisplayType } from "../../../types.js";
@@ -16,7 +16,7 @@ import { displayDate } from "../../../utils/display/stringTools.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
 import { chatInputFeatures } from "../AdvancedInput/styles.js";
-import { ContextItem } from "../AdvancedInput/utils.js";
+import { type ContextItem } from "../AdvancedInput/utils.js";
 
 const DEFAULT_TYPING_INDICATOR_MAX_CHARS = 40;
 const NUM_TYPING_INDICATOR_ELLIPSIS_DOTS = 3;

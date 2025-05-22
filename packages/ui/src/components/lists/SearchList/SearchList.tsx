@@ -1,20 +1,20 @@
 /**
  * Search list for a single object type
  */
-import { ListObject, NavigableObject, funcTrue } from "@local/shared";
+import { type ListObject, type NavigableObject, funcTrue } from "@local/shared";
 import { Box } from "@mui/material";
-import { ReactNode, useCallback, useMemo } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useInfiniteScroll } from "../../../hooks/gestures.js";
 import { useLocation } from "../../../route/router.js";
-import { ArgsType } from "../../../types.js";
+import { type ArgsType } from "../../../types.js";
 import { getDummyListLength } from "../../../utils/consts.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { SearchButtons } from "../../buttons/SearchButtons.js";
 import { ListContainer } from "../../containers/ListContainer.js";
 import { BasicSearchBar, PaperSearchBar } from "../../inputs/search/SiteSearchBar.js";
 import { ObjectList } from "../ObjectList/ObjectList.js";
-import { ObjectListActions, SearchListProps } from "../types.js";
+import { type ObjectListActions, type SearchListProps } from "../types.js";
 
 /**
  * Keys used for keyboard navigation in the search list

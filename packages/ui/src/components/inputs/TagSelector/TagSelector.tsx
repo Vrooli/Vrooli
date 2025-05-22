@@ -1,7 +1,7 @@
-import { BookmarkFor, DUMMY_ID, endpointsTag, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
-import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
+import { BookmarkFor, DUMMY_ID, endpointsTag, exists, type Tag, type TagSearchInput, type TagSearchResult, type TagShape, TagSortBy } from "@local/shared";
+import { Autocomplete, type AutocompleteRenderGetTagProps, type AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, type PopperProps, styled } from "@mui/material";
 import { useField } from "formik";
-import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFetch } from "../../../hooks/useFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
@@ -9,7 +9,7 @@ import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { BookmarkButton } from "../../buttons/BookmarkButton.js";
 import { TextInput } from "../TextInput/TextInput.js";
-import { TagSelectorBaseProps, TagSelectorProps } from "../types.js";
+import { type TagSelectorBaseProps, type TagSelectorProps } from "../types.js";
 
 type TagOption = string | Tag | TagShape;
 

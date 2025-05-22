@@ -1,8 +1,8 @@
 import { COPY_COMMAND, SELECTION_INSERT_CLIPBOARD_NODES_COMMAND } from "./commands.js";
 import { CAN_USE_DOM, COMMAND_PRIORITY_CRITICAL } from "./consts.js";
-import { LexicalEditor } from "./editor.js";
+import { type LexicalEditor } from "./editor.js";
 import { type LexicalNode } from "./nodes/LexicalNode.js";
-import { BaseSelection, BaseSerializedNode, SerializedElementNode, SerializedTextNode } from "./types.js";
+import { type BaseSelection, type BaseSerializedNode, type SerializedElementNode, type SerializedTextNode } from "./types.js";
 import { $addNodeStyle, $parseSerializedNode } from "./updates.js";
 import { $cloneWithProperties, $createNode, $generateNodesFromDOM, $getRoot, $getSelection, $isNode, $isRangeSelection, $sliceSelectedTextNodeContent, isSelected, isSelectionWithinEditor, objectKlassEquals } from "./utils.js";
 

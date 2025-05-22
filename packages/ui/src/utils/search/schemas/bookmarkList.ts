@@ -1,4 +1,4 @@
-import { BookmarkListSortBy, FormSchema, endpointsBookmarkList } from "@local/shared";
+import { BookmarkListSortBy, type FormSchema, endpointsBookmarkList } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

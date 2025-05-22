@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, PushDevice, PushDeviceTestInput, PushDeviceUpdateInput, Success, endpointsActions, endpointsPushDevice, updateArray } from "@local/shared";
+import { type DeleteOneInput, DeleteType, type PushDevice, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success, endpointsActions, endpointsPushDevice, updateArray } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, TextField, Tooltip, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,7 @@ import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { setupPush } from "../../../utils/push.js";
 import { ListContainer } from "../../containers/ListContainer.js";
-import { PushListItemProps, PushListProps } from "./types.js";
+import { type PushListItemProps, type PushListProps } from "./types.js";
 
 const InformationalColumn = styled(Box)(({ theme }) => ({
     display: "flex",

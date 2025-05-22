@@ -1,9 +1,9 @@
 /* eslint-disable import/extensions */
-import { Session, TranslationKeyCommon, TranslationKeyError, generatePKString } from "@local/shared";
-import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
+import { type Session, type TranslationKeyCommon, type TranslationKeyError, generatePKString } from "@local/shared";
+import { type FieldHelperProps, type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
-import { ObjectSchema, ValidationError } from "yup";
-import { FormErrors } from "../../types.js";
+import { type ObjectSchema, ValidationError } from "yup";
+import { type FormErrors } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 
 type NestedString = string | string[] | { [key: string]: NestedString };

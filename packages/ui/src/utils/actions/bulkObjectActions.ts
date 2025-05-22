@@ -1,4 +1,4 @@
-import { BookmarkFor, CopyType, DeleteType, ListObject, ReportFor, Session } from "@local/shared";
+import { BookmarkFor, CopyType, DeleteType, type ListObject, ReportFor, type Session } from "@local/shared";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 import { getYou } from "../display/listTools.js";
 

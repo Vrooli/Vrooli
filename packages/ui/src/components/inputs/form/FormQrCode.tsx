@@ -1,6 +1,6 @@
 import { Button, Divider } from "@mui/material";
 import { propButtonStyle } from "./styles.js";
-import { FormQrCodeProps } from "./types.js";
+import { type FormQrCodeProps } from "./types.js";
 
 const dividerStyle = {
     paddingTop: "8px",

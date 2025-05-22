@@ -1,5 +1,5 @@
 import { type LexicalNode } from "./nodes/LexicalNode.js";
-import { BaseSelection, ElementFormatType, InsertTableCommandPayload, LexicalCommand as LC, LinkAttributes, PasteCommandType, TextFormatType } from "./types.js";
+import { type BaseSelection, type ElementFormatType, type InsertTableCommandPayload, type LexicalCommand as LC, type LinkAttributes, type PasteCommandType, type TextFormatType } from "./types.js";
 
 export function createCommand<T>(type?: string): LC<T> {
     return { type };

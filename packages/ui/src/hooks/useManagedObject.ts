@@ -1,8 +1,8 @@
-import { ModelType, ParseSearchParamsResult, YouInflated, isEqual, parseSearchParams } from "@local/shared";
-import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ModelType, type ParseSearchParamsResult, type YouInflated, isEqual, parseSearchParams } from "@local/shared";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ServerResponseParser } from "../api/responseParser.js";
-import { FetchInputOptions } from "../api/types.js";
-import { PartialWithType } from "../types.js";
+import { type FetchInputOptions } from "../api/types.js";
+import { type PartialWithType } from "../types.js";
 import { defaultYou, getYou } from "../utils/display/listTools.js";
 import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "../utils/localStorage.js";
 import { PubSub } from "../utils/pubsub.js";

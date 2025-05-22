@@ -1,7 +1,7 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { AddAfterLinkDialogProps, AddBeforeLinkDialogProps, MoveNodeMenuProps } from "./types.js";
+import { type AddAfterLinkDialogProps, type AddBeforeLinkDialogProps, type MoveNodeMenuProps } from "./types.js";
 
 const addBeforeLinkDialogTitleId = "add-before-link-dialog-title";
 

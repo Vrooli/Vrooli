@@ -1,4 +1,4 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, NavigableObject, ReactionFor, ReportFor, Success, endpointsActions, getObjectUrl, getTranslation, updateArray } from "@local/shared";
+import { BookmarkFor, type Comment, type CommentFor, type DeleteOneInput, DeleteType, type NavigableObject, ReactionFor, type ReportFor, type Success, endpointsActions, getObjectUrl, getTranslation, updateArray } from "@local/shared";
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -18,7 +18,7 @@ import { ReportButton } from "../../buttons/ReportButton.js";
 import { ShareButton } from "../../buttons/ShareButton.js";
 import { VoteButton } from "../../buttons/VoteButton.js";
 import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
-import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types.js";
+import { type CommentConnectorProps, type CommentThreadItemProps, type CommentThreadProps } from "../../types.js";
 
 const AdornmentBox = styled(Box)(() => ({
     width: fontSizeToPixels("0.85rem") * Number("1.5"),
@@ -288,7 +288,7 @@ export function CommentThreadItem({
                                             variant="caption"
                                             sx={{
                                                 color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
-                                                ml: 0.5
+                                                ml: 0.5,
                                             }}
                                         >
                                             (You)
@@ -319,7 +319,7 @@ export function CommentThreadItem({
                                         variant="caption"
                                         sx={{
                                             color: palette.mode === "light" ? "#fa4f4f" : "#f2a7a7",
-                                            ml: 0.5
+                                            ml: 0.5,
                                         }}
                                     >
                                         (You)

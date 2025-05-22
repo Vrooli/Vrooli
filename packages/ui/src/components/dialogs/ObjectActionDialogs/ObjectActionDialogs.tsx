@@ -1,10 +1,10 @@
-import { BookmarkFor, ReportFor } from "@local/shared";
+import { type BookmarkFor, type ReportFor } from "@local/shared";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { StatsObjectView } from "../../../views/StatsObjectView/StatsObjectView.js";
 import { ReportUpsert } from "../../../views/objects/report/ReportUpsert.js";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog.js";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog.js";
-import { ObjectActionDialogsProps } from "../types.js";
+import { type ObjectActionDialogsProps } from "../types.js";
 
 export function ObjectActionDialogs({
     availableActions,

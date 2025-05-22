@@ -1,6 +1,6 @@
-import { LexicalEditor } from "../editor.js";
+import { type LexicalEditor } from "../editor.js";
 import { getTable } from "../selection.js";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, InsertTableCommandPayloadHeaders, NodeType, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types.js";
+import { type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type InsertTableCommandPayloadHeaders, type NodeType, type SerializedElementNode, type SerializedTableNode, TableCellHeaderStates, type TableDOMCell, type TableDOMTable } from "../types.js";
 import { $createNode, $getNearestNodeFromDOMNode, $isNode, isHTMLElement } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 import { type TableCellNode } from "./TableCellNode.js";

@@ -1,15 +1,15 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, ListObject, Meeting, MeetingInvite, Member, MemberInvite, ModelType, NavigableObject, Notification, OrArray, Reminder, Report, ReportResponse, Resource, ResourceVersion, SearchType, Tag, Team, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
-import { ReactNode } from "react";
-import { UsePressEvent } from "../../hooks/gestures.js";
+import { type BookmarkList, type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type MeetingInvite, type Member, type MemberInvite, type ModelType, type NavigableObject, type Notification, type OrArray, type Reminder, type Report, type ReportResponse, type Resource, type ResourceVersion, type SearchType, type Tag, type Team, type TimeFrame, type TranslationKeyCommon, type User } from "@local/shared";
+import { type ReactNode } from "react";
+import { type UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
 import { type UseFindManyResult } from "../../hooks/useFindMany.js";
-import { IconInfo } from "../../icons/Icons.js";
-import { SxType, ViewDisplayType } from "../../types.js";
-import { ObjectAction } from "../../utils/actions/objectActions.js";
-import { RelationshipButtonType } from "../../utils/consts.js";
-import { ObjectType } from "../../utils/navigation/openObject.js";
-import { LineGraphProps } from "../graphs/types.js";
-import { ObjectListProps } from "./ObjectList/ObjectList.js";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type SxType, type ViewDisplayType } from "../../types.js";
+import { type ObjectAction } from "../../utils/actions/objectActions.js";
+import { type RelationshipButtonType } from "../../utils/consts.js";
+import { type ObjectType } from "../../utils/navigation/openObject.js";
+import { type LineGraphProps } from "../graphs/types.js";
+import { type ObjectListProps } from "./ObjectList/ObjectList.js";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;

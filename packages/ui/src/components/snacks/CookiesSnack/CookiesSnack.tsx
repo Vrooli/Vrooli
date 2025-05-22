@@ -3,9 +3,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
-import { CookiePreferences, setCookie } from "../../../utils/localStorage.js";
+import { type CookiePreferences, setCookie } from "../../../utils/localStorage.js";
 import { CookieSettingsDialog } from "../../dialogs/CookieSettingsDialog/CookieSettingsDialog.js";
-import { CookiesSnackProps } from "../types.js";
+import { type CookiesSnackProps } from "../types.js";
 
 /**
  * "This site uses cookies" consent dialog

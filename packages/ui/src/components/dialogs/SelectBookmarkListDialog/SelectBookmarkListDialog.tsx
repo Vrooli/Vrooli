@@ -1,7 +1,7 @@
 /**
  * Displays all search options for a team
  */
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList } from "@local/shared";
+import { type Bookmark, type BookmarkCreateInput, type BookmarkFor, type BookmarkList, type BookmarkListCreateInput, type BookmarkSearchInput, type BookmarkSearchResult, type Count, type DeleteManyInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList } from "@local/shared";
 import { Box, Button, Checkbox, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, TextField, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { useBookmarkListsStore } from "../../../stores/bookmarkListsStore.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { BottomActionsButtons } from "../../buttons/BottomActionsButtons.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
-import { SelectBookmarkListDialogProps } from "../types.js";
+import { type SelectBookmarkListDialogProps } from "../types.js";
 
 const createListIconButtonStyle = {
     marginLeft: "auto",

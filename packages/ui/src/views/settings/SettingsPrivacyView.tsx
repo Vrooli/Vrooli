@@ -1,6 +1,6 @@
-import { endpointsUser, ProfileUpdateInput, profileValidation, User } from "@local/shared";
+import { endpointsUser, type ProfileUpdateInput, profileValidation, type User } from "@local/shared";
 import { Box, styled, Typography } from "@mui/material";
-import { Formik, FormikHelpers, FormikProps, useField } from "formik";
+import { Formik, type FormikHelpers, type FormikProps, useField } from "formik";
 import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -15,7 +15,7 @@ import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { ScrollBox } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "./types.js";
+import { type SettingsPrivacyFormProps, type SettingsPrivacyViewProps } from "./types.js";
 
 const PrivateWarningText = styled(Typography)(({ theme }) => ({
     // eslint-disable-next-line no-magic-numbers

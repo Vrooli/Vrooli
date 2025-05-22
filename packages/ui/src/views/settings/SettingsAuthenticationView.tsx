@@ -1,11 +1,11 @@
-import { Email, endpointsAuth, endpointsUser, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User } from "@local/shared";
+import { type Email, endpointsAuth, endpointsUser, type Phone, profileEmailUpdateFormValidation, type ProfileEmailUpdateInput, type Session, type User } from "@local/shared";
 import { Box, Button, useTheme } from "@mui/material";
-import { Formik, FormikHelpers } from "formik";
+import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SocketService } from "../../api/socket.js";
-import { LazyRequestWithResult } from "../../api/types.js";
+import { type LazyRequestWithResult } from "../../api/types.js";
 import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
 import { DeleteAccountDialog } from "../../components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
@@ -24,7 +24,7 @@ import { useLocation } from "../../route/router.js";
 import { FormSection, ScrollBox } from "../../styles.js";
 import { guestSession, SessionService } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { SettingsAuthenticationFormProps, SettingsAuthenticationFormValues, SettingsAuthenticationViewProps } from "./types.js";
+import { type SettingsAuthenticationFormProps, type SettingsAuthenticationFormValues, type SettingsAuthenticationViewProps } from "./types.js";
 
 const initialValues: SettingsAuthenticationFormValues = {
     currentPassword: "",

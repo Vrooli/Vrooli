@@ -1,8 +1,8 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { Icon, IconInfo } from "../../../icons/Icons.js";
+import { Icon, type IconInfo } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
-import { SxType } from "../../../types.js";
+import { type SxType } from "../../../types.js";
 
 const grey = {
     400: "#BFC7CF",

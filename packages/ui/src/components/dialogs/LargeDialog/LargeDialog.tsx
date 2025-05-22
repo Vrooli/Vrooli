@@ -2,7 +2,7 @@ import { Box, Dialog, Popover, styled, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { UpTransition } from "../../transitions/UpTransition/UpTransition.js";
-import { LargeDialogProps, MaybeLargeDialogProps } from "../types.js";
+import { type LargeDialogProps, type MaybeLargeDialogProps } from "../types.js";
 
 const defaultAnchorOrigin = {
     vertical: "bottom" as const,

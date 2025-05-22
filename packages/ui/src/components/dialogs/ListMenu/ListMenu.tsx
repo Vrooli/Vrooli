@@ -5,7 +5,7 @@ import { Icon } from "../../../icons/Icons.js";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { HelpButton } from "../../buttons/HelpButton.js";
 import { MenuTitle } from "../MenuTitle/MenuTitle.js";
-import { ListMenuProps } from "../types.js";
+import { type ListMenuProps } from "../types.js";
 
 const titleId = "list-menu-title";
 

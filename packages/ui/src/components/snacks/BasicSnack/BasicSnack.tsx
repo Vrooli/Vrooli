@@ -1,10 +1,10 @@
-import { Box, BoxProps, Button, IconButton, Typography, styled, useTheme } from "@mui/material";
+import { Box, type BoxProps, Button, IconButton, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
 import { SNACK_HIGHLIGHT, addHighlight, removeHighlights } from "../../../utils/display/documentTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { BasicSnackProps } from "../types.js";
+import { type BasicSnackProps } from "../types.js";
 
 export enum SnackSeverity {
     Error = "Error",

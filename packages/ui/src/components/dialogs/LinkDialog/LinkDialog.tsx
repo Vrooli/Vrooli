@@ -1,7 +1,7 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { LinkDialogProps } from "../types.js";
+import { type LinkDialogProps } from "../types.js";
 
 const helpText =
     "This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.";

@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointsReport, getObjectSlug, getObjectUrlBase, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
+import { DUMMY_ID, endpointsReport, getObjectSlug, getObjectUrlBase, noopSubmit, type Report, type ReportCreateInput, type ReportFor, type ReportShape, type ReportUpdateInput, reportValidation, type Session, shapeReport } from "@local/shared";
 import { Box } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useContext, useMemo } from "react";
@@ -21,7 +21,7 @@ import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { FormContainer } from "../../../styles.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ReportFormProps, ReportUpsertProps } from "./types.js";
+import { type ReportFormProps, type ReportUpsertProps } from "./types.js";
 
 enum ReportOptions {
     Inappropriate = "Inappropriate",

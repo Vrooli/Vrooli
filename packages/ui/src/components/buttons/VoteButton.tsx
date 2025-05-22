@@ -5,9 +5,9 @@ import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
 import { useVoter } from "../../hooks/objectActions.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
+import { type ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
-import { VoteButtonProps } from "./types.js";
+import { type VoteButtonProps } from "./types.js";
 
 export function VoteButton({
     disabled = false,

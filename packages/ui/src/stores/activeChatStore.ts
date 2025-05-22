@@ -1,5 +1,5 @@
-import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, SEEDED_PUBLIC_IDS, Session, endpointsChat } from "@local/shared";
-import { TFunction } from "i18next";
+import { type Chat, type ChatCreateInput, type ChatParticipantShape, type ChatShape, DUMMY_ID, type FindByIdInput, SEEDED_PUBLIC_IDS, type Session, endpointsChat } from "@local/shared";
+import { type TFunction } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";

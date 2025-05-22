@@ -1,7 +1,7 @@
-import { SyntheticEvent } from "react";
-import { IconInfo } from "../../icons/Icons.js";
-import { ViewDisplayType } from "../../types.js";
-import { TitleProps } from "../text/types.js";
+import { type SyntheticEvent } from "react";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type ViewDisplayType } from "../../types.js";
+import { type TitleProps } from "../text/types.js";
 
 export interface PartialNavbarProps {
     /** Optional children to render in the navbar */

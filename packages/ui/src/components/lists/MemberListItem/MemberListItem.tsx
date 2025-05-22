@@ -1,5 +1,5 @@
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { MemberListItemProps } from "../types.js";
+import { type MemberListItemProps } from "../types.js";
 
 export function MemberListItem({
     data,

@@ -1,4 +1,4 @@
-import { InboxPageTabOption, Notification, NotificationSearchResult, Success, endpointsNotification, generatePKString } from "@local/shared";
+import { InboxPageTabOption, type Notification, type NotificationSearchResult, type Success, endpointsNotification, generatePKString } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { apiUrlBase, restBase } from "../../utils/consts.js";

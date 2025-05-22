@@ -1,11 +1,11 @@
-import { ActionOption, endpointsUser, HistoryPageTabOption, LINKS, PreActionOption, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
+import { type ActionOption, endpointsUser, HistoryPageTabOption, LINKS, type PreActionOption, type ProfileUpdateInput, SearchPageTabOption, type Session, type User } from "@local/shared";
 import { fetchWrapper } from "../../api/fetchWrapper.js";
-import { Icon, IconInfo } from "../../icons/Icons.js";
+import { Icon, type IconInfo } from "../../icons/Icons.js";
 import { getCurrentUser } from "../authentication/session.js";
 import { ELEMENT_IDS } from "../consts.js";
 import { PubSub } from "../pubsub.js";
 import { SearchHistory } from "../search/searchHistory.js";
-import { PreSearchItem } from "../search/siteToSearch.js";
+import { type PreSearchItem } from "../search/siteToSearch.js";
 
 export interface ShortcutItem {
     label: string;

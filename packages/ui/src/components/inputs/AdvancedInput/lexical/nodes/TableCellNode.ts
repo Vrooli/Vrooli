@@ -1,5 +1,5 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts.js";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types.js";
+import { type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type NodeConstructorPayloads, type NodeType, type SerializedTableCellNode, type TableCellHeaderState, TableCellHeaderStates } from "../types.js";
 import { $createNode, $isNode, getParent } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 

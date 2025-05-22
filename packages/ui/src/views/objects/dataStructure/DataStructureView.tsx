@@ -1,4 +1,4 @@
-import { CommentFor, ResourceListShape, StandardShape, StandardVersion, TagShape, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
+import { CommentFor, type ResourceListShape, type StandardShape, type StandardVersion, type TagShape, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -24,7 +24,7 @@ import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { dataStructureInitialValues } from "./DataStructureUpsert.js";
-import { DataStructureViewProps } from "./types.js";
+import { type DataStructureViewProps } from "./types.js";
 
 const contextActionsExcluded = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
 

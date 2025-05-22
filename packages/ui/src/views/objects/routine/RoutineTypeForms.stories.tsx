@@ -8,7 +8,7 @@ import {
     RoutineApiForm,
     RoutineDataConverterForm,
     RoutineDataForm,
-    RoutineFormPropsBase,
+    type RoutineFormPropsBase,
     RoutineGenerateForm,
     RoutineInformationalForm,
     RoutineSmartContractForm,
@@ -627,7 +627,7 @@ export function ApiFormEmpty() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -664,7 +664,7 @@ export function ApiFormWithData() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -716,7 +716,7 @@ export function DataConverterFormEmpty() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -753,7 +753,7 @@ export function DataConverterFormWithData() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -805,7 +805,7 @@ export function DataFormEmpty() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -842,7 +842,7 @@ export function DataFormWithData() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -894,7 +894,7 @@ export function GenerateFormEmpty() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -931,7 +931,7 @@ export function GenerateFormWithData() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -983,7 +983,7 @@ export function InformationalFormEmpty() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -1020,7 +1020,7 @@ export function InformationalFormWithData() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -1072,7 +1072,7 @@ export function SmartContractFormEmpty() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };
@@ -1109,7 +1109,7 @@ export function SmartContractFormWithData() {
     }, []);
 
     const { initialValues, validationSchema } = useMemo(function initialValuesMemo() {
-        const config = RoutineVersionConfig.deserialize(routine, console);
+        const config = RoutineVersionConfig.parse(routine, console);
         const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, routine.routineType);
         const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, routine.routineType);
         return { initialValues, validationSchema };

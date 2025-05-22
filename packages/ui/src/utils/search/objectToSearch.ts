@@ -1,7 +1,7 @@
-import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
-import { Palette } from "@mui/material";
-import { IconInfo } from "../../icons/Icons.js";
-import { SearchParams } from "./schemas/base.js";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, type SearchType, type SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, type TranslationKeyCommon, UserPageTabOption, VisibilityType, type YouInflated } from "@local/shared";
+import { type Palette } from "@mui/material";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type SearchParams } from "./schemas/base.js";
 import { bookmarkSearchParams } from "./schemas/bookmark.js";
 import { bookmarkListSearchParams } from "./schemas/bookmarkList.js";
 import { chatSearchParams } from "./schemas/chat.js";

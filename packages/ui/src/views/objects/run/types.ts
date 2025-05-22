@@ -1,5 +1,5 @@
-import { Run, RunShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
+import { type Run, type RunShape } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type RunUpsertPropsPage = CrudPropsPage;
 type RunUpsertPropsDialog = CrudPropsDialog<Run>;

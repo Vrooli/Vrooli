@@ -3,14 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 import { SELECTION_CHANGE_COMMAND } from "./commands.js";
 import { DOM_ELEMENT_TYPE, TEXT_FLAGS } from "./consts.js";
 import { useLexicalComposerContext } from "./context.js";
-import { EditorState, LexicalEditor } from "./editor.js";
+import { type EditorState, type LexicalEditor } from "./editor.js";
 import { markCollapsedSelectionFormat, markSelectionChangeFromDOMUpdate } from "./events.js";
 import { getIsProcessingMutations } from "./mutations.js";
 import { type ElementNode } from "./nodes/ElementNode.js";
 import { insertRangeAfter, type LexicalNode } from "./nodes/LexicalNode.js";
 import { type TextNode } from "./nodes/TextNode.js";
 import { toggleTextFormatType } from "./transformers/textFormatTransformers.js";
-import { BaseSelection, ElementPointType, NodeKey, PointType, TableDOMRows, TableDOMTable, TextFormatType, TextPointType } from "./types.js";
+import { type BaseSelection, type ElementPointType, type NodeKey, type PointType, type TableDOMRows, type TableDOMTable, type TextFormatType, type TextPointType } from "./types.js";
 import { getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode } from "./updates.js";
 import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getIndexWithinParent, getNextSibling, getNextSiblings, getNodeFromDOM, getParent, getParentKeys, getPreviousSibling, getTextNodeOffset, isAttachedToRoot, isSelected, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils.js";
 

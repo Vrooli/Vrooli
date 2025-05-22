@@ -1,6 +1,6 @@
-import { ChatShape, ListObject, MemberInviteShape } from "@local/shared";
-import { ReactNode } from "react";
-import { ViewProps } from "../types.js";
+import { type ChatShape, type ListObject, type MemberInviteShape } from "@local/shared";
+import { type ReactNode } from "react";
+import { type ViewProps } from "../types.js";
 
 export type CalendarViewProps = ViewProps
 export interface ErrorBoundaryProps {

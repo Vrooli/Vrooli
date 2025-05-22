@@ -1,8 +1,8 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogProps, styled, useTheme } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, type DialogProps, styled, useTheme } from "@mui/material";
 import i18next from "i18next";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Icon, IconInfo } from "../../../icons/Icons.js";
+import { Icon, type IconInfo } from "../../../icons/Icons.js";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { translateSnackMessage } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";

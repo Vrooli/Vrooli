@@ -1,4 +1,4 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, ProjectShape, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectoryShape, ProjectVersionShape, ProjectVersionUpdateInput, Session, Success, endpointsActions, endpointsProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
+import { DUMMY_ID, type DeleteOneInput, DeleteType, type ListObject, LlmTask, type ProjectShape, type ProjectVersion, type ProjectVersionCreateInput, type ProjectVersionDirectoryShape, type ProjectVersionShape, type ProjectVersionUpdateInput, type Session, type Success, endpointsActions, endpointsProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
@@ -17,7 +17,7 @@ import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
+import { type UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
@@ -29,7 +29,7 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ProjectCrudProps, ProjectFormProps } from "./types.js";
+import { type ProjectCrudProps, type ProjectFormProps } from "./types.js";
 
 function projectInitialValues(
     session: Session | undefined,

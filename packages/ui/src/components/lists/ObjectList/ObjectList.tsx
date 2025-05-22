@@ -1,8 +1,8 @@
-import { Bookmark, ListObject, ModelType, OrArray, Reaction, View, getObjectUrl, isOfType, noop } from "@local/shared";
+import { type Bookmark, type ListObject, type ModelType, type OrArray, type Reaction, type View, getObjectUrl, isOfType, noop } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lazily } from "react-lazily";
-import { UsePressEvent } from "../../../hooks/gestures.js";
+import { type UsePressEvent } from "../../../hooks/gestures.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
@@ -12,7 +12,7 @@ import { useLocation } from "../../../route/router.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { ObjectListItemProps } from "../types.js";
+import { type ObjectListItemProps } from "../types.js";
 
 // Custom list item components
 const { BookmarkListListItem } = lazily(() => import("../BookmarkListListItem/BookmarkListListItem.js"));
@@ -66,12 +66,12 @@ type ObjectListItemPropsForMultiple<T extends OrArray<ListObject>> = T extends L
     never;
 
 const KEYBOARD_KEYS = {
-    DOWN: 'ArrowDown',
-    UP: 'ArrowUp',
-    ENTER: 'Enter',
-    ESCAPE: 'Escape',
-    HOME: 'Home',
-    END: 'End',
+    DOWN: "ArrowDown",
+    UP: "ArrowUp",
+    ENTER: "Enter",
+    ESCAPE: "Escape",
+    HOME: "Home",
+    END: "End",
 };
 
 export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItemPropsForMultiple<T>, "canNavigate" | "hideUpdateButton" | "loading" | "onAction" | "onClick"> & {
@@ -179,7 +179,7 @@ export function ObjectList<T extends OrArray<ListObject>>({
                 break;
             case KEYBOARD_KEYS.ESCAPE:
                 // Return focus to search bar
-                const searchBar = document.querySelector(`[id$="-search-bar"] input`) as HTMLElement;
+                const searchBar = document.querySelector("[id$=\"-search-bar\"] input") as HTMLElement;
                 if (searchBar) {
                     searchBar.focus();
                     setFocusedIndex(-1);

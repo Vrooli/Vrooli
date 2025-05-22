@@ -1,4 +1,4 @@
-import { endpointsRunIO, FormSchema, RunIOSortBy } from "@local/shared";
+import { endpointsRunIO, type FormSchema, RunIOSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

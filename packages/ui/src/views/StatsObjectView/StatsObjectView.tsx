@@ -1,11 +1,11 @@
-import { ListObject } from "@local/shared";
+import { type ListObject } from "@local/shared";
 import { Box } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { StatsCompact } from "../../components/text/StatsCompact.js";
 import { getDisplay } from "../../utils/display/listTools.js";
-import { StatsObjectViewProps } from "../types.js";
+import { type StatsObjectViewProps } from "../types.js";
 
 const titleId = "stats-object-dialog-title";
 

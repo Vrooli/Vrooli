@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DOM_TEXT_TYPE, IS_FIREFOX, TEXT_MUTATION_VARIANCE } from "./consts.js";
-import { LexicalEditor } from "./editor.js";
+import { type LexicalEditor } from "./editor.js";
 import { type RootNode } from "./nodes/RootNode.js";
 import { type TextNode } from "./nodes/TextNode.js";
-import { BaseSelection, CustomDomElement } from "./types.js";
+import { type BaseSelection, type CustomDomElement } from "./types.js";
 import { updateEditor } from "./updates.js";
 import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isAttachedToRoot, isFirefoxClipboardEvents } from "./utils.js";
 

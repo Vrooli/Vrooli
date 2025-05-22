@@ -1,7 +1,7 @@
 import { isOfType } from "@local/shared";
 import { Typography } from "@mui/material";
 import { Field, useField } from "formik";
-import { EditTextComponent, EditableTextProps, PropsByComponentType } from "../containers/types.js";
+import { type EditTextComponent, type EditableTextProps, type PropsByComponentType } from "../containers/types.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { RichInput, TranslatedRichInput } from "./RichInput/RichInput.js";
 import { TextInput, TranslatedTextInput } from "./TextInput/TextInput.js";

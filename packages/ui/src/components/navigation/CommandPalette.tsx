@@ -1,4 +1,4 @@
-import { ActionOption, ListObject, AutocompleteOption as SearchResult, ShortcutOption, VisibilityType, getObjectUrl } from "@local/shared";
+import { type ActionOption, type ListObject, type AutocompleteOption as SearchResult, type ShortcutOption, VisibilityType, getObjectUrl } from "@local/shared";
 import { Box, ButtonBase, DialogContent, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { normalizeText } from "../../utils/display/documentTools.js";
 import { listToAutocomplete } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { Actions, getAutocompleteOptionIcon, performAction, shortcuts } from "../../utils/navigation/quickActions.js";
-import { MenuPayloads } from "../../utils/pubsub.js";
+import { type MenuPayloads } from "../../utils/pubsub.js";
 import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
 import { BasicSearchBar } from "../inputs/search/SiteSearchBar.js";
 

@@ -1,6 +1,6 @@
 import { stringifySearchParams } from "@local/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SetLocation } from "./types.js";
+import { type SetLocation } from "./types.js";
 
 export type Href = string;
 export type Pathname = string;

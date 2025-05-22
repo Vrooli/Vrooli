@@ -1,4 +1,4 @@
-import { CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
+import { CodeLanguage, type CodeShape, CodeType, type CodeVersion, type CodeVersionCreateInput, type CodeVersionShape, type CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, type Session, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
 import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
@@ -21,7 +21,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
+import { type UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
@@ -31,7 +31,7 @@ import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { DataConverterFormProps, DataConverterUpsertProps } from "./types.js";
+import { type DataConverterFormProps, type DataConverterUpsertProps } from "./types.js";
 
 export function dataConverterInitialValues(
     session: Session | undefined,

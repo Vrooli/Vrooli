@@ -1,11 +1,11 @@
 import { LINKS } from "@local/shared";
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
-import { ChangeEvent, FormEvent, useCallback, useContext, useMemo, useState } from "react";
+import { Autocomplete, type AutocompleteChangeDetails, type AutocompleteChangeReason, type AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, type PopperProps, useTheme } from "@mui/material";
+import { type ChangeEvent, type FormEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
-import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "../../../utils/search/siteToSearch.js";
-import { SettingsSearchBarProps } from "./types.js";
+import { type PreSearchItem, type SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "../../../utils/search/siteToSearch.js";
+import { type SettingsSearchBarProps } from "./types.js";
 
 const DEFAULT_DEBOUNCE_MS = 200;
 

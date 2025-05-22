@@ -1,7 +1,7 @@
 import { InputType, preventFormSubmit } from "@local/shared";
-import { Box, IconButton, Stack, TextField, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, TextField, Tooltip, Typography, type TypographyProps, styled, useTheme } from "@mui/material";
 import { useFormikContext } from "formik";
-import { ComponentType, Suspense, useCallback, useMemo } from "react";
+import { type ComponentType, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
@@ -19,7 +19,7 @@ import { FormInputSlider } from "./FormInputSlider.js";
 import { FormInputSwitch } from "./FormInputSwitch.js";
 import { FormInputTagSelector } from "./FormInputTagSelector.js";
 import { FormInputText } from "./FormInputText.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 // Lazy-loading all input components is an option here, but it doesn't add much value except for the more complex components
 const { FormInputCode } = lazily(() => import("./FormInputCode.js"));

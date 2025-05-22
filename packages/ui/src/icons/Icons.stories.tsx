@@ -1,7 +1,7 @@
 import { Box, Button, ButtonGroup, IconButton, InputAdornment, Slider, Stack, TextField, Tooltip } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import React, { useEffect, useRef, useState } from "react";
-import { IconCommon, IconFavicon, IconInfo, IconRoutine, IconService, IconText } from "./Icons.js";
+import { IconCommon, IconFavicon, type IconInfo, IconRoutine, IconService, IconText } from "./Icons.js";
 import { iconNames as commonIconNames } from "./types/commonIcons.js";
 import { iconNames as routineIconNames } from "./types/routineIcons.js";
 import { iconNames as serviceIconNames } from "./types/serviceIcons.js";

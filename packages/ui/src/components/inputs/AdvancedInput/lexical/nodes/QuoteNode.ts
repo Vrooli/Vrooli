@@ -1,8 +1,8 @@
-import { RangeSelection } from "../selection.js";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeType, SerializedElementNode, SerializedQuoteNode } from "../types.js";
+import { type RangeSelection } from "../selection.js";
+import { type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type ElementFormatType, type NodeType, type SerializedElementNode, type SerializedQuoteNode } from "../types.js";
 import { $createNode, isHTMLElement } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
-import { ParagraphNode } from "./ParagraphNode.js";
+import { type ParagraphNode } from "./ParagraphNode.js";
 
 export class QuoteNode extends ElementNode {
     static __type: NodeType = "Quote";

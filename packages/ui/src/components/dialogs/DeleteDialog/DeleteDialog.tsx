@@ -5,7 +5,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
-import { DeleteDialogProps } from "../types.js";
+import { type DeleteDialogProps } from "../types.js";
 
 export function DeleteDialog({
     handleClose,

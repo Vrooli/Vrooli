@@ -1,6 +1,6 @@
-import { Bookmark, BookmarkFor, CommentFor, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, TranslationKeyCommon, getReactionScore } from "@local/shared";
-import { ListMenuItemData } from "../../components/dialogs/types.js";
-import { IconInfo } from "../../icons/Icons.js";
+import { type Bookmark, BookmarkFor, CommentFor, type CopyResult, CopyType, DeleteType, type ListObject, ReactionFor, ReportFor, type Session, type Success, type TranslationKeyCommon, getReactionScore } from "@local/shared";
+import { type ListMenuItemData } from "../../components/dialogs/types.js";
+import { type IconInfo } from "../../icons/Icons.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 import { getYou } from "../../utils/display/listTools.js";
 

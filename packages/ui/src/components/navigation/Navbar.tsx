@@ -1,5 +1,5 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Badge, Box, BoxProps, Button, IconButton, Slide, Typography, styled, useScrollTrigger, useTheme } from "@mui/material";
+import { AppBar, Badge, Box, type BoxProps, Button, IconButton, Slide, Typography, styled, useScrollTrigger, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
@@ -21,7 +21,7 @@ import { PubSub } from "../../utils/pubsub.js";
 import { PopupMenu } from "../buttons/PopupMenu.js";
 import { Title } from "../text/Title.js";
 import { ContactInfo } from "./ContactInfo.js";
-import { NavbarProps } from "./types.js";
+import { type NavbarProps } from "./types.js";
 
 export const APP_BAR_HEIGHT_PX = 64;
 const AVATAR_SIZE_PX = 50;

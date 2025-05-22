@@ -1,8 +1,8 @@
-import { calculateOccurrences, CalendarEvent, Schedule, ScheduleFor } from "@local/shared";
-import { Box, BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Typography, useTheme } from "@mui/material";
+import { calculateOccurrences, type CalendarEvent, type Schedule, ScheduleFor } from "@local/shared";
+import { Box, type BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Typography, useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Calendar, HeaderProps as CalendarHeaderProps, Components, dateFnsLocalizer, DateLocalizer, SlotInfo, View, Views } from "react-big-calendar";
+import { Calendar, type HeaderProps as CalendarHeaderProps, type Components, dateFnsLocalizer, type DateLocalizer, type SlotInfo, type View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
@@ -16,12 +16,12 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { bottomNavHeight } from "../../styles.js";
-import { PartialWithType } from "../../types.js";
+import { type PartialWithType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "../../utils/display/translationTools.js";
 import { ScheduleUpsert } from "../objects/schedule/ScheduleUpsert.js";
-import { CalendarViewProps } from "../types.js";
+import { type CalendarViewProps } from "../types.js";
 
 // Define the tab values
 export enum CalendarTabs {

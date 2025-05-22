@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
 import { LINKS, PaymentType, SOCIALS } from "@local/shared";
-import { Box, BoxProps, Button, Grid, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
-import { ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Box, type BoxProps, Button, Grid, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
+import { type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import AiDrivenConvo from "../../assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "../../assets/img/CollaborativeRoutines.webp";
 import Earth from "../../assets/img/Earth.svg";
@@ -25,7 +25,7 @@ import { ELEMENT_IDS } from "../../utils/consts.js";
 import { darkPalette } from "../../utils/display/theme.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { BillingCycle, BillingCycleToggle, CreditDialog, PricingTierType, PricingTiers } from "../ProView/ProView.js";
-import { LandingViewProps } from "./types.js";
+import { type LandingViewProps } from "./types.js";
 
 // TODO create videos and update URLs
 const videoUrls = {

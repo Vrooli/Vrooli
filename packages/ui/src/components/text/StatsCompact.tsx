@@ -1,11 +1,11 @@
-import { ListObject, ReactionFor } from "@local/shared";
+import { type ListObject, ReactionFor } from "@local/shared";
 import { Box, Typography, styled } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../icons/Icons.js";
 import { getCounts, getYou } from "../../utils/display/listTools.js";
 import { ReportsLink } from "../buttons/ReportsLink.js";
 import { VoteButton } from "../buttons/VoteButton.js";
-import { StatsCompactProps } from "./types.js";
+import { type StatsCompactProps } from "./types.js";
 
 const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",

@@ -1,6 +1,6 @@
 import { Button, Divider } from "@mui/material";
 import { propButtonStyle } from "./styles.js";
-import { FormVideoProps } from "./types.js";
+import { type FormVideoProps } from "./types.js";
 
 const dividerStyle = {
     paddingTop: "8px",

@@ -1,6 +1,6 @@
 import { Box, styled } from "@mui/material";
 import { useFormikContext } from "formik";
-import { forwardRef, ReactNode, useMemo } from "react";
+import { forwardRef, type ReactNode, useMemo } from "react";
 import { ViewDisplayType } from "../../types.js";
 
 type OuterFormProps = {
@@ -54,7 +54,7 @@ export const OuterForm = forwardRef<HTMLDivElement, OuterFormProps>(({
         </Box>
     );
 });
-OuterForm.displayName = 'OuterForm';
+OuterForm.displayName = "OuterForm";
 
 export const InnerForm = forwardRef<HTMLDivElement, InnerFormProps>(({
     children,
@@ -98,7 +98,7 @@ export const InnerForm = forwardRef<HTMLDivElement, InnerFormProps>(({
         </Box>
     );
 });
-InnerForm.displayName = 'InnerForm';
+InnerForm.displayName = "InnerForm";
 
 export const BaseForm = forwardRef<HTMLDivElement, BaseFormProps>(({
     display,
@@ -111,4 +111,4 @@ export const BaseForm = forwardRef<HTMLDivElement, BaseFormProps>(({
         </OuterForm>
     );
 });
-BaseForm.displayName = 'BaseForm';
+BaseForm.displayName = "BaseForm";

@@ -1,16 +1,16 @@
-import { CalendarEvent, Count, DeleteManyInput, LINKS, ListObject, Resource, ResourceUsedFor, endpointsActions, getObjectUrl } from "@local/shared";
+import { type CalendarEvent, type Count, type DeleteManyInput, LINKS, type ListObject, type Resource, ResourceUsedFor, endpointsActions, getObjectUrl } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, styled } from "@mui/material";
-import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import { useBulkObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useSelectableList } from "../../../hooks/useSelectableList.js";
-import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
 import { multiLineEllipsis, noSelect } from "../../../styles.js";
-import { ArgsType } from "../../../types.js";
+import { type ArgsType } from "../../../types.js";
 import { DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
@@ -18,7 +18,7 @@ import { firstString, formatEventTime } from "../../../utils/display/stringTools
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { TextLoading } from "../TextLoading/TextLoading.js";
-import { ObjectListActions } from "../types.js";
+import { type ObjectListActions } from "../types.js";
 
 const CONTENT_SPACING = 1;
 const ICON_SIZE = 20;

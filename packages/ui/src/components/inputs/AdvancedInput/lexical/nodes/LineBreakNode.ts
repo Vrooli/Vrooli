@@ -1,5 +1,5 @@
 import { DOM_TEXT_TYPE } from "../consts.js";
-import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedLexicalNode } from "../types.js";
+import { type DOMConversionMap, type DOMConversionOutput, type NodeConstructorPayloads, type NodeType, type SerializedLexicalNode } from "../types.js";
 import { $createNode } from "../utils.js";
 import { LexicalNode } from "./LexicalNode.js";
 

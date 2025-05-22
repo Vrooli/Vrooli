@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
 import { Title } from "../../text/Title.js";
-import { MenuTitleProps } from "../types.js";
+import { type MenuTitleProps } from "../types.js";
 
 const TitleContainer = styled(Box)(({ theme }) => ({
     ...noSelect,

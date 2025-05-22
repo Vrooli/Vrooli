@@ -1,7 +1,7 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { IconCommon } from "../../../icons/Icons.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { MeetingInviteListItemProps } from "../types.js";
+import { type MeetingInviteListItemProps } from "../types.js";
 
 export function MeetingInviteListItem({
     data,

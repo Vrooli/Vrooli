@@ -1,9 +1,9 @@
 
 import { ELEMENT_FORMAT_TO_TYPE, FULL_RECONCILE } from "./consts.js";
-import { EditorState, LexicalEditor } from "./editor.js";
-import { ElementNode } from "./nodes/ElementNode.js";
+import { type EditorState, type LexicalEditor } from "./editor.js";
+import { type ElementNode } from "./nodes/ElementNode.js";
 import { type RootNode } from "./nodes/RootNode.js";
-import { CustomDomElement, EditorConfig, IntentionallyMarkedAsDirtyElement, MutatedNodes, NodeKey, NodeMap, RegisteredNodes } from "./types.js";
+import { type CustomDomElement, type EditorConfig, type IntentionallyMarkedAsDirtyElement, type MutatedNodes, type NodeKey, type NodeMap, type RegisteredNodes } from "./types.js";
 import { $isNode, cloneDecorators, getElementByKeyOrThrow, setMutatedNode } from "./utils.js";
 
 /**

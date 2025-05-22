@@ -1,4 +1,4 @@
-import { Session } from "@local/shared";
+import { type Session } from "@local/shared";
 import { useEffect } from "react";
 import { SocketService } from "../api/socket.js";
 import { getCurrentUser } from "../utils/authentication/session.js";

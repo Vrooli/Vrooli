@@ -1,4 +1,4 @@
-import { CodeLanguage, DUMMY_ID, endpointsStandardVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeStandardVersion, StandardType, StandardVersion, StandardVersionCreateInput, StandardVersionShape, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
+import { CodeLanguage, DUMMY_ID, endpointsStandardVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, type Session, shapeStandardVersion, StandardType, type StandardVersion, type StandardVersionCreateInput, type StandardVersionShape, standardVersionTranslationValidation, type StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
 import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -22,7 +22,7 @@ import { PageContainer } from "../../../components/Page/Page.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
@@ -32,7 +32,7 @@ import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { DataStructureFormProps, DataStructureUpsertProps } from "./types.js";
+import { type DataStructureFormProps, type DataStructureUpsertProps } from "./types.js";
 
 export function dataStructureInitialValues(
     session: Session | undefined,

@@ -1,4 +1,4 @@
-import { endpointsTag, FormSchema, TagSortBy } from "@local/shared";
+import { endpointsTag, type FormSchema, TagSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

@@ -1,7 +1,7 @@
-import { BookmarkFor, CodeLanguage, CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, SearchVersionPageTabOption, Tag, TagShape, endpointsCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
+import { BookmarkFor, CodeLanguage, type CodeShape, type CodeVersion, CommentFor, LINKS, type ResourceListShape, type ResourceList as ResourceListType, SearchVersionPageTabOption, type Tag, type TagShape, endpointsCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Container, IconButton, LinearProgress, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { Formik } from "formik";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
@@ -30,7 +30,7 @@ import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { smartContractInitialValues } from "./SmartContractUpsert.js";
-import { SmartContractViewProps } from "./types.js";
+import { type SmartContractViewProps } from "./types.js";
 
 const TAGS_MAX_CHARS = 200;
 const codeLimitTo = [CodeLanguage.Javascript] as const;

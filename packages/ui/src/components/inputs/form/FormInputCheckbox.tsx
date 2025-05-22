@@ -1,5 +1,5 @@
-import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
-import { CheckboxFormInput, CheckboxFormInputProps, getFormikFieldName, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, type DropResult, Droppable } from "@hello-pangea/dnd";
+import { type CheckboxFormInput, type CheckboxFormInputProps, getFormikFieldName, updateArray } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormGroup, FormHelperText, IconButton, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +8,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 const DefaultWarningLabel = styled(Typography)(({ theme }) => ({
     marginLeft: "12px",

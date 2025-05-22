@@ -1,4 +1,4 @@
-import { BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointsUser, findBotDataForForm, getAvailableModels, getModelDescription, getModelName, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { type BotCreateInput, type BotShape, botTranslationValidation, type BotUpdateInput, botValidation, DUMMY_ID, endpointsUser, findBotDataForForm, getAvailableModels, getModelDescription, getModelName, LINKS, type LlmModel, LlmTask, noopSubmit, SearchPageTabOption, type Session, shapeBot, type User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -21,14 +21,14 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon, IconRoutine } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { BotFormProps, BotUpsertProps } from "./types.js";
+import { type BotFormProps, type BotUpsertProps } from "./types.js";
 
 function botInitialValues(
     session: Session | undefined,

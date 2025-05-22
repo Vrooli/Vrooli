@@ -1,4 +1,4 @@
-import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointsApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
+import { type ApiShape, type ApiVersion, type ApiVersionCreateInput, type ApiVersionShape, apiVersionTranslationValidation, type ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointsApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, type Session, shapeApiVersion } from "@local/shared";
 import { Box, Button, Divider, Grid, InputAdornment, Typography, useTheme } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -23,7 +23,7 @@ import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
@@ -34,7 +34,7 @@ import { FormContainer, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ApiFormProps, ApiUpsertProps } from "./types.js";
+import { type ApiFormProps, type ApiUpsertProps } from "./types.js";
 
 function apiInitialValues(
     session: Session | undefined,

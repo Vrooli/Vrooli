@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePopover } from "../../../../hooks/usePopover.js";
 import { IconCommon, IconRoutine } from "../../../../icons/Icons.js";
 import { ELEMENT_IDS } from "../../../../utils/consts.js";
-import { Graph, LinkOperation, NodeLink } from "../../../../views/objects/routine/RoutineMultiStepCrud.js";
+import { Graph, type LinkOperation, type NodeLink } from "../../../../views/objects/routine/RoutineMultiStepCrud.js";
 
 type Point = {
     x: number;

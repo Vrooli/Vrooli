@@ -1,4 +1,4 @@
-import { CrudProps, FormProps } from "../../../types.js";
+import { type CrudProps, type FormProps } from "../../../types.js";
 
 type Node = any;
 type NodeEnd = any;

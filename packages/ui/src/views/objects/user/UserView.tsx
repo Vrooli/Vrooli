@@ -1,6 +1,6 @@
-import { BookmarkFor, ChatShape, DUMMY_ID, LINKS, ListObject, User, UserPageTabOption, findBotDataForForm, getAvailableModels, getObjectUrl, getTranslation, noop, validatePK } from "@local/shared";
+import { BookmarkFor, type ChatShape, DUMMY_ID, LINKS, type ListObject, type User, UserPageTabOption, findBotDataForForm, getAvailableModels, getObjectUrl, getTranslation, noop, validatePK } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../../api/ai.js";
 import BannerDefault from "../../../assets/img/BannerDefault.webp";
@@ -35,7 +35,7 @@ import { getCookieMatchingChat } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { userTabParams } from "../../../utils/search/objectToSearch.js";
 import { FeatureSlider } from "../bot/BotUpsert.js";
-import { UserViewProps } from "./types.js";
+import { type UserViewProps } from "./types.js";
 
 const scrollContainerId = "user-search-scroll";
 const BANNER_IMAGE_TARGET_SIZE_PX = 1000;

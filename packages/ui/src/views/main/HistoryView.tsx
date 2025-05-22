@@ -1,4 +1,4 @@
-import { ListObject, ModelType, getObjectUrlBase } from "@local/shared";
+import { type ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { IconButton } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ELEMENT_CLASSES } from "../../utils/consts.js";
 import { historyTabParams } from "../../utils/search/objectToSearch.js";
-import { HistoryViewProps } from "./types.js";
+import { type HistoryViewProps } from "./types.js";
 
 const scrollContainerId = "history-search-scroll";
 const pageContainerStyle = {

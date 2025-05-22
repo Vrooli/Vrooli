@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, Meeting, MeetingInviteStatus, endpointsMeeting, generatePKString, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, type Meeting, MeetingInviteStatus, endpointsMeeting, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { MeetingView } from "./MeetingView.js";

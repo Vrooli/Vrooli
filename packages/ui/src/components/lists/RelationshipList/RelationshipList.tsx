@@ -1,4 +1,4 @@
-import { ModelType, OwnerShape, Session } from "@local/shared";
+import { type ModelType, type OwnerShape, type Session } from "@local/shared";
 import { Box, styled } from "@mui/material";
 import { useMemo } from "react";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -8,7 +8,7 @@ import { IsPrivateButton } from "../../buttons/relationships/IsPrivateButton.js"
 import { MembersButton } from "../../buttons/relationships/MembersButton.js";
 import { OwnerButton } from "../../buttons/relationships/OwnerButton.js";
 import { ParticipantsButton } from "../../buttons/relationships/ParticipantsButton.js";
-import { RelationshipListProps } from "../types.js";
+import { type RelationshipListProps } from "../types.js";
 
 /**
  * Converts session to user object

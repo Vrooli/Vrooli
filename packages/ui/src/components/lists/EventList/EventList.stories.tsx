@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CalendarEvent, generatePK, Meeting, Run, Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
+import { type CalendarEvent, generatePK, type Meeting, type Run, type Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";

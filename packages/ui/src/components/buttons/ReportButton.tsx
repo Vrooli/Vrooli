@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
 import { ReportUpsert } from "../../views/objects/report/ReportUpsert.js";
-import { ReportButtonProps } from "./types.js";
+import { type ReportButtonProps } from "./types.js";
 
 export function ReportButton({
     forId,

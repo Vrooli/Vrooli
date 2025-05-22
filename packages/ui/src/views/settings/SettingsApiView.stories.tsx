@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { ApiKey, ApiKeyPermission, Session, SessionUser, User, generatePKString } from "@local/shared";
+import { type ApiKey, ApiKeyPermission, type Session, type SessionUser, type User, generatePKString } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PERMISSION_PRESETS, SettingsApiView } from "./SettingsApiView.js";

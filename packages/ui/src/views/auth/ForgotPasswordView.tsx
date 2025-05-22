@@ -1,6 +1,6 @@
-import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointsAuth, LINKS, Success } from "@local/shared";
+import { type EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointsAuth, LINKS, type Success } from "@local/shared";
 import { Box, Button, InputAdornment } from "@mui/material";
-import { Field, Formik, FormikHelpers } from "formik";
+import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -13,7 +13,7 @@ import { useLazyFetch } from "../../hooks/useFetch.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { CenteredContentPage, FormContainer, pagePaddingBottom } from "../../styles.js";
-import { ForgotPasswordViewProps } from "../types.js";
+import { type ForgotPasswordViewProps } from "../types.js";
 import { FormSection } from "./authStyles.js";
 
 interface ForgotPasswordFormProps {

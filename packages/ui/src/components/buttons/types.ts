@@ -1,8 +1,8 @@
 /* c8 ignore start */
-import { BookmarkFor, FormSchema, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, SearchType, Status } from "@local/shared";
-import { ButtonProps } from "@mui/material";
-import React from "react";
-import { FormErrors, SxType, ViewDisplayType } from "../../types.js";
+import { type BookmarkFor, type FormSchema, type NavigableObject, type OrArray, type ProjectVersion, type ReactionFor, type ReportFor, type RoutineVersion, type SearchType, type Status } from "@local/shared";
+import { type ButtonProps } from "@mui/material";
+import type React from "react";
+import { type FormErrors, type SxType, type ViewDisplayType } from "../../types.js";
 
 export type AutoFillButtonProps = {
     handleAutoFill: () => unknown;

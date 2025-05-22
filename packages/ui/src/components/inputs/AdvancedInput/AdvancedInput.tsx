@@ -1,31 +1,31 @@
 /* eslint-disable no-magic-numbers */
 import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
-import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, type IconButtonProps, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { CSSProperties } from "@mui/styles";
+import { type CSSProperties } from "@mui/styles";
 import { useField } from "formik";
-import React, { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
-import { Icon, IconCommon, IconInfo, IconRoutine } from "../../../icons/Icons.js";
-import { AITaskDisplay, AITaskDisplayState } from "../../../types.js";
+import { Icon, IconCommon, type IconInfo, IconRoutine } from "../../../icons/Icons.js";
+import { type AITaskDisplay, AITaskDisplayState } from "../../../types.js";
 import { randomString } from "../../../utils/codes.js";
 import { keyComboToString } from "../../../utils/display/device.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton.js";
-import { MicrophoneButtonProps } from "../../buttons/types.js";
+import { type MicrophoneButtonProps } from "../../buttons/types.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SnackSeverity } from "../../snacks/BasicSnack/BasicSnack.js";
 import { FormTip } from "../form/FormTip.js";
 import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
-import { ContextDropdown, ListObject } from "./ContextDropdown.js";
+import { ContextDropdown, type ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, AdvancedInputActiveStates, AdvancedInputBaseProps, AdvancedInputFeatures, AdvancedInputProps, ContextItem, DEFAULT_FEATURES, ExternalApp, TranslatedAdvancedInputProps, advancedInputTextareaClassName } from "./utils.js";
+import { AdvancedInputAction, type AdvancedInputActiveStates, type AdvancedInputBaseProps, type AdvancedInputFeatures, type AdvancedInputProps, type ContextItem, DEFAULT_FEATURES, type ExternalApp, type TranslatedAdvancedInputProps, advancedInputTextareaClassName } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [

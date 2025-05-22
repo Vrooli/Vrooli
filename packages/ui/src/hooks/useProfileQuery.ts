@@ -1,4 +1,4 @@
-import { endpointsUser, User } from "@local/shared";
+import { endpointsUser, type User } from "@local/shared";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/session.js";
 import { getCurrentUser } from "../utils/authentication/session.js";

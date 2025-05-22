@@ -1,6 +1,6 @@
 import { Headers, MarkdownUtils } from "../../utils.js";
-import { RangeSelection } from "../selection.js";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types.js";
+import { type RangeSelection } from "../selection.js";
+import { type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type ElementFormatType, type NodeConstructorPayloads, type NodeType, type SerializedHeadingNode } from "../types.js";
 import { $createNode, isHTMLElement } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 import { type ParagraphNode } from "./ParagraphNode.js";

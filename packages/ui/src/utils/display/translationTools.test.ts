@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { CommonKey, Session, generatePKString } from "@local/shared";
+import { type CommonKey, type Session, generatePKString } from "@local/shared";
 import { expect } from "chai";
-import { FieldInputProps, FieldMetaProps } from "formik";
+import { type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
 import * as yup from "yup";
 import { i18nextTMock } from "../../__mocks__/i18next.js";
-import { TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools.js";
+import { type TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools.js";
 
 // Mocks for navigator.language and navigator.languages
 function mockNavigatorLanguage(language) {

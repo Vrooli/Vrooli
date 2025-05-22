@@ -1,6 +1,6 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointsAuth, LINKS, Session } from "@local/shared";
+import { BUSINESS_NAME, emailSignUpFormValidation, type EmailSignUpInput, endpointsAuth, LINKS, type Session } from "@local/shared";
 import { alpha, Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormHelperText, Link, styled, Typography, useTheme } from "@mui/material";
-import { Field, Formik, FormikHelpers } from "formik";
+import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -23,7 +23,7 @@ import { ELEMENT_IDS } from "../../utils/consts.js";
 import { removeCookie } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { setupPush } from "../../utils/push.js";
-import { SignupViewProps } from "../../views/types.js";
+import { type SignupViewProps } from "../../views/types.js";
 import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, FormSection, nameStartAdornment, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
 
 type FormInput = EmailSignUpInput & {

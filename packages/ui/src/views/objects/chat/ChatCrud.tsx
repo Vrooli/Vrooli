@@ -1,7 +1,7 @@
-import { Chat, ChatCreateInput, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectSlug, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_PUBLIC_IDS, ServerResponse, Session, shapeChat } from "@local/shared";
+import { type Chat, type ChatCreateInput, ChatInviteStatus, type ChatMessageShape, type ChatParticipantShape, type ChatShape, chatTranslationValidation, type ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, getObjectSlug, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, SEEDED_PUBLIC_IDS, type ServerResponse, type Session, shapeChat } from "@local/shared";
 import { Box, Checkbox, FormControlLabel, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
 import { Formik, useFormikContext } from "formik";
-import { TFunction } from "i18next";
+import { type TFunction } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
@@ -38,7 +38,7 @@ import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { getCookiePartialData, setCookieMatchingChat } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ChatCrudProps, ChatFormProps } from "./types.js";
+import { type ChatCrudProps, type ChatFormProps } from "./types.js";
 
 export const CHAT_DEFAULTS = {
     __typename: "Chat" as const,

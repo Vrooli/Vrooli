@@ -1,5 +1,5 @@
-import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
-import { SelectorFormInput, SelectorFormInputOption, SelectorFormInputProps, getFormikFieldName } from "@local/shared";
+import { DragDropContext, Draggable, type DropResult, Droppable } from "@hello-pangea/dnd";
+import { type SelectorFormInput, type SelectorFormInputOption, type SelectorFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, IconButton, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -8,7 +8,7 @@ import { randomString } from "../../../utils/codes.js";
 import { SelectorBase } from "../Selector/Selector.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 //TODO need to finish standard input component and item connect input component so that we can define the shape of the object being selected, or select an existing standard to use
 //TODO when editing, should be able to unselect an option so that it's not marked as default. Also add "clear" button next to default value indicator

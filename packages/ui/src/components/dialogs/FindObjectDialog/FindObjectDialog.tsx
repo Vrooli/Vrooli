@@ -1,4 +1,4 @@
-import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, funcFalse, getObjectUrl } from "@local/shared";
+import { type AutocompleteOption, type FindByIdInput, type FindVersionInput, type FormInputBase, type ListObject, type SearchType, funcFalse, getObjectUrl } from "@local/shared";
 import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,17 +9,17 @@ import { useTabs } from "../../../hooks/useTabs.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { removeSearchParams } from "../../../route/searchParams.js";
-import { CrudProps } from "../../../types.js";
+import { type CrudProps } from "../../../types.js";
 import { ELEMENT_CLASSES, Z_INDEX } from "../../../utils/consts.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { findObjectTabParams, searchTypeToParams } from "../../../utils/search/objectToSearch.js";
-import { SearchParams } from "../../../utils/search/schemas/base.js";
+import { type SearchParams } from "../../../utils/search/schemas/base.js";
 import { PageTabs } from "../../PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../buttons/SideActionsButtons.js";
 import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
 import { SearchList, SearchListScrollContainer } from "../../lists/SearchList/SearchList.js";
 import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
-import { FindObjectDialogProps, FindObjectDialogType, FindObjectType } from "../types.js";
+import { type FindObjectDialogProps, type FindObjectDialogType, type FindObjectType } from "../types.js";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert.js"));
 const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert.js"));

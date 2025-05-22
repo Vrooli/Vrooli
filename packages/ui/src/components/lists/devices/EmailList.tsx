@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, Email, EmailCreateInput, emailValidation, endpointsActions, endpointsEmail, SendVerificationEmailInput, Success, uuid } from "@local/shared";
+import { type DeleteOneInput, DeleteType, DUMMY_ID, type Email, type EmailCreateInput, emailValidation, endpointsActions, endpointsEmail, type SendVerificationEmailInput, type Success, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { useCallback } from "react";
@@ -10,7 +10,7 @@ import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ListContainer } from "../../containers/ListContainer.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
-import { EmailListItemProps, EmailListProps } from "./types.js";
+import { type EmailListItemProps, type EmailListProps } from "./types.js";
 
 /**
  * Displays a list of emails for the user to manage

@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
 import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
-import { IconInfo } from "../../../icons/Icons.js";
-import { AITaskDisplay } from "../../../types.js";
+import { type IconInfo } from "../../../icons/Icons.js";
+import { type AITaskDisplay } from "../../../types.js";
 
 export const advancedInputTextareaClassName = "advanced-input-field";
 

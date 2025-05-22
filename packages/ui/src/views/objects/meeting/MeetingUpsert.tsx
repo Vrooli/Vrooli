@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointsMeeting, Meeting, MeetingCreateInput, MeetingShape, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session, shapeMeeting } from "@local/shared";
+import { DUMMY_ID, endpointsMeeting, type Meeting, type MeetingCreateInput, type MeetingShape, type MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, type Schedule, type Session, shapeMeeting } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useContext, useMemo, useState } from "react";
@@ -17,7 +17,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ScheduleUpsert } from "../schedule/ScheduleUpsert.js";
-import { MeetingFormProps, MeetingUpsertProps } from "./types.js";
+import { type MeetingFormProps, type MeetingUpsertProps } from "./types.js";
 
 export function meetingInitialValues(
     session: Session | undefined,

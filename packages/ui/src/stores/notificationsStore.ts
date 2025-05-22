@@ -1,4 +1,4 @@
-import { Notification, NotificationSearchInput, NotificationSearchResult, endpointsNotification } from "@local/shared";
+import { type Notification, type NotificationSearchInput, type NotificationSearchResult, endpointsNotification } from "@local/shared";
 import { useContext, useEffect } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";
@@ -75,7 +75,7 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
     markAllNotificationsAsRead: () => {
         set((state) => ({
             notifications: state.notifications.map(n =>
-                n.isRead ? n : { ...n, isRead: true }
+                n.isRead ? n : { ...n, isRead: true },
             ),
         }));
     },

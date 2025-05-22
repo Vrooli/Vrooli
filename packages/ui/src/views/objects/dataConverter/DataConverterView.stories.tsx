@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, CodeVersion, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
-import { Meta } from "@storybook/react";
+import { CodeLanguage, CodeType, type CodeVersion, type Resource, ResourceUsedFor, type Tag, type User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { type Meta } from "@storybook/react";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterView } from "./DataConverterView.js";
@@ -265,7 +265,7 @@ LoggedOutWithResults.parameters = {
         path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`,
     },
 };
-console.log('yeet mocked url', `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`);
+console.log("yeet mocked url", `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}`);
 
 export function Own() {
     return (
@@ -291,13 +291,13 @@ Own.parameters = {
                             isBookmarked: false,
                             isOwner: true,
                             isStarred: false,
-                        }
+                        },
                     },
                     permissions: {
                         canDelete: true,
                         canUpdate: true,
                         canRead: true,
-                    }
+                    },
                 };
 
                 return HttpResponse.json({ data: mockWithOwnerPermissions });

@@ -12,7 +12,7 @@ import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
-import { SettingsPaymentViewProps } from "./types.js";
+import { type SettingsPaymentViewProps } from "./types.js";
 
 export function SettingsPaymentView({
     display,

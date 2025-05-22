@@ -1,5 +1,5 @@
-import { FormikProps } from "formik";
-import { RefObject, useCallback, useEffect, useRef } from "react";
+import { type FormikProps } from "formik";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { useDebounce } from "./useDebounce.js";
 
 type UseAutoSaveProps<T = object> = {

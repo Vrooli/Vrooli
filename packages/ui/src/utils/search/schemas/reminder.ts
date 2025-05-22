@@ -1,4 +1,4 @@
-import { endpointsReminder, FormSchema, ReminderSortBy } from "@local/shared";
+import { endpointsReminder, type FormSchema, ReminderSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

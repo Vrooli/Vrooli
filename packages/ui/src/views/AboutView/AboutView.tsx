@@ -10,7 +10,7 @@ import { IconCommon, IconRoutine, IconService } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { ViewProps } from "../../types.js";
+import { type ViewProps } from "../../types.js";
 
 type MemberData = {
     fullName: string;
@@ -123,15 +123,15 @@ export function AboutView(_props: ViewProps) {
                                 }}
                             >
                                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1.5}>
-                                    {section.icon && typeof section.icon !== 'string' ? (
-                                        <Box sx={{ color: palette.secondary.main, display: 'flex', alignItems: 'center' }}>
+                                    {section.icon && typeof section.icon !== "string" ? (
+                                        <Box sx={{ color: palette.secondary.main, display: "flex", alignItems: "center" }}>
                                             {cloneElement(section.icon, { size: 28 })}
                                         </Box>
                                     ) : null}
                                     <Typography variant="h5" component="h2">{section.title}</Typography>
                                 </Stack>
                                 <Typography variant="body1">
-                                    {typeof section.text === 'function' ? section.text() : section.text}
+                                    {typeof section.text === "function" ? section.text() : section.text}
                                 </Typography>
                             </Box>
                         ))}
@@ -142,7 +142,7 @@ export function AboutView(_props: ViewProps) {
                         p={3}
                         borderRadius={2}
                         sx={{
-                            background: `linear-gradient(to bottom, ${palette.background.paper}, ${theme.palette.mode === 'dark' ? palette.grey[900] : palette.grey[100]})`,
+                            background: `linear-gradient(to bottom, ${palette.background.paper}, ${theme.palette.mode === "dark" ? palette.grey[900] : palette.grey[100]})`,
                         }}
                     >
                         <Typography variant='h4' component="h2" pb={3} textAlign="start">The Team</Typography>
@@ -163,7 +163,7 @@ export function AboutView(_props: ViewProps) {
                                         key={key}
                                         sx={{
                                             display: "flex",
-                                            flexDirection: { xs: 'column', sm: 'row' },
+                                            flexDirection: { xs: "column", sm: "row" },
                                             alignItems: "center",
                                             justifyContent: "flex-start",
                                             background: `linear-gradient(135deg, ${palette.primary.dark} 0%, ${palette.primary.main} 100%)`,
@@ -176,22 +176,22 @@ export function AboutView(_props: ViewProps) {
                                         }}
                                     >
                                         <Box component="img" src={member.photo} alt={`${member.fullName} profile picture`} sx={{
-                                            width: { xs: '50%', sm: '150px' },
-                                            height: { xs: 'auto', sm: '150px' },
-                                            aspectRatio: '1 / 1',
+                                            width: { xs: "50%", sm: "150px" },
+                                            height: { xs: "auto", sm: "150px" },
+                                            aspectRatio: "1 / 1",
                                             objectFit: "cover",
                                             borderRadius: "50%",
                                             flexShrink: 0,
                                             border: `3px solid ${palette.secondary.light}`,
                                         }} />
                                         <Box
-                                            width={{ xs: '100%', sm: 'auto' }}
+                                            width={{ xs: "100%", sm: "auto" }}
                                             flexGrow={1}
-                                            textAlign={{ xs: 'center', sm: 'left' }}
+                                            textAlign={{ xs: "center", sm: "left" }}
                                         >
                                             <Typography variant='h5' component="h3" mb={0.5} fontWeight="bold">{member.fullName}</Typography>
                                             <Typography variant='body1' mb={2} sx={{ color: palette.grey[300] }}>{member.role}</Typography>
-                                            <Stack direction="row" alignItems="center" justifyContent={{ xs: 'center', sm: 'flex-start' }} spacing={1.5}>
+                                            <Stack direction="row" alignItems="center" justifyContent={{ xs: "center", sm: "flex-start" }} spacing={1.5}>
                                                 {member.socials.website && (
                                                     <Tooltip title="Personal website" placement="bottom">
                                                         <IconButton
@@ -239,14 +239,14 @@ export function AboutView(_props: ViewProps) {
                                     onClick={handleJoinTeam}
                                     variant="contained"
                                     sx={{
-                                        maxWidth: '400px',
+                                        maxWidth: "400px",
                                         py: 1.5,
-                                        fontSize: '1.1rem',
-                                        '&:hover': {
-                                            transform: 'scale(1.03)',
-                                            filter: 'brightness(1.1)',
+                                        fontSize: "1.1rem",
+                                        "&:hover": {
+                                            transform: "scale(1.03)",
+                                            filter: "brightness(1.1)",
                                         },
-                                        transition: 'all 0.2s ease-in-out',
+                                        transition: "all 0.2s ease-in-out",
                                     }}
                                     startIcon={<IconCommon
                                         decorative

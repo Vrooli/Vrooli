@@ -4,7 +4,7 @@ import { getInstalledWalletProviders, walletDownloadUrls } from "../../utils/aut
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { DialogTitle } from "./DialogTitle/DialogTitle.js";
 import { LargeDialog } from "./LargeDialog/LargeDialog.js";
-import { WalletInstallDialogProps, WalletSelectDialogProps } from "./types.js";
+import { type WalletInstallDialogProps, type WalletSelectDialogProps } from "./types.js";
 
 function installExtension(url: string) {
     window.open(url, "_blank", "noopener,noreferrer");

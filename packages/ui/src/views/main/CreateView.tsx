@@ -1,5 +1,5 @@
-import { LINKS, ResourceSubType, TranslationKeyCommon } from "@local/shared";
-import { Box, Dialog, DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
+import { LINKS, ResourceSubType, type TranslationKeyCommon } from "@local/shared";
+import { Box, Dialog, type DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
@@ -7,13 +7,13 @@ import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { IconCommon, IconInfo } from "../../icons/Icons.js";
+import { IconCommon, type IconInfo } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { ViewProps } from "../../types.js";
+import { type ViewProps } from "../../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
-import { CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
-import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/resource.js";
+import { type CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
+import { type RoutineTypeOption, routineTypes } from "../../utils/search/schemas/resource.js";
 
 type CreateInfo = {
     objectType: CreateType;

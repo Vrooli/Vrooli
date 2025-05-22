@@ -9,7 +9,7 @@ import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { AdvancedInputMarkdown } from "../AdvancedInput/AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, defaultActiveStates } from "../AdvancedInput/AdvancedInputToolbar.js";
 import { AdvancedInputLexical } from "../AdvancedInput/lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, AdvancedInputActiveStates, TranslatedAdvancedInputProps } from "../AdvancedInput/utils.js";
+import { type AdvancedInputAction, type AdvancedInputActiveStates, type TranslatedAdvancedInputProps } from "../AdvancedInput/utils.js";
 
 type RichInputBaseProps = Record<string, any>;
 type RichInputProps = Record<string, any>;

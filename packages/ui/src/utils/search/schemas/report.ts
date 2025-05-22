@@ -1,4 +1,4 @@
-import { endpointsReport, FormSchema, ReportSortBy } from "@local/shared";
+import { endpointsReport, type FormSchema, ReportSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

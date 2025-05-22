@@ -1,5 +1,5 @@
-import { BotShape, User } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps } from "../../../types.js";
+import { type BotShape, type User } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps } from "../../../types.js";
 
 type BotUpsertPropsPage = CrudPropsPage;
 type BotUpsertPropsDialog = CrudPropsDialog<User>;

@@ -6,7 +6,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { AutoFillButtonProps } from "./types.js";
+import { type AutoFillButtonProps } from "./types.js";
 
 export function AutoFillButton({
     handleAutoFill,

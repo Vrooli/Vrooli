@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { BLUR_COMMAND, CLICK_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND, COPY_COMMAND, CUT_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, DRAGEND_COMMAND, DRAGOVER_COMMAND, DRAGSTART_COMMAND, DROP_COMMAND, FOCUS_COMMAND, FORMAT_TEXT_COMMAND, INSERT_LINE_BREAK_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_ENTER_COMMAND, KEY_ESCAPE_COMMAND, KEY_MODIFIER_COMMAND, KEY_SPACE_COMMAND, KEY_TAB_COMMAND, MOVE_TO_END, MOVE_TO_START, PASTE_COMMAND, REDO_COMMAND, SELECTION_CHANGE_COMMAND, SELECT_ALL_COMMAND, UNDO_COMMAND } from "./commands.js";
 import { ANDROID_COMPOSITION_LATENCY, CAN_USE_BEFORE_INPUT, COMPOSITION_START_CHAR, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI } from "./consts.js";
-import { LexicalEditor } from "./editor.js";
+import { type LexicalEditor } from "./editor.js";
 import { flushRootMutations } from "./mutations.js";
-import { $getPreviousSelection, RangeSelection, internalCreateRangeSelection } from "./selection.js";
-import { CustomDomElement, CustomLexicalEvent, NodeKey, RootElementEvents, RootElementRemoveHandles } from "./types.js";
+import { $getPreviousSelection, type RangeSelection, internalCreateRangeSelection } from "./selection.js";
+import { type CustomDomElement, type CustomLexicalEvent, type NodeKey, type RootElementEvents, type RootElementRemoveHandles } from "./types.js";
 import { dispatchCommand, errorOnReadOnly, getActiveEditor, updateEditor } from "./updates.js";
 import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, IS_KEY, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isSelectionWithinEditor } from "./utils.js";
 

@@ -1,4 +1,4 @@
-import { Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
+import { type Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, type ListObject, type Notification, type Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +7,7 @@ import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.
 import { ListContainer } from "../../components/containers/ListContainer.js";
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
-import { ObjectListActions } from "../../components/lists/types.js";
+import { type ObjectListActions } from "../../components/lists/types.js";
 import { NavbarInner, NavListBox, NavListProfileButton, SiteNavigatorButton, TitleDisplay } from "../../components/navigation/Navbar.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
@@ -21,11 +21,11 @@ import { useLocation } from "../../route/router.js";
 import { useChats, useChatsStore } from "../../stores/chatsStore.js";
 import { useNotifications, useNotificationsStore } from "../../stores/notificationsStore.js";
 import { pagePaddingBottom } from "../../styles.js";
-import { ViewDisplayType } from "../../types.js";
+import { type ViewDisplayType } from "../../types.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { DUMMY_LIST_LENGTH } from "../../utils/consts.js";
 import { inboxTabParams } from "../../utils/search/objectToSearch.js";
-import { InboxViewProps } from "./types.js";
+import { type InboxViewProps } from "./types.js";
 
 type InboxObject = Chat | Notification;
 

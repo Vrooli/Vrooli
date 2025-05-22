@@ -9,10 +9,10 @@ import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
-import { ObjectType } from "../../../utils/navigation/openObject.js";
+import { type ObjectType } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
-import { ShareObjectDialogProps } from "../types.js";
+import { type ShareObjectDialogProps } from "../types.js";
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {

@@ -7,7 +7,7 @@ import { usePopover } from "../../../hooks/usePopover.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
 import { TextInput } from "../TextInput/TextInput.js";
-import { TimezoneSelectorProps } from "../types.js";
+import { type TimezoneSelectorProps } from "../types.js";
 
 function formatOffset(offset: number) {
     const sign = offset > 0 ? "-" : "+";

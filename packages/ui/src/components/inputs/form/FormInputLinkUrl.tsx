@@ -1,4 +1,4 @@
-import { LinkUrlFormInput, LinkUrlFormInputProps, getFormikFieldName } from "@local/shared";
+import { type LinkUrlFormInput, type LinkUrlFormInputProps, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, TextField, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -7,7 +7,7 @@ import { PubSub } from "../../../utils/pubsub.js";
 import { LinkInputBase } from "../LinkInput/LinkInput.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 const MIN_HOST_LENGTH = 2;
 const MAX_HOST_LENGTH = 100;

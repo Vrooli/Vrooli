@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { ElementFormatType, TextDetailType, TextFormatType, TextModeType } from "./types.js";
+import { type ElementFormatType, type TextDetailType, type TextFormatType, type TextModeType } from "./types.js";
 
 export const NO_DIRTY_NODES = 0;
 export const HAS_DIRTY_NODES = 1;

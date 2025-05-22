@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Chat, ChatCreateInput, ChatInvite, ChatMessage, ChatParticipant, ChatUpdateInput, ChatYou, DUMMY_ID, User, uuid, uuidToBase36 } from "@local/shared";
+import { type Chat, type ChatCreateInput, type ChatInvite, type ChatMessage, type ChatParticipant, type ChatUpdateInput, type ChatYou, DUMMY_ID, type User, uuid, uuidToBase36 } from "@local/shared";
 import type { Meta, StoryObj } from "@storybook/react";
 import { waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -8,7 +8,7 @@ import { HttpResponse, http } from "msw";
 import { signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { ChatCrud, VALYXA_INFO } from "./ChatCrud.js";
-import { ChatCrudProps } from "./types.js";
+import { type ChatCrudProps } from "./types.js";
 
 // Ensure VALYXA_INFO conforms to User type
 const valyxaUser: User = {

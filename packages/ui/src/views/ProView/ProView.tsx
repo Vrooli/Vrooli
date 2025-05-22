@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, SubscriptionPricesResponse, YEARS_1_MONTHS } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, type SubscriptionPricesResponse, YEARS_1_MONTHS } from "@local/shared";
 import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Link, Typography, alpha, styled, useTheme } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { ViewProps } from "../../types.js";
+import { type ViewProps } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";

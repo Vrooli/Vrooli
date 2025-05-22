@@ -1,12 +1,12 @@
-import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
-import { RadioFormInput, RadioFormInputProps, getFormikFieldName } from "@local/shared";
+import { DragDropContext, Draggable, type DropResult, Droppable } from "@hello-pangea/dnd";
+import { type RadioFormInput, type RadioFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, FormControl, FormControlLabel, FormHelperText, IconButton, Radio, RadioGroup, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 const DefaultWarningLabel = styled(Typography)(({ theme }) => ({
     marginLeft: "12px",

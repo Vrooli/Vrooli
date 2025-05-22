@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, Session as ChatSession, LINKS, MyStuffPageTabOption, getObjectUrl } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, type Session as ChatSession, LINKS, MyStuffPageTabOption, getObjectUrl } from "@local/shared";
 import { Box, Button, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +6,7 @@ import { TextLoading } from "../../components/lists/TextLoading/TextLoading.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { Icon, IconCommon, IconInfo, IconText } from "../../icons/Icons.js";
+import { Icon, IconCommon, type IconInfo, IconText } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { useChats, useChatsStore } from "../../stores/chatsStore.js";
 import { useProjects, useProjectsStore } from "../../stores/projectsStore.js";
@@ -16,7 +16,7 @@ import { ELEMENT_IDS } from "../../utils/consts.js";
 import { extractImageUrl } from "../../utils/display/imageTools.js";
 import { placeholderColor } from "../../utils/display/listTools.js";
 import { NAV_ACTION_TAGS, getUserActions } from "../../utils/navigation/userActions.js";
-import { MenuPayloads, PubSub } from "../../utils/pubsub.js";
+import { type MenuPayloads, PubSub } from "../../utils/pubsub.js";
 import { useIsBottomNavVisible } from "./BottomNav.js";
 
 /** Threshold for showing low credit balance */

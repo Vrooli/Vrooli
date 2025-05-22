@@ -1,4 +1,4 @@
-import { NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types.js";
+import { type NodeWithEndCrudProps, type NodeWithEndFormProps, type NodeWithEndShape } from "../types.js";
 
 export function nodeWithEndInitialValues(existing: NodeWithEndShape): NodeWithEndShape {
     return { ...existing };

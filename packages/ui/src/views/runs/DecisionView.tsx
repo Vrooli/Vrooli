@@ -1,8 +1,8 @@
-import { DecisionOption } from "@local/shared";
-import { ListItem, ListItemProps, Stack, Typography, styled, useTheme } from "@mui/material";
+import { type DecisionOption } from "@local/shared";
+import { ListItem, type ListItemProps, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "../../styles.js";
-import { DecisionViewProps } from "./types.js";
+import { type DecisionViewProps } from "./types.js";
 
 type Decision = DecisionOption & {
     color: string;

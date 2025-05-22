@@ -2,15 +2,15 @@
 import { LlmTask, TaskStatus } from "@local/shared";
 import { Box, Button, Divider, FormControlLabel, Switch, Typography } from "@mui/material";
 import { action } from "@storybook/addon-actions";
-import { Meta } from "@storybook/react";
+import { type Meta } from "@storybook/react";
 import userEvent from "@testing-library/user-event";
 import { Form, Formik } from "formik";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
-import { AITaskDisplay, AITaskDisplayState } from "../../../types.js";
+import { type AITaskDisplay, AITaskDisplayState } from "../../../types.js";
 import { PageContainer } from "../../Page/Page.js";
 import { AdvancedInput, AdvancedInputBase, TranslatedAdvancedInput } from "./AdvancedInput.js";
-import { AdvancedInputFeatures, ContextItem, DEFAULT_FEATURES, advancedInputTextareaClassName } from "./utils.js";
+import { type AdvancedInputFeatures, type ContextItem, DEFAULT_FEATURES, advancedInputTextareaClassName } from "./utils.js";
 
 const outerBoxStyle = {
     display: "flex",

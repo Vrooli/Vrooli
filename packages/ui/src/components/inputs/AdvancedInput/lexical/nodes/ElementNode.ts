@@ -1,6 +1,6 @@
 import { ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } from "../consts.js";
-import { RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection.js";
-import { BaseSelection, ElementFormatType, NodeConstructorPayloads, NodeKey, NodeType, PointType, SerializedElementNode } from "../types.js";
+import { type RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection.js";
+import { type BaseSelection, type ElementFormatType, type NodeConstructorPayloads, type NodeKey, type NodeType, type PointType, type SerializedElementNode } from "../types.js";
 import { errorOnReadOnly, getActiveEditor } from "../updates.js";
 import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, getNextSibling, getParent, getPreviousSibling, removeFromParent } from "../utils.js";
 import { LexicalNode } from "./LexicalNode.js";

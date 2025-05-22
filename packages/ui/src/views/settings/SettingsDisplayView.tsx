@@ -1,6 +1,6 @@
-import { endpointsUser, ProfileUpdateInput, profileValidation, User } from "@local/shared";
+import { endpointsUser, type ProfileUpdateInput, profileValidation, type User } from "@local/shared";
 import { Box, Button, Grid, styled, Typography, useTheme } from "@mui/material";
-import { Formik, FormikHelpers } from "formik";
+import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -21,7 +21,7 @@ import { FormSection, ScrollBox } from "../../styles.js";
 import { SessionService } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { SearchHistory } from "../../utils/search/searchHistory.js";
-import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "./types.js";
+import { type SettingsDisplayFormProps, type SettingsDisplayViewProps } from "./types.js";
 
 const ClearSettingBox = styled(Box)(({ theme }) => ({
     background: theme.palette.background.paper,

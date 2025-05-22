@@ -1,7 +1,7 @@
-import { LINKS, NotificationSettingsUpdateInput, ProfileUpdateInput, TranslationKeyCommon } from "@local/shared";
-import { FormikProps } from "formik";
-import { IconInfo } from "../../icons/Icons.js";
-import { ViewDisplayType, ViewProps } from "../../types.js";
+import { type LINKS, type NotificationSettingsUpdateInput, type ProfileUpdateInput, type TranslationKeyCommon } from "@local/shared";
+import { type FormikProps } from "formik";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type ViewDisplayType, type ViewProps } from "../../types.js";
 
 export type SettingsPageType = "Data" | "Profile" | "Privacy" | "Authentication" | "Payment" | "Api" | "Display" | "Notification";
 export type SettingsData = {

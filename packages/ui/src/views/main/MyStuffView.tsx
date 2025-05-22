@@ -1,4 +1,4 @@
-import { ListObject, ModelType, SearchType, getObjectUrlBase, validatePK } from "@local/shared";
+import { type ListObject, type ModelType, type SearchType, getObjectUrlBase, validatePK } from "@local/shared";
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +20,7 @@ import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_CLASSES, ELEMENT_IDS } from "../../utils/consts.js";
 import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
 import { myStuffTabParams } from "../../utils/search/objectToSearch.js";
-import { MyStuffViewProps } from "./types.js";
+import { type MyStuffViewProps } from "./types.js";
 
 const scrollContainerId = "my-stuff-search-scroll";
 const pageContainerStyle = {

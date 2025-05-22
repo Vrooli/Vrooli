@@ -1,9 +1,9 @@
-import { ListObject, Routine } from "@local/shared";
-import { BoxProps } from "@mui/material";
-import { IconInfo } from "../../icons/Icons.js";
-import { SxType } from "../../types.js";
+import { type ListObject, type Routine } from "@local/shared";
+import { type BoxProps } from "@mui/material";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type SxType } from "../../types.js";
 import { type DisplayAdornment } from "../../utils/display/listTools.js";
-import { ObjectType } from "../../utils/navigation/openObject.js";
+import { type ObjectType } from "../../utils/navigation/openObject.js";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     loading?: boolean;

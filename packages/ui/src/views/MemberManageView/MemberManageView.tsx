@@ -1,4 +1,4 @@
-import { ListObject, validatePK } from "@local/shared";
+import { type ListObject, validatePK } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { Field } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,7 +13,7 @@ import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { memberTabParams } from "../../utils/search/objectToSearch.js";
-import { MemberManageViewProps } from "../types.js";
+import { type MemberManageViewProps } from "../types.js";
 
 const scrollContainerId = "member-search-scroll";
 const dialogStyle = {

@@ -1,5 +1,5 @@
-import { StandardVersion, StandardVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { type StandardVersion, type StandardVersionShape } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type PromptUpsertPropsPage = CrudPropsPage;
 type PromptUpsertPropsDialog = CrudPropsDialog<StandardVersion>;

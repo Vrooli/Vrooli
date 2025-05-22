@@ -1,10 +1,10 @@
-import { ApiKey, ApiKeyCreateInput, ApiKeyCreated, ApiKeyExternal, ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput, ApiKeyPermission, ApiKeyUpdateInput, DeleteOneInput, DeleteType, FormStructureType, Success, User, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop } from "@local/shared";
+import { type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, ApiKeyPermission, type ApiKeyUpdateInput, type DeleteOneInput, DeleteType, FormStructureType, type Success, type User, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop } from "@local/shared";
 import { Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, FormControlLabel, FormGroup, FormHelperText, FormLabel, IconButton, MenuItem, Radio, RadioGroup, Select, Stack, Typography, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { LazyRequestWithResult } from "../../api/types.js";
+import { type LazyRequestWithResult } from "../../api/types.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
@@ -19,7 +19,7 @@ import { IconCommon, IconFavicon } from "../../icons/Icons.js";
 import { ScrollBox } from "../../styles.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { SettingsApiViewProps } from "./types.js";
+import { type SettingsApiViewProps } from "./types.js";
 
 // Define known services and supported integrations
 const KNOWN_SERVICES = ["OpenAI", "Google Maps", "Microsoft"];
@@ -79,16 +79,16 @@ export const PERMISSION_PRESETS = {
         name: "Read Only",
         description: "Only access to read public data",
         permissions: [
-            ApiKeyPermission.ReadPublic
-        ]
+            ApiKeyPermission.ReadPublic,
+        ],
     },
     STANDARD: {
         name: "Standard Access",
         description: "Read public and your private data",
         permissions: [
             ApiKeyPermission.ReadPublic,
-            ApiKeyPermission.ReadPrivate
-        ]
+            ApiKeyPermission.ReadPrivate,
+        ],
     },
     DEVELOPER: {
         name: "Developer Access",
@@ -96,8 +96,8 @@ export const PERMISSION_PRESETS = {
         permissions: [
             ApiKeyPermission.ReadPublic,
             ApiKeyPermission.ReadPrivate,
-            ApiKeyPermission.WritePrivate
-        ]
+            ApiKeyPermission.WritePrivate,
+        ],
     },
     FULL_ACCESS: {
         name: "Full Access (High Security Risk)",
@@ -107,9 +107,9 @@ export const PERMISSION_PRESETS = {
             ApiKeyPermission.ReadPrivate,
             ApiKeyPermission.WritePrivate,
             ApiKeyPermission.ReadAuth,
-            ApiKeyPermission.WriteAuth
-        ]
-    }
+            ApiKeyPermission.WriteAuth,
+        ],
+    },
 };
 
 /**
@@ -191,15 +191,15 @@ interface ApiKeyPermissionsSelectorProps {
 export function ApiKeyPermissionsSelector({
     selectedPermissions,
     onChange,
-    compact = false
+    compact = false,
 }: ApiKeyPermissionsSelectorProps) {
     const { palette } = useTheme();
-    const [selectedPreset, setSelectedPreset] = useState<string | 'custom'>("READ_ONLY");
+    const [selectedPreset, setSelectedPreset] = useState<string | "custom">("READ_ONLY");
 
     // Update the preset when permissions change externally
     useEffect(() => {
         const matchingPreset = findMatchingPreset(selectedPermissions);
-        setSelectedPreset(matchingPreset || 'custom');
+        setSelectedPreset(matchingPreset || "custom");
     }, [selectedPermissions]);
 
     // When a preset is selected
@@ -207,7 +207,7 @@ export function ApiKeyPermissionsSelector({
         const presetKey = event.target.value;
         setSelectedPreset(presetKey);
 
-        if (presetKey !== 'custom') {
+        if (presetKey !== "custom") {
             const preset = PERMISSION_PRESETS[presetKey as keyof typeof PERMISSION_PRESETS];
             onChange(preset.permissions);
         }
@@ -227,7 +227,7 @@ export function ApiKeyPermissionsSelector({
 
         // Update the preset if it matches, otherwise set to custom
         const matchingPreset = findMatchingPreset(newPermissions);
-        setSelectedPreset(matchingPreset || 'custom');
+        setSelectedPreset(matchingPreset || "custom");
     }, [selectedPermissions, onChange]);
 
     // Get security level color
@@ -261,7 +261,7 @@ export function ApiKeyPermissionsSelector({
                     ))}
                     <MenuItem value="custom">Custom Permissions</MenuItem>
                 </Select>
-                {selectedPreset === 'custom' && (
+                {selectedPreset === "custom" && (
                     <Box mt={2}>
                         <FormGroup>
                             {Object.values(ApiKeyPermission).map((permission) => (
@@ -317,7 +317,7 @@ export function ApiKeyPermissionsSelector({
                 </RadioGroup>
             </FormControl>
 
-            {selectedPreset === 'custom' && (
+            {selectedPreset === "custom" && (
                 <Box mt={3} ml={4}>
                     <FormControl component="fieldset" fullWidth>
                         <FormLabel component="legend">Individual Permissions</FormLabel>
@@ -340,7 +340,7 @@ export function ApiKeyPermissionsSelector({
                                                     sx={{
                                                         ml: 1,
                                                         backgroundColor: getSecurityLevelColor(PERMISSION_SECURITY_LEVELS[permission]),
-                                                        color: '#fff'
+                                                        color: "#fff",
                                                     }}
                                                 />
                                             </Box>
@@ -355,7 +355,7 @@ export function ApiKeyPermissionsSelector({
             )}
         </Box>
     );
-};
+}
 
 type ApiKeyViewDialogProps = {
     apiKey: string | null;
@@ -797,7 +797,7 @@ export function SettingsApiView({
                 },
                 onError: (error) => {
                     reject(error);
-                }
+                },
             });
         });
     }, [apiKeys, createInternalKey, onProfileUpdate, profile]);

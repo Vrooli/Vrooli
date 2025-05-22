@@ -1,6 +1,6 @@
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import * as yup from "yup";
+import type * as yup from "yup";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, removeTranslation } from "../utils/display/translationTools.js";
 
 /**

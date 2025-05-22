@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Api, ApiVersion, CodeLanguage, Resource, ResourceList, ResourceUsedFor, Tag, User, endpointsApiVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { type Api, type ApiVersion, CodeLanguage, type Resource, type ResourceList, ResourceUsedFor, type Tag, type User, endpointsApiVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiView } from "./ApiView.js";
@@ -297,13 +297,13 @@ Own.parameters = {
                             isBookmarked: false,
                             isOwner: true,
                             isStarred: false,
-                        }
+                        },
                     },
                     permissions: {
                         canDelete: true,
                         canUpdate: true,
                         canRead: true,
-                    }
+                    },
                 };
 
                 return HttpResponse.json({ data: mockWithOwnerPermissions });

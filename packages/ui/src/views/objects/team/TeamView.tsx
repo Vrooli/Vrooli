@@ -1,6 +1,6 @@
-import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, getTranslation, uuidValidate } from "@local/shared";
+import { BookmarkFor, LINKS, type ListObject, type ResourceList as ResourceListType, type Team, TeamPageTabOption, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../../components/PageTabs/PageTabs.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
@@ -29,7 +29,7 @@ import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { teamTabParams } from "../../../utils/search/objectToSearch.js";
-import { TeamViewProps } from "./types.js";
+import { type TeamViewProps } from "./types.js";
 
 const scrollContainerId = "team-search-scroll";
 

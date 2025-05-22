@@ -5,7 +5,7 @@ import { getTranslationData } from "../../utils/display/translationTools.js";
 import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
 import { TopBar } from "../navigation/TopBar.js";
 import { Title } from "./Title.js";
-import { TitleProps } from "./types.js";
+import { type TitleProps } from "./types.js";
 
 export interface EditableTitleProps extends TitleProps {
     DialogContentForm: (formikContext: ReturnType<typeof useFormikContext>) => React.ReactNode;

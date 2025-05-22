@@ -11,8 +11,8 @@ import { Title } from "../../components/text/Title.js";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { ViewProps } from "../../types.js";
-import { SettingsData } from "./types.js";
+import { type ViewProps } from "../../types.js";
+import { type SettingsData } from "./types.js";
 
 export const accountSettingsData: SettingsData[] = [
     {

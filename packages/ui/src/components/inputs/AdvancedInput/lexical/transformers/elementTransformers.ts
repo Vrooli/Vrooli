@@ -1,9 +1,9 @@
-import { Headers } from "../../utils.js";
+import { type Headers } from "../../utils.js";
 import { $createCodeNode } from "../nodes/CodeNode.js";
 import { type ElementNode } from "../nodes/ElementNode.js";
 import { type LexicalNode } from "../nodes/LexicalNode.js";
 import { listExport, listReplace } from "../nodes/ListNode.js";
-import { ElementTransformer } from "../types.js";
+import { type ElementTransformer } from "../types.js";
 import { $createNode, $isNode, getPreviousSibling } from "../utils.js";
 
 function createBlockNode(

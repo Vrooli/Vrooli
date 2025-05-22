@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 //TODO replace this with custom styling in CodePlugin, then remove CodePlugin
 
-import { RangeSelection } from "../selection.js";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types.js";
+import { type RangeSelection } from "../selection.js";
+import { type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type NodeConstructorPayloads, type NodeKey, type NodeType, type SerializedCodeHighlightNode, type SerializedCodeNode } from "../types.js";
 import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, isHTMLElement } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 import { type LexicalNode } from "./LexicalNode.js";

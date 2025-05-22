@@ -1,12 +1,12 @@
-import { Box, BoxProps, CircularProgress, IconButton, Input, Palette, Paper, Popover, PopoverProps, styled, useTheme } from "@mui/material";
-import { ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Box, type BoxProps, CircularProgress, IconButton, Input, type Palette, Paper, Popover, type PopoverProps, styled, useTheme } from "@mui/material";
+import { type ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList } from "react-window";
 import { useDebounce } from "../../hooks/useDebounce.js";
-import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { type PageTab, useTabs } from "../../hooks/useTabs.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { Z_INDEX } from "../../utils/consts.js";
-import { TabParamBase } from "../../utils/search/objectToSearch.js";
+import { type TabParamBase } from "../../utils/search/objectToSearch.js";
 import { PageTabs } from "../PageTabs/PageTabs.js";
 import { MicrophoneButton } from "../buttons/MicrophoneButton.js";
 // import emojis from "./data/emojis";

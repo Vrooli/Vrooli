@@ -1,7 +1,7 @@
-import { LINKS, SOCIALS, TranslationKeyCommon } from "@local/shared";
+import { LINKS, SOCIALS, type TranslationKeyCommon } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { Icon, IconCommon, IconInfo } from "../../icons/Icons.js";
+import { Icon, IconCommon, type IconInfo } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { pagePaddingBottom } from "../../styles.js";

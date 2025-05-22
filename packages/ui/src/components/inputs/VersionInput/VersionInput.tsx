@@ -4,7 +4,7 @@ import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../TextInput/TextInput.js";
-import { VersionInputProps } from "../types.js";
+import { type VersionInputProps } from "../types.js";
 
 const textInputWithSideButtonStyle = {
     "& .MuiInputBase-root": {

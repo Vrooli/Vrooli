@@ -1,4 +1,4 @@
-import { ChatMessage, ChatParticipant, ChatShape, LlmTaskInfo, Session, uuid } from "@local/shared";
+import { type ChatMessage, type ChatParticipant, type ChatShape, type LlmTaskInfo, type Session, uuid } from "@local/shared";
 import { expect } from "chai";
 import { fullPreferences, getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage.js";
 import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat.js";

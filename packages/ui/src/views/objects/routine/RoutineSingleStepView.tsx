@@ -1,4 +1,4 @@
-import { CommentFor, FindByIdInput, FormBuilder, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RoutineVersionConfig, RunRoutine, RunStatus, Tag, TagShape, UrlTools, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate } from "@local/shared";
+import { CommentFor, type FindByIdInput, FormBuilder, LINKS, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, type RoutineSingleStepViewSearchParams, RoutineType, type RoutineVersion, RoutineVersionConfig, type RunRoutine, RunStatus, type Tag, type TagShape, UrlTools, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate } from "@local/shared";
 import { Box, Divider, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Formik, useFormikContext } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -27,7 +27,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { addSearchParams } from "../../../route/searchParams.js";
 import { FormSection, ScrollBox } from "../../../styles.js";
-import { FormErrors, PartialWithType } from "../../../types.js";
+import { type FormErrors, type PartialWithType } from "../../../types.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
@@ -38,8 +38,8 @@ import { openObject } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { routineTypes } from "../../../utils/search/schemas/resource.js";
 import { routineSingleStepInitialValues } from "./RoutineSingleStepUpsert.js";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "./RoutineTypeForms.js";
-import { RoutineSingleStepViewProps } from "./types.js";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, type RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "./RoutineTypeForms.js";
+import { type RoutineSingleStepViewProps } from "./types.js";
 
 /**
  * If no existing routine found, consider it an error if we are not creating a new routine
@@ -354,7 +354,7 @@ export function RoutineSingleStepView({
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     const config = useMemo(function configMemo() {
-        return RoutineVersionConfig.deserialize({ config: existing.config, routineType: existing.routineType ?? RoutineType.Informational }, console);
+        return RoutineVersionConfig.parse({ config: existing.config, routineType: existing.routineType ?? RoutineType.Informational }, console);
     }, [existing.config, existing.routineType]);
 
     const { formInitialValues, formValidationSchema } = useMemo(function initialValuesMemo() {

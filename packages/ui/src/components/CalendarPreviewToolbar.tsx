@@ -1,8 +1,8 @@
-import { CalendarEvent } from "@local/shared";
+import { type CalendarEvent } from "@local/shared";
 import { Box, IconButton, Tooltip, styled } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import React, { useCallback, useRef } from "react";
-import { Navigate, ToolbarProps, Views } from "react-big-calendar";
+import { Navigate, type ToolbarProps, Views } from "react-big-calendar";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../icons/Icons.js";
 
@@ -77,7 +77,7 @@ export function CalendarPreviewToolbar({
                 onSelectDate(newDate);
             }
         },
-        [onNavigate, onSelectDate]
+        [onNavigate, onSelectDate],
     );
 
     const openDatePicker = useCallback(() => {
@@ -88,12 +88,12 @@ export function CalendarPreviewToolbar({
 
     const navigate = useCallback(
         (action) => onNavigate(action),
-        [onNavigate]
+        [onNavigate],
     );
 
     const changeView = useCallback(
         (nextView) => onView(nextView),
-        [onView]
+        [onView],
     );
 
     return (

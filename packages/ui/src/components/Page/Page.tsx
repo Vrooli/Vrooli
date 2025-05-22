@@ -1,10 +1,10 @@
 import { LINKS, UrlTools } from "@local/shared";
-import { Box, BoxProps, styled, useTheme } from "@mui/material";
+import { Box, type BoxProps, styled, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo } from "react";
 import { SessionContext } from "../../contexts/session.js";
 import { Redirect, useLocation } from "../../route/router.js";
 import { pagePaddingBottom } from "../../styles.js";
-import { PageProps, SxType } from "../../types.js";
+import { type PageProps, type SxType } from "../../types.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
 

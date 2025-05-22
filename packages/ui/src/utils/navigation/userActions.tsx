@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
-import { IconInfo } from "../../icons/Icons.js";
+import { LINKS, type Session, type TranslationKeyCommon } from "@local/shared";
+import { type IconInfo } from "../../icons/Icons.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 
 export enum NAV_ACTION_TAGS {

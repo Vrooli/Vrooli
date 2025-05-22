@@ -1,4 +1,4 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid } from "@local/shared";
+import { DUMMY_ID, type DeleteOneInput, DeleteType, type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import { useCallback, useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import { PubSub } from "../../../utils/pubsub.js";
 import { ListContainer } from "../../containers/ListContainer.js";
 import { PhoneNumberInputBase } from "../../inputs/PhoneNumberInput/PhoneNumberInput.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
-import { PhoneListItemProps, PhoneListProps } from "./types.js";
+import { type PhoneListItemProps, type PhoneListProps } from "./types.js";
 
 /**
  * Displays a list of phone numbers for the user to manage

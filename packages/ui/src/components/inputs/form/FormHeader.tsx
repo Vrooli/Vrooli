@@ -1,5 +1,5 @@
-import { FormHeaderType, FormStructureType, HeaderTag } from "@local/shared";
-import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { type FormHeaderType, FormStructureType, type HeaderTag } from "@local/shared";
+import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, type Palette, Popover, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
@@ -9,7 +9,7 @@ import { HelpButton } from "../../buttons/HelpButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { RichInputBase } from "../RichInput/RichInput.js";
 import { FormSettingsButtonRow, propButtonStyle } from "./styles.js";
-import { FormHeaderProps } from "./types.js";
+import { type FormHeaderProps } from "./types.js";
 
 /** Total number of header options in HTML (i.e. h1, h2, ..., h6) */
 const NUM_HEADERS = 6;

@@ -1,4 +1,4 @@
-import { AdvancedInputFeatures } from "./utils.js";
+import { type AdvancedInputFeatures } from "./utils.js";
 
 export const nameInputFeatures: AdvancedInputFeatures = {
     allowFormatting: false,

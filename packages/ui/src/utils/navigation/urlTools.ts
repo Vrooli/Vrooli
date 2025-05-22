@@ -1,6 +1,6 @@
 import { handleRegex, LINKS, validatePublicId } from "@local/shared";
 import { getLastPathnamePart } from "../../route/getLastPathnamePart.js";
-import { SetLocation } from "../../route/types.js";
+import { type SetLocation } from "../../route/types.js";
 
 export type UrlInfo = {
     handleRoot?: string,

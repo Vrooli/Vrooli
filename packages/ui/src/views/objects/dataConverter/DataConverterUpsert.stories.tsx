@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, CodeVersion, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { CodeLanguage, CodeType, type CodeVersion, DUMMY_ID, type Resource, ResourceUsedFor, type Tag, type User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterUpsert } from "./DataConverterUpsert.js";

@@ -1,9 +1,9 @@
-import { calculateOccurrences, CalendarEvent, CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, HOURS_1_MS, isOfType, MeetingShape, noopSubmit, RunShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success } from "@local/shared";
-import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
+import { calculateOccurrences, type CalendarEvent, type CanConnect, type DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, HOURS_1_MS, isOfType, type MeetingShape, noopSubmit, type RunShape, type Schedule, type ScheduleCreateInput, type ScheduleException, type ScheduleRecurrence, ScheduleRecurrenceType, type ScheduleShape, type ScheduleUpdateInput, scheduleValidation, type Session, shapeSchedule, type Success } from "@local/shared";
+import { Box, Button, Card, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, type Palette, Paper, Select, Stack, styled, Typography, useTheme } from "@mui/material";
 import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
 import enUS from "date-fns/locale/en-US";
 import { Formik, useField } from "formik";
-import memoize from 'lodash/memoize';
+import memoize from "lodash/memoize";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -32,7 +32,7 @@ import { getDisplay, placeholderColor } from "../../../utils/display/listTools.j
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "./types.js";
+import { type ScheduleFormProps, type ScheduleForOption, type ScheduleUpsertProps } from "./types.js";
 
 export const scheduleForOptions: ScheduleForOption[] = [
     {
@@ -276,20 +276,20 @@ const RecurrenceItem = memo(function RecurrenceItem({
         <Paper
             sx={{
                 p: 3,
-                position: 'relative',
+                position: "relative",
                 backgroundColor: palette.background.paper,
-                '& .delete-button': {
+                "& .delete-button": {
                     opacity: 0,
                 },
-                '&:hover .delete-button': {
+                "&:hover .delete-button": {
                     opacity: 1,
                 },
             }}
             elevation={2}
         >
             {/* Summary header */}
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography variant="h6" sx={{ color: 'text.primary' }}>
+            <Box sx={{ mb: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Typography variant="h6" sx={{ color: "text.primary" }}>
                     {memoizedFormatRecurrence(recurrence)}
                 </Typography>
                 <IconButton
@@ -299,10 +299,10 @@ const RecurrenceItem = memo(function RecurrenceItem({
                     onClick={() => onDelete(index)}
                     sx={{
                         opacity: 0,
-                        transition: 'opacity 0.2s ease-in-out',
-                        '&:hover': {
+                        transition: "opacity 0.2s ease-in-out",
+                        "&:hover": {
                             backgroundColor: palette.error.main,
-                            '& svg': {
+                            "& svg": {
                                 fill: palette.common.white,
                             },
                         },
@@ -320,7 +320,7 @@ const RecurrenceItem = memo(function RecurrenceItem({
                         <Select
                             value={recurrence.recurrenceType}
                             onChange={(event) => onChange(index, "recurrenceType", event.target.value)}
-                            sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1 } }}
+                            sx={{ "& .MuiSelect-select": { display: "flex", alignItems: "center", gap: 1 } }}
                         >
                             <MenuItem value={ScheduleRecurrenceType.Daily}>
                                 <IconCommon decorative name="Schedule" type="Common" style={{ fontSize: 20 }} />
@@ -351,7 +351,7 @@ const RecurrenceItem = memo(function RecurrenceItem({
                         InputProps={{
                             endAdornment: (
                                 <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                                    {recurrence.recurrenceType.toLowerCase() + (recurrence.interval > 1 ? 's' : '')}
+                                    {recurrence.recurrenceType.toLowerCase() + (recurrence.interval > 1 ? "s" : "")}
                                 </Typography>
                             ),
                         }}
@@ -409,7 +409,7 @@ const RecurrenceItem = memo(function RecurrenceItem({
 const BigCalendar: any = Calendar;
 
 // Set up date-fns localizer for react-big-calendar
-const locales = { 'en-US': enUS };
+const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 function ScheduleForm({
@@ -616,7 +616,7 @@ function ScheduleForm({
 
     // State for mini calendar view date
     const [calendarDate, setCalendarDate] = useState<Date>(
-        values.startTime ? new Date(values.startTime) : new Date()
+        values.startTime ? new Date(values.startTime) : new Date(),
     );
 
     // Effect to recalculate occurrences for preview
@@ -639,7 +639,7 @@ function ScheduleForm({
                 const occurrences = await calculateOccurrences(
                     values as any,
                     previewStartDate,
-                    previewEndDate
+                    previewEndDate,
                 );
                 if (!isCancelled) {
                     setPreviewOccurrences(
@@ -651,7 +651,7 @@ function ScheduleForm({
                             end: o.end,
                             allDay: false,
                             schedule: values as any,
-                        }) as CalendarEvent)
+                        }) as CalendarEvent),
                     );
                 }
             } catch (error) {
@@ -733,18 +733,18 @@ function ScheduleForm({
                                     name="startTime"
                                     label="Start time"
                                     type="datetime-local"
-                                    sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                    sx={{ "& .MuiInputBase-input": { fontSize: typography.caption.fontSize } }}
                                 />
                                 <DateInput
                                     name="endTime"
                                     label="End time"
                                     type="datetime-local"
-                                    sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                    sx={{ "& .MuiInputBase-input": { fontSize: typography.caption.fontSize } }}
                                 />
                                 <TimezoneSelector
                                     name="timezone"
                                     label="Timezone"
-                                    sx={{ '& .MuiInputBase-input': { fontSize: typography.caption.fontSize } }}
+                                    sx={{ "& .MuiInputBase-input": { fontSize: typography.caption.fontSize } }}
                                 />
                             </Box>
                         </Grid>
@@ -778,7 +778,7 @@ function ScheduleForm({
                             </Box>
                         </Grid>
                         <Grid item xs={12}>
-                            <Box mt={4} p={2} sx={{ maxWidth: '100%', mx: 'auto' }}>
+                            <Box mt={4} p={2} sx={{ maxWidth: "100%", mx: "auto" }}>
                                 <Typography variant="h5" sx={{ ...styles.sectionTitle, mb: 2 }}>Preview</Typography>
                                 <BigCalendar
                                     localizer={localizer}
@@ -794,31 +794,31 @@ function ScheduleForm({
                                         return {
                                             style: isException
                                                 ? { backgroundColor: palette.action.disabledBackground, opacity: 0.6 }
-                                                : {}
+                                                : {},
                                         };
                                     }}
                                     onSelectEvent={(event: any) => toggleException(event.start)}
-                                    style={{ height: 500, width: '100%' }}
+                                    style={{ height: 500, width: "100%" }}
                                 />
                             </Box>
                         </Grid>
                         {/* Schedule-for block centered */}
                         <Grid item xs={12}>
-                            <Box mt={4} p={2} sx={{ maxWidth: '600px', mx: 'auto' }}>
+                            <Box mt={4} p={2} sx={{ maxWidth: "600px", mx: "auto" }}>
                                 {!scheduleForObject ? (
                                     <Button
                                         fullWidth
                                         variant="outlined"
                                         onClick={handleScheduleForButtonClick}
                                         sx={{
-                                            borderStyle: 'dashed',
+                                            borderStyle: "dashed",
                                             borderWidth: 2,
                                             borderColor: palette.divider,
-                                            backgroundColor: 'transparent',
+                                            backgroundColor: "transparent",
                                             color: palette.text.secondary,
                                             minHeight: 120,
-                                            transition: 'all 0.2s ease-in-out',
-                                            '&:hover': {
+                                            transition: "all 0.2s ease-in-out",
+                                            "&:hover": {
                                                 backgroundColor: palette.action.hover,
                                             },
                                         }}
@@ -876,11 +876,11 @@ function ScheduleForm({
                     maxWidth={1200}
                 >
                     <Box width="100%" padding={2}>
-                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>Summary:</Typography>
-                        <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary' }}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: "medium" }}>Summary:</Typography>
+                        <Typography variant="body2" sx={{ mb: 4, color: "text.secondary" }}>
                             {Array.isArray(recurrencesField.value) && recurrencesField.value.length > 0
-                                ? recurrencesField.value.map(formatRecurrence).join('; ')
-                                : 'Does not repeat'}
+                                ? recurrencesField.value.map(formatRecurrence).join("; ")
+                                : "Does not repeat"}
                         </Typography>
                         {Array.isArray(recurrencesField.value) && recurrencesField.value.length > 0 && (
                             <Box borderRadius={2} overflow="overlay" sx={{ mb: 2 }}>
@@ -903,8 +903,8 @@ function ScheduleForm({
                             onClick={addNewRecurrence}
                             startIcon={<IconCommon decorative name="Add" />}
                             sx={{
-                                transition: 'all 0.2s ease-in-out',
-                                '&:hover': {
+                                transition: "all 0.2s ease-in-out",
+                                "&:hover": {
                                     backgroundColor: palette.action.hover,
                                 },
                             }}

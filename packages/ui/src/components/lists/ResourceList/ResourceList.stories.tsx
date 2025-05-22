@@ -1,4 +1,4 @@
-import { LINKS, Resource, ResourceList as ResourceListType, ResourceUsedFor } from "@local/shared";
+import { LINKS, type Resource, type ResourceList as ResourceListType, ResourceUsedFor } from "@local/shared";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";

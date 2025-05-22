@@ -1,4 +1,4 @@
-import { DUMMY_ID, Run, RunCreateInput, RunStatus, RunTaskInfo, RunUpdateInput, endpointsRun, validatePK } from "@local/shared";
+import { DUMMY_ID, type Run, type RunCreateInput, RunStatus, type RunTaskInfo, type RunUpdateInput, endpointsRun, validatePK } from "@local/shared";
 import { useCallback, useEffect, useRef } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { SocketService } from "../api/socket.js";

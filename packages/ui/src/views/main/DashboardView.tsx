@@ -1,10 +1,10 @@
-import { CalendarEvent, ChatParticipantShape, DAYS_30_MS, DUMMY_ID, HomeResult, Reminder, ReminderList as ReminderListShape, Resource, ResourceList as ResourceListType, Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, getObjectUrl, uuid } from "@local/shared";
+import { type CalendarEvent, type ChatParticipantShape, DAYS_30_MS, DUMMY_ID, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, getObjectUrl, uuid } from "@local/shared";
 import { Box, IconButton, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExistingAIConfig } from "../../api/ai.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
-import { ChatSettingsMenu, IntegrationSettings, ModelConfig, ShareSettings } from "../../components/ChatSettingsMenu/ChatSettingsMenu.js";
+import { ChatSettingsMenu, type IntegrationSettings, type ModelConfig, type ShareSettings } from "../../components/ChatSettingsMenu/ChatSettingsMenu.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { EventList } from "../../components/lists/EventList/EventList.js";
 import { ReminderList } from "../../components/lists/ReminderList/ReminderList.js";
@@ -23,7 +23,7 @@ import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { VALYXA_INFO } from "../objects/chat/ChatCrud.js";
-import { DashboardViewProps } from "./types.js";
+import { type DashboardViewProps } from "./types.js";
 
 const MAX_EVENTS_SHOWN = 10;
 const MESSAGE_LIST_ID = "dashboardMessage";
@@ -110,7 +110,7 @@ export function DashboardView({
             id: uuid(),
             user: { ...VALYXA_INFO, __typename: "User" },
             // chat property is usually added by the backend or context
-        } as ChatParticipantShape // Type assertion needed as 'chat' is missing
+        } as ChatParticipantShape, // Type assertion needed as 'chat' is missing
     ]);
 
     // Default share settings for dashboard
@@ -129,7 +129,7 @@ export function DashboardView({
             language: getUserLanguages(session)[0],
             name: "Dashboard Settings",
             description: "Configure default model settings for new chats.",
-        }]
+        }],
     }), [session]);
 
     // Update local state when model config changes
@@ -305,7 +305,7 @@ export function DashboardView({
                         list={{
                             __typename: "ReminderList",
                             id: DUMMY_ID,
-                            reminders: reminders,
+                            reminders,
                             createdAt: Date.now(),
                             updatedAt: Date.now(),
                         } as ReminderListShape}

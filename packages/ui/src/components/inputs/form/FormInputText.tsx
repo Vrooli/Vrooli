@@ -1,14 +1,14 @@
-import { TextFormInput, TextFormInputProps, getFormikFieldName } from "@local/shared";
+import { type TextFormInput, type TextFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Slider, Typography } from "@mui/material";
 import { useField } from "formik";
-import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";
 import { RichInputBase } from "../RichInput/RichInput.js";
 import { SelectorBase } from "../Selector/Selector.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 /**
  * Options for the autoComplete attribute in text inputs. 
