@@ -1,11 +1,11 @@
 /* eslint-disable func-style */
-import { ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfig, type SessionUser, type SessionUserSession, type ToolFunctionCall } from "@local/shared";
+import { ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfig, type SessionUser, type ToolFunctionCall } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import type OpenAI from "openai";
 import { logger } from "../../events/logger.js";
 import { SocketService } from "../../sockets/io.js";
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
-import { BusService, type EventBus } from "../bus.js";
+import { BusService } from "../bus.js";
 import { type ToolInputSchema } from "../mcp/types.js";
 import { type AgentGraph, CompositeGraph } from "./agentGraph.js";
 import { CachedConversationStateStore, type ConversationStateStore, PrismaChatStore } from "./chatStore.js";
@@ -14,48 +14,20 @@ import { type MessageStore, RedisMessageStore } from "./messageStore.js";
 import type { FunctionCallStreamEvent } from "./router.js";
 import { FallbackRouter, type LlmRouter } from "./router.js";
 import { CompositeToolRunner, type ToolRunner } from "./toolRunner.js";
-import { type BotParticipant, type MessageState, type SwarmInternalEvent, type SwarmStartedEvent, type TurnStats } from "./types.js";
+import { type BotParticipant, type MessageState, type ResponseStats, type SwarmInternalEvent, type SwarmStartedEvent } from "./types.js";
 import { WorldModel } from "./worldModel.js";
 
 // /** Maximum iterations for the drain loop, if something goes wrong with normal limit logic */
 // const MAX_DRAIN_ITERATIONS = 1_000;
 
-// /**
-//  * Increment the tool call counter for the given turn and conversation config.
-//  */
-// function bumpToolStats(
-//     turn: TurnStats,
-//     convoCfg: ChatConfigObject,
-//     amount = 1,
-// ) {
-//     turn.toolCalls += amount;      // whole-turn cap
-//     turn.botToolCalls += amount;      // per-bot cap
-//     convoCfg.stats.totalToolCalls += amount; // conversation-wide
-// }
-
-// /**
-//  * Increment the total credits used for the given turn and conversation config.
-//  */
-// function bumpCreditStats(
-//     turn: TurnStats,
-//     convoCfg: ChatConfigObject,
-//     amount: bigint,
-// ) {
-//     turn.creditsUsed += amount;
-//     convoCfg.stats.totalCredits = (
-//         BigInt(convoCfg.stats.totalCredits) + amount
-//     ).toString();
-// }
 
 // TODO make sure that when messages/chats/particpants are added/updated/deleted (ModelLogic trigger), this class handles it correctly (including adding to context collector cache)
 // TODO make sure that chat updates update or invalidate the conversation state cache
-// TODO I don't think reduceUserCredits is being called in the right places (or anywhere). Need to carefully validate that the code reduces spent credits.
 // TODO Tthe failure cases could be handled better. E.g. emitting event to show retry button
 //TODO handle message updates (branching conversation)
 // TODO make sure preferred model is stored in the conversation state
 //TODO canceling responses
 // TODO need turn timeouts
-//TODO make sure all limiting logic is in place and functioning correctly
 // TODO add mechanism for swarm and routine state machines to have a delay set by config that schedules any runs and resource mutations instead of running them immediately. This would be clearly defined in the context, and a list of schedules tool calls would be included in the context too. This enables the swarm to plan around the schedule, which is needed for users to approve/reject scheduled tool calls for safety reasons.
 // TODO swarm world model should suggest starting a metacognition loop to best complete the goal, and adding to to the chat context. Can search for existing prompts.
 //TODO conversation context should be able to store recommended routines to call for certain scenarios, pulled from the team config if available.
@@ -126,10 +98,12 @@ export class ReasoningEngine {
      * @param bot - Information about the bot that's running the loop
      * @param creditAccountId - The credit account to charge for the response (tied to a user or team)
      * @param config - The conversation configuration
+     * @param convoAllocatedToolCalls - Max conversation-level tool calls allocated to this run
+     * @param convoAllocatedCredits - Max conversation-level credits allocated to this run
      * @param userData - Additional data related to the session
      * @param chatId - The chat this loop is for, if applicable
      * @param model - The model to use for the LLM call
-     * @returns A MessageState object representing the final message from the bot
+     * @returns A MessageState object representing the final message from the bot and the stats for this response generation.
      */
     async runLoop(
         startMessage: { id: string } | { text: string },
@@ -138,10 +112,12 @@ export class ReasoningEngine {
         bot: BotParticipant,
         creditAccountId: string,
         config: ChatConfigObject,
+        convoAllocatedToolCalls: number,
+        convoAllocatedCredits: bigint,
         userData: SessionUser,
         chatId?: string,
         model?: string,
-    ): Promise<MessageState> {
+    ): Promise<{ finalMessage: MessageState; responseStats: ResponseStats }> {
         // Signal typing start
         if (chatId) {
             SocketService.get().emitSocketEvent("typing", chatId, { starting: [bot.id] });
@@ -180,20 +156,39 @@ export class ReasoningEngine {
         // Collect all tool calls made during this loop
         const toolCalls: ToolFunctionCall[] = [];
         let previousResponseId: string | undefined;
-        const turnStats: TurnStats = { toolCalls: 0, botToolCalls: 0, creditsUsed: 0n };
+        const responseStats: ResponseStats = { toolCalls: 0, creditsUsed: BigInt(0) };
 
-        // Compute limits
-        const limits = new ChatConfig({ config }).getEffectiveLimits();
+        // Compute per-bot-response limits from the overall conversation config.
+        // These 'responseLimits' apply to the cumulative actions and resource usage of a single bot
+        // within one full execution of this runLoop.
+        const responseLimits = new ChatConfig({ config }).getEffectiveLimits();
         // If the bot has a custom system prompt, merge it into the world model config
         if (bot.meta?.systemPrompt) {
             // Append bot-specific system prompt to existing system message
             const existing = worldModel.getConfig().systemMessage;
             worldModel.updateConfig({ systemMessage: `${existing}\n${bot.meta.systemPrompt}` });
         }
-        const exceeded = () =>
-            turnStats.toolCalls >= limits.maxToolCallsPerTurn ||
-            turnStats.botToolCalls >= limits.maxToolCallsPerBotTurn ||
-            turnStats.creditsUsed >= BigInt(limits.maxCreditsPerTurn);
+        // exceeded() checks if the *cumulative* stats for this runLoop (responseStats)
+        // have breached EITHER the total allocation passed into this runLoop (convoAllocated...)
+        // OR the specific per-bot-response limits defined in the conversation config (responseLimits).
+        // A bot's execution stops if it hits any of these caps.
+        // Note: convoAllocatedToolCalls and convoAllocatedCredits can be 0 if the conversation budget is already exhausted.
+        const exceeded = () => {
+            // Check against overall allocation for this runLoop instance
+            const overallBudgetExceeded =
+                (convoAllocatedToolCalls <= 0 && responseStats.toolCalls > 0) || // No tool calls allowed if allocation is zero or less
+                (responseStats.toolCalls >= convoAllocatedToolCalls && convoAllocatedToolCalls > 0) || // Exceeded allocated tool calls
+                (convoAllocatedCredits <= BigInt(0) && responseStats.creditsUsed > BigInt(0)) || // No credits allowed if allocation is zero or less
+                (responseStats.creditsUsed >= convoAllocatedCredits && convoAllocatedCredits > BigInt(0)); // Exceeded allocated credits
+
+            // Check if the CUMULATIVE stats for this bot's entire runLoop execution
+            // have breached the per-bot-response limits.
+            const perBotResponseLimitsBreached =
+                responseStats.toolCalls >= responseLimits.maxToolCallsPerBotResponse ||
+                responseStats.creditsUsed >= BigInt(responseLimits.maxCreditsPerBotResponse);
+
+            return overallBudgetExceeded || perBotResponseLimitsBreached;
+        };
 
         try {
             while (inputs.length && !exceeded()) {
@@ -201,9 +196,27 @@ export class ReasoningEngine {
                 // Convert our tool schemas to LLM-compatible tool definitions
                 const toolSchemas: OpenAI.Responses.Tool[] = (tools as ToolInputSchema[]).map(ts => ({
                     name: ts.type,
-                    description: "",
+                    description: "", // TODO: Populate this from ToolInputSchema if available
                     parameters: ts.properties,
                 } as any)); //TODO fix type
+
+                // Calculate effective max credits for the upcoming LLM call
+                // It should be the lesser of the per-response cap and the bot's remaining allocated credits for this runLoop
+                const remainingAllocatedCreditsForRun = convoAllocatedCredits - responseStats.creditsUsed;
+                const capFromResponseLimits = BigInt(responseLimits.maxCreditsPerBotResponse);
+
+                let effectiveMaxCreditsForLlm: bigint;
+                if (remainingAllocatedCreditsForRun <= BigInt(0)) {
+                    effectiveMaxCreditsForLlm = BigInt(0); // No budget left in allocation
+                } else {
+                    // Use the smaller of the two positive budget values
+                    if (capFromResponseLimits < remainingAllocatedCreditsForRun) {
+                        effectiveMaxCreditsForLlm = capFromResponseLimits;
+                    } else {
+                        effectiveMaxCreditsForLlm = remainingAllocatedCreditsForRun;
+                    }
+                }
+
                 const stream = this.llmRouter.stream({
                     model: chosenModel,
                     previous_response_id: previousResponseId,
@@ -211,7 +224,7 @@ export class ReasoningEngine {
                     tools: toolSchemas,
                     parallel_tool_calls: true,
                     world: worldModel.getConfig(),
-                    maxCredits: BigInt(limits.maxCreditsPerTurn),
+                    maxCredits: effectiveMaxCreditsForLlm, // Use the calculated effective max credits
                     userData,
                 });
 
@@ -242,11 +255,15 @@ export class ReasoningEngine {
                             break;
                         case "function_call": {
                             // Execute the tool call (sync or async) and record result
-                            const { toolResult, functionCallEntry } = await this.processFunctionCall(
+                            const { toolResult, functionCallEntry, cost } = await this.processFunctionCall(
                                 chatId,
                                 bot.id,
                                 ev as FunctionCallStreamEvent,
                             );
+
+                            // Update cumulative stats for the entire runLoop after tool call
+                            responseStats.toolCalls++;
+                            responseStats.creditsUsed += cost;
 
                             // Format toolResult (the raw output) into a MessageState for the LLM
                             const toolResponseMessage: MessageState = {
@@ -273,9 +290,8 @@ export class ReasoningEngine {
                         }
 
                         case "done": {
-                            // Deduct cost for model usage
                             const cost = BigInt(ev.cost);
-                            turnStats.creditsUsed += cost;
+                            responseStats.creditsUsed += cost; // Add LLM generation cost to cumulative response stats
                             // Emit to client
                             if (chatId) {
                                 SocketService.get().emitSocketEvent("responseStream", chatId, {
@@ -298,9 +314,9 @@ export class ReasoningEngine {
             // Send cost incurred event 
             await BusService.get().getBus().publish({
                 type: "billing:event",
-                id: `${bot.id}-${chatId}-${turnStats.creditsUsed}`,
+                id: `${bot.id}-${chatId}-${responseStats.creditsUsed}`,
                 accountId: creditAccountId,
-                delta: (-turnStats.creditsUsed).toString(), // MAKE SURE THIS IS NEGATIVE
+                delta: (-responseStats.creditsUsed).toString(), // MAKE SURE THIS IS NEGATIVE
                 entryType: CreditEntryType.Spend,
                 source: CreditSourceSystem.InternalAgent,
                 meta: { // Additional metadata that might be useful to filter events later
@@ -333,7 +349,19 @@ export class ReasoningEngine {
             parent: previousResponseId ? { id: previousResponseId } : null,
             user: { id: bot.id },
         };
-        return responseMessage;
+
+        // Mark turn completion time
+        if (!config.stats) {
+            config.stats = {
+                totalToolCalls: 0,
+                totalCredits: "0",
+                startedAt: Date.now(),
+                lastProcessingCycleEndedAt: null,
+            } as ChatConfigObject["stats"];
+        }
+        config.stats.lastProcessingCycleEndedAt = Date.now();
+
+        return { finalMessage: responseMessage, responseStats };
     }
 
     // --------------------------------------------------------------------------
@@ -342,33 +370,56 @@ export class ReasoningEngine {
         conversationId: string | undefined,
         callerBotId: string,
         ev: FunctionCallStreamEvent,
-    ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall }> {
-        // Determine if this call is async (only routines can be async)
+    ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint }> {
         const args = ev.arguments as Record<string, any>;
         const isAsync = args.isAsync === true;
-        // Prepare the function call entry
         const fnEntryBase = {
             id: ev.callId,
             function: { name: ev.name, arguments: JSON.stringify(ev.arguments) },
         } as Omit<ToolFunctionCall, "result">;
+        let toolCost = BigInt(0);
+
         if (isAsync) {
-            // TODO: emit async routine start event via bus
-            // Acknowledge immediately
-            const ack = { status: "started", callId: ev.callId };
-            const entry: ToolFunctionCall = { ...fnEntryBase, result: { success: true, output: ack } };
-            return { toolResult: ack, functionCallEntry: entry };
+            // For async tool initiation, the McpToolRunner should ideally return the initiation cost.
+            // This cost would be part of the 'response.creditsUsed' if the tool start was successful.
+            // Let's assume McpToolRunner's 'run' for an async start op returns ToolCallResult 
+            // where 'output' is an ack and 'creditsUsed' is the initiation cost.
+
+            // Simulate calling the toolRunner for async start to get potential initiation cost.
+            // This part is more conceptual as the actual async handling might be more complex
+            // and involve the registry providing this initiation cost.
+            const res = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId });
+            let entry: ToolFunctionCall;
+            let output: unknown = null;
+
+            if (res.ok) {
+                output = res.data.output; // Should be an ack like { status: "started", callId: ev.callId }
+                toolCost = BigInt(res.data.creditsUsed); // Initiation cost from ToolRunner
+                entry = { ...fnEntryBase, result: { success: true, output } };
+            } else {
+                // Async initiation failed
+                output = res.error;
+                toolCost = res.error.creditsUsed ? BigInt(res.error.creditsUsed) : BigInt(0); // Cost of failed initiation
+                entry = { ...fnEntryBase, result: { success: false, error: res.error } };
+            }
+            return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         } else {
             // Synchronous execution
             const res = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId });
             let entry: ToolFunctionCall;
             let output: unknown = null;
+
             if (res.ok) {
                 output = res.data.output;
+                toolCost = BigInt(res.data.creditsUsed);
                 entry = { ...fnEntryBase, result: { success: true, output: res.data.output } };
             } else {
+                // Synchronous tool call failed
+                output = res.error; // Store the error object as the output for the LLM to see
+                toolCost = res.error.creditsUsed ? BigInt(res.error.creditsUsed) : BigInt(0); // Use cost from error if available
                 entry = { ...fnEntryBase, result: { success: false, error: res.error } };
             }
-            return { toolResult: output, functionCallEntry: entry };
+            return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         }
     }
 }
@@ -399,14 +450,12 @@ export class CompletionService {
     /**
      * @param reasoningEngine    Low-level engine for generating responses.
      * @param agentGraph         Strategy for picking responding bots (e.g. direct mentions, OpenAI Swarm).
-     * @param bus                EventBus implementation (Redis/NATS etc.) so other services can listen for events
      * @param conversationStore  Efficient storage and retrieval of conversation state
      * @param messageStore       Efficient storage and retrieval of message state
      */
     constructor(
         private readonly reasoningEngine: ReasoningEngine,
         private readonly agentGraph: AgentGraph,
-        private readonly bus: EventBus,
         private readonly conversationStore: ConversationStateStore,
         private readonly messageStore: MessageStore,
     ) { }
@@ -423,26 +472,32 @@ export class CompletionService {
         chatId,
         messageId,
         model,
+        // taskContexts, // TODO: Re-enable once taskContexts are used
         userData,
     }: LLMCompletionTask): Promise<MessageState[]> {
         // Get conversation state
         const conversationState = await this.conversationStore.get(chatId);
         if (!conversationState) {
-            logger.error("Message or conversation state not found in respond", { chatId });
-            throw new Error("Message or conversation state not found");
+            throw new Error(`Conversation state not found for chatId: ${chatId}`);
         }
 
         // Load the triggering message
         const messageState = await this.messageStore.getMessage(messageId);
         if (!messageState) {
-            logger.error("Message not found in cache in respond", { messageId });
-            throw new Error(`Message ${messageId} not found in cache`);
+            throw new Error(`Message ${messageId} not found in messageStore`);
         }
 
-        // Determine credit account TODO this is NOT the user Id, but the ID of credit_account table associated with the user
-        const creditAccountId = "";
+        // Determine credit account (e.g. user who triggered the message)
+        const creditAccountId = userData.creditAccountId;
+        if (!creditAccountId) {
+            // This is a critical error, as billing depends on it.
+            // Log the error and the userData for debugging.
+            const logMessage = `Critical: creditAccountId is missing from userData in CompletionService.respond. Billing will fail. UserID: ${userData.id}, ChatID: ${chatId}, MessageID: ${messageId}`;
+            logger.error(logMessage);
+            throw new Error("User credit account ID is missing. Cannot proceed with response generation.");
+        }
 
-        // Get available tools & world model from conversation state
+        // Get available tools
         const availableTools = conversationState.availableTools;
         const worldModel = conversationState.worldModel;
 
@@ -451,6 +506,21 @@ export class CompletionService {
 
         // Initialize results
         const results: MessageState[] = [];
+        const allResponseStats: ResponseStats[] = [];
+
+        // Ensure stats object exists on conversation config BEFORE calculating remaining limits
+        if (!conversationState.config.stats) {
+            conversationState.config.stats = ChatConfig.defaultStats();
+        }
+
+        const effectiveLimits = new ChatConfig({ config: conversationState.config }).getEffectiveLimits();
+        const numResponders = responders.length > 0 ? responders.length : 1;
+
+        const { toolCallsPerBot: convoAllocatedToolCallsPerBot, creditsPerBot: convoAllocatedCreditsPerBot } = this._calculatePerBotAllocation(
+            conversationState.config.stats, // Already ensured to exist
+            effectiveLimits,
+            numResponders,
+        );
 
         // Run reasoning loop for each responder in parallel
         await Promise.all(responders.map(async (responder) => {
@@ -461,17 +531,69 @@ export class CompletionService {
                 responder,
                 creditAccountId,
                 conversationState.config,
+                convoAllocatedToolCallsPerBot,
+                convoAllocatedCreditsPerBot,
                 userData,
                 chatId,
                 model,
             );
-            results.push(response);
+            results.push(response.finalMessage);
+            allResponseStats.push(response.responseStats);
         }));
 
         // Store responses by adding each message to cache
         await Promise.all(results.map(m => this.messageStore.addMessage(chatId, m)));
 
+        // Aggregate stats from all responses
+        let totalToolCallsInTurn = 0;
+        let totalCreditsInTurn = BigInt(0);
+        for (const stats of allResponseStats) {
+            totalToolCallsInTurn += stats.toolCalls;
+            totalCreditsInTurn += stats.creditsUsed;
+        }
+
+        // Update conversation-level stats
+        conversationState.config.stats.totalToolCalls += totalToolCallsInTurn;
+        conversationState.config.stats.totalCredits = (BigInt(conversationState.config.stats.totalCredits) + totalCreditsInTurn).toString();
+        conversationState.config.stats.lastProcessingCycleEndedAt = Date.now();
+
+        // Persist updated stats/limits back to the conversation store
+        this.conversationStore.updateConfig(chatId, conversationState.config);
+
         return results;
+    }
+
+    /**
+     * Calculates the per-bot allocation of tool calls and credits for the current turn/event.
+     *
+     * This method divides the *currently known remaining* conversation budget (tool calls and credits)
+     * approximately evenly among the number of bots responding in the current parallel execution batch.
+     * This is a conservative strategy designed to prevent exceeding total conversation limits when bots
+     * operate concurrently. Each bot's runLoop is then responsible for respecting this allocated slice.
+     *
+     * @param currentConfigStats The current statistics from the conversation's config.
+     * @param conversationLimits The effective, capped limits for the overall conversation.
+     * @param numResponders The number of bots that will be responding concurrently.
+     * @returns An object containing the calculated toolCallsPerBot and creditsPerBot.
+     */
+    private _calculatePerBotAllocation(
+        currentConfigStats: ChatConfigObject["stats"],
+        conversationLimits: Required<NonNullable<ChatConfigObject["limits"]>>,
+        numResponders: number,
+    ): { toolCallsPerBot: number; creditsPerBot: bigint } {
+        const safeNumResponders = numResponders > 0 ? numResponders : 1; // Avoid division by zero
+
+        const remainingConversationToolCalls = Math.max(0, Number(conversationLimits.maxToolCalls) - currentConfigStats.totalToolCalls);
+        const remainingConversationCredits = BigInt(conversationLimits.maxCredits) - BigInt(currentConfigStats.totalCredits);
+
+        const toolCallsPerBot = Math.floor(remainingConversationToolCalls / safeNumResponders);
+        // Only allocate credits if there are positive remaining credits
+        const creditsPerBot = remainingConversationCredits > BigInt(0) ? remainingConversationCredits / BigInt(safeNumResponders) : BigInt(0);
+
+        // Note: BigInt division truncates (floor). Any minor rounding errors in credit distribution
+        // are considered insignificant due to the large number of credits representing $1.
+
+        return { toolCallsPerBot, creditsPerBot };
     }
 
     async handleInternalEvent(event: SwarmInternalEvent): Promise<void> {
@@ -484,38 +606,29 @@ export class CompletionService {
             throw new Error(`Conversation state not found for ${conversationId}`);
         }
 
-        // TODO: Resolve how to get the actual SessionUser for Swarm-initiated events.
-        // This placeholder is for type-checking only.
-        const placeholderSessionUserSession: SessionUserSession = {
-            __typename: "SessionUserSession",
-            id: "placeholder_session_id",
-            lastRefreshAt: new Date(),
-        };
-        const placeholderUserData: SessionUser = {
-            __typename: "SessionUser",
-            credits: "0",
-            hasPremium: false,
-            id: "system_user_id_for_swarm", // ID for the SessionUser
-            languages: [DEFAULT_LANGUAGE],
-            publicId: "system_user_public_id_for_swarm",
-            session: placeholderSessionUserSession,
-            // Optional fields can be omitted or set to undefined/null if appropriate
-            handle: undefined,
-            name: "System (Swarm)",
-            profileImage: undefined,
-            theme: undefined,
-            updatedAt: new Date(),
-            // Add any other non-optional fields from SessionUser with defaults
-        };
-
-        // TODO: Resolve how to get the correct creditAccountId for Swarm-initiated events.
-        // This ID is crucial for billing and should map to the user/entity responsible for the swarm's costs.
-        const creditAccountIdForRunLoop = "unknown_credit_account_for_swarm";
+        // Use sessionUser from the event
+        const sessionUserToUse = event.sessionUser;
+        // Ensure creditAccountId is present and is a non-empty string
+        if (!sessionUserToUse || typeof sessionUserToUse.creditAccountId !== "string" || sessionUserToUse.creditAccountId.trim() === "") {
+            const logMessage = `Critical: creditAccountId is missing, not a string, or empty in sessionUser for SwarmInternalEvent. Billing will fail. UserID: ${sessionUserToUse?.id}, ChatID: ${conversationId}`;
+            logger.error(logMessage);
+            throw new Error("User credit account ID is missing, invalid, or empty in swarm event. Cannot proceed.");
+        }
+        const creditAccountId: string = sessionUserToUse.creditAccountId;
 
         const results: MessageState[] = [];
+        let currentResponseStats: ResponseStats[] = [];
+
+        // Ensure stats object exists on conversation config BEFORE calculating remaining limits
+        if (!conversationState.config.stats) {
+            conversationState.config.stats = ChatConfig.defaultStats();
+        }
+        const effectiveLimitsEvent = new ChatConfig({ config: conversationState.config }).getEffectiveLimits();
+        const currentConvoStats = conversationState.config.stats;
 
         switch (event.type) {
             case "swarm_started": {
+                const allResponseStatsSwarmStarted: ResponseStats[] = [];
                 const swarmStartEvent = event as SwarmStartedEvent;
                 const goal = swarmStartEvent.goal;
                 const systemMessageText = `Swarm initiated. Goal: ${goal}.`;
@@ -533,7 +646,7 @@ export class CompletionService {
                     text: systemMessageText,
                     language: DEFAULT_LANGUAGE,
                     parent: null,
-                    user: { id: placeholderUserData.id },
+                    user: { id: sessionUserToUse.id }, // Use the id from sessionUserToUse
                 } as MessageState;
 
                 const { responders } = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection);
@@ -543,19 +656,32 @@ export class CompletionService {
                     return;
                 }
 
-                await Promise.all(responders.map(async (responder) => {
+                const swarmResponders = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection).then(r => r.responders); // Re-fetch or pass responders
+                const numSwarmResponders = swarmResponders.length > 0 ? swarmResponders.length : 1;
+
+                const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
+                    currentConvoStats,
+                    effectiveLimitsEvent,
+                    numSwarmResponders,
+                );
+
+                await Promise.all(swarmResponders.map(async (responder) => { // Use swarmResponders
                     const response = await this.reasoningEngine.runLoop(
                         startMessage,
                         conversationState.worldModel,
                         conversationState.availableTools,
                         responder,
-                        creditAccountIdForRunLoop, // Use placeholder credit account ID
+                        creditAccountId,
                         conversationState.config,
-                        placeholderUserData,
+                        convoAllocatedToolCallsPerBotEvent,
+                        convoAllocatedCreditsPerBotEvent,
+                        sessionUserToUse,
                         conversationId,
                     );
-                    results.push(response);
+                    results.push(response.finalMessage);
+                    allResponseStatsSwarmStarted.push(response.responseStats);
                 }));
+                currentResponseStats = allResponseStatsSwarmStarted;
                 break;
             }
             case "external_message_created": {
@@ -569,12 +695,22 @@ export class CompletionService {
                     logger.error(`Message ${messageId} not found for external_message_created in ${conversationId}`);
                     return;
                 }
-                const { responders: msgResponders } = await this.agentGraph.selectResponders(conversationState, messageState);
+                const allResponseStatsExternal: ResponseStats[] = [];
+                const msgResponders = await this.agentGraph.selectResponders(conversationState, messageState).then(r => r.responders);
 
                 if (!msgResponders || msgResponders.length === 0) {
                     logger.warn(`No responders found for external_message_created in convo ${conversationId}`, { messageId });
-                    return;
+                    // currentResponseStats will remain empty, handled later
+                    return; // Return early as no responders means no further processing needed for this case.
                 }
+
+                const numMsgResponders = msgResponders.length > 0 ? msgResponders.length : 1;
+
+                const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
+                    currentConvoStats,
+                    effectiveLimitsEvent,
+                    numMsgResponders,
+                );
 
                 await Promise.all(msgResponders.map(async (responder) => {
                     const response = await this.reasoningEngine.runLoop(
@@ -582,13 +718,17 @@ export class CompletionService {
                         conversationState.worldModel,
                         conversationState.availableTools,
                         responder,
-                        creditAccountIdForRunLoop, // Use placeholder credit account ID
+                        creditAccountId,
                         conversationState.config,
-                        placeholderUserData,
+                        convoAllocatedToolCallsPerBotEvent,
+                        convoAllocatedCreditsPerBotEvent,
+                        sessionUserToUse,
                         conversationId,
                     );
-                    results.push(response);
+                    results.push(response.finalMessage);
+                    allResponseStatsExternal.push(response.responseStats);
                 }));
+                currentResponseStats = allResponseStatsExternal;
                 break;
             }
             default: {
@@ -599,6 +739,22 @@ export class CompletionService {
 
         if (results.length > 0) {
             await Promise.all(results.map(m => this.messageStore.addMessage(conversationId, m)));
+
+            // Aggregate stats from all responses for the handled event
+            let totalToolCallsInEvent = 0;
+            let totalCreditsInEvent = BigInt(0);
+            for (const stats of currentResponseStats) {
+                totalToolCallsInEvent += stats.toolCalls;
+                totalCreditsInEvent += stats.creditsUsed;
+            }
+
+            // Update conversation-level stats
+            conversationState.config.stats.totalToolCalls += totalToolCallsInEvent;
+            conversationState.config.stats.totalCredits = (BigInt(conversationState.config.stats.totalCredits) + totalCreditsInEvent).toString();
+            conversationState.config.stats.lastProcessingCycleEndedAt = Date.now(); // Or a more event-specific timestamp if needed
+
+            // Persist updated stats back to the conversation store
+            this.conversationStore.updateConfig(conversationId, conversationState.config);
             // TODO: Consider emitting events that these responses were created (e.g., via this.bus)
         }
     }
@@ -666,7 +822,6 @@ export class SwarmStateMachine {
     private worldModel: WorldModel | null = null;
 
     constructor(
-        private readonly bus: EventBus,
         private readonly completion: CompletionService,
     ) {
         // SwarmStateMachine will now rely on explicit handleEvent calls
@@ -712,7 +867,7 @@ export class SwarmStateMachine {
     }
 
     // ── Lifecycle control -------------------------------------------------------
-    async start(convoId: string, goal: string): Promise<void> {
+    async start(convoId: string, goal: string, initiatingUser: SessionUser): Promise<void> {
         if (this.state !== SwarmStateMachine.State.UNINITIALIZED) return;
         try {
             // Inject world‑model as a system message (stub – real impl via MessageStore)
@@ -722,7 +877,12 @@ export class SwarmStateMachine {
 
             this.state = SwarmStateMachine.State.ACTIVE;
             // Kick off arbitrator / first agent via completion
-            const startEvent: SwarmStartedEvent = { type: "swarm_started", conversationId: convoId, goal };
+            const startEvent: SwarmStartedEvent = {
+                type: "swarm_started",
+                conversationId: convoId,
+                goal,
+                sessionUser: initiatingUser,
+            };
             await this.completion.handleInternalEvent(startEvent);
         } catch (err) {
             this.fail(err);
@@ -816,7 +976,6 @@ const contextBuilder = new RedisContextBuilder();
 const toolRunner = new CompositeToolRunner();
 const agentGraphInstance = new CompositeGraph();
 const llmRouter = new FallbackRouter();
-const bus = BusService.get().getBus();
 
 // Instantiate core engines/services
 const reasoningEngine = new ReasoningEngine(
@@ -828,13 +987,11 @@ const reasoningEngine = new ReasoningEngine(
 export const completionService = new CompletionService(
     reasoningEngine,
     agentGraphInstance,
-    bus,
     conversationStateStore, // Use the wrapped CachedConversationStateStore instance
     messageStore,
 );
 
 // SwarmStateMachine class definition must come before this instantiation
 export const swarmStateMachine = new SwarmStateMachine(
-    bus,
     completionService,
 );

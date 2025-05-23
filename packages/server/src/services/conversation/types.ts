@@ -1,8 +1,8 @@
-import { type BotConfigObject, type ChatConfigObject, type ChatMessage } from "@local/shared";
+import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type SessionUser } from "@local/shared";
 import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
-import type { ToolInputSchema } from "../mcp/types.js";
-import type { WorldModel } from "./worldModel.js";
+import { type ToolInputSchema } from "../mcp/types.js";
+import { type WorldModel } from "./worldModel.js";
 
 /** A participant in a conversation – human or bot. */
 export interface BotParticipant {
@@ -37,7 +37,7 @@ export type MessageState = Pick<ChatMessage, "id" | "createdAt" | "config" | "la
 /** Generic success/error wrapper returned by many collaborators. */
 export type OkErr<T = unknown> =
     | { ok: true; data: T }
-    | { ok: false; error: { code: string; message: string } };
+    | { ok: false; error: { code: string; message: string; creditsUsed?: string; } };
 
 
 /* ------------------------------------------------------------------
@@ -84,15 +84,19 @@ export type JsonSchema = Record<string, unknown>;
 export type TurnQueue = Map<number, ConversationEvent[]>; // keyed by turnId
 
 /**
- * Stats for a single turn. 
- * This is not persisted to the database.
+ * Stats accumulated during a single bot's response generation loop (a single execution of `ReasoningEngine.runLoop`).
  */
-export type TurnStats = {
-    /** Tool-calls made by ALL bots this turn (for maxToolCallsPerTurn) */
+export interface ResponseStats {
+    /** Number of tool calls made in this response loop. */
     toolCalls: number;
-    /** Tool-calls made by the CURRENT bot this turn (for maxToolCallsPerBotTurn) */
-    botToolCalls: number;
-    /** Credits used this turn */
+    /** Credits used in this response loop (for LLM calls and tool executions). */
+    creditsUsed: bigint;
+}
+
+/** @deprecated Use ResponseStats instead */
+export interface TurnStats {
+    toolCalls: number;
+    botToolCalls?: number; // Kept for now if any transitive internal dep, but should be fully removed
     creditsUsed: bigint;
 }
 
@@ -123,6 +127,8 @@ export interface SwarmInternalEvent {
     type: string;
     conversationId: string;
     payload?: any;
+    actingBot?: BotParticipant;
+    sessionUser: SessionUser;
 }
 
 export interface SwarmStartedEvent extends SwarmInternalEvent {
