@@ -1,5 +1,5 @@
 // packages/server/src/services/mcp/mcp_io_shapes.ts
-import { CallDataApiConfigObject, CallDataCodeConfigObject, CallDataGenerateConfigObject, CallDataSmartContractConfigObject, CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, GraphConfigObject, IntegerFormInputProps, LATEST_CONFIG_VERSION, LinkUrlFormInputProps, RadioFormInputProps, ResourceSubType, ResourceType, ResourceVersionSortBy, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TeamConfigObject, TeamSortBy, TextFormInputProps, VisibilityType } from '@local/shared';
+import { type BotConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type CallDataWebConfigObject, type CheckboxFormInputProps, type CodeFormInputProps, type DropzoneFormInputProps, type GraphConfigObject, type IntegerFormInputProps, type LATEST_CONFIG_VERSION, type LinkUrlFormInputProps, type ProjectVersionConfigObject, type RadioFormInputProps, type ResourceSubType, type ResourceType, type ResourceVersionSortBy, type SelectorFormInputProps, type SliderFormInputProps, type StandardVersionConfigObject, type SwitchFormInputProps, type TeamConfigObject, type TeamSortBy, type TextFormInputProps, type UserSortBy, type VisibilityType } from "@local/shared";
 
 interface CommonFindFilters {
     /** Filter by specific IDs. */
@@ -87,7 +87,7 @@ type SimpleFormSchema = {
 type FormInput = SimpleFormSchema;
 type FormOutput = SimpleFormSchema;
 
-interface ResourceAddBase extends Pick<CommonAttributes, 'isPrivate'> {
+interface ResourceAddBase extends Pick<CommonAttributes, "isPrivate"> {
     /**
      * @default false
      */
@@ -98,17 +98,11 @@ interface ResourceAddBase extends Pick<CommonAttributes, 'isPrivate'> {
     versionLabel: string;
 }
 
-interface ResourceUpdateBase extends Pick<ResourceAddBase, "isComplete" | 'isPrivate' | "versionLabel"> {
-    // Add fields as needed
-}
+type ResourceUpdateBase = Pick<ResourceAddBase, "isComplete" | "isPrivate" | "versionLabel">
 
-interface ResourceRootAddBase extends Pick<CommonAttributes, 'isPrivate' | 'tagsConnect'> {
-    // Add fields as needed
-}
+type ResourceRootAddBase = Pick<CommonAttributes, "isPrivate" | "tagsConnect">
 
-interface ResourceRootUpdateBase extends Pick<CommonAttributes, "isPrivate" | "tagsConnect" | "tagsDisconnect"> {
-    // Add fields as needed
-}
+type ResourceRootUpdateBase = Pick<CommonAttributes, "isPrivate" | "tagsConnect" | "tagsDisconnect">
 
 /**
  * Represents a single member invitation item for MCP operations.
@@ -379,6 +373,8 @@ export interface RoutineInformationalUpdateAttributes extends ResourceUpdateBase
     }
 }
 
+// TODO add RoutineInternalActionAddAttributes and RoutineInternalActionUpdateAttributes
+
 type RoutineSmartContractConfig = {
     __version: typeof LATEST_CONFIG_VERSION;
     formInput: FormInput;
@@ -422,6 +418,49 @@ export interface RoutineSmartContractUpdateAttributes extends ResourceUpdateBase
     }
 }
 
+type RoutineWebConfig = {
+    __version: typeof LATEST_CONFIG_VERSION;
+    formInput: FormInput;
+    formOutput: FormOutput;
+    /** Web search specific config */
+    callDataWeb: CallDataWebConfigObject;
+};
+/**
+ * Attributes for adding a `RoutineWeb` resource via MCP.
+ * @title MCP Routine Web Add Attributes
+ * @description Defines the properties for adding a new Web routine through the MCP.
+ */
+export interface RoutineWebAddAttributes extends ResourceAddBase {
+    /**
+     * Optional routine configuration object.
+     */
+    config?: RoutineWebConfig;
+    resourceSubType: ResourceSubType.RoutineWeb;
+    /**
+     * Root resource information
+     */
+    rootCreate: ResourceRootAddBase & {
+        resourceType: ResourceType.Routine;
+    }
+}
+/**
+ * Attributes for updating a `RoutineWeb` resource via MCP.
+ * @title MCP Routine Web Update Attributes
+ * @description Defines the properties for updating a Web routine through the MCP.
+ */
+export interface RoutineWebUpdateAttributes extends ResourceUpdateBase {
+    /**
+     * Updated configuration object for the routine.
+     */
+    config?: RoutineWebConfig;
+    /**
+     * Root resource information
+     */
+    rootUpdate: ResourceRootUpdateBase & {
+        resourceType: ResourceType.Routine;
+    }
+}
+
 /**
  * Filters for finding resources via MCP.
  * @title MCP Resource Find Filters
@@ -435,19 +474,234 @@ export interface ResourceFindFilters extends CommonFindFilters {
     ownedByUserdRoot?: string;
     /** ID of the root resource. */
     rootId?: string;
-    /** Filter teams by associated tags. */
+    /** Filter by associated tags. */
     tags?: string[];
     /** Sort order for the results. */
     sortBy?: ResourceVersionSortBy;
 }
 
 /**
- * Filters for finding 'Code' resources via MCP.
- * @title MCP Code Find Filters
+ * Attributes for adding a 'Bot' resource via MCP.
+ * @title MCP Bot Add Attributes
+ * @description Defines the properties for creating a new bot through the MCP.
  */
-export interface CodeFindFilters extends ResourceFindFilters {
-    /** Language of the code. */
-    codeLanguage?: string;
+export interface BotAddAttributes extends Pick<CommonAttributes, "handle" | "isPrivate"> {
+    /**
+     * Optional bot configuration object.
+     */
+    config?: BotConfigObject;
+}
+
+/**
+ * Attributes for updating a 'Bot' resource via MCP.
+ * All properties are optional for an update.
+ * @title MCP Bot Update Attributes
+ * @description Defines the properties for updating an existing bot through the MCP.
+ */
+export interface BotUpdateAttributes extends Pick<CommonAttributes, "handle" | "isPrivate"> {
+    /** 
+     * Updated configuration object for the bot. 
+     * This must be the FULL config object, not a partial update.
+     */
+    config?: BotConfigObject;
+}
+
+/**
+ * Filters for finding 'Bot' resources via MCP.
+ * @title MCP Bot Find Filters
+ * @description Filters for finding 'Bot' resources via MCP.
+ */
+export interface BotFindFilters extends CommonFindFilters {
+    /** Filter by bot handle (exact match). */
+    handle?: string;
+    /** Sort order for the results. */
+    sortBy?: UserSortBy;
+}
+
+
+/**
+ * Attributes for adding a 'Project' resource via MCP.
+ * @title MCP Project Add Attributes
+ * @description Defines the properties for creating a new project through the MCP.
+ */
+export interface ProjectAddAttributes extends Pick<CommonAttributes, "handle" | "isPrivate" | "tagsConnect"> {
+    /**
+     * The name or title of the project.
+     * @minLength 1
+     */
+    name: string;
+    /**
+     * Optional project configuration object.
+     */
+    config?: ProjectVersionConfigObject;
+}
+/**
+ * Attributes for updating a 'Project' resource via MCP.
+ * All properties are optional for an update.
+ * @title MCP Project Update Attributes
+ * @description Defines the properties for updating an existing project through the MCP.
+ */
+export interface ProjectUpdateAttributes extends Pick<CommonAttributes, "handle" | "isPrivate" | "tagsConnect" | "tagsDisconnect"> {
+    /**
+     * The name or title of the project.
+     * @minLength 1
+     */
+    name?: string;
+    /** 
+     * Updated configuration object for the project. 
+     * This must be the FULL config object, not a partial update.
+     */
+    config?: ProjectVersionConfigObject;
+}
+/**
+ * Filters for finding 'Project' resources via MCP.
+ * @title MCP Project Find Filters
+ * @description Filters for finding 'Project' resources via MCP.
+ */
+export interface ProjectFindFilters extends CommonFindFilters {
+    /** If this is the latest public version. */
+    isLatest?: boolean;
+    /** ID of the team that owns the root resource. */
+    ownedByTeamIdRoot?: string[];
+    /** ID of the user that owns the root resource. */
+    ownedByUserdRoot?: string;
+    /** ID of the root resource. */
+    rootId?: string;
+    /** Filter by associated tags. */
+    tags?: string[];
+    /** Sort order for the results. */
+    sortBy?: ResourceVersionSortBy;
+}
+
+/**
+ * Attributes for adding a `StandardDataStructure` resource via MCP.
+ * @title MCP StandardDataStructure Add Attributes
+ * @description Defines the properties for adding a new StandardDataStructure through the MCP.
+ */
+export interface StandardDataStructureAddAttributes extends ResourceAddBase {
+    /**
+     * Optional StandardDataStructure configuration object.
+     */
+    config?: StandardVersionConfigObject;
+    resourceSubType: ResourceSubType.StandardDataStructure;
+    /**
+     * Root resource information for the StandardDataStructure.
+     */
+    rootCreate: ResourceRootAddBase & {
+        resourceType: ResourceType.Standard;
+    }
+}
+/**
+ * Attributes for updating a `StandardDataStructure` resource via MCP.
+ * @title MCP StandardDataStructure Update Attributes
+ * @description Defines the properties for updating a StandardDataStructure through the MCP.
+ */
+export interface StandardDataStructureUpdateAttributes extends ResourceUpdateBase {
+    /**
+     * Updated configuration object for the StandardDataStructure.
+     * This must be the FULL config object, not a partial update.
+     */
+    config?: StandardVersionConfigObject;
+    /**
+     * Root resource information for the StandardDataStructure.
+     */
+    rootUpdate: ResourceRootUpdateBase & {
+        resourceType: ResourceType.Standard;
+    }
+}
+/**
+ * Filters for finding `StandardDataStructure` resources via MCP.
+ * @title MCP StandardDataStructure Find Filters
+ * @description Filters for finding StandardDataStructure resources.
+ */
+export interface StandardDataStructureFindFilters extends CommonFindFilters {
+    /** If this is the latest public version. */
+    isLatest?: boolean;
+    /** ID of the team that owns the root resource. */
+    ownedByTeamIdRoot?: string[];
+    /** ID of the user that owns the root resource. */
+    ownedByUserdRoot?: string;
+    /** ID of the root resource. */
+    rootId?: string;
+    /** Filter by associated tags. */
+    tags?: string[];
+    /** Sort order for the results. */
+    sortBy?: ResourceVersionSortBy;
+}
+
+type StandardPromptConfig = {
+    __version: typeof LATEST_CONFIG_VERSION;
+    /** Compatibility information (not usually needed) */
+    compatibility?: {
+        /** 
+         * Known compatibility issues (e.g. "Doesn't work with such-and-such model") 
+         * @example ["Doesn't work with GPT-4o"]
+         */
+        knownIssues?: string[];
+        /** 
+         * @example ["Models supporting image generation"]
+         */
+        compatibleWith?: string[];
+    };
+    /** The prompt itself */
+    schema?: string;
+    /** Variables that are inserted into the prompt. All variables should appear in the schema in the format {{variableName}} */
+    props?: Record<string, unknown>;
+};
+/**
+ * Attributes for adding a `StandardPrompt` resource via MCP.
+ * @title MCP StandardPrompt Add Attributes
+ * @description Defines the properties for adding a new StandardPrompt through the MCP.
+ */
+export interface StandardPromptAddAttributes extends ResourceAddBase {
+    /**
+     * Optional StandardPrompt configuration object.
+     */
+    config?: StandardPromptConfig;
+    resourceSubType: ResourceSubType.StandardPrompt;
+    /**
+     * Root resource information for the StandardPrompt.
+     */
+    rootCreate: ResourceRootAddBase & {
+        resourceType: ResourceType.Standard;
+    }
+}
+/**
+ * Attributes for updating a `StandardPrompt` resource via MCP.
+ * @title MCP StandardPrompt Update Attributes
+ * @description Defines the properties for updating a StandardPrompt through the MCP.
+ */
+export interface StandardPromptUpdateAttributes extends ResourceUpdateBase {
+    /**
+     * Updated configuration object for the StandardPrompt.
+     * This must be the FULL config object, not a partial update.
+     */
+    config?: StandardPromptConfig;
+    /**
+     * Root resource information for the StandardPrompt.
+     */
+    rootUpdate: ResourceRootUpdateBase & {
+        resourceType: ResourceType.Standard;
+    }
+}
+/**
+ * Filters for finding `StandardPrompt` resources via MCP.
+ * @title MCP StandardPrompt Find Filters
+ * @description Filters for finding StandardPrompt resources.
+ */
+export interface StandardPromptFindFilters extends CommonFindFilters {
+    /** If this is the latest public version. */
+    isLatest?: boolean;
+    /** ID of the team that owns the root resource. */
+    ownedByTeamIdRoot?: string[];
+    /** ID of the user that owns the root resource. */
+    ownedByUserdRoot?: string;
+    /** ID of the root resource. */
+    rootId?: string;
+    /** Filter by associated tags. */
+    tags?: string[];
+    /** Sort order for the results. */
+    sortBy?: ResourceVersionSortBy;
 }
 
 /**
@@ -503,7 +757,7 @@ export interface TeamFindFilters extends CommonFindFilters {
     handle?: string;
     /** Find teams containing specific user IDs as members. */
     memberUserIds?: string[];
-    /** Filter teams by associated tags. */
+    /** Filter by associated tags. */
     tags?: string[];
     /** Filter teams by whether they are open to new members. */
     isOpenToNewMembers?: boolean;
@@ -525,3 +779,29 @@ export interface NoteAddAttributes extends Pick<CommonAttributes, "tagsConnect">
      */
     content: string;
 }
+/**
+ * Attributes for updating a 'Note' resource via MCP.
+ * @title MCP Note Update Attributes
+ */
+export interface NoteUpdateAttributes extends Pick<CommonAttributes, "tagsConnect" | "tagsDisconnect"> {
+    /**
+     * The name or title of the note.   
+     */
+    name?: string;
+    /**
+     * The content of the note.
+     */
+    content?: string;
+}
+/**
+ * Filters for finding 'Note' resources via MCP.
+ * @title MCP Note Find Filters
+ */
+export interface NoteFindFilters extends CommonFindFilters {
+    /** Filter by associated tags. */
+    tags?: string[];
+    /** Sort order for the results. */
+    sortBy?: ResourceVersionSortBy;
+}
+
+// TODO Add ExternalDataAddAttributes, ExternalDataUpdateAttributes, ExternalDataFindFilters
