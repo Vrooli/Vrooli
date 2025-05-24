@@ -1,18 +1,26 @@
 {
-  "description": "Filters for finding 'Team' resources via MCP.",
-  "title": "MCP Team Find Filters",
+  "description": "Filters for finding 'Project' resources via MCP.",
+  "title": "MCP Project Find Filters",
   "type": "object",
   "properties": {
-    "handle": {
-      "description": "Filter by team handle (exact match).",
-      "type": "string"
+    "isLatest": {
+      "description": "If this is the latest public version.",
+      "type": "boolean"
     },
-    "memberUserIds": {
-      "description": "Find teams containing specific user IDs as members.",
+    "ownedByTeamIdRoot": {
+      "description": "ID of the team that owns the root resource.",
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "ownedByUserdRoot": {
+      "description": "ID of the user that owns the root resource.",
+      "type": "string"
+    },
+    "rootId": {
+      "description": "ID of the root resource.",
+      "type": "string"
     },
     "tags": {
       "description": "Filter by associated tags.",
@@ -21,19 +29,23 @@
         "type": "string"
       }
     },
-    "isOpenToNewMembers": {
-      "description": "Filter teams by whether they are open to new members.",
-      "type": "boolean"
-    },
     "sortBy": {
       "description": "Sort order for the results.",
       "enum": [
-        "BookmarksAsc",
-        "BookmarksDesc",
+        "CommentsAsc",
+        "CommentsDesc",
+        "ComplexityAsc",
+        "ComplexityDesc",
+        "DateCompletedAsc",
+        "DateCompletedDesc",
         "DateCreatedAsc",
         "DateCreatedDesc",
         "DateUpdatedAsc",
-        "DateUpdatedDesc"
+        "DateUpdatedDesc",
+        "ForksAsc",
+        "ForksDesc",
+        "RunsAsc",
+        "RunsDesc"
       ],
       "type": "string"
     },

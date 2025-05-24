@@ -23,7 +23,7 @@
       "type": "string"
     },
     "tags": {
-      "description": "Filter teams by associated tags.",
+      "description": "Filter by associated tags.",
       "type": "array",
       "items": {
         "type": "string"

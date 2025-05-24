@@ -590,7 +590,7 @@
           "type": "string"
         },
         "args": {
-          "description": "Arguments/params to pass to the contract’s method.",
+          "description": "Arguments/params to pass to the contract's method.",
           "type": "array",
           "items": {}
         },

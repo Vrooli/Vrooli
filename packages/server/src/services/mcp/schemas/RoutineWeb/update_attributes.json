@@ -1,10 +1,10 @@
 {
-  "description": "Defines the properties for adding a new Smart Contract routine through the MCP.",
-  "title": "MCP Routine Smart Contract Add Attributes",
+  "description": "Defines the properties for updating a Web routine through the MCP.",
+  "title": "MCP Routine Web Update Attributes",
   "type": "object",
   "properties": {
     "config": {
-      "description": "Optional routine configuration object.",
+      "description": "Updated configuration object for the routine.",
       "type": "object",
       "properties": {
         "__version": {
@@ -65,15 +65,15 @@
             "schema"
           ]
         },
-        "callDataSmartContract": {
-          "description": "Contract ABI / network / method info",
+        "callDataWeb": {
+          "description": "Web search specific config",
           "type": "object",
           "properties": {
             "__version": {
               "type": "string"
             },
             "schema": {
-              "$ref": "#/definitions/ConfigCallDataSmartContract"
+              "$ref": "#/definitions/ConfigCallDataWeb"
             }
           },
           "required": [
@@ -84,16 +84,12 @@
       },
       "required": [
         "__version",
-        "callDataSmartContract",
+        "callDataWeb",
         "formInput",
         "formOutput"
       ]
     },
-    "resourceSubType": {
-      "type": "string",
-      "const": "RoutineSmartContract"
-    },
-    "rootCreate": {
+    "rootUpdate": {
       "description": "Root resource information",
       "type": "object",
       "properties": {
@@ -103,6 +99,13 @@
         },
         "tagsConnect": {
           "description": "Tags to associate with the resource.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tagsDisconnect": {
+          "description": "Tag IDs to remove from the resource.",
           "type": "array",
           "items": {
             "type": "string"
@@ -118,22 +121,21 @@
         "resourceType"
       ]
     },
+    "isPrivate": {
+      "default": false,
+      "type": "boolean"
+    },
     "isComplete": {
       "default": false,
       "type": "boolean"
     },
     "versionLabel": {
       "type": "string"
-    },
-    "isPrivate": {
-      "default": false,
-      "type": "boolean"
     }
   },
   "required": [
     "isPrivate",
-    "resourceSubType",
-    "rootCreate",
+    "rootUpdate",
     "versionLabel"
   ],
   "definitions": {
@@ -571,58 +573,41 @@
         }
       }
     },
-    "ConfigCallDataSmartContract": {
-      "description": "Represents how to call a Smart Contract on a blockchain.\nNOTE: Untested",
+    "ConfigCallDataWeb": {
+      "description": "Represents how to perform a web search.",
       "type": "object",
       "properties": {
-        "contractAddress": {
-          "description": "Address of the contract on the blockchain.",
+        "queryTemplate": {
+          "description": "Template for the search query. Allows dynamic query generation using routine inputs.\ne.g., \"latest news about {{input.topic}}\"",
           "type": "string"
         },
-        "chain": {
-          "description": "The name or identifier of the blockchain/chain ID/network.\ne.g. \"ethereum\", \"polygon\", \"rinkeby\", etc.",
+        "searchEngine": {
+          "description": "Optional: specify the search engine (e.g., \"google\", \"bing\", \"duckduckgo\"). Defaults to a generic provider if not specified.",
           "type": "string"
         },
-        "methodName": {
-          "description": "Name of the method/function you want to invoke in the smart contract.",
+        "maxResults": {
+          "description": "Optional: maximum number of search results to return.",
+          "type": "number"
+        },
+        "timeRange": {
+          "description": "Optional: filter results by a time range. \nExamples: \"past_hour\", \"past_day\", \"past_week\", \"past_month\", \"past_year\".\nSpecific supported values may depend on the search provider.",
           "type": "string"
         },
-        "args": {
-          "description": "Arguments/params to pass to the contract's method.",
-          "type": "array",
-          "items": {}
+        "region": {
+          "description": "Optional: specify the search region or country code (e.g., \"US\", \"GB\").",
+          "type": "string"
         },
-        "txOptions": {
-          "description": "Optional overrides for transaction details such as gas limit, gas price, etc.",
-          "type": "object",
-          "additionalProperties": {},
-          "properties": {
-            "gasLimit": {
-              "type": "number"
-            },
-            "gasPrice": {
-              "type": "string"
-            },
-            "value": {
-              "type": "string"
-            },
-            "nonce": {
-              "type": "number"
-            }
-          }
-        },
-        "meta": {
-          "description": "Any additional metadata about how to execute the contract call.\nCould include references to a wallet, signers, or other instructions.",
-          "$ref": "#/definitions/Record<string,any>"
+        "outputMapping": {
+          "$ref": "#/definitions/Record<string,string>",
+          "description": "Mapping from routine output names to search result fields.\nSearch results are expected to be an array of objects.\nExample: { \"titles\": \"results[*].title\", \"links\": \"results[*].url\", \"firstSnippet\": \"results[0].snippet\" }\n\nAvailable fields from a typical search result item:\n- `title`: The title of the search result.\n- `link`: The URL of the search result.\n- `snippet`: A short description or snippet from the page.\n- `source`: The source website or domain.\n- `publishedDate`: The publication date, if available.\nThe structure is generally `results: Array<{ title: string; link: string; snippet?: string; ... }>`\nUse dot notation and array indexing to access specific parts. `[*]` denotes all items in an array."
         }
       },
       "required": [
-        "chain",
-        "contractAddress",
-        "methodName"
+        "outputMapping",
+        "queryTemplate"
       ]
     },
-    "Record<string,any>": {
+    "Record<string,string>": {
       "type": "object"
     }
   },

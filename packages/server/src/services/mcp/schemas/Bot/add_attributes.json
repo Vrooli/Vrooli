@@ -1,0 +1,107 @@
+{
+  "description": "Defines the properties for creating a new bot through the MCP.",
+  "title": "MCP Bot Add Attributes",
+  "type": "object",
+  "properties": {
+    "config": {
+      "description": "Optional bot configuration object.",
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "maxTokens": {
+          "type": "number"
+        },
+        "persona": {
+          "type": "object"
+        },
+        "__version": {
+          "description": "Store the version number for future compatibility",
+          "type": "string"
+        },
+        "resources": {
+          "description": "Resources attached to this entity",
+          "type": "array",
+          "items": {
+            "description": "Resource definition for storing links and external data",
+            "type": "object",
+            "properties": {
+              "link": {
+                "description": "Link to the resource",
+                "type": "string"
+              },
+              "usedFor": {
+                "description": "Purpose of the resource",
+                "enum": [
+                  "Community",
+                  "Context",
+                  "Developer",
+                  "Donation",
+                  "ExternalService",
+                  "Feed",
+                  "Install",
+                  "Learning",
+                  "Notes",
+                  "OfficialWebsite",
+                  "Proposal",
+                  "Related",
+                  "Researching",
+                  "Scheduling",
+                  "Social",
+                  "Tutorial"
+                ],
+                "type": "string"
+              },
+              "translations": {
+                "description": "Display info",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "language": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "language",
+                    "name"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "link",
+              "translations"
+            ]
+          }
+        }
+      },
+      "required": [
+        "__version",
+        "persona"
+      ]
+    },
+    "handle": {
+      "description": "Optional handle. Must be unique if provided.",
+      "minLength": 3,
+      "maxLength": 16,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "type": "string"
+    },
+    "isPrivate": {
+      "default": false,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "isPrivate"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

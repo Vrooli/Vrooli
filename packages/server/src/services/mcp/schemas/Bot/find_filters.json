@@ -1,29 +1,11 @@
 {
-  "description": "Filters for finding 'Team' resources via MCP.",
-  "title": "MCP Team Find Filters",
+  "description": "Filters for finding 'Bot' resources via MCP.",
+  "title": "MCP Bot Find Filters",
   "type": "object",
   "properties": {
     "handle": {
-      "description": "Filter by team handle (exact match).",
+      "description": "Filter by bot handle (exact match).",
       "type": "string"
-    },
-    "memberUserIds": {
-      "description": "Find teams containing specific user IDs as members.",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "tags": {
-      "description": "Filter by associated tags.",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "isOpenToNewMembers": {
-      "description": "Filter teams by whether they are open to new members.",
-      "type": "boolean"
     },
     "sortBy": {
       "description": "Sort order for the results.",

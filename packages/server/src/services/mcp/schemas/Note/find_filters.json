@@ -1,19 +1,8 @@
 {
-  "description": "Filters for finding 'Team' resources via MCP.",
-  "title": "MCP Team Find Filters",
+  "description": "Filters for finding 'Note' resources via MCP.",
+  "title": "MCP Note Find Filters",
   "type": "object",
   "properties": {
-    "handle": {
-      "description": "Filter by team handle (exact match).",
-      "type": "string"
-    },
-    "memberUserIds": {
-      "description": "Find teams containing specific user IDs as members.",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
     "tags": {
       "description": "Filter by associated tags.",
       "type": "array",
@@ -21,19 +10,23 @@
         "type": "string"
       }
     },
-    "isOpenToNewMembers": {
-      "description": "Filter teams by whether they are open to new members.",
-      "type": "boolean"
-    },
     "sortBy": {
       "description": "Sort order for the results.",
       "enum": [
-        "BookmarksAsc",
-        "BookmarksDesc",
+        "CommentsAsc",
+        "CommentsDesc",
+        "ComplexityAsc",
+        "ComplexityDesc",
+        "DateCompletedAsc",
+        "DateCompletedDesc",
         "DateCreatedAsc",
         "DateCreatedDesc",
         "DateUpdatedAsc",
-        "DateUpdatedDesc"
+        "DateUpdatedDesc",
+        "ForksAsc",
+        "ForksDesc",
+        "RunsAsc",
+        "RunsDesc"
       ],
       "type": "string"
     },
