@@ -249,28 +249,28 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         const versions = shape.versions.map(version => {
             // Return without "root" field
             const { codeLanguage, config, resourceSubType, root, ...rest } = version.shape;
-            let configJson: string;
+            let configJson: BaseConfigObject;
             switch (root?.resourceType) {
                 case ResourceType.Api:
-                    configJson = new ApiVersionConfig({ config: config as ApiVersionConfigObject }).serialize("json");
+                    configJson = new ApiVersionConfig({ config: config as ApiVersionConfigObject }).export();
                     break;
                 case ResourceType.Code:
-                    configJson = new CodeVersionConfig({ codeLanguage, config: config as CodeVersionConfigObject }).serialize("json");
+                    configJson = new CodeVersionConfig({ codeLanguage, config: config as CodeVersionConfigObject }).export();
                     break;
                 case ResourceType.Note:
-                    configJson = new NoteVersionConfig({ config: config as NoteVersionConfigObject }).serialize("json");
+                    configJson = new NoteVersionConfig({ config: config as NoteVersionConfigObject }).export();
                     break;
                 case ResourceType.Project:
-                    configJson = new ProjectVersionConfig({ config: config as ProjectVersionConfigObject }).serialize("json");
+                    configJson = new ProjectVersionConfig({ config: config as ProjectVersionConfigObject }).export();
                     break;
                 case ResourceType.Routine:
-                    configJson = new RoutineVersionConfig({ config: config as RoutineVersionConfigObject, resourceSubType }).serialize("json");
+                    configJson = new RoutineVersionConfig({ config: config as RoutineVersionConfigObject, resourceSubType }).export();
                     break;
                 case ResourceType.Standard:
-                    configJson = new StandardVersionConfig({ config: config as StandardVersionConfigObject, resourceSubType }).serialize("json");
+                    configJson = new StandardVersionConfig({ config: config as StandardVersionConfigObject, resourceSubType }).export();
                     break;
                 default:
-                    configJson = JSON.stringify({});
+                    configJson = { __version: "0.0.0" } as BaseConfigObject;
                     break;
             }
             // Serialize the config

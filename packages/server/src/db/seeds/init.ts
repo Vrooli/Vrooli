@@ -2,9 +2,9 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, TeamConfig } from "@local/shared";
+import { API_CREDITS_PREMIUM, AUTH_PROVIDERS, DEFAULT_LANGUAGE, generatePK, generatePublicId, SEEDED_PUBLIC_IDS, SEEDED_TAGS, TeamConfig } from "@local/shared";
 import type { Prisma } from "@prisma/client";
-import pkg from "@prisma/client";
+import pkg, { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { readManyHelper } from "../../actions/reads.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { importData } from "../../builders/importExport.js";
@@ -44,20 +44,36 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
         },
         update: {
             handle: "matt",
-            premium: {
+            plan: {
                 upsert: {
                     create: {
                         id: generatePK(),
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
-                        // eslint-disable-next-line no-magic-numbers
-                        credits: BigInt(10_000_000_000),
                     },
                     update: {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
-                        // eslint-disable-next-line no-magic-numbers
-                        credits: BigInt(10_000_000_000),
+                    },
+                },
+            },
+            creditAccount: {
+                upsert: {
+                    create: {
+                        id: generatePK(),
+                        currentBalance: API_CREDITS_PREMIUM,
+                        entries: {
+                            create: {
+                                id: generatePK(),
+                                idempotencyKey: `admin-initial-credits-${SEEDED_PUBLIC_IDS.Admin}`,
+                                amount: API_CREDITS_PREMIUM,
+                                type: CreditEntryType.MigrationImport,
+                                source: CreditSourceSystem.MigrationScript,
+                            },
+                        },
+                    },
+                    update: {
+                        currentBalance: API_CREDITS_PREMIUM,
                     },
                 },
             },
@@ -102,13 +118,26 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                     progress: 1,
                 }],
             },
-            premium: {
+            plan: {
                 create: {
                     id: generatePK(),
                     enabledAt: new Date(),
                     expiresAt: new Date("2069-04-20"),
-                    // eslint-disable-next-line no-magic-numbers
-                    credits: BigInt(10_000_000_000),
+                },
+            },
+            creditAccount: {
+                create: {
+                    id: generatePK(),
+                    currentBalance: API_CREDITS_PREMIUM,
+                    entries: {
+                        create: {
+                            id: generatePK(),
+                            idempotencyKey: `admin-initial-credits-${SEEDED_PUBLIC_IDS.Admin}`,
+                            amount: API_CREDITS_PREMIUM,
+                            type: CreditEntryType.MigrationImport,
+                            source: CreditSourceSystem.MigrationScript,
+                        },
+                    },
                 },
             },
         },
@@ -155,11 +184,26 @@ async function initUsers(client: InstanceType<typeof PrismaClient>) {
                     progress: 1,
                 }],
             },
-            premium: {
+            plan: {
                 create: {
                     id: generatePK(),
                     enabledAt: new Date(),
                     expiresAt: new Date("9999-12-31"),
+                },
+            },
+            creditAccount: {
+                create: {
+                    id: generatePK(),
+                    currentBalance: API_CREDITS_PREMIUM,
+                    entries: {
+                        create: {
+                            id: generatePK(),
+                            idempotencyKey: `valyxa-initial-credits-${SEEDED_PUBLIC_IDS.Valyxa}`,
+                            amount: API_CREDITS_PREMIUM,
+                            type: CreditEntryType.MigrationImport,
+                            source: CreditSourceSystem.MigrationScript,
+                        },
+                    },
                 },
             },
         },

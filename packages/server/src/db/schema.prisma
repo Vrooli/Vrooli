@@ -109,7 +109,6 @@ model chat {
     createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
     config                 Json?                       @default("{}")
-    turnCounter            Int                         @default(0)
     isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              BigInt?                     @db.BigInt

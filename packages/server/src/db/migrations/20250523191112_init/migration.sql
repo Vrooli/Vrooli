@@ -2,6 +2,12 @@
 CREATE TYPE "AccountStatus" AS ENUM ('Deleted', 'Unlocked', 'SoftLocked', 'HardLocked');
 
 -- CreateEnum
+CREATE TYPE "CreditEntryType" AS ENUM ('Purchase', 'TransferIn', 'RollOver', 'Bonus', 'Refund', 'DonationReceived', 'MigrationImport', 'AdjustmentIncrease', 'Spend', 'TransferOut', 'DonationGiven', 'Expire', 'Chargeback', 'AdjustmentDecrease', 'Penalty', 'Other');
+
+-- CreateEnum
+CREATE TYPE "CreditSourceSystem" AS ENUM ('Stripe', 'CryptoGateway', 'PartnerGateway', 'Scheduler', 'InternalAgent', 'Admin', 'MigrationScript', 'TestHarness', 'OtherProcessor', 'Other');
+
+-- CreateEnum
 CREATE TYPE "InviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
 
 -- CreateEnum
@@ -118,7 +124,6 @@ CREATE TABLE "chat" (
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "config" JSONB DEFAULT '{}',
-    "turnCounter" BIGINT NOT NULL DEFAULT 0,
     "isPrivate" BOOLEAN NOT NULL DEFAULT true,
     "openToAnyoneWithInvite" BOOLEAN NOT NULL DEFAULT false,
     "creatorId" BIGINT,
@@ -152,7 +157,7 @@ CREATE TABLE "chat_message" (
     "versionIndex" INTEGER NOT NULL DEFAULT 0,
     "parentId" BIGINT,
     "userId" BIGINT,
-    "chatId" BIGINT,
+    "chatId" BIGINT NOT NULL,
 
     CONSTRAINT "chat_message_pkey" PRIMARY KEY ("id")
 );
@@ -374,7 +379,6 @@ CREATE TABLE "team" (
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "parentId" BIGINT,
-    "premiumId" BIGINT,
     "createdById" BIGINT,
     "stripeCustomerId" VARCHAR(255),
 
@@ -464,15 +468,43 @@ CREATE TABLE "payment" (
 );
 
 -- CreateTable
-CREATE TABLE "premium" (
+CREATE TABLE "plan" (
     "id" BIGINT NOT NULL,
-    "credits" BIGINT NOT NULL DEFAULT 0,
     "customPlan" VARCHAR(2048),
     "enabledAt" TIMESTAMPTZ(6),
     "expiresAt" TIMESTAMPTZ(6),
     "receivedFreeTrialAt" TIMESTAMPTZ(6),
+    "teamId" BIGINT,
+    "userId" BIGINT,
 
-    CONSTRAINT "premium_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "plan_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "credit_account" (
+    "id" BIGINT NOT NULL,
+    "currentBalance" BIGINT NOT NULL DEFAULT 0,
+    "lastEntryId" BIGINT,
+    "userId" BIGINT,
+    "teamId" BIGINT,
+
+    CONSTRAINT "credit_account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "credit_ledger_entry" (
+    "id" BIGINT NOT NULL,
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "idempotencyKey" VARCHAR(64) NOT NULL,
+    "amount" BIGINT NOT NULL,
+    "type" "CreditEntryType" NOT NULL,
+    "source" "CreditSourceSystem" NOT NULL,
+    "meta" JSONB,
+    "accountId" BIGINT NOT NULL,
+    "paymentId" BIGINT,
+    "transferGroup" VARCHAR(64),
+
+    CONSTRAINT "credit_ledger_entry_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -954,12 +986,11 @@ CREATE TABLE "user" (
     "currentStreak" INTEGER NOT NULL DEFAULT 0,
     "longestStreak" INTEGER NOT NULL DEFAULT 0,
     "accountTabsOrder" VARCHAR(255),
-    "botSettings" VARCHAR(4096),
+    "botSettings" JSONB DEFAULT '{}',
     "notificationSettings" VARCHAR(2048),
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
     "reputation" INTEGER NOT NULL DEFAULT 0,
-    "premiumId" BIGINT,
     "stripeCustomerId" VARCHAR(255),
     "status" "AccountStatus" NOT NULL DEFAULT 'Unlocked',
 
@@ -1303,9 +1334,6 @@ CREATE UNIQUE INDEX "team_publicId_key" ON "team"("publicId");
 CREATE UNIQUE INDEX "team_handle_key" ON "team"("handle");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "team_premiumId_key" ON "team"("premiumId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "team_stripeCustomerId_key" ON "team"("stripeCustomerId");
 
 -- CreateIndex
@@ -1370,6 +1398,39 @@ CREATE INDEX "idx_payment_teamId" ON "payment"("teamId");
 
 -- CreateIndex
 CREATE INDEX "idx_payment_userId" ON "payment"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "plan_teamId_key" ON "plan"("teamId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "plan_userId_key" ON "plan"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "credit_account_lastEntryId_key" ON "credit_account"("lastEntryId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "credit_account_userId_key" ON "credit_account"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "credit_account_teamId_key" ON "credit_account"("teamId");
+
+-- CreateIndex
+CREATE INDEX "idx_credit_account_userId" ON "credit_account"("userId");
+
+-- CreateIndex
+CREATE INDEX "idx_credit_account_teamId" ON "credit_account"("teamId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "credit_ledger_entry_idempotencyKey_key" ON "credit_ledger_entry"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "idx_credit_ledger_entry_accountId_createdAt" ON "credit_ledger_entry"("accountId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "idx_credit_ledger_entry_paymentId" ON "credit_ledger_entry"("paymentId");
+
+-- CreateIndex
+CREATE INDEX "idx_credit_ledger_entry_transferGroup" ON "credit_ledger_entry"("transferGroup");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "pull_request_publicId_key" ON "pull_request"("publicId");
@@ -1666,9 +1727,6 @@ CREATE UNIQUE INDEX "user_confirmationCode_key" ON "user"("confirmationCode");
 CREATE UNIQUE INDEX "user_handle_key" ON "user"("handle");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_premiumId_key" ON "user"("premiumId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "user_stripeCustomerId_key" ON "user"("stripeCustomerId");
 
 -- CreateIndex
@@ -1897,9 +1955,6 @@ ALTER TABLE "push_device" ADD CONSTRAINT "push_device_userId_fkey" FOREIGN KEY (
 ALTER TABLE "team" ADD CONSTRAINT "team_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "team" ADD CONSTRAINT "team_premiumId_fkey" FOREIGN KEY ("premiumId") REFERENCES "premium"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "team" ADD CONSTRAINT "team_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1934,6 +1989,21 @@ ALTER TABLE "payment" ADD CONSTRAINT "payment_teamId_fkey" FOREIGN KEY ("teamId"
 
 -- AddForeignKey
 ALTER TABLE "payment" ADD CONSTRAINT "payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "plan" ADD CONSTRAINT "plan_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "plan" ADD CONSTRAINT "plan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_account" ADD CONSTRAINT "credit_account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_account" ADD CONSTRAINT "credit_account_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "credit_ledger_entry" ADD CONSTRAINT "credit_ledger_entry_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "credit_account"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "pull_request" ADD CONSTRAINT "pull_request_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -2107,9 +2177,6 @@ ALTER TABLE "transfer" ADD CONSTRAINT "transfer_resourceId_fkey" FOREIGN KEY ("r
 ALTER TABLE "user" ADD CONSTRAINT "user_invitedByUserId_fkey" FOREIGN KEY ("invitedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "user" ADD CONSTRAINT "user_premiumId_fkey" FOREIGN KEY ("premiumId") REFERENCES "premium"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "user_auth" ADD CONSTRAINT "user_auth_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2141,6 +2208,8 @@ ALTER TABLE "wallet" ADD CONSTRAINT "wallet_teamId_fkey" FOREIGN KEY ("teamId") 
 
 -- AddForeignKey
 ALTER TABLE "wallet" ADD CONSTRAINT "wallet_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
 
 -- ------------------------------------------------------------
 -- hnsw indexes for semantic-search columns
