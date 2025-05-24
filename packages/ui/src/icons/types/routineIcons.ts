@@ -17,6 +17,6 @@ export const iconNames = [
   "AddLink",
   "AddIncomingLink",
   "AddEndNodeAfter",
-] as const;
+] as const
 
 export type IconName = typeof iconNames[number]

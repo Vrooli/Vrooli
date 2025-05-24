@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { type Reminder, type ReminderList as ReminderListType, generatePKString } from "@local/shared";
+import { generatePK, type Reminder, type ReminderList as ReminderListType } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
 import { useState } from "react";
@@ -22,7 +22,7 @@ const meta = {
 export default meta;
 
 // Mock data for reminders
-const mockReminderListId = generatePKString();
+const mockReminderListId = generatePK().toString();
 const mockReminderList: ReminderListType = {
     __typename: "ReminderList",
     id: mockReminderListId,
@@ -35,7 +35,7 @@ const mockReminderList: ReminderListType = {
 const baseMockReminders: Reminder[] = [
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Complete weekly report",
         description: "Finalize and submit the weekly progress report",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
@@ -48,7 +48,7 @@ const baseMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Meeting preparation",
         description: "Prepare slides for the upcoming team meeting",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 2)),
@@ -61,7 +61,7 @@ const baseMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Review pull requests",
         description: "Review pending pull requests from the team",
         dueDate: new Date(new Date().setHours(new Date().getHours() + 4)),
@@ -74,7 +74,7 @@ const baseMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Project planning",
         description: "Plan the next sprint objectives and tasks",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
@@ -87,7 +87,7 @@ const baseMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Client follow-up",
         description: "Send follow-up emails to clients",
         dueDate: new Date(new Date().setHours(new Date().getHours() + 2)),
@@ -105,7 +105,7 @@ const extendedMockReminders: Reminder[] = [
     ...baseMockReminders,
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Code review",
         description: "Review code changes for the new feature",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 4)),
@@ -118,7 +118,7 @@ const extendedMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Documentation update",
         description: "Update documentation for the recent API changes",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
@@ -131,7 +131,7 @@ const extendedMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Team feedback session",
         description: "Conduct feedback session with team members",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
@@ -144,7 +144,7 @@ const extendedMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "Quarterly planning",
         description: "Prepare quarterly objectives and key results",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
@@ -157,7 +157,7 @@ const extendedMockReminders: Reminder[] = [
     },
     {
         __typename: "Reminder",
-        id: generatePKString(),
+        id: generatePK().toString(),
         name: "System maintenance",
         description: "Schedule and perform routine system maintenance",
         dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),

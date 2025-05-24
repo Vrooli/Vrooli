@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { type Report, type ReportFor, endpointsReport, generatePKString, getObjectUrl } from "@local/shared";
+import { type Report, type ReportFor, endpointsReport, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ReportUpsert } from "./ReportUpsert.js";
@@ -9,7 +9,7 @@ import { ReportUpsert } from "./ReportUpsert.js";
 // Create simplified mock data for Report responses
 const mockReportData: Report = {
     __typename: "Report" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     reason: "Inappropriate",
@@ -18,7 +18,7 @@ const mockReportData: Report = {
     language: "en",
     createdFor: {
         __typename: "StandardVersion" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
     },
     you: {
         __typename: "ReportYou",
@@ -31,7 +31,7 @@ const mockReportData: Report = {
 // Mock for other reason type report
 const mockOtherReasonReportData: Report = {
     ...mockReportData,
-    id: generatePKString(),
+    id: generatePK().toString(),
     reason: "Other",
     otherReason: "The content is misleading",
     details: "This content provides incorrect information that could mislead users.",
@@ -40,10 +40,10 @@ const mockOtherReasonReportData: Report = {
 // Create mock for report object for a different object type
 const mockForRoutineReportData: Report = {
     ...mockReportData,
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdFor: {
         __typename: "RoutineVersion" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
     },
 };
 
@@ -61,7 +61,7 @@ export function CreateDialog() {
             isOpen={true}
             createdFor={{
                 __typename: "StandardVersion" as ReportFor,
-                id: generatePKString(),
+                id: generatePK().toString(),
             }}
             onClose={() => { }}
             onCancel={() => { }}
@@ -82,7 +82,7 @@ export function CreateForRoutine() {
             isCreate={true}
             createdFor={{
                 __typename: "RoutineVersion" as ReportFor,
-                id: generatePKString(),
+                id: generatePK().toString(),
             }}
         />
     );
@@ -178,7 +178,7 @@ export function NonPremiumUser() {
             isCreate={true}
             createdFor={{
                 __typename: "StandardVersion" as ReportFor,
-                id: generatePKString(),
+                id: generatePK().toString(),
             }}
         />
     );

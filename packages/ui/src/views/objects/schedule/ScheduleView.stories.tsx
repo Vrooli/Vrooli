@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { type Meeting, type Schedule, type ScheduleException, type ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePKString, getObjectUrl } from "@local/shared";
+import { type Meeting, type Schedule, type ScheduleException, type ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleView } from "./ScheduleView.js";
 
 // Create simplified mock data for Schedule responses
 const mockScheduleData: Schedule = {
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     startTime: new Date().toISOString(),
@@ -18,7 +18,7 @@ const mockScheduleData: Schedule = {
     recurrences: [
         {
             __typename: "ScheduleRecurrence" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             dayOfWeek: 2, // Tuesday
@@ -31,12 +31,12 @@ const mockScheduleData: Schedule = {
     ],
     meetings: [{
         __typename: "Meeting" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         translations: [{
             __typename: "MeetingTranslation" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "en",
             name: "Weekly Team Sync",
             description: "Regular team sync meeting to discuss progress and blockers",

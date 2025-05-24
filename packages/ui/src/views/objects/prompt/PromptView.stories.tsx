@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, type Resource, ResourceUsedFor, StandardType, type StandardVersion, type Tag, type User, endpointsStandardVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { CodeLanguage, DUMMY_ID, type Resource, ResourceUsedFor, StandardType, type StandardVersion, type Tag, type User, endpointsStandardVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { PromptView } from "./PromptView.js";
@@ -7,7 +7,7 @@ import { PromptView } from "./PromptView.js";
 // Create simplified mock data for Prompt responses
 const mockPromptVersionData: StandardVersion = {
     __typename: "StandardVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     comments: [],
     commentsCount: 0,
     codeLanguage: CodeLanguage.Javascript,
@@ -55,15 +55,15 @@ const mockPromptVersionData: StandardVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         listFor: {
             __typename: "StandardVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -71,7 +71,7 @@ const mockPromptVersionData: StandardVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -84,16 +84,16 @@ const mockPromptVersionData: StandardVersion = {
     },
     root: {
         __typename: "Standard" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
         isInternal: false,
         hasCompleteVersion: true,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         parent: null,
         permissions: "{}",
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["AI Prompt", "LLM", "Chatbot", "NLP", "Template", "Instruction", "Other"][Math.floor(Math.random() * 7)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

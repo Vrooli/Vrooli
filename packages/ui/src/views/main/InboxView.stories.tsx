@@ -1,4 +1,4 @@
-import { InboxPageTabOption, type Notification, type NotificationSearchResult, type Success, endpointsNotification, generatePKString } from "@local/shared";
+import { InboxPageTabOption, type Notification, type NotificationSearchResult, type Success, endpointsNotification, generatePK } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { apiUrlBase, restBase } from "../../utils/consts.js";
@@ -17,7 +17,7 @@ const DEFAULT_PAGE_SIZE = 20; // Matching the actual call observed
 const mockNotifications: Notification[] = [
     {
         __typename: "Notification",
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         title: "Agent Task Completed",
         description: "Your agent 'Alpha' completed its task successfully.",
@@ -28,7 +28,7 @@ const mockNotifications: Notification[] = [
     },
     {
         __typename: "Notification",
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date(Date.now() - ONE_DAY_MS).toISOString(),
         title: "New Comment",
         description: "New comment on your document 'Project Proposal'.",
@@ -39,7 +39,7 @@ const mockNotifications: Notification[] = [
     },
     {
         __typename: "Notification",
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date(Date.now() - TWO_DAYS_MS).toISOString(),
         title: "Low Credit Balance",
         description: "Credit balance is low. Please top up.",

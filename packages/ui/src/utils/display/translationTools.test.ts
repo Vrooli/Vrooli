@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { type CommonKey, type Session, generatePKString } from "@local/shared";
+import { generatePK, type CommonKey, type Session } from "@local/shared";
 import { expect } from "chai";
 import { type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
 import * as yup from "yup";
 import { i18nextTMock } from "../../__mocks__/i18next.js";
-import { type TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools.js";
+import { addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields, type TranslationObject } from "./translationTools.js";
 
 // Mocks for navigator.language and navigator.languages
 function mockNavigatorLanguage(language) {
@@ -33,7 +33,7 @@ function createSession(languages: string[] | null | undefined) {
         isLoggedIn: true,
         users: [{
             __typename: "SessionUser",
-            id: generatePKString(),
+            id: generatePK().toString(),
             languages,
         }],
     } as unknown as Session;
@@ -69,8 +69,8 @@ describe("loadLocale", () => {
 
 describe("updateTranslationFields", () => {
     const mockTranslations = [
-        { id: generatePKString(), language: "en", content: "Hello", note: "Greeting" },
-        { id: generatePKString(), language: "es", content: "Hola", note: "Saludo" },
+        { id: generatePK().toString(), language: "en", content: "Hello", note: "Greeting" },
+        { id: generatePK().toString(), language: "es", content: "Hola", note: "Saludo" },
     ];
 
     it("should correctly update fields for an existing translation", () => {
@@ -158,8 +158,8 @@ describe("updateTranslationFields", () => {
 
 describe("updateTranslation", () => {
     const mockTranslations = [
-        { id: generatePKString(), language: "en", content: "Hello" },
-        { id: generatePKString(), language: "es", content: "Hola" },
+        { id: generatePK().toString(), language: "en", content: "Hello" },
+        { id: generatePK().toString(), language: "es", content: "Hola" },
     ];
 
     it("should correctly update an existing translation", () => {
@@ -170,7 +170,7 @@ describe("updateTranslation", () => {
     });
 
     it("should add a new translation if the specified language is not found", () => {
-        const newTranslation = { id: generatePKString(), language: "fr", content: "Bonjour" };
+        const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         const addedTranslation = updatedTranslations.find(t => t.language === "fr");
         expect(addedTranslation).to.deep.equal(newTranslation);
@@ -184,7 +184,7 @@ describe("updateTranslation", () => {
     });
 
     it("should handle null or undefined translations property", () => {
-        const newTranslation = { id: generatePKString(), language: "fr", content: "Bonjour" };
+        const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
         // @ts-ignore: Testing runtime scenario
         expect(updateTranslation({ translations: null }, newTranslation)).to.have.lengthOf(0);
         // @ts-ignore: Testing runtime scenario
@@ -192,19 +192,19 @@ describe("updateTranslation", () => {
     });
 
     it("should handle empty translations array", () => {
-        const newTranslation = { id: generatePKString(), language: "fr", content: "Bonjour" };
+        const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
         expect(updateTranslation({ translations: [] }, newTranslation)).to.deep.equal([newTranslation]);
     });
 
     it("should not update translations if the provided translation does not have a language", () => {
-        const newTranslation = { id: generatePKString(), content: "Bonjour" };
+        const newTranslation = { id: generatePK().toString(), content: "Bonjour" };
         // @ts-ignore: Testing runtime scenario
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         expect(updatedTranslations).to.deep.equal(mockTranslations);
     });
 
     it("should preserve other translations when updating", () => {
-        const newTranslation = { id: generatePKString(), language: "en", content: "Hi" };
+        const newTranslation = { id: generatePK().toString(), language: "en", content: "Hi" };
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         const unchangedTranslation = updatedTranslations.find(t => t.language === "es");
         expect(unchangedTranslation).to.deep.equal(mockTranslations[1]);

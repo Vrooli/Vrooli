@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, type NoteVersion, type Tag, type User, endpointsNoteVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, type NoteVersion, type Tag, type User, endpointsNoteVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { NoteCrud } from "./NoteCrud.js";
@@ -9,7 +9,7 @@ import { NoteCrud } from "./NoteCrud.js";
 // Create simplified mock data for Note responses
 const mockNoteVersionData: NoteVersion = {
     __typename: "NoteVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     comments: [],
     commentsCount: 0,
     createdAt: new Date().toISOString(),
@@ -22,13 +22,13 @@ const mockNoteVersionData: NoteVersion = {
     reportsCount: 0,
     root: {
         __typename: "Note" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         parent: null,
         tags: Array.from({ length: 4 }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["Notes", "Research", "Ideas", "Documentation", "Meeting Notes", "Project Notes"][Math.floor(Math.random() * 6)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

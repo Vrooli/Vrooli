@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, type CodeVersion, type Resource, ResourceUsedFor, type Tag, type User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { CodeLanguage, CodeType, type CodeVersion, type Resource, ResourceUsedFor, type Tag, type User, endpointsCodeVersion, generatePK, getObjectUrl } from "@local/shared";
 import { type Meta } from "@storybook/react";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
@@ -45,7 +45,7 @@ const serializedData = JSON.stringify({
 // Create simplified mock data for DataConverter responses
 const mockDataConverterVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     calledByRoutineVersionsCount: 3,
     codeLanguage: CodeLanguage.Javascript,
     codeType: CodeType.DataConvert,
@@ -83,15 +83,15 @@ function main(input) {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         listFor: {
             __typename: "CodeVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -99,7 +99,7 @@ function main(input) {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -112,12 +112,12 @@ function main(input) {
     },
     root: {
         __typename: "Code" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         bookmarks: 5,
         likes: 10,
         views: 25,
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         tags: [
             {
                 __typename: "Tag" as const,
@@ -143,7 +143,7 @@ function main(input) {
     },
     translations: [{
         __typename: "CodeVersionTranslation" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         language: "en",
         description: `# String to Number Array Converter
 

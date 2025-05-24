@@ -1,9 +1,9 @@
-import { type BotCreateInput, type BotShape, botTranslationValidation, type BotUpdateInput, botValidation, DUMMY_ID, endpointsUser, findBotDataForForm, getAvailableModels, getModelDescription, getModelName, LINKS, type LlmModel, LlmTask, noopSubmit, SearchPageTabOption, type Session, shapeBot, type User, validateAndGetYupErrors } from "@local/shared";
+import { type BotCreateInput, type BotShape, botTranslationValidation, type BotUpdateInput, botValidation, DEFAULT_PERSONA, DUMMY_ID, endpointsUser, getModelDescription, getModelName, LATEST_CONFIG_VERSION, LINKS, type LlmModel, LlmTask, noopSubmit, orDefault, SearchPageTabOption, type Session, shapeBot, type User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getExistingAIConfig } from "../../../api/ai.js";
+import { getAvailableModels, getExistingAIConfig, getFallbackModel } from "../../../api/ai.js";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
@@ -34,21 +34,29 @@ function botInitialValues(
     session: Session | undefined,
     existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape {
-    const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
-    const { creativity, verbosity, model, translations } = findBotDataForForm(getUserLanguages(session)[0], availableModels, existing);
+    const aiServicesConfig = getExistingAIConfig()?.service?.config;
+    const availableModels = getAvailableModels(aiServicesConfig);
+    const fallbackModel = getFallbackModel(aiServicesConfig);
+    const model = availableModels.find(m => m.value === existing?.botSettings?.model)?.value ?? fallbackModel;
+
+    const botSettings = existing?.botSettings ?? { __version: LATEST_CONFIG_VERSION, persona: DEFAULT_PERSONA };
+    botSettings.model = model ?? "";
 
     return {
+        ...existing,
         __typename: "User" as const,
         id: DUMMY_ID,
-        creativity,
+        botSettings,
         isBotDepictingPerson: false,
         isPrivate: false,
-        model,
         name: "",
-        verbosity,
-        ...existing,
         isBot: true,
-        translations,
+        translations: orDefault(existing?.translations, [{
+            __typename: "UserTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            bio: "",
+        }]),
     };
 }
 

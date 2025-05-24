@@ -1,8 +1,8 @@
-import { type BotShape, BotStyle, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type CodeLanguage, type CodeVersionShape, type CodeVersionTranslationShape, type ConfigCallDataGenerate, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, FormStructureType, type GraphConfigObject, LATEST_ROUTINE_CONFIG_VERSION, type LlmModel, type RoutineVersionConfig, type RunProject, type RunRoutine, RunStatus, type User, aiServicesInfo, defaultConfigFormInputMap, defaultConfigFormOutputMap, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { type BotShape, BotStyle, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type CodeLanguage, type CodeVersionShape, type CodeVersionTranslationShape, type ConfigCallDataGenerate, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, FormStructureType, type GraphConfigObject, LATEST_ROUTINE_CONFIG_VERSION, type LlmModel, type RoutineVersionConfig, type RunProject, type RunRoutine, RunStatus, type User, aiServicesInfo, defaultConfigFormInputMap, defaultConfigFormOutputMap, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "@mui/material";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getExistingAIConfig } from "../../../api/ai.js";
+import { getAvailableModels, getExistingAIConfig } from "../../../api/ai.js";
 import { LoadableButton } from "../../../components/buttons/LoadableButton.js";
 import { RunPickerMenu } from "../../../components/buttons/RunButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";

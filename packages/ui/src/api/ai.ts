@@ -1,4 +1,4 @@
-import { type AIServicesInfo, type AITaskConfigJSON, DAYS_1_MS, importAIServiceConfig, importAITaskConfig } from "@local/shared";
+import { type AIServicesInfo, type AITaskConfigJSON, DAYS_1_MS, type LlmServiceModel, type ModelInfo, type TranslationKeyService } from "@local/shared";
 import { apiUrlBase } from "../utils/consts.js";
 
 const AI_TASK_CONFIG_CACHE_KEY = "AI_CONFIG_CACHE";
@@ -75,10 +75,10 @@ export async function fetchAIConfig(language: string): Promise<AICacheData | nul
     if (configData?.task) {
         const { config, timestamp, cachedLanguage } = configData.task;
         const isLanguageValid =
-            !isExpired(timestamp, AI_TASK_CONFIG_CACHE_DURATION) &&  // Check if the cache has expired
-            cachedLanguage === language &&  // Check if the cached language matches the requested language
-            typeof config === "object" &&  // Check if the config is an object
-            Object.keys(config).length > 0;  // Check if the config is not empty
+            !isExpired(timestamp, AI_TASK_CONFIG_CACHE_DURATION) &&
+            cachedLanguage === language &&
+            typeof config === "object" &&
+            Object.keys(config).length > 0;
         if (isLanguageValid) {
             shouldFetchTaskInfo = false;
         }
@@ -88,30 +88,35 @@ export async function fetchAIConfig(language: string): Promise<AICacheData | nul
     if (configData?.service) {
         const { config, timestamp } = configData.service;
         const isServiceValid =
-            !isExpired(timestamp, AI_SERVICE_CACHE_DURATION) &&  // Check if the cache has expired
-            typeof config === "object" &&  // Check if the config is an object
-            Object.keys(config).length > 0;  // Check if the config is not empty
+            !isExpired(timestamp, AI_SERVICE_CACHE_DURATION) &&
+            typeof config === "object" &&
+            Object.keys(config).length > 0;
         if (isServiceValid) {
             shouldFetchServiceInfo = false;
         }
     }
 
-    // If both configs are valid, return them
     if (!shouldFetchServiceInfo && !shouldFetchTaskInfo) {
         return configData;
     }
 
-    // Prepare fetch promises
     const fetchPromises: Promise<void>[] = [];
     const urlBase = apiUrlBase.replace("/api", "");
 
-    let fetchedServiceInfo: AIServiceCacheData | null = null;
-    let fetchedTaskConfig: AITaskCacheData | null = null;
+    let fetchedServiceInfo: AIServiceCacheData | null = configData?.service || null;
+    let fetchedTaskConfig: AITaskCacheData | null = configData?.task || null;
 
     if (shouldFetchServiceInfo) {
+        const serviceConfigUrl = `${urlBase}/ai/configs/services.json`;
         fetchPromises.push(
-            importAIServiceConfig(console, urlBase)
-                .then((serviceConfig) => {
+            fetch(serviceConfigUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch service configuration: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then((serviceConfig: AIServicesInfo) => {
                     fetchedServiceInfo = {
                         config: serviceConfig,
                         timestamp: Date.now(),
@@ -119,35 +124,42 @@ export async function fetchAIConfig(language: string): Promise<AICacheData | nul
                     localStorage.setItem(AI_SERVICE_CACHE_KEY, JSON.stringify(fetchedServiceInfo));
                 })
                 .catch((error) => {
-                    console.error("Error fetching service configuration:", error);
+                    console.error(`Error fetching service configuration from ${serviceConfigUrl}:`, error);
                 }),
         );
     }
 
     if (shouldFetchTaskInfo) {
+        const taskConfigUrl = `${urlBase}/ai/configs/${language}.json`;
         fetchPromises.push(
-            importAITaskConfig(language, console, urlBase)
-                .then((taskConfig) => {
+            fetch(taskConfigUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch task configuration: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then((taskConfig: AITaskConfigJSON) => {
                     fetchedTaskConfig = {
-                        config: taskConfig as unknown as AITaskConfigJSON,
+                        config: taskConfig,
                         timestamp: Date.now(),
                         cachedLanguage: language,
                     };
                     localStorage.setItem(AI_TASK_CONFIG_CACHE_KEY, JSON.stringify(fetchedTaskConfig));
                 })
                 .catch((error) => {
-                    console.error("Error fetching task configuration:", error);
+                    console.error(`Error fetching task configuration from ${taskConfigUrl}:`, error);
                 }),
         );
     }
 
-    // Await all fetches
-    await Promise.all(fetchPromises);
+    if (fetchPromises.length > 0) {
+        await Promise.all(fetchPromises);
+    }
 
-    // After fetching, construct the updated config data
     const result: AICacheData = {
-        service: fetchedServiceInfo || configData?.service || null,
-        task: fetchedTaskConfig || configData?.task || null,
+        service: fetchedServiceInfo,
+        task: fetchedTaskConfig,
     };
 
     return result;
@@ -162,4 +174,50 @@ export function invalidateAIConfigCache() {
     if (configData?.task?.cachedLanguage) {
         fetchAIConfig(configData.task.cachedLanguage);
     }
+}
+
+export function getFallbackModel(servicesInfo: AIServicesInfo | null | undefined): string | null {
+    if (!servicesInfo) {
+        return null;
+    }
+    const defaultServiceId = servicesInfo.defaultService;
+    if (!defaultServiceId) {
+        return null;
+    }
+    const defaultService = servicesInfo.services[defaultServiceId];
+    if (!defaultService) {
+        return null;
+    }
+    return defaultService.defaultModel;
+}
+
+export type AvailableModel = {
+    name: TranslationKeyService;
+    description: TranslationKeyService;
+    value: LlmServiceModel;
+};
+
+export function getAvailableModels(servicesInfo: AIServicesInfo | null | undefined): AvailableModel[] {
+    const availableModels: AvailableModel[] = [];
+    if (!servicesInfo) {
+        return availableModels;
+    }
+
+    for (const serviceName of Object.keys(servicesInfo.services) as Array<keyof AIServicesInfo["services"]>) {
+        const service = servicesInfo.services[serviceName];
+        if (service.enabled) {
+            const models = service.models as Record<string, ModelInfo>;
+            for (const modelValue in models) {
+                const model = models[modelValue as string];
+                if (model.enabled) {
+                    availableModels.push({
+                        name: model.name,
+                        description: model.descriptionShort,
+                        value: modelValue as LlmServiceModel,
+                    });
+                }
+            }
+        }
+    }
+    return availableModels;
 }

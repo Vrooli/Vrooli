@@ -1,4 +1,4 @@
-import { ApiKey, CodeLanguage, StripeEndpoint, User, generatePK, generatePKString } from '@local/shared';
+import { ApiKey, CodeLanguage, StripeEndpoint, User, generatePK } from '@local/shared';
 import { CssBaseline, GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
 import type { Preview } from '@storybook/react';
 import { HttpResponse, http } from 'msw';
@@ -35,7 +35,7 @@ initialize({
 
 // Mock profile for settings and other views
 let mockProfile: Partial<User> = {
-    id: generatePKString(),
+    id: generatePK().toString(),
     name: 'John Doe',
     apiKeys: [
         { __typename: "ApiKey" as const, id: generatePK().toString(), name: 'Key 1' },
@@ -58,7 +58,7 @@ function generateDummyStandards() {
                     cursor: String(index + 1),
                     node: {
                         __typename: "Standard" as const,
-                        id: generatePKString(),
+                        id: generatePK().toString(),
                         bookmarks: Math.floor(Math.random() * 100),
                         hasCompleteVersion,
                         isDeleted: false,
@@ -67,13 +67,13 @@ function generateDummyStandards() {
                         versions: [
                             {
                                 __typename: "StandardVersion" as const,
-                                id: generatePKString(),
+                                id: generatePK().toString(),
                                 codeLanguage: CodeLanguage.Javascript,
                                 isComplete: hasCompleteVersion,
                                 translations: [
                                     {
                                         __typename: "StandardVersionTranslation" as const,
-                                        id: generatePKString(),
+                                        id: generatePK().toString(),
                                         language: "en",
                                         name: standardName,
                                     },

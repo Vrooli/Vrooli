@@ -1,8 +1,8 @@
-import { type CalendarEvent, type ChatParticipantShape, DAYS_30_MS, DUMMY_ID, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule, calculateOccurrences, endpointsFeed, getAvailableModels, getObjectUrl, uuid } from "@local/shared";
+import { type CalendarEvent, type ChatParticipantShape, DAYS_30_MS, DUMMY_ID, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule, calculateOccurrences, endpointsFeed, getObjectUrl, uuid } from "@local/shared";
 import { Box, IconButton, Typography, styled } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getExistingAIConfig } from "../../api/ai.js";
+import { getAvailableModels, getExistingAIConfig } from "../../api/ai.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
 import { ChatSettingsMenu, type IntegrationSettings, type ModelConfig, type ShareSettings } from "../../components/ChatSettingsMenu/ChatSettingsMenu.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";

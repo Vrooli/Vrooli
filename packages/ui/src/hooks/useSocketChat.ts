@@ -1,4 +1,4 @@
-import { type ChatMessageShape, type ChatParticipantShape, type ChatShape, type ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, type Session } from "@local/shared";
+import { type ChatMessageShape, type ChatParticipantShape, type ChatShape, type ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, type Session, type StreamErrorPayload } from "@local/shared";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { SocketService } from "../api/socket.js";
 import { SessionContext } from "../contexts/session.js";
@@ -26,6 +26,13 @@ const MAX_MESSAGE_PREVIEW_LENGTH = 50;
 
 // Track active join attempts globally to prevent duplicates
 const activeJoinAttempts = new Map<string, boolean>();
+
+interface ClientAccumulatedStreamState {
+    __type: "stream" | "end" | "error";
+    botId?: string;
+    accumulatedMessage: string;
+    error?: StreamErrorPayload;
+}
 
 export function processMessages(
     { added, updated, removed }: ChatSocketEventPayloads["messages"],
@@ -191,41 +198,77 @@ export function processLlmTasks(
 }
 
 export function processResponseStream(
-    { __type, botId, message }: ChatSocketEventPayloads["responseStream"],
-    messageStreamRef: React.MutableRefObject<ChatSocketEventPayloads["responseStream"] | null>,
-    setMessageStream: (stream: ChatSocketEventPayloads["responseStream"] | null) => void,
-    throttledSetMessageStream: (stream: ChatSocketEventPayloads["responseStream"] | null) => void,
+    payload: ChatSocketEventPayloads["responseStream"],
+    messageStreamRef: React.MutableRefObject<ClientAccumulatedStreamState | null>,
+    setMessageStream: (stream: ClientAccumulatedStreamState | null) => void,
+    throttledSetMessageStream: (stream: ClientAccumulatedStreamState | null) => void,
 ) {
-    // Initialize ref if it doesn't exist
-    if (!messageStreamRef.current) {
-        messageStreamRef.current = { __type, message: "" };
+    const { __type, botId, chunk, error: streamError } = payload;
+
+    // Initialize or reset ref if botId changes or ref is null
+    if (!messageStreamRef.current || (botId && messageStreamRef.current.botId !== botId)) {
+        messageStreamRef.current = { __type, botId, accumulatedMessage: "" };
+        if (__type === "error" && streamError) {
+            messageStreamRef.current.error = streamError;
+        }
+    } else {
+        // Update type for existing stream if it's not null
+        messageStreamRef.current.__type = __type;
     }
 
-    // Add __type to stream
-    messageStreamRef.current.__type = __type;
-
-    // Check and update botId if new botId is provided and it is different from current
-    if (botId && messageStreamRef.current.botId !== botId) {
-        messageStreamRef.current.botId = botId;
-        // This indicates the start of a new message with a new bot, so clear any old message
-        messageStreamRef.current.message = "";
+    if (__type === "stream" && chunk) {
+        messageStreamRef.current.accumulatedMessage += chunk;
+        messageStreamRef.current.error = undefined; // Clear previous error if now streaming
+    } else if (__type === "error" && streamError) {
+        messageStreamRef.current.error = streamError;
+        // Optionally, set accumulatedMessage from error or leave as is
+        // messageStreamRef.current.accumulatedMessage = streamError.message;
     }
 
-    // Add to message if we're still streaming or it's an error. 
-    // We keep the stream if there's an error in case the user want to 
-    // read what part of the message was received
-    if (__type === "stream" || __type === "error") {
-        messageStreamRef.current.message += message;
-    }
-
-    // Remove message if it's the end. The full message will be received through the rest endpoint
     if (__type === "end") {
         messageStreamRef.current = null;
-        // Update state immediately
-        setMessageStream(null);
+        setMessageStream(null); // Immediate update
+        return; // Avoid throttled update if ended
+    }
+
+    // Update state on throttle only if ref is not null
+    if (messageStreamRef.current) {
+        throttledSetMessageStream({ ...messageStreamRef.current });
+    }
+}
+
+export function processModelReasoningStream(
+    payload: ChatSocketEventPayloads["modelReasoningStream"],
+    reasoningStreamRef: React.MutableRefObject<ClientAccumulatedStreamState | null>,
+    setReasoningStream: (stream: ClientAccumulatedStreamState | null) => void,
+    throttledSetReasoningStream: (stream: ClientAccumulatedStreamState | null) => void,
+) {
+    const { __type, botId, chunk, error: streamError } = payload;
+
+    if (!reasoningStreamRef.current || (botId && reasoningStreamRef.current.botId !== botId)) {
+        reasoningStreamRef.current = { __type, botId, accumulatedMessage: "" };
+        if (__type === "error" && streamError) {
+            reasoningStreamRef.current.error = streamError;
+        }
     } else {
-        // Update state on throttle
-        throttledSetMessageStream(messageStreamRef.current);
+        reasoningStreamRef.current.__type = __type;
+    }
+
+    if (__type === "stream" && chunk) {
+        reasoningStreamRef.current.accumulatedMessage += chunk;
+        reasoningStreamRef.current.error = undefined;
+    } else if (__type === "error" && streamError) {
+        reasoningStreamRef.current.error = streamError;
+    }
+
+    if (__type === "end") {
+        reasoningStreamRef.current = null;
+        setReasoningStream(null);
+        return;
+    }
+
+    if (reasoningStreamRef.current) {
+        throttledSetReasoningStream({ ...reasoningStreamRef.current });
     }
 }
 
@@ -344,14 +387,24 @@ export function useSocketChat({
         };
     }, [chat?.id, addDebugData]);
 
-    const messageStreamRef = useRef<ChatSocketEventPayloads["responseStream"] | null>(null);
-    const [messageStream, setMessageStream] = useState<ChatSocketEventPayloads["responseStream"] | null>(null);
-    const throttledSetMessageStreamHander = useCallback((messageStream: ChatSocketEventPayloads["responseStream"] | null) => {
+    const messageStreamRef = useRef<ClientAccumulatedStreamState | null>(null);
+    const [messageStream, setMessageStream] = useState<ClientAccumulatedStreamState | null>(null);
+    const throttledSetMessageStreamHander = useCallback((stream: ClientAccumulatedStreamState | null) => {
         // Create copy of message to ensure proper re-rendering
-        const messageStreamCopy = messageStream ? { ...messageStream } : null;
-        setMessageStream(messageStreamCopy);
+        const streamCopy = stream ? { ...stream } : null;
+        setMessageStream(streamCopy);
     }, []);
     const throttledSetMessageStream = useThrottle(throttledSetMessageStreamHander, MESSAGE_STREAM_UPDATE_THROTTLE_MS);
+
+    const modelReasoningStreamRef = useRef<ClientAccumulatedStreamState | null>(null);
+    const [modelReasoningStream, setModelReasoningStream] = useState<ClientAccumulatedStreamState | null>(null);
+    const throttledSetModelReasoningStreamHandler = useCallback((stream: ClientAccumulatedStreamState | null) => {
+        const streamCopy = stream ? { ...stream } : null;
+        setModelReasoningStream(streamCopy);
+    }, []);
+    const throttledSetModelReasoningStream = useThrottle(throttledSetModelReasoningStreamHandler, MESSAGE_STREAM_UPDATE_THROTTLE_MS);
+
+    const [botStatuses, setBotStatuses] = useState<Record<string, ChatSocketEventPayloads["botStatusUpdate"]>>({});
 
     // Store refs for parameters to reduce the number of dependencies of socket event handlers. 
     // This reduces the number of times the socket events are connected/disconnected.
@@ -368,6 +421,62 @@ export function useSocketChat({
     useEffect(() => SocketService.get().onEvent("llmTasks", (payload) => processLlmTasks(payload, chat?.id)), [chat?.id]);
     useEffect(() => SocketService.get().onEvent("participants", (payload) => processParticipantsUpdates(payload, participantsRef.current, chatRef.current, setParticipants)), [setParticipants]);
     useEffect(() => SocketService.get().onEvent("responseStream", (payload) => processResponseStream(payload, messageStreamRef, setMessageStream, throttledSetMessageStream)), [throttledSetMessageStream]);
+    useEffect(() => SocketService.get().onEvent("modelReasoningStream", (payload) => processModelReasoningStream(payload, modelReasoningStreamRef, setModelReasoningStream, throttledSetModelReasoningStream)), [throttledSetModelReasoningStream]);
 
-    return { messageStream };
+    useEffect(() => {
+        // eslint-disable-next-line func-style
+        const handleBotStatusUpdate = (payload: ChatSocketEventPayloads["botStatusUpdate"]) => {
+            if (chatRef.current && payload.chatId === chatRef.current.id) {
+                setBotStatuses(prevStatuses => ({
+                    ...prevStatuses,
+                    [payload.botId]: payload,
+                }));
+            }
+        };
+
+        const cleanup = SocketService.get().onEvent("botStatusUpdate", handleBotStatusUpdate);
+
+        return () => {
+            if (typeof cleanup === "function") {
+                cleanup();
+            }
+        };
+    }, [chatRef.current?.id]);
+
+    const requestResponseCancellation = useCallback((chatIdToCancel: string) => {
+        if (!chatIdToCancel) {
+            console.warn("requestResponseCancellation: chatIdToCancel is required.");
+            return;
+        }
+        addDebugData(`chat-room-${chatIdToCancel}`, {
+            event: "request-cancellation-sent",
+            chatId: chatIdToCancel,
+            timestamp: new Date().toISOString(),
+        });
+        SocketService.get().emitEvent("requestCancellation", { chatId: chatIdToCancel }, (response) => {
+            if (response.error) {
+                addDebugData(`chat-room-${chatIdToCancel}`, {
+                    event: "request-cancellation-error",
+                    chatId: chatIdToCancel,
+                    error: response.error,
+                    message: response.message,
+                    timestamp: new Date().toISOString(),
+                });
+                console.error("Failed to request response cancellation:", response.error, response.message);
+                // Optionally, show a snackbar or notification to the user about the failure
+                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", values: { error: response.message || response.error } });
+            } else {
+                addDebugData(`chat-room-${chatIdToCancel}`, {
+                    event: "request-cancellation-acked",
+                    chatId: chatIdToCancel,
+                    message: response.message,
+                    timestamp: new Date().toISOString(),
+                });
+                // Optionally, show a snackbar or notification for acknowledgement
+                // PubSub.get().publish("snack", { messageKey: "RequestCancellationSent", severity: "Info" });
+            }
+        });
+    }, [addDebugData]);
+
+    return { messageStream, modelReasoningStream, botStatuses, requestResponseCancellation };
 }
