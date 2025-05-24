@@ -80,8 +80,23 @@ async function scheduleNotifications(
             processBatch: async (batchResult) => {
                 // If no subscriptions, continue
                 if (batchResult.length === 0) return;
+
+                // Safely access the schedule from the first batch result
+                const firstSubscription = batchResult[0];
+                if (!firstSubscription || !firstSubscription.schedule) {
+                    // It's possible scheduleId is not defined if batchResult is empty, but we already checked that.
+                    // However, firstSubscription.schedule could still be null/undefined if the query somehow allows it
+                    // or if there's an issue with data integrity or query hydration.
+                    logger.error(`Subscription batch for schedule ${scheduleId} has missing schedule data in the first item. Batch processing aborted for this set.`, {
+                        scheduleId,
+                        firstSubscriptionId: firstSubscription?.id, // Log ID if available
+                        trace: "SN_MISSING_SCHED_DATA", // New trace ID for this specific error
+                    });
+                    return; // Abort processing for this batch if critical schedule info is missing
+                }
+
                 // Find objectType and id of the object that has a schedule. Assume there is only one runRoutine, meeting, etc.
-                const [objectField, objectData] = findFirstRel(batchResult[0].schedule!, ["meetings", "runs"]);
+                const [objectField, objectData] = findFirstRel(firstSubscription.schedule, ["meetings", "runs"]);
                 if (!objectField || !objectData || objectData.length === 0) {
                     logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: "0433" });
                     return;
@@ -91,10 +106,47 @@ async function scheduleNotifications(
                 // Find notification preferences for each subscriber
                 const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                 for (const subscription of batchResult) {
+                    // Issue 3 fix: Add null check for subscriber and subscriber.id
+                    if (!subscription.subscriber?.id) {
+                        logger.warn(`Subscription ${subscription.id} is missing subscriber or subscriber ID. Skipping this subscription.`, {
+                            subscriptionId: subscription.id,
+                            subscriptionContext: subscription.context,
+                            hasSubscriber: !!subscription.subscriber,
+                            trace: "SN_MISSING_SUB_ID",
+                        });
+                        continue;
+                    }
                     const subscriberId = subscription.subscriber.id.toString();
-                    const context = parseJsonOrDefault<ScheduleSubscriptionContext>(subscription.context, {} as ScheduleSubscriptionContext);
-                    if (!context) continue;
+
+                    // Issue 2 fix: Provide a safer default for parseJsonOrDefault
+                    const context = parseJsonOrDefault<ScheduleSubscriptionContext>(
+                        subscription.context,
+                        { reminders: [] }, // Default to an object with an empty reminders array
+                    );
+
+                    // Ensure context and context.reminders are valid before proceeding
+                    if (!context?.reminders) {
+                        logger.warn(`Subscription ${subscription.id} for subscriber ${subscriberId} has context without a 'reminders' array after parsing. Skipping reminder processing.`, {
+                            subscriptionId: subscription.id,
+                            subscriberId,
+                            parsedContext: context,
+                            trace: "SN_CTX_NO_REMINDERS",
+                        });
+                        continue;
+                    }
+
                     for (const reminder of context.reminders) {
+                        // Optional: Add further validation for the reminder object itself if its structure is critical
+                        if (typeof reminder.minutesBefore !== "number") {
+                            logger.warn(`Subscription ${subscription.id} for subscriber ${subscriberId} has a reminder with invalid 'minutesBefore' type or value. Skipping this reminder.`, {
+                                subscriptionId: subscription.id,
+                                subscriberId,
+                                reminder,
+                                trace: "SN_INV_REM_MIN", // New trace ID
+                            });
+                            continue; // Skip this specific reminder
+                        }
+
                         if (!subscriberPrefs[subscriberId]) {
                             subscriberPrefs[subscriberId] = [];
                         }
@@ -105,12 +157,13 @@ async function scheduleNotifications(
                 for (const occurrence of occurrences) {
                     // Find all delays for notifications
                     const subscriberDelays: { [userId: string]: number[] } = {};
+                    const now = Date.now(); // Cache Date.now()
                     // Reminder has "minutesBefore" property which specifies how many minutes before each occurrence to send the notification. 
                     // We must convert this to a delay from now, using the formula: 
                     // delay = eventStart - (minutesBefore * 60 * 1000) - now
                     for (const userId in subscriberPrefs) {
                         for (const reminder of subscriberPrefs[userId]) {
-                            const delay = occurrence.start.getTime() - (reminder.minutesBefore * MINUTES_IN_HOUR * SECONDS_IN_MINUTE * MILLISECONDS_IN_SECOND) - Date.now();
+                            const delay = occurrence.start.getTime() - (reminder.minutesBefore * MINUTES_IN_HOUR * SECONDS_IN_MINUTE * MILLISECONDS_IN_SECOND) - now; // Use cached now
                             if (!subscriberDelays[userId]) {
                                 subscriberDelays[userId] = [];
                             }
@@ -171,7 +224,7 @@ export async function scheduleNotify(): Promise<void> {
         await batch<Prisma.scheduleFindManyArgs, SchedulePayload>({
             objectType: "Schedule",
             processBatch: async (batchResult) => {
-                Promise.all(batchResult.map(async (scheduleData) => {
+                await Promise.all(batchResult.map(async (scheduleData) => {
                     const scheduleIdStr = scheduleData.id.toString();
 
                     const exceptions = scheduleData.exceptions.map(ex => ({

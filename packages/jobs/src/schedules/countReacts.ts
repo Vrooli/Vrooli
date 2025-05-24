@@ -1,6 +1,25 @@
 import { DbProvider, batch, logger } from "@local/server";
-import { type ModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
+import { generatePK, getReactionScore } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+
+// Define the specific table names that this job processes
+const PROCESSED_REACTION_TABLE_NAMES = [
+    "chat_message",
+    "comment",
+    "issue",
+    "resource",
+] as const;
+
+// Create a union type from these table names
+type ProcessableReactionTableName = typeof PROCESSED_REACTION_TABLE_NAMES[number];
+
+// Map table names to their corresponding ModelType.
+const TABLE_NAME_TO_MODEL_TYPE_MAP = {
+    "chat_message": "ChatMessage",
+    "comment": "Comment",
+    "issue": "Issue",
+    "resource": "Resource",
+} as const;
 
 // Declare select shape and payload type for individual reactions
 const reactionSelect = { emoji: true } as const;
@@ -12,7 +31,7 @@ const objectSelect = {
     score: true,
     reactionSummaries: {
         select: {
-            id: true,
+            id: true, // This ID is bigint
             emoji: true,
             count: true,
         },
@@ -39,14 +58,36 @@ type UpdateArgs =
  * @returns An object containing the total score and a map of reaction summaries.
  */
 async function processReactionsForObject(
-    tableName: string,
-    objectId: string,
+    tableName: ProcessableReactionTableName,
+    objectId: bigint,
 ): Promise<{ totalScore: number, reactionSummaries: Map<string, number> }> {
     let totalScore = 0;
     const reactionSummaries = new Map<string, number>();
 
+    let reactionWhereClause: Prisma.reactionWhereInput;
+    switch (tableName) {
+        case "chat_message":
+            reactionWhereClause = { chatMessageId: objectId };
+            break;
+        case "comment":
+            reactionWhereClause = { commentId: objectId };
+            break;
+        case "issue":
+            reactionWhereClause = { issueId: objectId };
+            break;
+        case "resource":
+            reactionWhereClause = { resourceId: objectId };
+            break;
+        default: {
+            // This should be unreachable due to ProcessableReactionTableName
+            const _exhaustiveCheck: never = tableName;
+            logger.error(`Unhandled table name for reaction processing: ${_exhaustiveCheck}`, { trace: "0163A_REACTION_EXHAUSTIVE_CHECK" });
+            throw new Error(`Unhandled table name: ${_exhaustiveCheck}`);
+        }
+    }
+
     await batch<Prisma.reactionFindManyArgs, ReactionPayload>({
-        objectType: "Reaction",
+        objectType: "Reaction", // Reactions are always of objectType "Reaction"
         processBatch: async (batch) => {
             batch.forEach(reaction => {
                 totalScore += getReactionScore(reaction.emoji);
@@ -54,7 +95,7 @@ async function processReactionsForObject(
             });
         },
         select: reactionSelect,
-        where: { [`${camelCase(tableName)}Id`]: objectId },
+        where: reactionWhereClause,
     });
 
     return { totalScore, reactionSummaries };
@@ -63,71 +104,137 @@ async function processReactionsForObject(
 /**
  * Represents an operation to update a reaction summary (create, update, or delete).
  */
-type ReactionSummaryUpdateOperation = {
+type ReactionSummaryCreateOp = {
+    type: "create";
     emoji: string;
-    count?: number; // Present for create and update
-    create?: boolean; // Flag to indicate a create operation
-    delete?: boolean; // Flag to indicate a delete operation
+    count: number;
 };
+
+// UpdateOp now targets a specific ID
+type ReactionSummaryIdentifiedUpdateOp = {
+    type: "update";
+    id: bigint; // ID of the summary to update (bigint)
+    count: number;
+};
+
+// DeleteOp now targets a specific ID
+type ReactionSummaryIdentifiedDeleteOp = {
+    type: "delete";
+    id: bigint; // ID of the summary to delete (bigint)
+};
+
+type ReactionSummaryUpdateOperation =
+    | ReactionSummaryCreateOp
+    | ReactionSummaryIdentifiedUpdateOp
+    | ReactionSummaryIdentifiedDeleteOp;
 
 /**
  * Updates reaction data for all objects in a specified table.
  * 
  * @param tableName - The name of the table to process.
  */
-async function updateReactionsForTable(tableName: string): Promise<void> {
+async function updateReactionsForTable(tableName: ProcessableReactionTableName): Promise<void> {
     try {
+        const db = DbProvider.get();
         await batch<UpdateArgs, ObjectPayload>({
-            objectType: uppercaseFirstLetter(camelCase(tableName)) as ModelType,
+            objectType: TABLE_NAME_TO_MODEL_TYPE_MAP[tableName],
             processBatch: async (batch) => {
                 for (const object of batch) {
-                    const { totalScore, reactionSummaries } = await processReactionsForObject(tableName, object.id.toString());
+                    try {
+                        const { totalScore, reactionSummaries } = await processReactionsForObject(tableName, object.id);
 
-                    // Compare with existing data and prepare update operations
-                    const existingSummaries = Object.fromEntries(object.reactionSummaries.map(s => [s.emoji, s.count]));
-                    const updates: ReactionSummaryUpdateOperation[] = [];
-                    let isReactionSummaryMismatch = false;
+                        const updates: ReactionSummaryUpdateOperation[] = [];
+                        let isReactionSummaryMismatch = false;
 
-                    // Check for updates or creates
-                    reactionSummaries.forEach((count, emoji) => {
-                        if (existingSummaries[emoji]) {
-                            if (existingSummaries[emoji] !== count) {
-                                updates.push({ emoji, count });
-                                isReactionSummaryMismatch = true;
+                        const newCalculatedSummariesMap = reactionSummaries;
+                        const existingSummariesArray = object.reactionSummaries;
+
+                        const existingSummariesByEmoji = new Map<string, Array<{ id: bigint, count: number }>>();
+                        existingSummariesArray.forEach(s => {
+                            const list = existingSummariesByEmoji.get(s.emoji) || [];
+                            list.push({ id: s.id, count: s.count }); // s.id is bigint here
+                            existingSummariesByEmoji.set(s.emoji, list);
+                        });
+
+                        newCalculatedSummariesMap.forEach((newCount, emoji) => {
+                            const currentPersistentSummariesForEmoji = existingSummariesByEmoji.get(emoji);
+
+                            if (!currentPersistentSummariesForEmoji || currentPersistentSummariesForEmoji.length === 0) {
+                                updates.push({ type: "create", emoji, count: newCount });
+                            } else {
+                                const summaryToKeepAndUpdate = currentPersistentSummariesForEmoji[0];
+                                if (summaryToKeepAndUpdate.count !== newCount) {
+                                    updates.push({ type: "update", id: summaryToKeepAndUpdate.id, count: newCount });
+                                }
+                                for (let i = 1; i < currentPersistentSummariesForEmoji.length; i++) {
+                                    updates.push({ type: "delete", id: currentPersistentSummariesForEmoji[i].id });
+                                }
                             }
-                        } else {
-                            updates.push({ emoji, count, create: true });
+                        });
+
+                        existingSummariesByEmoji.forEach((listOfExistingForEmoji, emoji) => {
+                            if (!newCalculatedSummariesMap.has(emoji)) {
+                                listOfExistingForEmoji.forEach(summaryToDelete => {
+                                    updates.push({ type: "delete", id: summaryToDelete.id });
+                                });
+                            }
+                        });
+
+                        if (updates.length > 0) {
                             isReactionSummaryMismatch = true;
                         }
-                    });
 
-                    // Check for deletes
-                    Object.keys(existingSummaries).forEach(emoji => {
-                        if (!reactionSummaries.has(emoji)) {
-                            updates.push({ emoji, delete: true });
-                            isReactionSummaryMismatch = true;
+                        const isScoreMismatch = object.score !== totalScore;
+
+                        if (isScoreMismatch || isReactionSummaryMismatch) {
+                            logger.warning(`Updating reactions for ${tableName} ${object.id}. Score mismatch: ${isScoreMismatch}, Reaction summary mismatch: ${isReactionSummaryMismatch} `, { trace: "0163" });
+
+                            const updateData = {
+                                score: totalScore,
+                                reactionSummaries: {
+                                    create: updates
+                                        .filter((u): u is ReactionSummaryCreateOp => u.type === "create")
+                                        .map(u => ({ id: generatePK(), emoji: u.emoji, count: u.count })),
+                                    update: updates
+                                        .filter((u): u is ReactionSummaryIdentifiedUpdateOp => u.type === "update")
+                                        .map(u => ({ where: { id: u.id }, data: { count: u.count } })), // Prisma expects array for multi-update
+                                    delete: updates
+                                        .filter((u): u is ReactionSummaryIdentifiedDeleteOp => u.type === "delete")
+                                        .map(u => ({ id: u.id })), // Prisma expects array of WhereUniqueInputs
+                                },
+                            };
+
+                            const updatePayload = {
+                                where: { id: object.id },
+                                data: updateData,
+                            } as const; // Add 'as const' for stricter type checking if needed by Prisma version
+
+                            switch (tableName) {
+                                case "chat_message":
+                                    await db.chat_message.update(updatePayload);
+                                    break;
+                                case "comment":
+                                    await db.comment.update(updatePayload);
+                                    break;
+                                case "issue":
+                                    await db.issue.update(updatePayload);
+                                    break;
+                                case "resource":
+                                    await db.resource.update(updatePayload);
+                                    break;
+                                default: {
+                                    const _exhaustiveCheck: never = tableName;
+                                    logger.error(`Unhandled table name for update: ${_exhaustiveCheck}`, { trace: "0163B_UPDATE_EXHAUSTIVE_CHECK" });
+                                    throw new Error(`Unhandled table name for update: ${_exhaustiveCheck}`);
+                                }
+                            }
                         }
-                    });
-
-                    const isScoreMismatch = object.score !== totalScore;
-
-                    if (isScoreMismatch || isReactionSummaryMismatch) {
-                        logger.warning(`Updating reactions for ${tableName} ${object.id}. Score mismatch: ${isScoreMismatch}, Reaction summary mismatch: ${isReactionSummaryMismatch}`, { trace: "0163" });
-
-                        // Construct the update data, including nested writes for reactionSummaries
-                        const updateData = {
-                            score: totalScore,
-                            reactionSummaries: {
-                                // Use Prisma's nested write syntax for create, update, delete
-                                create: updates.filter(u => u.create).map(u => ({ emoji: u.emoji, count: u.count })),
-                                update: updates.filter(u => !u.create && !u.delete).map(u => ({ where: { emoji: u.emoji }, data: { count: u.count } })),
-                                delete: updates.filter(u => u.delete).map(u => ({ emoji: u.emoji })),
-                            },
-                        };
-
-                        await DbProvider.get()[tableName].update({
-                            where: { id: object.id },
-                            data: updateData,
+                    } catch (error) {
+                        logger.error(`Failed to process object ${object.id} in table ${tableName}.`, {
+                            error,
+                            objectId: object.id,
+                            tableName,
+                            trace: "0163C_OBJECT_PROCESSING_FAILURE",
                         });
                     }
                 }
@@ -140,12 +247,7 @@ async function updateReactionsForTable(tableName: string): Promise<void> {
 }
 
 export async function countReacts(): Promise<void> {
-    const tableNames = [
-        "chat_message",
-        "comment",
-        "issue",
-        "resource",
-    ];
+    const tableNames = PROCESSED_REACTION_TABLE_NAMES;
 
     for (const tableName of tableNames) {
         await updateReactionsForTable(tableName);
