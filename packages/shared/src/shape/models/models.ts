@@ -1,7 +1,7 @@
+import { LATEST_CONFIG_VERSION } from "@local/shared";
 import { type Bookmark, type BookmarkCreateInput, type BookmarkFor, type BookmarkList, type BookmarkListCreateInput, type BookmarkListUpdateInput, type BookmarkUpdateInput, type BotCreateInput, type BotUpdateInput, type Chat, type ChatCreateInput, type ChatInvite, type ChatInviteCreateInput, type ChatInviteStatus, type ChatInviteUpdateInput, type ChatInviteYou, type ChatMessage, type ChatMessageCreateInput, type ChatMessageParent, type ChatMessageUpdateInput, type ChatMessageYou, type ChatParticipant, type ChatParticipantUpdateInput, type ChatTranslation, type ChatTranslationCreateInput, type ChatTranslationUpdateInput, type ChatUpdateInput, type Comment, type CommentCreateInput, CommentFor, type CommentTranslation, type CommentTranslationCreateInput, type CommentTranslationUpdateInput, type CommentUpdateInput, type CommentedOn, type Issue, type IssueCreateInput, type IssueFor, type IssueTranslation, type IssueTranslationCreateInput, type IssueTranslationUpdateInput, type IssueUpdateInput, type Meeting, type MeetingCreateInput, type MeetingInvite, type MeetingInviteCreateInput, type MeetingInviteUpdateInput, type MeetingTranslation, type MeetingTranslationCreateInput, type MeetingTranslationUpdateInput, type MeetingUpdateInput, type Member, type MemberInvite, type MemberInviteCreateInput, type MemberInviteUpdateInput, type MemberUpdateInput, type ProfileUpdateInput, type PullRequest, type PullRequestCreateInput, type PullRequestTranslation, type PullRequestTranslationCreateInput, type PullRequestTranslationUpdateInput, type PullRequestUpdateInput, type ReactionSummary, type Reminder, type ReminderCreateInput, type ReminderItem, type ReminderItemCreateInput, type ReminderItemUpdateInput, type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput, type ReminderUpdateInput, type Report, type ReportCreateInput, type ReportFor, type ReportResponse, type ReportResponseCreateInput, type ReportResponseUpdateInput, type ReportUpdateInput, type Resource, type ResourceCreateInput, type ResourceUpdateInput, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionRelation, type ResourceVersionRelationCreateInput, type ResourceVersionRelationUpdateInput, type ResourceVersionTranslation, type ResourceVersionTranslationCreateInput, type ResourceVersionTranslationUpdateInput, type ResourceVersionUpdateInput, type Run, type RunCreateInput, type RunIO, type RunIOCreateInput, type RunIOUpdateInput, type RunStep, type RunStepCreateInput, type RunStepUpdateInput, type RunUpdateInput, type Schedule, type ScheduleCreateInput, type ScheduleException, type ScheduleExceptionCreateInput, type ScheduleExceptionUpdateInput, type ScheduleRecurrence, type ScheduleRecurrenceCreateInput, type ScheduleRecurrenceUpdateInput, type ScheduleUpdateInput, type Tag, type TagCreateInput, type TagTranslation, type TagTranslationCreateInput, type TagTranslationUpdateInput, type TagUpdateInput, type Team, type TeamCreateInput, type TeamTranslation, type TeamTranslationCreateInput, type TeamTranslationUpdateInput, type TeamUpdateInput, type User, type UserTranslation, type UserTranslationCreateInput, type UserTranslationUpdateInput } from "../../api/types.js";
 import { type CanConnect, type ShapeModel } from "../../consts/commonTypes.js";
 import { DUMMY_ID } from "../../id/snowflake.js";
-import { type LlmModel } from "../configs/bot.js";
 import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, updateOwner, updatePrims, updateRel, updateTagsRel, updateTransRel, updateTranslationPrims, updateVersion } from "./tools.js";
 import { type OwnerShape } from "./types.js";
 
@@ -38,81 +38,25 @@ export const shapeBookmarkList: ShapeModel<BookmarkListShape, BookmarkListCreate
     }),
 };
 
-/** Translation for bot-specific properties (which are stringified and stored in `botSettings` field) */
-export type BotTranslationShape = {
-    id: string;
-    language: string;
-    bias?: string | null;
-    bio?: string | null;
-    domainKnowledge?: string | null;
-    keyPhrases?: string | null;
-    occupation?: string | null;
-    persona?: string | null;
-    startingMessage?: string | null;
-    tone?: string | null;
-}
-
-export type BotShape = Pick<User, "id" | "handle" | "isBotDepictingPerson" | "isPrivate" | "name"> & {
+export type BotShape = Pick<User, "id" | "botSettings" | "handle" | "isBotDepictingPerson" | "isPrivate" | "name"> & {
     __typename: "User";
     bannerImage?: string | File | null;
-    creativity?: number | null;
     isBot?: true;
-    model: LlmModel["value"],
     profileImage?: string | File | null;
-    translations?: BotTranslationShape[] | null;
-    verbosity?: number | null;
+    translations?: UserTranslationShape[] | null;
 }
 
-export const shapeBotTranslation: ShapeModel<BotTranslationShape, Record<string, string | number>, Record<string, string | number>> = {
-    create: (d) => createPrims(d, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startingMessage", "tone"),
-    /** 
-     * Unlike typical updates, we want to include every field so that 
-     * we can stringify the entire object and store it in the `botSettings` field. 
-     * This means we'll use `createPrims` again.
-     **/
-    update: (_, u) => createPrims(u, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startingMessage", "tone"),
-};
-
 export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
-    create: (d) => {
-        // Extract bot settings from translations
-        const textData = createRel(d, "translations", ["Create"], "many", shapeBotTranslation);
-        // Convert to object, where keys are language codes and values are the bot settings
-        const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
-        return {
-            isBot: true,
-            botSettings: JSON.stringify({
-                translations: textSettings,
-                model: d.model,
-                creativity: d.creativity ?? undefined,
-                verbosity: d.verbosity ?? undefined,
-            }),
-            ...createPrims(d, "id", "bannerImage", "handle", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
-            ...createRel(d, "translations", ["Create"], "many", shapeUserTranslation),
-        };
-    },
-    update: (o, u) => {
-        // Extract bot settings from translations. 
-        // NOTE: We're using createRel again because we want to include every field
-        const textData = createRel(u, "translations", ["Create"], "many", shapeBotTranslation);
-        // Convert created to object, where keys are language codes and values are the bot settings
-        const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
-        // Since we set the original to empty array, we need to manually remove the deleted translations (i.e. translations in the original but not in the update)
-        const deletedTranslations = o.translations?.filter(t => !u.translations?.some(t2 => t2.id === t.id));
-        if (deletedTranslations) {
-            deletedTranslations.forEach(t => delete textSettings[t.language]);
-        }
-        return shapeUpdate(u, {
-            botSettings: JSON.stringify({
-                translations: textSettings,
-                model: u.model,
-                creativity: u.creativity ?? undefined,
-                verbosity: u.verbosity ?? undefined,
-            }),
-            ...updatePrims(o, u, "id", "bannerImage", "handle", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
-            ...updateTransRel(o, u, shapeUserTranslation),
-        });
-    },
+    create: (d) => ({
+        ...createPrims(d, "id", "bannerImage", "handle", "isBot", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
+        botSettings: d.botSettings ?? { __version: LATEST_CONFIG_VERSION },
+        ...createRel(d, "translations", ["Create"], "many", shapeUserTranslation),
+    }),
+    update: (o, u) => shapeUpdate(u, {
+        ...updatePrims(o, u, "id", "bannerImage", "handle", "isBot", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
+        botSettings: u.botSettings ?? o.botSettings ?? { __version: LATEST_CONFIG_VERSION },
+        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeUserTranslation),
+    }),
 };
 
 export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "description" | "name"> & {
@@ -178,7 +122,7 @@ export const shapeChatInvite: ShapeModel<ChatInviteShape, ChatInviteCreateInput,
 };
 
 export type ChatMessageStatus = "unsent" | "editing" | "sending" | "sent" | "failed";
-export type ChatMessageShape = Pick<ChatMessage, "id" | "language" | "text" | "versionIndex"> & {
+export type ChatMessageShape = Pick<ChatMessage, "id" | "config" | "language" | "text" | "versionIndex"> & {
     __typename: "ChatMessage";
     createdAt: string; // Only used by the UI
     updatedAt: string; // Only used by the UI
@@ -194,7 +138,7 @@ export type ChatMessageShape = Pick<ChatMessage, "id" | "language" | "text" | "v
 }
 export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInput, ChatMessageUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "language", "text", "versionIndex"),
+        ...createPrims(d, "id", "config", "language", "text", "versionIndex"),
         ...createRel(d, "chat", ["Connect"], "one"),
         ...createRel(d, "user", ["Connect"], "one"),
     }),
@@ -205,7 +149,7 @@ export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInp
 
 export type ChatParticipantShape = Pick<ChatParticipant, "id"> & {
     __typename: "ChatParticipant";
-    user: Pick<User, "__typename" | "updatedAt" | "handle" | "id" | "isBot" | "name" | "profileImage">;
+    user: Pick<User, "__typename" | "updatedAt" | "handle" | "id" | "isBot" | "name" | "profileImage" | "publicId">;
 }
 export const shapeChatParticipant: ShapeModel<ChatParticipantShape, null, ChatParticipantUpdateInput> = {
     update: (o, u) => shapeUpdate(u, {
