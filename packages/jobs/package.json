@@ -39,7 +39,7 @@
         "node-ical": "^0.15.3",
         "nodemailer": "^6.6.0",
         "nodemon": "3.0.2",
-        "openai": "^4.11.0",
+        "openai": "4.103.0",
         "sharp": "^0.32.3",
         "socket.io": "^4.6.2",
         "stopword": "^2.0.8",
