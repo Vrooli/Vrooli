@@ -1,6 +1,7 @@
-import { BotConfig, ChatConfig, type ChatConfigObject, LRUCache } from "@local/shared";
+import { BotConfig, ChatConfig, LRUCache, type ChatConfigObject, type User } from "@local/shared";
 import { type Prisma, type user } from "@prisma/client";
 import { DbProvider } from "../../db/provider.js";
+import { logger } from "../../events/logger.js";
 import { type BotParticipant, type ConversationState } from "./types.js";
 import { WorldModel } from "./worldModel.js";
 
@@ -11,8 +12,7 @@ import { WorldModel } from "./worldModel.js";
 /** Shape that is persisted in chat.config->stats on the chat row. */
 export type ConversationStatsPatch = Pick<ChatConfigObject["stats"],
     | "totalToolCalls"
-    | "totalCredits"
-    | "lastTurnEndedAt">
+    | "totalCredits">
 
 const DEFAULT_DEBOUNCE_MS = 2_000; // 2s is usually enough to batch bursts
 const FINALIZE_TIMEOUT_MS = 10_000; // guard to avoid hanging shutdown
@@ -39,7 +39,7 @@ type ParticipantDbData = { user: Pick<user, "id" | "name" | "handle" | "isBot" |
 /**
  * ChatStore is a write‑behind cache for long‑lived conversation
  * metadata.  Consumers call `saveState()` whenever they mutate
- * `ChatConfigObject.stats`, `turnCounter`, etc..  Heavy mutations within a short window are
+ * `ChatConfigObject.stats`, etc..  Heavy mutations within a short window are
  * collapsed into a single DB write, dramatically lowering steady‑state
  * write QPS while still guaranteeing eventual consistency.
  */
@@ -166,14 +166,6 @@ export abstract class ChatStore {
             }
         }
     }
-
-    public initializeTurnState(): Pick<ConversationState, "queue" | "turnStats" | "turnCounter"> {
-        return {
-            queue: new Map(),
-            turnStats: { toolCalls: 0, botToolCalls: 0, creditsUsed: 0n },
-            turnCounter: 0,
-        };
-    }
 }
 
 /* ------------------------------------------------------------------
@@ -198,7 +190,7 @@ function mapParticipant(participant: ParticipantDbData): BotParticipant {
     const { id, name } = participant.user;
     return {
         id: id.toString(),
-        config: BotConfig.parse(participant.user, logger),
+        config: BotConfig.parse(participant.user as Pick<User, "botSettings">, logger),
         name,
         meta: {}, //TODO need to get this somewhere else, since it contains information calculated by the current conversation/swarm/routine, rather than information tied to the bot object itself and stored in the database
     };
@@ -241,11 +233,9 @@ export class PrismaChatStore extends ChatStore {
 
     private createEmptyState(conversationId: string): ConversationState {
         return {
-            ...this.initializeTurnState(),
             id: conversationId,
-            config: {} as ChatConfigObject,
+            config: ChatConfig.default().export(),
             participants: [],
-            turnCounter: 0,
             availableTools: [],
             worldModel: new WorldModel(),
         };
@@ -268,35 +258,51 @@ export class PrismaChatStore extends ChatStore {
                         value: configPatch as Prisma.InputJsonValue,
                     },
                 }),
-                // Always update turnCounter directly
-                turnCounter: state.turnCounter,
             },
         });
     }
 
+    /** 
+     * Fetches a chat and its related data to construct the ConversationState.
+     * This is the primary method for loading the full state from the database.
+    */
     async getConversation(id: string): Promise<ConversationState | null> {
-        const row = await DbProvider.get().chat.findUnique({
+        const chat = await DbProvider.get().chat.findUnique({
             where: { id: BigInt(id) },
             select: {
                 id: true,
                 participants: { select: chatParticipantSelect },
                 config: true,
-                turnCounter: true,
             },
         });
-        if (!row) return null;
-        const state: ConversationState = {
-            // Initialize runtime state
-            ...this.initializeTurnState(),
-            // Grab persisted data
-            id: row.id.toString(),
-            config: (row.config ?? {}) as unknown as ChatConfigObject,
-            participants: row.participants.map(mapParticipant),
-            turnCounter: row.turnCounter,
-            availableTools: [],
-            worldModel: new WorldModel(),
+
+        if (!chat) return null;
+
+        const config = (chat.config as ChatConfigObject | null) ?? ChatConfig.default().export();
+        const participants = chat.participants.map(mapParticipant);
+
+        // Rehydrate WorldModel from persisted config if available
+        let worldModelInstance: WorldModel;
+        if (config.worldModelConfig) {
+            worldModelInstance = new WorldModel({
+                systemMessage: config.worldModelConfig.systemMessage,
+                goal: config.worldModelConfig.goal,
+                subTasks: config.worldModelConfig.subTasks || [],
+                sharedScratchpad: config.worldModelConfig.scratchpad,
+                resources: config.worldModelConfig.resources || [],
+                routineCalls: config.worldModelConfig.routineCalls || [],
+            });
+        } else {
+            worldModelInstance = new WorldModel(); // Default if no persisted config
+        }
+
+        return {
+            id: chat.id.toString(),
+            config,
+            participants,
+            availableTools: [], // TODO: Populate this from chat config or elsewhere
+            worldModel: worldModelInstance,
         };
-        return state;
     }
 }
 
@@ -314,11 +320,6 @@ export interface ConversationStateStore {
      * Persist an updated config (debounced internally by ChatStore).
      */
     updateConfig(conversationId: string, config: ChatConfigObject): void;
-
-    /**
-     * Persist an updated turn counter.
-     */
-    updateTurnCounter(conversationId: string, turnCounter: number): void;
 
     /**
      * Remove the state from the in-memory cache (LRU eviction or manual).
@@ -342,7 +343,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
         private readonly chatStore: ChatStore,
         maxEntries = DEFAULT_MAX_CONCURRENT_CONVERSATIONS,
     ) {
-        this.cache = new LRUCache<string, ConversationState>(maxEntries);
+        this.cache = new LRUCache<string, ConversationState>({ limit: maxEntries });
     }
 
     public async get(
@@ -368,35 +369,10 @@ export class CachedConversationStateStore implements ConversationStateStore {
         const result = {
             // Fallback and existing state
             participants: [],
-            ...this.chatStore.initializeTurnState(),
             ...existingState,
             id: conversationId,
             // Updated config
             config,
-            // Preserve or default new fields
-            availableTools: existingState?.availableTools ?? [],
-            worldModel: existingState?.worldModel ?? new WorldModel(),
-        } satisfies ConversationState;
-        this.cache.set(conversationId, result);
-        // Update the state in the database
-        this.chatStore.saveState(conversationId, result);
-    }
-
-    public updateTurnCounter(
-        conversationId: string,
-        turnCounter: number,
-    ): void {
-        // Update in-memory cache
-        const existingState = this.cache.get(conversationId);
-        const result = {
-            // Fallback and existing state
-            config: ChatConfig.default().export(),
-            participants: [],
-            ...this.chatStore.initializeTurnState(),
-            ...existingState,
-            id: conversationId,
-            // Updated turn counter
-            turnCounter,
             // Preserve or default new fields
             availableTools: existingState?.availableTools ?? [],
             worldModel: existingState?.worldModel ?? new WorldModel(),

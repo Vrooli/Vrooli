@@ -145,7 +145,6 @@ export class FallbackRouter extends LlmRouter {
                     tools: opts.tools,
                     parallel_tool_calls: opts.parallel_tool_calls,
                     reasoningEffort: opts.reasoningEffort,
-                    userData: opts.userData,
                     world: opts.world,
                     maxTokens,
                 };

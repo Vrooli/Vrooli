@@ -1,5 +1,5 @@
-import match from 'mqtt-match';
-import { BotParticipant, ConversationState, MessageState } from "./types.js";
+import match from "mqtt-match";
+import { type BotParticipant, type ConversationState, type MessageState } from "./types.js";
 
 // Helper type guard to correctly narrow down the trigger type
 function isMessageState(t: MessageState | { type: "system"; content: string }): t is MessageState {
@@ -144,7 +144,7 @@ export class ActiveBotGraph extends AgentGraph {
     private readonly suppressArbitratorWarning: boolean;
 
     constructor(
-        suppressArbitratorWarning: boolean = false, // Finding an arbitrator is not strictly required in composite mode
+        suppressArbitratorWarning = false, // Finding an arbitrator is not strictly required in composite mode
     ) {
         super();
         this.suppressArbitratorWarning = suppressArbitratorWarning;
@@ -165,7 +165,7 @@ export class ActiveBotGraph extends AgentGraph {
             // First, specifically look for a participant with the "arbitrator" role.
             let arb = conversation.participants.find(p => {
                 const role = p.meta?.role;
-                return typeof role === 'string' && role.trim().toLowerCase() === "arbitrator";
+                return typeof role === "string" && role.trim().toLowerCase() === "arbitrator";
             });
 
             // If no specific "arbitrator" is found, then look for other designated roles.
@@ -173,7 +173,7 @@ export class ActiveBotGraph extends AgentGraph {
                 const secondaryArbRoles = ["leader", "delegator", "coordinator"]; // Roles other than "arbitrator"
                 arb = conversation.participants.find(p => {
                     const role = p.meta?.role;
-                    if (typeof role === 'string') {
+                    if (typeof role === "string") {
                         return secondaryArbRoles.includes(role.trim().toLowerCase());
                     }
                     return false;
@@ -183,7 +183,7 @@ export class ActiveBotGraph extends AgentGraph {
                 // If an arbitrator is expected as per the comment "should always exist"
                 // and the logic for finding one, log a warning if none is found,
                 // unless warning suppression is active.
-                console.warn(`ActiveBotGraph: Expected an arbitrator participant, but none was found. Conversation ID: ${conversation.id ?? 'N/A'}`);
+                console.warn(`ActiveBotGraph: Expected an arbitrator participant, but none was found. Conversation ID: ${conversation.id ?? "N/A"}`);
             }
             const responders = arb ? [arb] : [];
             return { responders, strategy };
