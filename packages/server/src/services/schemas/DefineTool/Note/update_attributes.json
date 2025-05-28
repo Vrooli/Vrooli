@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP Note Update Attributes",
+  "description": "Attributes for updating a 'Note' resource via MCP.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "The name or title of the note.",
+      "type": "string"
+    },
+    "content": {
+      "description": "The content of the note.",
+      "type": "string"
+    },
+    "tagsConnect": {
+      "description": "Tags to associate with the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tagsDisconnect": {
+      "description": "Tag IDs to remove from the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

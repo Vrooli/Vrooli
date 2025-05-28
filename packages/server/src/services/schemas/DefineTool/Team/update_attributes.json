@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP Team Update Attributes",
+  "description": "Attributes for updating a 'Team' resource via MCP.\nAll properties are optional for an update.",
+  "type": "object",
+  "properties": {
+    "config": {
+      "description": "Updated configuration object for the team. \nThis must be the FULL config object, not a partial update.",
+      "type": "object",
+      "properties": {
+        "__version": {
+          "description": "Store the version number for future compatibility",
+          "type": "string"
+        },
+        "resources": {
+          "description": "Resources attached to this entity",
+          "type": "array",
+          "items": {
+            "description": "Resource definition for storing links and external data",
+            "type": "object",
+            "properties": {
+              "link": {
+                "description": "Link to the resource",
+                "type": "string"
+              },
+              "usedFor": {
+                "description": "Purpose of the resource",
+                "enum": [
+                  "Community",
+                  "Context",
+                  "Developer",
+                  "Donation",
+                  "ExternalService",
+                  "Feed",
+                  "Install",
+                  "Learning",
+                  "Notes",
+                  "OfficialWebsite",
+                  "Proposal",
+                  "Related",
+                  "Researching",
+                  "Scheduling",
+                  "Social",
+                  "Tutorial"
+                ],
+                "type": "string"
+              },
+              "translations": {
+                "description": "Display info",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "language": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "language",
+                    "name"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "link",
+              "translations"
+            ]
+          }
+        },
+        "structure": {
+          "description": "Declarative description of the team's organisational structure.\n\n* **type** – the standard you are using (`\"MOISE+\"`, `\"FIPA ACL\"`, `\"ArchiMate\"`, etc.).\n  *If you are unsure, start with **MOISE+** – purpose‑built for multi‑agent systems.*\n* **version** – (optional) version of the chosen spec/dialect.\n* **content** – raw payload (string). Could be a MOISE+ structural layer snippet, a FIPA ACL role ontology in Turtle, an ArchiMate XML export, etc.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "content",
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "__version"
+      ]
+    },
+    "memberInvitesCreate": {
+      "description": "Optional list of new members to invite.\nUser IDs are expected.",
+      "type": "array",
+      "items": {
+        "description": "Represents a single member invitation item for MCP operations.",
+        "type": "object",
+        "properties": {
+          "userConnect": {
+            "description": "User ID of the member to invite.",
+            "type": "string"
+          },
+          "message": {
+            "description": "Optional invitation message.",
+            "type": "string"
+          },
+          "willBeAdmin": {
+            "description": "Grant admin privileges to the invited member upon joining.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userConnect"
+        ]
+      }
+    },
+    "memberInvitesDelete": {
+      "description": "Optional list of member invite IDs to delete.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "membersDelete": {
+      "description": "Optional list of member IDs to remove from the team.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "handle": {
+      "description": "Optional handle. Must be unique if provided.",
+      "minLength": 3,
+      "maxLength": 16,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "type": "string"
+    },
+    "isPrivate": {
+      "default": false,
+      "type": "boolean"
+    },
+    "tagsConnect": {
+      "description": "Tags to associate with the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tagsDisconnect": {
+      "description": "Tag IDs to remove from the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "isPrivate"
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A tool that generates images using a model like `gpt-image-1`.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The type of the image generation tool. Always `image_generation`.",
+      "type": "string",
+      "const": "image_generation"
+    },
+    "background": {
+      "description": "Background type for the generated image. One of `transparent`, `opaque`, or\n`auto`. Default: `auto`.",
+      "enum": [
+        "auto",
+        "opaque",
+        "transparent"
+      ],
+      "type": "string"
+    },
+    "input_image_mask": {
+      "description": "Optional mask for inpainting. Contains `image_url` (string, optional) and\n`file_id` (string, optional).",
+      "type": "object",
+      "properties": {
+        "file_id": {
+          "description": "File ID for the mask image.",
+          "type": "string"
+        },
+        "image_url": {
+          "description": "Base64-encoded mask image.",
+          "type": "string"
+        }
+      }
+    },
+    "model": {
+      "description": "The image generation model to use. Default: `gpt-image-1`.",
+      "const": "gpt-image-1",
+      "type": "string"
+    },
+    "moderation": {
+      "description": "Moderation level for the generated image. Default: `auto`.",
+      "enum": [
+        "auto",
+        "low"
+      ],
+      "type": "string"
+    },
+    "output_compression": {
+      "description": "Compression level for the output image. Default: 100.",
+      "type": "number"
+    },
+    "output_format": {
+      "description": "The output format of the generated image. One of `png`, `webp`, or `jpeg`.\nDefault: `png`.",
+      "enum": [
+        "jpeg",
+        "png",
+        "webp"
+      ],
+      "type": "string"
+    },
+    "partial_images": {
+      "description": "Number of partial images to generate in streaming mode, from 0 (default value)\nto 3.",
+      "type": "number"
+    },
+    "quality": {
+      "description": "The quality of the generated image. One of `low`, `medium`, `high`, or `auto`.\nDefault: `auto`.",
+      "enum": [
+        "auto",
+        "high",
+        "low",
+        "medium"
+      ],
+      "type": "string"
+    },
+    "size": {
+      "description": "The size of the generated image. One of `1024x1024`, `1024x1536`, `1536x1024`,\nor `auto`. Default: `auto`.",
+      "enum": [
+        "1024x1024",
+        "1024x1536",
+        "1536x1024",
+        "auto"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

@@ -1,0 +1,216 @@
+{
+  "name": "update_swarm_shared_state",
+  "description": "Updates shared state for the current swarm. Bots in a swarm use this to coordinate and manage resources and responsibilities.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "goal": {
+        "description": "The primary objective of the swarm. Can only be set if there is no current goal, or if the goal is the default \"Follow the user's instructions.\"",
+        "type": "string"
+      },
+      "subtaskLeader": {
+        "description": "ID of the bot in charge of the current subtask.",
+        "type": "string"
+      },
+      "teamId": {
+        "description": "ID of the team associated with the swarm.",
+        "type": "string"
+      },
+      "subTasks": {
+        "description": "Mutations to the swarm's canonical task list\n- `set` inserts new tasks or overwrites existing ones\n- `delete` removes tasks by ID",
+        "type": "object",
+        "properties": {
+          "set": {
+            "description": "New or updated items",
+            "type": "array",
+            "items": {
+              "description": "Represents a single sub-task within a swarm's shared state.",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "Any unique string to identify the sub-task (e.g. epoch time + random string).",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Detailed description of the sub-task.",
+                  "type": "string"
+                },
+                "status": {
+                  "description": "Current status of the sub-task.",
+                  "enum": [
+                    "blocked",
+                    "canceled",
+                    "done",
+                    "failed",
+                    "in_progress",
+                    "todo"
+                  ],
+                  "type": "string"
+                },
+                "assignee_bot_id": {
+                  "description": "Optional ID of the bot assigned to this sub-task.",
+                  "type": "string"
+                },
+                "depends_on": {
+                  "description": "Optional array of IDs of other sub-tasks that this sub-task depends on.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "created_at": {
+                  "description": "The timestamp when the resource was created",
+                  "type": "string"
+                },
+                "priority": {
+                  "description": "Optional priority level for the task.",
+                  "enum": [
+                    "high",
+                    "low",
+                    "medium"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "created_at",
+                "description",
+                "id",
+                "status"
+              ]
+            }
+          },
+          "delete": {
+            "description": "IDs to remove",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "resources": {
+        "description": "Mutations to the shared resource registry\n- lets any bot publish or revoke artefacts",
+        "type": "object",
+        "properties": {
+          "set": {
+            "description": "New or updated items",
+            "type": "array",
+            "items": {
+              "description": "Immutable reference to any resource the swarm might use\n\nNOTE: This must be an actual resource that can be found using the ResourceManage tool.",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "The ID of the resource",
+                  "type": "string"
+                },
+                "kind": {
+                  "description": "The kind of resource",
+                  "enum": [
+                    "File",
+                    "Image",
+                    "Note",
+                    "Other",
+                    "URL",
+                    "Vector"
+                  ],
+                  "type": "string"
+                },
+                "mime": {
+                  "description": "The MIME type of the resource",
+                  "type": "string"
+                },
+                "creator_bot_id": {
+                  "description": "The ID of the bot that created the resource",
+                  "type": "string"
+                },
+                "created_at": {
+                  "description": "The timestamp when the resource was created",
+                  "type": "string"
+                },
+                "meta": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "created_at",
+                "creator_bot_id",
+                "id",
+                "kind"
+              ]
+            }
+          },
+          "delete": {
+            "description": "IDs to remove",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "blackboard": {
+        "description": "Scratchpad for storing arbitrary data that is shared between bots.",
+        "type": "object",
+        "properties": {
+          "set": {
+            "description": "New or updated items",
+            "type": "array",
+            "items": {
+              "description": "An item in the shared scratchpad.",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "Any unique string to identify the sub-task (e.g. epoch time + random string).",
+                  "type": "string"
+                },
+                "value": {
+                  "description": "The value of the item"
+                },
+                "created_at": {
+                  "description": "The timestamp when the item was created",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "created_at",
+                "id",
+                "value"
+              ]
+            }
+          },
+          "delete": {
+            "description": "IDs to remove",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "eventSubscriptions": {
+        "description": "Update event map. topic → subscriber bot IDs",
+        "type": "object",
+        "properties": {
+          "set": {
+            "description": "Map of new or updated items",
+            "type": "object"
+          },
+          "delete": {
+            "description": "Keys to remove",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "annotations": {
+    "title": "Update Swarm Shared State",
+    "readOnlyHint": false,
+    "openWorldHint": false
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP Note Add Attributes",
+  "description": "Attributes for adding a 'Note' resource via MCP.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "The name or title of the note.",
+      "type": "string"
+    },
+    "content": {
+      "description": "The content of the note.",
+      "type": "string"
+    },
+    "tagsConnect": {
+      "description": "Tags to associate with the resource.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "content",
+    "name"
+  ]
+}
