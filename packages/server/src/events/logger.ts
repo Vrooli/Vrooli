@@ -55,7 +55,8 @@ function getTransports() {
  * {"trace":"0000-cKST", "error: "Some error message", "level":"error","message":"Detailed message","service":"express-server","timestamp":"2022-04-23 16:08:55"}
  */
 export const logger = winston.createLogger({
-    levels: winston.config.syslog.levels,
+    // Using `warn` instead of `warning` is a common enough mistake that it's best to support it.
+    levels: { ...winston.config.syslog.levels, warn: winston.config.syslog.levels.warning },
     format: winston.format.combine(
         winston.format.errors({ stack: true }),
         winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
