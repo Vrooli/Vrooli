@@ -132,7 +132,8 @@ export class FallbackRouter extends LlmRouter {
             try {
                 // Compute token budget based on user credits and input size
                 const safeMaxCredits = opts.maxCredits ?? DEFAULT_MAX_RESPONSE_CREDITS;
-                const effectiveCredits = calculateMaxCredits(opts.userData.credits, safeMaxCredits, 0);
+                const userCredits = opts.userData?.credits ?? "0"; // Default to "0" if undefined
+                const effectiveCredits = calculateMaxCredits(userCredits, safeMaxCredits, 0);
                 // Estimate tokens for input
                 const serializedInput = JSON.stringify(opts.input);
                 const inputTokens = service.estimateTokens({ aiModel: opts.model, text: serializedInput }).tokens;
@@ -145,7 +146,7 @@ export class FallbackRouter extends LlmRouter {
                     tools: opts.tools,
                     parallel_tool_calls: opts.parallel_tool_calls,
                     reasoningEffort: opts.reasoningEffort,
-                    world: opts.world,
+                    systemMessage: opts.systemMessage,
                     maxTokens,
                 };
 

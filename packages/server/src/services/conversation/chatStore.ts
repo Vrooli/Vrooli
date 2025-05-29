@@ -1,9 +1,9 @@
-import { BotConfig, ChatConfig, LRUCache, type ChatConfigObject, type User } from "@local/shared";
+import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type ChatConfigObject, type User } from "@local/shared";
 import { type Prisma, type user } from "@prisma/client";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
+import { CacheService } from "../../redisConn.js";
 import { type BotParticipant, type ConversationState } from "./types.js";
-import { WorldModel } from "./worldModel.js";
 
 /* ------------------------------------------------------------------
  * Config & helper types                                              
@@ -237,7 +237,7 @@ export class PrismaChatStore extends ChatStore {
             config: ChatConfig.default().export(),
             participants: [],
             availableTools: [],
-            worldModel: new WorldModel(),
+            initialLeaderSystemMessage: "",
         };
     }
 
@@ -281,27 +281,12 @@ export class PrismaChatStore extends ChatStore {
         const config = (chat.config as ChatConfigObject | null) ?? ChatConfig.default().export();
         const participants = chat.participants.map(mapParticipant);
 
-        // Rehydrate WorldModel from persisted config if available
-        let worldModelInstance: WorldModel;
-        if (config.worldModelConfig) {
-            worldModelInstance = new WorldModel({
-                systemMessage: config.worldModelConfig.systemMessage,
-                goal: config.worldModelConfig.goal,
-                subTasks: config.worldModelConfig.subTasks || [],
-                sharedScratchpad: config.worldModelConfig.scratchpad,
-                resources: config.worldModelConfig.resources || [],
-                routineCalls: config.worldModelConfig.routineCalls || [],
-            });
-        } else {
-            worldModelInstance = new WorldModel(); // Default if no persisted config
-        }
-
         return {
             id: chat.id.toString(),
             config,
             participants,
-            availableTools: [], // TODO: Populate this from chat config or elsewhere
-            worldModel: worldModelInstance,
+            availableTools: [],
+            initialLeaderSystemMessage: "",
         };
     }
 }
@@ -328,16 +313,24 @@ export interface ConversationStateStore {
 }
 
 const DEFAULT_MAX_CONCURRENT_CONVERSATIONS = 1_000;
+const CONVERSATION_STATE_L2_CACHE_TTL_MINUTES = 15;
+const CONVERSATION_STATE_L2_CACHE_TTL_SEC = CONVERSATION_STATE_L2_CACHE_TTL_MINUTES * MINUTES_1_S;
 
 /**
- * Implements ConversationStateStore by wrapping a ChatStore and an LRU cache.
- * 
- * This allows us to use the database for storing long-term conversation state,
- * while keeping a small number of conversations in memory for quick access 
- * and additional short-term state.
+ * Implements ConversationStateStore by wrapping a ChatStore and an LRU cache (L1),
+ * and integrating with CacheService for a distributed L2 cache (Redis).
+ *
+ * NOTE ON PARTICIPANT DETAIL STALENESS:
+ * If a participant's details (e.g., User.name, or User.botSettings for a bot participant)
+ * are updated directly via the UserModel, this store will not immediately reflect those changes
+ * in cached ConversationState objects across all chats that participant is in. The participant's
+ * entry within a cached ConversationState (name, config) might be stale until the L2 cache entry
+ * for that specific ConversationState expires (currently ~15 minutes) or is otherwise invalidated.
+ * Adding/removing participants to/from a chat *does* trigger immediate invalidation for that chat.
  */
 export class CachedConversationStateStore implements ConversationStateStore {
     private readonly cache: LRUCache<string, ConversationState>;
+    private readonly cacheService = CacheService.get();
 
     constructor(
         private readonly chatStore: ChatStore,
@@ -346,43 +339,104 @@ export class CachedConversationStateStore implements ConversationStateStore {
         this.cache = new LRUCache<string, ConversationState>({ limit: maxEntries });
     }
 
+    private getL2CacheKey(conversationId: string): string {
+        return `conversation:${conversationId}`;
+    }
+
     public async get(
         conversationId: string,
         invalidate = false,
     ): Promise<ConversationState | null> {
-        // If forced reload or not cached, fetch fresh
-        if (invalidate || !this.cache.has(conversationId)) {
-            const fresh = await this.chatStore.getConversation(conversationId);
-            if (!fresh) return null;
-            this.cache.set(conversationId, fresh);
+        const l2Key = this.getL2CacheKey(conversationId);
+
+        if (invalidate) {
+            this.cache.delete(conversationId); // Invalidate L1
+            await this.cacheService.del(l2Key); // Invalidate L2
         }
-        // Guaranteed to exist after above
-        return this.cache.get(conversationId) ?? null;
+
+        // Try L1 first
+        if (this.cache.has(conversationId)) {
+            return this.cache.get(conversationId) ?? null;
+        }
+
+        // Try L2 (Redis) next
+        try {
+            const l2State = await this.cacheService.get<ConversationState>(l2Key);
+            if (l2State) {
+                this.cache.set(conversationId, l2State); // Populate L1
+                return l2State;
+            }
+        } catch (error) {
+            logger.error(`Error fetching ConversationState from L2 cache for ${conversationId}`, { error });
+            // Proceed to fetch from DB, don't let L2 error block completely
+        }
+
+        // L1 and L2 miss, fetch fresh from DB (via PrismaChatStore)
+        const freshFromDb = await this.chatStore.getConversation(conversationId);
+        if (freshFromDb) {
+            this.cache.set(conversationId, freshFromDb); // Populate L1
+            try {
+                await this.cacheService.set(l2Key, freshFromDb, CONVERSATION_STATE_L2_CACHE_TTL_SEC); // Populate L2
+            } catch (error) {
+                logger.error(`Error setting ConversationState to L2 cache for ${conversationId}`, { error });
+            }
+        }
+        return freshFromDb;
     }
 
-    public updateConfig(
+    public async updateConfig(
         conversationId: string,
         config: ChatConfigObject,
-    ): void {
-        // Update in-memory cache
-        const existingState = this.cache.get(conversationId);
-        const result = {
-            // Fallback and existing state
+    ): Promise<void> {
+        // Update in-memory cache (L1)
+        const existingState = await this.get(conversationId); // Use get to ensure we have the latest state if not in L1
+
+        const result: ConversationState = {
             participants: [],
-            ...existingState,
+            ...(existingState ?? this.createFallbackState(conversationId)), // Use a fallback if existingState is null
             id: conversationId,
-            // Updated config
             config,
-            // Preserve or default new fields
             availableTools: existingState?.availableTools ?? [],
-            worldModel: existingState?.worldModel ?? new WorldModel(),
-        } satisfies ConversationState;
+            initialLeaderSystemMessage: existingState?.initialLeaderSystemMessage ?? "",
+        };
         this.cache.set(conversationId, result);
-        // Update the state in the database
+
+        // Update the state in the database (via PrismaChatStore)
         this.chatStore.saveState(conversationId, result);
     }
 
-    public del(conversationId: string): void {
-        this.cache.delete(conversationId);
+    // Helper to create a minimal state if not found, to prevent errors if existingState is null
+    private createFallbackState(conversationId: string): Partial<ConversationState> {
+        return {
+            id: conversationId,
+            config: ChatConfig.default().export(),
+            participants: [],
+            availableTools: [],
+            initialLeaderSystemMessage: "",
+        };
+    }
+
+    public async del(conversationId: string): Promise<void> {
+        this.cache.delete(conversationId); // Delete from L1
+        const l2Key = this.getL2CacheKey(conversationId);
+        try {
+            await this.cacheService.del(l2Key); // Delete from L2
+        } catch (error) {
+            logger.error(`Error deleting ConversationState from L2 cache for ${conversationId}`, { error });
+        }
+    }
+
+    /**
+     * Invalidates both L1 and L2 caches for the given conversationId.
+     * To be called when underlying chat data (e.g., participants, non-config chat fields) is known to have changed.
+     */
+    public async invalidateDistributed(conversationId: string): Promise<void> {
+        this.cache.delete(conversationId); // Invalidate L1
+        const l2Key = this.getL2CacheKey(conversationId);
+        try {
+            await this.cacheService.del(l2Key); // Invalidate L2
+        } catch (error) {
+            logger.error(`Error invalidating distributed ConversationState from L2 cache for ${conversationId}`, { error });
+        }
     }
 }

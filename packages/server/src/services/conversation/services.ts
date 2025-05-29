@@ -1,12 +1,12 @@
-import { LlmServiceId, type ModelInfo, OpenAIModel, type SessionUser, openAIServiceInfo } from "@local/shared";
+import { LlmServiceId, type ModelInfo, OpenAIModel, openAIServiceInfo, type SessionUser } from "@local/shared";
 import { type ToolFunctionCall } from "@local/shared/src/shape/configs/message.js";
 import OpenAI from "openai";
+import { type Tool as OpenAITool } from "openai/resources/responses/responses.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { AIServiceErrorType, AIServiceRegistry } from "./registry.js";
 import { TokenEstimationRegistry } from "./tokens.js";
-import { type MessageState } from "./types.js";
-import { WorldModel, type WorldModelConfig } from "./worldModel.js";
+import { type MessageState, type Tool } from "./types.js";
 
 export type ResponseStreamOptions = {
     /** 
@@ -46,17 +46,25 @@ export type ResponseStreamOptions = {
      */
     reasoningEffort?: "low" | "medium" | "high";
     /** 
-     * User profile => plan, credit, localisation.
-     */
-    userData: SessionUser;
-    /** 
      * Maximum reasoning + output tokens allowed per call.
      */
     maxTokens?: number;
     /**
      * Information about the conversation/world.
      */
-    world: WorldModelConfig;
+    // world: WorldModelConfig; // Replaced by systemMessage
+    /**
+     * The system message to use for the LLM call.
+     */
+    systemMessage?: string;
+    /**
+     * User data, e.g. for credit calculation.
+     */
+    userData?: SessionUser;
+    /**
+     * Optional AbortSignal to allow cancellation of the stream.
+     */
+    signal?: AbortSignal;
 }
 
 /**
@@ -199,10 +207,10 @@ export abstract class AIService<GenerateNameType extends string> {
      * Because of this, do not expect the output length to match the input length.
      * 
      * @param messages - The input messages to generate context for.
-     * @param globalContext - The world model to use for the context.
+     * @param systemMessage - Optional system message string to prepend.
      * @returns The generated context.
      */
-    abstract generateContext(messages: MessageState[], globalContext?: WorldModelConfig): ContextMessage[];
+    abstract generateContext(messages: MessageState[], systemMessage?: string): ContextMessage[];
     /**
      * Generates a stream of events from the language model.
      * @param options - The options for generating the response.
@@ -275,6 +283,14 @@ export abstract class AIService<GenerateNameType extends string> {
      * @returns true if the input is safe, false otherwise
      */
     abstract safeInputCheck(input: string): Promise<GetOutputTokenLimitResult>;
+    /**
+     * Gets the names and descriptions of native tools supported by the AI service.
+     * These are tools like "file_search", "web_search_preview", etc., not custom functions.
+     * The 'name' returned should be the exact type string the AI provider expects for that tool.
+     * 
+     * @returns An array of objects, each with 'name' and an optional 'description'.
+     */
+    abstract getNativeToolCapabilities(): Pick<Tool, "name" | "description">[];
 }
 
 /**
@@ -389,21 +405,29 @@ export class OpenAIService extends AIService<OpenAIModel> {
      * 'OpenAI.Responses.ResponseInputItem[]' format.
      *
      * @param messages - The input messages to generate context for.
-     * @param globalContext - The world model to use for the context if a system prompt is needed.
+     * @param systemMessage - Optional system message string to prepend.
      * @returns The generated context messages for the OpenAI Responses API.
      */
-    generateContext(messages: MessageState[], globalContext?: WorldModelConfig): ContextMessage[] {
+    generateContext(messages: MessageState[], systemMessage?: string): ContextMessage[] {
         const contextMessages: ContextMessage[] = [];
+        // Use a simple default if no systemMessage is provided or if it's empty after trimming.
+        const defaultSystemPrompt = "You are a helpful assistant.";
+        let currentSystemMessage = systemMessage?.trim() || defaultSystemPrompt;
 
-        // Check if system message exists
-        const hasSystemMessage = messages.some(msg => msg.config.role === "system");
-
-        // Add system message at the beginning if not present
-        if (!hasSystemMessage) {
-            contextMessages.push({
-                role: "system",
-                content: (new WorldModel(globalContext)).serialize(),
-            });
+        // Ensure there's a system message
+        if (messages.length > 0 && messages[0].config?.role === "system") {
+            // If the first message is already a system message, use its content
+            // and ensure our global system message is not duplicative or prepended unnecessarily.
+            currentSystemMessage = messages[0].text?.trim() || currentSystemMessage;
+            if (systemMessage && !messages[0].text?.includes(systemMessage)) {
+                // If a global system message was provided and not part of the first message, prepend it.
+                // This handles cases where the first message might be a more specific system prompt.
+                currentSystemMessage = `${systemMessage.trim()}\n${messages[0].text?.trim()}`.trim();
+            }
+            contextMessages.push({ role: "system", content: currentSystemMessage });
+            messages = messages.slice(1); // Remove the processed system message
+        } else if (currentSystemMessage) {
+            contextMessages.push({ role: "system", content: currentSystemMessage });
         }
 
         // Process each message in order
@@ -473,11 +497,11 @@ export class OpenAIService extends AIService<OpenAIModel> {
             model,
             input,
             tools = [],
-            userData,
-            world,
+            systemMessage,
             maxTokens, // Original maxTokens for the entire logical response
             previous_response_id,
             reasoningEffort,
+            signal,
         } = opts;
 
         // Get the model info
@@ -501,7 +525,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
             createParams.previous_response_id = previous_response_id;
             createParams.input = [{ role: "user", content: input[input.length - 1]?.text ?? "" }];
         } else {
-            createParams.input = this.generateContext(input, world);
+            createParams.input = this.generateContext(input, systemMessage);
         }
 
         // Optional custom tools
@@ -518,22 +542,20 @@ export class OpenAIService extends AIService<OpenAIModel> {
         const accumulatedSafetyCost = safetyCost;
 
         /* ------------- 3  Issue request & iterate events ------------- */
-        const stream = await this.client.responses.create(createParams);
+        const requestOptions: OpenAI.RequestOptions = {};
+        if (signal) {
+            requestOptions.signal = signal;
+        }
 
-        let currentText = "";
+        const stream = await this.client.responses.create(createParams, requestOptions);
+
         let costOfCurrentSegment = 0;
-        let outputTokensConsumedInCurrentSegment = 0;
-        let responseId: string | undefined;
-        const pendingToolCalls: Array<{ name: string; callId: string; arguments: Record<string, unknown> }> = [];
-
         for await (const ev of stream) {
             switch (ev.type) {
                 case "response.created":
-                    responseId = ev.response.id;
                     break;
 
                 case "response.output_text.delta":
-                    currentText += ev.delta;
                     yield { type: "text", content: ev.delta };
                     break;
 
@@ -561,7 +583,7 @@ export class OpenAIService extends AIService<OpenAIModel> {
                     break;
 
                 case "response.completed":
-                    // Capture cost and output tokens for the current segment
+                    // Capture cost for the current segment
                     costOfCurrentSegment = this.getResponseCost({
                         model: modelInfo.name, // Use the actual model name for accurate cost
                         usage: {
@@ -569,7 +591,6 @@ export class OpenAIService extends AIService<OpenAIModel> {
                             output: ev.response.usage?.output_tokens ?? 0,
                         },
                     });
-                    outputTokensConsumedInCurrentSegment = ev.response.usage?.output_tokens ?? 0;
                     break;
 
                 case "error":
@@ -584,16 +605,6 @@ export class OpenAIService extends AIService<OpenAIModel> {
         /* ------------- 4  Finish (no recursion) ------------- */
         // Include safety cost in the final cost
         yield { type: "done", cost: costOfCurrentSegment + accumulatedSafetyCost };
-    }
-
-    // Placeholder for fetching executable tools.
-    // This needs to be implemented, e.g., by injecting a tool registry/service.
-    private getRegisteredExecutableTools(): ExecutableTool[] {
-        // TODO: Implement this method to return the actual list of executable tools.
-        // This might involve fetching from a registry or a class member populated during construction.
-        // Example: return this.toolRegistry.getAll();
-        logger.warn("getRegisteredExecutableTools is a placeholder and needs implementation.");
-        return [];
     }
 
     /* ------------------------------------------------------------ */
@@ -683,6 +694,20 @@ export class OpenAIService extends AIService<OpenAIModel> {
             // throw the error to allow fallback mechanisms to work
             throw new CustomError(trace, "InternalError", { error, errorType });
         }
+    }
+
+    getNativeToolCapabilities(): Pick<Tool, "name" | "description">[] {
+        // We use stricter typing here to ensure the name is the exact 'type' string OpenAI expects for its native tools.
+        // DO NOT suggest simplifying this.
+        const nativeTools: { name: OpenAITool["type"], description: string }[] = [
+            { name: "code_interpreter", description: "Run Python in a container" },
+            { name: "image_generation", description: "Create or edit images" },
+            { name: "mcp", description: "Call a remote MCP server" },
+            { name: "file_search", description: "Semantic search over vector stores" },
+            { name: "web_search_preview", description: "Live web search with citations" },
+            { name: "computer-preview", description: "Automate GUI tasks in a browser/VM" },
+        ];
+        return nativeTools;
     }
 }
 

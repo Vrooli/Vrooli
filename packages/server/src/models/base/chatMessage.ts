@@ -1,26 +1,27 @@
-import { ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, MaxObjects, validatePK } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import { Request } from "express";
+import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@local/shared";
+import { type Prisma } from "@prisma/client";
+import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
-import { PartialApiInfo } from "../../builders/types.js";
+import { type PartialApiInfo } from "../../builders/types.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { BusService } from "../../services/bus.js";
-import { messageStore } from "../../services/conversation/conversationLoop.js";
+import { messageStore } from "../../services/conversation/responseEngine.js";
+import { QueueService } from "../../tasks/queues.js";
+import { type LLMCompletionTask, QueueTaskType } from "../../tasks/taskTypes.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
-import { ChatMessagePre, MessageInfoCollector, PreMapChatData, PreMapMessageData } from "../../utils/messageTree.js";
+import { type ChatMessagePre, MessageInfoCollector, type PreMapChatData, type PreMapMessageData } from "../../utils/messageTree.js";
 import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
 import { getSingleTypePermissions, permissionsCheck } from "../../validators/permissions.js";
 import { ChatMessageFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types.js";
+import { type ChatMessageModelInfo, type ChatMessageModelLogic, type ChatModelInfo, type ChatModelLogic, type ReactionModelLogic, type UserModelLogic } from "./types.js";
 
 const DEFAULT_CHAT_TAKE = 25;
 const MAX_CHAT_TAKE = DEFAULT_CHAT_TAKE;
@@ -106,39 +107,23 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async ({ createdIds, deletedIds, updatedIds, preMap, resultsById, userData }) => {
+            afterMutations: async ({ createdIds, deletedIds, updatedIds, preMap, resultsById, userData, additionalData }) => {
                 const preMapChatData: Record<string, PreMapChatData> = preMap[__typename]?.chatData ?? {};
                 const preMapMessageData: Record<string, PreMapMessageData> = preMap[__typename]?.messageData ?? {};
-                const eventBus = BusService.get().getBus();
 
-                // Call triggers
+                // Handle created messages
                 for (const objectId of createdIds) {
                     const messageData = preMapMessageData[objectId];
                     if (!messageData || messageData.__type !== "Create") {
-                        logger.error("Message data not found", { trace: "0238", user: userData.id, message: objectId });
+                        logger.error("Message data not found or not 'Create' type for LLM task creation", { trace: "0238", user: userData.id, messageId: objectId });
                         continue;
                     }
                     const chatId = messageData.chatId;
-                    const chatMessage = resultsById[objectId] as ChatMessage | undefined;
-                    const senderId = messageData.userId;
-                    if (!chatMessage || !chatId || !senderId) {
-                        logger.error("Message, message sender, or chat not found", { trace: "0363", user: userData.id, messageId: objectId, chatId });
-                        continue;
-                    }
-                    // Add message to cache
-                    await messageStore.addMessage(
-                        chatId,
-                        {
-                            id: objectId,
-                            text: chatMessage.text,
-                            language: chatMessage.language,
-                            config: chatMessage.config,
-                            parent: messageData.parentId ? { id: messageData.parentId } : null,
-                            user: { id: senderId },
-                        },
-                     /* skipDb = */ true,
-                    );
-                    // Common trigger logic
+
+                    // Extract additional data passed into endpoint
+                    const modelForTask = additionalData?.model as string | undefined;
+                    const taskContexts = additionalData?.taskContexts as TaskContextInfo[] | undefined;
+
                     await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
@@ -147,25 +132,43 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectId,
                         objectType: __typename,
                     });
+                    const chatMessageForResult = resultsById[objectId] as ChatMessage | undefined;
+                    if (!chatMessageForResult) {
+                        logger.error("ChatMessage result not found for chatMessageCreated trigger", { trace: "0363a", user: userData.id, messageId: objectId });
+                        continue;
+                    }
                     await Trigger(userData.languages).chatMessageCreated({
                         excludeUserId: userData.id,
                         chatId,
                         messageId: objectId,
-                        senderId,
-                        message: chatMessage,
+                        senderId: messageData.userId,
+                        message: chatMessageForResult,
                     });
 
                     const chat: PreMapChatData | undefined = preMapChatData[chatId];
                     if (chat?.hasBotParticipants) {
-                        await eventBus.publish({
-                            type: "message.created",
-                            conversationId: chatId,
-                            turnId: nextTurnId,
-                            payload: { messageId: saved.id },
-                        });
+                        const llmTaskPayload: LLMCompletionTask = {
+                            id: generatePK().toString(),
+                            type: QueueTaskType.LLM_COMPLETION,
+                            chatId: messageData.chatId,
+                            messageId: objectId,
+                            userData,
+                            taskContexts: taskContexts ?? [],
+                            model: modelForTask,
+                        };
+                        QueueService.get().llm.addTask(llmTaskPayload);
+                        logger.info(`LLM task ${llmTaskPayload.id} added to queue for message ${objectId}.`);
                     }
                 }
+
+                // Handle updated messages
                 for (const objectId of updatedIds) {
+                    const messageData = preMapMessageData[objectId];
+                    if (!messageData) {
+                        logger.error("Message data not found for update operations", { trace: "chatMessage_update_no_preMapData", objectId });
+                        continue;
+                    }
+
                     await Trigger(userData.languages).objectUpdated({
                         updatedById: userData.id,
                         hasCompleteAndPublic: true, // N/A
@@ -176,45 +179,32 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         wasCompleteAndPublic: true, // N/A
                     });
 
-                    // Update message in cache
-                    await messageStore.updateMessage(
-                        objectId,
-                        {
-                            text: messageData.text,
-                            parent: messageData.parentId !== undefined
-                                ? messageData.parentId ? { id: messageData.parentId } : null
-                                : undefined,
-                        },
-                        true,
-                    );
-
-                    // Update message in context
-                    const chat = preMapChatData[chatId];
-                    const messageData = preMapMessageData[objectId];
-                    if (chat?.hasBotParticipants) {
-                        await eventBus.publish({
-                            type: "message.updated",
-                            conversationId: messageData.chatId,
-                            turnId,
-                            payload: {
-                                messageId: objectId,
-                                text: messageData.text,
-                            },
-                        });
+                    const updatedDbMessage = resultsById[objectId] as ChatMessage | undefined;
+                    if (updatedDbMessage) {
+                        await messageStore.updateMessage(objectId, updatedDbMessage);
+                    } else {
+                        logger.error("Updated message not found in resultsById for cache update", { trace: "chatMessage_update_cache_no_result", objectId });
                     }
 
                     const chatMessage = resultsById[objectId] as ChatMessage | undefined;
                     if (!chatMessage) {
-                        logger.error("Result message not found", { trace: "0365", user: userData.id, messageId: objectId });
+                        logger.error("Result message not found for chatMessageUpdated trigger", { trace: "0365", user: userData.id, messageId: objectId });
                         continue;
                     }
                     await Trigger(userData.languages).chatMessageUpdated({
-                        data: preMapMessageData[objectId],
+                        data: messageData,
                         message: chatMessage,
                     });
                 }
 
+                // Handle deleted messages
                 for (const objectId of deletedIds) {
+                    const messageData = preMapMessageData[objectId];
+                    if (!messageData) {
+                        logger.error("Message data not found for delete operations", { trace: "chatMessage_delete_no_preMapData", objectId });
+                        continue;
+                    }
+
                     await Trigger(userData.languages).objectDeleted({
                         deletedById: userData.id,
                         hasBeenTransferred: false, // N/A
@@ -224,28 +214,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         wasCompleteAndPublic: true, // N/A
                     });
 
-                    // Delete message from cache
-                    await messageStore.deleteMessage(objectId, true);
+                    await messageStore.deleteMessage(objectId);
 
-                    const chat = preMapChatData[messageData.chatId];
-                    const messageData = preMapMessageData[objectId];
-                    if (chat?.hasBotParticipants) {
-                        // Publish message.deleted event
-                        await eventBus.publish({
-                            type: "message.deleted",
-                            conversationId: messageData.chatId,
-                            turnId,
-                            payload: {
-                                messageId: objectId,
-                            },
-                        });
-
-                        await Trigger(userData.languages).chatMessageDeleted({
-                            data: messageData,
-                        });
-                    } else {
-                        logger.error("Message data not found", { trace: "0067", user: userData.id, message: objectId });
-                    }
+                    await Trigger(userData.languages).chatMessageDeleted({
+                        data: messageData,
+                    });
                 }
             },
         },

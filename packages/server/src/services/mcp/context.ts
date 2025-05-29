@@ -23,7 +23,7 @@ export function getCurrentMcpContext(): McpContext {
     const context = asyncLocalStorage.getStore();
     if (!context) {
         throw new Error(
-            "No MCP HTTP context is set. Ensure runWithMcpContext is used when handling MCP requests."
+            "No MCP HTTP context is set. Ensure runWithMcpContext is used when handling MCP requests.",
         );
     }
     return context;

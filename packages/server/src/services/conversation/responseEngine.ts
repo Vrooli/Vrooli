@@ -1,37 +1,39 @@
 /* eslint-disable func-style */
-import { ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfig, type SessionUser, type ToolFunctionCall } from "@local/shared";
+import { type BotConfigObject, ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfig, SECONDS_1_MS, type SessionUser, type ToolFunctionCall } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
+import * as fs from "fs/promises";
 import type OpenAI from "openai";
+import * as path from "path";
+import { fileURLToPath } from "url"; // For __dirname in ESM
 import { logger } from "../../events/logger.js";
 import { SocketService } from "../../sockets/io.js";
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
 import { BusService } from "../bus.js";
-import { type ToolInputSchema } from "../mcp/types.js";
+import { ToolRegistry } from "../mcp/registry.js";
+import { SwarmTools } from "../mcp/tools.js";
+import { type Tool } from "../mcp/types.js";
+import { McpSwarmToolName, McpToolName } from "../types/tools.js";
 import { type AgentGraph, CompositeGraph } from "./agentGraph.js";
 import { CachedConversationStateStore, type ConversationStateStore, PrismaChatStore } from "./chatStore.js";
 import { type ContextBuilder, RedisContextBuilder } from "./contextBuilder.js";
 import { type MessageStore, RedisMessageStore } from "./messageStore.js";
 import type { FunctionCallStreamEvent } from "./router.js";
 import { FallbackRouter, type LlmRouter } from "./router.js";
-import { CompositeToolRunner, type ToolRunner } from "./toolRunner.js";
-import { type BotParticipant, type MessageState, type ResponseStats, type SwarmInternalEvent, type SwarmStartedEvent } from "./types.js";
-import { WorldModel } from "./worldModel.js";
+import { CompositeToolRunner, McpToolRunner, type ToolRunner } from "./toolRunner.js";
+import { type BotParticipant, type ConversationState, type MessageState, type ResponseStats, type SwarmEvent, type SwarmStartedEvent } from "./types.js";
 
-// /** Maximum iterations for the drain loop, if something goes wrong with normal limit logic */
-// const MAX_DRAIN_ITERATIONS = 1_000;
-
-
-// TODO make sure that when messages/chats/particpants are added/updated/deleted (ModelLogic trigger), this class handles it correctly (including adding to context collector cache)
-// TODO make sure that chat updates update or invalidate the conversation state cache
 // TODO Tthe failure cases could be handled better. E.g. emitting event to show retry button
 //TODO handle message updates (branching conversation)
 // TODO make sure preferred model is stored in the conversation state
-//TODO canceling responses
 // TODO need turn timeouts
 // TODO add mechanism for swarm and routine state machines to have a delay set by config that schedules any runs and resource mutations instead of running them immediately. This would be clearly defined in the context, and a list of schedules tool calls would be included in the context too. This enables the swarm to plan around the schedule, which is needed for users to approve/reject scheduled tool calls for safety reasons.
 // TODO swarm world model should suggest starting a metacognition loop to best complete the goal, and adding to to the chat context. Can search for existing prompts.
 //TODO conversation context should be able to store recommended routines to call for certain scenarios, pulled from the team config if available.
-
+// TODO have built-in events for swarm that bots can be assigned to. For example, you could have a bot that simplly checks if the current subtask is complete. If so, the swarm closes. If not, we nudge the swarm to continue.
+//TODO swarm needs to see builtInToolDefinitions and swarmToolDefinitions from the MCP registry
+//TODO swarm should be able to share data with specific bots - not just the overall swarm shared state (that goes to all bots).
+//TODO should be using limits.delayBetweenProcessingCyclesMs for when you want the swarm to be slowed down
+//TODO make sure all SwarmEvents are being used
 
 /**
 # Vrooli ‣ ResponseEngine   
@@ -93,22 +95,23 @@ export class ReasoningEngine {
     /**
      * Executes a single reasoning loop for a bot.
      * @param startMessage - Either an object with {id} to start from existing history, or {text} for standalone prompts
-     * @param worldModel - The world model to use for the context window
+     * @param systemMessageContent - The system message content to use for the context window
      * @param availableTools - The tools available to the bot
      * @param bot - Information about the bot that's running the loop
      * @param creditAccountId - The credit account to charge for the response (tied to a user or team)
      * @param config - The conversation configuration
      * @param convoAllocatedToolCalls - Max conversation-level tool calls allocated to this run
      * @param convoAllocatedCredits - Max conversation-level credits allocated to this run
-     * @param userData - Additional data related to the session
+     * @param userData - User session data, including credits.
      * @param chatId - The chat this loop is for, if applicable
      * @param model - The model to use for the LLM call
+     * @param abortSignal - Optional AbortSignal to check for cancellation
      * @returns A MessageState object representing the final message from the bot and the stats for this response generation.
      */
     async runLoop(
         startMessage: { id: string } | { text: string },
-        worldModel: WorldModel,
-        availableTools: ToolInputSchema[],
+        systemMessageContent: string,
+        availableTools: Tool[],
         bot: BotParticipant,
         creditAccountId: string,
         config: ChatConfigObject,
@@ -117,23 +120,84 @@ export class ReasoningEngine {
         userData: SessionUser,
         chatId?: string,
         model?: string,
+        abortSignal?: AbortSignal,
     ): Promise<{ finalMessage: MessageState; responseStats: ResponseStats }> {
         // Signal typing start
         if (chatId) {
             SocketService.get().emitSocketEvent("typing", chatId, { starting: [bot.id] });
         }
 
+        // Create sets for efficient lookup of Vrooli custom tool names
+        const mcpToolNames = new Set(Object.values(McpToolName));
+        const mcpSwarmToolNames = new Set(Object.values(McpSwarmToolName));
+
+        // Transform availableTools to OpenAI.Responses.Tool[] format for ContextBuilder and LlmRouter
+        const toolsForLlm: OpenAI.Responses.Tool[] = availableTools.reduce((acc, ts) => {
+            if (mcpToolNames.has(ts.name as McpToolName) || mcpSwarmToolNames.has(ts.name as McpSwarmToolName)) {
+                acc.push({
+                    type: "function",
+                    name: ts.name,
+                    description: ts.description || "",
+                    parameters: ts.inputSchema as Record<string, unknown>,
+                    strict: true,
+                });
+            } else if (ts.name === "web_search") {
+                acc.push({ type: "web_search_preview" });
+            } else if (ts.name === "file_search") {
+                acc.push({ type: "file_search", vector_store_ids: [] });
+            } else {
+                logger.warn(`Unknown tool type encountered in toolsForLlm mapping: ${ts.name}. Skipping this tool.`);
+                // Do not throw an error, just skip adding the tool.
+            }
+            return acc;
+        }, [] as OpenAI.Responses.Tool[]);
+
+        // Check for cancellation at the very beginning
+        if (abortSignal?.aborted) {
+            const reason = abortSignal.reason;
+            let errorMessage = "Response cancelled";
+            let errorCode = "CANCELLED";
+            let logMessage = `Response cancelled by signal before starting for bot ${bot.id} in chat ${chatId}`;
+            let errorToThrow = new Error("ResponseCancelledError");
+
+            if (reason === "TurnTimeout") {
+                errorMessage = "Bot turn timed out";
+                errorCode = "TIMED_OUT";
+                logMessage = `Bot turn timed out before starting for bot ${bot.id} in chat ${chatId}`;
+                errorToThrow = new Error("ResponseTimeoutError");
+            } else if (reason instanceof Error) {
+                errorMessage = reason.message;
+            } else if (typeof reason === "string" && reason.length > 0) {
+                errorMessage = reason;
+            }
+
+            logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
+            if (chatId) {
+                SocketService.get().emitSocketEvent("responseStream", chatId, {
+                    __type: "error",
+                    botId: bot.id,
+                    error: { message: errorMessage, code: errorCode },
+                });
+                SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
+                    chatId,
+                    botId: bot.id,
+                    status: "error_internal",
+                    error: { message: errorMessage, code: errorCode },
+                });
+            }
+            throw errorToThrow;
+        }
+
         // Build context if we have a chatId + message ID, else wrap a text prompt
         let inputs: MessageState[];
         if (chatId && "id" in startMessage) {
             // Build context, reserving tokens for tools (none for now) and world-model
-            const toolsForLLM: OpenAI.Responses.Tool[] = []; //TODO: add tools
             const { messages } = await this.contextBuilder.build(
                 chatId,
                 bot,
                 model ?? DEFAULT_LANGUAGE,
                 startMessage.id,
-                { tools: toolsForLLM, world: worldModel },
+                { tools: toolsForLlm, systemMessage: systemMessageContent },
             );
             inputs = messages;
         } else if ("text" in startMessage) {
@@ -151,7 +215,6 @@ export class ReasoningEngine {
         } else {
             throw new Error("Invalid startMessage for runLoop");
         }
-        let tools: ToolInputSchema[] = availableTools;
         let draftMessage = "";
         // Collect all tool calls made during this loop
         const toolCalls: ToolFunctionCall[] = [];
@@ -162,12 +225,14 @@ export class ReasoningEngine {
         // These 'responseLimits' apply to the cumulative actions and resource usage of a single bot
         // within one full execution of this runLoop.
         const responseLimits = new ChatConfig({ config }).getEffectiveLimits();
-        // If the bot has a custom system prompt, merge it into the world model config
-        if (bot.meta?.systemPrompt) {
-            // Append bot-specific system prompt to existing system message
-            const existing = worldModel.getConfig().systemMessage;
-            worldModel.updateConfig({ systemMessage: `${existing}\n${bot.meta.systemPrompt}` });
-        }
+
+        // Prepare the final system message for the LLM call
+        // The systemMessageContent is now the complete, bot-specific system message.
+        const finalSystemMessageForLlm = systemMessageContent;
+        // if (bot.meta?.systemPrompt) { // This logic is now handled upstream in CompletionService._buildSystemMessage
+        //     finalSystemMessageForLlm = `${finalSystemMessageForLlm}\n${bot.meta.systemPrompt}`.trim();
+        // }
+
         // exceeded() checks if the *cumulative* stats for this runLoop (responseStats)
         // have breached EITHER the total allocation passed into this runLoop (convoAllocated...)
         // OR the specific per-bot-response limits defined in the conversation config (responseLimits).
@@ -191,14 +256,47 @@ export class ReasoningEngine {
         };
 
         try {
+            // Emit thinking status before starting the main loop
+            if (chatId) {
+                SocketService.get().emitSocketEvent("botStatusUpdate", chatId, { chatId, botId: bot.id, status: "thinking", message: "Processing request..." });
+            }
             while (inputs.length && !exceeded()) {
+                // Check for cancellation at the beginning of each iteration
+                if (abortSignal?.aborted) {
+                    const reason = abortSignal.reason;
+                    let errorMessage = "Response cancelled";
+                    let errorCode = "CANCELLED";
+                    let logMessage = `Response cancelled by signal during loop for bot ${bot.id} in chat ${chatId}`;
+                    let errorToThrow = new Error("ResponseCancelledError");
+
+                    if (reason === "TurnTimeout") {
+                        errorMessage = "Bot turn timed out";
+                        errorCode = "TIMED_OUT";
+                        logMessage = `Bot turn timed out during loop for bot ${bot.id} in chat ${chatId}`;
+                        errorToThrow = new Error("ResponseTimeoutError");
+                    } else if (reason instanceof Error) {
+                        errorMessage = reason.message;
+                    } else if (typeof reason === "string" && reason.length > 0) {
+                        errorMessage = reason;
+                    }
+                    logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
+                    if (chatId) {
+                        SocketService.get().emitSocketEvent("responseStream", chatId, {
+                            __type: "error",
+                            botId: bot.id,
+                            error: { message: errorMessage, code: errorCode },
+                        });
+                        SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
+                            chatId,
+                            botId: bot.id,
+                            status: "error_internal",
+                            error: { message: errorMessage, code: errorCode },
+                        });
+                    }
+                    throw errorToThrow;
+                }
+
                 const chosenModel = model ?? bot.config?.model ?? "";
-                // Convert our tool schemas to LLM-compatible tool definitions
-                const toolSchemas: OpenAI.Responses.Tool[] = (tools as ToolInputSchema[]).map(ts => ({
-                    name: ts.type,
-                    description: "", // TODO: Populate this from ToolInputSchema if available
-                    parameters: ts.properties,
-                } as any)); //TODO fix type
 
                 // Calculate effective max credits for the upcoming LLM call
                 // It should be the lesser of the per-response cap and the bot's remaining allocated credits for this runLoop
@@ -217,15 +315,46 @@ export class ReasoningEngine {
                     }
                 }
 
+                // Check for cancellation before LLM call
+                if (abortSignal?.aborted) {
+                    const reason = abortSignal.reason;
+                    let errorMessage = "Response cancelled";
+                    let errorCode = "CANCELLED";
+                    let logMessage = `Response cancelled by signal before LLM call for bot ${bot.id} in chat ${chatId}`;
+                    let errorToThrow = new Error("ResponseCancelledError");
+
+                    if (reason === "TurnTimeout") {
+                        errorMessage = "Bot turn timed out";
+                        errorCode = "TIMED_OUT";
+                        logMessage = `Bot turn timed out before LLM call for bot ${bot.id} in chat ${chatId}`;
+                        errorToThrow = new Error("ResponseTimeoutError");
+                    } else if (reason instanceof Error) {
+                        errorMessage = reason.message;
+                    } else if (typeof reason === "string" && reason.length > 0) {
+                        errorMessage = reason;
+                    }
+                    logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
+                    if (chatId) {
+                        SocketService.get().emitSocketEvent("responseStream", chatId, {
+                            __type: "error",
+                            botId: bot.id,
+                            error: { message: errorMessage, code: errorCode },
+                        });
+                        // No separate botStatusUpdate here as the stream error implies overall failure for this attempt.
+                    }
+                    throw errorToThrow;
+                }
+
                 const stream = this.llmRouter.stream({
                     model: chosenModel,
                     previous_response_id: previousResponseId,
                     input: inputs,
-                    tools: toolSchemas,
+                    tools: toolsForLlm,
                     parallel_tool_calls: true,
-                    world: worldModel.getConfig(),
-                    maxCredits: effectiveMaxCreditsForLlm, // Use the calculated effective max credits
+                    systemMessage: finalSystemMessageForLlm,
                     userData,
+                    maxCredits: effectiveMaxCreditsForLlm,
+                    signal: abortSignal,
                 });
 
                 const nextInputs: any[] = [];
@@ -254,11 +383,44 @@ export class ReasoningEngine {
                             }
                             break;
                         case "function_call": {
+                            // Check for cancellation before tool call
+                            if (abortSignal?.aborted) {
+                                const reason = abortSignal.reason;
+                                let errorMessage = "Tool call cancelled";
+                                let errorCode = "CANCELLED";
+                                let logMessage = `Tool call ${ev.name} cancelled by signal for bot ${bot.id} in chat ${chatId}`;
+                                let errorToThrow = new Error("ResponseCancelledError"); // Or a specific ToolCallCancelledError
+
+                                if (reason === "TurnTimeout") {
+                                    errorMessage = `Tool call ${ev.name} aborted due to turn timeout`;
+                                    errorCode = "TIMED_OUT";
+                                    logMessage = `Tool call ${ev.name} aborted due to turn timeout for bot ${bot.id} in chat ${chatId}`;
+                                    errorToThrow = new Error("ResponseTimeoutError");
+                                } else if (reason instanceof Error) {
+                                    errorMessage = reason.message;
+                                } else if (typeof reason === "string" && reason.length > 0) {
+                                    errorMessage = reason;
+                                }
+                                logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
+
+                                if (chatId) {
+                                    SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
+                                        chatId,
+                                        botId: bot.id,
+                                        status: "tool_failed",
+                                        toolInfo: { callId: ev.callId, name: ev.name, error: errorMessage },
+                                        error: { message: errorMessage, code: errorCode },
+                                    });
+                                }
+                                throw errorToThrow;
+                            }
                             // Execute the tool call (sync or async) and record result
                             const { toolResult, functionCallEntry, cost } = await this.processFunctionCall(
                                 chatId,
                                 bot.id,
                                 ev as FunctionCallStreamEvent,
+                                abortSignal,
+                                config,
                             );
 
                             // Update cumulative stats for the entire runLoop after tool call
@@ -302,14 +464,56 @@ export class ReasoningEngine {
                             }
                             break;
                         }
+                        // Example of how to handle a conceptual error event from the stream
+                        // This assumes the llmRouter.stream() can yield an event like { type: "error", errorDetails: { message: string, code?: string } }
+                        /*
+                        case "error": { // Hypothetical error event from stream
+                            responseStats.creditsUsed += BigInt(ev.cost || 0); // Add any cost associated with the error event
+                            if (chatId) {
+                                SocketService.get().emitSocketEvent("responseStream", chatId, {
+                                    __type: "error",
+                                    botId: bot.id,
+                                    error: {
+                                        message: ev.errorDetails?.message || "Unknown stream error",
+                                        code: ev.errorDetails?.code || "LLM_STREAM_ERROR",
+                                        details: JSON.stringify(ev.errorDetails)
+                                    }
+                                });
+                                // Also consider for modelReasoningStream if applicable
+                                SocketService.get().emitSocketEvent("modelReasoningStream", chatId, {
+                                    __type: "error",
+                                    botId: bot.id,
+                                    error: {
+                                        message: ev.errorDetails?.message || "Unknown reasoning stream error",
+                                        code: ev.errorDetails?.code || "REASONING_STREAM_ERROR",
+                                        details: JSON.stringify(ev.errorDetails)
+                                    }
+                                });
+                            }
+                            // Potentially throw an error here to stop the runLoop or set a flag
+                            // For now, just emitting and breaking
+                            inputs = []; // Stop further processing in the loop
+                            break;
+                        }
+                        */
                     }
                     previousResponseId = ev.responseId;
                 }
 
                 // Prepare for next iteration
                 inputs = nextInputs;
-                tools = []; // only original tool calls
             }
+
+            // Emit processing_complete status if the loop finished without exhausting inputs (meaning bot did its work for this turn)
+            if (chatId && inputs.length === 0) { // Check if inputs are now empty, meaning the bot processed its turn
+                SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
+                    chatId,
+                    botId: bot.id,
+                    status: "processing_complete",
+                    message: "Finished processing turn.",
+                });
+            }
+
         } finally {
             // Send cost incurred event 
             await BusService.get().getBus().publish({
@@ -370,7 +574,42 @@ export class ReasoningEngine {
         conversationId: string | undefined,
         callerBotId: string,
         ev: FunctionCallStreamEvent,
+        abortSignal?: AbortSignal,
+        config?: ChatConfigObject,
     ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint }> {
+        // Check for cancellation at the start of tool processing
+        if (abortSignal?.aborted) {
+            const reason = abortSignal.reason;
+            let errorMessage = `Tool call ${ev.name} cancelled`;
+            let errorCode = "CANCELLED";
+            let logMessage = `Tool call ${ev.name} cancelled by signal before execution for bot ${callerBotId}`;
+            let errorToThrow = new Error("ToolCallCancelledBySignal");
+
+            if (reason === "TurnTimeout") {
+                errorMessage = `Tool call ${ev.name} aborted due to turn timeout`;
+                errorCode = "TIMED_OUT";
+                logMessage = `Tool call ${ev.name} aborted due to turn timeout before execution for bot ${callerBotId}`;
+                errorToThrow = new Error("ResponseTimeoutError");
+            } else if (reason instanceof Error) {
+                errorMessage = reason.message;
+            } else if (typeof reason === "string" && reason.length > 0) {
+                errorMessage = reason;
+            }
+
+            logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
+
+            if (conversationId) {
+                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                    chatId: conversationId,
+                    botId: callerBotId,
+                    status: "tool_failed",
+                    toolInfo: { callId: ev.callId, name: ev.name, error: errorMessage },
+                    error: { message: errorMessage, code: errorCode },
+                });
+            }
+            throw errorToThrow;
+        }
+
         const args = ev.arguments as Record<string, any>;
         const isAsync = args.isAsync === true;
         const fnEntryBase = {
@@ -379,45 +618,83 @@ export class ReasoningEngine {
         } as Omit<ToolFunctionCall, "result">;
         let toolCost = BigInt(0);
 
+        // Emit tool_calling status BEFORE deciding to defer or execute directly
+        if (conversationId) {
+            SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                chatId: conversationId,
+                botId: callerBotId,
+                status: "tool_calling",
+                toolInfo: { callId: ev.callId, name: ev.name, args: JSON.stringify(ev.arguments) },
+                message: `Using tool: ${ev.name}`,
+            });
+        }
+
+        let toolCallResponse: any;
+        let entry: ToolFunctionCall;
+        let output: unknown = null;
+
         if (isAsync) {
             // For async tool initiation, the McpToolRunner should ideally return the initiation cost.
-            // This cost would be part of the 'response.creditsUsed' if the tool start was successful.
-            // Let's assume McpToolRunner's 'run' for an async start op returns ToolCallResult 
-            // where 'output' is an ack and 'creditsUsed' is the initiation cost.
-
-            // Simulate calling the toolRunner for async start to get potential initiation cost.
             // This part is more conceptual as the actual async handling might be more complex
             // and involve the registry providing this initiation cost.
-            const res = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId });
-            let entry: ToolFunctionCall;
-            let output: unknown = null;
+            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId, signal: abortSignal });
 
-            if (res.ok) {
-                output = res.data.output; // Should be an ack like { status: "started", callId: ev.callId }
-                toolCost = BigInt(res.data.creditsUsed); // Initiation cost from ToolRunner
+            if (toolCallResponse.ok) {
+                output = toolCallResponse.data.output; // Should be an ack like { status: "started", callId: ev.callId }
+                toolCost = BigInt(toolCallResponse.data.creditsUsed); // Initiation cost from ToolRunner
                 entry = { ...fnEntryBase, result: { success: true, output } };
+                if (conversationId) {
+                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                        chatId: conversationId,
+                        botId: callerBotId,
+                        status: "tool_completed", // Assuming async start is a form of completion for this event
+                        toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
+                    });
+                }
             } else {
                 // Async initiation failed
-                output = res.error;
-                toolCost = res.error.creditsUsed ? BigInt(res.error.creditsUsed) : BigInt(0); // Cost of failed initiation
-                entry = { ...fnEntryBase, result: { success: false, error: res.error } };
+                output = toolCallResponse.error;
+                toolCost = toolCallResponse.error.creditsUsed ? BigInt(toolCallResponse.error.creditsUsed) : BigInt(0); // Cost of failed initiation
+                entry = { ...fnEntryBase, result: { success: false, error: toolCallResponse.error } };
+                if (conversationId) {
+                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                        chatId: conversationId,
+                        botId: callerBotId,
+                        status: "tool_failed",
+                        toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
+                    });
+                }
             }
             return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         } else {
             // Synchronous execution
-            const res = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId });
-            let entry: ToolFunctionCall;
-            let output: unknown = null;
+            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId, signal: abortSignal });
 
-            if (res.ok) {
-                output = res.data.output;
-                toolCost = BigInt(res.data.creditsUsed);
-                entry = { ...fnEntryBase, result: { success: true, output: res.data.output } };
+            if (toolCallResponse.ok) {
+                output = toolCallResponse.data.output;
+                toolCost = BigInt(toolCallResponse.data.creditsUsed);
+                entry = { ...fnEntryBase, result: { success: true, output: toolCallResponse.data.output } };
+                if (conversationId) {
+                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                        chatId: conversationId,
+                        botId: callerBotId,
+                        status: "tool_completed",
+                        toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
+                    });
+                }
             } else {
                 // Synchronous tool call failed
-                output = res.error; // Store the error object as the output for the LLM to see
-                toolCost = res.error.creditsUsed ? BigInt(res.error.creditsUsed) : BigInt(0); // Use cost from error if available
-                entry = { ...fnEntryBase, result: { success: false, error: res.error } };
+                output = toolCallResponse.error; // Store the error object as the output for the LLM to see
+                toolCost = toolCallResponse.error.creditsUsed ? BigInt(toolCallResponse.error.creditsUsed) : BigInt(0); // Use cost from error if available
+                entry = { ...fnEntryBase, result: { success: false, error: toolCallResponse.error } };
+                if (conversationId) {
+                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                        chatId: conversationId,
+                        botId: callerBotId,
+                        status: "tool_failed",
+                        toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
+                    });
+                }
             }
             return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         }
@@ -447,18 +724,114 @@ export class ReasoningEngine {
 
  */
 export class CompletionService {
+    private readonly activeControllers = new Map<string, AbortController>();
+
     /**
      * @param reasoningEngine    Low-level engine for generating responses.
      * @param agentGraph         Strategy for picking responding bots (e.g. direct mentions, OpenAI Swarm).
      * @param conversationStore  Efficient storage and retrieval of conversation state
      * @param messageStore       Efficient storage and retrieval of message state
+     * @param toolRegistry       Tool registry for managing tools and their definitions
      */
     constructor(
         private readonly reasoningEngine: ReasoningEngine,
         private readonly agentGraph: AgentGraph,
         private readonly conversationStore: ConversationStateStore,
         private readonly messageStore: MessageStore,
+        private readonly toolRegistry: ToolRegistry,
     ) { }
+
+    public async getConversationState(conversationId: string): Promise<ConversationState | null> {
+        return this.conversationStore.get(conversationId);
+    }
+
+    public updateConversationConfig(conversationId: string, config: ChatConfigObject): void {
+        this.conversationStore.updateConfig(conversationId, config);
+    }
+
+    /**
+     * Builds the system message for a bot based on its role and the current context.
+     */
+    private async _buildSystemMessage(
+        goal: string,
+        bot: BotParticipant,
+        convoConfig: ChatConfigObject,
+    ): Promise<string> {
+        const appName = "Vrooli";
+        const appDescription = "a polymorphic, collaborative, and self-improving automation platform that helps you stay organized and achieve your goals.";
+        let baseSystemMessage = `Welcome to ${appName}, ${appDescription}.\\n\\n`;
+
+        const botRole = bot.meta?.role || "leader"; // Default to leader if no role
+        const botId = bot.id;
+
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const promptPath = path.join(__dirname, "prompt1.txt"); // Changed to prompt1.txt
+        let roleSpecificTemplate = "";
+
+        // Define the Recruitment Rule as a constant
+        const recruitmentRule = `## Recruitment rule:
+If setting a new goal that spans multiple knowledge domains OR is estimated to exceed 2 hours OR 500 reasoning steps, you MUST add *all* of the following subtasks to the swarm's subtasks via the \`update_swarm_shared_state\` tool BEFORE any domain work:
+
+[
+  { "id":"T1", "description":"Look for a suitable existing team",
+    "status":"todo" },
+  { "id":"T2", "description":"If a team is found, set it as the swarm's team",
+    "status":"todo", "depends_on":["T1"] },
+  { "id":"T3", "description":"If not, create a new team for the task",
+    "status":"todo", "depends_on":["T1"] },
+  { "id":"T4", "description":"{{GOAL}}",
+    "status":"todo", "depends_on":["T2","T3"] }
+]`;
+
+        let roleSpecificInstructions = "Perform tasks according to your role and the overall goal."; // Default
+        if (botRole === "leader" || botRole === "coordinator" || botRole === "delegator") {
+            roleSpecificInstructions = recruitmentRule;
+        }
+
+        // TODO: Eventually, load prompts from a dedicated /prompts/{role}.txt directory or database.
+        // The logic for loading different files based on role is removed for now, as prompt1.txt is the base.
+        // We will handle role-specific content through placeholders like {{ROLE_SPECIFIC_INSTRUCTIONS}}.
+
+        try {
+            logger.info(`Loading base prompt template from: ${promptPath}`);
+            roleSpecificTemplate = await fs.readFile(promptPath, "utf-8");
+        } catch (error) {
+            logger.error(`Failed to load prompt template from ${promptPath}:`, { error });
+            roleSpecificTemplate = "Your primary goal is: {{GOAL}}. Please act according to your role: {{ROLE}}. Critical: Prompt template file not found.";
+        }
+
+        let memberCountLabel = "1 member";
+        if (convoConfig.teamId) {
+            memberCountLabel = "team-based swarm";
+        }
+
+        const builtInToolSchemas = this.toolRegistry.getBuiltInDefinitions();
+        const swarmToolSchemas = this.toolRegistry.getSwarmToolDefinitions();
+        const allToolSchemas = [...builtInToolSchemas, ...swarmToolSchemas];
+
+        let processedPrompt = roleSpecificTemplate;
+        processedPrompt = processedPrompt.replace(/{{GOAL}}/g, goal);
+        processedPrompt = processedPrompt.replace(/{{MEMBER_COUNT_LABEL}}/g, memberCountLabel);
+        processedPrompt = processedPrompt.replace(/{{ISO_EPOCH_SECONDS}}/g, Math.floor(Date.now() / SECONDS_1_MS).toString());
+        processedPrompt = processedPrompt.replace(/{{DISPLAY_DATE}}/g, new Date().toLocaleString());
+        processedPrompt = processedPrompt.replace(/{{ROLE\s*\|\s*upper}}/g, botRole.toUpperCase());
+        processedPrompt = processedPrompt.replace(/{{ROLE}}/g, botRole);
+        processedPrompt = processedPrompt.replace(/{{BOT_ID}}/g, botId);
+        processedPrompt = processedPrompt.replace(/{{ROLE_SPECIFIC_INSTRUCTIONS}}/g, roleSpecificInstructions);
+        const toolSchemasString = allToolSchemas.length > 0 ? JSON.stringify(allToolSchemas, null, 2) : "No tools available for this role.";
+        processedPrompt = processedPrompt.replace(/{{TOOL_SCHEMAS}}/g, toolSchemasString);
+
+        baseSystemMessage += processedPrompt;
+        return baseSystemMessage.trim();
+    }
+
+    /**
+     * Public wrapper for generating a system message for a specific bot.
+     */
+    public async generateSystemMessageForBot(goal: string, bot: BotParticipant, convoConfig: ChatConfigObject): Promise<string> {
+        return this._buildSystemMessage(goal, bot, convoConfig);
+    }
 
     /**
      * Responds to a user or bot message event
@@ -472,7 +845,6 @@ export class CompletionService {
         chatId,
         messageId,
         model,
-        // taskContexts, // TODO: Re-enable once taskContexts are used
         userData,
     }: LLMCompletionTask): Promise<MessageState[]> {
         // Get conversation state
@@ -498,8 +870,7 @@ export class CompletionService {
         }
 
         // Get available tools
-        const availableTools = conversationState.availableTools;
-        const worldModel = conversationState.worldModel;
+        const availableToolsFromState = conversationState.availableTools;
 
         // Determine responders
         const { responders } = await this.agentGraph.selectResponders(conversationState, messageState);
@@ -517,29 +888,55 @@ export class CompletionService {
         const numResponders = responders.length > 0 ? responders.length : 1;
 
         const { toolCallsPerBot: convoAllocatedToolCallsPerBot, creditsPerBot: convoAllocatedCreditsPerBot } = this._calculatePerBotAllocation(
-            conversationState.config.stats, // Already ensured to exist
+            conversationState.config.stats,
             effectiveLimits,
             numResponders,
         );
 
-        // Run reasoning loop for each responder in parallel
-        await Promise.all(responders.map(async (responder) => {
-            const response = await this.reasoningEngine.runLoop(
-                { id: messageId },
-                worldModel,
-                availableTools,
-                responder,
-                creditAccountId,
-                conversationState.config,
-                convoAllocatedToolCallsPerBot,
-                convoAllocatedCreditsPerBot,
-                userData,
-                chatId,
-                model,
-            );
-            results.push(response.finalMessage);
-            allResponseStats.push(response.responseStats);
-        }));
+        const maxTurnDurationMs = effectiveLimits.maxDurationMs;
+        const controller = new AbortController();
+        this.activeControllers.set(chatId, controller);
+        let overallTurnTimeoutId: NodeJS.Timeout | undefined;
+
+        if (maxTurnDurationMs > 0) {
+            overallTurnTimeoutId = setTimeout(() => {
+                logger.info(`Overall turn timeout of ${maxTurnDurationMs}ms reached for chat ${chatId}. Aborting all bot responses for this turn.`);
+                controller.abort("TurnTimeout");
+            }, maxTurnDurationMs);
+        }
+
+        try {
+            await Promise.all(responders.map(async (responder) => {
+                const goal = conversationState.config.goal || "Follow the user's instructions.";
+                const botSystemMessage = await this._buildSystemMessage(goal, responder, conversationState.config);
+
+                const response = await this.reasoningEngine.runLoop(
+                    { id: messageId },
+                    botSystemMessage, // Pass bot-specific system message
+                    availableToolsFromState,
+                    responder,
+                    creditAccountId,
+                    conversationState.config,
+                    convoAllocatedToolCallsPerBot,
+                    convoAllocatedCreditsPerBot,
+                    userData,
+                    chatId,
+                    model,
+                    controller.signal,
+                );
+                results.push(response.finalMessage);
+                allResponseStats.push(response.responseStats);
+            }));
+        } catch (error) {
+            logger.error(`Error during respond for chat ${chatId}. One or more bot turns may have failed.`, { error });
+            // Rethrow to indicate failure of the respond operation to the caller
+            throw error;
+        } finally {
+            if (overallTurnTimeoutId) {
+                clearTimeout(overallTurnTimeoutId);
+            }
+            this.activeControllers.delete(chatId);
+        }
 
         // Store responses by adding each message to cache
         await Promise.all(results.map(m => this.messageStore.addMessage(chatId, m)));
@@ -557,9 +954,8 @@ export class CompletionService {
         conversationState.config.stats.totalCredits = (BigInt(conversationState.config.stats.totalCredits) + totalCreditsInTurn).toString();
         conversationState.config.stats.lastProcessingCycleEndedAt = Date.now();
 
-        // Persist updated stats/limits back to the conversation store
+        // Persist updated stats back to the conversation store
         this.conversationStore.updateConfig(chatId, conversationState.config);
-
         return results;
     }
 
@@ -596,7 +992,7 @@ export class CompletionService {
         return { toolCallsPerBot, creditsPerBot };
     }
 
-    async handleInternalEvent(event: SwarmInternalEvent): Promise<void> {
+    async handleInternalEvent(event: SwarmEvent): Promise<void> {
         const { conversationId, type } = event;
         logger.info(`CompletionService handling internal event: ${type} for convo: ${conversationId}`);
 
@@ -606,11 +1002,13 @@ export class CompletionService {
             throw new Error(`Conversation state not found for ${conversationId}`);
         }
 
-        // Use sessionUser from the event
+        // availableToolsFromState will be used by runLoop
+        const availableToolsFromState = conversationState.availableTools;
+
         const sessionUserToUse = event.sessionUser;
         // Ensure creditAccountId is present and is a non-empty string
         if (!sessionUserToUse || typeof sessionUserToUse.creditAccountId !== "string" || sessionUserToUse.creditAccountId.trim() === "") {
-            const logMessage = `Critical: creditAccountId is missing, not a string, or empty in sessionUser for SwarmInternalEvent. Billing will fail. UserID: ${sessionUserToUse?.id}, ChatID: ${conversationId}`;
+            const logMessage = `Critical: creditAccountId is missing, not a string, or empty in sessionUser for SwarmEvent. Billing will fail. UserID: ${sessionUserToUse?.id}, ChatID: ${conversationId}`;
             logger.error(logMessage);
             throw new Error("User credit account ID is missing, invalid, or empty in swarm event. Cannot proceed.");
         }
@@ -626,136 +1024,186 @@ export class CompletionService {
         const effectiveLimitsEvent = new ChatConfig({ config: conversationState.config }).getEffectiveLimits();
         const currentConvoStats = conversationState.config.stats;
 
-        switch (event.type) {
-            case "swarm_started": {
-                const allResponseStatsSwarmStarted: ResponseStats[] = [];
-                const swarmStartEvent = event as SwarmStartedEvent;
-                const goal = swarmStartEvent.goal;
-                const systemMessageText = `Swarm initiated. Goal: ${goal}.`;
+        const maxTurnDurationMs = effectiveLimitsEvent.maxDurationMs;
+        const controller = new AbortController();
+        this.activeControllers.set(conversationId, controller);
+        let eventTimeoutId: NodeJS.Timeout | undefined;
 
-                const startMessage = { text: systemMessageText };
-
-                const msgCfg = MessageConfig.default();
-                msgCfg.setRole("system");
-                const systemMessageConfigExport = msgCfg.export();
-
-                const syntheticMessageForSelection: MessageState = {
-                    id: generatePK().toString(),
-                    createdAt: new Date(),
-                    config: systemMessageConfigExport, // Use exported config
-                    text: systemMessageText,
-                    language: DEFAULT_LANGUAGE,
-                    parent: null,
-                    user: { id: sessionUserToUse.id }, // Use the id from sessionUserToUse
-                } as MessageState;
-
-                const { responders } = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection);
-
-                if (!responders || responders.length === 0) {
-                    logger.warn(`No responders found for swarm_started in convo ${conversationId}`);
-                    return;
-                }
-
-                const swarmResponders = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection).then(r => r.responders); // Re-fetch or pass responders
-                const numSwarmResponders = swarmResponders.length > 0 ? swarmResponders.length : 1;
-
-                const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
-                    currentConvoStats,
-                    effectiveLimitsEvent,
-                    numSwarmResponders,
-                );
-
-                await Promise.all(swarmResponders.map(async (responder) => { // Use swarmResponders
-                    const response = await this.reasoningEngine.runLoop(
-                        startMessage,
-                        conversationState.worldModel,
-                        conversationState.availableTools,
-                        responder,
-                        creditAccountId,
-                        conversationState.config,
-                        convoAllocatedToolCallsPerBotEvent,
-                        convoAllocatedCreditsPerBotEvent,
-                        sessionUserToUse,
-                        conversationId,
-                    );
-                    results.push(response.finalMessage);
-                    allResponseStatsSwarmStarted.push(response.responseStats);
-                }));
-                currentResponseStats = allResponseStatsSwarmStarted;
-                break;
-            }
-            case "external_message_created": {
-                if (!event.payload || !event.payload.messageId) {
-                    logger.error("external_message_created event missing messageId in payload", { event });
-                    return;
-                }
-                const { messageId } = event.payload;
-                const messageState = await this.messageStore.getMessage(messageId);
-                if (!messageState) {
-                    logger.error(`Message ${messageId} not found for external_message_created in ${conversationId}`);
-                    return;
-                }
-                const allResponseStatsExternal: ResponseStats[] = [];
-                const msgResponders = await this.agentGraph.selectResponders(conversationState, messageState).then(r => r.responders);
-
-                if (!msgResponders || msgResponders.length === 0) {
-                    logger.warn(`No responders found for external_message_created in convo ${conversationId}`, { messageId });
-                    // currentResponseStats will remain empty, handled later
-                    return; // Return early as no responders means no further processing needed for this case.
-                }
-
-                const numMsgResponders = msgResponders.length > 0 ? msgResponders.length : 1;
-
-                const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
-                    currentConvoStats,
-                    effectiveLimitsEvent,
-                    numMsgResponders,
-                );
-
-                await Promise.all(msgResponders.map(async (responder) => {
-                    const response = await this.reasoningEngine.runLoop(
-                        { id: messageId },
-                        conversationState.worldModel,
-                        conversationState.availableTools,
-                        responder,
-                        creditAccountId,
-                        conversationState.config,
-                        convoAllocatedToolCallsPerBotEvent,
-                        convoAllocatedCreditsPerBotEvent,
-                        sessionUserToUse,
-                        conversationId,
-                    );
-                    results.push(response.finalMessage);
-                    allResponseStatsExternal.push(response.responseStats);
-                }));
-                currentResponseStats = allResponseStatsExternal;
-                break;
-            }
-            default: {
-                logger.warn(`Unhandled SwarmInternalEvent type: ${event.type} in convo ${conversationId}`);
-                return;
-            }
+        if (maxTurnDurationMs > 0) {
+            eventTimeoutId = setTimeout(() => {
+                logger.info(`Internal event processing timeout of ${maxTurnDurationMs}ms reached for conversation ${conversationId}, event type ${event.type}. Aborting.`);
+                controller.abort("TurnTimeout");
+            }, maxTurnDurationMs);
         }
 
-        if (results.length > 0) {
-            await Promise.all(results.map(m => this.messageStore.addMessage(conversationId, m)));
+        try {
+            const goalForEvent = conversationState.config.goal || "Process current event."; // Default goal for events
 
-            // Aggregate stats from all responses for the handled event
-            let totalToolCallsInEvent = 0;
-            let totalCreditsInEvent = BigInt(0);
-            for (const stats of currentResponseStats) {
-                totalToolCallsInEvent += stats.toolCalls;
-                totalCreditsInEvent += stats.creditsUsed;
+            switch (event.type) {
+                case "swarm_started": {
+                    const allResponseStatsSwarmStarted: ResponseStats[] = [];
+                    const swarmStartEvent = event as SwarmStartedEvent;
+                    // Goal for swarm_started is more specific from the event itself
+                    const specificGoal = swarmStartEvent.goal || goalForEvent;
+                    const systemMessageText = `Swarm initiated. Goal: ${specificGoal}.`; // This text is for the synthetic message for selection
+
+                    const startMessage = { text: systemMessageText }; // This is the initial message for the LLM if it were text-based
+
+                    const msgCfg = MessageConfig.default();
+                    msgCfg.setRole("system");
+                    const systemMessageConfigExport = msgCfg.export();
+
+                    const syntheticMessageForSelection: MessageState = {
+                        id: generatePK().toString(),
+                        createdAt: new Date(),
+                        config: systemMessageConfigExport,
+                        text: systemMessageText,
+                        language: DEFAULT_LANGUAGE,
+                        parent: null,
+                        user: { id: sessionUserToUse.id },
+                    } as MessageState;
+
+                    const { responders } = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection);
+
+                    if (!responders || responders.length === 0) {
+                        logger.warn(`No responders found for swarm_started in convo ${conversationId}`);
+                        return;
+                    }
+
+                    const numSwarmResponders = responders.length > 0 ? responders.length : 1;
+                    const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
+                        currentConvoStats,
+                        effectiveLimitsEvent,
+                        numSwarmResponders,
+                    );
+
+                    await Promise.all(responders.map(async (responder) => {
+                        const botSystemMessage = await this._buildSystemMessage(specificGoal, responder, conversationState.config);
+                        const response = await this.reasoningEngine.runLoop(
+                            startMessage, // This is {text: ...}, so ReasoningEngine will wrap it
+                            botSystemMessage,
+                            availableToolsFromState,
+                            responder,
+                            creditAccountId,
+                            conversationState.config,
+                            convoAllocatedToolCallsPerBotEvent,
+                            convoAllocatedCreditsPerBotEvent,
+                            event.sessionUser,
+                            conversationId,
+                            undefined, // model for swarm_started can be default
+                            controller.signal,
+                        );
+                        results.push(response.finalMessage);
+                        allResponseStatsSwarmStarted.push(response.responseStats);
+                    }));
+                    currentResponseStats = allResponseStatsSwarmStarted;
+                    break;
+                }
+                case "external_message_created": {
+                    if (!event.payload || !event.payload.messageId) {
+                        logger.error("external_message_created event missing messageId in payload", { event });
+                        return;
+                    }
+                    const { messageId } = event.payload;
+                    const messageState = await this.messageStore.getMessage(messageId);
+                    if (!messageState) {
+                        logger.error(`Message ${messageId} not found for external_message_created in ${conversationId}`);
+                        return;
+                    }
+                    const allResponseStatsExternal: ResponseStats[] = [];
+                    const { responders } = await this.agentGraph.selectResponders(conversationState, messageState);
+
+                    if (!responders || responders.length === 0) {
+                        logger.warn(`No responders found for external_message_created in convo ${conversationId}`, { messageId });
+                        return;
+                    }
+
+                    const numMsgResponders = responders.length > 0 ? responders.length : 1;
+                    const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
+                        currentConvoStats,
+                        effectiveLimitsEvent,
+                        numMsgResponders,
+                    );
+
+                    await Promise.all(responders.map(async (responder) => {
+                        const botSystemMessage = await this._buildSystemMessage(goalForEvent, responder, conversationState.config);
+                        const response = await this.reasoningEngine.runLoop(
+                            { id: messageId }, // Start from the actual message ID
+                            botSystemMessage,
+                            availableToolsFromState,
+                            responder,
+                            creditAccountId,
+                            conversationState.config,
+                            convoAllocatedToolCallsPerBotEvent,
+                            convoAllocatedCreditsPerBotEvent,
+                            event.sessionUser,
+                            conversationId,
+                            undefined, // Should probably add way to pass in model override here
+                            controller.signal,
+                        );
+                        results.push(response.finalMessage);
+                        allResponseStatsExternal.push(response.responseStats);
+                    }));
+                    currentResponseStats = allResponseStatsExternal;
+                    break;
+                }
+                default: {
+                    logger.warn(`Unhandled SwarmEvent type: ${event.type} in convo ${conversationId}`);
+                    // Clear timeout if we return early for an unhandled event type.
+                    if (eventTimeoutId) {
+                        clearTimeout(eventTimeoutId);
+                    }
+                    return;
+                }
             }
 
-            // Update conversation-level stats
-            conversationState.config.stats.totalToolCalls += totalToolCallsInEvent;
-            conversationState.config.stats.totalCredits = (BigInt(conversationState.config.stats.totalCredits) + totalCreditsInEvent).toString();
-            conversationState.config.stats.lastProcessingCycleEndedAt = Date.now(); // Or a more event-specific timestamp if needed
+            if (results.length > 0) {
+                await Promise.all(results.map(m => this.messageStore.addMessage(conversationId, m)));
 
-            // Persist updated stats back to the conversation store
-            this.conversationStore.updateConfig(conversationId, conversationState.config);
-            // TODO: Consider emitting events that these responses were created (e.g., via this.bus)
+                // Aggregate stats from all responses for the handled event
+                let totalToolCallsInEvent = 0;
+                let totalCreditsInEvent = BigInt(0);
+                for (const stats of currentResponseStats) {
+                    totalToolCallsInEvent += stats.toolCalls;
+                    totalCreditsInEvent += stats.creditsUsed;
+                }
+
+                // Update conversation-level stats
+                conversationState.config.stats.totalToolCalls += totalToolCallsInEvent;
+                conversationState.config.stats.totalCredits = (BigInt(conversationState.config.stats.totalCredits) + totalCreditsInEvent).toString();
+                conversationState.config.stats.lastProcessingCycleEndedAt = Date.now();
+
+                // Persist updated stats back to the conversation store
+                this.conversationStore.updateConfig(conversationId, conversationState.config);
+                // TODO: Consider emitting events that these responses were created (e.g., via this.bus)
+            }
+        } catch (error) {
+            logger.error(`Error during handleInternalEvent for convo ${conversationId}, event ${event.type}`, { error });
+            // Rethrow to indicate failure of the handleInternalEvent operation to the caller
+            throw error;
+        } finally {
+            if (eventTimeoutId) {
+                clearTimeout(eventTimeoutId);
+            }
+            this.activeControllers.delete(conversationId); // Remove controller on completion or error
+        }
+    }
+
+    /**
+     * Attempts to cancel an ongoing response generation for a given chat ID.
+     * @param chatId The ID of the chat for which to cancel the response.
+     */
+    public requestCancellation(chatId: string): void {
+        const controller = this.activeControllers.get(chatId);
+        if (controller) {
+            logger.info(`Cancellation requested for chatId: ${chatId}. Aborting controller.`);
+            controller.abort();
+            // The AbortSignal being observed by ReasoningEngine.runLoop will handle the rest.
+            // We can delete from activeControllers here, or let the finally block in runLoop invocation do it.
+            // Deleting here ensures it's promptly removed if the loop is already finished or stuck before checking signal.
+            this.activeControllers.delete(chatId);
+        } else {
+            logger.warn(`No active AbortController found for chatId: ${chatId} to cancel.`);
         }
     }
 }
@@ -782,18 +1230,20 @@ type State = (typeof SwarmStateMachine.State)[keyof typeof SwarmStateMachine.Sta
  *
  * Lifecycle States:
  *   1. **UNINITIALIZED** – no swarm context created yet
- *   2. **ACTIVE**        – processing events / generating sub‑goals
- *   3. **IDLE**          – nothing queued; awaiting new stimuli
+ *   2. **STARTING**      – preparing to start
+ *   3. **RUNNING**       – processing events / generating sub‑goals
  *   4. **PAUSED**        – paused by user / system
- *   5. **FAILED**        – unrecoverable error
- *   6. **TERMINATED**    – shut down; resources released
+ *   5. **STOPPED**       – stopped by user
+ *   6. **FAILED**        – unrecoverable error
+ *   7. **TERMINATED**    – shut down; resources released
  *
  * Transitions:
- *   • UNINITIALIZED → ACTIVE  on start()
- *   • ACTIVE ↔ IDLE           as queue fills / drains
- *   • ACTIVE ↔ PAUSED         on pause/resume
- *   • * → FAILED              on fatal error
- *   • * → TERMINATED          on shutdown()
+ *   • UNINITIALIZED → STARTING  on start()
+ *   • STARTING → RUNNING        on start()
+ *   • RUNNING ↔ PAUSED          on pause/resume
+ *   • RUNNING → STOPPED         on stop()
+ *   • * → FAILED                on fatal error
+ *   • * → TERMINATED            on shutdown()
  *
  * Responsibilities:
  *   • Maintain shared conversation context (sub‑goals, outcomes)
@@ -805,91 +1255,99 @@ type State = (typeof SwarmStateMachine.State)[keyof typeof SwarmStateMachine.Sta
  */
 export class SwarmStateMachine {
     private disposed = false;
-
-    /** Swarm lifecycle stages */
+    private processingLock = false;
     static State = {
         UNINITIALIZED: "UNINITIALIZED",
-        ACTIVE: "ACTIVE",
+        STARTING: "STARTING",
+        RUNNING: "RUNNING",
         IDLE: "IDLE",
         PAUSED: "PAUSED",
+        STOPPED: "STOPPED",
         FAILED: "FAILED",
         TERMINATED: "TERMINATED",
     } as const;
-
-    // ── Constructor & private fields ───────────────────────────────────
     private state: State = SwarmStateMachine.State.UNINITIALIZED;
-    private readonly eventQueue: SwarmInternalEvent[] = [];
-    private worldModel: WorldModel | null = null;
+    private readonly eventQueue: SwarmEvent[] = [];
 
     constructor(
         private readonly completion: CompletionService,
-    ) {
-        // SwarmStateMachine will now rely on explicit handleEvent calls
-        // or internal event generation.
-    }
+    ) { }
 
-    // ── World‑model helper ------------------------------------------------------
-    /**
-     * Generates the system prompt / world‑model seed inserted into the
-     * conversation when the swarm starts.  Agents are briefed on:
-     *   • Mission and high‑level goal
-     *   • Shared‑chat etiquette & how to decide communication style
-     *   • Available tools (routines, built‑ins) & when to delegate to them
-     */
-    private buildWorldModel(goal: string): WorldModel {
-        const config = new WorldModel({ goal });
-        config.updateConfig({
-            systemMessage: `
-    # 🐝 Swarm Configuration
-
-    # 🔖 Shared-state Etiquette
-    1. Maintain a lightweight **conversation-state JSON block** at the top of the thread.  
-       – Send a message in the form \`{{state:update}} {...}\` whenever you mutate it.  
-    2. Keep your own turns short; DO NOT dump large data blobs.  
-       – Persist artifacts with \`resource_manage(op="add")\` and post a link/reference instead.
-    
-    # 🗂️ Organising Work
-    • **Elect (and rotate) a facilitator** if coordination slows down.  
-    • Break the mission into explicit *sub-goals* and track them in the state blob.  
-    • If a sub-goal is complex or parallelisable, OFFLOAD IT:  
-      → call **run_routine(op="start")** with \`mode="async"\`.
-    
-    # 🧰 Tooling Cheatsheet
-    • \`define_tool\`   → ask the server for the full JSON schema of any tool.  
-    • \`send_message\`  → chat or publish events between agents.  
-    • \`resource_manage\` → CRUD for notes, prompts, routines, etc.  
-    • **run_routine**  → your main lever for branching, retries, heavy lifting.
-    
-    Respond briefly, update the shared state often, and prefer routines over monolithic chat threads.
-            `.trim(),
-        });
-        return config;
-    }
-
-    // ── Lifecycle control -------------------------------------------------------
     async start(convoId: string, goal: string, initiatingUser: SessionUser): Promise<void> {
-        if (this.state !== SwarmStateMachine.State.UNINITIALIZED) return;
-        try {
-            // Inject world‑model as a system message (stub – real impl via MessageStore)
-            const systemPrompt = this.buildWorldModel(goal);
-            logger.info("Starting swarm", { conversationId: convoId, goal, systemPrompt: systemPrompt.getConfig().systemMessage });
-            // TODO: persist systemPrompt in conversation state/messageStore if it should be a visible message
-
-            this.state = SwarmStateMachine.State.ACTIVE;
-            // Kick off arbitrator / first agent via completion
-            const startEvent: SwarmStartedEvent = {
-                type: "swarm_started",
-                conversationId: convoId,
-                goal,
-                sessionUser: initiatingUser,
-            };
-            await this.completion.handleInternalEvent(startEvent);
-        } catch (err) {
-            this.fail(err);
+        if (this.state !== SwarmStateMachine.State.UNINITIALIZED) {
+            logger.warn(`SwarmStateMachine for ${convoId} already started. Current state: ${this.state}`);
+            return;
         }
+        this.state = SwarmStateMachine.State.STARTING;
+        logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}"`);
+
+        const convoState = await this.completion.getConversationState(convoId);
+        if (!convoState) {
+            logger.error(`Failed to load ConversationState for ${convoId} in SwarmStateMachine.start`);
+            this.state = SwarmStateMachine.State.FAILED;
+            return;
+        }
+
+        let leaderBotParticipant: BotParticipant | undefined;
+        const configuredLeaderId = convoState.config.swarmLeader;
+
+        if (configuredLeaderId) {
+            leaderBotParticipant = convoState.participants.find(p => p.id === configuredLeaderId);
+            if (!leaderBotParticipant) {
+                logger.warn(`Configured swarmLeader ID '${configuredLeaderId}' not found in participants for convo ${convoId}. Creating placeholder for initial system message.`);
+                const placeholderBotConfig: BotConfigObject = { __version: "1.0", model: "default" };
+                leaderBotParticipant = {
+                    id: configuredLeaderId, // Use the configured ID
+                    name: "Leader (Placeholder)",
+                    config: placeholderBotConfig,
+                    meta: { role: "leader" },
+                };
+            }
+        } else if (convoState.participants.length > 0) {
+            leaderBotParticipant = { ...convoState.participants[0] }; // Shallow copy to avoid modifying original participant's meta directly
+            // Ensure meta exists before assigning role
+            leaderBotParticipant.meta = { ...leaderBotParticipant.meta, role: "leader" };
+            logger.warn(`No swarmLeader configured for convo ${convoId}. Using first participant '${leaderBotParticipant.id}' as fallback leader for initial system message.`);
+        } else {
+            logger.error(`CRITICAL: No swarmLeader configured and no participants found for convo ${convoId}. Swarm may not function correctly. Creating a temporary placeholder leader for system message generation.`);
+            const placeholderBotConfig: BotConfigObject = { __version: "1.0", model: "default" };
+            leaderBotParticipant = {
+                id: generatePK().toString(), // Last resort: generate a temporary ID
+                name: "Leader (Emergency Placeholder)",
+                config: placeholderBotConfig,
+                meta: { role: "leader" },
+            };
+        }
+
+        const systemMessageString = await this.completion.generateSystemMessageForBot(
+            goal,
+            leaderBotParticipant,
+            convoState.config,
+        );
+
+        convoState.initialLeaderSystemMessage = systemMessageString;
+
+        const configToUpdate = convoState.config;
+        configToUpdate.goal = goal;
+        configToUpdate.subtasks = configToUpdate.subtasks ?? [];
+        configToUpdate.blackboard = configToUpdate.blackboard ?? [];
+        configToUpdate.resources = configToUpdate.resources ?? [];
+        configToUpdate.stats = configToUpdate.stats ?? ChatConfig.defaultStats();
+
+        this.completion.updateConversationConfig(convoId, configToUpdate);
+        logger.info(`Updated and persisted ChatConfigObject for swarm ${convoId} with initial goal, system message, and ensured swarm fields.`);
+
+        const startEvent: SwarmStartedEvent = {
+            type: "swarm_started",
+            conversationId: convoId,
+            goal,
+            sessionUser: initiatingUser,
+        };
+        await this.handleEvent(startEvent);
+        this.state = SwarmStateMachine.State.IDLE;
     }
 
-    async handleEvent(ev: SwarmInternalEvent): Promise<void> {
+    async handleEvent(ev: SwarmEvent): Promise<void> {
         if (this.state === SwarmStateMachine.State.TERMINATED) return;
         this.eventQueue.push(ev);
         if (this.state === SwarmStateMachine.State.IDLE && ev.conversationId) {
@@ -898,61 +1356,57 @@ export class SwarmStateMachine {
     }
 
     private async drain(convoId: string) {
-        if (this.state === SwarmStateMachine.State.PAUSED) return;
-        if (this.eventQueue.length === 0) { // Check if queue is empty before setting to active
+        if (this.state === SwarmStateMachine.State.PAUSED || this.state === SwarmStateMachine.State.TERMINATED || this.state === SwarmStateMachine.State.FAILED) {
+            logger.info(`Drain called in state ${this.state}, not processing queue for ${convoId}.`);
+            return;
+        }
+        if (this.processingLock) {
+            logger.info(`Drain already in progress for ${convoId}, skipping.`);
+            return;
+        }
+
+        this.processingLock = true;
+        this.state = SwarmStateMachine.State.RUNNING;
+
+        if (this.eventQueue.length === 0) {
             this.state = SwarmStateMachine.State.IDLE;
             return;
         }
-        this.state = SwarmStateMachine.State.ACTIVE;
-        // Process only one event per drain call to prevent re-entrancy issues if handleInternalEvent is slow
-        // or if it itself queues more events.
-        // For a full drain loop, a while loop would be here, but that can lead to very long event loop blocking.
-        // A more robust solution might involve setImmediate or a microtask queue for sequential processing without blocking.
-        // For now, processing one and then relying on subsequent triggers to call drain again.
-        if (this.eventQueue.length > 0) {
-            const ev = this.eventQueue.shift()!;
-            if (ev.conversationId !== convoId) {
-                logger.warn("Swarm drain called with convoId mismatch", { expected: convoId, actual: ev.conversationId });
-                // Re-queue or handle error? For now, re-queue and log.
-                this.eventQueue.unshift(ev);
-                this.state = SwarmStateMachine.State.IDLE; // Reset state
-                return;
-            }
-            try {
-                await this.completion.handleInternalEvent(ev);
-            } catch (error) {
-                logger.error("Error processing event in SwarmStateMachine drain", { error, event: ev });
-                // Decide on error handling: fail the swarm, retry the event, or ignore?
-                // For now, log and continue to set IDLE if queue empty.
-            }
+        const ev = this.eventQueue.shift()!;
+        if (ev.conversationId !== convoId) {
+            logger.warn("Swarm drain called with convoId mismatch", { expected: convoId, actual: ev.conversationId });
+            this.eventQueue.unshift(ev);
+            this.state = SwarmStateMachine.State.IDLE;
+            return;
+        }
+        try {
+            await this.completion.handleInternalEvent(ev);
+        } catch (error) {
+            logger.error("Error processing event in SwarmStateMachine drain", { error, event: ev });
         }
 
         if (this.eventQueue.length === 0) {
             this.state = SwarmStateMachine.State.IDLE;
         } else {
-            // If there are more events, schedule another drain to continue processing without blocking.
-            // This avoids a deep recursion or a long-running while loop.
-            // Note: This assumes `drain` can be called again safely.
-            // Using setImmediate to yield to the event loop before continuing.
             setImmediate(() => this.drain(convoId).catch(err => logger.error("Error in scheduled subsequent drain", { error: err, conversationId: convoId })));
         }
     }
 
     async pause(): Promise<void> {
-        if (this.state === SwarmStateMachine.State.ACTIVE || this.state === SwarmStateMachine.State.IDLE) {
+        if (this.state === SwarmStateMachine.State.RUNNING || this.state === SwarmStateMachine.State.IDLE) {
             this.state = SwarmStateMachine.State.PAUSED;
         }
     }
 
     async resume(convoId: string): Promise<void> {
         if (this.state === SwarmStateMachine.State.PAUSED) {
-            this.state = SwarmStateMachine.State.IDLE; // mark idle so drain() sets to ACTIVE if queue has items
+            this.state = SwarmStateMachine.State.IDLE;
             await this.drain(convoId);
         }
     }
 
     async shutdown(): Promise<void> {
-        this.disposed = true; // Mark as disposed first
+        this.disposed = true;
         this.eventQueue.length = 0;
         this.state = SwarmStateMachine.State.TERMINATED;
         logger.info("SwarmStateMachine shutdown complete.");
@@ -961,7 +1415,6 @@ export class SwarmStateMachine {
     private fail(err: unknown) {
         logger.error("Swarm failure", { error: err });
         this.state = SwarmStateMachine.State.FAILED;
-        // Optionally, perform cleanup or notify other services
     }
 }
 
@@ -973,9 +1426,17 @@ export const conversationStateStore = new CachedConversationStateStore(prismaCha
 export const messageStore = new RedisMessageStore(); // Export if used directly elsewhere
 
 const contextBuilder = new RedisContextBuilder();
-const toolRunner = new CompositeToolRunner();
+
+// Instantiate Tool Runners and their dependencies
+const swarmTools = new SwarmTools(logger, conversationStateStore);
+const mcpToolRunner = new McpToolRunner(logger, swarmTools);
+const toolRunner = new CompositeToolRunner(mcpToolRunner);
+
 const agentGraphInstance = new CompositeGraph();
 const llmRouter = new FallbackRouter();
+
+// Instantiate ToolRegistry
+const toolRegistry = new ToolRegistry(logger);
 
 // Instantiate core engines/services
 const reasoningEngine = new ReasoningEngine(
@@ -987,8 +1448,9 @@ const reasoningEngine = new ReasoningEngine(
 export const completionService = new CompletionService(
     reasoningEngine,
     agentGraphInstance,
-    conversationStateStore, // Use the wrapped CachedConversationStateStore instance
+    conversationStateStore,
     messageStore,
+    toolRegistry,
 );
 
 // SwarmStateMachine class definition must come before this instantiation

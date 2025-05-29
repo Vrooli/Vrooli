@@ -6,7 +6,6 @@ import { DbProvider } from "../../db/provider.js";
 import { ChatContextCache, TokenCounter } from "./messageStore.js";
 import { AIServiceRegistry } from "./registry.js";
 import type { BotParticipant, MessageState } from "./types.js";
-import { type WorldModel } from "./worldModel.js";
 
 /**
  * Represents a single message entry in the per-chat history map.
@@ -70,8 +69,8 @@ export abstract class ContextBuilder {
         options: {
             /** OpenAI-format tool schemas to reserve tokens for. */
             tools: OpenAI.Responses.Tool[];
-            /** World model instance to reserve and later pass along. */
-            world: WorldModel;
+            /** The system message string. */
+            systemMessage: string;
         },
     ): Promise<ContextBuildResult>;
 }
@@ -89,7 +88,7 @@ export class RedisContextBuilder extends ContextBuilder {
         bot: BotParticipant,
         aiModel: string,
         startMessageId: string | undefined,
-        options: { tools: OpenAI.Responses.Tool[]; world: WorldModel },
+        options: { tools: OpenAI.Responses.Tool[]; systemMessage: string },
     ): Promise<ContextBuildResult> {
         const cache = ChatContextCache.get();
 
@@ -101,10 +100,10 @@ export class RedisContextBuilder extends ContextBuilder {
         const totalWindow = service.getContextSize(aiModel);
         const tokenCounter = new TokenCounter(service, aiModel);
 
-        // Reserve tokens for the world-model system prompt
-        const serializedWorld = options.world.serialize();
-        const worldEstimate = service.estimateTokens({ aiModel, text: serializedWorld });
-        const worldTokens = worldEstimate.tokens;
+        // Reserve tokens for the system prompt
+        const systemPromptString = options.systemMessage;
+        const systemPromptEstimate = service.estimateTokens({ aiModel, text: systemPromptString });
+        const systemPromptTokens = systemPromptEstimate.tokens;
 
         // Reserve tokens for the tool schemas definitions
         const toolsJson = JSON.stringify(options.tools);
@@ -112,7 +111,7 @@ export class RedisContextBuilder extends ContextBuilder {
         const toolTokens = toolsEstimate.tokens;
 
         // Effective budget for history messages
-        const budget = totalWindow - (worldTokens + toolTokens);
+        const budget = totalWindow - (systemPromptTokens + toolTokens);
 
         // 1️⃣ Load or initialize history map
         let map: HistoryMap | null = await cache.getHistoryMap(chatId);

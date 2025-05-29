@@ -3,15 +3,15 @@ import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
-import { EmbeddingService } from "../../services/embedding.js";
+import { conversationStateStore } from "../../services/conversation/responseEngine.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { BranchInfoLoader, ChatPreBranchInfo, MessageTree } from "../../utils/messageTree.js";
+import { BranchInfoLoader, type ChatPreBranchInfo, MessageTree } from "../../utils/messageTree.js";
 import { preShapeEmbeddableTranslatable } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ChatFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
-import { ChatModelInfo, ChatModelLogic } from "./types.js";
+import { type ChatModelInfo, type ChatModelLogic } from "./types.js";
 
 /**
  * All pre-map data that should be collected for a chat transaction.
@@ -43,16 +43,6 @@ export const ChatModel: ChatModelLogic = ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: ({ translations }, languages) => getTranslation({ translations }, languages).name ?? "",
-        },
-        embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } }),
-            get: ({ translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
-                return EmbeddingService.getEmbeddableString({
-                    description: trans.description,
-                    name: trans.name,
-                }, languages?.[0]);
-            },
         },
     }),
     format: ChatFormat,
@@ -166,9 +156,25 @@ export const ChatModel: ChatModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async ({ createdIds, userData }) => {
-                //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
-                // UI for speed), allow the bot to send a message to the chat
+            afterMutations: async ({ createdIds, updatedIds, deletedIds, userData: _userData }) => {
+                // Standard trigger logic (notifications, etc.) should remain here.
+
+                // Invalidate ConversationState cache for all affected chats
+                const allAffectedChatIds = [
+                    ...createdIds,
+                    ...updatedIds,
+                    ...deletedIds,
+                ];
+
+                for (const chatId of allAffectedChatIds) {
+                    if (chatId) {
+                        try {
+                            await conversationStateStore.invalidateDistributed(chatId.toString());
+                        } catch (error) {
+                            console.error(`Failed to invalidate ConversationState cache for chat ${chatId}`, { error });
+                        }
+                    }
+                }
             },
         },
         yup: chatValidation,
@@ -213,7 +219,7 @@ export const ChatModel: ChatModelLogic = ({
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
             const isInvited = validatePK(userId) && data.invites?.some((i) => i.userId.toString() === userId && i.status === ChatInviteStatus.Pending);
-            const isParticipant = validatePK(userId) && data.participants?.some((p) => p.user?.id.toString() === userId);
+            const isParticipant = validatePK(userId) && data.participants?.some((p) => (p.userId ?? (p as unknown as { user: { id: bigint } }).user?.id ?? "").toString() === userId);
             return {
                 ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
                 canInvite: () => isLoggedIn && isAdmin,
