@@ -1,16 +1,20 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, DAYS_180_MS, DAYS_1_S, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
-import { PrismaPromise } from "@prisma/client";
-import express, { Express, Request, Response } from "express";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, type CheckCreditsPaymentParams, type CheckCreditsPaymentResponse, type CheckSubscriptionParams, type CheckSubscriptionResponse, type CheckoutSessionMetadata, type CreateCheckoutSessionParams, type CreateCheckoutSessionResponse, type CreatePortalSessionParams, DAYS_180_MS, DAYS_1_S, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, type SubscriptionPricesResponse, generatePK } from "@local/shared";
+import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
+import express, { type Express, type Request, type Response } from "express";
 import Stripe from "stripe";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
-import { withRedis } from "../redisConn.js";
+import { CacheService } from "../redisConn.js";
 import { UI_URL } from "../server.js";
 import { SocketService } from "../sockets/io.js";
-import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue.js";
+import { AUTH_EMAIL_TEMPLATES } from "../tasks/email/queue.js";
+import { QueueService } from "../tasks/queues.js";
 import { ResponseService } from "../utils/response.js";
 
 const STORED_PRICE_EXPIRATION = DAYS_1_S;
+
+// Max number of Stripe sessions to fetch when checking for missed credits (avoid magic numbers)
+const MAX_CREDIT_SESSIONS_TO_CHECK = 250;
 
 type EventHandlerArgs = {
     event: Stripe.Event,
@@ -87,17 +91,17 @@ export function getCustomerId(customer: string | Stripe.Customer | Stripe.Delete
 
 /** 
  * Simplifies the return logic for Stripe event handlers, by handling 
- * logging, setting res.status, and returning a message.
+ * logging only. Note: HandlerResult's status and optional message are used by the webhook wrapper to send the HTTP response.
  * @param status HTTP status code
- * @param res Express response object
- * @param message Message to return
- * @param trace Trace to log
+ * @param _res Express response object (unused)
+ * @param message Message to return in the response body
+ * @param trace Trace to log for errors
  * @param ...args Additional arguments to log
- * @returns Object with status and message
+ * @returns Object with status and message for final response
  */
 export function handlerResult(
     status: HttpStatus,
-    res: Response,
+    _res: Response,
     message?: string,
     trace?: string,
     ...args: unknown[]
@@ -105,7 +109,7 @@ export function handlerResult(
     if (status !== HttpStatus.Ok) {
         logger.error(message ?? "Stripe handler error", { trace: trace ?? "0523", ...args });
     }
-    res.status(status).send(message);
+    // Return the result without directly sending the response
     return { status, message };
 }
 
@@ -113,15 +117,9 @@ export function handlerResult(
  * Stores a price in redis for a given payment type
  */
 export async function storePrice(paymentType: PaymentType, price: number): Promise<void> {
-    await withRedis({
-        process: async (redisClient) => {
-            if (!redisClient) return;
-            const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
-            await redisClient.set(key, price);
-            await redisClient.expire(key, STORED_PRICE_EXPIRATION);
-        },
-        trace: "0517",
-    });
+    const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
+    // Store price in Redis via CacheService with expiration TTL
+    await CacheService.get().set(key, price, STORED_PRICE_EXPIRATION);
 }
 
 /**
@@ -129,25 +127,14 @@ export async function storePrice(paymentType: PaymentType, price: number): Promi
  * or null if the price is not found
  */
 export async function fetchPriceFromRedis(paymentType: PaymentType): Promise<number | null> {
-    let result: number | null = null;
-    await withRedis({
-        process: async (redisClient) => {
-            if (!redisClient) return;
-            const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
-            const price = await redisClient.get(key);
-
-            // Redis returns values as strings, so we need to convert to a number
-            if (price !== null) {
-                const numPrice = Number(price);
-                // Check if it's a valid number and not negative
-                if (!isNaN(numPrice) && numPrice >= 0) {
-                    result = numPrice;
-                }
-            }
-        },
-        trace: "0185",
-    });
-    return result;
+    const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
+    // Retrieve price from Redis via CacheService
+    const price = await CacheService.get().get<number>(key);
+    // Ensure valid non-negative number
+    if (typeof price === "number" && !isNaN(price) && price >= 0) {
+        return price;
+    }
+    return null;
 }
 
 /**
@@ -163,19 +150,24 @@ export function isInCorrectEnvironment(object: { livemode: boolean }): boolean {
 /** @returns True if the Stripe session should be counted as rewarding a subscription */
 export function isValidSubscriptionSession(session: Stripe.Checkout.Session, userId: string): boolean {
     const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
-    return [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(paymentType) // Is a payment type we recognize
-        && sessionUserId === userId // Was initiated by this user
-        && session.status === "complete" // Was completed
+    // A valid subscription session must be of a recognized tier, initiated by this user,
+    // have successful payment, and be in the correct environment.
+    // Use payment_status to capture both synchronous and asynchronous completions.
+    return [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(paymentType)
+        && sessionUserId === userId
+        && (session.payment_status === "paid" || session.status === "complete")
         && isInCorrectEnvironment(session);
 }
 
 /** @returns True if the Stripe session should be counted as rewarding credits */
 export function isValidCreditsPurchaseSession(session: Stripe.Checkout.Session, userId: string): boolean {
     const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
-    return paymentType === PaymentType.Credits // Is a credit purchase
-        && sessionUserId === userId // Was initiated by this user
-        && session.status === "complete" // Was completed
-        && isInCorrectEnvironment(session); // Is in the correct environment (optional, depending on your setup)
+    // A valid credit purchase session must be for credits, initiated by this user,
+    // have successful payment, and be in the correct environment.
+    return paymentType === PaymentType.Credits
+        && sessionUserId === userId
+        && (session.payment_status === "paid" || session.status === "complete")
+        && isInCorrectEnvironment(session);
 }
 
 type GetVerifiedSubscriptionInfoResult = {
@@ -270,13 +262,12 @@ export async function getVerifiedCustomerInfo({
         return result;
     }
     // Find the user in the database
-    console.log("qqqqqq in getVerifiedCustomerInfo", process.env.DB_TYPE, DbProvider.get());
     const user = await DbProvider.get().user.findUnique({
-        where: { id: userId },
+        where: { id: BigInt(userId) },
         select: {
             id: true,
             emails: { select: { emailAddress: true } },
-            premium: { select: { enabledAt: true } },
+            plan: { select: { enabledAt: true, expiresAt: true } },
             stripeCustomerId: true,
         },
     });
@@ -285,17 +276,24 @@ export async function getVerifiedCustomerInfo({
         return result;
     }
     result.emails = user.emails || [];
-    result.hasPremium = !!user.premium?.enabledAt && user.premium.enabledAt < new Date();
+    // Determine active premium by checking expiration timestamp
+    result.hasPremium = !!user.plan?.expiresAt && user.plan.expiresAt > new Date();
     result.stripeCustomerId = user.stripeCustomerId || null;
-    result.userId = user.id;
+    result.userId = user.id.toString();
     // Validate the stripeCustomerId by checking if it exists in Stripe
     if (result.stripeCustomerId) {
         try {
             const customer = await stripe.customers.retrieve(result.stripeCustomerId);
-            // If the customer was deleted, set stripeCustomerId to null
             if (customer.deleted) {
                 result.stripeCustomerId = null;
                 logger.error("Stripe customer was deleted", { trace: "0522", result });
+                // Remove stale Stripe customerId from our DB
+                await DbProvider
+                    .get()
+                    .user.update({
+                        where: { id: user.id },
+                        data: { stripeCustomerId: null },
+                    });
             }
             // Validate subscription if requested
             if (validateSubscription) {
@@ -339,7 +337,7 @@ export async function getVerifiedCustomerInfo({
             }
             // Update the user's stripeCustomerId
             await DbProvider.get().user.update({
-                where: { id: userId },
+                where: { id: BigInt(userId) },
                 data: { stripeCustomerId: result.stripeCustomerId },
             });
             break;
@@ -372,14 +370,108 @@ export async function createStripeCustomerId({
     // Store Stripe customer ID in your database
     if (customerInfo.userId) {
         await DbProvider.get().user.update({
-            where: { id: customerInfo.userId },
+            where: { id: BigInt(customerInfo.userId) },
             data: { stripeCustomerId: stripeCustomer.id },
         });
     }
     return stripeCustomer.id;
 }
 
-/** 
+/**
+ * Helper to award API credits for a credits purchase.
+ */
+async function handleCreditsAward(
+    payment: { amount: number; user: { id: bigint; emails: { emailAddress: string }[] } | null },
+    checkoutId: string,
+): Promise<void> {
+    const user = payment.user;
+    if (!user) {
+        throw new Error("User not found.");
+    }
+    const creditsToAward = BigInt(payment.amount) * API_CREDITS_MULTIPLIER;
+    const userIdBigInt = BigInt(user.id);
+    // Ensure a credit_account exists
+    let creditAccount = await DbProvider.get().credit_account.findUnique({ where: { userId: userIdBigInt } });
+    if (!creditAccount) {
+        creditAccount = await DbProvider.get().credit_account.create({ data: { id: generatePK(), userId: userIdBigInt } });
+    }
+    if (!creditAccount) {
+        throw new Error("Credit account not found.");
+    }
+    // Add ledger entry and update balance
+    await DbProvider.get().$transaction(async (tx) => {
+        await tx.credit_ledger_entry.create({
+            data: {
+                id: generatePK(),
+                idempotencyKey: checkoutId,
+                accountId: creditAccount.id,
+                amount: creditsToAward,
+                type: CreditEntryType.Purchase,
+                source: CreditSourceSystem.Stripe,
+            },
+        });
+        const acct = await tx.credit_account.findUniqueOrThrow({
+            where: { id: creditAccount.id },
+            select: { id: true, currentBalance: true },
+        });
+        await tx.credit_account.update({ where: { id: acct.id }, data: { currentBalance: acct.currentBalance + creditsToAward } });
+    });
+    // Notify clients of new credits
+    SocketService.get().emitSocketEvent("apiCredits", user.id.toString(), { credits: creditsToAward + "" });
+}
+
+/**
+ * Helper to process subscription rewards: upsert plan and award premium credits.
+ */
+async function handleSubscriptionAward(
+    stripe: Stripe,
+    payment: { user: { id: bigint; emails: { emailAddress: string }[] } | null },
+    checkoutId: string,
+    session: Stripe.Checkout.Session,
+    subscription?: Stripe.Subscription,
+): Promise<void> {
+    const user = payment.user;
+    if (!user) {
+        throw new Error("User not found.");
+    }
+    // Validate subscription session
+    if (!isValidSubscriptionSession(session, user.id.toString())) {
+        throw new Error("Invalid subscription session");
+    }
+    const knownSubscription = subscription
+        ? subscription
+        : typeof session.subscription === "string"
+            ? await stripe.subscriptions.retrieve(session.subscription as string)
+            : session.subscription;
+    if (!knownSubscription) {
+        throw new Error("Subscription not found.");
+    }
+    // Upsert plan
+    const enabledAt = new Date().toISOString();
+    const expiresAt = new Date(knownSubscription.current_period_end * SECONDS_1_MS).toISOString();
+    const plans = await DbProvider.get().plan.findMany({ where: { user: { id: user.id } } });
+    if (plans.length === 0) {
+        await DbProvider.get().plan.create({ data: { id: generatePK(), enabledAt, expiresAt, user: { connect: { id: user.id } } } });
+    } else {
+        await DbProvider.get().plan.update({ where: { id: plans[0].id }, data: { enabledAt: plans[0].enabledAt ?? enabledAt, expiresAt } });
+    }
+    // Award premium credits
+    const subscriptionCredits = API_CREDITS_PREMIUM;
+    const userIdBigInt = BigInt(user.id);
+    let creditAccount = await DbProvider.get().credit_account.findUnique({ where: { userId: userIdBigInt } });
+    if (!creditAccount) {
+        creditAccount = await DbProvider.get().credit_account.create({ data: { id: generatePK(), userId: userIdBigInt } });
+    }
+    await DbProvider.get().$transaction(async (tx) => {
+        await tx.credit_ledger_entry.create({ data: { id: generatePK(), idempotencyKey: checkoutId, accountId: creditAccount!.id, amount: subscriptionCredits, type: CreditEntryType.Purchase, source: CreditSourceSystem.Stripe } });
+        const acct = await tx.credit_account.findUniqueOrThrow({ where: { id: creditAccount!.id }, select: { id: true, currentBalance: true } });
+        await tx.credit_account.update({ where: { id: acct.id }, data: { currentBalance: acct.currentBalance + subscriptionCredits } });
+    });
+    // Notify clients of new credits
+    SocketService.get().emitSocketEvent("apiCredits", user.id.toString(), { credits: API_CREDITS_PREMIUM + "" });
+}
+
+/**
  * Processes a completed payment.
  * @param stripe The Stripe object for interacting with the Stripe API
  * @param session The Stripe checkout session object
@@ -433,92 +525,73 @@ export async function processPayment(
     }) : await DbProvider.get().payment.create({
         data: {
             ...data,
+            id: generatePK(),
             user: userId ? { connect: { id: BigInt(userId) } } : undefined,
         },
         select: paymentSelect,
     });
-    // If there is not a user associated with this payment, throw an error
-    if (!payment.user) {
+    // If there is no user and this is not a donation, throw an error
+    if (!payment.user && payment.paymentType !== PaymentType.Donation) {
         throw new Error("User not found.");
     }
-    // If credits, award user the relevant number of credits
+    // Delegate credit or subscription rewards to helper functions
     if (payment.paymentType === PaymentType.Credits) {
-        const creditsToAward = (BigInt(payment.amount) * API_CREDITS_MULTIPLIER);
-        await DbProvider.get().user.update({
-            where: { id: BigInt(payment.user.id) },
-            data: {
-                premium: {
-                    upsert: {
-                        create: {
-                            credits: creditsToAward,
-                        },
-                        update: {
-                            credits: { increment: creditsToAward },
-                        },
-                    },
-                },
-            },
-        });
+        await handleCreditsAward(payment, checkoutId);
+    } else if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
+        await handleSubscriptionAward(stripe, payment, checkoutId, session, subscription);
     }
-    // If subscription, upsert premium status
-    else if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
-        // Get subscription
-        if (!isValidSubscriptionSession(session, payment.user.id)) {
-            throw new Error("Invalid subscription session");
-        }
-        const knownSubscription = subscription
-            ? subscription
-            : typeof session.subscription === "string"
-                ? await stripe.subscriptions.retrieve(session.subscription as string)
-                : session.subscription;
-        if (!knownSubscription) {
-            throw new Error("Subscription not found.");
-        }
-        // Find enabledAt and expiresAt
-        const enabledAt = new Date().toISOString();
-        const expiresAt = new Date(knownSubscription.current_period_end * SECONDS_1_MS).toISOString();
-        // Upsert premium status
-        const premiums = await DbProvider.get().premium.findMany({
-            where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
+    // Send thank you notification if we have a user (supports anonymous donations without email)
+    if (payment.user) {
+        const donationFlag = payment.paymentType === PaymentType.Donation;
+        await QueueService.get().email.addTask({
+            to: payment.user.emails.map(email => email.emailAddress),
+            ...AUTH_EMAIL_TEMPLATES.PaymentThankYou(payment.user.id.toString(), donationFlag),
         });
-        if (premiums.length === 0) {
-            await DbProvider.get().premium.create({
-                data: {
-                    enabledAt,
-                    expiresAt,
-                    credits: API_CREDITS_PREMIUM,
-                    user: { connect: { id: payment.user.id } }, // User should exist based on findMany query above
-                },
-            });
-        } else {
-            await DbProvider.get().premium.update({
-                where: { id: premiums[0].id },
-                data: {
-                    enabledAt: premiums[0].enabledAt ?? enabledAt,
-                    expiresAt,
-                    credits: API_CREDITS_PREMIUM,
-                },
-            });
-        }
-        SocketService.get().emitSocketEvent("apiCredits", payment.user.id.toString(), { credits: API_CREDITS_PREMIUM + "" });
-    }
-    // Send thank you notification
-    for (const email of payment.user.emails) {
-        sendPaymentThankYou(email.emailAddress, [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(payment.paymentType as PaymentType));
     }
 }
 
-/** Checkout completed for donation or subscription */
+/**
+ * Handles successful completion of a Checkout Session.
+ *
+ * This handler listens to:
+ *   - `checkout.session.completed`: fired when a Checkout Session completes; for delayed payment methods, `session.payment_status` may not be 'paid' immediately.
+ *   - `checkout.session.async_payment_succeeded`: fired when a delayed payment intent (e.g., ACH) transitions to 'paid'.
+ *
+ * Only sessions with `session.payment_status === 'paid'` should trigger fulfillment logic.
+ * This ensures credits or subscription access are granted only after funds are confirmed.
+ *
+ * @param args.event The Stripe.Event containing the Checkout Session.
+ * @param args.stripe The Stripe client instance used for API operations.
+ * @param args.res Express response object for HTTP acknowledgment.
+ * @returns HandlerResult indicating success (200) or failure (5xx).
+ */
 async function handleCheckoutSessionCompleted({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> {
     try {
-        await processPayment(stripe, event.data.object as Stripe.Checkout.Session);
+        const session = event.data.object as Stripe.Checkout.Session;
+        // Only process sessions where payment_status === 'paid' to avoid premature fulfillment
+        if (session.payment_status !== "paid") {
+            return handlerResult(HttpStatus.Ok, res);
+        }
+        await processPayment(stripe, session);
         return handlerResult(HttpStatus.Ok, res);
     } catch (error) {
         return handlerResult(HttpStatus.InternalServerError, res, "Caught error in handleCheckoutSessionCompleted", "0440", error);
     }
 }
 
-/** Checkout expired before payment */
+/**
+ * Handles Checkout Session failures or expirations.
+ *
+ * This handler listens to:
+ *   - `checkout.session.expired`: when a Checkout Session expires without payment.
+ *   - `checkout.session.async_payment_failed`: when delayed payment methods fail asynchronously.
+ *
+ * Both events indicate `session.payment_status !== 'paid'`. Marks pending payments as failed to ensure idempotent failure handling.
+ *
+ * @param args.event The Stripe.Event containing the Checkout Session.
+ * @param args.res Express response object for HTTP acknowledgment.
+ * @returns HandlerResult indicating success (200) or failure (5xx).
+ */
 export async function handleCheckoutSessionExpired({ event, res }: EventHandlerArgs): Promise<HandlerResult> {
     const session = event.data.object as Stripe.Checkout.Session;
     const checkoutId = session.id;
@@ -573,6 +646,7 @@ export async function handleCustomerSourceExpiring({ event, res }: Omit<EventHan
     const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
+            id: true,
             emails: { select: { emailAddress: true } },
         },
     });
@@ -580,33 +654,58 @@ export async function handleCustomerSourceExpiring({ event, res }: Omit<EventHan
         return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0468", { customerId });
     }
     // Send notification
-    for (const email of user.emails) {
-        sendCreditCardExpiringSoon(email.emailAddress);
-    }
+    await QueueService.get().email.addTask({
+        to: user.emails.map(email => email.emailAddress),
+        ...AUTH_EMAIL_TEMPLATES.CreditCardExpiringSoon(user.id.toString()),
+    });
     return handlerResult(HttpStatus.Ok, res);
 }
 
 /**
- * User canceled subscription. They still have paid for their current 
- * billing period, so don't set as inactive
+ * Occurs when a customer's subscription ends (customer.subscription.deleted).
+ * This event fires at the end of the billing period or when the subscription is fully canceled.
+ * We update the user's plan expiresAt to the subscription's current_period_end timestamp,
+ * then send a cancellation notification email.
  */
 export async function handleCustomerSubscriptionDeleted({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
-    // Find user 
+    // Find user and current plan
     const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
+            id: true,
             emails: { select: { emailAddress: true } },
+            plan: { select: { enabledAt: true } },
         },
     });
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0459", { customerId });
     }
-    // If found, send notification
-    for (const email of user.emails) {
-        sendSubscriptionCanceled(email.emailAddress);
-    }
+    // Update plan expiry date
+    const { newExpiresAt } = calculateExpiryAndStatus(subscription.current_period_end);
+    await DbProvider.get().user.update({
+        where: { id: user.id },
+        data: {
+            plan: {
+                upsert: {
+                    create: {
+                        id: generatePK(),
+                        enabledAt: user.plan?.enabledAt ?? new Date(),
+                        expiresAt: newExpiresAt,
+                    },
+                    update: {
+                        expiresAt: newExpiresAt,
+                    },
+                },
+            },
+        },
+    });
+    // Send cancellation email
+    await QueueService.get().email.addTask({
+        to: user.emails.map(email => email.emailAddress),
+        ...AUTH_EMAIL_TEMPLATES.SubscriptionCanceled(user.id.toString()),
+    });
     return handlerResult(HttpStatus.Ok, res);
 }
 
@@ -618,6 +717,7 @@ export async function handleCustomerSubscriptionTrialWillEnd({ event, res }: Omi
     const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
+            id: true,
             emails: { select: { emailAddress: true } },
         },
     });
@@ -625,9 +725,10 @@ export async function handleCustomerSubscriptionTrialWillEnd({ event, res }: Omi
         return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0192", { customerId });
     }
     // If found, send notification
-    for (const email of user.emails) {
-        sendTrialEndingSoon(email.emailAddress);
-    }
+    await QueueService.get().email.addTask({
+        to: user.emails.map(email => email.emailAddress),
+        ...AUTH_EMAIL_TEMPLATES.TrialEndingSoon(user.id.toString()),
+    });
     return handlerResult(HttpStatus.Ok, res);
 }
 
@@ -668,13 +769,13 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
                     emailAddress: true,
                 },
             },
-            premium: { select: { enabledAt: true } },
+            plan: { select: { enabledAt: true } },
         },
     });
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found on customer.subscription.updated", "0457", { customerId });
     }
-    const existingEnabledAt = user.premium?.enabledAt ?? null;
+    const existingEnabledAt = user.plan?.enabledAt ?? null;
 
     // Calculate new expiration date and active status. 
     // Should always be active, unless the new expiry date is somehow in the past
@@ -688,9 +789,10 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
     await DbProvider.get().user.update({
         where: { id: user.id },
         data: {
-            premium: {
+            plan: {
                 upsert: {
                     create: {
+                        id: generatePK(),
                         enabledAt,
                         expiresAt: newExpiresAt,
                     },
@@ -703,37 +805,56 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
         },
     });
 
+    const emails = user.emails.map(email => email.emailAddress);
     if (isActive) {
-        for (const email of user.emails) {
-            sendPaymentThankYou(email.emailAddress, false);
-        }
+        await QueueService.get().email.addTask({
+            to: emails,
+            ...AUTH_EMAIL_TEMPLATES.PaymentThankYou(user.id.toString(), false),
+        });
     } else {
-        for (const email of user.emails) {
-            sendSubscriptionCanceled(email.emailAddress);
-        }
+        await QueueService.get().email.addTask({
+            to: emails,
+            ...AUTH_EMAIL_TEMPLATES.SubscriptionCanceled(user.id.toString()),
+        });
     }
 
     return handlerResult(HttpStatus.Ok, res);
 }
 
+/**
+ * Extracts payment data from a Stripe Invoice for upserting payment records.
+ *
+ * Invoices may contain multiple line items (e.g., subscription line, proration, tax).
+ * This function filters for the subscription or known product line item by matching price IDs.
+ *
+ * @param invoice A Stripe.Invoice object to parse.
+ * @returns An object containing:
+ *   - data: fields required to upsert payment (checkoutId, amount, currency, paymentMethod, paymentType, description).
+ *   - error: populated if no matching line item is found.
+ */
 export function parseInvoiceData(invoice: Stripe.Invoice) {
-    // For our purposes, we can assume that there is only one line in the invoice.
-    const line = invoice.lines.data.length > 0 ? invoice.lines.data[0] : null;
-    if (!line) {
-        return { error: "No lines found in invoice" };
+    // Retrieve our known price ID mapping for the current environment
+    const pricesMap = getPriceIds();
+    // Filter for the first line item with a recognized price
+    const matchingLine = invoice.lines.data.find(line => {
+        const priceObj = line.price;
+        if (!priceObj) return false;
+        const priceId = typeof priceObj === "string" ? priceObj : priceObj.id;
+        return Object.values(pricesMap).includes(priceId);
+    });
+    if (!matchingLine || !matchingLine.price) {
+        return { error: "Unknown or unsupported invoice line item" };
     }
-    const { amount, price } = line;
-    const paymentType = price ? getPaymentType(price) : null;
-    // If this is a payment type we don't understand, return error
-    if (!paymentType) {
-        return { error: "Unknown payment type" };
-    }
-    // Return data used to upsert payments from invoices
+    const { amount } = matchingLine;
+    const currency = invoice.currency;
+    const priceObj = matchingLine.price as Stripe.Price;
+    const paymentType = getPaymentType(priceObj);
     return {
         data: {
-            checkoutId: invoice.id, // Typically we use a checkout ID here. But for invoices we'll use the invoice ID
+            // Use the invoice ID as the checkoutId for invoice-based payments
+            checkoutId: invoice.id,
             amount,
-            currency: invoice.currency,
+            currency,
             paymentMethod: PaymentMethod.Stripe,
             paymentType,
             description: "Payment for Invoice ID: " + invoice.id,
@@ -777,6 +898,7 @@ export async function handleInvoicePaymentCreated({ event, res }: Omit<EventHand
         await DbProvider.get().payment.create({
             data: {
                 ...paymentData,
+                id: generatePK(),
                 status: PaymentStatus.Pending,
                 user: { connect: { id: user.id } },
             },
@@ -795,6 +917,7 @@ export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandl
         paymentType: true,
         user: {
             select: {
+                id: true,
                 emails: { select: { emailAddress: true } },
             },
         },
@@ -816,6 +939,7 @@ export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandl
         payment = await DbProvider.get().payment.create({
             data: {
                 ...paymentData,
+                id: generatePK(),
                 status: PaymentStatus.Failed,
                 user: {
                     connect: { stripeCustomerId: customerId },
@@ -831,8 +955,13 @@ export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandl
         });
     }
     // Notify user
-    for (const email of payment.user?.emails ?? []) {
-        sendPaymentFailed(email.emailAddress, payment.paymentType as PaymentType);
+    const emails = payment.user?.emails.map(email => email.emailAddress) ?? [];
+    if (payment.user && emails.length > 0) {
+        const donationFlag = payment.paymentType === PaymentType.Donation;
+        await QueueService.get().email.addTask({
+            to: emails,
+            ...AUTH_EMAIL_TEMPLATES.PaymentFailed(payment.user.id.toString(), donationFlag),
+        });
     }
     return handlerResult(HttpStatus.Ok, res);
 }
@@ -850,7 +979,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
             select: {
                 id: true,
                 emails: { select: { emailAddress: true } },
-                premium: { select: { enabledAt: true } },
+                plan: { select: { enabledAt: true } },
             },
         },
     } as const;
@@ -871,6 +1000,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
         payment = await DbProvider.get().payment.create({
             data: {
                 ...paymentData,
+                id: generatePK(),
                 status: PaymentStatus.Paid,
                 user: {
                     connect: { stripeCustomerId: customerId },
@@ -902,7 +1032,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
             return handlerResult(HttpStatus.InternalServerError, res, "Subscription not found", "0234", { customerId, invoice });
         }
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
-        const existingEnabledAt = payment.user?.premium?.enabledAt ?? null;
+        const existingEnabledAt = payment.user?.plan?.enabledAt ?? null;
         const enabledAt = isActive
             ? existingEnabledAt ?? new Date()
             : null;
@@ -911,9 +1041,10 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
         await DbProvider.get().user.update({
             where: { id: payment.user.id },
             data: {
-                premium: {
+                plan: {
                     upsert: {
                         create: {
+                            id: generatePK(),
                             enabledAt,
                             expiresAt: newExpiresAt,
                         },
@@ -937,17 +1068,21 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
  */
 export async function handlePriceUpdated({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const price = event.data.object as Stripe.Price;
+    // Determine if this price ID maps to one of our PaymentTypes
+    let paymentType: PaymentType;
     try {
-        const paymentType = getPaymentType(price);
-        const updatedAmount = price.unit_amount;
-        if (updatedAmount) {
-            await storePrice(paymentType, updatedAmount ?? 0);
-            return handlerResult(HttpStatus.Ok, res);
-        }
-    } catch (error) {
-        logger.error("Caught error in handlePriceUpdated", { trace: "0172", error });
+        paymentType = getPaymentType(price);
+    } catch (_error) {
+        // Price ID not in our mapping; acknowledge and ignore
+        return handlerResult(HttpStatus.Ok, res);
     }
-    return handlerResult(HttpStatus.InternalServerError, res, "Price amount not found", "0170", { price });
+    // Prefer integer unit_amount; fall back to unit_amount_decimal if present
+    const updatedAmount = price.unit_amount ?? (price.unit_amount_decimal ? Math.round(parseFloat(price.unit_amount_decimal)) : null);
+    if (updatedAmount != null) {
+        await storePrice(paymentType, updatedAmount);
+    }
+    // Always acknowledge the webhook with OK
+    return handlerResult(HttpStatus.Ok, res);
 }
 
 /**
@@ -982,7 +1117,11 @@ export async function checkSubscriptionPrices(stripe: Stripe, res: Response): Pr
 }
 
 /**
- * Creates a checkout session for buying a subscription, donation, credits, or other payment.
+ * Creates a Stripe Checkout Session for purchasing credits, donations, or subscriptions.
+ * - Constructs line_items based on payment type and optional custom amount.
+ * - Enforces a minimum amount of $1 USD (100 cents) for credits/donations.
+ * - Uses dynamic price_data for custom credit purchases or predefined Price IDs for standard variants.
+ * - Builds success_url and cancel_url with proper query parameters (no extra quotes).
  */
 async function createCheckoutSession(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const { amount, userId, variant } = req.body as CreateCheckoutSessionParams;
@@ -1048,18 +1187,19 @@ async function createCheckoutSession(stripe: Stripe, req: Request, res: Response
                 quantity: 1,
             }];
         }
-        // Create checkout session 
+        // Build metadata, omitting userId when undefined so all values are strings
+        const metadata: { paymentType: string; userId?: string } = { paymentType };
+        if (userId) {
+            metadata.userId = userId;
+        }
         const session = await stripe.checkout.sessions.create({
-            success_url: `${UI_URL}${LINKS.Pro}?status="success"&paymentType="${paymentType}"`,
-            cancel_url: `${UI_URL}${LINKS.Pro}?status="canceled"&paymentType="${paymentType}"`,
+            success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
+            cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
             payment_method_types: ["card"],
             line_items,
             mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
             customer: customerInfo.stripeCustomerId,
-            metadata: {
-                paymentType,
-                userId: userId ?? null,
-            } as CheckoutSessionMetadata,
+            metadata,
         });
         // Redirect to checkout page
         if (session.url) {
@@ -1116,6 +1256,13 @@ async function createPortalSession(stripe: Stripe, req: Request, res: Response):
 /**
  * Checks your subscription status, and fixes your subscription status if a payment
  * was not processed correctly.
+ *
+ * @remarks
+ * This endpoint uses getVerifiedCustomerInfo to validate subscription status and always returns HTTP 200 on success.
+ * The JSON payload is { status: string } with one of three values:
+ *  - 'not_subscribed': no existing or new subscription found.
+ *  - 'already_subscribed': user already has an active subscription.
+ *  - 'now_subscribed': a valid subscription was detected and processed.
  */
 async function checkSubscription(stripe: Stripe, req: Request, res: Response): Promise<void> {
     let data: CheckSubscriptionResponse = { status: "not_subscribed" };
@@ -1140,7 +1287,11 @@ async function checkSubscription(stripe: Stripe, req: Request, res: Response): P
             // Process payment so the user gets their subscription
             await processPayment(stripe, customerInfo.subscriptionInfo.session, customerInfo.subscriptionInfo.subscription);
             ResponseService.sendSuccess(res, data);
+            return;
         }
+        // Default: no subscription found; send not_subscribed status
+        ResponseService.sendSuccess(res, data);
+        return;
     } catch (error) {
         const trace = "0430";
         const message = "Caught error checking subscription status";
@@ -1169,104 +1320,48 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
     const { userId } = req.body as CheckCreditsPaymentParams;
     try {
         const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
-        if (!customerInfo.userId) {
-            throw new Error("User not found");
-        }
-        if (!customerInfo.stripeCustomerId) {
-            data.status = "already_received_all_credits";
+        if (!customerInfo.userId || !customerInfo.stripeCustomerId) {
             ResponseService.sendSuccess(res, data);
             return;
         }
-        // Find checkout sessions associated with the user
+        let newCredits = false;
         let sessionsChecked = 0;
-        let creditsToAward = BigInt(0); // Credits to award in cents * API_CREDITS_MULTIPLIER
-        const upsertOperations: Promise<object>[] = []; // Holds upsert operations for payments
+        // Use pagination to avoid reprocessing the same sessions
         let done = false;
-        // Continually fetch sessions until we reach a maximum of 250, 
-        // or until we reach sessions older than 180 days
-        while (!done && sessionsChecked < 250) {
-            // Fetch sessions
-            const sessionsList = await stripe.checkout.sessions.list({
+        let startingAfter: string | undefined = undefined;
+        while (!done && sessionsChecked < MAX_CREDIT_SESSIONS_TO_CHECK) {
+            const listParams: Stripe.Checkout.SessionListParams = {
                 customer: customerInfo.stripeCustomerId,
                 limit: 25,
-            });
+            };
+            if (startingAfter) {
+                listParams.starting_after = startingAfter;
+            }
+            const sessionsList = await stripe.checkout.sessions.list(listParams);
             sessionsChecked += sessionsList.data.length;
-            // Collect valid and complete API credit sessions
-            let validCreditSessions = sessionsList.data.filter(session => isValidCreditsPurchaseSession(session, userId));
-            // Fetch payments in database. missing ones should be counted, as well as ones marked as pending
-            const existingPayments = await DbProvider.get().payment.findMany({
-                where: {
-                    checkoutId: { in: validCreditSessions.map(session => session.id) },
-                    paymentMethod: PaymentMethod.Stripe,
-                    user: { stripeCustomerId: customerInfo.stripeCustomerId },
-                },
-                select: {
-                    id: true,
-                    checkoutId: true,
-                    status: true,
-                },
-            });
-            // Filter out sessions which we've already processed and marked as paid
-            validCreditSessions = validCreditSessions.filter(session => {
-                const payment = existingPayments.find(payment => payment.checkoutId === session.id);
-                return !payment || payment.status !== PaymentStatus.Paid;
-            });
-            // Accumulate credis to award and payments that need to be upserted
-            for (const session of validCreditSessions) {
-                creditsToAward += (BigInt(session.amount_subtotal ?? 0) * API_CREDITS_MULTIPLIER); // Use subtotal because total includes tax, discounts, etc.
-                const payment = existingPayments.find(payment => payment.checkoutId === session.id);
-                const paymentData = {
-                    amount: session.amount_subtotal ?? 0, // Use subtotal because total includes tax, discounts, etc.
-                    checkoutId: session.id,
-                    currency: session.currency ?? "usd", // TODO Hopefully always usd, or else our credits logic is flawed (both here and in processPayment). We'll have to see...
-                    status: PaymentStatus.Paid,
-                    paymentMethod: PaymentMethod.Stripe,
-                };
-                if (payment) {
-                    upsertOperations.push(DbProvider.get().payment.update({
-                        where: { id: payment.id },
-                        data: paymentData,
-                    }));
-                } else {
-                    upsertOperations.push(DbProvider.get().payment.create({
-                        data: {
-                            ...paymentData,
-                            description: "Credits Purchase",
-                            user: { connect: { id: BigInt(customerInfo.userId) } },
-                        },
-                    }));
+            for (const session of sessionsList.data) {
+                if (isValidCreditsPurchaseSession(session, customerInfo.userId)) {
+                    await processPayment(stripe, session);
+                    newCredits = true;
                 }
             }
-            // If no more sessions to fetch or the last fetched session was over 180 days ago, break
-            if (!sessionsList.has_more || isStripeObjectOlderThan(sessionsList.data[sessionsList.data.length - 1], DAYS_180_MS)) {
+            // If there are sessions, process pagination and age threshold; else stop looping
+            if (sessionsList.data.length > 0) {
+                const lastSession = sessionsList.data[sessionsList.data.length - 1];
+                if (sessionsList.has_more) {
+                    startingAfter = lastSession.id;
+                }
+                // Stop when no more pages or sessions older than threshold
+                if (!sessionsList.has_more || isStripeObjectOlderThan(lastSession, DAYS_180_MS)) {
+                    done = true;
+                }
+            } else {
+                // No sessions returned; break out to avoid infinite loop
                 done = true;
             }
         }
-        // If there are credits to award, award them and upsert payments in the database
-        if (creditsToAward > 0) {
-            const updateUserCredits = DbProvider.get().user.update({
-                where: { id: BigInt(userId) },
-                data: {
-                    premium: {
-                        upsert: {
-                            create: {
-                                credits: creditsToAward,
-                            },
-                            update: {
-                                credits: { increment: creditsToAward },
-                            },
-                        },
-                    },
-                },
-            });
-            // Execute all operations in one transaction
-            await DbProvider.get().$transaction([updateUserCredits, ...upsertOperations] as PrismaPromise<object>[]);
-            data.status = "new_credits_received";
-            ResponseService.sendSuccess(res, data);
-        } else {
-            data.status = "already_received_all_credits";
-            ResponseService.sendSuccess(res, data);
-        }
+        data.status = newCredits ? "new_credits_received" : "already_received_all_credits";
+        ResponseService.sendSuccess(res, data);
     } catch (error) {
         const trace = "0439";
         const message = "Caught error checking credits payment status";
@@ -1276,18 +1371,55 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
 }
 
 /**
- * Webhook handler for Stripe events.
+ * handleStripeWebhook processes incoming Stripe webhook events.
+ *
+ * This wrapper:
+ * - Uses express.raw({ type: 'application/json' }) so that the raw request payload
+ *   is available for signature verification by stripe.webhooks.constructEvent.
+ * - Verifies the incoming webhook payload's signature using the STRIPE_WEBHOOK_SECRET.
+ *   Throws an error and returns a 500 if signature verification fails.
+ * - Identifies the event type (event.type) and dispatches to the corresponding handler:
+ *     • checkout.session.completed: synchronous card payment completions
+ *     • checkout.session.async_payment_succeeded: asynchronous payments (e.g., ACH, SEPA)
+ *     • checkout.session.expired: session expiration before payment
+ *     • checkout.session.async_payment_failed: asynchronous payment failures
+ *     • customer.deleted: Stripe customer deletion — nullifies stripeCustomerId in our DB
+ *     • customer.source.expiring: payment source expiring soon — sends reminder email
+ *     • customer.subscription.deleted: subscription cancellation — updates plan expiry
+ *     • customer.subscription.trial_will_end: trial ending soon — sends notification
+ *     • customer.subscription.updated: subscription plan change — upserts expiration and sends notifications
+ *     • invoice.created: new invoice (e.g., subscription renewal) — creates/updates pending payment record
+ *     • invoice.payment_failed: invoice payment failure — marks failed & notifies user
+ *     • invoice.payment_succeeded: invoice payment success — marks paid & updates subscription status
+ *     • invoice.paid: (alias for payment success) also handled by the same logic as invoice.payment_succeeded
+ *     • price.updated: price metadata update — caches updated unit_amount in Redis
+ *
+ * Best practices:
+ * - Only listen to the events your integration requires.
+ * - Ensure idempotency: handlers include checks (e.g., existing payments by checkoutId) to avoid duplicates.
+ * - Quickly acknowledge (2xx) before performing complex logic to prevent timeouts.
+ * - Verify webhook signatures and handle retries appropriately.
+ *
+ * @param stripe The initialized Stripe client instance (apiVersion 2022-11-15).
+ * @param req Express Request with raw JSON body for signature validation.
+ * @param res Express Response used only to send status and optional message.
  */
 async function handleStripeWebhook(stripe: Stripe, req: Request, res: Response): Promise<void> {
-    const sig: string | string[] = req.headers["stripe-signature"] || "";
-    let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
+    // Extract and coerce the Stripe signature header to a single string (in case it's an array)
+    const rawSignature = req.headers["stripe-signature"];
+    const sig = Array.isArray(rawSignature) ? rawSignature[0] : (rawSignature ?? "");
+    // Default to OK: unhandled events and successful processing should return 200 OK
+    let result: HandlerResult = { status: HttpStatus.Ok };
     try {
         // Parse event and verify that it comes from Stripe
         const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
         // Call appropriate handler
         const eventHandlers: { [key in Stripe.WebhookEndpointUpdateParams.EnabledEvent]?: Handler } = {
             "checkout.session.completed": handleCheckoutSessionCompleted,
+            // Handle asynchronous payment events for delayed payment methods (e.g., ACH)
+            "checkout.session.async_payment_succeeded": handleCheckoutSessionCompleted,
             "checkout.session.expired": handleCheckoutSessionExpired,
+            "checkout.session.async_payment_failed": handleCheckoutSessionExpired,
             "customer.deleted": handleCustomerDeleted,
             "customer.source.expiring": handleCustomerSourceExpiring,
             "customer.subscription.deleted": handleCustomerSubscriptionDeleted,
@@ -1296,17 +1428,18 @@ async function handleStripeWebhook(stripe: Stripe, req: Request, res: Response):
             "invoice.created": handleInvoicePaymentCreated,
             "invoice.payment_failed": handleInvoicePaymentFailed,
             "invoice.payment_succeeded": handleInvoicePaymentSucceeded,
+            "invoice.paid": handleInvoicePaymentSucceeded,
             "price.updated": handlePriceUpdated,
         };
         if (event.type in eventHandlers) {
             result = await eventHandlers[event.type]({ event, stripe, res });
         } else {
-            // We should only be subscribing to events we want to handle. Meaning if 
-            // we reach here, we should go to the Stripe dashboard and remove the unhandled event
-            // from the webhook configuration
+            // Unhandled Stripe event: log warning, but return 200 OK to prevent retries
             logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
         }
     } catch (error) {
+        // On error parsing or handling, return 500
+        result = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
         logger.error("Caught error in /webhooks/stripe", { trace: "0454", error });
     }
     res.status(result.status);
