@@ -1,4 +1,4 @@
-import type { SubroutineIOMapping } from "@local/shared";
+import type { SharedScratchpadItem, SubroutineIOMapping, SwarmResource, SwarmSubTask, ToolCallRecord } from "@local/shared";
 
 type UserInfo = {
     name: string;
@@ -73,6 +73,22 @@ export type WorldModelConfig = {
      * The user the bot is talking to.
      */
     user?: UserInfo;
+    /**
+     * Sub-tasks for a swarm.
+     */
+    subTasks?: SwarmSubTask[];
+    /**
+     * Shared scratchpad for a swarm.
+     */
+    sharedScratchpad?: SharedScratchpadItem[];
+    /**
+     * Shared resources for a swarm.
+     */
+    resources?: SwarmResource[];
+    /**
+     * Historical tool/routine calls for a swarm.
+     */
+    routineCalls?: ToolCallRecord[];
 }
 
 /**
@@ -120,7 +136,8 @@ export class WorldModel {
     public serialize(): string {
         let message = `Welcome to ${this.config.appName}, ${this.config.appDescription}.`;
 
-        message += `\nThe current date and time is ${new Date().toLocaleString()}.`;
+        message += `\nNOW: ${Math.floor(Date.now() / 1000)}`;
+        message += `\nDisplay date: ${new Date().toLocaleString()}`;
 
         if (this.config.systemMessage) {
             message += `\n${this.config.systemMessage}`;

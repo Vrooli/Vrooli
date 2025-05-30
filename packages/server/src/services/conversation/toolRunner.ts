@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
-import { McpSwarmToolName, McpToolName, type DefineToolParams, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../mcp/registry.js";
 import { BuiltInTools, type SwarmTools } from "../mcp/tools.js";
 import type { Logger, ToolResponse } from "../mcp/types.js";
+import { McpSwarmToolName, McpToolName, type DefineToolParams, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
 import { type OkErr, type ToolMeta } from "./types.js";
 
 /**
@@ -140,21 +140,26 @@ export class McpToolRunner extends ToolRunner {
                 }
                 const builtInTools = new BuiltInTools(meta.sessionUser, this.logger, undefined /* req */);
                 switch (name as McpToolName) {
-                    case McpToolName.DefineTool:
+                    case McpToolName.DefineTool: {
                         toolExecuteResponse = await builtInTools.defineTool(args as DefineToolParams);
                         break;
-                    case McpToolName.SendMessage:
+                    }
+                    case McpToolName.SendMessage: {
                         toolExecuteResponse = await builtInTools.sendMessage(args as SendMessageParams);
                         break;
-                    case McpToolName.ResourceManage:
+                    }
+                    case McpToolName.ResourceManage: {
                         toolExecuteResponse = await builtInTools.resourceManage(args as ResourceManageParams);
                         break;
-                    case McpToolName.RunRoutine:
+                    }
+                    case McpToolName.RunRoutine: {
                         toolExecuteResponse = await builtInTools.runRoutine(args as RunRoutineParams);
                         break;
-                    case McpToolName.SpawnSwarm:
+                    }
+                    case McpToolName.SpawnSwarm: {
                         toolExecuteResponse = await builtInTools.spawnSwarm(args as SpawnSwarmParams);
                         break;
+                    }
                     default:
                         this.logger.error(`McpToolRunner: Unhandled McpToolName: ${name}`);
                         return { ok: false, error: { code: "UNHANDLED_MCP_TOOL", message: `Tool ${name} not handled.`, creditsUsed: "0" } };
@@ -165,15 +170,17 @@ export class McpToolRunner extends ToolRunner {
                     return { ok: false, error: { code: "MISSING_CONVERSATION_ID_FOR_SWARM_TOOL", message: `ConversationId missing for swarm tool ${name}.`, creditsUsed: "0" } };
                 }
                 switch (name as McpSwarmToolName) {
-                    case McpSwarmToolName.UpdateSwarmSharedState:
+                    case McpSwarmToolName.UpdateSwarmSharedState: {
                         const updateResult = await this.swarmTools.updateSwarmSharedState(meta.conversationId, args as UpdateSwarmSharedStateParams);
                         swarmToolInternalResult = { success: updateResult.success, data: { updatedSubTasks: updateResult.updatedSubTasks, updatedSharedScratchpad: updateResult.updatedSharedScratchpad }, error: updateResult.error, message: updateResult.message };
                         break;
-                    case McpSwarmToolName.EndSwarm:
+                    }
+                    case McpSwarmToolName.EndSwarm: {
                         this.logger.warn(`McpSwarmToolName.EndSwarm not fully implemented.`);
                         // Placeholder success for EndSwarm
                         swarmToolInternalResult = { success: true, data: { message: "EndSwarm called (simulated success)." } };
                         break;
+                    }
                     default:
                         this.logger.error(`McpToolRunner: Unhandled McpSwarmToolName: ${name}`);
                         return { ok: false, error: { code: "UNHANDLED_SWARM_TOOL", message: `Swarm tool ${name} not handled.`, creditsUsed: "0" } };

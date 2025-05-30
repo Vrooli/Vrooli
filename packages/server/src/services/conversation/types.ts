@@ -1,8 +1,7 @@
-import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type SessionUser } from "@local/shared";
+import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type ToolCallRecord } from "@local/shared";
 import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
-import { type ToolInputSchema } from "../mcp/types.js";
-import { type WorldModel } from "./worldModel.js";
+import type { Tool } from "../mcp/types.js";
 
 /** A participant in a conversation – human or bot. */
 export interface BotParticipant {
@@ -61,8 +60,14 @@ export interface ContextBuildResult {
  * ------------------------------------------------------------------ */
 
 export interface ToolMeta {
-    conversationId: string;
-    callerBotId: string;
+    /** The chat this tool call is for, if applicable. */
+    conversationId?: string;
+    /** The bot that's calling the tool, if applicable. */
+    callerBotId?: string;
+    /** The user session that initiated the action leading to this tool call. */
+    sessionUser?: SessionUser;
+    /** An AbortSignal to cancel the tool call if needed. */
+    signal?: AbortSignal;
 }
 
 /* ------------------------------------------------------------------
@@ -93,46 +98,146 @@ export interface ResponseStats {
     creditsUsed: bigint;
 }
 
-/** @deprecated Use ResponseStats instead */
-export interface TurnStats {
-    toolCalls: number;
-    botToolCalls?: number; // Kept for now if any transitive internal dep, but should be fully removed
-    creditsUsed: bigint;
-}
-
 /**
  * A conversation state
  */
 export type ConversationState = {
     /** The conversation ID, stringified */
     id: string;
-    /** The most up-to-date config for the conversation (may not be synced to the database yet) */
+    /** 
+     * The most up-to-date config for the conversation, as stored in the database
+     * (though it may not actually be synced to the database yet).
+     * 
+     * This includes things like limits, stats, and the world model config (which gets hydrated and turned into ConversationState.worldModel).
+     */
     config: ChatConfigObject;
     /** Information about the bots (who can respond) in the conversation */
     participants: BotParticipant[];
-    /** The queue of events for the conversation, keyed by turnId */
-    queue: TurnQueue;
-    /** The current turn counter for the conversation */
-    turnCounter: number;
-    /** The current turn's stats, for tracking limits */
-    turnStats: TurnStats;
     /** The available tools (schemas) for this conversation */
-    availableTools: ToolInputSchema[];
-    /** The world model configuration for this conversation */
-    worldModel: WorldModel;
+    availableTools: Tool[];
+    /** 
+     * The system message string generated for the leader bot when the swarm is first started. 
+     * This is primarily for initialization and context, as individual bots will have their system messages
+     * generated dynamically by CompletionService._buildSystemMessage during their turns.
+     */
+    initialLeaderSystemMessage: string;
 }
 
-// Added Swarm event type definitions
-export interface SwarmInternalEvent {
-    type: string;
-    conversationId: string;
-    payload?: any;
-    actingBot?: BotParticipant;
-    sessionUser: SessionUser;
-}
+// Individual Swarm Event Interfaces
+// These events are internal to the swarm's operation and processing.
 
-export interface SwarmStartedEvent extends SwarmInternalEvent {
+/** Event triggered when a swarm is started. */
+export interface SwarmStartedEvent {
     type: "swarm_started";
+    conversationId: string;
+    sessionUser: SessionUser;
     goal: string;
 }
-// End of added Swarm event type definitions
+
+/** Event triggered when an external message (e.g., from a user) is created that the swarm needs to process. */
+export interface SwarmExternalMessageCreatedEvent {
+    type: "external_message_created";
+    conversationId: string;
+    sessionUser: SessionUser;
+    payload: {
+        messageId: string;
+    };
+}
+
+/** Event triggered when a new sub-task is created within the swarm. */
+export interface SwarmSubTaskCreatedEvent {
+    type: "SubTaskCreated";
+    conversationId: string;
+    sessionUser: SessionUser;
+    task: SwarmSubTask;
+}
+
+/** Event triggered when the status of a sub-task changes. */
+export interface SwarmStatusChangedEvent {
+    type: "StatusChanged";
+    conversationId: string;
+    sessionUser: SessionUser;
+    taskId: string;
+    newStatus: SwarmSubTask["status"];
+    ts: string; // Timestamp
+}
+
+/** Event triggered when the progress of a sub-task is updated. */
+export interface SwarmProgressUpdatedEvent {
+    type: "ProgressUpdated";
+    conversationId: string;
+    sessionUser: SessionUser;
+    taskId: string;
+    pct: number; // Percentage complete
+    ts: string;  // Timestamp
+}
+
+/** Event triggered when a new resource is added by the swarm. */
+export interface SwarmResourceAddedEvent {
+    type: "ResourceAdded";
+    conversationId: string;
+    sessionUser: SessionUser;
+    resource: SwarmResource;
+}
+
+/** Event triggered when a tool call initiated by the swarm finishes. */
+export interface SwarmToolCallFinishedEvent {
+    type: "ToolCallFinished";
+    conversationId: string;
+    sessionUser: SessionUser;
+    record: ToolCallRecord;
+}
+
+/** Event triggered when a previously deferred tool call has been approved and needs execution. */
+export interface SwarmApprovedToolExecutionRequestEvent {
+    type: "ApprovedToolExecutionRequest";
+    conversationId: string;
+    sessionUser: SessionUser;
+    payload: {
+        pendingToolCall: PendingToolCallEntry; // Using PendingToolCallEntry from @local/shared
+    };
+}
+
+/** Event triggered when a previously deferred tool call has been rejected by the user. */
+export interface SwarmRejectedToolExecutionRequestEvent {
+    type: "RejectedToolExecutionRequest";
+    conversationId: string;
+    sessionUser: SessionUser;
+    payload: {
+        pendingToolCall: PendingToolCallEntry;
+        reason?: string; // Optional reason for rejection
+    };
+}
+
+/** Event triggered to update the swarm's shared state (e.g., blackboard, subtasks). */
+export interface SwarmStateUpdateEvent {
+    type: "SwarmStateUpdate";
+    conversationId: string;
+    sessionUser: SessionUser; // User context for the update
+    payload: {
+        // Partial update to ChatConfigObject, focusing on swarm-related fields
+        // This allows targeted updates without needing the full config object.
+        // Example: { subtasks: newSubtaskList, blackboard: updatedBlackboard }
+        // The exact structure of this payload will depend on how SwarmStateMachine consumes it.
+        // For now, let's assume it can handle partial updates to specific ChatConfigObject fields relevant to swarm state.
+        updatedState: Partial<Pick<ChatConfigObject, "subtasks" | "blackboard" | "resources" | "records" | "eventSubscriptions" | "subtaskLeaders">>;
+    };
+}
+
+/**
+ * Union type for all swarm events.
+ * These events are typically handled by the SwarmStateMachine and CompletionService.
+ */
+export type SwarmEvent =
+    | SwarmStartedEvent
+    | SwarmExternalMessageCreatedEvent
+    | SwarmSubTaskCreatedEvent
+    | SwarmStatusChangedEvent
+    | SwarmProgressUpdatedEvent
+    | SwarmResourceAddedEvent
+    | SwarmToolCallFinishedEvent
+    | SwarmApprovedToolExecutionRequestEvent
+    | SwarmRejectedToolExecutionRequestEvent
+    | SwarmStateUpdateEvent;
+
+

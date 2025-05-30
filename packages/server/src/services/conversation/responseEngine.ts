@@ -1,18 +1,19 @@
 /* eslint-disable func-style */
-import { type BotConfigObject, ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, MessageConfig, SECONDS_1_MS, type SessionUser, type ToolFunctionCall } from "@local/shared";
+import { type BotConfigObject, ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, McpSwarmToolName, McpToolName, MessageConfig, MINUTES_5_MS, nanoid, type PendingToolCallEntry, PendingToolCallStatus, SECONDS_1_MS, type SessionUser, type ToolFunctionCall } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import * as fs from "fs/promises";
 import type OpenAI from "openai";
 import * as path from "path";
 import { fileURLToPath } from "url"; // For __dirname in ESM
 import { logger } from "../../events/logger.js";
+import { Notify } from "../../notify/notify.js"; // Added import for Notify
 import { SocketService } from "../../sockets/io.js";
+import type { ManagedTaskStateMachine } from "../../tasks/activeTaskRegistry.js";
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
 import { BusService } from "../bus.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { SwarmTools } from "../mcp/tools.js";
 import { type Tool } from "../mcp/types.js";
-import { McpSwarmToolName, McpToolName } from "../types/tools.js";
 import { type AgentGraph, CompositeGraph } from "./agentGraph.js";
 import { CachedConversationStateStore, type ConversationStateStore, PrismaChatStore } from "./chatStore.js";
 import { type ContextBuilder, RedisContextBuilder } from "./contextBuilder.js";
@@ -34,6 +35,8 @@ import { type BotParticipant, type ConversationState, type MessageState, type Re
 //TODO swarm should be able to share data with specific bots - not just the overall swarm shared state (that goes to all bots).
 //TODO should be using limits.delayBetweenProcessingCyclesMs for when you want the swarm to be slowed down
 //TODO make sure all SwarmEvents are being used
+
+const DEFAULT_GOAL = "Process current event.";
 
 /**
 # Vrooli ‣ ResponseEngine   
@@ -89,7 +92,7 @@ export class ReasoningEngine {
     constructor(
         private readonly contextBuilder: ContextBuilder,
         private readonly llmRouter: LlmRouter,
-        private readonly toolRunner: ToolRunner,
+        public readonly toolRunner: ToolRunner,
     ) { }
 
     /**
@@ -417,10 +420,12 @@ export class ReasoningEngine {
                             // Execute the tool call (sync or async) and record result
                             const { toolResult, functionCallEntry, cost } = await this.processFunctionCall(
                                 chatId,
-                                bot.id,
+                                bot,
                                 ev as FunctionCallStreamEvent,
+                                availableTools, // Pass full Tool objects down
                                 abortSignal,
                                 config,
+                                userData,
                             );
 
                             // Update cumulative stats for the entire runLoop after tool call
@@ -572,23 +577,25 @@ export class ReasoningEngine {
     // Helper: process a function_call event, handling sync vs async tools
     private async processFunctionCall(
         conversationId: string | undefined,
-        callerBotId: string,
+        callerBot: BotParticipant,
         ev: FunctionCallStreamEvent,
+        availableTools: Tool[],
         abortSignal?: AbortSignal,
         config?: ChatConfigObject,
+        userData?: SessionUser,
     ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint }> {
         // Check for cancellation at the start of tool processing
         if (abortSignal?.aborted) {
             const reason = abortSignal.reason;
             let errorMessage = `Tool call ${ev.name} cancelled`;
             let errorCode = "CANCELLED";
-            let logMessage = `Tool call ${ev.name} cancelled by signal before execution for bot ${callerBotId}`;
+            let logMessage = `Tool call ${ev.name} cancelled by signal before execution for bot ${callerBot.id}`;
             let errorToThrow = new Error("ToolCallCancelledBySignal");
 
             if (reason === "TurnTimeout") {
                 errorMessage = `Tool call ${ev.name} aborted due to turn timeout`;
                 errorCode = "TIMED_OUT";
-                logMessage = `Tool call ${ev.name} aborted due to turn timeout before execution for bot ${callerBotId}`;
+                logMessage = `Tool call ${ev.name} aborted due to turn timeout before execution for bot ${callerBot.id}`;
                 errorToThrow = new Error("ResponseTimeoutError");
             } else if (reason instanceof Error) {
                 errorMessage = reason.message;
@@ -601,7 +608,7 @@ export class ReasoningEngine {
             if (conversationId) {
                 SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                     chatId: conversationId,
-                    botId: callerBotId,
+                    botId: callerBot.id,
                     status: "tool_failed",
                     toolInfo: { callId: ev.callId, name: ev.name, error: errorMessage },
                     error: { message: errorMessage, code: errorCode },
@@ -610,6 +617,159 @@ export class ReasoningEngine {
             throw errorToThrow;
         }
 
+        const toolName = ev.name;
+        // Use getEffectiveScheduling to ensure validated and default-applied rules are used.
+        const effectiveScheduling = config ? new ChatConfig({ config }).getEffectiveScheduling() : ChatConfig.defaultScheduling();
+        const schedulingRules = effectiveScheduling;
+
+        let requiresApproval = false;
+        let requiresSchedulingOnly = false; // True if delayed but no explicit approval needed
+        let specificDelayMs: number | undefined;
+
+        // Determine if the tool call requires approval or is subject to a configured delay.
+        // - If `schedulingRules.requiresApprovalTools` includes the tool (or is "all"),
+        //   the tool call is marked as PENDING_APPROVAL.
+        // - Otherwise, if `schedulingRules.toolSpecificDelays` or `defaultDelayMs`
+        //   specifies a delay, the tool call is marked as SCHEDULED_FOR_EXECUTION.
+        // - If neither approval nor a specific delay is configured, the tool executes immediately.
+        if (schedulingRules) {
+            if (Array.isArray(schedulingRules.requiresApprovalTools) && schedulingRules.requiresApprovalTools.includes(toolName)) {
+                requiresApproval = true;
+            } else if (schedulingRules.requiresApprovalTools === "all") {
+                requiresApproval = true;
+            }
+
+            // A tool requiring approval is inherently "scheduled" (pending approval first)
+            // If not requiring approval, it might still be scheduled with a simple delay.
+            if (!requiresApproval) {
+                specificDelayMs = schedulingRules.toolSpecificDelays?.[toolName] ?? schedulingRules.defaultDelayMs;
+                if (specificDelayMs && specificDelayMs > 0) {
+                    requiresSchedulingOnly = true;
+                }
+            }
+        } else {
+            if (config) { // Only log if config itself is present, as schedulingRules is part of config
+                logger.warn(`Scheduling rules are undefined for tool call ${toolName} in conversation ${conversationId}, but ChatConfigObject was provided. Tool will execute immediately if not requiring approval otherwise.`, { toolName, conversationId, callerBotId: callerBot.id });
+            }
+        }
+
+        if (requiresApproval || requiresSchedulingOnly) {
+            const pendingId = nanoid();
+            const now = Date.now();
+            let currentStatus: PendingToolCallStatus | null = null;
+            let scheduledExecutionTime: number | undefined;
+            let approvalTimeoutTimestamp: number | undefined;
+
+            if (requiresApproval) {
+                currentStatus = PendingToolCallStatus.PENDING_APPROVAL;
+                approvalTimeoutTimestamp = now + (schedulingRules?.approvalTimeoutMs || MINUTES_5_MS);
+            } else if (requiresSchedulingOnly && specificDelayMs) {
+                currentStatus = PendingToolCallStatus.SCHEDULED_FOR_EXECUTION;
+                scheduledExecutionTime = now + specificDelayMs;
+                // TODO-SCHEDULED-TOOL: Implement job queue integration (e.g., BullMQ) for SCHEDULED_FOR_EXECUTION.
+                // This involves: 
+                // 1. Defining a new job type for the BullMQ.
+                // 2. Enqueueing a job here with `pendingId`, `scheduledExecutionTime`, and necessary context.
+                // 3. Creating a worker process to pick up these jobs from the queue.
+                // 4. The worker would then likely trigger an internal event (e.g., "ScheduledToolExecutionDue") 
+                //    or directly call a method in CompletionService to execute the tool and re-engage the bot.
+                // 5. Ensure robust error handling, retries, and logging for the queue and worker.
+            } else {
+                logger.warn(`Tool call ${toolName} for bot ${callerBot.id} entered scheduling block without clear status. Defaulting to immediate execution.`, { ev });
+            }
+
+            if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL || currentStatus === PendingToolCallStatus.SCHEDULED_FOR_EXECUTION) {
+                // 3. Create a PendingToolCallEntry object
+                const pendingEntryForConfig: PendingToolCallEntry = {
+                    pendingId,
+                    toolCallId: ev.callId,
+                    toolName,
+                    toolArguments: JSON.stringify(ev.arguments),
+                    callerBotId: callerBot.id,
+                    conversationId: conversationId || "unknown_conversation",
+                    requestedAt: now,
+                    status: currentStatus,
+                    scheduledExecutionTime,
+                    approvalTimeoutAt: approvalTimeoutTimestamp,
+                    userIdToApprove: userData?.id,
+                    executionAttempts: 0,
+                    // Note: statusReason, approvedOrRejectedByUserId, and decisionTime are typically set
+                    // by the separate process that handles the approval/rejection or timeout event for this pending call,
+                    // not at the time of initial deferral.
+                };
+
+                // 4. Store the PendingToolCallEntry in ChatConfigObject.
+                if (config) {
+                    config.pendingToolCalls = config.pendingToolCalls || [];
+                    config.pendingToolCalls.push(pendingEntryForConfig); // Use the correctly typed object
+                    logger.info(`Tool call ${toolName} (${ev.callId}) for bot ${callerBot.id} deferred and added to ChatConfig. Status: ${pendingEntryForConfig.status}`, { pendingEntry: pendingEntryForConfig });
+                } else {
+                    logger.error(`Cannot defer tool call ${toolName} (${ev.callId}) for bot ${callerBot.id}: ChatConfigObject is undefined.`);
+                }
+
+                // 5. Emit a socket event to the client if approval is needed.
+                if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL && conversationId && userData) {
+                    const hasActiveConnection = SocketService.get().roomHasOpenConnections(conversationId);
+
+                    if (hasActiveConnection) {
+                        SocketService.get().emitSocketEvent("tool_approval_required", conversationId, {
+                            pendingId,
+                            toolCallId: ev.callId,
+                            toolName,
+                            toolArguments: ev.arguments as Record<string, any>,
+                            callerBotId: callerBot.id,
+                            callerBotName: callerBot.name, // Added callerBotName
+                            approvalTimeoutAt: approvalTimeoutTimestamp,
+                            estimatedCost: availableTools.find(t => t.name === toolName)?.estimatedCost, // Use the retrieved estimatedCost
+                        });
+                    } else {
+                        Notify(userData.languages) // Pass user's languages for i18n
+                            .pushToolApprovalRequired(
+                                conversationId,
+                                pendingId,
+                                toolName,
+                                callerBot.name, // Changed from callerBot.id to callerBot.name
+                                config?.goal || "your Vrooli task", // conversationName: Use chat goal or a generic fallback
+                                approvalTimeoutTimestamp,
+                                availableTools.find(t => t.name === toolName)?.estimatedCost, // Use the retrieved estimatedCost
+                                schedulingRules?.autoRejectOnTimeout,
+                            )
+                            .toUser(userData.id);
+                        logger.info(`Sent tool approval push notification for ${pendingId} to user ${userData.id} for conversation ${conversationId}.`);
+                    }
+
+                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                        chatId: conversationId,
+                        botId: callerBot.id,
+                        status: "tool_pending_approval",
+                        toolInfo: { callId: ev.callId, name: toolName, pendingId },
+                        message: `Tool ${toolName} is awaiting user approval.`,
+                    });
+                }
+
+                // 6. Return a placeholder result to the LLM indicating deferral.
+                const deferredToolResult = {
+                    __vrooli_tool_deferred: true,
+                    pendingId,
+                    status: currentStatus,
+                    message: currentStatus === PendingToolCallStatus.PENDING_APPROVAL
+                        ? `Tool call ${toolName} is awaiting user approval. You will be notified of the outcome.`
+                        : `Tool call ${toolName} has been scheduled for later execution. You will be notified upon completion.`,
+                };
+                const functionCallEntryDeferred: ToolFunctionCall = {
+                    id: ev.callId,
+                    function: { name: toolName, arguments: JSON.stringify(ev.arguments) },
+                    // Indicate success to LLM for this step (deferral was successful), but output shows it's deferred.
+                    result: { success: true, output: JSON.stringify(deferredToolResult) },
+                };
+                // Cost for deferring a tool call is currently BigInt(0).
+                // The actual cost of the tool will be incurred upon its execution.
+                // This could be revisited to add a nominal scheduling fee if needed in the future (not likely, but you never know).
+                return { toolResult: deferredToolResult, functionCallEntry: functionCallEntryDeferred, cost: BigInt(0) };
+            }
+        }
+
+        // If not deferred (or fell through scheduling logic), proceed with immediate execution
         const args = ev.arguments as Record<string, any>;
         const isAsync = args.isAsync === true;
         const fnEntryBase = {
@@ -622,7 +782,7 @@ export class ReasoningEngine {
         if (conversationId) {
             SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                 chatId: conversationId,
-                botId: callerBotId,
+                botId: callerBot.id,
                 status: "tool_calling",
                 toolInfo: { callId: ev.callId, name: ev.name, args: JSON.stringify(ev.arguments) },
                 message: `Using tool: ${ev.name}`,
@@ -637,7 +797,7 @@ export class ReasoningEngine {
             // For async tool initiation, the McpToolRunner should ideally return the initiation cost.
             // This part is more conceptual as the actual async handling might be more complex
             // and involve the registry providing this initiation cost.
-            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId, signal: abortSignal });
+            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId: callerBot.id, signal: abortSignal });
 
             if (toolCallResponse.ok) {
                 output = toolCallResponse.data.output; // Should be an ack like { status: "started", callId: ev.callId }
@@ -646,7 +806,7 @@ export class ReasoningEngine {
                 if (conversationId) {
                     SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                         chatId: conversationId,
-                        botId: callerBotId,
+                        botId: callerBot.id,
                         status: "tool_completed", // Assuming async start is a form of completion for this event
                         toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
                     });
@@ -659,7 +819,7 @@ export class ReasoningEngine {
                 if (conversationId) {
                     SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                         chatId: conversationId,
-                        botId: callerBotId,
+                        botId: callerBot.id,
                         status: "tool_failed",
                         toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
                     });
@@ -668,7 +828,7 @@ export class ReasoningEngine {
             return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         } else {
             // Synchronous execution
-            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId, signal: abortSignal });
+            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId: callerBot.id, signal: abortSignal });
 
             if (toolCallResponse.ok) {
                 output = toolCallResponse.data.output;
@@ -677,7 +837,7 @@ export class ReasoningEngine {
                 if (conversationId) {
                     SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                         chatId: conversationId,
-                        botId: callerBotId,
+                        botId: callerBot.id,
                         status: "tool_completed",
                         toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
                     });
@@ -690,7 +850,7 @@ export class ReasoningEngine {
                 if (conversationId) {
                     SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                         chatId: conversationId,
-                        botId: callerBotId,
+                        botId: callerBot.id,
                         status: "tool_failed",
                         toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
                     });
@@ -819,11 +979,100 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
         processedPrompt = processedPrompt.replace(/{{ROLE}}/g, botRole);
         processedPrompt = processedPrompt.replace(/{{BOT_ID}}/g, botId);
         processedPrompt = processedPrompt.replace(/{{ROLE_SPECIFIC_INSTRUCTIONS}}/g, roleSpecificInstructions);
+
+        const swarmStateString = this._buildSwarmStateString(convoConfig);
+        processedPrompt = processedPrompt.replace(/{{SWARM_STATE}}/g, swarmStateString);
+
         const toolSchemasString = allToolSchemas.length > 0 ? JSON.stringify(allToolSchemas, null, 2) : "No tools available for this role.";
         processedPrompt = processedPrompt.replace(/{{TOOL_SCHEMAS}}/g, toolSchemasString);
 
         baseSystemMessage += processedPrompt;
         return baseSystemMessage.trim();
+    }
+
+    /**
+     * Builds a string representation of the current swarm state for inclusion in the system prompt.
+     * @param convoConfig The conversation configuration object containing swarm state.
+     * @returns A formatted string of the swarm state, or a default message if unavailable.
+     */
+    private _buildSwarmStateString(convoConfig: ChatConfigObject | undefined): string {
+        /** How long each swarm state section can be before we truncate it. */
+        const MAX_STRING_PREVIEW_LENGTH = 2_000;
+        let swarmStateOutput = "SWARM STATE DETAILS: Not available or error formatting state.";
+
+        if (!convoConfig) {
+            return "SWARM STATE DETAILS: Configuration not available.";
+        }
+
+        try {
+            // Ensure these properties exist on convoConfig, even if they are empty arrays.
+            const teamId = convoConfig.teamId || "No team"; //TODO should store team information, since it contains things like MOISE+ hierarchy, etc.
+            const swarmLeader = convoConfig.swarmLeader || "No leader";
+            const subtasks = convoConfig.subtasks || [];
+            const subtaskLeaders = convoConfig.subtaskLeaders || {};
+            const eventSubscriptions = convoConfig.eventSubscriptions || {};
+            const blackboard = convoConfig.blackboard || [];
+            const resources = convoConfig.resources || [];
+            const records = convoConfig.records || [];
+            const stats = convoConfig.stats || {};
+            const limits = convoConfig.limits || {};
+
+            const formattedSwarmStateParts: string[] = [];
+
+            // Handle teamId
+            formattedSwarmStateParts.push(`- Team ID:\n${teamId}\n`);
+
+            // Handle swarmLeader
+            formattedSwarmStateParts.push(`- Swarm Leader:\n${swarmLeader}\n`);
+
+            // Handle subtasks
+            const activeSubtasksCount = subtasks.filter(st => typeof st === "object" && st !== null && (st.status === "todo" || st.status === "in_progress")).length;
+            const completedSubtasksCount = subtasks.filter(st => typeof st === "object" && st !== null && st.status === "done").length;
+            const subtasksString = JSON.stringify(subtasks, null, 2);
+            const truncatedSubtasksString = subtasksString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (subtasksString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Subtasks (active: ${activeSubtasksCount}, completed: ${completedSubtasksCount}):\n${truncatedSubtasksString}\n`);
+
+            // Handle subtaskLeaders
+            const subtaskLeadersString = JSON.stringify(subtaskLeaders, null, 2);
+            const truncatedSubtaskLeadersString = subtaskLeadersString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (subtaskLeadersString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Subtask Leaders:\n${truncatedSubtaskLeadersString}\n`);
+
+            // Handle eventSubscriptions
+            const eventSubscriptionsString = JSON.stringify(eventSubscriptions, null, 2);
+            const truncatedEventSubscriptionsString = eventSubscriptionsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (eventSubscriptionsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Event Subscriptions:\n${truncatedEventSubscriptionsString}\n`);
+
+            // Handle blackboard
+            const blackboardString = JSON.stringify(blackboard, null, 2);
+            const truncatedBlackboardString = blackboardString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (blackboardString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Blackboard:\n${truncatedBlackboardString}\n`);
+
+            // Handle resources
+            const resourcesString = JSON.stringify(resources, null, 2);
+            const truncatedResourcesString = resourcesString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (resourcesString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Resources:\n${truncatedResourcesString}\n`);
+
+            // Handle records
+            const recordsString = JSON.stringify(records, null, 2);
+            const truncatedRecordsString = recordsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (recordsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Records:\n${truncatedRecordsString}\n`);
+
+            // Handle stats
+            const statsString = JSON.stringify(stats, null, 2);
+            const truncatedStatsString = statsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (statsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Stats:\n${truncatedStatsString}\n`);
+
+            // Handle limits
+            const limitsString = JSON.stringify(limits, null, 2);
+            const truncatedLimitsString = limitsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (limitsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
+            formattedSwarmStateParts.push(`- Limits:\n${truncatedLimitsString}\n`);
+
+            swarmStateOutput = `\nSWARM STATE DETAILS:\n${formattedSwarmStateParts.join("\n\n")}`;
+        } catch (e) {
+            logger.error("Error formatting swarm state for prompt:", e);
+            // Fallback to the default message initialized if an error occurs
+        }
+        return swarmStateOutput;
     }
 
     /**
@@ -871,6 +1120,20 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
 
         // Get available tools
         const availableToolsFromState = conversationState.availableTools;
+        // Fetch full tool definitions, including estimatedCost
+        const fullAvailableTools: Tool[] = availableToolsFromState
+            .map(toolRef => {
+                // Assuming toolRef is either a Tool object or just a name string
+                const toolName = typeof toolRef === "string" ? toolRef : toolRef.name;
+                const toolDef = this.toolRegistry.getToolDefinition(toolName);
+                if (!toolDef) {
+                    logger.warn(`Tool definition not found in registry for: ${toolName}. It will not be available.`);
+                    return null;
+                }
+                // Ensure the definition conforms to the Tool interface, especially for estimatedCost
+                return toolDef as Tool;
+            })
+            .filter(tool => tool !== null) as Tool[];
 
         // Determine responders
         const { responders } = await this.agentGraph.selectResponders(conversationState, messageState);
@@ -913,7 +1176,7 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
                 const response = await this.reasoningEngine.runLoop(
                     { id: messageId },
                     botSystemMessage, // Pass bot-specific system message
-                    availableToolsFromState,
+                    fullAvailableTools, // Pass full Tool objects
                     responder,
                     creditAccountId,
                     conversationState.config,
@@ -1002,15 +1265,23 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
             throw new Error(`Conversation state not found for ${conversationId}`);
         }
 
-        // availableToolsFromState will be used by runLoop
-        const availableToolsFromState = conversationState.availableTools;
+        const fullAvailableToolsForEvent: Tool[] = (conversationState.availableTools || [])
+            .map(toolRef => {
+                const toolName = typeof toolRef === "string" ? toolRef : toolRef.name;
+                const toolDef = this.toolRegistry.getToolDefinition(toolName);
+                if (!toolDef) {
+                    logger.warn(`Tool definition not found in registry for: ${toolName} during internal event. It will not be available.`);
+                    return null;
+                }
+                return toolDef as Tool;
+            })
+            .filter(tool => tool !== null) as Tool[];
 
         const sessionUserToUse = event.sessionUser;
-        // Ensure creditAccountId is present and is a non-empty string
         if (!sessionUserToUse || typeof sessionUserToUse.creditAccountId !== "string" || sessionUserToUse.creditAccountId.trim() === "") {
-            const logMessage = `Critical: creditAccountId is missing, not a string, or empty in sessionUser for SwarmEvent. Billing will fail. UserID: ${sessionUserToUse?.id}, ChatID: ${conversationId}`;
-            logger.error(logMessage);
-            throw new Error("User credit account ID is missing, invalid, or empty in swarm event. Cannot proceed.");
+            const error = `Critical: creditAccountId is missing, invalid, or empty in sessionUser for SwarmEvent. Billing will fail. UserID: ${sessionUserToUse?.id}, ChatID: ${conversationId}`;
+            logger.error(error);
+            throw new Error(error);
         }
         const creditAccountId: string = sessionUserToUse.creditAccountId;
 
@@ -1037,22 +1308,18 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
         }
 
         try {
-            const goalForEvent = conversationState.config.goal || "Process current event."; // Default goal for events
+            const goalForEvent = conversationState.config.goal || DEFAULT_GOAL;
 
             switch (event.type) {
                 case "swarm_started": {
                     const allResponseStatsSwarmStarted: ResponseStats[] = [];
                     const swarmStartEvent = event as SwarmStartedEvent;
-                    // Goal for swarm_started is more specific from the event itself
                     const specificGoal = swarmStartEvent.goal || goalForEvent;
-                    const systemMessageText = `Swarm initiated. Goal: ${specificGoal}.`; // This text is for the synthetic message for selection
-
-                    const startMessage = { text: systemMessageText }; // This is the initial message for the LLM if it were text-based
-
+                    const systemMessageText = `Swarm initiated. Goal: ${specificGoal}.`;
+                    const startMessage = { text: systemMessageText };
                     const msgCfg = MessageConfig.default();
                     msgCfg.setRole("system");
                     const systemMessageConfigExport = msgCfg.export();
-
                     const syntheticMessageForSelection: MessageState = {
                         id: generatePK().toString(),
                         createdAt: new Date(),
@@ -1064,12 +1331,10 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
                     } as MessageState;
 
                     const { responders } = await this.agentGraph.selectResponders(conversationState, syntheticMessageForSelection);
-
                     if (!responders || responders.length === 0) {
                         logger.warn(`No responders found for swarm_started in convo ${conversationId}`);
                         return;
                     }
-
                     const numSwarmResponders = responders.length > 0 ? responders.length : 1;
                     const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
                         currentConvoStats,
@@ -1080,9 +1345,9 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
                     await Promise.all(responders.map(async (responder) => {
                         const botSystemMessage = await this._buildSystemMessage(specificGoal, responder, conversationState.config);
                         const response = await this.reasoningEngine.runLoop(
-                            startMessage, // This is {text: ...}, so ReasoningEngine will wrap it
+                            startMessage,
                             botSystemMessage,
-                            availableToolsFromState,
+                            fullAvailableToolsForEvent,
                             responder,
                             creditAccountId,
                             conversationState.config,
@@ -1112,12 +1377,10 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
                     }
                     const allResponseStatsExternal: ResponseStats[] = [];
                     const { responders } = await this.agentGraph.selectResponders(conversationState, messageState);
-
                     if (!responders || responders.length === 0) {
                         logger.warn(`No responders found for external_message_created in convo ${conversationId}`, { messageId });
                         return;
                     }
-
                     const numMsgResponders = responders.length > 0 ? responders.length : 1;
                     const { toolCallsPerBot: convoAllocatedToolCallsPerBotEvent, creditsPerBot: convoAllocatedCreditsPerBotEvent } = this._calculatePerBotAllocation(
                         currentConvoStats,
@@ -1128,9 +1391,9 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
                     await Promise.all(responders.map(async (responder) => {
                         const botSystemMessage = await this._buildSystemMessage(goalForEvent, responder, conversationState.config);
                         const response = await this.reasoningEngine.runLoop(
-                            { id: messageId }, // Start from the actual message ID
+                            { id: messageId },
                             botSystemMessage,
-                            availableToolsFromState,
+                            fullAvailableToolsForEvent,
                             responder,
                             creditAccountId,
                             conversationState.config,
@@ -1145,6 +1408,199 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
                         allResponseStatsExternal.push(response.responseStats);
                     }));
                     currentResponseStats = allResponseStatsExternal;
+                    break;
+                }
+                case "ApprovedToolExecutionRequest": {
+                    if (!event.payload || !event.payload.pendingToolCall) {
+                        logger.error("ApprovedToolExecutionRequest event missing pendingToolCall in payload", { event });
+                        return;
+                    }
+                    const { pendingToolCall } = event.payload as { pendingToolCall: PendingToolCallEntry };
+                    logger.info(`Processing ApprovedToolExecutionRequest for pendingId: ${pendingToolCall.pendingId}, tool: ${pendingToolCall.toolName}`);
+
+                    const pIndex = (conversationState.config.pendingToolCalls || []).findIndex(p => p.pendingId === pendingToolCall.pendingId);
+                    if (pIndex !== -1) {
+                        conversationState.config.pendingToolCalls![pIndex].status = PendingToolCallStatus.EXECUTING;
+                        conversationState.config.pendingToolCalls![pIndex].lastAttemptTime = Date.now();
+                        this.conversationStore.updateConfig(conversationId, conversationState.config); // Persist status update
+                    } else {
+                        logger.error(`PendingToolCallEntry not found for approved tool: ${pendingToolCall.pendingId}`, { conversationId });
+                        // Decide if we should proceed or return early if the entry is critical for context/logging
+                    }
+
+                    let toolCallResponseData: Awaited<ReturnType<typeof this.reasoningEngine.toolRunner.run>>; // Corrected: reasoningEngine.toolRunner
+                    let executedToolCost = BigInt(0);
+                    try {
+                        const toolArgs = JSON.parse(pendingToolCall.toolArguments);
+                        // Corrected: Access toolRunner via reasoningEngine instance
+                        toolCallResponseData = await this.reasoningEngine.toolRunner.run(
+                            pendingToolCall.toolName,
+                            toolArgs,
+                            {
+                                conversationId: event.conversationId,
+                                callerBotId: pendingToolCall.callerBotId,
+                                sessionUser: event.sessionUser,
+                                signal: controller.signal,
+                            },
+                        );
+                        executedToolCost = toolCallResponseData.ok ? BigInt(toolCallResponseData.data.creditsUsed) : (toolCallResponseData.error.creditsUsed ? BigInt(toolCallResponseData.error.creditsUsed) : BigInt(0));
+                    } catch (execError: any) {
+                        logger.error(`Error executing approved tool ${pendingToolCall.toolName} (pendingId: ${pendingToolCall.pendingId})`, { error: execError });
+                        toolCallResponseData = { ok: false, error: { code: "TOOL_EXECUTION_ERROR", message: execError.message || "Unknown tool execution error" } };
+                    }
+
+                    if (pIndex !== -1) {
+                        conversationState.config.pendingToolCalls![pIndex].status = toolCallResponseData.ok ? PendingToolCallStatus.COMPLETED_SUCCESS : PendingToolCallStatus.COMPLETED_FAILURE;
+                        conversationState.config.pendingToolCalls![pIndex].result = toolCallResponseData.ok ? JSON.stringify(toolCallResponseData.data.output) : undefined;
+                        conversationState.config.pendingToolCalls![pIndex].error = !toolCallResponseData.ok ? JSON.stringify(toolCallResponseData.error) : undefined;
+                        conversationState.config.pendingToolCalls![pIndex].cost = executedToolCost.toString();
+                    } else {
+                        logger.warn(`Could not update PendingToolCallEntry ${pendingToolCall.pendingId} with final execution status as it was not found.`);
+                    }
+
+                    // TODO-SCHEDULED-TOOL: Refactor message config creation to MessageConfig.fromSystemToolCallResponse(toolCallId)
+                    const toolResponseMessageCfg = MessageConfig.default();
+                    toolResponseMessageCfg.setRole("tool");
+                    // toolResponseMessageCfg.setToolCallId(pendingToolCall.toolCallId); // This method doesn't exist
+                    // For a tool response, we need to provide a ToolFunctionCall object
+                    const toolCallResultEntry: ToolFunctionCall = {
+                        id: pendingToolCall.toolCallId, // This is the original tool_call_id from the LLM request
+                        function: { // Mocking function details as they are not strictly needed for the response message
+                            name: pendingToolCall.toolName,
+                            arguments: pendingToolCall.toolArguments, // Original arguments
+                        },
+                        result: toolCallResponseData.ok
+                            ? { success: true, output: JSON.stringify(toolCallResponseData.data.output) }
+                            : { success: false, error: toolCallResponseData.error },
+                    };
+                    toolResponseMessageCfg.setToolCalls([toolCallResultEntry]);
+
+                    const toolResponseMessage: MessageState = {
+                        id: generatePK().toString(),
+                        createdAt: new Date(),
+                        config: toolResponseMessageCfg.export(),
+                        text: toolCallResponseData.ok ? JSON.stringify(toolCallResponseData.data.output) : JSON.stringify(toolCallResponseData.error),
+                        language: DEFAULT_LANGUAGE,
+                        parent: null,
+                        user: { id: pendingToolCall.callerBotId },
+                    };
+                    results.push(toolResponseMessage);
+                    currentResponseStats.push({ toolCalls: 1, creditsUsed: executedToolCost });
+
+                    const callerBot = conversationState.participants.find(p => p.id === pendingToolCall.callerBotId);
+                    if (callerBot) {
+                        logger.info(`Re-engaging bot ${callerBot.id} after approved tool execution: ${pendingToolCall.toolName}`);
+                        const { toolCallsPerBot: reEngageAllocatedToolCalls, creditsPerBot: reEngageAllocatedCredits } = this._calculatePerBotAllocation(
+                            currentConvoStats, effectiveLimitsEvent, 1,
+                        );
+                        try {
+                            const botSystemMessage = await this._buildSystemMessage(goalForEvent, callerBot, conversationState.config);
+                            const botResponse = await this.reasoningEngine.runLoop(
+                                { id: toolResponseMessage.id }, botSystemMessage, fullAvailableToolsForEvent, callerBot, creditAccountId,
+                                conversationState.config, reEngageAllocatedToolCalls, reEngageAllocatedCredits, event.sessionUser,
+                                conversationId, undefined, controller.signal,
+                            );
+                            results.push(botResponse.finalMessage);
+                            currentResponseStats.push(botResponse.responseStats);
+                        } catch (reEngageError: any) {
+                            logger.error(`Error re-engaging bot ${callerBot.id} after approved tool execution`, { error: reEngageError });
+                            if (conversationId) {
+                                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                                    chatId: conversationId, botId: callerBot.id, status: "error_internal",
+                                    error: { message: reEngageError.message || "Failed to process tool result", code: "REENGAGE_FAILURE" },
+                                });
+                            }
+                        }
+                    } else {
+                        logger.error(`Caller bot ${pendingToolCall.callerBotId} not found for re-engagement.`);
+                    }
+                    break;
+                }
+                case "RejectedToolExecutionRequest": {
+                    if (!event.payload || !event.payload.pendingToolCall) {
+                        logger.error("RejectedToolExecutionRequest event missing pendingToolCall in payload", { event });
+                        return;
+                    }
+                    const { pendingToolCall, reason } = event.payload as { pendingToolCall: PendingToolCallEntry, reason?: string };
+                    logger.info(`Processing RejectedToolExecutionRequest for pendingId: ${pendingToolCall.pendingId}, tool: ${pendingToolCall.toolName}, reason: ${reason}`);
+
+                    const pIndex = (conversationState.config.pendingToolCalls || []).findIndex(p => p.pendingId === pendingToolCall.pendingId);
+                    if (pIndex !== -1) {
+                        conversationState.config.pendingToolCalls![pIndex].status = PendingToolCallStatus.REJECTED_BY_USER;
+                        conversationState.config.pendingToolCalls![pIndex].statusReason = reason || "Rejected by user without specific reason.";
+                        conversationState.config.pendingToolCalls![pIndex].decisionTime = Date.now();
+                        if (pendingToolCall.approvedOrRejectedByUserId) {
+                            conversationState.config.pendingToolCalls![pIndex].approvedOrRejectedByUserId = pendingToolCall.approvedOrRejectedByUserId;
+                        }
+                    } else {
+                        logger.error(`PendingToolCallEntry not found for rejected tool: ${pendingToolCall.pendingId}`, { conversationId });
+                    }
+
+                    const conciseRejectionReason = `Tool call '${pendingToolCall.toolName}' (ID: ${pendingToolCall.toolCallId}) was rejected. Reason: ${reason || "User declined."}`;
+                    const detailedRejectionPayloadForLlm = JSON.stringify({
+                        __vrooli_tool_rejected: true,
+                        toolName: pendingToolCall.toolName,
+                        pendingId: pendingToolCall.pendingId,
+                        reason: reason || "Tool call was rejected by the user.",
+                        message: conciseRejectionReason, // LLM sees this concise message within the structured payload
+                    });
+
+                    const toolRejectionMessageCfg = MessageConfig.default();
+                    toolRejectionMessageCfg.setRole("tool");
+                    const toolCallRejectionEntry: ToolFunctionCall = {
+                        id: pendingToolCall.toolCallId,
+                        function: {
+                            name: pendingToolCall.toolName,
+                            arguments: pendingToolCall.toolArguments,
+                        },
+                        result: {
+                            success: false,
+                            error: {
+                                code: "TOOL_REJECTED_BY_USER",
+                                message: conciseRejectionReason, // Use the concise reason here for the error object
+                            },
+                        },
+                    };
+                    toolRejectionMessageCfg.setToolCalls([toolCallRejectionEntry]);
+
+                    const toolRejectionMessage: MessageState = {
+                        id: generatePK().toString(),
+                        createdAt: new Date(),
+                        config: toolRejectionMessageCfg.export(),
+                        text: detailedRejectionPayloadForLlm, // The full JSON string for the LLM to parse in the message text
+                        language: DEFAULT_LANGUAGE,
+                        parent: null,
+                        user: { id: pendingToolCall.callerBotId },
+                    };
+                    results.push(toolRejectionMessage);
+
+                    const callerBot = conversationState.participants.find(p => p.id === pendingToolCall.callerBotId);
+                    if (callerBot) {
+                        logger.info(`Re-engaging bot ${callerBot.id} after tool rejection: ${pendingToolCall.toolName}`);
+                        const { toolCallsPerBot: reEngageAllocatedToolCalls, creditsPerBot: reEngageAllocatedCredits } = this._calculatePerBotAllocation(
+                            currentConvoStats, effectiveLimitsEvent, 1,
+                        );
+                        try {
+                            const botSystemMessage = await this._buildSystemMessage(goalForEvent, callerBot, conversationState.config);
+                            const botResponse = await this.reasoningEngine.runLoop(
+                                { id: toolRejectionMessage.id }, botSystemMessage, fullAvailableToolsForEvent, callerBot, creditAccountId,
+                                conversationState.config, reEngageAllocatedToolCalls, reEngageAllocatedCredits, event.sessionUser,
+                                conversationId, undefined, controller.signal,
+                            );
+                            results.push(botResponse.finalMessage);
+                            currentResponseStats.push(botResponse.responseStats);
+                        } catch (reEngageError: any) {
+                            logger.error(`Error re-engaging bot ${callerBot.id} after tool rejection`, { error: reEngageError });
+                            if (conversationId) {
+                                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                                    chatId: conversationId, botId: callerBot.id, status: "error_internal",
+                                    error: { message: reEngageError.message || "Failed to process tool rejection", code: "REENGAGE_FAILURE" },
+                                });
+                            }
+                        }
+                    } else {
+                        logger.error(`Caller bot ${pendingToolCall.callerBotId} not found for re-engagement after rejection.`);
+                    }
                     break;
                 }
                 default: {
@@ -1175,7 +1631,6 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
 
                 // Persist updated stats back to the conversation store
                 this.conversationStore.updateConfig(conversationId, conversationState.config);
-                // TODO: Consider emitting events that these responses were created (e.g., via this.bus)
             }
         } catch (error) {
             logger.error(`Error during handleInternalEvent for convo ${conversationId}, event ${event.type}`, { error });
@@ -1253,7 +1708,7 @@ type State = (typeof SwarmStateMachine.State)[keyof typeof SwarmStateMachine.Sta
  *
  * Routine orchestration lives entirely in **RoutineStateMachine**.
  */
-export class SwarmStateMachine {
+export class SwarmStateMachine implements ManagedTaskStateMachine {
     private disposed = false;
     private processingLock = false;
     static State = {
@@ -1268,16 +1723,77 @@ export class SwarmStateMachine {
     } as const;
     private state: State = SwarmStateMachine.State.UNINITIALIZED;
     private readonly eventQueue: SwarmEvent[] = [];
+    private conversationId: string | null = null; // To store convoId for getTaskId
+    private initiatingUser: SessionUser | null = null; // To store initiatingUser for getAssociatedUserId
 
     constructor(
         private readonly completion: CompletionService,
     ) { }
+
+    // Implementation of ManagedTaskStateMachine methods
+    public getTaskId(): string {
+        if (!this.conversationId) {
+            // This should ideally not happen if 'start' is called correctly
+            logger.error("SwarmStateMachine: getTaskId called before conversationId was set.");
+            return "undefined_swarm_task_id";
+        }
+        return this.conversationId;
+    }
+
+    public getCurrentSagaStatus(): string {
+        // Map internal state to standardized status
+        // Example mapping, adjust as needed for exact semantics
+        switch (this.state) {
+            case SwarmStateMachine.State.UNINITIALIZED:
+                return "UNINITIALIZED"; // Or perhaps a more specific pre-start status
+            case SwarmStateMachine.State.STARTING:
+                return "STARTING";
+            case SwarmStateMachine.State.RUNNING:
+                return "RUNNING";
+            case SwarmStateMachine.State.IDLE:
+                return "IDLE";
+            case SwarmStateMachine.State.PAUSED:
+                return "PAUSED";
+            case SwarmStateMachine.State.STOPPED:
+                return "STOPPED"; // Or map to COMPLETED if that's the intent
+            case SwarmStateMachine.State.FAILED:
+                return "FAILED";
+            case SwarmStateMachine.State.TERMINATED:
+                return "TERMINATED"; // Or COMPLETED
+            default:
+                logger.warn(`SwarmStateMachine: Unknown state encountered in getCurrentSagaStatus: ${this.state}`);
+                return "UNKNOWN";
+        }
+    }
+
+    public async requestPause(): Promise<boolean> {
+        if (this.state === SwarmStateMachine.State.RUNNING || this.state === SwarmStateMachine.State.IDLE) {
+            await this.pause(); // Assuming pause is async or has async implications
+            return true;
+        }
+        logger.warn(`SwarmStateMachine: requestPause called in non-pausable state: ${this.state}`);
+        return false;
+    }
+
+    public async requestStop(reason: string): Promise<boolean> {
+        logger.info(`SwarmStateMachine: requestStop called for ${this.conversationId}. Reason: ${reason}`);
+        // shutdown seems to be the closest equivalent. Consider if a different state like 'STOPPED' is needed before TERMINATED.
+        await this.shutdown();
+        return true; // Assuming shutdown always attempts to stop and terminate
+    }
+
+    public getAssociatedUserId(): string | undefined {
+        return this.initiatingUser?.id;
+    }
+    // End of ManagedTaskStateMachine methods
 
     async start(convoId: string, goal: string, initiatingUser: SessionUser): Promise<void> {
         if (this.state !== SwarmStateMachine.State.UNINITIALIZED) {
             logger.warn(`SwarmStateMachine for ${convoId} already started. Current state: ${this.state}`);
             return;
         }
+        this.conversationId = convoId; // Store convoId
+        this.initiatingUser = initiatingUser; // Store initiatingUser
         this.state = SwarmStateMachine.State.STARTING;
         logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}"`);
 
@@ -1395,12 +1911,14 @@ export class SwarmStateMachine {
     async pause(): Promise<void> {
         if (this.state === SwarmStateMachine.State.RUNNING || this.state === SwarmStateMachine.State.IDLE) {
             this.state = SwarmStateMachine.State.PAUSED;
+            logger.info(`SwarmStateMachine for ${this.conversationId} paused.`);
         }
     }
 
     async resume(convoId: string): Promise<void> {
         if (this.state === SwarmStateMachine.State.PAUSED) {
             this.state = SwarmStateMachine.State.IDLE;
+            logger.info(`SwarmStateMachine for ${convoId} resumed. Draining event queue.`);
             await this.drain(convoId);
         }
     }
@@ -1413,8 +1931,114 @@ export class SwarmStateMachine {
     }
 
     private fail(err: unknown) {
-        logger.error("Swarm failure", { error: err });
+        logger.error(`Swarm failure for ${this.conversationId}`, { error: err });
         this.state = SwarmStateMachine.State.FAILED;
+    }
+
+    /**
+     * Handles the scenario where a tool call, previously deferred for user approval,
+     * has now been approved.
+     * This method will queue an internal event to trigger the execution of the tool.
+     * @param approvedToolCall - The PendingToolCallEntry that was approved.
+     */
+    public async handleToolApproval(approvedToolCall: PendingToolCallEntry): Promise<void> {
+        if (!this.conversationId) {
+            logger.error("SwarmStateMachine: handleToolApproval called before conversationId was set.", { approvedToolCall });
+            return;
+        }
+        if (this.state === SwarmStateMachine.State.TERMINATED || this.state === SwarmStateMachine.State.FAILED) {
+            logger.warn(`SwarmStateMachine for ${this.conversationId} is in a terminal state (${this.state}). Cannot process approved tool call ${approvedToolCall.pendingId}.`);
+            return;
+        }
+        if (!this.initiatingUser) {
+            logger.error(`SwarmStateMachine for ${this.conversationId}: initiatingUser is null. Cannot process approved tool call ${approvedToolCall.pendingId} without user context.`);
+            return;
+        }
+
+        logger.info(`SwarmStateMachine for ${this.conversationId}: Queuing event for approved tool call ${approvedToolCall.pendingId} (Tool: ${approvedToolCall.toolName}).`);
+
+        const toolExecutionEvent: SwarmEvent = {
+            type: "ApprovedToolExecutionRequest",
+            conversationId: this.conversationId,
+            sessionUser: this.initiatingUser, // Use the stored initiating user
+            payload: {
+                pendingToolCall: approvedToolCall,
+            },
+        };
+
+        // TODO web socket for tool approval here?
+
+        SocketService.get().emitSocketEvent("botStatusUpdate", this.conversationId, {
+            chatId: this.conversationId,
+            botId: approvedToolCall.callerBotId,
+            status: "tool_calling",
+            toolInfo: {
+                callId: approvedToolCall.toolCallId,
+                name: approvedToolCall.toolName,
+                pendingId: approvedToolCall.pendingId,
+            },
+            message: `Tool ${approvedToolCall.toolName} (ID: ${approvedToolCall.toolCallId}) was approved by user. Bot ${approvedToolCall.callerBotId} is now preparing for execution.`,
+        });
+
+        await this.handleEvent(toolExecutionEvent);
+    }
+
+    /**
+     * Handles the scenario where a tool call, previously deferred for user approval,
+     * has now been rejected.
+     * This method will queue an internal event to notify the swarm.
+     * @param rejectedToolCall - The PendingToolCallEntry that was rejected.
+     * @param reason - Optional reason for rejection.
+     */
+    public async handleToolRejection(rejectedToolCall: PendingToolCallEntry, reason?: string): Promise<void> {
+        if (!this.conversationId) {
+            logger.error("SwarmStateMachine: handleToolRejection called before conversationId was set.", { rejectedToolCall });
+            return;
+        }
+        if (this.state === SwarmStateMachine.State.TERMINATED || this.state === SwarmStateMachine.State.FAILED) {
+            logger.warn(`SwarmStateMachine for ${this.conversationId} is in a terminal state (${this.state}). Cannot process rejected tool call ${rejectedToolCall.pendingId}.`);
+            return;
+        }
+        if (!this.initiatingUser) {
+            logger.error(`SwarmStateMachine for ${this.conversationId}: initiatingUser is null. Cannot process rejected tool call ${rejectedToolCall.pendingId} without user context.`);
+            return;
+        }
+
+        logger.info(`SwarmStateMachine for ${this.conversationId}: Queuing event for rejected tool call ${rejectedToolCall.pendingId} (Tool: ${rejectedToolCall.toolName}). Reason: ${reason || "No reason provided"}`);
+
+        const toolRejectionEvent: SwarmEvent = {
+            type: "RejectedToolExecutionRequest",
+            conversationId: this.conversationId,
+            sessionUser: this.initiatingUser, // Use the stored initiating user
+            payload: {
+                pendingToolCall: rejectedToolCall,
+                reason,
+            },
+        };
+        // Emit a socket event to inform the UI/client about the rejection.
+        // This is useful for providing immediate feedback to the user.
+        SocketService.get().emitSocketEvent("tool_approval_rejected", this.conversationId, {
+            pendingId: rejectedToolCall.pendingId,
+            toolCallId: rejectedToolCall.toolCallId,
+            toolName: rejectedToolCall.toolName,
+            reason: reason || "No reason provided",
+            callerBotId: rejectedToolCall.callerBotId, // Ensure callerBotId is on PendingToolCallEntry
+        });
+
+        SocketService.get().emitSocketEvent("botStatusUpdate", this.conversationId, {
+            chatId: this.conversationId,
+            botId: rejectedToolCall.callerBotId, // Assuming callerBotId is on PendingToolCallEntry
+            status: "tool_rejected_by_user",
+            toolInfo: {
+                callId: rejectedToolCall.toolCallId,
+                name: rejectedToolCall.toolName,
+                pendingId: rejectedToolCall.pendingId,
+                reason: reason || "No reason provided",
+            },
+            message: `Tool ${rejectedToolCall.toolName} was rejected by the user. Reason: ${reason || "Not specified"}`,
+        });
+
+        await this.handleEvent(toolRejectionEvent);
     }
 }
 
@@ -1457,3 +2081,17 @@ export const completionService = new CompletionService(
 export const swarmStateMachine = new SwarmStateMachine(
     completionService,
 );
+
+/**
+ * Represents a record of an active swarm in the system.
+ */
+export interface ActiveSwarmRecord {
+    /** Whether the user associated with the swarm has premium status */
+    hasPremium: boolean;
+    /** The time the swarm was added to the registry (timestamp in milliseconds) */
+    startTime: number;
+    /** The unique ID of the conversation the swarm belongs to */
+    conversationId: string;
+    /** The unique ID of the user who initiated or owns the swarm */
+    userId: string;
+}
