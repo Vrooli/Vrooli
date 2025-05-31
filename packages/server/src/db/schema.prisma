@@ -1082,6 +1082,8 @@ model schedule {
     startTime     DateTime
     endTime       DateTime
     timezone      String
+    userId        BigInt                      @db.BigInt
+    user          user                        @relation("schedule_user", fields: [userId], references: [id], onDelete: Cascade)
     exceptions    schedule_exception[]
     meetings      meeting[]                   @relation("meeting_schedule")
     recurrences   schedule_recurrence[]
@@ -1090,6 +1092,7 @@ model schedule {
 
     @@index([publicId])
     @@index([startTime], name: "idx_schedule_startTime")
+    @@index([userId], name: "idx_schedule_userId")
 }
 
 model schedule_exception {
@@ -1344,6 +1347,7 @@ model user {
     sessions                  session[]
     stats                     stats_user[]
     wallets                   wallet[]
+    schedules                 schedule[]                  @relation("schedule_user")
 
     @@index([publicId], name: "idx_user_publicId")
     @@index([invitedByUserId, createdAt], name: "idx_user_invitedByUserId_createdAt")

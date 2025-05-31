@@ -806,6 +806,7 @@ CREATE TABLE "schedule" (
     "startTime" TIMESTAMP(3) NOT NULL,
     "endTime" TIMESTAMP(3) NOT NULL,
     "timezone" TEXT NOT NULL,
+    "userId" BIGINT NOT NULL,
 
     CONSTRAINT "schedule_pkey" PRIMARY KEY ("id")
 );
@@ -1652,6 +1653,9 @@ CREATE INDEX "schedule_publicId_idx" ON "schedule"("publicId");
 CREATE INDEX "idx_schedule_startTime" ON "schedule"("startTime");
 
 -- CreateIndex
+CREATE INDEX "idx_schedule_userId" ON "schedule"("userId");
+
+-- CreateIndex
 CREATE INDEX "idx_schedule_exception_scheduleId" ON "schedule_exception"("scheduleId");
 
 -- CreateIndex
@@ -2136,6 +2140,9 @@ ALTER TABLE "run_step" ADD CONSTRAINT "run_step_runId_fkey" FOREIGN KEY ("runId"
 
 -- AddForeignKey
 ALTER TABLE "run_step" ADD CONSTRAINT "run_step_resourceVersionId_fkey" FOREIGN KEY ("resourceVersionId") REFERENCES "resource_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "schedule" ADD CONSTRAINT "schedule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "schedule_exception" ADD CONSTRAINT "schedule_exception_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
