@@ -1,8 +1,8 @@
 import { HttpStatus } from "@local/shared";
-import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
+import { type Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import type * as http from "http";
-import { Logger } from "./types.js";
+import type { Logger } from "winston";
 
 /**
  * Manages all transport connections for the MCP server
