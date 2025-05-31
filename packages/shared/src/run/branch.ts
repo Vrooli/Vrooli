@@ -74,6 +74,8 @@ export class BranchManager {
                 config,
                 decisionKey,
                 location,
+                processId: branch.processId,
+                runProgress: run,
                 runConfig: run.config,
                 services,
                 subcontext,
