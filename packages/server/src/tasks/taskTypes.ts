@@ -88,10 +88,15 @@ export interface LLMCompletionTask extends Task {
      * The user data of the user who triggered the bot response
      */
     userData: SessionUser;
+    /**
+     * Information about the bot that is responding.
+     * This is optional and may not be present for all swarm tasks.
+     */
+    respondingBot?: { id?: string, publicId?: string, handle?: string };
 }
 
-// All LLM task types
-export type LLMTask = LLMCompletionTask;
+// All swarm-related task types
+export type SwarmTask = LLMCompletionTask;
 
 export type PushSubscription = {
     endpoint: string;
@@ -205,6 +210,8 @@ export interface NotificationCreateTask extends Task {
     link?: string;
     /** Image/icon link */
     imgLink?: string;
+    /** Whether to send a websocket event to the user */
+    sendWebSocketEvent?: boolean;
 }
 
 // --------- All Task Types ---------
@@ -216,7 +223,7 @@ export type AnyTask =
     | EmailTask
     | ExportUserDataTask
     | ImportUserDataTask
-    | LLMTask
+    | SwarmTask
     | PushNotificationTask
     | RunTask
     | SandboxTask

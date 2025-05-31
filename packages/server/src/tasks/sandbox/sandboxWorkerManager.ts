@@ -1,10 +1,10 @@
 import { CodeLanguage } from "@local/shared";
-import { ChildProcess, fork } from "child_process";
+import { type ChildProcess, fork } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { DEFAULT_HEARTBEAT_CHECK_INTERVAL_MS, DEFAULT_HEARTBEAT_TIMEOUT_MS, DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_JOB_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB, WORKER_READY_TIMEOUT_MS } from "./consts.js";
-import { RunUserCodeInput, RunUserCodeOutput, SandboxWorkerInput, SandboxWorkerMessage } from "./types.js";
+import { type RunUserCodeInput, type RunUserCodeOutput, type SandboxWorkerInput, type SandboxWorkerMessage } from "./types.js";
 import { bufferRegister, urlRegister } from "./utils.js";
 
 const IN_TEST_MODE = process.env.NODE_ENV === "test";

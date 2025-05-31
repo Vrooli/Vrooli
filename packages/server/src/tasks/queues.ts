@@ -1,29 +1,49 @@
 // queues/index.ts
-import { MINUTES_1_MS, MINUTES_5_MS, type Success } from "@local/shared";
+import { type Success } from "@local/shared";
 import { type Job, type JobsOptions } from "bullmq";
 import type IORedis from "ioredis";
 import { logger } from "../events/logger.js";
+import { checkLongRunningTasksInRegistry } from "./activeTaskRegistry.js";
 import { emailProcess } from "./email/process.js";
 import { exportProcess } from "./export/process.js";
 import { importProcess } from "./import/process.js";
-import { llmProcess } from "./llm/process.js";
 import { notificationCreateProcess } from "./notification/process.js";
 import { pushProcess } from "./push/process.js";
 import type { BaseTaskData } from "./queueFactory.js";
 import { buildRedis, ManagedQueue } from "./queueFactory.js";
-import { activeRunsRegistry, RUN_TIMEOUT_MS, runProcess, type ActiveRunRecord } from "./run/process.js";
+import { activeRunsRegistry, runProcess } from "./run/process.js";
+import { RUN_QUEUE_LIMITS } from "./run/queue.js";
 import { sandboxProcess } from "./sandbox/process.js";
 import { smsProcess } from "./sms/process.js";
-import type { AnyTask, EmailTask, ExportUserDataTask, ImportUserDataTask, LLMTask, NotificationCreateTask, PushNotificationTask, RunTask, SandboxTask, SMSTask } from "./taskTypes.js";
+import { activeSwarmRegistry, llmProcess } from "./swarm/process.js";
+import { SWARM_QUEUE_LIMITS } from "./swarm/queue.js";
+import type { AnyTask, EmailTask, ExportUserDataTask, ImportUserDataTask, NotificationCreateTask, PushNotificationTask, RunTask, SandboxTask, SMSTask, SwarmTask } from "./taskTypes.js";
 import { QueueTaskType } from "./taskTypes.js";
 
-// High-load pause constants for run queue
-const RUN_MAX_ACTIVE = 100;
-// eslint-disable-next-line no-magic-numbers
-// const RUN_HIGH_LOAD_THRESHOLD = Math.floor(RUN_MAX_ACTIVE * 0.8);
-const RUN_HIGH_LOAD_CHECK_INTERVAL_MS = MINUTES_1_MS;
-const RUN_LONG_RUNNING_THRESHOLD_FREE_MS = MINUTES_1_MS;
-const RUN_LONG_RUNNING_THRESHOLD_PREMIUM_MS = MINUTES_5_MS;
+/**
+ * Generic representation of an active task record from any registry.
+ */
+export interface GenericActiveTaskRecord {
+    hasPremium: boolean;
+    startTime: number;
+    // Include common identifiers, e.g., a generic id or specific ones if they align
+    // For now, we'll assume the specific checking function will know how to get the task's unique ID for logging.
+    // Alternatively, the registry's getOrderedActiveRecords method could return a consistently structured object.
+    id: string; // runId or conversationId
+    userId?: string; // Optional: if available, for logging or notifications
+}
+
+/**
+ * Interface for a generic active task registry.
+ * Both ActiveRunsRegistry and ActiveSwarmRegistry should conform to this (duck-typing for now).
+ */
+export interface GenericActiveTaskRegistry {
+    count(): number;
+    // Method to get all active records, ordered by start time (oldest first)
+    // The actual method names are getOrderedRuns and getOrderedSwarms.
+    // The generic function will need to accept these specific registry types for now.
+    getOrderedActiveRecords(): GenericActiveTaskRecord[];
+}
 
 /**
  * Structure representing task status information
@@ -57,6 +77,7 @@ export class QueueService {
     private connection: IORedis | null = null;
     private queueInstances: Record<string, ManagedQueue<any>> = {};
     private runMonitorInterval: ReturnType<typeof setInterval> | null = null;
+    private swarmMonitorInterval: ReturnType<typeof setInterval> | null = null;
     private allQueuesInitialized = false;
     private isInitializingConnection = false; // Prevent re-entrancy for async init
     private connectionPromise: Promise<IORedis | null> | null = null; // To store the promise of init
@@ -261,6 +282,10 @@ export class QueueService {
             clearInterval(this.runMonitorInterval);
             this.runMonitorInterval = null;
         }
+        if (this.swarmMonitorInterval) {
+            clearInterval(this.swarmMonitorInterval);
+            this.swarmMonitorInterval = null;
+        }
 
         // Clear queue instances
         this.queueInstances = {};
@@ -287,7 +312,7 @@ export class QueueService {
         this.email;
         this.export;
         this.import;
-        this.llm;
+        this.swarm;
         this.push;
         this.run;
         this.sandbox;
@@ -359,7 +384,7 @@ export class QueueService {
             case QueueTaskType.IMPORT_USER_DATA:
                 return this.import.addTask(data as ImportUserDataTask, opts);
             case QueueTaskType.LLM_COMPLETION:
-                return this.llm.addTask(data as LLMTask, opts);
+                return this.swarm.addTask(data as SwarmTask, opts);
             case QueueTaskType.PUSH_NOTIFICATION:
                 return this.push.addTask(data as PushNotificationTask, opts);
             case QueueTaskType.RUN_START:
@@ -399,7 +424,7 @@ export class QueueService {
         if (taskTypeStr.startsWith("email:")) return "email";
         if (taskTypeStr.startsWith("export:")) return "export";
         if (taskTypeStr.startsWith("import:")) return "import";
-        if (taskTypeStr.startsWith("llm:")) return "llm";
+        if (taskTypeStr.startsWith("swarm:")) return "swarm";
         if (taskTypeStr.startsWith("push:")) return "push";
         if (taskTypeStr.startsWith("run:")) return "run";
         if (taskTypeStr.startsWith("sandbox:")) return "sandbox";
@@ -546,9 +571,32 @@ export class QueueService {
         });
     }
 
-    get llm(): ManagedQueue<LLMTask> {
+    get swarm(): ManagedQueue<SwarmTask> {
         return this.getQueue(QueueTaskType.LLM_COMPLETION, llmProcess, {
-            workerOpts: { concurrency: parseInt(process.env.WORKER_LLM_CONCURRENCY || "10") },
+            workerOpts: {
+                concurrency: SWARM_QUEUE_LIMITS.maxActive,
+            },
+            jobOpts: { priority: 50, timeout: SWARM_QUEUE_LIMITS.taskTimeoutMs } as Partial<JobsOptions>,
+            onReady: () => {
+                if (this.swarmMonitorInterval) {
+                    clearInterval(this.swarmMonitorInterval);
+                }
+                this.swarmMonitorInterval = setInterval(
+                    async () => {
+                        try {
+                            await checkLongRunningTasksInRegistry(
+                                activeSwarmRegistry,
+                                SWARM_QUEUE_LIMITS,
+                                "Swarm",
+                            );
+                        } catch (error) {
+                            logger.error("Error in swarm monitor interval", { error });
+                        }
+                    },
+                    SWARM_QUEUE_LIMITS.highLoadCheckIntervalMs,
+                );
+                logger.info("Swarm queue is ready, swarm monitor started.");
+            },
         });
     }
 
@@ -561,36 +609,30 @@ export class QueueService {
     get run(): ManagedQueue<RunTask> {
         const runQueue = this.getQueue(QueueTaskType.RUN_START, runProcess, {
             workerOpts: {
-                concurrency: RUN_MAX_ACTIVE,
-                // BullMQ's basic limiter (if used) is usually for max jobs in a duration for a group, not direct concurrency.
-                // Concurrency is the main control here.
-                // For more advanced rate limiting (e.g., per IP/user), custom logic or BullMQ Pro would be needed.
+                concurrency: RUN_QUEUE_LIMITS.maxActive,
             },
-            jobOpts: { timeout: RUN_TIMEOUT_MS } as Partial<JobsOptions>, // Explicitly cast to satisfy linter if type inference is struggling. Ensure this is the correct type for defaultJobOptions.
-            onReady: () => { // Start the run monitor when the 'run' queue is ready
+            jobOpts: { priority: 40, timeout: RUN_QUEUE_LIMITS.taskTimeoutMs } as Partial<JobsOptions>,
+            onReady: () => {
                 if (this.runMonitorInterval) {
                     clearInterval(this.runMonitorInterval);
                 }
                 this.runMonitorInterval = setInterval(
-                    checkLongRunningRuns,
-                    RUN_HIGH_LOAD_CHECK_INTERVAL_MS,
+                    async () => {
+                        try {
+                            await checkLongRunningTasksInRegistry(
+                                activeRunsRegistry,
+                                RUN_QUEUE_LIMITS,
+                                "Run",
+                            );
+                        } catch (error) {
+                            logger.error("Error in run monitor interval", { error });
+                        }
+                    },
+                    RUN_QUEUE_LIMITS.highLoadCheckIntervalMs,
                 );
                 logger.info("Run queue is ready, run monitor started.");
             },
         });
-        // Additional setup specific to 'run' queue, like pausing logic, could go here if needed
-        // For example, monitor active jobs and pause/resume:
-        // (This is conceptual and would need careful implementation to avoid race conditions)
-        // setInterval(async () => {
-        //     const activeJobs = await runQueue.worker.getActiveCount();
-        //     if (activeJobs >= RUN_HIGH_LOAD_THRESHOLD && !runQueue.worker.isPaused()) {
-        //         await runQueue.worker.pause();
-        //         logger.info("Run queue paused due to high load.");
-        //     } else if (activeJobs < RUN_HIGH_LOAD_THRESHOLD && runQueue.worker.isPaused()) {
-        //         await runQueue.worker.resume();
-        //         logger.info("Run queue resumed.");
-        //     }
-        // }, RUN_HIGH_LOAD_CHECK_INTERVAL_MS);
         return runQueue;
     }
 
@@ -613,48 +655,5 @@ export class QueueService {
         return this.getQueue(QueueTaskType.NOTIFICATION_CREATE, notificationCreateProcess, {
             workerOpts: { concurrency: parseInt(process.env.WORKER_NOTIFICATION_CONCURRENCY || "5") },
         });
-    }
-}
-
-/**
- * Periodically pause long-running runs under high load.
- */
-function checkLongRunningRuns() {
-    const now = Date.now();
-    try {
-        if (activeRunsRegistry.count() === 0) { // Use the count() method
-            return;
-        }
-
-        // Use getOrderedRuns() which returns ActiveRunRecord[]
-        const runsToProcess: ActiveRunRecord[] = activeRunsRegistry.getOrderedRuns();
-
-        // The check `typeof runsToProcess[Symbol.iterator] !== 'function'` is usually for iterables,
-        // but getOrderedRuns() directly returns an array, which is always iterable.
-        // A simple check for an empty array (though count() already does this) or null/undefined is sufficient.
-        if (!runsToProcess) { // getOrderedRuns should not return null/undefined based on its signature, but defensive check.
-            logger.warn("[checkLongRunningRuns] activeRunsRegistry.getOrderedRuns() returned an unexpected value. Skipping check.");
-            return;
-        }
-
-        for (const runInfo of runsToProcess) {
-            // Ensure runInfo and its properties are valid before using them
-            if (!runInfo || typeof runInfo.startTime !== "number" || typeof runInfo.runId !== "string") {
-                logger.warn("[checkLongRunningRuns] Encountered invalid runInfo object in a theoretically valid array.", { runInfo });
-                continue;
-            }
-            const threshold = runInfo.hasPremium ? RUN_LONG_RUNNING_THRESHOLD_PREMIUM_MS : RUN_LONG_RUNNING_THRESHOLD_FREE_MS;
-            if (now - runInfo.startTime > threshold) {
-                logger.warn(`Job related to run ${runInfo.runId} in queue 'run' has been active for more than ${threshold / MINUTES_1_MS} minutes.`, {
-                    runId: runInfo.runId,
-                    startTime: new Date(runInfo.startTime).toISOString(),
-                    durationMs: now - runInfo.startTime,
-                    hasPremium: runInfo.hasPremium,
-                });
-                // TODO: Implement further actions...
-            }
-        }
-    } catch (error) {
-        logger.error("[checkLongRunningRuns] Error during execution.", { error });
     }
 }

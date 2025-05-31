@@ -8,7 +8,7 @@ import { type NotificationCreateTask } from "../taskTypes.js";
  * Worker that creates a notification record in the database and emits it via WebSocket.
  */
 export async function notificationCreateProcess({ data }: Job<NotificationCreateTask>) {
-    const { id, userId, category, title, description, link, imgLink } = data;
+    const { id, userId, category, title, description, link, imgLink, sendWebSocketEvent } = data;
     // Create the notification record
     try {
         await DbProvider.get().notification.create({
@@ -26,7 +26,7 @@ export async function notificationCreateProcess({ data }: Job<NotificationCreate
         logger.error("[notificationCreate] DB create error", { error: err, notificationId: id });
     }
     // Emit via WebSocket if user is connected
-    if (SocketService.get().roomHasOpenConnections(userId)) {
+    if (sendWebSocketEvent && SocketService.get().roomHasOpenConnections(userId)) {
         SocketService.get().emitSocketEvent("notification", userId, {
             category,
             description,

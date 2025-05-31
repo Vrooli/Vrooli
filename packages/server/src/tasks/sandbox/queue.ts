@@ -1,37 +1,47 @@
-import { Success, TaskStatus, TaskStatusInfo } from "@local/shared";
-import { addJobToQueue, changeTaskStatus, getTaskStatuses } from "../queueHelper.js";
-import { SandboxProcessPayload } from "./types.js";
+import { type Success, type TaskStatus, type TaskStatusInfo } from "@local/shared";
+import { QueueService } from "../queues.js";
+import { QueueTaskType, type SandboxTask } from "../taskTypes.js";
 
-export type SandboxTestPayload = {
-    __process: "Test";
-};
-
-export type SandboxRequestPayload = SandboxProcessPayload | SandboxTestPayload;
-
-export function runSandboxedCode(data: SandboxProcessPayload): Promise<Success> {
-    return addJobToQueue(sandboxQueue.getQueue(), data, {});
+/**
+ * Schedule a sandbox execution job.
+ * @param data Omitted fields __process and status will be set internally.
+ */
+export function processSandbox(
+    data: Omit<SandboxTask, "type" | "status">,
+): Promise<Success> {
+    return QueueService.get().sandbox.add(
+        { ...data, type: QueueTaskType.SANDBOX_EXECUTION, status: "Scheduled" },
+    )
+        .then(() => ({ __typename: "Success" as const, success: true }))
+        .catch(() => ({ __typename: "Success" as const, success: false }));
 }
 
 /**
- * Update a task's status
- * @param jobId The job ID (also the task ID) of the task
- * @param status The new status of the task
- * @param userId The user ID of the user who triggered the task. 
- * Only they are allowed to change the status of the task.
+ * Change the status of an existing sandbox job.
+ * @param jobId The job ID (task ID)
+ * @param status The new status
+ * @param userId ID of the user requesting the status change
  */
 export async function changeSandboxTaskStatus(
     jobId: string,
     status: TaskStatus | `${TaskStatus}`,
     userId: string,
 ): Promise<Success> {
-    return changeTaskStatus(sandboxQueue.getQueue(), jobId, status, userId);
+    return QueueService.get().changeTaskStatus(jobId, status, userId, "sandbox");
 }
 
 /**
- * Get the statuses of multiple sandbox tasks.
- * @param taskIds Array of task IDs for which to fetch the statuses.
- * @returns Promise that resolves to an array of objects with task ID and status.
+ * Fetch statuses for multiple sandbox jobs.
+ * @param taskIds Array of sandbox job IDs
  */
-export async function getSandboxTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
-    return getTaskStatuses(sandboxQueue.getQueue(), taskIds);
+export async function getSandboxTaskStatuses(
+    taskIds: string[],
+): Promise<TaskStatusInfo[]> {
+    const statuses = await QueueService.get().getTaskStatuses(taskIds, "sandbox");
+    return statuses.map(s => ({
+        __typename: "TaskStatusInfo" as const,
+        id: s.id,
+        status: s.status as TaskStatus | null,
+        queueName: s.queueName,
+    }));
 }
