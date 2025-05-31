@@ -65,9 +65,8 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
      */
     protected static parseBase<T extends BaseConfigObject, C>(
         data: T | null | undefined,
-        logger: PassableLogger,
+        _logger: PassableLogger,
         factory: (config: T) => C,
-        { mode = DEFAULT_STRINGIFY_MODE }: { mode?: StringifyMode } = {},
     ): C {
         const full = {
             __version: data?.__version ?? LATEST_CONFIG_VERSION,
