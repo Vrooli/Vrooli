@@ -33,31 +33,38 @@ export function getS3Client(): S3Client {
  * @returns A boolean indicating if the image is NSFW.
  */
 export async function checkNSFW(buffer: Buffer, originalFileName: string): Promise<boolean> {
+    const NSFW_DETECTOR_TIMEOUT_MS = 10000; // 10 seconds
+
     return new Promise((resolve, reject) => {
+        let requestHandled = false; // Flag to prevent multiple resolves/rejects
+
         const formData = new FormData();
-        // Use the original file name as expected by the API
         formData.append("file", buffer, originalFileName);
 
         const options: http.RequestOptions = {
-            hostname: "nsfw-detector", // Docker service name
-            port: 8000,              // Service internal port
+            hostname: "nsfw-detector",
+            port: 8000,
             path: "/v1/detect",
             method: "POST",
-            headers: formData.getHeaders(), // Set headers from form-data library
+            headers: formData.getHeaders(),
         };
 
         const req = http.request(options, (res) => {
+            if (requestHandled) return;
             let responseBody = "";
             res.on("data", (chunk) => {
                 responseBody += chunk;
             });
             res.on("end", () => {
-                // Use HttpStatus.Ok and explicit upper bound for successful range
+                if (requestHandled) return;
+                requestHandled = true;
+                clearTimeout(timeoutId); // Clear the watchdog timeout
+
                 const HTTP_STATUS_REDIRECT_START = 300;
                 if (res.statusCode && res.statusCode >= HttpStatus.Ok && res.statusCode < HTTP_STATUS_REDIRECT_START) {
                     try {
                         const result = JSON.parse(responseBody) as SafeContentAIResponse;
-                        resolve(result.is_nsfw); // Resolve with the boolean flag
+                        resolve(result.is_nsfw);
                     } catch (error) {
                         logger.error("Failed to parse nsfw-detector response", { trace: "checkNSFW-parse-err", error, responseBody });
                         reject(new Error("Failed to parse NSFW detection response"));
@@ -69,12 +76,22 @@ export async function checkNSFW(buffer: Buffer, originalFileName: string): Promi
             });
         });
 
+        const timeoutId = setTimeout(() => {
+            if (requestHandled) return;
+            requestHandled = true;
+            req.destroy();
+            logger.error("NSFW detector request timed out", { trace: "checkNSFW-timeout-err" });
+            reject(new Error("Request to NSFW detector timed out after " + (NSFW_DETECTOR_TIMEOUT_MS / 1000) + " seconds"));
+        }, NSFW_DETECTOR_TIMEOUT_MS);
+
         req.on("error", (error) => {
+            if (requestHandled) return;
+            requestHandled = true;
+            clearTimeout(timeoutId); // Clear the watchdog timeout
             logger.error("Error calling nsfw-detector service", { trace: "checkNSFW-req-err", error });
             reject(error);
         });
 
-        // Pipe the form data to the request
         formData.pipe(req);
     });
 }
@@ -165,23 +182,51 @@ async function uploadFile(
     body: Buffer,
     mimetype: string,
 ) {
-    // Construct the PutObjectCommand with the necessary parameters.
-    const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: body,
-        ContentType: mimetype,
-    });
-    // Send the command to the S3 client.
-    try {
+    const S3_UPLOAD_TIMEOUT_MS = 60000; // 60 seconds
+    let timeoutId: NodeJS.Timeout | undefined = undefined;
+    let requestHandled = false; // Prevent multiple resolutions/rejections
+
+    const s3Promise = (async () => {
+        const command = new PutObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: key,
+            Body: body,
+            ContentType: mimetype,
+        });
         await s3.send(command);
+        return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
+    })();
+
+    const timeoutPromise = new Promise<string>((_, reject) => {
+        timeoutId = setTimeout(() => {
+            if (requestHandled) return;
+            requestHandled = true;
+            logger.error("S3 upload operation timed out", { trace: "s3-upload-timeout", key });
+            reject(new Error("S3 upload timed out after " + (S3_UPLOAD_TIMEOUT_MS / 1000) + " seconds"));
+        }, S3_UPLOAD_TIMEOUT_MS);
+    });
+
+    try {
+        const result = await Promise.race([s3Promise, timeoutPromise]);
+        if (requestHandled) { // If timeout already handled, result might be from a completed s3Promise that raced against a fired timeout
+            if (result !== undefined && !result.startsWith('https://')) { // Check if it's not the S3 URL (i.e. it was the timeout error)
+                // This case should ideally not be hit if requestHandled is set correctly by timeoutPromise's reject
+            } else if (result === undefined && !requestHandled) {
+                // This case means s3Promise resolved with undefined, also unexpected
+            }
+        }
+        requestHandled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        return result;
     } catch (error) {
-        // Add detailed logging here
-        logger.error("Failed to upload file to S3", { trace: "s3-upload-fail", key, mimetype, error });
-        throw error; // Re-throw the error after logging
+        requestHandled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        // Log the original S3 error or the timeout error
+        if (!(error instanceof Error && error.message.includes("S3 upload timed out"))) {
+            logger.error("Failed to upload file to S3", { trace: "s3-upload-fail", key, mimetype, error });
+        }
+        throw error; // Re-throw the error after logging or timeout
     }
-    // Return the URL of the uploaded file.
-    return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
 }
 
 /**
