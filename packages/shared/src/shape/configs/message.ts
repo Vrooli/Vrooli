@@ -1,6 +1,5 @@
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
-import { type StringifyMode } from "./utils.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 
 /** Increment when the schema of MessageConfigObject changes. */
 const LATEST_MESSAGE_CONFIG_VERSION = "1.0";
@@ -94,7 +93,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
     static parse(
         version: { config: MessageConfigObject },
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): MessageConfig {
         return super.parseBase<MessageConfigObject, MessageConfig>(
             version.config,
@@ -109,7 +108,6 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
                 }
                 return new MessageConfig({ config: cfg });
             },
-            { mode: opts?.mode },
         );
     }
 

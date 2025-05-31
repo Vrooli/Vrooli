@@ -1,6 +1,6 @@
 import { type Team } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 import { type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
@@ -34,9 +34,6 @@ const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
  * ```
  */
 export type TeamConfigObject = BaseConfigObject & {
-    /**
-     * Roles available to team mmembers
-     */
     /**
      * Declarative description of the team's organisational structure.
      *
@@ -74,7 +71,7 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
     static parse(
         version: Pick<Team, "config">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): TeamConfig {
         return super.parseBase<TeamConfigObject, TeamConfig>(
             version.config,
@@ -85,7 +82,6 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
                 }
                 return new TeamConfig({ config: cfg });
             },
-            { mode: opts?.mode },
         );
     }
 

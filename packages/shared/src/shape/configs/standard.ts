@@ -1,7 +1,6 @@
 import { type ResourceSubType, type ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
-import { type StringifyMode } from "./utils.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -94,7 +93,7 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
     static parse(
         version: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        _opts?: { useFallbacks?: boolean },
     ): StandardVersionConfig {
         return super.parseBase<StandardVersionConfigObject, StandardVersionConfig>(
             version.config,
@@ -103,7 +102,6 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
                 // Add fallback properties as needed
                 return new StandardVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
             },
-            { mode: opts?.mode },
         );
     }
 

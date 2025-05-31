@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
 import sinon from "sinon";
-import { LlmTask } from "../../api/types.js";
+import { McpToolName } from "../../consts/mcp.js";
 import { validatePublicId } from "../../id/publicId.js";
 import { type SubroutineIOMapping } from "../../run/types.js";
 import { type CodeVersionInputDefinition } from "./code.js";
@@ -24,7 +24,7 @@ describe("CallDataActionConfig", () => {
         config = new CallDataActionConfig({
             __version: LATEST_VERSION,
             schema: {
-                task: LlmTask.ApiAdd,
+                toolName: McpToolName.SendMessage,
                 inputTemplate: "",
                 outputMapping: {},
             },
@@ -723,7 +723,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "string" }] as const;
                     const runOutput = { output: "hello" };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.equal("hello");
                 });
 
@@ -733,7 +733,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "number" }] as const;
                     const runOutput = { output: 42 };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.equal(42);
                 });
 
@@ -743,7 +743,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "boolean" }] as const;
                     const runOutput = { output: true };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.equal(true);
                 });
 
@@ -753,7 +753,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "array", items: { type: "string" } }] as const;
                     const runOutput = { output: ["item1", "item2"] };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.deep.equal(["item1", "item2"]);
                 });
 
@@ -770,7 +770,7 @@ describe("CallDataCodeConfig", () => {
                         maxItems: 2,
                     }] as const;
                     const runOutput = { output: ["item1", "item2"] };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.equal("item2");
                 });
 
@@ -780,7 +780,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "object", properties: { key: { type: "string" } } }] as const;
                     const runOutput = { output: { key: "value" } };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.deep.equal({ key: "value" });
                 });
 
@@ -790,7 +790,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "null" }] as const;
                     const runOutput = { output: null };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.be.null;
                 });
             });
@@ -810,7 +810,7 @@ describe("CallDataCodeConfig", () => {
                         },
                     ] as const;
                     const runOutput = { output: { result: "hello", message: 42 } };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.equal("hello");
                     expect(ioMapping.outputs.routineOutputY.value).to.equal(42);
                 });
@@ -829,7 +829,7 @@ describe("CallDataCodeConfig", () => {
                         },
                     ] as const;
                     const runOutput = { output: { result: null, message: { key: "value" } } };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.be.null;
                     expect(ioMapping.outputs.routineOutputY.value).to.deep.equal({ key: "value" });
                 });
@@ -845,7 +845,7 @@ describe("CallDataCodeConfig", () => {
                         },
                     ] as const;
                     const runOutput = { output: { result: "hello", message: "world" } };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.deep.equal({ result: "hello", message: "world" });
                     expect(ioMapping.outputs.routineOutputY.value).to.equal("world");
                 });
@@ -865,10 +865,10 @@ describe("CallDataCodeConfig", () => {
                     ] as const;
                     const runOutputA = { output: "hello" };
                     const runOutputB = { output: true };
-                    config.parseSandboxOutput(runOutputA, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutputA, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.equal("hello");
                     expect(ioMapping.outputs.routineOutputY.value).to.be.null;
-                    config.parseSandboxOutput(runOutputB, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutputB, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.be.null;
                     expect(ioMapping.outputs.routineOutputY.value).to.equal(true);
                 });
@@ -885,10 +885,10 @@ describe("CallDataCodeConfig", () => {
                     const runOutputA = { output: "hello" };
                     const runOutputB = { output: true };
                     // Should give the same result as the previous test
-                    config.parseSandboxOutput(runOutputA, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutputA, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.equal("hello");
                     expect(ioMapping.outputs.routineOutputY.value).to.be.null;
-                    config.parseSandboxOutput(runOutputB, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutputB, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.be.null;
                     expect(ioMapping.outputs.routineOutputY.value).to.equal(true);
                 });
@@ -904,10 +904,10 @@ describe("CallDataCodeConfig", () => {
                     ] as const;
                     const runOutputA = { output: { key: "value" } };
                     const runOutputB = { output: { key: 42 } };
-                    config.parseSandboxOutput(runOutputA, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutputA, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.deep.equal({ key: "value" });
                     expect(ioMapping.outputs.routineOutputY.value).to.be.null;
-                    config.parseSandboxOutput(runOutputB, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutputB, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputX.value).to.be.null;
                     expect(ioMapping.outputs.routineOutputY.value).to.deep.equal({ key: 42 });
                 });
@@ -922,7 +922,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "string" }] as const;
                     const runOutput = { output: "hello" };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.be.undefined;
                 });
 
@@ -932,7 +932,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "string" }] as const;
                     const runOutput = { output: "hello" };
-                    config.parseSandboxOutput(runOutput, ioMapping, outputConfig);
+                    config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig]);
                     expect(ioMapping.outputs.routineOutputZ.value).to.be.undefined;
                 });
 
@@ -942,7 +942,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "string" }] as const;
                     const runOutput = { output: 42 };
-                    expect(() => config.parseSandboxOutput(runOutput, ioMapping, outputConfig)).to.throw();
+                    expect(() => config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig])).to.throw();
                 });
             });
 
@@ -954,7 +954,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "string" }] as const;
                     const runOutput = { output: "hello" };
-                    expect(() => config.parseSandboxOutput(runOutput, ioMapping, outputConfig)).to.throw();
+                    expect(() => config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig])).to.throw();
                 });
 
                 it("more output configs than output mappings", () => {
@@ -963,7 +963,7 @@ describe("CallDataCodeConfig", () => {
                     ];
                     const outputConfig = [{ type: "string" }, { type: "number" }] as const;
                     const runOutput = { output: "hello" };
-                    expect(() => config.parseSandboxOutput(runOutput, ioMapping, outputConfig)).to.throw();
+                    expect(() => config.parseSandboxOutput(runOutput, ioMapping, [...outputConfig])).to.throw();
                 });
             });
         });

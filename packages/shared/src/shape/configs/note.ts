@@ -1,7 +1,6 @@
 import { type ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
-import { type StringifyMode } from "./utils.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -22,7 +21,7 @@ export class NoteVersionConfig extends BaseConfig<NoteVersionConfigObject> {
     static parse(
         version: Pick<ResourceVersion, "config">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): NoteVersionConfig {
         return super.parseBase<NoteVersionConfigObject, NoteVersionConfig>(
             version.config,
@@ -31,7 +30,6 @@ export class NoteVersionConfig extends BaseConfig<NoteVersionConfigObject> {
                 // Add fallback properties as needed
                 return new NoteVersionConfig({ config: cfg });
             },
-            { mode: opts?.mode },
         );
     }
 

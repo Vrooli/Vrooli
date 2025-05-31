@@ -1,6 +1,6 @@
 /* c8 ignore start */
 export * from "./api.js";
-export * from "./baseConfig.js";
+export * from "./base.js";
 export * from "./bot.js";
 export * from "./chat.js";
 export * from "./code.js";
