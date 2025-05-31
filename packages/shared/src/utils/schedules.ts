@@ -30,11 +30,11 @@ async function ensureMomentTimezone() {
  */
 export function validateTimeFrame(timeframeStart: Date, timeframeEnd: Date): boolean {
     if (timeframeStart.getTime() > timeframeEnd.getTime()) {
-        throw new Error("Start date is after end date");
+        return false;
     }
     const timeframeDuration = timeframeEnd.getTime() - timeframeStart.getTime();
     if (timeframeDuration > YEARS_1_MS) {
-        throw new Error("Time frame too large");
+        return false;
     }
     return true;
 }
@@ -470,10 +470,8 @@ export async function calculateOccurrences(
 ): Promise<Array<{ start: Date; end: Date }>> {
     const occurrences: Array<{ start: Date; end: Date }> = [];
     // Make sure that the time frame is no longer than a year, so that we don't overload the server
-    try {
-        validateTimeFrame(timeframeStart, timeframeEnd);
-    } catch (error) {
-        console.error("calculateOccurrences validation error:", { error, trace: "0432_validation", timeframeStart, timeframeEnd });
+    if (!validateTimeFrame(timeframeStart, timeframeEnd)) {
+        console.error("Timeframe validation failed in calculateOccurrences", { trace: "0432_validation_fail", timeframeStart, timeframeEnd });
         return occurrences; // Return empty array if validation fails
     }
 

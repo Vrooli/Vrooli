@@ -122,7 +122,7 @@ describe("LRUCache", () => {
     });
 
     it("should expire entries after the default TTL", () => {
-        const ttlCache = new LRUCache<string, number>({ limit: 3, defaultTTL: 100 });
+        const ttlCache = new LRUCache<string, number>({ limit: 3, defaultTTLMs: 100 });
         ttlCache.set("temp", 123);
         expect(ttlCache.get("temp")).to.equal(123);
         clock.tick(101);
