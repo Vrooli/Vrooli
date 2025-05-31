@@ -1,8 +1,7 @@
-import { type AIServiceName, type AIServicesInfo } from "../../ai/services.js";
+import { type User } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { type TranslationFunc, type TranslationKeyService } from "../../types.js";
-import { BaseConfig, type BaseConfigObject } from "./baseConfig.js";
-import { type StringifyMode } from "./utils.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 
 const MIN_CREATIVITY = 0;
 const MAX_CREATIVITY = 1;
@@ -14,7 +13,7 @@ export const DEFAULT_VERBOSITY = (MIN_VERBOSITY + MAX_VERBOSITY) / 2;
 
 const LATEST_CONFIG_VERSION = "1.0";
 
-const DEFAULT_PERSONA: Record<string, unknown> = {
+export const DEFAULT_PERSONA: Record<string, unknown> = {
     bias: "",
     creativity: 0,
     domainKnowledge: "",
@@ -26,10 +25,22 @@ const DEFAULT_PERSONA: Record<string, unknown> = {
     verbosity: 0,
 };
 
+// Defines the order of default persona fields in the UI and which ones are considered "default"
+export const DEFAULT_PERSONA_UI_ORDER = [
+    "occupation",
+    "persona",
+    "tone",
+    "startingMessage",
+    "keyPhrases",
+    "domainKnowledge",
+    "bias",
+    // creativity and verbosity are handled by sliders, not direct text inputs in persona object in UI
+];
+
 export interface BotConfigObject extends BaseConfigObject {
     model?: string;
     maxTokens?: number;
-    persona: Record<string, unknown>;
+    persona?: Record<string, unknown>;
 }
 
 export class BotConfig extends BaseConfig<BotConfigObject> {
@@ -45,20 +56,24 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
     }
 
     static parse(
-        bot: { botSettings: BotConfigObject },
+        bot: Pick<User, "botSettings"> | null | undefined,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): BotConfig {
+        const botSettings = bot?.botSettings;
         return super.parseBase<BotConfigObject, BotConfig>(
-            bot.botSettings,
+            botSettings,
             logger,
             (cfg) => {
                 if (opts?.useFallbacks ?? true) {
-                    cfg.persona ??= { ...DEFAULT_PERSONA };
+                    // If persona exists, merge it with defaults, otherwise use defaults
+                    cfg.persona = { ...DEFAULT_PERSONA, ...(cfg.persona ?? {}) };
+                } else if (cfg.persona === undefined) {
+                    // If fallbacks are off and persona is undefined, ensure it's not null
+                    cfg.persona = undefined;
                 }
                 return new BotConfig({ botSettings: cfg });
             },
-            { mode: opts?.mode },
         );
     }
 
@@ -89,28 +104,6 @@ export type LlmModel = {
     description?: TranslationKeyService,
     value: string,
 };
-
-export function getAvailableModels(aiServicesInfo: AIServicesInfo | null | undefined): LlmModel[] {
-    const models: LlmModel[] = [];
-    if (!aiServicesInfo) return models;
-    const services = aiServicesInfo.services;
-    for (const serviceKey in services) {
-        const service = services[serviceKey as AIServiceName];
-        if (service.enabled) {
-            for (const modelKey of service.displayOrder) {
-                const modelInfo = service.models[modelKey];
-                if (modelInfo.enabled) {
-                    models.push({
-                        name: modelInfo.name, // This is a ServiceKey for i18next
-                        description: modelInfo.descriptionShort, // Also a ServiceKey
-                        value: modelKey,
-                    });
-                }
-            }
-        }
-    }
-    return models;
-}
 
 export function getModelName(option: LlmModel | null, t: TranslationFunc) {
     return option ? t(option.name, { ns: "service" }) : "";
