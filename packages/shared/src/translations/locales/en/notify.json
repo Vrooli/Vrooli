@@ -86,5 +86,12 @@
     "Time_Hours_one": "in {{count}} hour",
     "Time_Hours_other": "in {{count}} hours",
     "Time_Days_one": "in {{count}} day",
-    "Time_Days_other": "in {{count}} days"
+    "Time_Days_other": "in {{count}} days",
+    "ToolApprovalRequired_Title": "Action Required: Approve Tool",
+    "ToolApprovalRequired_Body_Cost_Reject": "Tool '{{toolName}}' in '{{conversationName}}' (by {{callerBotName}}) requires your approval. Cost: ~{{estimatedCost}} credits.{{#if timeRemaining}} Please respond within {{timeRemaining}}, or the request will be cancelled.{{/if}}",
+    "ToolApprovalRequired_Body_Cost_Proceed": "Tool '{{toolName}}' in '{{conversationName}}' (by {{callerBotName}}) requires your approval. Cost: ~{{estimatedCost}} credits.{{#if timeRemaining}} If no action is taken within {{timeRemaining}}, the tool will proceed automatically.{{/if}}",
+    "ToolApprovalRequired_Body_Free_Reject": "Tool '{{toolName}}' in '{{conversationName}}' (by {{callerBotName}}) requires your approval. This tool use is free.{{#if timeRemaining}} Please respond within {{timeRemaining}}, or the request will be cancelled.{{/if}}",
+    "ToolApprovalRequired_Body_Free_Proceed": "Tool '{{toolName}}' in '{{conversationName}}' (by {{callerBotName}}) requires your approval. This tool use is free.{{#if timeRemaining}} If no action is taken within {{timeRemaining}}, the tool will proceed automatically.{{/if}}",
+    "LongRunningTaskWarning_Title": "Long-Running Task Alert",
+    "LongRunningTaskWarning_Body": "Task '{{taskId}}' (type: {{taskType}}) has been running for {{duration}} seconds, exceeding the threshold of {{threshold}} seconds."
 }
