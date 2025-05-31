@@ -23,19 +23,23 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
     format: ApiKeyFormat,
     mutate: {
         shape: {
-            create: async ({ userData, data }) => ({
-                id: generatePK(),
-                creditsUsedBeforeLimit: 0,
-                disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
-                limitHard: BigInt(data.limitHard),
-                limitSoft: data.limitSoft ? BigInt(data.limitSoft) : null,
-                key: ApiKeyEncryptionService.generateSiteKey(),
-                name: data.name,
-                permissions: data.permissions,
-                stopAtLimit: data.stopAtLimit,
-                team: data.teamConnect ? { connect: { id: BigInt(data.teamConnect) } } : undefined,
-                user: data.teamConnect ? undefined : { connect: { id: BigInt(userData.id) } },
-            }),
+            create: async ({ userData, data }) => {
+                const rawKeyToShowUser = ApiKeyEncryptionService.generateSiteKey();
+                return {
+                    id: generatePK(),
+                    creditsUsed: BigInt(0),
+                    disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
+                    limitHard: BigInt(data.limitHard),
+                    limitSoft: data.limitSoft ? BigInt(data.limitSoft) : null,
+                    key: ApiKeyEncryptionService.get().encryptExternal(rawKeyToShowUser),
+                    _tempRawKey: rawKeyToShowUser,
+                    name: data.name,
+                    permissions: data.permissions,
+                    stopAtLimit: data.stopAtLimit,
+                    team: data.teamConnect ? { connect: { id: BigInt(data.teamConnect) } } : undefined,
+                    user: data.teamConnect ? undefined : { connect: { id: BigInt(userData.id) } },
+                };
+            },
             update: async ({ data }) => ({
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                 limitHard: data.limitHard ? BigInt(data.limitHard) : undefined,
