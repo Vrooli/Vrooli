@@ -1,4 +1,4 @@
-import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type ToolCallRecord } from "@local/shared";
+import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type ToolCallRecord } from "@local/shared";
 import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
 import type { Tool } from "../mcp/types.js";
@@ -121,6 +121,14 @@ export type ConversationState = {
      * generated dynamically by CompletionService._buildSystemMessage during their turns.
      */
     initialLeaderSystemMessage: string;
+    /**
+     * The team configuration fetched from the database if teamId is present in the chat config.
+     * Contains organizational structure (MOISE+ hierarchy, etc.) for swarm coordination.
+     * 
+     * This is runtime-only data, not persisted with the conversation state.
+     * Rather, it stored with the team object in the database, so that it can be reused by other conversations.
+     */
+    teamConfig?: TeamConfigObject;
 }
 
 // Individual Swarm Event Interfaces

@@ -1,12 +1,14 @@
 /* eslint-disable func-style */
-import { ChatConfig, DEFAULT_LANGUAGE, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, generatePK, nanoid, type BotConfigObject, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type ToolFunctionCall } from "@local/shared";
+import { ChatConfig, DEFAULT_LANGUAGE, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, TeamConfig, generatePK, nanoid, type BotConfigObject, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type TeamConfigObject, type ToolCallRecord, type ToolFunctionCall } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import * as fs from "fs/promises";
 import type OpenAI from "openai";
 import * as path from "path";
-import { fileURLToPath } from "url"; // For __dirname in ESM
+import { fileURLToPath } from "url";
+import { readOneHelper } from "../../actions/reads.js";
+import type { RequestService } from "../../auth/request.js";
 import { logger } from "../../events/logger.js";
-import { Notify } from "../../notify/notify.js"; // Added import for Notify
+import { Notify } from "../../notify/notify.js";
 import { SocketService } from "../../sockets/io.js";
 import type { ManagedTaskStateMachine } from "../../tasks/activeTaskRegistry.js";
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
@@ -23,17 +25,32 @@ import { FallbackRouter, type LlmRouter } from "./router.js";
 import { CompositeToolRunner, McpToolRunner, type ToolRunner } from "./toolRunner.js";
 import { type BotParticipant, type ConversationState, type MessageState, type ResponseStats, type SwarmEvent, type SwarmStartedEvent } from "./types.js";
 
-// TODO Tthe failure cases could be handled better. E.g. emitting event to show retry button
+/**
+ * Standardized error codes for response engine failures
+ */
+enum ResponseErrorCode {
+    /** Generic cancellation (usually user-initiated) */
+    CANCELLED = "CANCELLED",
+    /** Operation timed out */
+    TIMED_OUT = "TIMED_OUT",
+    /** Tool execution failed */
+    TOOL_EXECUTION_ERROR = "TOOL_EXECUTION_ERROR",
+    /** Rate limited by external service */
+    RATE_LIMITED = "RATE_LIMITED",
+    /** Timeout during tool execution */
+    TIMEOUT = "TIMEOUT",
+    /** Network connectivity issues */
+    NETWORK_ERROR = "NETWORK_ERROR",
+    /** External service unavailable */
+    SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
+    /** Temporary failure that may resolve */
+    TEMPORARY_FAILURE = "TEMPORARY_FAILURE",
+}
+
 //TODO handle message updates (branching conversation)
-// TODO make sure preferred model is stored in the conversation state
-// TODO need turn timeouts
-// TODO add mechanism for swarm and routine state machines to have a delay set by config that schedules any runs and resource mutations instead of running them immediately. This would be clearly defined in the context, and a list of schedules tool calls would be included in the context too. This enables the swarm to plan around the schedule, which is needed for users to approve/reject scheduled tool calls for safety reasons.
+// TODO: Fully implement backend execution for SCHEDULED_FOR_EXECUTION tool calls (e.g., via a job queue). Also, evaluate if general "resource mutations" beyond tool calls need a similar scheduling mechanism.
 // TODO swarm world model should suggest starting a metacognition loop to best complete the goal, and adding to to the chat context. Can search for existing prompts.
 //TODO conversation context should be able to store recommended routines to call for certain scenarios, pulled from the team config if available.
-// TODO have built-in events for swarm that bots can be assigned to. For example, you could have a bot that simplly checks if the current subtask is complete. If so, the swarm closes. If not, we nudge the swarm to continue.
-//TODO swarm needs to see builtInToolDefinitions and swarmToolDefinitions from the MCP registry
-//TODO swarm should be able to share data with specific bots - not just the overall swarm shared state (that goes to all bots).
-//TODO should be using limits.delayBetweenProcessingCyclesMs for when you want the swarm to be slowed down
 //TODO make sure all SwarmEvents are being used
 
 const DEFAULT_GOAL = "Process current event.";
@@ -111,6 +128,9 @@ export class ReasoningEngine {
         public readonly toolRunner: ToolRunner,
     ) { }
 
+    /**
+     * Handles abort or timeout scenarios by emitting appropriate events and returning an error.
+     */
     private _handleAbortOrTimeout(
         signalReason: string | Error | undefined | null,
         context: {
@@ -121,7 +141,7 @@ export class ReasoningEngine {
         },
     ): Error { // Returns the error to be thrown
         let errorMessage = "Response cancelled";
-        let errorCode = "CANCELLED";
+        let errorCode = ResponseErrorCode.CANCELLED;
         let logMessage = `Response cancelled by signal at stage '${context.stage}' for bot ${context.botId}`;
         if (context.chatId) logMessage += ` in chat ${context.chatId}`;
         if (context.toolName) logMessage += ` for tool ${context.toolName}`;
@@ -130,7 +150,7 @@ export class ReasoningEngine {
 
         if (signalReason === "TurnTimeout") {
             errorMessage = context.toolName ? `Tool call ${context.toolName} aborted due to turn timeout` : "Bot turn timed out";
-            errorCode = "TIMED_OUT";
+            errorCode = ResponseErrorCode.TIMED_OUT;
             logMessage = `${context.toolName ? `Tool call ${context.toolName}` : "Bot turn"} timed out at stage '${context.stage}' for bot ${context.botId}`;
             if (context.chatId) logMessage += ` in chat ${context.chatId}`;
             errorToThrow = new Error("ResponseTimeoutError");
@@ -146,30 +166,332 @@ export class ReasoningEngine {
 
         logger.info(logMessage + (signalReason ? `. Reason: ${String(signalReason)}` : ""));
 
-        if (context.chatId) {
-            if (context.stage === "before-tool-call" || context.stage === "tool-call-processing") { // Specific for tool failures
-                SocketService.get().emitSocketEvent("botStatusUpdate", context.chatId, {
-                    chatId: context.chatId,
-                    botId: context.botId,
-                    status: "tool_failed",
-                    toolInfo: { callId: "unknown", name: context.toolName || "unknown_tool", error: errorMessage }, // callId might not be available here
-                    error: { message: errorMessage, code: errorCode },
+        this._emitErrorEvents(context.chatId, context.botId, context.stage, errorMessage, errorCode, context.toolName);
+        return errorToThrow;
+    }
+
+    /**
+     * Emits appropriate error events based on the stage and context.
+     */
+    private _emitErrorEvents(
+        chatId: string | undefined,
+        botId: string,
+        stage: string,
+        errorMessage: string,
+        errorCode: ResponseErrorCode,
+        toolName?: string,
+    ): void {
+        if (!chatId) return;
+
+        // Determine if the error is retryable based on error code and context
+        const isRetryable = this._isErrorRetryable(errorCode, stage, toolName);
+
+        if (stage === "before-tool-call" || stage === "tool-call-processing") { // Specific for tool failures
+            SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
+                chatId,
+                botId,
+                status: "tool_failed",
+                toolInfo: { callId: "unknown", name: toolName || "unknown_tool", error: errorMessage }, // callId might not be available here
+                error: { message: errorMessage, code: errorCode, retryable: isRetryable },
+            });
+        } else { // General response stream error or bot status error
+            SocketService.get().emitSocketEvent("responseStream", chatId, {
+                __type: "error",
+                botId,
+                error: { message: errorMessage, code: errorCode, retryable: isRetryable },
+            });
+            SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
+                chatId,
+                botId,
+                status: "error_internal",
+                error: { message: errorMessage, code: errorCode, retryable: isRetryable },
+            });
+        }
+    }
+
+    /**
+     * Determines if an error is retryable based on the error code, stage, and context.
+     */
+    private _isErrorRetryable(errorCode: ResponseErrorCode, stage: string, _toolName?: string): boolean {
+        // Timeout errors are generally retryable as they indicate transient issues
+        if (errorCode === ResponseErrorCode.TIMED_OUT) {
+            return true;
+        }
+
+        // Generic cancellation is typically not retryable (user-initiated)
+        if (errorCode === ResponseErrorCode.CANCELLED) {
+            return false;
+        }
+
+        // For tool-related stages, some errors might be retryable
+        if (stage === "before-tool-call" || stage === "tool-call-processing") {
+            // Tool-specific retry logic could be added here in the future
+            // For now, assume tool errors are not retryable unless it's a timeout
+            return false;
+        }
+
+        // Internal errors during LLM calls might be retryable in some cases
+        // This is conservative - only timeout-related issues are marked as retryable
+        return false;
+    }
+
+    /**
+     * Prepares tools for LLM by transforming them to OpenAI format.
+     */
+    private _prepareToolsForLlm(availableTools: Tool[]): OpenAI.Responses.Tool[] {
+        // Create sets for efficient lookup of Vrooli custom tool names
+        const mcpToolNames = new Set(Object.values(McpToolName));
+        const mcpSwarmToolNames = new Set(Object.values(McpSwarmToolName));
+
+        return availableTools.reduce((acc, ts) => {
+            if (mcpToolNames.has(ts.name as McpToolName) || mcpSwarmToolNames.has(ts.name as McpSwarmToolName)) {
+                acc.push({
+                    type: "function",
+                    name: ts.name,
+                    description: ts.description || "",
+                    parameters: ts.inputSchema as Record<string, unknown>,
+                    strict: true,
                 });
-            } else { // General response stream error or bot status error
-                SocketService.get().emitSocketEvent("responseStream", context.chatId, {
-                    __type: "error",
-                    botId: context.botId,
-                    error: { message: errorMessage, code: errorCode },
-                });
-                SocketService.get().emitSocketEvent("botStatusUpdate", context.chatId, {
-                    chatId: context.chatId,
-                    botId: context.botId,
-                    status: "error_internal",
-                    error: { message: errorMessage, code: errorCode },
-                });
+            } else if (ts.name === "web_search") {
+                acc.push({ type: "web_search_preview" });
+            } else if (ts.name === "file_search") {
+                acc.push({ type: "file_search", vector_store_ids: [] });
+            } else {
+                logger.warn(`Unknown tool type encountered in toolsForLlm mapping: ${ts.name}. Skipping this tool.`);
+                // Do not throw an error, just skip adding the tool.
+            }
+            return acc;
+        }, [] as OpenAI.Responses.Tool[]);
+    }
+
+    /**
+     * Prepares input messages for the reasoning loop.
+     */
+    private async _prepareInputMessages(
+        startMessage: { id: string } | { text: string },
+        chatId: string | undefined,
+        bot: BotParticipant,
+        model: string,
+        systemMessageContent: string,
+        toolsForLlm: OpenAI.Responses.Tool[],
+    ): Promise<MessageState[]> {
+        if (chatId && "id" in startMessage) {
+            // Build context, reserving tokens for tools (none for now) and world-model
+            const { messages } = await this.contextBuilder.build(
+                chatId,
+                bot,
+                model,
+                startMessage.id,
+                { tools: toolsForLlm, systemMessage: systemMessageContent },
+            );
+            return messages;
+        } else if ("text" in startMessage) {
+            // Standalone prompt
+            const tmp: MessageState = {
+                id: generatePK().toString(),
+                createdAt: new Date(),
+                config: MessageConfig.default().export(),
+                language: DEFAULT_LANGUAGE,
+                text: startMessage.text,
+                parent: null,
+                user: { id: bot.id },
+            } as MessageState;
+            return [tmp];
+        } else {
+            throw new Error("Invalid startMessage for runLoop");
+        }
+    }
+
+    /**
+     * Checks if the response limits have been exceeded.
+     */
+    private _hasExceededLimits(
+        responseStats: ResponseStats,
+        convoAllocatedToolCalls: number,
+        convoAllocatedCredits: bigint,
+        responseLimits: Required<NonNullable<ChatConfigObject["limits"]>>,
+    ): boolean {
+        // Check against overall allocation for this runLoop instance
+        const overallBudgetExceeded =
+            (convoAllocatedToolCalls <= 0 && responseStats.toolCalls > 0) || // No tool calls allowed if allocation is zero or less
+            (responseStats.toolCalls >= convoAllocatedToolCalls && convoAllocatedToolCalls > 0) || // Exceeded allocated tool calls
+            (convoAllocatedCredits <= BigInt(0) && responseStats.creditsUsed > BigInt(0)) || // No credits allowed if allocation is zero or less
+            (responseStats.creditsUsed >= convoAllocatedCredits && convoAllocatedCredits > BigInt(0)); // Exceeded allocated credits
+
+        // Check if the CUMULATIVE stats for this bot's entire runLoop execution
+        // have breached the per-bot-response limits.
+        const perBotResponseLimitsBreached =
+            responseStats.toolCalls >= responseLimits.maxToolCallsPerBotResponse ||
+            responseStats.creditsUsed >= BigInt(responseLimits.maxCreditsPerBotResponse);
+
+        return overallBudgetExceeded || perBotResponseLimitsBreached;
+    }
+
+    /**
+     * Calculates the effective max credits for an LLM call.
+     */
+    private _calculateEffectiveMaxCredits(
+        responseStats: ResponseStats,
+        convoAllocatedCredits: bigint,
+        responseLimits: Required<NonNullable<ChatConfigObject["limits"]>>,
+    ): bigint {
+        const remainingAllocatedCreditsForRun = convoAllocatedCredits - responseStats.creditsUsed;
+        const capFromResponseLimits = BigInt(responseLimits.maxCreditsPerBotResponse);
+
+        if (remainingAllocatedCreditsForRun <= BigInt(0)) {
+            return BigInt(0); // No budget left in allocation
+        } else {
+            // Use the smaller of the two positive budget values
+            return capFromResponseLimits < remainingAllocatedCreditsForRun ? capFromResponseLimits : remainingAllocatedCreditsForRun;
+        }
+    }
+
+    /**
+     * Processes a stream event and updates the loop state accordingly.
+     */
+    private async _processStreamEvent(
+        ev: any,
+        chatId: string | undefined,
+        bot: BotParticipant,
+        availableTools: Tool[],
+        draftMessage: string,
+        toolCalls: ToolFunctionCall[],
+        responseStats: ResponseStats,
+        abortSignal: AbortSignal | undefined,
+        config: ChatConfigObject,
+        userData: SessionUser,
+    ): Promise<{ draftMessage: string; nextInputs: MessageState[]; responseStats: ResponseStats }> {
+        const nextInputs: MessageState[] = [];
+        let updatedDraftMessage = draftMessage;
+
+        switch (ev.type) {
+            case "message":
+                // Append to draft message
+                updatedDraftMessage = ev.final ? ev.content : draftMessage + ev.content;
+                // Emit to client
+                if (chatId) {
+                    SocketService.get().emitSocketEvent("responseStream", chatId, {
+                        __type: ev.final ? "end" : "stream",
+                        botId: bot.id,
+                        chunk: ev.content,
+                    });
+                }
+                break;
+
+            case "reasoning":
+                // Emit to client
+                if (chatId) {
+                    SocketService.get().emitSocketEvent("modelReasoningStream", chatId, {
+                        __type: "stream",
+                        botId: bot.id,
+                        chunk: ev.content,
+                    });
+                }
+                break;
+
+            case "function_call": {
+                // Check for cancellation before tool call
+                if (abortSignal?.aborted) {
+                    throw this._handleAbortOrTimeout(abortSignal.reason, {
+                        botId: bot.id, chatId, stage: "before-tool-call", toolName: ev.name,
+                    });
+                }
+
+                // Execute the tool call (sync or async) and record result
+                const { toolResult, functionCallEntry, cost } = await this.processFunctionCall(
+                    chatId,
+                    bot,
+                    ev as FunctionCallStreamEvent,
+                    availableTools, // Pass full Tool objects down
+                    abortSignal,
+                    config,
+                    userData,
+                );
+
+                // Update cumulative stats for the entire runLoop after tool call
+                responseStats.toolCalls++;
+                responseStats.creditsUsed += cost;
+
+                // Format toolResult (the raw output) into a MessageState for the LLM
+                const toolResponseMessage: MessageState = {
+                    id: generatePK().toString(), // New ID for this tool response message
+                    createdAt: new Date(),
+                    config: {
+                        role: "tool",
+                        toolCallId: ev.callId, // Link to the original function call request ID
+                        __version: "1.0.0", // Example, ensure this aligns with MessageConfig
+                    },
+                    text: JSON.stringify(toolResult), // Content is the stringified output of the tool
+                    language: DEFAULT_LANGUAGE, // Or derive from context
+                    parent: ev.responseId ? { id: ev.responseId } : null,
+                    user: { id: bot.id }, // Or a generic system/tool user ID
+                } as MessageState; // Cast to MessageState
+
+                nextInputs.push(toolResponseMessage);
+                toolCalls.push(functionCallEntry);
+                break;
+            }
+
+            case "done": {
+                const cost = BigInt(ev.cost);
+                responseStats.creditsUsed += cost; // Add LLM generation cost to cumulative response stats
+                // Emit to client
+                if (chatId) {
+                    SocketService.get().emitSocketEvent("responseStream", chatId, {
+                        __type: "end",
+                        botId: bot.id,
+                        finalMessage: updatedDraftMessage,
+                    });
+                }
+                break;
             }
         }
-        return errorToThrow;
+
+        return { draftMessage: updatedDraftMessage, nextInputs, responseStats };
+    }
+
+    /**
+     * Finalizes the response by building the final message state and updating stats.
+     */
+    private _finalizeResponse(
+        draftMessage: string,
+        toolCalls: ToolFunctionCall[],
+        inputs: MessageState[],
+        previousResponseId: string | undefined,
+        config: ChatConfigObject,
+    ): MessageState {
+        // Build and return the final MessageState for the bot response.
+        // Generate message-level configuration with default values and set role to 'assistant'.
+        const msgConfig = MessageConfig.default();
+        msgConfig.setRole("assistant");
+        // Attach the tool calls recorded during execution
+        msgConfig.setToolCalls(toolCalls);
+        const configObj = msgConfig.export();
+        const language = inputs.length > 0 ? inputs[inputs.length - 1].language : DEFAULT_LANGUAGE;
+
+        // Construct the MessageState
+        const responseMessage: MessageState = {
+            id: generatePK().toString(),
+            createdAt: new Date(),
+            config: configObj,
+            language,
+            text: draftMessage,
+            parent: previousResponseId ? { id: previousResponseId } : null,
+            user: { id: "bot" }, // This will be overridden by the caller
+        };
+
+        // Mark turn completion time
+        if (!config.stats) {
+            config.stats = {
+                totalToolCalls: 0,
+                totalCredits: "0",
+                startedAt: Date.now(),
+                lastProcessingCycleEndedAt: null,
+            } as ChatConfigObject["stats"];
+        }
+        config.stats.lastProcessingCycleEndedAt = Date.now();
+
+        return responseMessage;
     }
 
     /**
@@ -207,30 +529,8 @@ export class ReasoningEngine {
             SocketService.get().emitSocketEvent("typing", chatId, { starting: [bot.id] });
         }
 
-        // Create sets for efficient lookup of Vrooli custom tool names
-        const mcpToolNames = new Set(Object.values(McpToolName));
-        const mcpSwarmToolNames = new Set(Object.values(McpSwarmToolName));
-
         // Transform availableTools to OpenAI.Responses.Tool[] format for ContextBuilder and LlmRouter
-        const toolsForLlm: OpenAI.Responses.Tool[] = availableTools.reduce((acc, ts) => {
-            if (mcpToolNames.has(ts.name as McpToolName) || mcpSwarmToolNames.has(ts.name as McpSwarmToolName)) {
-                acc.push({
-                    type: "function",
-                    name: ts.name,
-                    description: ts.description || "",
-                    parameters: ts.inputSchema as Record<string, unknown>,
-                    strict: true,
-                });
-            } else if (ts.name === "web_search") {
-                acc.push({ type: "web_search_preview" });
-            } else if (ts.name === "file_search") {
-                acc.push({ type: "file_search", vector_store_ids: [] });
-            } else {
-                logger.warn(`Unknown tool type encountered in toolsForLlm mapping: ${ts.name}. Skipping this tool.`);
-                // Do not throw an error, just skip adding the tool.
-            }
-            return acc;
-        }, [] as OpenAI.Responses.Tool[]);
+        const toolsForLlm = this._prepareToolsForLlm(availableTools);
 
         // Check for cancellation at the very beginning
         if (abortSignal?.aborted) {
@@ -240,32 +540,15 @@ export class ReasoningEngine {
         }
 
         // Build context if we have a chatId + message ID, else wrap a text prompt
-        let inputs: MessageState[];
-        if (chatId && "id" in startMessage) {
-            // Build context, reserving tokens for tools (none for now) and world-model
-            const { messages } = await this.contextBuilder.build(
-                chatId,
-                bot,
-                model ?? DEFAULT_LANGUAGE,
-                startMessage.id,
-                { tools: toolsForLlm, systemMessage: systemMessageContent },
-            );
-            inputs = messages;
-        } else if ("text" in startMessage) {
-            // Standalone prompt
-            const tmp: MessageState = {
-                id: generatePK().toString(),
-                createdAt: new Date(),
-                config: MessageConfig.default().export(),
-                language: DEFAULT_LANGUAGE,
-                text: startMessage.text,
-                parent: null,
-                user: { id: bot.id },
-            } as MessageState;
-            inputs = [tmp];
-        } else {
-            throw new Error("Invalid startMessage for runLoop");
-        }
+        let inputs = await this._prepareInputMessages(
+            startMessage,
+            chatId,
+            bot,
+            model ?? DEFAULT_LANGUAGE,
+            systemMessageContent,
+            toolsForLlm,
+        );
+
         let draftMessage = "";
         // Collect all tool calls made during this loop
         const toolCalls: ToolFunctionCall[] = [];
@@ -273,42 +556,18 @@ export class ReasoningEngine {
         const responseStats: ResponseStats = { toolCalls: 0, creditsUsed: BigInt(0) };
 
         // Compute per-bot-response limits from the overall conversation config.
-        // These 'responseLimits' apply to the cumulative actions and resource usage of a single bot
-        // within one full execution of this runLoop.
         const responseLimits = new ChatConfig({ config }).getEffectiveLimits();
 
         // Prepare the final system message for the LLM call
-        // The systemMessageContent is now the complete, bot-specific system message.
         const finalSystemMessageForLlm = systemMessageContent;
-
-        // exceeded() checks if the *cumulative* stats for this runLoop (responseStats)
-        // have breached EITHER the total allocation passed into this runLoop (convoAllocated...)
-        // OR the specific per-bot-response limits defined in the conversation config (responseLimits).
-        // A bot's execution stops if it hits any of these caps.
-        // Note: convoAllocatedToolCalls and convoAllocatedCredits can be 0 if the conversation budget is already exhausted.
-        const exceeded = () => {
-            // Check against overall allocation for this runLoop instance
-            const overallBudgetExceeded =
-                (convoAllocatedToolCalls <= 0 && responseStats.toolCalls > 0) || // No tool calls allowed if allocation is zero or less
-                (responseStats.toolCalls >= convoAllocatedToolCalls && convoAllocatedToolCalls > 0) || // Exceeded allocated tool calls
-                (convoAllocatedCredits <= BigInt(0) && responseStats.creditsUsed > BigInt(0)) || // No credits allowed if allocation is zero or less
-                (responseStats.creditsUsed >= convoAllocatedCredits && convoAllocatedCredits > BigInt(0)); // Exceeded allocated credits
-
-            // Check if the CUMULATIVE stats for this bot's entire runLoop execution
-            // have breached the per-bot-response limits.
-            const perBotResponseLimitsBreached =
-                responseStats.toolCalls >= responseLimits.maxToolCallsPerBotResponse ||
-                responseStats.creditsUsed >= BigInt(responseLimits.maxCreditsPerBotResponse);
-
-            return overallBudgetExceeded || perBotResponseLimitsBreached;
-        };
 
         try {
             // Emit thinking status before starting the main loop
             if (chatId) {
                 SocketService.get().emitSocketEvent("botStatusUpdate", chatId, { chatId, botId: bot.id, status: "thinking", message: "Processing request..." });
             }
-            while (inputs.length && !exceeded()) {
+
+            while (inputs.length && !this._hasExceededLimits(responseStats, convoAllocatedToolCalls, convoAllocatedCredits, responseLimits)) {
                 // Check for cancellation at the beginning of each iteration
                 if (abortSignal?.aborted) {
                     throw this._handleAbortOrTimeout(abortSignal.reason, {
@@ -316,24 +575,14 @@ export class ReasoningEngine {
                     });
                 }
 
-                const chosenModel = model ?? bot.config?.model ?? "";
+                const chosenModel = model ?? config.preferredModel ?? bot.config?.model ?? "";
 
                 // Calculate effective max credits for the upcoming LLM call
-                // It should be the lesser of the per-response cap and the bot's remaining allocated credits for this runLoop
-                const remainingAllocatedCreditsForRun = convoAllocatedCredits - responseStats.creditsUsed;
-                const capFromResponseLimits = BigInt(responseLimits.maxCreditsPerBotResponse);
-
-                let effectiveMaxCreditsForLlm: bigint;
-                if (remainingAllocatedCreditsForRun <= BigInt(0)) {
-                    effectiveMaxCreditsForLlm = BigInt(0); // No budget left in allocation
-                } else {
-                    // Use the smaller of the two positive budget values
-                    if (capFromResponseLimits < remainingAllocatedCreditsForRun) {
-                        effectiveMaxCreditsForLlm = capFromResponseLimits;
-                    } else {
-                        effectiveMaxCreditsForLlm = remainingAllocatedCreditsForRun;
-                    }
-                }
+                const effectiveMaxCreditsForLlm = this._calculateEffectiveMaxCredits(
+                    responseStats,
+                    convoAllocatedCredits,
+                    responseLimits,
+                );
 
                 // Check for cancellation before LLM call
                 if (abortSignal?.aborted) {
@@ -354,123 +603,16 @@ export class ReasoningEngine {
                     signal: abortSignal,
                 });
 
-                const nextInputs: any[] = [];
+                const nextInputs: MessageState[] = [];
                 for await (const ev of stream) {
-                    switch (ev.type) {
-                        case "message":
-                            // Append to draft message
-                            draftMessage = ev.final ? ev.content : draftMessage + ev.content;
-                            // Emit to client
-                            if (chatId) {
-                                SocketService.get().emitSocketEvent("responseStream", chatId, {
-                                    __type: ev.final ? "end" : "stream",
-                                    botId: bot.id,
-                                    chunk: ev.content,
-                                });
-                            }
-                            break;
-                        case "reasoning":
-                            // Emit to client
-                            if (chatId) {
-                                SocketService.get().emitSocketEvent("modelReasoningStream", chatId, {
-                                    __type: "stream",
-                                    botId: bot.id,
-                                    chunk: ev.content,
-                                });
-                            }
-                            break;
-                        case "function_call": {
-                            // Check for cancellation before tool call
-                            if (abortSignal?.aborted) {
-                                throw this._handleAbortOrTimeout(abortSignal.reason, {
-                                    botId: bot.id, chatId, stage: "before-tool-call", toolName: ev.name,
-                                });
-                            }
-                            // Execute the tool call (sync or async) and record result
-                            const { toolResult, functionCallEntry, cost } = await this.processFunctionCall(
-                                chatId,
-                                bot,
-                                ev as FunctionCallStreamEvent,
-                                availableTools, // Pass full Tool objects down
-                                abortSignal,
-                                config,
-                                userData,
-                            );
+                    const result = await this._processStreamEvent(
+                        ev, chatId, bot, availableTools, draftMessage, toolCalls,
+                        responseStats, abortSignal, config, userData,
+                    );
 
-                            // Update cumulative stats for the entire runLoop after tool call
-                            responseStats.toolCalls++;
-                            responseStats.creditsUsed += cost;
-
-                            // Format toolResult (the raw output) into a MessageState for the LLM
-                            const toolResponseMessage: MessageState = {
-                                id: generatePK().toString(), // New ID for this tool response message
-                                createdAt: new Date(),
-                                config: {
-                                    role: "tool",
-                                    toolCallId: ev.callId, // Link to the original function call request ID
-                                    // Ensure __version and other MessageConfig defaults are included if necessary
-                                    // For simplicity, assuming MessageConfig.default() handles this or it's added later.
-                                    // Let's use a minimal config for now and refine if MessageState creation fails.
-                                    __version: "1.0.0", // Example, ensure this aligns with MessageConfig
-                                },
-                                text: JSON.stringify(toolResult), // Content is the stringified output of the tool
-                                language: DEFAULT_LANGUAGE, // Or derive from context
-                                parent: previousResponseId ? { id: previousResponseId } : null, // Should this link to the assistant's msg that made the call?
-                                user: { id: bot.id }, // Or a generic system/tool user ID
-                                // Ensure all other potentially required fields of MessageState are populated
-                            } as MessageState; // Cast to MessageState
-
-                            nextInputs.push(toolResponseMessage);
-                            toolCalls.push(functionCallEntry);
-                            break;
-                        }
-
-                        case "done": {
-                            const cost = BigInt(ev.cost);
-                            responseStats.creditsUsed += cost; // Add LLM generation cost to cumulative response stats
-                            // Emit to client
-                            if (chatId) {
-                                SocketService.get().emitSocketEvent("responseStream", chatId, {
-                                    __type: "end",
-                                    botId: bot.id,
-                                    finalMessage: draftMessage,
-                                });
-                            }
-                            break;
-                        }
-                        // Example of how to handle a conceptual error event from the stream
-                        // This assumes the llmRouter.stream() can yield an event like { type: "error", errorDetails: { message: string, code?: string } }
-                        /*
-                        case "error": { // Hypothetical error event from stream
-                            responseStats.creditsUsed += BigInt(ev.cost || 0); // Add any cost associated with the error event
-                            if (chatId) {
-                                SocketService.get().emitSocketEvent("responseStream", chatId, {
-                                    __type: "error",
-                                    botId: bot.id,
-                                    error: {
-                                        message: ev.errorDetails?.message || "Unknown stream error",
-                                        code: ev.errorDetails?.code || "LLM_STREAM_ERROR",
-                                        details: JSON.stringify(ev.errorDetails)
-                                    }
-                                });
-                                // Also consider for modelReasoningStream if applicable
-                                SocketService.get().emitSocketEvent("modelReasoningStream", chatId, {
-                                    __type: "error",
-                                    botId: bot.id,
-                                    error: {
-                                        message: ev.errorDetails?.message || "Unknown reasoning stream error",
-                                        code: ev.errorDetails?.code || "REASONING_STREAM_ERROR",
-                                        details: JSON.stringify(ev.errorDetails)
-                                    }
-                                });
-                            }
-                            // Potentially throw an error here to stop the runLoop or set a flag
-                            // For now, just emitting and breaking
-                            inputs = []; // Stop further processing in the loop
-                            break;
-                        }
-                        */
-                    }
+                    draftMessage = result.draftMessage;
+                    nextInputs.push(...result.nextInputs);
+                    Object.assign(responseStats, result.responseStats);
                     previousResponseId = ev.responseId;
                 }
 
@@ -478,8 +620,8 @@ export class ReasoningEngine {
                 inputs = nextInputs;
             }
 
-            // Emit processing_complete status if the loop finished without exhausting inputs (meaning bot did its work for this turn)
-            if (chatId && inputs.length === 0) { // Check if inputs are now empty, meaning the bot processed its turn
+            // Emit processing_complete status if the loop finished without exhausting inputs
+            if (chatId && inputs.length === 0) {
                 SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
                     chatId,
                     botId: bot.id,
@@ -509,37 +651,10 @@ export class ReasoningEngine {
             }
         }
 
-        // Build and return the final MessageState for the bot response.
-        // Generate message-level configuration with default values and set role to 'assistant'.
-        const msgConfig = MessageConfig.default();
-        msgConfig.setRole("assistant");
-        // Attach the tool calls recorded during execution
-        msgConfig.setToolCalls(toolCalls);
-        const configObj = msgConfig.export();
-        const language = inputs.length > 0 ? inputs[inputs.length - 1].language : DEFAULT_LANGUAGE;
-        // Construct the MessageState
-        const responseMessage: MessageState = {
-            id: generatePK().toString(),
-            createdAt: new Date(),
-            config: configObj,
-            language,
-            text: draftMessage,
-            parent: previousResponseId ? { id: previousResponseId } : null,
-            user: { id: bot.id },
-        };
+        const finalMessage = this._finalizeResponse(draftMessage, toolCalls, inputs, previousResponseId, config);
+        finalMessage.user = { id: bot.id }; // Set the correct bot ID
 
-        // Mark turn completion time
-        if (!config.stats) {
-            config.stats = {
-                totalToolCalls: 0,
-                totalCredits: "0",
-                startedAt: Date.now(),
-                lastProcessingCycleEndedAt: null,
-            } as ChatConfigObject["stats"];
-        }
-        config.stats.lastProcessingCycleEndedAt = Date.now();
-
-        return { finalMessage: responseMessage, responseStats };
+        return { finalMessage, responseStats };
     }
 
     // --------------------------------------------------------------------------
@@ -556,28 +671,49 @@ export class ReasoningEngine {
         // Check for cancellation at the start of tool processing
         if (abortSignal?.aborted) {
             throw this._handleAbortOrTimeout(abortSignal.reason, {
-                botId: callerBot.id, // Corrected: use callerBot.id
+                botId: callerBot.id,
                 chatId: conversationId,
-                stage: "tool-call-processing", // New stage identifier
+                stage: "tool-call-processing",
                 toolName: ev.name,
             });
         }
 
         const toolName = ev.name;
+        const schedulingDecision = this._determineToolScheduling(toolName, config);
+
+        if (schedulingDecision.requiresApproval || schedulingDecision.requiresSchedulingOnly) {
+            return await this._handleDeferredToolCall(
+                ev, callerBot, conversationId, schedulingDecision,
+                config, userData, availableTools,
+            );
+        }
+
+        // If not deferred (or fell through scheduling logic), proceed with immediate execution
+        return await this._executeToolImmediately(
+            ev, callerBot, conversationId, availableTools, abortSignal,
+        );
+    }
+
+    /**
+     * Determines if a tool call requires approval or scheduling.
+     */
+    private _determineToolScheduling(
+        toolName: string,
+        config?: ChatConfigObject,
+    ): {
+        requiresApproval: boolean;
+        requiresSchedulingOnly: boolean;
+        specificDelayMs?: number;
+        schedulingRules?: any;
+    } {
         // Use getEffectiveScheduling to ensure validated and default-applied rules are used.
         const effectiveScheduling = config ? new ChatConfig({ config }).getEffectiveScheduling() : ChatConfig.defaultScheduling();
         const schedulingRules = effectiveScheduling;
 
         let requiresApproval = false;
-        let requiresSchedulingOnly = false; // True if delayed but no explicit approval needed
+        let requiresSchedulingOnly = false;
         let specificDelayMs: number | undefined;
 
-        // Determine if the tool call requires approval or is subject to a configured delay.
-        // - If `schedulingRules.requiresApprovalTools` includes the tool (or is "all"),
-        //   the tool call is marked as PENDING_APPROVAL.
-        // - Otherwise, if `schedulingRules.toolSpecificDelays` or `defaultDelayMs`
-        //   specifies a delay, the tool call is marked as SCHEDULED_FOR_EXECUTION.
-        // - If neither approval nor a specific delay is configured, the tool executes immediately.
         if (schedulingRules) {
             if (Array.isArray(schedulingRules.requiresApprovalTools) && schedulingRules.requiresApprovalTools.includes(toolName)) {
                 requiresApproval = true;
@@ -594,137 +730,181 @@ export class ReasoningEngine {
                 }
             }
         } else {
-            if (config) { // Only log if config itself is present, as schedulingRules is part of config
-                logger.warn(`Scheduling rules are undefined for tool call ${toolName} in conversation ${conversationId}, but ChatConfigObject was provided. Tool will execute immediately if not requiring approval otherwise.`, { toolName, conversationId, callerBotId: callerBot.id });
+            if (config) {
+                logger.warn(`Scheduling rules are undefined for tool call ${toolName}, but ChatConfigObject was provided. Tool will execute immediately if not requiring approval otherwise.`, { toolName });
             }
         }
 
-        if (requiresApproval || requiresSchedulingOnly) {
-            const pendingId = nanoid();
-            const now = Date.now();
-            let currentStatus: PendingToolCallStatus | null = null;
-            let scheduledExecutionTime: number | undefined;
-            let approvalTimeoutTimestamp: number | undefined;
+        return {
+            requiresApproval,
+            requiresSchedulingOnly,
+            specificDelayMs,
+            schedulingRules,
+        };
+    }
 
-            if (requiresApproval) {
-                currentStatus = PendingToolCallStatus.PENDING_APPROVAL;
-                approvalTimeoutTimestamp = now + (schedulingRules?.approvalTimeoutMs || MINUTES_5_MS);
-            } else if (requiresSchedulingOnly && specificDelayMs) {
-                currentStatus = PendingToolCallStatus.SCHEDULED_FOR_EXECUTION;
-                scheduledExecutionTime = now + specificDelayMs;
-                // TODO-SCHEDULED-TOOL: Implement job queue integration (e.g., BullMQ) for SCHEDULED_FOR_EXECUTION.
-                // This involves: 
-                // 1. Defining a new job type for the BullMQ.
-                // 2. Enqueueing a job here with `pendingId`, `scheduledExecutionTime`, and necessary context.
-                // 3. Creating a worker process to pick up these jobs from the queue.
-                // 4. The worker would then likely trigger an internal event (e.g., "ScheduledToolExecutionDue") 
-                //    or directly call a method in CompletionService to execute the tool and re-engage the bot.
-                // 5. Ensure robust error handling, retries, and logging for the queue and worker.
+    /**
+     * Handles deferred tool calls that require approval or scheduling.
+     */
+    private async _handleDeferredToolCall(
+        ev: FunctionCallStreamEvent,
+        callerBot: BotParticipant,
+        conversationId: string | undefined,
+        schedulingDecision: {
+            requiresApproval: boolean;
+            requiresSchedulingOnly: boolean;
+            specificDelayMs?: number;
+            schedulingRules?: any;
+        },
+        config?: ChatConfigObject,
+        userData?: SessionUser,
+        availableTools?: Tool[],
+    ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint }> {
+        const pendingId = nanoid();
+        const now = Date.now();
+        let currentStatus: PendingToolCallStatus | null = null;
+        let scheduledExecutionTime: number | undefined;
+        let approvalTimeoutTimestamp: number | undefined;
+
+        if (schedulingDecision.requiresApproval) {
+            currentStatus = PendingToolCallStatus.PENDING_APPROVAL;
+            approvalTimeoutTimestamp = now + (schedulingDecision.schedulingRules?.approvalTimeoutMs || MINUTES_5_MS);
+        } else if (schedulingDecision.requiresSchedulingOnly && schedulingDecision.specificDelayMs) {
+            currentStatus = PendingToolCallStatus.SCHEDULED_FOR_EXECUTION;
+            scheduledExecutionTime = now + schedulingDecision.specificDelayMs;
+            // TODO-SCHEDULED-TOOL: Implement job queue integration (e.g., BullMQ) for SCHEDULED_FOR_EXECUTION.
+        } else {
+            logger.warn(`Tool call ${ev.name} for bot ${callerBot.id} entered scheduling block without clear status. Defaulting to immediate execution.`, { ev });
+        }
+
+        if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL || currentStatus === PendingToolCallStatus.SCHEDULED_FOR_EXECUTION) {
+            // Create a PendingToolCallEntry object
+            const pendingEntryForConfig: PendingToolCallEntry = {
+                pendingId,
+                toolCallId: ev.callId,
+                toolName: ev.name,
+                toolArguments: JSON.stringify(ev.arguments),
+                callerBotId: callerBot.id,
+                conversationId: conversationId || "unknown_conversation",
+                requestedAt: now,
+                status: currentStatus,
+                scheduledExecutionTime,
+                approvalTimeoutAt: approvalTimeoutTimestamp,
+                userIdToApprove: userData?.id,
+                executionAttempts: 0,
+            };
+
+            // Store the PendingToolCallEntry in ChatConfigObject
+            if (config) {
+                config.pendingToolCalls = config.pendingToolCalls || [];
+                config.pendingToolCalls.push(pendingEntryForConfig);
+                logger.info(`Tool call ${ev.name} (${ev.callId}) for bot ${callerBot.id} deferred and added to ChatConfig. Status: ${pendingEntryForConfig.status}`, { pendingEntry: pendingEntryForConfig });
             } else {
-                logger.warn(`Tool call ${toolName} for bot ${callerBot.id} entered scheduling block without clear status. Defaulting to immediate execution.`, { ev });
+                logger.error(`Cannot defer tool call ${ev.name} (${ev.callId}) for bot ${callerBot.id}: ChatConfigObject is undefined.`);
             }
 
-            if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL || currentStatus === PendingToolCallStatus.SCHEDULED_FOR_EXECUTION) {
-                // 3. Create a PendingToolCallEntry object
-                const pendingEntryForConfig: PendingToolCallEntry = {
-                    pendingId,
-                    toolCallId: ev.callId,
-                    toolName,
-                    toolArguments: JSON.stringify(ev.arguments),
-                    callerBotId: callerBot.id,
-                    conversationId: conversationId || "unknown_conversation",
-                    requestedAt: now,
-                    status: currentStatus,
-                    scheduledExecutionTime,
-                    approvalTimeoutAt: approvalTimeoutTimestamp,
-                    userIdToApprove: userData?.id,
-                    executionAttempts: 0,
-                    // Note: statusReason, approvedOrRejectedByUserId, and decisionTime are typically set
-                    // by the separate process that handles the approval/rejection or timeout event for this pending call,
-                    // not at the time of initial deferral.
-                };
-
-                // 4. Store the PendingToolCallEntry in ChatConfigObject.
-                if (config) {
-                    config.pendingToolCalls = config.pendingToolCalls || [];
-                    config.pendingToolCalls.push(pendingEntryForConfig); // Use the correctly typed object
-                    logger.info(`Tool call ${toolName} (${ev.callId}) for bot ${callerBot.id} deferred and added to ChatConfig. Status: ${pendingEntryForConfig.status}`, { pendingEntry: pendingEntryForConfig });
-                } else {
-                    logger.error(`Cannot defer tool call ${toolName} (${ev.callId}) for bot ${callerBot.id}: ChatConfigObject is undefined.`);
-                }
-
-                // 5. Emit a socket event to the client if approval is needed.
-                if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL && conversationId && userData) {
-                    const hasActiveConnection = SocketService.get().roomHasOpenConnections(conversationId);
-
-                    if (hasActiveConnection) {
-                        SocketService.get().emitSocketEvent("tool_approval_required", conversationId, {
-                            pendingId,
-                            toolCallId: ev.callId,
-                            toolName,
-                            toolArguments: ev.arguments as Record<string, any>,
-                            callerBotId: callerBot.id,
-                            callerBotName: callerBot.name, // Added callerBotName
-                            approvalTimeoutAt: approvalTimeoutTimestamp,
-                            estimatedCost: availableTools.find(t => t.name === toolName)?.estimatedCost, // Use the retrieved estimatedCost
-                        });
-                    } else {
-                        Notify(userData.languages) // Pass user's languages for i18n
-                            .pushToolApprovalRequired(
-                                conversationId,
-                                pendingId,
-                                toolName,
-                                callerBot.name, // Changed from callerBot.id to callerBot.name
-                                config?.goal || "your Vrooli task", // conversationName: Use chat goal or a generic fallback
-                                approvalTimeoutTimestamp,
-                                availableTools.find(t => t.name === toolName)?.estimatedCost, // Use the retrieved estimatedCost
-                                schedulingRules?.autoRejectOnTimeout,
-                            )
-                            .toUser(userData.id);
-                        logger.info(`Sent tool approval push notification for ${pendingId} to user ${userData.id} for conversation ${conversationId}.`);
-                    }
-
-                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                        chatId: conversationId,
-                        botId: callerBot.id,
-                        status: "tool_pending_approval",
-                        toolInfo: { callId: ev.callId, name: toolName, pendingId },
-                        message: `Tool ${toolName} is awaiting user approval.`,
-                    });
-                }
-
-                // 6. Return a placeholder result to the LLM indicating deferral.
-                const deferredToolResult = {
-                    __vrooli_tool_deferred: true,
-                    pendingId,
-                    status: currentStatus,
-                    message: currentStatus === PendingToolCallStatus.PENDING_APPROVAL
-                        ? `Tool call ${toolName} is awaiting user approval. You will be notified of the outcome.`
-                        : `Tool call ${toolName} has been scheduled for later execution. You will be notified upon completion.`,
-                };
-                const functionCallEntryDeferred: ToolFunctionCall = {
-                    id: ev.callId,
-                    function: { name: toolName, arguments: JSON.stringify(ev.arguments) },
-                    // Indicate success to LLM for this step (deferral was successful), but output shows it's deferred.
-                    result: { success: true, output: JSON.stringify(deferredToolResult) },
-                };
-                // Cost for deferring a tool call is currently BigInt(0).
-                // The actual cost of the tool will be incurred upon its execution.
-                // This could be revisited to add a nominal scheduling fee if needed in the future (not likely, but you never know).
-                return { toolResult: deferredToolResult, functionCallEntry: functionCallEntryDeferred, cost: BigInt(0) };
+            // Emit socket events if approval is needed
+            if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL && conversationId && userData) {
+                this._emitToolApprovalEvents(
+                    conversationId, callerBot, ev, pendingId,
+                    approvalTimeoutTimestamp, userData, availableTools,
+                    schedulingDecision.schedulingRules,
+                );
             }
+
+            // Return a placeholder result to the LLM indicating deferral
+            const deferredToolResult = {
+                __vrooli_tool_deferred: true,
+                pendingId,
+                status: currentStatus,
+                message: currentStatus === PendingToolCallStatus.PENDING_APPROVAL
+                    ? `Tool call ${ev.name} is awaiting user approval. You will be notified of the outcome.`
+                    : `Tool call ${ev.name} has been scheduled for later execution. You will be notified upon completion.`,
+            };
+
+            const functionCallEntryDeferred: ToolFunctionCall = {
+                id: ev.callId,
+                function: { name: ev.name, arguments: JSON.stringify(ev.arguments) },
+                result: { success: true, output: JSON.stringify(deferredToolResult) },
+            };
+
+            return { toolResult: deferredToolResult, functionCallEntry: functionCallEntryDeferred, cost: BigInt(0) };
         }
 
-        // If not deferred (or fell through scheduling logic), proceed with immediate execution
+        // Fallback to immediate execution if scheduling logic fails
+        return await this._executeToolImmediately(ev, callerBot, conversationId, availableTools);
+    }
+
+    /**
+     * Emits socket events for tool approval notifications.
+     */
+    private _emitToolApprovalEvents(
+        conversationId: string,
+        callerBot: BotParticipant,
+        ev: FunctionCallStreamEvent,
+        pendingId: string,
+        approvalTimeoutTimestamp: number | undefined,
+        userData: SessionUser,
+        availableTools?: Tool[],
+        schedulingRules?: any,
+    ): void {
+        const hasActiveConnection = SocketService.get().roomHasOpenConnections(conversationId);
+
+        if (hasActiveConnection) {
+            SocketService.get().emitSocketEvent("tool_approval_required", conversationId, {
+                pendingId,
+                toolCallId: ev.callId,
+                toolName: ev.name,
+                toolArguments: ev.arguments as Record<string, any>,
+                callerBotId: callerBot.id,
+                callerBotName: callerBot.name,
+                approvalTimeoutAt: approvalTimeoutTimestamp,
+                estimatedCost: availableTools?.find(t => t.name === ev.name)?.estimatedCost,
+            });
+        } else {
+            Notify(userData.languages)
+                .pushToolApprovalRequired(
+                    conversationId,
+                    pendingId,
+                    ev.name,
+                    callerBot.name,
+                    "your Vrooli task", // Generic fallback for conversation name
+                    approvalTimeoutTimestamp,
+                    availableTools?.find(t => t.name === ev.name)?.estimatedCost,
+                    schedulingRules?.autoRejectOnTimeout,
+                )
+                .toUser(userData.id);
+            logger.info(`Sent tool approval push notification for ${pendingId} to user ${userData.id} for conversation ${conversationId}.`);
+        }
+
+        SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+            chatId: conversationId,
+            botId: callerBot.id,
+            status: "tool_pending_approval",
+            toolInfo: { callId: ev.callId, name: ev.name, pendingId },
+            message: `Tool ${ev.name} is awaiting user approval.`,
+        });
+    }
+
+    /**
+     * Executes a tool call immediately (synchronously or asynchronously).
+     */
+    private async _executeToolImmediately(
+        ev: FunctionCallStreamEvent,
+        callerBot: BotParticipant,
+        conversationId: string | undefined,
+        availableTools?: Tool[],
+        abortSignal?: AbortSignal,
+    ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint }> {
         const args = ev.arguments as Record<string, any>;
         const isAsync = args.isAsync === true;
         const fnEntryBase = {
             id: ev.callId,
             function: { name: ev.name, arguments: JSON.stringify(ev.arguments) },
         } as Omit<ToolFunctionCall, "result">;
-        let toolCost = BigInt(0);
+        const _toolCost = BigInt(0); // Unused but kept for potential future use
 
-        // Emit tool_calling status BEFORE deciding to defer or execute directly
+        // Emit tool_calling status BEFORE executing
         if (conversationId) {
             SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
                 chatId: conversationId,
@@ -735,75 +915,106 @@ export class ReasoningEngine {
             });
         }
 
-        let toolCallResponse: any;
-        let entry: ToolFunctionCall;
+        const toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, {
+            conversationId: conversationId || "",
+            callerBotId: callerBot.id,
+            signal: abortSignal,
+        });
+
+        return this._formatToolResponse(
+            toolCallResponse, fnEntryBase, ev, callerBot,
+            conversationId, isAsync,
+        );
+    }
+
+    /**
+     * Formats the tool response into the expected return format.
+     */
+    private _formatToolResponse(
+        toolCallResponse: any,
+        fnEntryBase: Omit<ToolFunctionCall, "result">,
+        ev: FunctionCallStreamEvent,
+        callerBot: BotParticipant,
+        conversationId: string | undefined,
+        _isAsync: boolean, // Unused but kept for potential future differentiation
+    ): { toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint } {
+        let toolCost = BigInt(0);
         let output: unknown = null;
+        let entry: ToolFunctionCall;
 
-        if (isAsync) {
-            // For async tool initiation, the McpToolRunner should ideally return the initiation cost.
-            // This part is more conceptual as the actual async handling might be more complex
-            // and involve the registry providing this initiation cost.
-            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId: callerBot.id, signal: abortSignal });
+        if (toolCallResponse.ok) {
+            output = toolCallResponse.data.output;
+            toolCost = BigInt(toolCallResponse.data.creditsUsed);
+            entry = { ...fnEntryBase, result: { success: true, output } };
 
-            if (toolCallResponse.ok) {
-                output = toolCallResponse.data.output; // Should be an ack like { status: "started", callId: ev.callId }
-                toolCost = BigInt(toolCallResponse.data.creditsUsed); // Initiation cost from ToolRunner
-                entry = { ...fnEntryBase, result: { success: true, output } };
-                if (conversationId) {
-                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                        chatId: conversationId,
-                        botId: callerBot.id,
-                        status: "tool_completed", // Assuming async start is a form of completion for this event
-                        toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
-                    });
-                }
-            } else {
-                // Async initiation failed
-                output = toolCallResponse.error;
-                toolCost = toolCallResponse.error.creditsUsed ? BigInt(toolCallResponse.error.creditsUsed) : BigInt(0); // Cost of failed initiation
-                entry = { ...fnEntryBase, result: { success: false, error: toolCallResponse.error } };
-                if (conversationId) {
-                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                        chatId: conversationId,
-                        botId: callerBot.id,
-                        status: "tool_failed",
-                        toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
-                    });
-                }
+            if (conversationId) {
+                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                    chatId: conversationId,
+                    botId: callerBot.id,
+                    status: "tool_completed",
+                    toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
+                });
             }
-            return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         } else {
-            // Synchronous execution
-            toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, { conversationId: conversationId || "", callerBotId: callerBot.id, signal: abortSignal });
+            // Tool call failed
+            output = toolCallResponse.error;
+            toolCost = toolCallResponse.error.creditsUsed ? BigInt(toolCallResponse.error.creditsUsed) : BigInt(0);
+            entry = { ...fnEntryBase, result: { success: false, error: toolCallResponse.error } };
 
-            if (toolCallResponse.ok) {
-                output = toolCallResponse.data.output;
-                toolCost = BigInt(toolCallResponse.data.creditsUsed);
-                entry = { ...fnEntryBase, result: { success: true, output: toolCallResponse.data.output } };
-                if (conversationId) {
-                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                        chatId: conversationId,
-                        botId: callerBot.id,
-                        status: "tool_completed",
-                        toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
-                    });
-                }
-            } else {
-                // Synchronous tool call failed
-                output = toolCallResponse.error; // Store the error object as the output for the LLM to see
-                toolCost = toolCallResponse.error.creditsUsed ? BigInt(toolCallResponse.error.creditsUsed) : BigInt(0); // Use cost from error if available
-                entry = { ...fnEntryBase, result: { success: false, error: toolCallResponse.error } };
-                if (conversationId) {
-                    SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                        chatId: conversationId,
-                        botId: callerBot.id,
-                        status: "tool_failed",
-                        toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
-                    });
-                }
+            // Determine if this tool error is retryable
+            const isToolErrorRetryable = this._isToolErrorRetryable(toolCallResponse.error);
+
+            if (conversationId) {
+                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
+                    chatId: conversationId,
+                    botId: callerBot.id,
+                    status: "tool_failed",
+                    toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
+                    error: {
+                        message: toolCallResponse.error.message || "Tool execution failed",
+                        code: toolCallResponse.error.code || ResponseErrorCode.TOOL_EXECUTION_ERROR,
+                        retryable: isToolErrorRetryable,
+                    },
+                });
             }
-            return { toolResult: output, functionCallEntry: entry, cost: toolCost };
         }
+
+        return { toolResult: output, functionCallEntry: entry, cost: toolCost };
+    }
+
+    /**
+     * Determines if a tool execution error is retryable based on the error details.
+     */
+    private _isToolErrorRetryable(error: any): boolean {
+        if (!error) return false;
+
+        const errorCode = error.code;
+        const errorMessage = error.message || "";
+
+        // Specific retryable error codes
+        const retryableErrorCodes = [
+            ResponseErrorCode.RATE_LIMITED,
+            ResponseErrorCode.TIMEOUT,
+            ResponseErrorCode.NETWORK_ERROR,
+            ResponseErrorCode.SERVICE_UNAVAILABLE,
+            ResponseErrorCode.TEMPORARY_FAILURE,
+        ];
+
+        if (retryableErrorCodes.includes(errorCode)) {
+            return true;
+        }
+
+        // Check for retryable patterns in error messages (case-insensitive)
+        const retryablePatterns = [
+            /rate.?limit/i,
+            /timeout/i,
+            /temporary/i,
+            /try.?again/i,
+            /service.?unavailable/i,
+            /502|503|504/i, // HTTP error codes
+        ];
+
+        return retryablePatterns.some(pattern => pattern.test(errorMessage));
     }
 }
 
@@ -855,6 +1066,59 @@ export class CompletionService {
         this.conversationStore.updateConfig(conversationId, config);
     }
 
+    /**
+     * Fetches and attaches team config to the conversation state if a teamId is present.
+     * This method handles authorization by ensuring the user has access to the team.
+     */
+    public async attachTeamConfig(
+        conversationState: ConversationState,
+        initiatingUser: SessionUser,
+    ): Promise<ConversationState> {
+        if (!conversationState.config.teamId) {
+            // No team assigned, return as-is
+            return conversationState;
+        }
+
+        try {
+            // Create a mock request object for the readOneHelper
+            const mockReq: Parameters<typeof RequestService.assertRequestFrom>[0] = {
+                session: {
+                    fromSafeOrigin: true,
+                    isLoggedIn: true,
+                    languages: initiatingUser.languages ?? [DEFAULT_LANGUAGE],
+                    userId: initiatingUser.id,
+                    users: [initiatingUser],
+                },
+            };
+
+            // Fetch the team using readOneHelper to ensure proper authorization
+            const team = await readOneHelper({
+                info: { id: true, config: true } as any, // Basic info we need
+                input: { id: conversationState.config.teamId },
+                objectType: "Team",
+                req: mockReq,
+            });
+
+            if (team && team.config) {
+                // Parse the team config
+                const teamConfig = TeamConfig.parse({ config: team.config }, logger, { useFallbacks: true }).export();
+
+                // Return updated conversation state with team config attached
+                return {
+                    ...conversationState,
+                    teamConfig,
+                };
+            } else {
+                logger.warn(`Team ${conversationState.config.teamId} not found or user ${initiatingUser.id} lacks access. Proceeding without team config.`);
+                return conversationState;
+            }
+        } catch (error) {
+            logger.error(`Failed to fetch team config for teamId ${conversationState.config.teamId}:`, error);
+            // Return original state without team config rather than failing the entire operation
+            return conversationState;
+        }
+    }
+
     private _truncateStringForPrompt(value: any, maxLength: number): string {
         if (value === undefined || value === null) {
             return "Not set";
@@ -867,37 +1131,34 @@ export class CompletionService {
     }
 
     /**
-     * Builds the system message for a bot based on its role and the current context.
+     * Loads the role-specific prompt template from disk.
      */
-    private async _buildSystemMessage(
-        goal: string,
-        bot: BotParticipant,
-        convoConfig: ChatConfigObject,
-    ): Promise<string> {
-        let baseSystemMessage = VROOLI_WELCOME_MESSAGE;
-
-        const botRole = bot.meta?.role || "leader"; // Default to leader if no role
-        const botId = bot.id;
-
+    private async _loadPromptTemplate(): Promise<string> {
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
         const promptPath = path.join(__dirname, "prompt.txt");
-        let roleSpecificTemplate = "";
-
-        let roleSpecificInstructions = "Perform tasks according to your role and the overall goal.";
-        if (botRole === "leader" || botRole === "coordinator" || botRole === "delegator") {
-            roleSpecificInstructions = RECRUITMENT_RULE_PROMPT;
-        }
-
-        // TODO: Eventually, load prompts from database. This isn't important until sometime after we actually get this working.
 
         try {
             logger.info(`Loading base prompt template from: ${promptPath}`);
-            roleSpecificTemplate = await fs.readFile(promptPath, "utf-8");
+            return await fs.readFile(promptPath, "utf-8");
         } catch (error) {
             logger.error(`Failed to load prompt template from ${promptPath}:`, { error });
-            roleSpecificTemplate = "Your primary goal is: {{GOAL}}. Please act according to your role: {{ROLE}}. Critical: Prompt template file not found.";
+            return "Your primary goal is: {{GOAL}}. Please act according to your role: {{ROLE}}. Critical: Prompt template file not found.";
         }
+    }
+
+    /**
+     * Processes template variables in the prompt.
+     */
+    private _processPromptTemplate(
+        template: string,
+        goal: string,
+        bot: BotParticipant,
+        convoConfig: ChatConfigObject,
+        teamConfig?: TeamConfigObject,
+    ): string {
+        const botRole = bot.meta?.role || "leader"; // Default to leader if no role
+        const botId = bot.id;
 
         let memberCountLabel = "1 member";
         if (convoConfig.teamId) {
@@ -908,7 +1169,15 @@ export class CompletionService {
         const swarmToolSchemas = this.toolRegistry.getSwarmToolDefinitions();
         const allToolSchemas = [...builtInToolSchemas, ...swarmToolSchemas];
 
-        let processedPrompt = roleSpecificTemplate;
+        let roleSpecificInstructions = "Perform tasks according to your role and the overall goal.";
+        if (botRole === "leader" || botRole === "coordinator" || botRole === "delegator") {
+            roleSpecificInstructions = RECRUITMENT_RULE_PROMPT;
+        }
+
+        const swarmStateString = this._buildSwarmStateString(convoConfig, teamConfig);
+        const toolSchemasString = allToolSchemas.length > 0 ? JSON.stringify(allToolSchemas, null, 2) : "No tools available for this role.";
+
+        let processedPrompt = template;
         processedPrompt = processedPrompt.replace(/{{GOAL}}/g, goal);
         processedPrompt = processedPrompt.replace(/{{MEMBER_COUNT_LABEL}}/g, memberCountLabel);
         processedPrompt = processedPrompt.replace(/{{ISO_EPOCH_SECONDS}}/g, Math.floor(Date.now() / SECONDS_1_MS).toString());
@@ -917,23 +1186,33 @@ export class CompletionService {
         processedPrompt = processedPrompt.replace(/{{ROLE}}/g, botRole);
         processedPrompt = processedPrompt.replace(/{{BOT_ID}}/g, botId);
         processedPrompt = processedPrompt.replace(/{{ROLE_SPECIFIC_INSTRUCTIONS}}/g, roleSpecificInstructions);
-
-        const swarmStateString = this._buildSwarmStateString(convoConfig);
         processedPrompt = processedPrompt.replace(/{{SWARM_STATE}}/g, swarmStateString);
-
-        const toolSchemasString = allToolSchemas.length > 0 ? JSON.stringify(allToolSchemas, null, 2) : "No tools available for this role.";
         processedPrompt = processedPrompt.replace(/{{TOOL_SCHEMAS}}/g, toolSchemasString);
 
-        baseSystemMessage += processedPrompt;
-        return baseSystemMessage.trim();
+        return processedPrompt;
+    }
+
+    /**
+     * Builds the system message for a bot based on its role and the current context.
+     */
+    private async _buildSystemMessage(
+        goal: string,
+        bot: BotParticipant,
+        convoConfig: ChatConfigObject,
+        teamConfig?: TeamConfigObject,
+    ): Promise<string> {
+        const template = await this._loadPromptTemplate();
+        const processedPrompt = this._processPromptTemplate(template, goal, bot, convoConfig, teamConfig);
+        return VROOLI_WELCOME_MESSAGE + processedPrompt.trim();
     }
 
     /**
      * Builds a string representation of the current swarm state for inclusion in the system prompt.
      * @param convoConfig The conversation configuration object containing swarm state.
+     * @param teamConfig Optional team configuration with organizational structure.
      * @returns A formatted string of the swarm state, or a default message if unavailable.
      */
-    private _buildSwarmStateString(convoConfig: ChatConfigObject | undefined): string {
+    private _buildSwarmStateString(convoConfig: ChatConfigObject | undefined, teamConfig?: TeamConfigObject): string {
         /** How long each swarm state section can be before we truncate it. */
         const MAX_STRING_PREVIEW_LENGTH = 2_000;
         let swarmStateOutput = "SWARM STATE DETAILS: Not available or error formatting state.";
@@ -943,7 +1222,7 @@ export class CompletionService {
         }
 
         try {
-            const teamId = convoConfig.teamId || "No team assigned"; //TODO should include team config, since it contains things like MOISE+ hierarchy, etc.
+            const teamId = convoConfig.teamId || "No team assigned";
             const swarmLeader = convoConfig.swarmLeader || "No leader assigned";
             const subtasks = convoConfig.subtasks || [];
             const subtaskLeaders = convoConfig.subtaskLeaders || {};
@@ -957,7 +1236,17 @@ export class CompletionService {
 
             const formattedSwarmStateParts: string[] = [];
 
-            formattedSwarmStateParts.push(`- Team ID:\n${this._truncateStringForPrompt(teamId, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            // Team information with organizational structure
+            if (teamConfig) {
+                const teamInfo = {
+                    id: teamId,
+                    structure: teamConfig.structure || { type: "Not specified", content: "No organizational structure defined" },
+                };
+                formattedSwarmStateParts.push(`- Team Configuration:\n${this._truncateStringForPrompt(teamInfo, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            } else {
+                formattedSwarmStateParts.push(`- Team ID:\n${this._truncateStringForPrompt(teamId, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            }
+
             formattedSwarmStateParts.push(`- Swarm Leader:\n${this._truncateStringForPrompt(swarmLeader, MAX_STRING_PREVIEW_LENGTH)}\n`);
 
             const activeSubtasksCount = subtasks.filter(st => typeof st === "object" && st !== null && (st.status === "todo" || st.status === "in_progress")).length;
@@ -971,7 +1260,7 @@ export class CompletionService {
             formattedSwarmStateParts.push(`- Records:\n${this._truncateStringForPrompt(records, MAX_STRING_PREVIEW_LENGTH)}\n`);
             formattedSwarmStateParts.push(`- Stats:\n${this._truncateStringForPrompt(stats, MAX_STRING_PREVIEW_LENGTH)}\n`);
             formattedSwarmStateParts.push(`- Limits:\n${this._truncateStringForPrompt(limits, MAX_STRING_PREVIEW_LENGTH)}\n`);
-            formattedSwarmStateParts.push(`- Pending Tool Calls:\n${this._truncateStringForPrompt(pendingToolCalls, MAX_STRING_PREVIEW_LENGTH)}\n`); // Added pendingToolCalls
+            formattedSwarmStateParts.push(`- Pending Tool Calls:\n${this._truncateStringForPrompt(pendingToolCalls, MAX_STRING_PREVIEW_LENGTH)}\n`);
 
             swarmStateOutput = `\nSWARM STATE DETAILS:\n${formattedSwarmStateParts.join("\n\n")}`;
         } catch (e) {
@@ -983,8 +1272,8 @@ export class CompletionService {
     /**
      * Public wrapper for generating a system message for a specific bot.
      */
-    public async generateSystemMessageForBot(goal: string, bot: BotParticipant, convoConfig: ChatConfigObject): Promise<string> {
-        return this._buildSystemMessage(goal, bot, convoConfig);
+    public async generateSystemMessageForBot(goal: string, bot: BotParticipant, convoConfig: ChatConfigObject, teamConfig?: TeamConfigObject): Promise<string> {
+        return this._buildSystemMessage(goal, bot, convoConfig, teamConfig);
     }
 
     /**
@@ -1005,6 +1294,12 @@ export class CompletionService {
         const conversationState = await this.conversationStore.get(chatId);
         if (!conversationState) {
             throw new Error(`Conversation state not found for chatId: ${chatId}`);
+        }
+
+        // Update preferred model in config if a model was specified
+        if (model && model.trim() !== "") {
+            conversationState.config.preferredModel = model;
+            this.conversationStore.updateConfig(chatId, conversationState.config);
         }
 
         // Load the triggering message
@@ -1076,7 +1371,7 @@ export class CompletionService {
         try {
             await Promise.all(responders.map(async (responder) => {
                 const goal = conversationState.config.goal || "Follow the user's instructions.";
-                const botSystemMessage = await this._buildSystemMessage(goal, responder, conversationState.config);
+                const botSystemMessage = await this._buildSystemMessage(goal, responder, conversationState.config, conversationState.teamConfig);
 
                 const response = await this.reasoningEngine.runLoop(
                     { id: messageId },
@@ -1248,7 +1543,7 @@ export class CompletionService {
                     );
 
                     await Promise.all(responders.map(async (responder) => {
-                        const botSystemMessage = await this._buildSystemMessage(specificGoal, responder, conversationState.config);
+                        const botSystemMessage = await this._buildSystemMessage(specificGoal, responder, conversationState.config, conversationState.teamConfig);
                         const response = await this.reasoningEngine.runLoop(
                             startMessage,
                             botSystemMessage,
@@ -1294,7 +1589,7 @@ export class CompletionService {
                     );
 
                     await Promise.all(responders.map(async (responder) => {
-                        const botSystemMessage = await this._buildSystemMessage(goalForEvent, responder, conversationState.config);
+                        const botSystemMessage = await this._buildSystemMessage(goalForEvent, responder, conversationState.config, conversationState.teamConfig);
                         const response = await this.reasoningEngine.runLoop(
                             { id: messageId },
                             botSystemMessage,
@@ -1399,7 +1694,7 @@ export class CompletionService {
                             currentConvoStats, effectiveLimitsEvent, 1,
                         );
                         try {
-                            const botSystemMessage = await this._buildSystemMessage(goalForEvent, callerBot, conversationState.config);
+                            const botSystemMessage = await this._buildSystemMessage(goalForEvent, callerBot, conversationState.config, conversationState.teamConfig);
                             const botResponse = await this.reasoningEngine.runLoop(
                                 { id: toolResponseMessage.id }, botSystemMessage, fullAvailableToolsForEvent, callerBot, creditAccountId,
                                 conversationState.config, reEngageAllocatedToolCalls, reEngageAllocatedCredits, event.sessionUser,
@@ -1486,7 +1781,7 @@ export class CompletionService {
                             currentConvoStats, effectiveLimitsEvent, 1,
                         );
                         try {
-                            const botSystemMessage = await this._buildSystemMessage(goalForEvent, callerBot, conversationState.config);
+                            const botSystemMessage = await this._buildSystemMessage(goalForEvent, callerBot, conversationState.config, conversationState.teamConfig);
                             const botResponse = await this.reasoningEngine.runLoop(
                                 { id: toolRejectionMessage.id }, botSystemMessage, fullAvailableToolsForEvent, callerBot, creditAccountId,
                                 conversationState.config, reEngageAllocatedToolCalls, reEngageAllocatedCredits, event.sessionUser,
@@ -1616,6 +1911,7 @@ type State = (typeof SwarmStateMachine.State)[keyof typeof SwarmStateMachine.Sta
 export class SwarmStateMachine implements ManagedTaskStateMachine {
     private disposed = false;
     private processingLock = false;
+    private pendingDrainTimeout: NodeJS.Timeout | null = null;
     static State = {
         UNINITIALIZED: "UNINITIALIZED",
         STARTING: "STARTING",
@@ -1682,9 +1978,8 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
 
     public async requestStop(reason: string): Promise<boolean> {
         logger.info(`SwarmStateMachine: requestStop called for ${this.conversationId}. Reason: ${reason}`);
-        // shutdown seems to be the closest equivalent. Consider if a different state like 'STOPPED' is needed before TERMINATED.
-        await this.shutdown();
-        return true; // Assuming shutdown always attempts to stop and terminate
+        const result = await this.stop("graceful", reason, this.initiatingUser ?? undefined);
+        return result.success;
     }
 
     public getAssociatedUserId(): string | undefined {
@@ -1702,11 +1997,17 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         this.state = SwarmStateMachine.State.STARTING;
         logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}"`);
 
-        const convoState = await this.completion.getConversationState(convoId);
+        let convoState = await this.completion.getConversationState(convoId);
         if (!convoState) {
             logger.error(`Failed to load ConversationState for ${convoId} in SwarmStateMachine.start`);
             this.state = SwarmStateMachine.State.FAILED;
             return;
+        }
+
+        // Fetch and attach team config if teamId is present
+        convoState = await this.completion.attachTeamConfig(convoState, initiatingUser);
+        if (convoState.teamConfig) {
+            logger.info(`Loaded team config for swarm ${convoId}. Team structure type: ${convoState.teamConfig.structure?.type || "Not specified"}`);
         }
 
         let leaderBotParticipant: BotParticipant | undefined;
@@ -1744,6 +2045,7 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
             goal,
             leaderBotParticipant,
             convoState.config,
+            convoState.teamConfig,
         );
 
         convoState.initialLeaderSystemMessage = systemMessageString;
@@ -1790,6 +2092,7 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         this.state = SwarmStateMachine.State.RUNNING;
 
         if (this.eventQueue.length === 0) {
+            this.processingLock = false;
             this.state = SwarmStateMachine.State.IDLE;
             return;
         }
@@ -1797,6 +2100,7 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         if (ev.conversationId !== convoId) {
             logger.warn("Swarm drain called with convoId mismatch", { expected: convoId, actual: ev.conversationId });
             this.eventQueue.unshift(ev);
+            this.processingLock = false;
             this.state = SwarmStateMachine.State.IDLE;
             return;
         }
@@ -1806,15 +2110,51 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
             logger.error("Error processing event in SwarmStateMachine drain", { error, event: ev });
         }
 
+        // Release processing lock after completing the current event
+        this.processingLock = false;
+
         if (this.eventQueue.length === 0) {
             this.state = SwarmStateMachine.State.IDLE;
         } else {
-            setImmediate(() => this.drain(convoId).catch(err => logger.error("Error in scheduled subsequent drain", { error: err, conversationId: convoId })));
+            // Get conversation state to access delay configuration
+            try {
+                const conversationState = await this.completion.getConversationState(convoId);
+                const effectiveLimits = conversationState ? new ChatConfig({ config: conversationState.config }).getEffectiveLimits() : null;
+                const delayMs = effectiveLimits?.delayBetweenProcessingCyclesMs || 0;
+
+                if (delayMs > 0) {
+                    // Use setTimeout with the configured delay
+                    this.pendingDrainTimeout = setTimeout(() => {
+                        this.pendingDrainTimeout = null; // Clear the timeout reference
+                        this.drain(convoId).catch(err => logger.error("Error in delayed subsequent drain", { error: err, conversationId: convoId, delayMs }));
+                    }, delayMs);
+                    logger.debug(`Scheduling next drain for ${convoId} with ${delayMs}ms delay`);
+                } else {
+                    // Fall back to setImmediate for immediate processing
+                    setImmediate(() => this.drain(convoId).catch(err => logger.error("Error in immediate subsequent drain", { error: err, conversationId: convoId })));
+                }
+            } catch (error) {
+                logger.error("Error getting conversation state for drain delay, falling back to immediate scheduling", { error, conversationId: convoId });
+                // Fall back to immediate processing if there's an error getting the conversation state
+                setImmediate(() => this.drain(convoId).catch(err => logger.error("Error in fallback subsequent drain", { error: err, conversationId: convoId })));
+            }
+        }
+    }
+
+    /**
+     * Clears any pending drain timeout to prevent it from firing after pause/stop/shutdown.
+     */
+    private _clearPendingDrainTimeout(): void {
+        if (this.pendingDrainTimeout) {
+            clearTimeout(this.pendingDrainTimeout);
+            this.pendingDrainTimeout = null;
+            logger.debug(`Cleared pending drain timeout for conversation ${this.conversationId}`);
         }
     }
 
     async pause(): Promise<void> {
         if (this.state === SwarmStateMachine.State.RUNNING || this.state === SwarmStateMachine.State.IDLE) {
+            this._clearPendingDrainTimeout(); // Cancel any pending drain timeout
             this.state = SwarmStateMachine.State.PAUSED;
             logger.info(`SwarmStateMachine for ${this.conversationId} paused.`);
         }
@@ -1829,6 +2169,7 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
     }
 
     async shutdown(): Promise<void> {
+        this._clearPendingDrainTimeout(); // Cancel any pending drain timeout
         this.disposed = true;
         this.eventQueue.length = 0;
         this.state = SwarmStateMachine.State.TERMINATED;
@@ -1836,6 +2177,7 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
     }
 
     private fail(err: unknown) {
+        this._clearPendingDrainTimeout(); // Cancel any pending drain timeout
         logger.error(`Swarm failure for ${this.conversationId}`, { error: err });
         this.state = SwarmStateMachine.State.FAILED;
     }
@@ -1945,6 +2287,179 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
 
         await this.handleEvent(toolRejectionEvent);
     }
+
+    /**
+     * Gracefully stops the swarm with proper cleanup and state management.
+     * This handles all the ending logic including statistics calculation, pending tool call management,
+     * and adding final records to the conversation state.
+     * 
+     * @param mode - "graceful" or "force" - how to handle pending operations
+     * @param reason - Optional reason for stopping the swarm
+     * @param _requestingUser - User requesting to stop the swarm (for authorization)
+     * @returns Object indicating success/failure and final state information
+     */
+    async stop(
+        mode: "graceful" | "force" = "graceful",
+        reason?: string,
+        _requestingUser?: SessionUser,
+    ): Promise<{
+        success: boolean;
+        message?: string;
+        finalState?: {
+            endedAt: string;
+            reason?: string;
+            mode: "graceful" | "force";
+            totalSubTasks?: number;
+            completedSubTasks?: number;
+            totalCreditsUsed?: string;
+            totalToolCalls?: number;
+        };
+        error?: string;
+    }> {
+        if (!this.conversationId) {
+            const errorMsg = "SwarmStateMachine: stop() called before conversationId was set.";
+            logger.error(errorMsg);
+            return { success: false, message: errorMsg, error: "CONVERSATION_ID_NOT_SET" };
+        }
+
+        if (this.state === SwarmStateMachine.State.STOPPED || this.state === SwarmStateMachine.State.TERMINATED) {
+            const message = `Swarm ${this.conversationId} is already in state ${this.state}.`;
+            logger.warn(message);
+            return { success: true, message };
+        }
+
+        logger.info(`SwarmStateMachine: Stopping swarm ${this.conversationId} with mode: ${mode}, reason: ${reason || "No reason provided"}`);
+
+        try {
+            const convoState = await this.completion.getConversationState(this.conversationId);
+            if (!convoState) {
+                const errorMsg = `Conversation state not found for conversation ${this.conversationId}.`;
+                logger.error(errorMsg);
+                return { success: false, message: errorMsg, error: "CONVERSATION_STATE_NOT_FOUND" };
+            }
+
+            if (!convoState.config) {
+                const errorMsg = `Conversation config not found for conversation ${this.conversationId}.`;
+                logger.error(errorMsg);
+                return { success: false, message: errorMsg, error: "CONVERSATION_CONFIG_NOT_FOUND" };
+            }
+
+            const finalReason = reason || "Swarm stopped";
+            const endedAt = new Date().toISOString();
+
+            // Calculate final statistics
+            const subtasks = convoState.config.subtasks || [];
+            const totalSubTasks = subtasks.length;
+            const completedSubTasks = subtasks.filter(task =>
+                typeof task === "object" && task !== null && task.status === "done",
+            ).length;
+            const stats = convoState.config.stats;
+            const totalCreditsUsed = stats?.totalCredits || "0";
+            const totalToolCalls = stats?.totalToolCalls || 0;
+
+            // Update conversation config to mark as ended
+            const updatedConfig = { ...convoState.config };
+
+            // Handle force mode - cancel pending tool calls
+            if (mode === "force" && updatedConfig.pendingToolCalls) {
+                updatedConfig.pendingToolCalls = updatedConfig.pendingToolCalls.map(toolCall => {
+                    if (toolCall.status === PendingToolCallStatus.PENDING_APPROVAL || toolCall.status === PendingToolCallStatus.SCHEDULED_FOR_EXECUTION) {
+                        return {
+                            ...toolCall,
+                            status: PendingToolCallStatus.CANCELLED_BY_SYSTEM,
+                            statusReason: `Swarm stopped with force mode. Reason: ${finalReason}`,
+                            decisionTime: Date.now(),
+                        };
+                    }
+                    return toolCall;
+                });
+            }
+
+            // Add completion record to the conversation records
+            const completionRecord: ToolCallRecord = {
+                id: `swarm_completion_${Date.now()}`,
+                routine_id: "swarm_lifecycle",
+                routine_name: "Swarm Completion",
+                params: {
+                    mode,
+                    reason: finalReason,
+                    totalSubTasks,
+                    completedSubTasks,
+                    totalCreditsUsed,
+                    totalToolCalls,
+                },
+                output_resource_ids: [],
+                caller_bot_id: updatedConfig.swarmLeader || "system",
+                created_at: endedAt,
+            };
+
+            // Ensure records array exists and add the completion record
+            if (!updatedConfig.records) {
+                updatedConfig.records = [];
+            }
+            updatedConfig.records.push(completionRecord);
+
+            // Update stats with final processing time
+            if (updatedConfig.stats) {
+                updatedConfig.stats.lastProcessingCycleEndedAt = Date.now();
+            }
+
+            // Persist the updated config
+            this.completion.updateConversationConfig(this.conversationId, updatedConfig);
+
+            // Clear any pending drain timeout and transition to STOPPED state
+            this._clearPendingDrainTimeout();
+            this.state = SwarmStateMachine.State.STOPPED;
+            this.processingLock = false; // Release any processing lock
+
+            const finalState = {
+                endedAt,
+                reason: finalReason,
+                mode,
+                totalSubTasks,
+                completedSubTasks,
+                totalCreditsUsed,
+                totalToolCalls,
+            };
+
+            logger.info(
+                `Swarm ${this.conversationId} stopped successfully. Mode: ${mode}, Reason: ${finalReason}, Completed: ${completedSubTasks}/${totalSubTasks} tasks`,
+            );
+
+            return {
+                success: true,
+                message: `Swarm stopped ${mode === "graceful" ? "gracefully" : "forcefully"}. ${finalReason}`,
+                finalState,
+            };
+
+        } catch (error) {
+            this.state = SwarmStateMachine.State.FAILED;
+            const errorMessage = error instanceof Error ? error.message : "Unknown error during swarm stop";
+            logger.error(`Error stopping swarm ${this.conversationId}:`, error);
+            return {
+                success: false,
+                message: `Failed to stop swarm: ${errorMessage}`,
+                error: "STOP_OPERATION_FAILED",
+            };
+        }
+    }
+
+    /**
+     * Test method to verify that pending timeouts are properly cancelled during pause/stop operations.
+     * This is for development/testing purposes only.
+     */
+    public _testTimeoutCancellation(): boolean {
+        // Simulate a pending timeout
+        this.pendingDrainTimeout = setTimeout(() => {
+            logger.error("TEST FAILURE: Timeout fired after it should have been cancelled");
+        }, 100);
+
+        // Try to clear it
+        this._clearPendingDrainTimeout();
+
+        // Check if it was properly cleared
+        return this.pendingDrainTimeout === null;
+    }
 }
 
 
@@ -1981,7 +2496,6 @@ export const completionService = new CompletionService(
     messageStore,
     toolRegistry,
 );
-
 // SwarmStateMachine class definition must come before this instantiation
 export const swarmStateMachine = new SwarmStateMachine(
     completionService,
@@ -2000,3 +2514,4 @@ export interface ActiveSwarmRecord {
     /** The unique ID of the user who initiated or owns the swarm */
     userId: string;
 }
+

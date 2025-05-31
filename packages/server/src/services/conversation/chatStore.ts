@@ -1,4 +1,4 @@
-import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type ChatConfigObject, type User } from "@local/shared";
+import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type ChatConfigObject, type TeamConfigObject, type User } from "@local/shared";
 import { type Prisma, type user } from "@prisma/client";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -238,6 +238,7 @@ export class PrismaChatStore extends ChatStore {
             participants: [],
             availableTools: [],
             initialLeaderSystemMessage: "",
+            teamConfig: undefined,
         };
     }
 
@@ -287,6 +288,7 @@ export class PrismaChatStore extends ChatStore {
             participants,
             availableTools: [],
             initialLeaderSystemMessage: "",
+            teamConfig: undefined,
         };
     }
 }
@@ -305,6 +307,12 @@ export interface ConversationStateStore {
      * Persist an updated config (debounced internally by ChatStore).
      */
     updateConfig(conversationId: string, config: ChatConfigObject): void;
+
+    /**
+     * Update the team config in the cached conversation state (runtime-only).
+     * This does not persist to database - the team config is stored with the team object.
+     */
+    updateTeamConfig(conversationId: string, teamConfig: TeamConfigObject): Promise<void>;
 
     /**
      * Remove the state from the in-memory cache (LRU eviction or manual).
@@ -398,6 +406,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
             config,
             availableTools: existingState?.availableTools ?? [],
             initialLeaderSystemMessage: existingState?.initialLeaderSystemMessage ?? "",
+            teamConfig: existingState?.teamConfig,
         };
         this.cache.set(conversationId, result);
 
@@ -413,6 +422,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
             participants: [],
             availableTools: [],
             initialLeaderSystemMessage: "",
+            teamConfig: undefined,
         };
     }
 
@@ -437,6 +447,34 @@ export class CachedConversationStateStore implements ConversationStateStore {
             await this.cacheService.del(l2Key); // Invalidate L2
         } catch (error) {
             logger.error(`Error invalidating distributed ConversationState from L2 cache for ${conversationId}`, { error });
+        }
+    }
+
+    public async updateTeamConfig(conversationId: string, teamConfig: TeamConfigObject): Promise<void> {
+        // Get the current state to preserve all other fields
+        const existingState = await this.get(conversationId);
+
+        if (!existingState) {
+            logger.warn(`Cannot update team config for conversation ${conversationId}: conversation state not found`);
+            return;
+        }
+
+        // Update the state with the new team config
+        const updatedState: ConversationState = {
+            ...existingState,
+            teamConfig,
+        };
+
+        // Update L1 cache
+        this.cache.set(conversationId, updatedState);
+
+        // Update L2 cache (Redis) 
+        const l2Key = this.getL2CacheKey(conversationId);
+        try {
+            await this.cacheService.set(l2Key, updatedState, CONVERSATION_STATE_L2_CACHE_TTL_SEC);
+        } catch (error) {
+            logger.error(`Error updating team config in L2 cache for ${conversationId}`, { error });
+            // Continue even if L2 cache update fails - L1 cache is updated
         }
     }
 }

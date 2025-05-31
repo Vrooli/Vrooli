@@ -1,7 +1,9 @@
+import { McpSwarmToolName, McpToolName } from "@local/shared";
 import type OpenAI from "openai";
+import type { Logger } from "winston";
 import { BuiltInTools, type SwarmTools } from "../mcp/tools.js";
-import type { Logger, ToolResponse } from "../mcp/types.js";
-import { McpSwarmToolName, McpToolName, type DefineToolParams, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
+import { type ToolResponse } from "../mcp/types.js";
+import { type DefineToolParams, type EndSwarmParams, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
 import { type OkErr, type ToolMeta } from "./types.js";
 
 /**
@@ -169,16 +171,24 @@ export class McpToolRunner extends ToolRunner {
                     this.logger.error(`McpToolRunner: conversationId is required for SwarmTool: ${name}`);
                     return { ok: false, error: { code: "MISSING_CONVERSATION_ID_FOR_SWARM_TOOL", message: `ConversationId missing for swarm tool ${name}.`, creditsUsed: "0" } };
                 }
+                if (!meta.sessionUser) {
+                    this.logger.error(`McpToolRunner: sessionUser is required for SwarmTool: ${name}`);
+                    return { ok: false, error: { code: "MISSING_SESSION_USER_FOR_SWARM_TOOL", message: `SessionUser missing for swarm tool ${name}.`, creditsUsed: "0" } };
+                }
                 switch (name as McpSwarmToolName) {
                     case McpSwarmToolName.UpdateSwarmSharedState: {
-                        const updateResult = await this.swarmTools.updateSwarmSharedState(meta.conversationId, args as UpdateSwarmSharedStateParams);
-                        swarmToolInternalResult = { success: updateResult.success, data: { updatedSubTasks: updateResult.updatedSubTasks, updatedSharedScratchpad: updateResult.updatedSharedScratchpad }, error: updateResult.error, message: updateResult.message };
+                        const { success, error, message, ...rest } = await this.swarmTools.updateSwarmSharedState(meta.conversationId, args as UpdateSwarmSharedStateParams, meta.sessionUser);
+                        swarmToolInternalResult = {
+                            success,
+                            data: rest,
+                            error,
+                            message,
+                        };
                         break;
                     }
                     case McpSwarmToolName.EndSwarm: {
-                        this.logger.warn(`McpSwarmToolName.EndSwarm not fully implemented.`);
-                        // Placeholder success for EndSwarm
-                        swarmToolInternalResult = { success: true, data: { message: "EndSwarm called (simulated success)." } };
+                        const endResult = await this.swarmTools.endSwarm(meta.conversationId, args as EndSwarmParams, meta.sessionUser);
+                        swarmToolInternalResult = { success: endResult.success, data: { finalState: endResult.finalState }, error: endResult.error, message: endResult.message };
                         break;
                     }
                     default:
@@ -238,7 +248,7 @@ export class CompositeToolRunner extends ToolRunner {
      */
     constructor(
         private readonly mcpRunner: McpToolRunner,
-        private readonly openaiRunner: OpenAIToolRunner = new OpenAIToolRunner(null)
+        private readonly openaiRunner: OpenAIToolRunner = new OpenAIToolRunner(null),
     ) {
         super();
     }
