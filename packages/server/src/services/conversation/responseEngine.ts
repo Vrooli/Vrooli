@@ -1,5 +1,5 @@
 /* eslint-disable func-style */
-import { type BotConfigObject, ChatConfig, type ChatConfigObject, DEFAULT_LANGUAGE, generatePK, McpSwarmToolName, McpToolName, MessageConfig, MINUTES_5_MS, nanoid, type PendingToolCallEntry, PendingToolCallStatus, SECONDS_1_MS, type SessionUser, type ToolFunctionCall } from "@local/shared";
+import { ChatConfig, DEFAULT_LANGUAGE, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, generatePK, nanoid, type BotConfigObject, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type ToolFunctionCall } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import * as fs from "fs/promises";
 import type OpenAI from "openai";
@@ -14,10 +14,10 @@ import { BusService } from "../bus.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { SwarmTools } from "../mcp/tools.js";
 import { type Tool } from "../mcp/types.js";
-import { type AgentGraph, CompositeGraph } from "./agentGraph.js";
-import { CachedConversationStateStore, type ConversationStateStore, PrismaChatStore } from "./chatStore.js";
-import { type ContextBuilder, RedisContextBuilder } from "./contextBuilder.js";
-import { type MessageStore, RedisMessageStore } from "./messageStore.js";
+import { CompositeGraph, type AgentGraph } from "./agentGraph.js";
+import { CachedConversationStateStore, PrismaChatStore, type ConversationStateStore } from "./chatStore.js";
+import { RedisContextBuilder, type ContextBuilder } from "./contextBuilder.js";
+import { RedisMessageStore, type MessageStore } from "./messageStore.js";
 import type { FunctionCallStreamEvent } from "./router.js";
 import { FallbackRouter, type LlmRouter } from "./router.js";
 import { CompositeToolRunner, McpToolRunner, type ToolRunner } from "./toolRunner.js";
@@ -37,6 +37,22 @@ import { type BotParticipant, type ConversationState, type MessageState, type Re
 //TODO make sure all SwarmEvents are being used
 
 const DEFAULT_GOAL = "Process current event.";
+
+const VROOLI_WELCOME_MESSAGE = "Welcome to Vrooli, a polymorphic, collaborative, and self-improving automation platform that helps you stay organized and achieve your goals.\\n\\n";
+
+const RECRUITMENT_RULE_PROMPT = `## Recruitment rule:
+If setting a new goal that spans multiple knowledge domains OR is estimated to exceed 2 hours OR 500 reasoning steps, you MUST add *all* of the following subtasks to the swarm's subtasks via the \`update_swarm_shared_state\` tool BEFORE any domain work:
+
+[
+  { "id":"T1", "description":"Look for a suitable existing team",
+    "status":"todo" },
+  { "id":"T2", "description":"If a team is found, set it as the swarm's team",
+    "status":"todo", "depends_on":["T1"] },
+  { "id":"T3", "description":"If not, create a new team for the task",
+    "status":"todo", "depends_on":["T1"] },
+  { "id":"T4", "description":"{{GOAL}}",
+    "status":"todo", "depends_on":["T2","T3"] }
+]`;
 
 /**
 # Vrooli ‣ ResponseEngine   
@@ -94,6 +110,67 @@ export class ReasoningEngine {
         private readonly llmRouter: LlmRouter,
         public readonly toolRunner: ToolRunner,
     ) { }
+
+    private _handleAbortOrTimeout(
+        signalReason: string | Error | undefined | null,
+        context: {
+            botId: string;
+            chatId?: string;
+            stage: string; // e.g., "before-loop", "in-loop", "before-llm", "before-tool-call"
+            toolName?: string; // Relevant for tool call stage
+        },
+    ): Error { // Returns the error to be thrown
+        let errorMessage = "Response cancelled";
+        let errorCode = "CANCELLED";
+        let logMessage = `Response cancelled by signal at stage '${context.stage}' for bot ${context.botId}`;
+        if (context.chatId) logMessage += ` in chat ${context.chatId}`;
+        if (context.toolName) logMessage += ` for tool ${context.toolName}`;
+
+        let errorToThrow: Error;
+
+        if (signalReason === "TurnTimeout") {
+            errorMessage = context.toolName ? `Tool call ${context.toolName} aborted due to turn timeout` : "Bot turn timed out";
+            errorCode = "TIMED_OUT";
+            logMessage = `${context.toolName ? `Tool call ${context.toolName}` : "Bot turn"} timed out at stage '${context.stage}' for bot ${context.botId}`;
+            if (context.chatId) logMessage += ` in chat ${context.chatId}`;
+            errorToThrow = new Error("ResponseTimeoutError");
+        } else if (signalReason instanceof Error) {
+            errorMessage = signalReason.message;
+            errorToThrow = signalReason;
+        } else if (typeof signalReason === "string" && signalReason.length > 0) {
+            errorMessage = signalReason;
+            errorToThrow = new Error(signalReason);
+        } else {
+            errorToThrow = new Error("ResponseCancelledError");
+        }
+
+        logger.info(logMessage + (signalReason ? `. Reason: ${String(signalReason)}` : ""));
+
+        if (context.chatId) {
+            if (context.stage === "before-tool-call" || context.stage === "tool-call-processing") { // Specific for tool failures
+                SocketService.get().emitSocketEvent("botStatusUpdate", context.chatId, {
+                    chatId: context.chatId,
+                    botId: context.botId,
+                    status: "tool_failed",
+                    toolInfo: { callId: "unknown", name: context.toolName || "unknown_tool", error: errorMessage }, // callId might not be available here
+                    error: { message: errorMessage, code: errorCode },
+                });
+            } else { // General response stream error or bot status error
+                SocketService.get().emitSocketEvent("responseStream", context.chatId, {
+                    __type: "error",
+                    botId: context.botId,
+                    error: { message: errorMessage, code: errorCode },
+                });
+                SocketService.get().emitSocketEvent("botStatusUpdate", context.chatId, {
+                    chatId: context.chatId,
+                    botId: context.botId,
+                    status: "error_internal",
+                    error: { message: errorMessage, code: errorCode },
+                });
+            }
+        }
+        return errorToThrow;
+    }
 
     /**
      * Executes a single reasoning loop for a bot.
@@ -157,38 +234,9 @@ export class ReasoningEngine {
 
         // Check for cancellation at the very beginning
         if (abortSignal?.aborted) {
-            const reason = abortSignal.reason;
-            let errorMessage = "Response cancelled";
-            let errorCode = "CANCELLED";
-            let logMessage = `Response cancelled by signal before starting for bot ${bot.id} in chat ${chatId}`;
-            let errorToThrow = new Error("ResponseCancelledError");
-
-            if (reason === "TurnTimeout") {
-                errorMessage = "Bot turn timed out";
-                errorCode = "TIMED_OUT";
-                logMessage = `Bot turn timed out before starting for bot ${bot.id} in chat ${chatId}`;
-                errorToThrow = new Error("ResponseTimeoutError");
-            } else if (reason instanceof Error) {
-                errorMessage = reason.message;
-            } else if (typeof reason === "string" && reason.length > 0) {
-                errorMessage = reason;
-            }
-
-            logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
-            if (chatId) {
-                SocketService.get().emitSocketEvent("responseStream", chatId, {
-                    __type: "error",
-                    botId: bot.id,
-                    error: { message: errorMessage, code: errorCode },
-                });
-                SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
-                    chatId,
-                    botId: bot.id,
-                    status: "error_internal",
-                    error: { message: errorMessage, code: errorCode },
-                });
-            }
-            throw errorToThrow;
+            throw this._handleAbortOrTimeout(abortSignal.reason, {
+                botId: bot.id, chatId, stage: "before-loop",
+            });
         }
 
         // Build context if we have a chatId + message ID, else wrap a text prompt
@@ -232,9 +280,6 @@ export class ReasoningEngine {
         // Prepare the final system message for the LLM call
         // The systemMessageContent is now the complete, bot-specific system message.
         const finalSystemMessageForLlm = systemMessageContent;
-        // if (bot.meta?.systemPrompt) { // This logic is now handled upstream in CompletionService._buildSystemMessage
-        //     finalSystemMessageForLlm = `${finalSystemMessageForLlm}\n${bot.meta.systemPrompt}`.trim();
-        // }
 
         // exceeded() checks if the *cumulative* stats for this runLoop (responseStats)
         // have breached EITHER the total allocation passed into this runLoop (convoAllocated...)
@@ -266,37 +311,9 @@ export class ReasoningEngine {
             while (inputs.length && !exceeded()) {
                 // Check for cancellation at the beginning of each iteration
                 if (abortSignal?.aborted) {
-                    const reason = abortSignal.reason;
-                    let errorMessage = "Response cancelled";
-                    let errorCode = "CANCELLED";
-                    let logMessage = `Response cancelled by signal during loop for bot ${bot.id} in chat ${chatId}`;
-                    let errorToThrow = new Error("ResponseCancelledError");
-
-                    if (reason === "TurnTimeout") {
-                        errorMessage = "Bot turn timed out";
-                        errorCode = "TIMED_OUT";
-                        logMessage = `Bot turn timed out during loop for bot ${bot.id} in chat ${chatId}`;
-                        errorToThrow = new Error("ResponseTimeoutError");
-                    } else if (reason instanceof Error) {
-                        errorMessage = reason.message;
-                    } else if (typeof reason === "string" && reason.length > 0) {
-                        errorMessage = reason;
-                    }
-                    logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
-                    if (chatId) {
-                        SocketService.get().emitSocketEvent("responseStream", chatId, {
-                            __type: "error",
-                            botId: bot.id,
-                            error: { message: errorMessage, code: errorCode },
-                        });
-                        SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
-                            chatId,
-                            botId: bot.id,
-                            status: "error_internal",
-                            error: { message: errorMessage, code: errorCode },
-                        });
-                    }
-                    throw errorToThrow;
+                    throw this._handleAbortOrTimeout(abortSignal.reason, {
+                        botId: bot.id, chatId, stage: "in-loop",
+                    });
                 }
 
                 const chosenModel = model ?? bot.config?.model ?? "";
@@ -320,32 +337,9 @@ export class ReasoningEngine {
 
                 // Check for cancellation before LLM call
                 if (abortSignal?.aborted) {
-                    const reason = abortSignal.reason;
-                    let errorMessage = "Response cancelled";
-                    let errorCode = "CANCELLED";
-                    let logMessage = `Response cancelled by signal before LLM call for bot ${bot.id} in chat ${chatId}`;
-                    let errorToThrow = new Error("ResponseCancelledError");
-
-                    if (reason === "TurnTimeout") {
-                        errorMessage = "Bot turn timed out";
-                        errorCode = "TIMED_OUT";
-                        logMessage = `Bot turn timed out before LLM call for bot ${bot.id} in chat ${chatId}`;
-                        errorToThrow = new Error("ResponseTimeoutError");
-                    } else if (reason instanceof Error) {
-                        errorMessage = reason.message;
-                    } else if (typeof reason === "string" && reason.length > 0) {
-                        errorMessage = reason;
-                    }
-                    logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
-                    if (chatId) {
-                        SocketService.get().emitSocketEvent("responseStream", chatId, {
-                            __type: "error",
-                            botId: bot.id,
-                            error: { message: errorMessage, code: errorCode },
-                        });
-                        // No separate botStatusUpdate here as the stream error implies overall failure for this attempt.
-                    }
-                    throw errorToThrow;
+                    throw this._handleAbortOrTimeout(abortSignal.reason, {
+                        botId: bot.id, chatId, stage: "before-llm-call",
+                    });
                 }
 
                 const stream = this.llmRouter.stream({
@@ -388,34 +382,9 @@ export class ReasoningEngine {
                         case "function_call": {
                             // Check for cancellation before tool call
                             if (abortSignal?.aborted) {
-                                const reason = abortSignal.reason;
-                                let errorMessage = "Tool call cancelled";
-                                let errorCode = "CANCELLED";
-                                let logMessage = `Tool call ${ev.name} cancelled by signal for bot ${bot.id} in chat ${chatId}`;
-                                let errorToThrow = new Error("ResponseCancelledError"); // Or a specific ToolCallCancelledError
-
-                                if (reason === "TurnTimeout") {
-                                    errorMessage = `Tool call ${ev.name} aborted due to turn timeout`;
-                                    errorCode = "TIMED_OUT";
-                                    logMessage = `Tool call ${ev.name} aborted due to turn timeout for bot ${bot.id} in chat ${chatId}`;
-                                    errorToThrow = new Error("ResponseTimeoutError");
-                                } else if (reason instanceof Error) {
-                                    errorMessage = reason.message;
-                                } else if (typeof reason === "string" && reason.length > 0) {
-                                    errorMessage = reason;
-                                }
-                                logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
-
-                                if (chatId) {
-                                    SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
-                                        chatId,
-                                        botId: bot.id,
-                                        status: "tool_failed",
-                                        toolInfo: { callId: ev.callId, name: ev.name, error: errorMessage },
-                                        error: { message: errorMessage, code: errorCode },
-                                    });
-                                }
-                                throw errorToThrow;
+                                throw this._handleAbortOrTimeout(abortSignal.reason, {
+                                    botId: bot.id, chatId, stage: "before-tool-call", toolName: ev.name,
+                                });
                             }
                             // Execute the tool call (sync or async) and record result
                             const { toolResult, functionCallEntry, cost } = await this.processFunctionCall(
@@ -586,35 +555,12 @@ export class ReasoningEngine {
     ): Promise<{ toolResult: unknown; functionCallEntry: ToolFunctionCall; cost: bigint }> {
         // Check for cancellation at the start of tool processing
         if (abortSignal?.aborted) {
-            const reason = abortSignal.reason;
-            let errorMessage = `Tool call ${ev.name} cancelled`;
-            let errorCode = "CANCELLED";
-            let logMessage = `Tool call ${ev.name} cancelled by signal before execution for bot ${callerBot.id}`;
-            let errorToThrow = new Error("ToolCallCancelledBySignal");
-
-            if (reason === "TurnTimeout") {
-                errorMessage = `Tool call ${ev.name} aborted due to turn timeout`;
-                errorCode = "TIMED_OUT";
-                logMessage = `Tool call ${ev.name} aborted due to turn timeout before execution for bot ${callerBot.id}`;
-                errorToThrow = new Error("ResponseTimeoutError");
-            } else if (reason instanceof Error) {
-                errorMessage = reason.message;
-            } else if (typeof reason === "string" && reason.length > 0) {
-                errorMessage = reason;
-            }
-
-            logger.info(logMessage + (abortSignal.reason ? `. Reason: ${String(abortSignal.reason)}` : ""));
-
-            if (conversationId) {
-                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                    chatId: conversationId,
-                    botId: callerBot.id,
-                    status: "tool_failed",
-                    toolInfo: { callId: ev.callId, name: ev.name, error: errorMessage },
-                    error: { message: errorMessage, code: errorCode },
-                });
-            }
-            throw errorToThrow;
+            throw this._handleAbortOrTimeout(abortSignal.reason, {
+                botId: callerBot.id, // Corrected: use callerBot.id
+                chatId: conversationId,
+                stage: "tool-call-processing", // New stage identifier
+                toolName: ev.name,
+            });
         }
 
         const toolName = ev.name;
@@ -909,6 +855,17 @@ export class CompletionService {
         this.conversationStore.updateConfig(conversationId, config);
     }
 
+    private _truncateStringForPrompt(value: any, maxLength: number): string {
+        if (value === undefined || value === null) {
+            return "Not set";
+        }
+        const stringifiedValue = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+        if (stringifiedValue.length <= maxLength) {
+            return stringifiedValue;
+        }
+        return stringifiedValue.substring(0, maxLength) + "...";
+    }
+
     /**
      * Builds the system message for a bot based on its role and the current context.
      */
@@ -917,41 +874,22 @@ export class CompletionService {
         bot: BotParticipant,
         convoConfig: ChatConfigObject,
     ): Promise<string> {
-        const appName = "Vrooli";
-        const appDescription = "a polymorphic, collaborative, and self-improving automation platform that helps you stay organized and achieve your goals.";
-        let baseSystemMessage = `Welcome to ${appName}, ${appDescription}.\\n\\n`;
+        let baseSystemMessage = VROOLI_WELCOME_MESSAGE;
 
         const botRole = bot.meta?.role || "leader"; // Default to leader if no role
         const botId = bot.id;
 
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
-        const promptPath = path.join(__dirname, "prompt1.txt"); // Changed to prompt1.txt
+        const promptPath = path.join(__dirname, "prompt.txt");
         let roleSpecificTemplate = "";
 
-        // Define the Recruitment Rule as a constant
-        const recruitmentRule = `## Recruitment rule:
-If setting a new goal that spans multiple knowledge domains OR is estimated to exceed 2 hours OR 500 reasoning steps, you MUST add *all* of the following subtasks to the swarm's subtasks via the \`update_swarm_shared_state\` tool BEFORE any domain work:
-
-[
-  { "id":"T1", "description":"Look for a suitable existing team",
-    "status":"todo" },
-  { "id":"T2", "description":"If a team is found, set it as the swarm's team",
-    "status":"todo", "depends_on":["T1"] },
-  { "id":"T3", "description":"If not, create a new team for the task",
-    "status":"todo", "depends_on":["T1"] },
-  { "id":"T4", "description":"{{GOAL}}",
-    "status":"todo", "depends_on":["T2","T3"] }
-]`;
-
-        let roleSpecificInstructions = "Perform tasks according to your role and the overall goal."; // Default
+        let roleSpecificInstructions = "Perform tasks according to your role and the overall goal.";
         if (botRole === "leader" || botRole === "coordinator" || botRole === "delegator") {
-            roleSpecificInstructions = recruitmentRule;
+            roleSpecificInstructions = RECRUITMENT_RULE_PROMPT;
         }
 
-        // TODO: Eventually, load prompts from a dedicated /prompts/{role}.txt directory or database.
-        // The logic for loading different files based on role is removed for now, as prompt1.txt is the base.
-        // We will handle role-specific content through placeholders like {{ROLE_SPECIFIC_INSTRUCTIONS}}.
+        // TODO: Eventually, load prompts from database. This isn't important until sometime after we actually get this working.
 
         try {
             logger.info(`Loading base prompt template from: ${promptPath}`);
@@ -1005,9 +943,8 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
         }
 
         try {
-            // Ensure these properties exist on convoConfig, even if they are empty arrays.
-            const teamId = convoConfig.teamId || "No team"; //TODO should store team information, since it contains things like MOISE+ hierarchy, etc.
-            const swarmLeader = convoConfig.swarmLeader || "No leader";
+            const teamId = convoConfig.teamId || "No team assigned"; //TODO should include team config, since it contains things like MOISE+ hierarchy, etc.
+            const swarmLeader = convoConfig.swarmLeader || "No leader assigned";
             const subtasks = convoConfig.subtasks || [];
             const subtaskLeaders = convoConfig.subtaskLeaders || {};
             const eventSubscriptions = convoConfig.eventSubscriptions || {};
@@ -1016,61 +953,29 @@ If setting a new goal that spans multiple knowledge domains OR is estimated to e
             const records = convoConfig.records || [];
             const stats = convoConfig.stats || {};
             const limits = convoConfig.limits || {};
+            const pendingToolCalls = convoConfig.pendingToolCalls || [];
 
             const formattedSwarmStateParts: string[] = [];
 
-            // Handle teamId
-            formattedSwarmStateParts.push(`- Team ID:\n${teamId}\n`);
+            formattedSwarmStateParts.push(`- Team ID:\n${this._truncateStringForPrompt(teamId, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Swarm Leader:\n${this._truncateStringForPrompt(swarmLeader, MAX_STRING_PREVIEW_LENGTH)}\n`);
 
-            // Handle swarmLeader
-            formattedSwarmStateParts.push(`- Swarm Leader:\n${swarmLeader}\n`);
-
-            // Handle subtasks
             const activeSubtasksCount = subtasks.filter(st => typeof st === "object" && st !== null && (st.status === "todo" || st.status === "in_progress")).length;
             const completedSubtasksCount = subtasks.filter(st => typeof st === "object" && st !== null && st.status === "done").length;
-            const subtasksString = JSON.stringify(subtasks, null, 2);
-            const truncatedSubtasksString = subtasksString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (subtasksString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Subtasks (active: ${activeSubtasksCount}, completed: ${completedSubtasksCount}):\n${truncatedSubtasksString}\n`);
+            formattedSwarmStateParts.push(`- Subtasks (active: ${activeSubtasksCount}, completed: ${completedSubtasksCount}):\n${this._truncateStringForPrompt(subtasks, MAX_STRING_PREVIEW_LENGTH)}\n`);
 
-            // Handle subtaskLeaders
-            const subtaskLeadersString = JSON.stringify(subtaskLeaders, null, 2);
-            const truncatedSubtaskLeadersString = subtaskLeadersString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (subtaskLeadersString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Subtask Leaders:\n${truncatedSubtaskLeadersString}\n`);
-
-            // Handle eventSubscriptions
-            const eventSubscriptionsString = JSON.stringify(eventSubscriptions, null, 2);
-            const truncatedEventSubscriptionsString = eventSubscriptionsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (eventSubscriptionsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Event Subscriptions:\n${truncatedEventSubscriptionsString}\n`);
-
-            // Handle blackboard
-            const blackboardString = JSON.stringify(blackboard, null, 2);
-            const truncatedBlackboardString = blackboardString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (blackboardString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Blackboard:\n${truncatedBlackboardString}\n`);
-
-            // Handle resources
-            const resourcesString = JSON.stringify(resources, null, 2);
-            const truncatedResourcesString = resourcesString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (resourcesString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Resources:\n${truncatedResourcesString}\n`);
-
-            // Handle records
-            const recordsString = JSON.stringify(records, null, 2);
-            const truncatedRecordsString = recordsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (recordsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Records:\n${truncatedRecordsString}\n`);
-
-            // Handle stats
-            const statsString = JSON.stringify(stats, null, 2);
-            const truncatedStatsString = statsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (statsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Stats:\n${truncatedStatsString}\n`);
-
-            // Handle limits
-            const limitsString = JSON.stringify(limits, null, 2);
-            const truncatedLimitsString = limitsString.substring(0, MAX_STRING_PREVIEW_LENGTH) + (limitsString.length > MAX_STRING_PREVIEW_LENGTH ? "..." : "");
-            formattedSwarmStateParts.push(`- Limits:\n${truncatedLimitsString}\n`);
+            formattedSwarmStateParts.push(`- Subtask Leaders:\n${this._truncateStringForPrompt(subtaskLeaders, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Event Subscriptions:\n${this._truncateStringForPrompt(eventSubscriptions, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Blackboard:\n${this._truncateStringForPrompt(blackboard, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Resources:\n${this._truncateStringForPrompt(resources, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Records:\n${this._truncateStringForPrompt(records, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Stats:\n${this._truncateStringForPrompt(stats, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Limits:\n${this._truncateStringForPrompt(limits, MAX_STRING_PREVIEW_LENGTH)}\n`);
+            formattedSwarmStateParts.push(`- Pending Tool Calls:\n${this._truncateStringForPrompt(pendingToolCalls, MAX_STRING_PREVIEW_LENGTH)}\n`); // Added pendingToolCalls
 
             swarmStateOutput = `\nSWARM STATE DETAILS:\n${formattedSwarmStateParts.join("\n\n")}`;
         } catch (e) {
             logger.error("Error formatting swarm state for prompt:", e);
-            // Fallback to the default message initialized if an error occurs
         }
         return swarmStateOutput;
     }
