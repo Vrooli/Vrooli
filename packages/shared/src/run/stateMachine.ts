@@ -192,7 +192,8 @@ export class RunStateMachine {
             },
         };
         const subroutineInstanceId = BranchManager.generateSubroutineInstanceId(startObject.id);
-        const run: RunProgress = {
+        // Initial run object, runId will be added in finalizeInit
+        const initialRunData: Omit<RunProgress, "runId"> = {
             __version: LATEST_RUN_CONFIG_VERSION,
             branches: RunProgressConfig.defaultBranches(),
             config,
@@ -604,7 +605,7 @@ export class RunStateMachine {
 
     /**
      * Retrieves the start time (in ms) for the run from run.metrics.startedAt.
-     * If it isn’t set, uses the current time and sets it.
+     * If it isn't set, uses the current time and sets it.
      *
      * @param run The current run progress.
      * @returns The start time in milliseconds.
@@ -753,6 +754,79 @@ export class RunStateMachine {
         // NOTE: Don't call saveProgress here. Let the main loop handle it.
         this.services.logger.info(`pauseRun: Run ${this.state.runIdentifier.runId} has been paused.`);
     }
+
+    // Implementation of ManagedTaskStateMachine methods
+    public getTaskId(): string {
+        if (!this.state.runIdentifier?.runId) {
+            this.services.logger.error("RunStateMachine: getTaskId called before runIdentifier was set.");
+            return "undefined_run_task_id";
+        }
+        return this.state.runIdentifier.runId;
+    }
+
+    public getCurrentSagaStatus(): string {
+        switch (this.state.status) {
+            case StateMachineStatus.Idle:
+                return "IDLE";
+            case StateMachineStatus.Initialized:
+                return "INITIALIZED";
+            case StateMachineStatus.Running:
+                return "RUNNING";
+            case StateMachineStatus.Paused:
+                return "PAUSED";
+            case StateMachineStatus.Completed:
+                return "COMPLETED";
+            case StateMachineStatus.Failed:
+                return "FAILED";
+            case StateMachineStatus.Transitioning:
+                return "TRANSITIONING";
+            default:
+                this.services.logger.warn(`RunStateMachine: Unknown status encountered in getCurrentSagaStatus: ${this.state.status}`);
+                return "UNKNOWN";
+        }
+    }
+
+    public async requestPause(): Promise<boolean> {
+        if (this.state.status === StateMachineStatus.Running || this.state.status === StateMachineStatus.Initialized) {
+            const previousStatus = this.state.status;
+            try {
+                await this.stopRun(RunStatus.Paused); // stopRun initiates the pause
+                // Check if the status is now Paused. It might also have transitioned to Transitioning first.
+                // Success means the pause request was accepted and the machine is now in a paused state.
+                return this.state.status === StateMachineStatus.Paused;
+            } catch (error) {
+                this.services.logger.error("RunStateMachine: Error during requestPause.", { error, previousStatus });
+                return false;
+            }
+        }
+        this.services.logger.warn(`RunStateMachine: requestPause called in non-pausable state: ${this.state.status}`);
+        return false;
+    }
+
+    public async requestStop(reason: string): Promise<boolean> {
+        this.services.logger.info(`RunStateMachine: requestStop called for ${this.state.runIdentifier?.runId}. Reason: ${reason}`);
+        if (this.state.status === StateMachineStatus.Running || this.state.status === StateMachineStatus.Paused || this.state.status === StateMachineStatus.Initialized) {
+            const previousStatus = this.state.status;
+            try {
+                await this.stopRun(RunStatus.Cancelled); // stopRun initiates the cancellation
+                // After cancellation, the machine should be in a terminal state (Completed or Failed) or Paused if stopRun handles it that way.
+                // Success means the stop request was accepted and the machine is no longer in its previous active/paused state.
+                return this.state.status === StateMachineStatus.Failed ||
+                    this.state.status === StateMachineStatus.Completed ||
+                    (previousStatus !== StateMachineStatus.Paused && this.state.status === StateMachineStatus.Paused); // If it was running and is now paused due to stop
+            } catch (error) {
+                this.services.logger.error("RunStateMachine: Error during requestStop.", { error, previousStatus });
+                return false;
+            }
+        }
+        this.services.logger.warn(`RunStateMachine: requestStop called in non-stoppable state: ${this.state.status}`);
+        return false;
+    }
+
+    public getAssociatedUserId(): string | undefined {
+        return this.state.userData?.id;
+    }
+    // End of ManagedTaskStateMachine methods
 }
 
 //TODO context building for LLM, better project handling, triggers

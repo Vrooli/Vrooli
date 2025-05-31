@@ -17,7 +17,10 @@ export type RunIdentifier = Pick<RunProgress, "runId">;
 /**
  * Information required about the user who triggered the run.
  */
-export type RunTriggeredBy = Pick<SessionUser, "hasPremium" | "id" | "languages">;
+export type RunTriggeredBy = Pick<SessionUser, "hasPremium" | "id" | "languages"> & {
+    /** The user's timezone for time-based boundary events. Defaults to "UTC" if not provided. */
+    timeZone?: string;
+};
 
 /**
  * A location in the run.
@@ -302,7 +305,7 @@ export type RunProgressStep = Location & {
     complexity: number;
     /** How many times the user switched tabs while completing the step, if run manually */
     contextSwitches: number;
-    /** The ID of the step */
+    /** DUMMY_ID until saved, then DB ID */
     id: Id;
     /** When the step was started */
     startedAt: Date;
@@ -310,10 +313,18 @@ export type RunProgressStep = Location & {
     completedAt?: Date;
     /** The name of the step */
     name: string;
+    /** The ID of the graph node this step corresponds to */
+    nodeId: Id;
     /** The order of the step in the run */
     order: number;
+    /** The primary ID of the resource version that the subroutine is a part of (i.e. the resource version that contains the graph config) */
+    resourceInId: Id;
+    /** The primary ID of the resource version at this graph node (i.e. the subroutine) */
+    resourceVersionId?: Id;
     /** The status of the step */
     status: RunStepStatus;
+    /** How much time (in milliseconds) has elapsed in the step (exluding paused/scheduled time) */
+    timeElapsed?: number;
 }
 
 /** Represents the current run state. */
@@ -471,6 +482,46 @@ export type SubroutineContext = {
     allOutputsMap: IOMap;
     /** Previous steps completed in the routine (in order), if any. */
     completedTasks?: RunTask[];
+    /**
+     * IDs of boundary events that have **already fired** in this
+     * sub-routine instance.  
+     * Prevents non-repeating events (e.g. interrupting timers) from
+     * re-triggering after the first execution.
+     */
+    triggeredBoundaryEventIds: string[];
+    /**
+     * Wall-clock timestamps (epoch ms) for when each node **started**
+     * execution.  Required to evaluate relative timers such as
+     * `timeDuration="PT5M"` ("five minutes after the activity began").
+     * Key = `nodeId` (the activity), Value = `Date.now()` captured by the
+     * executor right before it hands control to the navigator.
+     */
+    nodeStartTimes: Record<string, number>;
+    /**
+     * "Mailbox" of external runtime events that boundary events wait for.
+     * When the executor receives a message / signal / error / escalation
+     * from the environment it just pushes the *identifier* here;  
+     * `isBoundaryEventTriggered()` reads & consumes the entries.
+     *
+     * Arrays are used (instead of `Set`) so the structure stays
+     * JSON-serialisable without custom replacers.
+     */
+    runtimeEvents: {
+        /** `messageRef.id` values delivered to *this process instance*. */
+        messages: string[];
+        /** `signalRef.id` values broadcast anywhere in the engine.      */
+        signals: string[];
+        /** BPMN error codes bubbled up from the activity.               */
+        errors: string[];
+        /** Escalation codes raised by the activity.                     */
+        escalations: string[];
+    };
+    /**
+     * The timezone to use for time-based boundary events (timers, cron expressions).
+     * This should be an IANA timezone identifier (e.g., "America/New_York", "Europe/London", "UTC").
+     * Defaults to "UTC" if not specified.
+     */
+    timeZone: string;
 }
 
 /**
@@ -712,11 +763,11 @@ export type ExecuteStepResult = {
     /** The total amount of credits spent during this step, as a stringified bigint */
     creditsSpent: string,
     /**
-    * Any deferred decisions that need to be made.
+    * If this step resulted in a deferred decision, this holds the decision data.
     * 
-    * This should pause the branch until the decisions are resolved.
+    * This should pause the branch until the decision is resolved.
     */
-    deferredDecisions: DeferredDecisionData[];
+    deferredDecision: DeferredDecisionData | null,
     /** Any new branches that should be created as a result of this step */
     newLocations: null | {
         /** The initial subcontext for the new branches */
@@ -739,6 +790,8 @@ export type ExecuteStepResult = {
         /** Outputs generated for every subroutine that was run */
         outputs: IOMap,
     }
+    /** Any IO records that need to be created for the step */
+    ioRecordsToCreate: PreparedIoRecord[] | null;
 }
 
 /**
@@ -896,4 +949,18 @@ export type SubroutineInputDisplayInfo = SubroutineOutputDisplayInfo & {
 export type SubroutineIOMapping = {
     inputs: Record<string, SubroutineInputDisplayInfo>;
     outputs: Record<string, SubroutineOutputDisplayInfo>;
+}
+
+/**
+ * Represents the data prepared for a run_io database record.
+ */
+export type PreparedIoRecord = {
+    /** Actual DB ID (BigInt as string) of the current run */
+    runId: string;
+    /** The ID of the graph node this IO belongs to (maps to run_io.nodeName) */
+    nodeName: string;
+    /** The key of the input/output (maps to run_io.nodeInputName) */
+    nodeInputName: string;
+    /** The serialized value (maps to run_io.data) */
+    data: string;
 }

@@ -1,4 +1,3 @@
-
 export interface MCPTool {
     /** Unique identifier used to look up the tool. */
     id: string;
@@ -59,4 +58,30 @@ export type SearchToolsResponse = {
 export type RegisterToolResponse = {
     success: boolean;
     tool: MCPTool;
+}
+
+/**
+ * Available root-level tools, ordered by (likely) frequency of use.
+ */
+export enum McpToolName {
+    /** Get detailed parameters for other tools based on a variant */
+    DefineTool = "define_tool",
+    /** Sends a message to a new or existing chat. */
+    SendMessage = "send_message",
+    /** CRUD for *any* resource */
+    ResourceManage = "resource_manage",
+    /** Run a routine (dynamic tool) inline (synchronous, no run object created) or as a job (asynchronous, run object created) */
+    RunRoutine = "run_routine",
+    /** Starts a swarm session with a bot or team of bots */
+    SpawnSwarm = "spawn_swarm",
+}
+
+/**
+ * Available swarm tools (in addition to the standard MCP tools), ordered by (likely) frequency of use.
+ */
+export enum McpSwarmToolName {
+    /** Update swarm's shared state */
+    UpdateSwarmSharedState = "update_swarm_shared_state",
+    /** End the swarm. Called when the goal is complete or limits are reached. */
+    EndSwarm = "end_swarm",
 }
