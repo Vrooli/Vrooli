@@ -1,4 +1,4 @@
-import { TranslationKeyService } from "../types.js";
+import { type TranslationKeyService } from "../types.js";
 
 export enum AIServiceName {
     OpenAI = "OpenAI",
@@ -12,11 +12,21 @@ export enum ModelFeature {
     FileSearch = "FileSearch",
     FunctionCalling = "FunctionCalling",
     Vision = "Vision",
+    ImageGeneration = "ImageGeneration",
+    Transcription = "Transcription",
 }
 
-export type ModelFeatureInfo = {
-    [x: string]: any; //TODO add metadata for features, such as vision cost
-}
+export type ImageCostDetail = {
+    quality: "standard" | "hd";
+    resolution: string; // e.g., "1024x1024", "1024x1792"
+    costPerImage: number; // in cents
+};
+
+export type ModelFeatureInfo =
+    | { type: "image_generation"; modelName: "DALL-E 3" | "DALL-E 2"; costs: ImageCostDetail[]; }
+    | { type: "transcription"; modelName: "Whisper"; costPerMinute: number; } // in cents
+    | { type: "vision"; notes?: string; } // Details on how vision capabilities are priced
+    | { type: "generic"; notes?: string; details?: Record<string, any> }; // For general features
 
 /**
  * Information to describe the cost, limits, and capabilities of an AI model
@@ -38,6 +48,8 @@ export type ModelInfo = {
     maxOutputTokens: number;
     /** Features supported by the model, and their metadata */
     features: { [key in ModelFeature]?: ModelFeatureInfo };
+    /** Whether the model has specialized reasoning capabilities */
+    supportsReasoning?: boolean;
 };
 
 /**
@@ -56,7 +68,7 @@ type AIServiceInfo<Models extends string> = {
     displayOrder: Models[];
 }
 
-type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
+export type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
 
 /**
  * All available services
@@ -90,6 +102,8 @@ export enum OpenAIModel {
     Gpt4_Turbo = "gpt-4-turbo-2024-04-09",
     o1_Mini = "o1-mini-2024-09-12",
     o1_Preview = "o1-preview-2024-09-12",
+    // DallE3 = "dall-e-3",
+    // Whisper = "whisper-1",
     // Gpt3_5Turbo = "gpt-3.5-turbo-0125", // Deprecated
 }
 export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
@@ -107,26 +121,28 @@ export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
             contextWindow: 128_000,  // 128K tokens
             maxOutputTokens: 16_384, // 16K tokens
             features: {
-                [ModelFeature.CodeInterpreter]: {},
-                [ModelFeature.FileSearch]: {},
-                [ModelFeature.FunctionCalling]: {},
-                [ModelFeature.Vision]: {},
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
             },
+            supportsReasoning: false,
         },
         [OpenAIModel.Gpt4o]: {
             enabled: true,
             name: "GPT_4o_Name",
             descriptionShort: "GPT_4o_Description_Short",
-            inputCost: 500,          // $5.00
-            outputCost: 1_500,       // $15.00
+            inputCost: 250,          // $2.50 per 1M tokens (was 500)
+            outputCost: 1_000,       // $10.00 per 1M tokens (was 1500)
             contextWindow: 128_000,  // 128K tokens
             maxOutputTokens: 4_096,  // 4K tokens
             features: {
-                [ModelFeature.CodeInterpreter]: {},
-                [ModelFeature.FileSearch]: {},
-                [ModelFeature.FunctionCalling]: {},
-                [ModelFeature.Vision]: {},
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
             },
+            supportsReasoning: false,
         },
         [OpenAIModel.Gpt4]: {
             enabled: true,
@@ -137,11 +153,12 @@ export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
             contextWindow: 8_192,    // 8K tokens
             maxOutputTokens: 8_192,  // 8K tokens
             features: {
-                [ModelFeature.CodeInterpreter]: {},
-                [ModelFeature.FileSearch]: {},
-                [ModelFeature.FunctionCalling]: {},
-                [ModelFeature.Vision]: {},
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
             },
+            supportsReasoning: false,
         },
         [OpenAIModel.Gpt4_Turbo]: {
             enabled: true,
@@ -152,11 +169,12 @@ export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
             contextWindow: 128_000,  // 128K tokens
             maxOutputTokens: 4_096,  // 4K tokens
             features: {
-                [ModelFeature.CodeInterpreter]: {},
-                [ModelFeature.FileSearch]: {},
-                [ModelFeature.FunctionCalling]: {},
-                [ModelFeature.Vision]: {},
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
             },
+            supportsReasoning: false,
         },
         [OpenAIModel.o1_Mini]: {
             enabled: true,
@@ -167,11 +185,12 @@ export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
             contextWindow: 128_000,  // 128K tokens
             maxOutputTokens: 65_536, // 65K tokens 
             features: {
-                [ModelFeature.CodeInterpreter]: {},
-                [ModelFeature.FileSearch]: {},
-                [ModelFeature.FunctionCalling]: {},
-                [ModelFeature.Vision]: {},
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
             },
+            supportsReasoning: true,
         },
         [OpenAIModel.o1_Preview]: {
             enabled: true,
@@ -182,12 +201,50 @@ export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
             contextWindow: 128_000,  // 128K tokens
             maxOutputTokens: 32_768, // 32K tokens
             features: {
-                [ModelFeature.CodeInterpreter]: {},
-                [ModelFeature.FileSearch]: {},
-                [ModelFeature.FunctionCalling]: {},
-                [ModelFeature.Vision]: {},
+                [ModelFeature.CodeInterpreter]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.FileSearch]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing, potentially with storage fees for persistent capabilities." },
+                [ModelFeature.FunctionCalling]: { type: "generic", notes: "Enabled. Cost is part of the model's standard token pricing." },
+                [ModelFeature.Vision]: { type: "vision", notes: "Image understanding is priced based on token consumption as per OpenAI's image tokenization rules." },
             },
+            supportsReasoning: true,
         },
+        // [OpenAIModel.DallE3]: {
+        //     enabled: true,
+        //     name: "DALL_E_3_Name" as any,
+        //     descriptionShort: "DALL_E_3_Description_Short" as any,
+        //     inputCost: 0,
+        //     outputCost: 0,
+        //     contextWindow: 0,
+        //     maxOutputTokens: 0,
+        //     features: {
+        //         [ModelFeature.ImageGeneration]: {
+        //             type: "image_generation",
+        //             modelName: "DALL-E 3",
+        //             costs: [
+        //                 { quality: "standard", resolution: "1024x1024", costPerImage: 4 },
+        //                 { quality: "standard", resolution: "1024x1792", costPerImage: 8 },
+        //                 { quality: "hd", resolution: "1024x1024", costPerImage: 8 },
+        //                 { quality: "hd", resolution: "1024x1792", costPerImage: 12 },
+        //             ]
+        //         }
+        //     }
+        // },
+        // [OpenAIModel.Whisper]: {
+        //     enabled: true,
+        //     name: "Whisper_Name" as any,
+        //     descriptionShort: "Whisper_Description_Short" as any,
+        //     inputCost: 0,
+        //     outputCost: 0,
+        //     contextWindow: 0,
+        //     maxOutputTokens: 0,
+        //     features: {
+        //         [ModelFeature.Transcription]: {
+        //             type: "transcription",
+        //             modelName: "Whisper",
+        //             costPerMinute: 0.6
+        //         }
+        //     }
+        // }
     },
     displayOrder: [
         OpenAIModel.Gpt4o_Mini,
@@ -196,6 +253,8 @@ export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
         OpenAIModel.Gpt4,
         OpenAIModel.o1_Mini,
         OpenAIModel.o1_Preview,
+        // OpenAIModel.DallE3,
+        // OpenAIModel.Whisper,
     ],
 };
 
@@ -222,8 +281,9 @@ export const anthropicServiceInfo: AIServiceInfo<AnthropicModel> = {
             contextWindow: 200_000, // 200K tokens
             maxOutputTokens: 4_096, // 4K tokens
             features: {
-                [ModelFeature.Vision]: {},
+                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
             },
+            supportsReasoning: false,
         },
         [AnthropicModel.Opus3]: {
             enabled: true,
@@ -234,8 +294,9 @@ export const anthropicServiceInfo: AIServiceInfo<AnthropicModel> = {
             contextWindow: 200_000, // 200K tokens
             maxOutputTokens: 4_096, // 4K tokens
             features: {
-                [ModelFeature.Vision]: {},
+                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
             },
+            supportsReasoning: false,
         },
         [AnthropicModel.Sonnet3]: {
             enabled: true,
@@ -246,8 +307,9 @@ export const anthropicServiceInfo: AIServiceInfo<AnthropicModel> = {
             contextWindow: 200_000, // 200K tokens
             maxOutputTokens: 4_096, // 4K tokens
             features: {
-                [ModelFeature.Vision]: {},
+                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
             },
+            supportsReasoning: false,
         },
         [AnthropicModel.Sonnet3_5]: {
             enabled: true,
@@ -258,8 +320,9 @@ export const anthropicServiceInfo: AIServiceInfo<AnthropicModel> = {
             contextWindow: 200_000, // 200K tokens
             maxOutputTokens: 8_192, // 8K tokens
             features: {
-                [ModelFeature.Vision]: {},
+                [ModelFeature.Vision]: { type: "vision", notes: "Vision capabilities are supported; pricing is typically part of token consumption." },
             },
+            supportsReasoning: false,
         },
     },
     displayOrder: [
@@ -294,6 +357,7 @@ export const mistralServiceInfo: AIServiceInfo<MistralModel> = {
             contextWindow: 32_000,  // 32K tokens
             maxOutputTokens: 4_096, // NOTE: Couldn't find the actual value
             features: {},
+            supportsReasoning: false,
         },
         [MistralModel.Large2]: {
             enabled: true,
@@ -304,6 +368,7 @@ export const mistralServiceInfo: AIServiceInfo<MistralModel> = {
             contextWindow: 128_000, // 128K tokens
             maxOutputTokens: 4_096, // NOTE: Couldn't find the actual value
             features: {},
+            supportsReasoning: false,
         },
         [MistralModel.Nemo]: {
             enabled: true,
@@ -314,6 +379,7 @@ export const mistralServiceInfo: AIServiceInfo<MistralModel> = {
             contextWindow: 128_000, // 128K tokens
             maxOutputTokens: 4_096, // NOTE: Couldn't find the actual value
             features: {},
+            supportsReasoning: false,
         },
     },
     displayOrder: [
