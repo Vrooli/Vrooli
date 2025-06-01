@@ -44,9 +44,11 @@ interface ValidationErrorPayload {
     context?: {
         inputKeys: string[];
         errorCount: number;
+        firstErrorMessage: string;
     };
 }
 
+const DEBUG_CASTING = false;
 /**
  * Validates and casts input data using the model's Yup schemas.
  * @param inputData The array of input data to validate and cast.
@@ -91,20 +93,23 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
                     context: {
                         inputKeys: Object.keys(input),
                         errorCount: fieldErrors.length,
+                        firstErrorMessage: err.message,
                     },
                 };
                 throw new CustomError("0558", "ValidationFailed", payload);
             }
-            throw new CustomError("0959", "InternalError", {
-                err: err instanceof Error ? {
-                    name: err.name,
-                    message: err.message,
-                    stack: err.stack,
-                } : String(err),
-                objectType,
-                action,
-                context: "Validation failed",
-            });
+            // Validation errors can be hard to debug, so logging the input data can help
+            if (DEBUG_CASTING) {
+                console.error(`DEBUG: Error during schema casting for objectType: ${objectType}`);
+                console.error("DEBUG: Failing input data:", JSON.stringify(input, (_key, value) => {
+                    if (typeof value === "bigint") {
+                        return `BigInt(${value.toString()})`;
+                    }
+                    return value;
+                }, 2));
+                console.error("DEBUG: Original error during casting:", err);
+            }
+            throw new CustomError("0959", "InternalError", { originalError: err, objectType, action, context: "Validation failed" });
         }
     }
 }
