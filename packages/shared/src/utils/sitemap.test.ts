@@ -1,10 +1,5 @@
 import { expect } from "chai";
-import {
-    generateSitemap,
-    generateSitemapIndex,
-    type SitemapEntryContent,
-    type SitemapEntryMain,
-} from "./sitemap";
+import { generateSitemap, generateSitemapIndex, type SitemapEntryContent, type SitemapEntryMain } from "./sitemap.js";
 
 describe("generateSitemap", () => {
     it("generates XML for main entries with correct loc, changefreq, and priority", () => {
@@ -43,7 +38,7 @@ describe("generateSitemap", () => {
             languages: ["en"],
         };
         const xml = generateSitemap("https://example.com", { content: [contentEntry] });
-        expect(xml).to.include("<loc>https://example.com/user/john</loc>");
+        expect(xml).to.include("<loc>https://example.com/user/@john</loc>");
     });
 
     it("falls back to publicId when neither versionLabel nor handle provided", () => {
@@ -85,7 +80,7 @@ describe("generateSitemap", () => {
         expect(xml).to.include("<urlset");
         expect(xml).to.include("<loc>https://example.com/home</loc>");
         expect(xml).to.include("<loc>https://example.com/resource/0/v1</loc>");
-        expect(xml).to.include("<loc>https://example.com/user/bob</loc>");
+        expect(xml).to.include("<loc>https://example.com/user/@bob</loc>");
         expect(xml.endsWith("</urlset>")).to.be.true;
     });
 });

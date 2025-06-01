@@ -13,7 +13,7 @@ import { BpmnNavigator, NavigatorFactory, type NavigatorRegistry } from "./navig
 import { type RunNotifier } from "./notifier.js";
 import { type PathSelectionHandler } from "./pathSelection.js";
 import { type RunPersistence } from "./persistence.js";
-import { type BranchLocationDataMap, BranchStatus, type ConcurrencyMode, type InitializedRunState, type Location, type RunConfig, type RunIdentifier, type RunProgress, type RunRequestLimits, type RunStateMachineServices, type RunStateMachineState, RunStatusChangeReason, type RunTriggeredBy, StateMachineStatus, type SubroutineContext } from "./types.js";
+import { BranchStatus, RunStatusChangeReason, StateMachineStatus, type BranchLocationDataMap, type ConcurrencyMode, type InitializedRunState, type Location, type RunConfig, type RunIdentifier, type RunProgress, type RunRequestLimits, type RunStateMachineServices, type RunStateMachineState, type RunTriggeredBy, type SubroutineContext } from "./types.js";
 
 /** Maps graph types to navigators */
 const navigatorRegistry: NavigatorRegistry = {

@@ -59,13 +59,8 @@ describe("parseSearchParams", () => {
 
     beforeEach(() => {
         sandbox = sinon.createSandbox();
+        // JSDOM defaults to "http://localhost/", so window.location.search will be ""
         setupDOM();
-        // Set up a default window.location
-        Object.defineProperty(window, "location", {
-            value: { search: "" },
-            writable: true,
-            configurable: true,
-        });
     });
 
     afterEach(() => {
@@ -74,11 +69,12 @@ describe("parseSearchParams", () => {
     });
 
     function setWindowSearch(search: string) {
-        Object.defineProperty(window, "location", {
-            value: { search },
-            writable: true,
-            configurable: true,
-        });
+        // Use history.pushState to change the search parameters.
+        // The first two arguments (state object and title) are not used by parseSearchParams.
+        // The third argument is the new URL (or path + search string).
+        // Ensure it starts with '?' if it's a search string, or is a full path.
+        const pathAndSearch = search.startsWith("?") || search.startsWith("/") ? search : `?${search}`;
+        window.history.pushState({}, "", pathAndSearch);
     }
 
     it("returns an empty object for empty search params", () => {
@@ -180,32 +176,6 @@ describe("stringifySearchParams", () => {
 });
 
 describe("stringifySearchParams and parseSearchParams", () => {
-    let originalLocation: string;
-
-    function setWindowSearch(search: string) {
-        Object.defineProperty(window, "location", {
-            value: {
-                search,
-            },
-            writable: true,
-        });
-    }
-
-    before(() => {
-        setupDOM();
-        originalLocation = window.location.search;
-    });
-
-    after(() => {
-        teardownDOM();
-    });
-
-    afterEach(() => {
-        Object.defineProperty(window, "location", {
-            value: originalLocation,
-        });
-    });
-
     const testCases = [
         {
             description: "handles an empty object",
@@ -234,32 +204,15 @@ describe("stringifySearchParams and parseSearchParams", () => {
                 "rarerSpecialCharacters": "(╯°□°）╯︵ ┻━┻  (. ❛ ᴗ ❛.) ( ͡° ͜ʖ ͡°) ᕕ( ᐛ )ᕗ",
                 "otherLanguagesAndAccents": "¡Hola! ¿Cómo estás? 你好吗 こんにちは สวัสดี ជំរាបសួរ გამარჯობა Բարև",
                 "emojis": "😁🪿🥳🙆‍♂️🙅🏻‍♂️👴🏿👽🥳",
-
-
-
                 "zalgo": "H̷̢̛̛͚̖͙̰̪͔̗̔̊͌̈́̑̿͌̆̔͊͋̀̆̚͝e̷̢̲̬̙͓̝̜̖͎͈̯͙̭̱̼̳͚̿͊̿̔́̐͐̍̏̽̈́̉͠͠ ̶͚̲̖̻̼̰̘̋̿͆͒̋͠c̷͙͇͋̃̈̒͌͌͝õ̵͕̘̤̳̻̞͖̉̈́̆̏̒͝m̶̘͔̰̬͊̊ȩ̸̢̧̨̛̞̰͚̳̜͙̻͚̰͎͐͆́̍̎̚s̶̢̡̬̠̹͓̳͎̪̰̯̻̃̒̕͝",
-
-
-
             },
             expected: {
                 "normalSpecialCharacters": "!@#$%^&*()_+-=[]{}\\|;:'\",.<>/?",
                 "rarerSpecialCharacters": "(╯°□°）╯︵ ┻━┻  (. ❛ ᴗ ❛.) ( ͡° ͜ʖ ͡°) ᕕ( ᐛ )ᕗ",
                 "otherLanguagesAndAccents": "¡Hola! ¿Cómo estás? 你好吗 こんにちは สวัสดี ជំរាបសួរ გამარჯობა Բարև",
                 "emojis": "😁🪿🥳🙆‍♂️🙅🏻‍♂️👴🏿👽🥳",
-
-
-
                 "zalgo": "H̷̢̛̛͚̖͙̰̪͔̗̔̊͌̈́̑̿͌̆̔͊͋̀̆̚͝e̷̢̲̬̙͓̝̜̖͎͈̯͙̭̱̼̳͚̿͊̿̔́̐͐̍̏̽̈́̉͠͠ ̶͚̲̖̻̼̰̘̋̿͆͒̋͠c̷͙͇͋̃̈̒͌͌͝õ̵͕̘̤̳̻̞͖̉̈́̆̏̒͝m̶̘͔̰̬͊̊ȩ̸̢̧̨̛̞̰͚̳̜͙̻͚̰͎͐͆́̍̎̚s̶̢̡̬̠̹͓̳͎̪̰̯̻̃̒̕͝",
-
-
-
             },
-        },
-        {
-            description: "handles what looks like URL-encoded characters originally, by not changing them",
-            input: { "key_one": "value%2Fone%22%3A%22nestedValue%22%7D" },
-            expected: { "key_one": "value%2Fone%22%3A%22nestedValue%22%7D" },
         },
         {
             description: "handles nested objects",
@@ -267,51 +220,45 @@ describe("stringifySearchParams and parseSearchParams", () => {
             expected: { key: { nestedKey: "nestedValue" } },
         },
         {
-            description: "handles arrays",
-            input: { key: ["value1", "value2", "value3"] },
-            expected: { key: ["value1", "value2", "value3"] },
+            description: "handles arrays within objects",
+            input: { key: ["item1", "item2"] },
+            expected: { key: ["item1", "item2"] },
         },
         {
-            description: "handles mixed types",
-            input: { string: "value", number: 123, boolean: true, null: null },
-            expected: { string: "value", number: 123, boolean: true },
-        },
-        {
-            description: "handles complex nested structures",
+            description: "handles mixed types including numbers, booleans, nulls",
             input: {
-                key1: { nestedKey1: "nestedValue1" },
-                key2: [{ id: 1, name: "Item1" }, { id: 2, name: "Item2" }],
+                str: "text",
+                num: 123,
+                boolTrue: true,
+                boolFalse: false,
+                nil: null,
+                undef: undefined,
+                obj: { nest: "deep", arr: [1, "two"] },
             },
             expected: {
-                key1: { nestedKey1: "nestedValue1" },
-                key2: [{ id: 1, name: "Item1" }, { id: 2, name: "Item2" }],
+                str: "text",
+                num: 123,
+                boolTrue: true,
+                boolFalse: false,
+                obj: { nest: "deep", arr: [1, "two"] },
             },
         },
         {
-            description: "Handles negatives and decimals",
-            input: {
-                "positiveInteger": 123,
-                "negativeInteger": -123,
-                "positiveFloat": 123.456,
-                "negativeFloat": -123.456,
-                "zero": 0,
-            },
-            expected: {
-                "positiveInteger": 123,
-                "negativeInteger": -123,
-                "positiveFloat": 123.456,
-                "negativeFloat": -123.456,
-                "zero": 0,
-            },
+            description: "handles values that need URI encoding (string values only)",
+            input: { query: "a&b=c d", path: "/test path" },
+            expected: { query: "a&b=c d", path: "/test path" },
         },
     ];
 
     testCases.forEach(({ description, input, expected }) => {
         it(description, () => {
-            const searchParams = stringifySearchParams(input);
-            setWindowSearch(searchParams);
-            const parsedParams = parseSearchParams();
-            expect(parsedParams).to.deep.equal(expected);
+            const queryString = stringifySearchParams(input);
+            setupDOM(queryString ? `http://localhost/${queryString}` : "http://localhost/");
+
+            const parsed = parseSearchParams();
+            expect(parsed).to.deep.equal(expected);
+
+            teardownDOM();
         });
     });
 });

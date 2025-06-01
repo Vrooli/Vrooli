@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
-import { ResourceSubTypeRoutine, type RunRoutine } from "../api/types.js";
+import { ResourceSubType, ResourceSubTypeRoutine, type Run } from "../api/types.js";
 import { InputType } from "../consts/model.js";
-import { type RoutineVersionConfig } from "../run/index.js";
+import { RoutineVersionConfig, type FormInputConfigObject, type FormOutputConfigObject, type RoutineVersionConfigObject } from "../shape/index.js";
 import { FormBuilder } from "./builder.js";
-import { type FormElement, type FormSchema, FormStructureType } from "./types.js";
+import { FormStructureType, type FormElement, type FormSchema } from "./types.js";
 
 describe("FormBuilder", () => {
     describe("generateInitialValues", () => {
@@ -131,25 +131,31 @@ describe("FormBuilder", () => {
 
     describe("generateInitialValuesFromRoutineConfig", () => {
         it("should generate initial values from provided formInput and formOutput schemas", () => {
-            const sampleInputSchema = {
+            const sampleInputSchema: FormSchema = {
                 elements: [
-                    { type: InputType.Text, fieldName: "name", props: { defaultValue: "John" } },
-                    { type: InputType.IntegerInput, fieldName: "age", props: { defaultValue: 30 } },
-                    { type: InputType.Checkbox, fieldName: "subscribe", props: { defaultValue: [true, false] } },
-                    { type: InputType.Switch, fieldName: "active", props: { defaultValue: true } },
+                    { id: "name", label: "Name", type: InputType.Text, fieldName: "name", props: { defaultValue: "John" } },
+                    { id: "age", label: "Age", type: InputType.IntegerInput, fieldName: "age", props: { defaultValue: 30 } },
+                    { id: "subscribe", label: "Subscribe", type: InputType.Checkbox, fieldName: "subscribe", props: { defaultValue: [true, false], options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] } },
+                    { id: "active", label: "Active", type: InputType.Switch, fieldName: "active", props: { defaultValue: true } },
                 ],
+                containers: [],
             };
-            const sampleOutputSchema = {
+            const sampleOutputSchema: FormSchema = {
                 elements: [
-                    { type: InputType.Text, fieldName: "result", props: { defaultValue: "success" } },
+                    { id: "result", label: "Result", type: InputType.Text, fieldName: "result", props: { defaultValue: "success" } },
                 ],
+                containers: [],
             };
-            const config = {
-                formInput: { schema: sampleInputSchema },
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema },
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema },
+                },
+                resourceSubType: ResourceSubType.RoutineInformational,
+            });
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Informational);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInformational);
 
             expect(result).to.deep.equal({
                 "input-name": "John",
@@ -161,139 +167,160 @@ describe("FormBuilder", () => {
         });
 
         it("should work when formInput is not provided", () => {
-            const sampleOutputSchema = {
-                elements: [
-                    { type: InputType.Text, fieldName: "result", props: { defaultValue: "success" } },
-                ],
-            };
-            const config = {
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
-
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Api);
-
-            expect(result).to.deep.equal({
-                "output-result": "success",
+            const configWithoutInput = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formOutput: {
+                        __version: "1.0",
+                        schema: {
+                            containers: [],
+                            elements: [
+                                { fieldName: "outputField1", type: InputType.Text, props: { defaultValue: "out1" }, id: "outputField1", label: "Output Field 1" },
+                            ],
+                        },
+                    } as FormOutputConfigObject,
+                } as RoutineVersionConfigObject,
+                resourceSubType: ResourceSubType.RoutineCode,
+            });
+            const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(configWithoutInput, ResourceSubTypeRoutine.RoutineCode);
+            // Expect only output fields because formInput is missing and its default is empty
+            expect(initialValues).to.deep.equal({
+                "output-outputField1": "out1",
             });
         });
 
         it("should work when formOutput is not provided", () => {
-            const sampleInputSchema = {
-                elements: [
-                    { type: InputType.Text, fieldName: "name", props: { defaultValue: "John" } },
-                ],
-            };
-            const config = {
-                formInput: { schema: sampleInputSchema },
-            } as unknown as RoutineVersionConfig;
-
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.SmartContract);
-
-            expect(result).to.deep.equal({
-                "input-name": "John",
+            const configWithoutOutput = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: {
+                        __version: "1.0",
+                        schema: {
+                            containers: [],
+                            elements: [
+                                { fieldName: "inputField1", type: InputType.Text, props: { defaultValue: "in1" }, id: "inputField1", label: "Input Field 1" },
+                            ],
+                        },
+                    } as FormInputConfigObject,
+                } as RoutineVersionConfigObject,
+                resourceSubType: ResourceSubType.RoutineCode,
+            });
+            const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(configWithoutOutput, ResourceSubTypeRoutine.RoutineCode);
+            // Expect only input fields because formOutput is missing and its default is empty
+            expect(initialValues).to.deep.equal({
+                "input-inputField1": "in1",
             });
         });
 
         it("should handle schemas with no input elements", () => {
-            const sampleInputSchema = {
+            const sampleInputSchema: FormSchema = {
                 elements: [
-                    { type: FormStructureType.Header, label: "Input Section" },
+                    { id: "inputSection", type: FormStructureType.Header, label: "Input Section", tag: "h3" },
                 ],
+                containers: [],
             };
-            const sampleOutputSchema = {
+            const sampleOutputSchema: FormSchema = {
                 elements: [
-                    { type: FormStructureType.Header, label: "Output Section" },
+                    { id: "outputSection", type: FormStructureType.Header, label: "Output Section", tag: "h3" },
                 ],
+                containers: [],
             };
-            const config = {
-                formInput: { schema: sampleInputSchema },
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema },
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema },
+                },
+                resourceSubType: ResourceSubType.RoutineInternalAction,
+            });
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Action);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction);
 
             expect(result).to.deep.equal({});
         });
 
         it("should use correct default for inputs and outputs without default values", () => {
-            const sampleInputSchema = {
+            const sampleInputSchema: FormSchema = {
                 elements: [
-                    { type: InputType.Text, fieldName: "name", props: {} },
-                    { type: InputType.IntegerInput, fieldName: "age", props: {} },
-                    { type: InputType.Checkbox, fieldName: "subscribe" },
-                    { type: InputType.Switch, fieldName: "active" },
+                    { id: "name", label: "Name", type: InputType.Text, fieldName: "name", props: {} },
+                    { id: "age", label: "Age", type: InputType.IntegerInput, fieldName: "age", props: {} },
+                    { id: "subscribe", label: "Subscribe", type: InputType.Checkbox, fieldName: "subscribe", props: { options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] } },
+                    { id: "active", label: "Active", type: InputType.Switch, fieldName: "active", props: {} },
                 ],
+                containers: [],
             };
-            const sampleOutputSchema = {
+            const sampleOutputSchema: FormSchema = {
                 elements: [
-                    { type: InputType.Text, fieldName: "result" },
+                    { id: "result", label: "Result", type: InputType.Text, fieldName: "result", props: {} },
                 ],
+                containers: [],
             };
-            const config = {
-                formInput: { schema: sampleInputSchema },
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema },
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema },
+                },
+                resourceSubType: ResourceSubType.RoutineInternalAction,
+            });
 
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Action);
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction);
 
             expect(result).to.deep.equal({
                 "input-name": "",
                 "input-age": 0,
-                "input-subscribe": [],
+                "input-subscribe": [false, false],
                 "input-active": false,
                 "output-result": "",
             });
         });
 
         it("should override values if run data is provided", () => {
-            const sampleInputSchema = {
+            const sampleInputSchema: FormSchema = {
                 elements: [
-                    { type: InputType.Text, fieldName: "name", props: { defaultValue: "John" } },
-                    { type: InputType.IntegerInput, fieldName: "age" },
-                    { type: InputType.Checkbox, fieldName: "subscribe", props: { defaultValue: [true, false] } },
-                    { type: InputType.Switch, fieldName: "active" },
+                    { id: "name", label: "Name", type: InputType.Text, fieldName: "name", props: { defaultValue: "John" } },
+                    { id: "age", label: "Age", type: InputType.IntegerInput, fieldName: "age", props: {} },
+                    { id: "subscribe", label: "Subscribe", type: InputType.Checkbox, fieldName: "subscribe", props: { defaultValue: [true, false], options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] } },
+                    { id: "active", label: "Active", type: InputType.Switch, fieldName: "active", props: {} },
                 ],
+                containers: [],
             };
-            const sampleOutputSchema = {
+            const sampleOutputSchema: FormSchema = {
                 elements: [
-                    { type: InputType.JSON, fieldName: "result", props: { defaultValue: { result: "success", info: [] } } },
-                    { type: InputType.IntegerInput, fieldName: "error" },
+                    { id: "result", label: "Result", type: InputType.JSON, fieldName: "result", props: { defaultValue: JSON.stringify({ result: "success", info: [] }) } },
+                    { id: "error", label: "Error", type: InputType.IntegerInput, fieldName: "error", props: {} },
                 ],
+                containers: [],
             };
-            const config = {
-                formInput: { schema: sampleInputSchema },
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema },
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema },
+                },
+                resourceSubType: ResourceSubType.RoutineInternalAction,
+            });
             const run = {
                 io: [
                     {
                         data: JSON.stringify("Jane"),
-                        routineVersionInput: {
-                            name: "name",
-                        },
+                        nodeInputName: "name",
                     },
                     {
                         data: JSON.stringify({ result: "success!", info: [1, 2, 3] }),
-                        routineVersionOutput: {
-                            name: "result",
-                        },
+                        nodeName: "result",
                     },
                     {
                         data: JSON.stringify(101),
-                        routineVersionOutput: {
-                            name: "error",
-                        },
+                        nodeName: "error",
                     },
-                    // Add another io with no matching routineVersionInput or routineVersionOutput
                     {
                         data: JSON.stringify({ other: "other" }),
-                        routineVersionInput: {
-                            name: "noMatch",
-                        },
+                        nodeInputName: "noMatch",
                     },
                 ],
-            } as unknown as Pick<RunRoutine, "io">;
-            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.Action, run);
+            } as unknown as Pick<Run, "io">;
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction, run);
 
             expect(result).to.deep.equal({
                 "input-name": "Jane",
@@ -302,7 +329,6 @@ describe("FormBuilder", () => {
                 "input-active": false,
                 "output-result": { result: "success!", info: [1, 2, 3] },
                 "output-error": 101,
-                // Shouldn't include the additional io data
             });
         });
     });
@@ -816,12 +842,16 @@ describe("FormBuilder", () => {
                 containers: [],
             };
 
-            const config = {
-                formInput: { schema: sampleInputSchema },
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema as unknown as FormInputConfigObject["schema"] },
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema as unknown as FormOutputConfigObject["schema"] },
+                },
+                resourceSubType: ResourceSubType.RoutineApi,
+            });
 
-            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.Api);
+            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineApi);
 
             // Valid case: both fields valid
             await yupSchema.validate({ "input-username": "JohnDoe", "output-status": "active" });
@@ -875,11 +905,15 @@ describe("FormBuilder", () => {
                 containers: [],
             };
 
-            const configInputOnly = {
-                formInput: { schema: sampleInputSchema },
-            } as unknown as RoutineVersionConfig;
+            const configInputOnly = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema as unknown as FormInputConfigObject["schema"] },
+                },
+                resourceSubType: ResourceSubType.RoutineApi,
+            });
 
-            const yupSchemaInputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configInputOnly, ResourceSubTypeRoutine.Api);
+            const yupSchemaInputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configInputOnly, ResourceSubTypeRoutine.RoutineApi);
 
             // Valid email
             await yupSchemaInputOnly.validate({ "input-email": "test@example.com" });
@@ -910,11 +944,15 @@ describe("FormBuilder", () => {
                 containers: [],
             };
 
-            const configOutputOnly = {
-                formOutput: { schema: sampleOutputSchema },
-            } as unknown as RoutineVersionConfig;
+            const configOutputOnly = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema as unknown as FormOutputConfigObject["schema"] },
+                },
+                resourceSubType: ResourceSubType.RoutineApi,
+            });
 
-            const yupSchemaOutputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configOutputOnly, ResourceSubTypeRoutine.Api);
+            const yupSchemaOutputOnly = FormBuilder.generateYupSchemaFromRoutineConfig(configOutputOnly, ResourceSubTypeRoutine.RoutineApi);
 
             // Valid result
             await yupSchemaOutputOnly.validate({ "output-result": "success" });
@@ -943,11 +981,15 @@ describe("FormBuilder", () => {
                 containers: [],
             };
 
-            const config = {
-                formInput: { schema: sampleInputSchema },
-            } as unknown as RoutineVersionConfig;
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema as unknown as FormInputConfigObject["schema"] },
+                },
+                resourceSubType: ResourceSubType.RoutineApi,
+            });
 
-            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.Api);
+            const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineApi);
             // Expect that no validation exists for the field since yup is not provided.
             expect(yupSchema.fields).to.not.have.property("input-noValidation");
         });

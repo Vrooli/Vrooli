@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
 import * as yup from "yup";
-import { uuid } from "../../../id/uuid.js";
 import { description } from "../index.js";
 import { opt, req } from "./optionality.js";
 import { yupObj } from "./yupObj.js"; // Update with the actual path
@@ -437,7 +436,7 @@ describe("yupObj", () => {
         );
 
         // Connect should accept an ID
-        const id = uuid();
+        const id = "123456789012345678"; // Changed to Snowflake-like ID
         await assertValid(
             schema,
             { testField: "boop", dummyRelConnect: id },
@@ -468,7 +467,7 @@ describe("yupObj", () => {
         );
 
         // Connect should accept an ID array
-        const ids = [uuid(), uuid()];
+        const ids = ["123456789012345678", "123456789012345679"]; // Changed to Snowflake-like IDs
         await assertValid(
             schema,
             { testField: "boop", dummyRelConnect: ids },
@@ -523,7 +522,7 @@ describe("yupObj", () => {
         );
 
         // Delete should accept an ID array
-        const ids = [uuid(), uuid()];
+        const ids = ["123456789012345678", "123456789012345679"]; // Changed to Snowflake-like IDs
         await assertValid(
             schema,
             { testField: "boop", dummyRelDelete: ids },

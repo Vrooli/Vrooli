@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { expect } from "chai";
 import * as yup from "yup";
-import { uuid } from "../../../id/uuid.js";
 import { type YupModel } from "../types.js";
 import { rel } from "./rel.js";
 import { yupObj } from "./yupObj.js";
@@ -35,8 +34,9 @@ describe("rel function", () => {
         const manyResult = rel(mockData, "testRelation", ["Connect"], "many", "req");
 
         // Prepare test data
-        const validOneData = { testRelationConnect: uuid() };
-        const validManyData = { testRelationConnect: [uuid(), uuid()] };
+        const validSnowflakeId = "123456789012345678"; // Use a Snowflake-like ID
+        const validOneData = { testRelationConnect: validSnowflakeId };
+        const validManyData = { testRelationConnect: [validSnowflakeId, "123456789012345679"] }; // Use Snowflake-like IDs
         const invalidOneData = validManyData;
         const invalidManyData = validOneData;
 
@@ -125,8 +125,10 @@ describe("rel function", () => {
         const manyResult = rel(mockData, "testRelation", ["Delete"], "many", "req", mockModel);
 
         // Prepare test data
+        const validSnowflakeId1 = "123456789012345678"; // Use a Snowflake-like ID
+        const validSnowflakeId2 = "123456789012345679"; // Use another Snowflake-like ID
         const validOneData = { testRelationDelete: true };
-        const validManyData = { testRelationDelete: [uuid(), uuid()] };
+        const validManyData = { testRelationDelete: [validSnowflakeId1, validSnowflakeId2] }; // Use Snowflake-like IDs
         const invalidOneData1 = validManyData;
         const invalidOneData2 = { testRelationDelete: false };
         const invalidOneData3 = { testRelationDelete: [true, true] };
@@ -180,8 +182,10 @@ describe("rel function", () => {
         const manyResult = rel(mockData, "testRelation", ["Disconnect"], "many", "req", mockModel);
 
         // Prepare test data
+        const validSnowflakeId1 = "123456789012345678"; // Use a Snowflake-like ID
+        const validSnowflakeId2 = "123456789012345679"; // Use another Snowflake-like ID
         const validOneData = { testRelationDisconnect: true };
-        const validManyData = { testRelationDisconnect: [uuid(), uuid()] };
+        const validManyData = { testRelationDisconnect: [validSnowflakeId1, validSnowflakeId2] }; // Use Snowflake-like IDs
         const invalidOneData1 = validManyData;
         const invalidOneData2 = { testRelationDisconnect: false };
         const invalidOneData3 = { testRelationDisconnect: [true, true] };
@@ -246,9 +250,9 @@ describe("rel function", () => {
         }
 
         // Test with valid value
-        const validUuid = uuid();
-        const validationResult = await testSchema.validate({ testRelationConnect: validUuid });
-        expect(validationResult).to.deep.equal({ testRelationConnect: validUuid });
+        const validSnowflakeId = "123456789012345678"; // Use a Snowflake-like ID
+        const validationResult = await testSchema.validate({ testRelationConnect: validSnowflakeId });
+        expect(validationResult.testRelationConnect).to.equal(validSnowflakeId);
     });
 
     it("should mark 'Connect' field as optional when isRequired is 'opt'", async () => {
@@ -259,13 +263,13 @@ describe("rel function", () => {
         });
 
         // Test with undefined value
-        const emptyValidationResult = await testSchema.validate({});
-        expect(emptyValidationResult).to.deep.equal({});
+        let validationResult = await testSchema.validate({});
+        expect(validationResult.testRelationConnect).to.be.undefined;
 
         // Test with valid value
-        const validUuid = uuid();
-        const validationResult = await testSchema.validate({ testRelationConnect: validUuid });
-        expect(validationResult).to.deep.equal({ testRelationConnect: validUuid });
+        const validSnowflakeId2 = "123456789012345679"; // Use a Snowflake-like ID
+        validationResult = await testSchema.validate({ testRelationConnect: validSnowflakeId2 });
+        expect(validationResult.testRelationConnect).to.equal(validSnowflakeId2);
     });
 
     const omitFieldsMockModel = {

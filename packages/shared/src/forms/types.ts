@@ -500,7 +500,7 @@ export interface YupCheck {
  * Types supported by yup validation. Does not include "array" because this type is applied to 
  * a single field.
  */
-export type YupType = "boolean" | "date" | "mixed" | "number" | "object" | "string";
+export type YupType = "boolean" | "date" | "mixed" | "number" | "object" | "string" | "array";
 
 /**
  * Shape of yup inside FieldData, BEFORE it is converted to an overall yup schema
@@ -628,7 +628,7 @@ export interface JSONSchemaFormat {
     /**
      * Specifies the properties of this schema, if type is "object".
      */
-    properties?: { [x: string]: any }; // TODO
+    properties?: { [x: string]: JSONSchemaFormat };
 }
 
 /**
@@ -654,7 +654,6 @@ export interface JSONVariable {
     defaultValue?: string | object;
     /**
      * Value of the field, or list of accepted values
-     * //TODO might replace with yup validation
      */
     value?: string | string[];
 }
