@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type ApiVersion, type CodeLanguage, type CodeVersion, type JSONVariable, type NoteVersion, type ProjectVersion, type ResourceListFor, type RoutineVersion, type StandardVersion, type Tag, type TagShape, type TranslationFunc } from "@local/shared";
+import { type CodeLanguage, type JSONVariable, type ResourceListFor, type ResourceVersion, type Tag, type TagShape, type TranslationFunc } from "@local/shared";
 import { type BoxProps, type CheckboxProps, type TextFieldProps } from "@mui/material";
 import { type FieldProps } from "formik";
 import { type CSSProperties, type RefObject } from "react";
@@ -286,12 +286,7 @@ export interface SelectorBaseProps<T extends string | number | { [x: string]: an
 }
 
 export type ObjectVersionSelectPayloads = {
-    ApiVersion: ApiVersion,
-    CodeVersion: CodeVersion,
-    NoteVersion: NoteVersion,
-    ProjectVersion: ProjectVersion,
-    RoutineVersion: RoutineVersion,
-    StandardVersion: StandardVersion,
+    ResourceVersion: ResourceVersion,
 }
 export type ObjectVersionSelectSwitchProps<T extends keyof ObjectVersionSelectPayloads> = {
     canUpdate: boolean;

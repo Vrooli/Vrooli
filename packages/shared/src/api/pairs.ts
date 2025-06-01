@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { LINKS } from "../consts/ui.js";
 
 function findOne(one: string) {
@@ -374,8 +375,8 @@ export const endpointsTask = {
         endpoint: "/task/checkStatuses",
         method: "GET" as const,
     },
-    startLlmTask: {
-        endpoint: "/task/start/llm",
+    startSwarmTask: {
+        endpoint: "/task/start/swarm",
         method: "POST" as const,
     },
     startRunTask: {
@@ -384,6 +385,10 @@ export const endpointsTask = {
     },
     cancelTask: {
         endpoint: "/task/cancel",
+        method: "POST" as const,
+    },
+    respondToToolApproval: {
+        endpoint: "/task/respondToToolApproval",
         method: "POST" as const,
     },
 };

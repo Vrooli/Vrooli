@@ -1,15 +1,6 @@
 /* c8 ignore start */
 import { type LlmTask, type TaskStatus } from "../api/types.js";
 
-export type MessageStream = {
-    /** The state of the stream */
-    __type: "stream" | "end" | "error";
-    /** The ID of the bot sending the message */
-    botId?: string;
-    /** The current text stream (not the accumulated text) */
-    message: string;
-};
-
 /**
  * Context is any JSON-serializable data that can be used to provide context to the LLM.
  */
@@ -110,14 +101,6 @@ export type AITaskProperty = {
     /** Used to describe nested data if type is an array or object */
     properties?: Record<string, Omit<AITaskProperty, "name">>;
 };
-
-/**
- * The mode to generate the response in. Depending on the language model service, 
- * this may not be guaranteed to be adhered to.
- * 
- * Currently only supports JSON or text.
- */
-export type LanguageModelResponseMode = "json" | "text";
 
 /** 
  * Command information, which can be used to validate commands or 
