@@ -27,6 +27,7 @@ type ScheduleUpsertPropsPartial = CrudPropsPartial<Schedule> & {
 }
 export type ScheduleUpsertProps = ScheduleUpsertPropsPage | ScheduleUpsertPropsDialog | ScheduleUpsertPropsPartial;
 export type ScheduleFormProps = FormProps<Schedule, ScheduleShape> & Pick<ScheduleUpsertProps, | "canSetScheduleFor" | "isMutate"> & {
+    pathname: string;
     scheduleFor: ScheduleForOption | null;
     handleScheduleForChange: (scheduleFor: ScheduleForOption) => unknown;
 }

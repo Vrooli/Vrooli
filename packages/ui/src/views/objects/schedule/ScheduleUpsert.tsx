@@ -429,6 +429,7 @@ function ScheduleForm({
     onDeleted,
     scheduleFor,
     values,
+    pathname,
     ...props
 }: ScheduleFormProps) {
     const theme = useTheme();
@@ -516,8 +517,8 @@ function ScheduleForm({
     const { handleCancel, handleCreated, handleCompleted, handleDeleted } = useUpsertActions<Schedule>({
         display,
         isCreate,
-        objectId: values.id,
         objectType: "Schedule",
+        pathname,
         ...props,
     });
     const {
@@ -531,7 +532,7 @@ function ScheduleForm({
         endpointCreate: endpointsSchedule.createOne,
         endpointUpdate: endpointsSchedule.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Schedule" });
+    useSaveToCache({ isCreate, values, pathname });
 
     const onSubmit = useCallback(() => {
         if (disabled) {
@@ -942,6 +943,8 @@ export const ScheduleUpsert = memo(function ScheduleUpsert({
     if (display === "Dialog" && !isOpen) {
         return null;
     }
+    const [location] = useLocation();
+    const pathname = location.pathname;
 
     const [scheduleFor, setScheduleFor] = useState<ScheduleForOption | null>(defaultScheduleFor ? scheduleForOptions.find((option) => option.objectType === defaultScheduleFor) ?? null : null);
     useEffect(function updateDefaultScheduleFor() {
@@ -970,27 +973,40 @@ export const ScheduleUpsert = memo(function ScheduleUpsert({
         objectType: "Schedule" as const,
         overrideObject: !isCreate ? overrideObject : undefined,
         transform: transformFn,
-    }), [disabledManaged, isCreate, overrideObject, transformFn]);
+        pathname,
+    }), [disabledManaged, isCreate, overrideObject, transformFn, pathname]);
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Schedule, ScheduleShape>(managedObjectArgs);
+
+    // Ensure Formik always receives a valid ScheduleShape for initialValues
+    const formInitialValues = useMemo(() => {
+        // Check for essential properties of ScheduleShape
+        if (existing && typeof existing.startTime !== 'undefined' && typeof existing.endTime !== 'undefined' && typeof existing.timezone !== 'undefined') {
+            return existing; // It's likely already ScheduleShape or compatible
+        }
+        // If 'existing' is not a full ScheduleShape, generate a default one,
+        // passing the potentially partial 'existing' to retain any available data.
+        return scheduleInitialValues(session, existing as Schedule);
+    }, [existing, session]);
 
     return (
         <Formik
             enableReinitialize={true}
-            initialValues={existing}
+            initialValues={formInitialValues}
             onSubmit={noopSubmit}
-            validate={(values) => validateFormValues(values, existing, isCreate, transformScheduleValues, scheduleValidation)}
+            validate={(values) => validateFormValues(values, formInitialValues, isCreate, transformScheduleValues, scheduleValidation)}
         >
             {(formik) => <ScheduleForm
                 canSetScheduleFor={canSetScheduleFor}
                 disabled={!(isCreate || permissions.canUpdate)}
                 display={display}
-                existing={existing}
+                existing={formInitialValues}
                 handleScheduleForChange={handleScheduleForChange}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
                 scheduleFor={scheduleFor}
+                pathname={pathname}
                 {...props}
                 {...formik}
             />}
