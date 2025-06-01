@@ -30,7 +30,13 @@ const FALLBACK_DEFAULT_TTL_SEC = MINUTES_15_S;
  * @returns The Redis URL
  */
 export function getRedisUrl() {
-    return process.env.REDIS_URL || `redis://redis:${DEFAULT_REDIS_PORT}`;
+    const url = process.env.REDIS_URL;
+    if (!url) {
+        const message = "REDIS_URL environment variable is not set!";
+        logger.error(message);
+        throw new Error(message);
+    }
+    return url;
 }
 
 /* ------------------------------------------------------------------ */
@@ -65,10 +71,6 @@ const DEFAULT_OPTS: CacheOptions = {
 /* 2)  Utility helpers                                                */
 /* ------------------------------------------------------------------ */
 
-function sleep(ms: number) {
-    return new Promise(r => setTimeout(r, ms));
-}
-
 function namespaced(ns: string | undefined, key: string) {
     return ns ? `${ns}:${key}` : key;
 }
@@ -92,7 +94,7 @@ export class CacheService {
 
         // Validate and potentially fallback for defaultTtl
         if (isNaN(this.opts.defaultTtl) || this.opts.defaultTtl <= 0) {
-            logger.warn(
+            logger.warning(
                 `[CacheService] Invalid CACHE_DEFAULT_TTL detected (value: ${this.opts.defaultTtl}). ` +
                 `Falling back to default TTL: ${FALLBACK_DEFAULT_TTL_SEC} seconds.`,
             );
@@ -113,7 +115,7 @@ export class CacheService {
             // Log if CACHE_LOCAL_LRU_SIZE was explicitly invalid and led to disabling L1.
             // Note: parseInt(undefined || "1000") gives 1000. parseInt("abc" || "1000") gives NaN.
             if (process.env.CACHE_LOCAL_LRU_SIZE !== undefined) { // only log if it was explicitly set to something invalid
-                logger.warn(
+                logger.warning(
                     `[CacheService] Invalid CACHE_LOCAL_LRU_SIZE detected (value: ${this.opts.localLruSize}). ` +
                     "L1 cache will be disabled.",
                 );
@@ -140,7 +142,9 @@ export class CacheService {
             return;
         }
         // coalesce concurrent connects
-        if (this.connecting) return this.connecting;
+        if (this.connecting) {
+            return this.connecting;
+        }
 
         let attempts = 0;
         const url = getRedisUrl();
@@ -149,34 +153,125 @@ export class CacheService {
             attempts += 1;
             try {
                 const isCluster = url.includes(",");
-                const redis = isCluster
+                logger.info("[CacheService] connect(): Preparing to instantiate IORedis client.", {
+                    url,
+                    isCluster,
+                    attempts,
+                    options: {
+                        enableReadyCheck: true,
+                        connectTimeout: this.opts.maxReconnectDelayMs,
+                        // Note: retryStrategy is not logged here as it's a function
+                    },
+                });
+                const redisInstance = isCluster
                     ? new IORedis.Cluster(
                         url.split(",").map(u => ({ host: new URL(u).hostname, port: +new URL(u).port || DEFAULT_REDIS_PORT })),
+                        {
+                            enableReadyCheck: true,
+                            // It's often good to set retryStrategy for Cluster as well
+                            // Example: retryStrategy: times => Math.min(times * 50, 2000)
+                        },
                     )
                     : new IORedis(url, {
-                        retryStrategy: () => null, // we implement our own back-off
+                        enableReadyCheck: true,
+                        connectTimeout: this.opts.maxReconnectDelayMs,
+                        // Recommended: Add a retryStrategy for standalone instances too
+                        // retryStrategy: times => Math.min(times * 50, 2000),
+                        // Keep the client from re-connecting if it's not listening for 'error' events
+                        // lazyConnect: true, // Consider this if you want to control connection timing more explicitly
                     });
 
-                await redis.connect();
-                this.client = redis;
-                logger.info("[CacheService] Redis connected");
-            } catch (err) {
-                const delay = Math.min(
-                    attempts * this.opts.reconnectDelayMultiplier,
-                    this.opts.maxReconnectDelayMs,
-                );
-                if (attempts >= this.opts.maxReconnectAttempts) {
-                    logger.error("[CacheService] Failed to connect to Redis", err);
-                    throw err;
+                // Instead of explicit connect, let ioredis handle it. We can wait for 'ready' or check status.
+                // await redis.connect(); 
+                this.client = redisInstance;
+
+                // Wait for the client to be ready if enableReadyCheck is true
+                // This might involve listening to a 'ready' event or periodically checking status
+                // For simplicity in this step, we'll assume ioredis handles this and check status after a brief moment
+                // A more robust solution might involve a new Promise that resolves on 'ready' event.
+                if (this.client.status !== "ready") {
+                    // Give ioredis a moment to connect, especially with enableReadyCheck
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
                 }
-                logger.warn(`[CacheService] Redis connect failed (try ${attempts}) – retrying in ${delay} ms`);
-                await sleep(delay);
-                return connect();
+
+                // After attempting to connect or giving it a moment, check the status.
+                // 'ready' is the desired state when enableReadyCheck is true.
+                if (this.client.status === "ready") {
+                    logger.info(`[CacheService] connect(): IORedis instance is ready. Status: ${this.client.status}`);
+                } else {
+                    logger.warning(`[CacheService] connect(): IORedis instance created but not initially ready. Status: ${this.client.status}. Waiting for 'ready' event or timeout.`);
+
+                    // This promise waits for either the 'ready' event or a timeout/error.
+                    await new Promise<void>((resolve, reject) => {
+                        const errorListener: ((err: Error) => void) | undefined =
+                            (err: Error) => {
+                                clearTimeout(timeoutId);
+                                if (readyListener) this.client.removeListener("ready", readyListener);
+                                logger.error("[CacheService] IORedis client emitted error during connection attempt:", {
+                                    message: err.message,
+                                    name: err.name,
+                                    code: (err as any).code, // Using as any for potentially non-standard properties like code
+                                    stack: err.stack,
+                                });
+                                reject(err); // Reject with the actual error from ioredis
+                            };
+
+                        const readyListener: (() => void) | undefined = () => {
+                            clearTimeout(timeoutId);
+                            if (errorListener) this.client.removeListener("error", errorListener);
+                            logger.info(`[CacheService] connect(): IORedis client became ready after waiting. Status: ${this.client.status}`);
+                            resolve();
+                        };
+
+                        const timeoutId = setTimeout(() => {
+                            if (errorListener) this.client.removeListener("error", errorListener);
+                            if (readyListener) this.client.removeListener("ready", readyListener);
+                            reject(new Error(`Redis client failed to become ready within ${this.opts.maxReconnectDelayMs}ms. Final status: ${this.client.status}`));
+                        }, this.opts.maxReconnectDelayMs);
+
+                        this.client.once("ready", readyListener);
+                        this.client.once("error", errorListener); // Catches errors that might prevent 'ready'
+                    });
+                    // If the above promise resolved, the client is ready.
+                    // If it rejected, the error would have been thrown and caught by the outer catch block.
+                }
+
+            } catch (err) {
+                const errorDetails: Record<string, any> = { attempts };
+                if (err instanceof Error) {
+                    errorDetails.message = err.message;
+                    errorDetails.name = err.name;
+                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                    // @ts-ignore
+                    if (err.code) {
+                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                        // @ts-ignore
+                        errorDetails.code = err.code;
+                    }
+                    // Adding stack for more detailed debugging, could be conditional if too verbose
+                    errorDetails.stack = err.stack;
+                } else {
+                    errorDetails.errorObject = String(err);
+                }
+                logger.error("[CacheService] connect(): redis.connect() failed.", errorDetails);
+                throw err;
             }
         };
 
-        this.connecting = connect().finally(() => (this.connecting = undefined));
-        return this.connecting;
+        this.connecting = connect().finally(() => {
+            if (this.client) {
+                logger.info(`[CacheService] connect() promise finished. Final client status: ${this.client.status}`);
+            } else {
+                logger.warning("[CacheService] connect() promise finished, but this.client is not set (connection likely failed definitively).");
+            }
+            this.connecting = undefined;
+        });
+        await this.connecting;
+        if (this.client) {
+            logger.info(`[CacheService] ensure() returning. Client status: ${this.client.status}`);
+        } else {
+            logger.error("[CacheService] ensure() returning, but this.client is not set. Connection failed.");
+        }
     }
 
     /* ----------------------------------------------------------------
@@ -356,7 +451,7 @@ export class CacheService {
                 numKeys = await (this.client as Redis).dbsize();
             } else {
                 // This case should ideally not be reached if ensure() correctly initializes the client
-                logger.warn("[CacheService] metrics: Client type unknown, cannot determine key count accurately.");
+                logger.warning("[CacheService] metrics: Client type unknown, cannot determine key count accurately.");
                 numKeys = 0;
             }
 
