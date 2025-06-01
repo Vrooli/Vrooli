@@ -1,4 +1,4 @@
-import { type ChatMessage, type ChatMessageCreateWithTaskInfoInput, type ChatMessageSearchInput, type ChatMessageSearchResult, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type ChatMessageUpdateWithTaskInfoInput, type FindByIdInput, generatePK, type RegenerateResponseInput, type Success, validatePK } from "@local/shared";
+import { generatePK, validatePK, type ChatMessage, type ChatMessageCreateWithTaskInfoInput, type ChatMessageSearchInput, type ChatMessageSearchResult, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type ChatMessageUpdateWithTaskInfoInput, type FindByIdInput, type RegenerateResponseInput, type Success } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -8,7 +8,7 @@ import { logger } from "../../events/logger.js";
 import { ModelMap } from "../../models/base/index.js";
 import { type ChatMessageModelLogic, type ChatModelInfo } from "../../models/base/types.js";
 import { QueueService } from "../../tasks/queues.js";
-import { type LLMCompletionTask, QueueTaskType } from "../../tasks/taskTypes.js";
+import { QueueTaskType, type LLMCompletionTask } from "../../tasks/taskTypes.js";
 import { type ApiEndpoint } from "../../types.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 
@@ -91,7 +91,7 @@ export const chatMessage: EndpointsChatMessage = {
             model,
         };
 
-        await QueueService.get().llm.addTask(llmTaskPayload);
+        await QueueService.get().swarm.addTask(llmTaskPayload);
         logger.info(`LLM task ${llmTaskPayload.id} enqueued for message regeneration: ${messageId}`);
 
         return { __typename: "Success", success: true };

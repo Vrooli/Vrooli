@@ -281,6 +281,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     reportsId: (id: string) => oneToManyId(id, "reports"),
     responseId: (id: string) => oneToOneId(id, "response"),
     rootId: (id: string) => oneToOneId(id, "root"),
+    rootResourceType: (resourceType: ResourceType) => ({ root: { resourceType } }),
     resourceType: (resourceType: ResourceType) => ({ resourceType }),
     resourceTypes: (resourceTypes: ResourceType[]) => ({ resourceType: { in: resourceTypes } }),
     runTeamId: (id: string) => ({ run: { team: { id } } }),
