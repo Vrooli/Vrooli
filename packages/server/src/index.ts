@@ -9,7 +9,7 @@ import { AuthService } from "./auth/auth.js";
 import { DbProvider } from "./db/provider.js";
 import { initRestApi } from "./endpoints/rest.js";
 import { logger } from "./events/logger.js";
-import { CacheService } from "./redisConn.js";
+import { CacheService, getRedisUrl } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { BillingWorker } from "./services/billing.js";
 import { setupHealthCheck } from "./services/health.js";
@@ -51,12 +51,60 @@ async function main() {
 
     // Initialize singletons
     await initSingletons();
-    // Setup databases
-    await DbProvider.init();
-    CacheService.get();
-    QueueService.get().initializeAllQueues();
-    // Start event bus and its workers
-    await BillingWorker.start();
+
+    // Initialize services that depend on external connections
+
+    // 1. Setup Database
+    try {
+        await DbProvider.init(); // This includes seeding
+        logger.info("Database initialized successfully (or seeding was not required/retrying if configured).");
+    } catch (dbError) {
+        logger.error("🚨 Critical: Database initialization or seeding failed. Server might not function correctly.", { error: dbError });
+        // Depending on the severity, you might want to process.exit(1) here
+        // For now, allowing to continue to see if other services can start, or if retries handle it.
+    }
+
+    // 2. Initialize Redis Connection for CacheService
+    try {
+        CacheService.get(); // This will call its constructor and internal `ensure`
+        logger.info("CacheService obtained (Redis connection likely established or will be on first use).");
+    } catch (cacheError) {
+        const err = cacheError as Error;
+        logger.error("🚨 Critical: CacheService initial get() or ensure() failed.", {
+            errorName: err?.name,
+            errorMessage: err?.message,
+            errorStack: err?.stack,
+            errorObj: JSON.stringify(cacheError, Object.getOwnPropertyNames(cacheError)), // Detailed logging
+        });
+    }
+
+    // 3. Initialize Redis Connection for QueueService
+    const queueService = QueueService.get();
+    try {
+        const redisUrl = getRedisUrl();
+        await queueService.init(redisUrl);
+        logger.info("QueueService Redis connection initialized successfully.");
+
+        queueService.initializeAllQueues();
+        logger.info("Task queues initialized.");
+
+    } catch (queueServiceError) {
+        const err = queueServiceError as Error;
+        logger.error("🚨 Critical: QueueService initialization, Redis connection, or task queue setup failed.", {
+            errorName: err?.name,
+            errorMessage: err?.message,
+            errorStack: err?.stack,
+            errorObj: JSON.stringify(queueServiceError, Object.getOwnPropertyNames(queueServiceError)), // Detailed logging
+        });
+    }
+
+    // 4. Start event bus and its workers (BillingWorker might use RedisStreamBus)
+    try {
+        await BillingWorker.start();
+        logger.info("BillingWorker (and potentially RedisStreamBus) started.");
+    } catch (billingError) {
+        logger.error("🚨 Critical: BillingWorker failed to start.", { error: billingError });
+    }
 
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
