@@ -1,7 +1,8 @@
-import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
-import { DAYS_1_S, GB_1_BYTES, HOURS_1_MS, HttpStatus, MINUTES_15_MS, MINUTES_1_MS, MINUTES_2_S, MINUTES_30_MS, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
+import { HeadBucketCommand, type S3Client } from "@aws-sdk/client-s3";
+import { ApiKeyPermission, DAYS_1_S, GB_1_BYTES, HOURS_1_MS, HttpStatus, MINUTES_15_MS, MINUTES_1_MS, MINUTES_2_S, MINUTES_30_MS, ResourceSubType, SECONDS_1_MS, SERVER_VERSION, endpointsAuth, endpointsFeed } from "@local/shared";
 import { exec as execCb } from "child_process";
-import { Express } from "express";
+import type { Request, Response } from "express";
+import { type Express } from "express";
 import fs from "fs/promises";
 import i18next from "i18next";
 import os from "os";
@@ -12,17 +13,18 @@ import { promisify } from "util";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { Notify } from "../notify/notify.js";
-import { initializeRedis } from "../redisConn.js";
+import { CacheService } from "../redisConn.js";
 import { API_URL, SERVER_URL } from "../server.js";
 import { SocketService } from "../sockets/io.js";
 import { QueueStatus } from "../tasks/queueFactory.js";
 import { QueueService } from "../tasks/queues.js";
 import { checkNSFW, getS3Client } from "../utils/fileStorage.js";
-import { BusService, RedisStreamBus } from "./bus.js";
+import { BusService, type RedisStreamBus } from "./bus.js";
 import { AIServiceRegistry, AIServiceState } from "./conversation/registry.js";
 import { EmbeddingService } from "./embedding.js";
+import { runWithMcpContext } from "./mcp/context.js";
 import { getMcpServer } from "./mcp/index.js";
-import { McpToolName } from "./mcp/registry.js";
+import { McpToolName } from "./types/tools.js";
 
 const exec = promisify(execCb);
 
@@ -95,17 +97,16 @@ const HTTP_STATUS_OK_MAX = 300;
 const CRON_MAX_FAILURE_AGE_MS = DAYS_1_S; // 24 hours
 const CRON_WARNING_THRESHOLD = 1; // Number of failures before status is degraded
 
-// Define a test routine ID (replace with actual seeded ID when available)
-const MCP_TEST_ROUTINE_ID = "c9dd779d-ebf2-4e65-8429-4eef5c40aa4a"; // Daily Standup routine
-
 // Per-service cache durations
-const DEFAULT_SERVICE_CACHE_MS = MINUTES_2_S & SECONDS_1_MS; // 2 minutes
+const DEFAULT_SERVICE_CACHE_MS = MINUTES_2_S * SECONDS_1_MS; // 2 minutes
 const EMBEDDING_SERVICE_CACHE_MS = HOURS_1_MS; // 1 hour
 const STRIPE_SERVICE_CACHE_MS = MINUTES_30_MS; // 30 minutes
 const LLM_SERVICE_CACHE_MS = MINUTES_15_MS; // 15 minutes
 const API_SERVICE_CACHE_MS = MINUTES_1_MS; // 1 minute
 // eslint-disable-next-line no-magic-numbers
 const SSL_SERVICE_CACHE_MS = HOURS_1_MS * 6; // 6 hours
+
+const BUS_BACKLOG_DEGRADED_THRESHOLD_MS = 5000; // Threshold for bus backlog to be considered degraded
 
 /**
  * Service for checking and reporting system health status
@@ -178,19 +179,29 @@ export class HealthService {
             await BusService.get().startEventBus();
             const bus = BusService.get().getBus();
 
-            // Default when no metrics() helper (e.g. InMemoryEventBus in tests)
-            let metrics: any = { connected: true };
+            // Gather raw Redis‐stream metrics from the bus
+            let rawMetrics: any = { connected: true, consumerGroups: {} };
             if (typeof (bus as any).metrics === "function") {
-                metrics = await (bus as RedisStreamBus).metrics();
+                // bus.metrics() returns a ServiceHealth; unwrap its .details
+                const svcHealth = await (bus as RedisStreamBus).metrics();
+                rawMetrics = (svcHealth.details ?? {}) as any;
             }
 
-            const backlog = Object.values(metrics.pendingPerCG ?? {}).reduce((a, b) => a + b, 0) as number;
-            const status =
-                !metrics.connected ? ServiceStatus.Down
-                    : backlog > 5000 ? ServiceStatus.Degraded   // tune threshold
-                        : ServiceStatus.Operational;
+            // Sum pending messages across all consumer groups
+            const consumerGroups = rawMetrics.consumerGroups ?? {};
+            const backlog = Object.values(consumerGroups as Record<string, any>)
+                .reduce((sum, grp: any) => sum + (grp.pending ?? 0), 0);
 
-            this.busHealthCache = this.createServiceCache(status, DEFAULT_SERVICE_CACHE_MS, metrics);
+            // Determine connected status
+            const connected = rawMetrics.connected === true;
+            const status = !connected
+                ? ServiceStatus.Down
+                : backlog > BUS_BACKLOG_DEGRADED_THRESHOLD_MS
+                    ? ServiceStatus.Degraded
+                    : ServiceStatus.Operational;
+
+            // Cache only the raw metrics details
+            this.busHealthCache = this.createServiceCache(status, DEFAULT_SERVICE_CACHE_MS, rawMetrics);
             return this.busHealthCache.health;
 
         } catch (err) {
@@ -298,8 +309,7 @@ export class HealthService {
         }
 
         try {
-            const redisClient = await initializeRedis();
-            if (!redisClient) throw new Error("Redis client not initialized");
+            const redisClient = await CacheService.get().raw();
             await redisClient.ping();
             this.redisHealthCache = this.createServiceCache(
                 ServiceStatus.Operational,
@@ -307,11 +317,34 @@ export class HealthService {
             );
             return this.redisHealthCache.health;
         } catch (error) {
+            // Aggressive error detail extraction - simplified for robust JSON serialization
+            let serializableErrorDetails: object;
+            if (error instanceof Error) {
+                serializableErrorDetails = {
+                    message: error.message,
+                    name: error.name,
+                    stack: debug ? error.stack : "Stack trace available in development mode",
+                    type: "ErrorInstance",
+                };
+            } else {
+                let messageString: string;
+                try {
+                    messageString = JSON.stringify(error);
+                } catch (stringifyError) {
+                    messageString = String(error);
+                }
+                serializableErrorDetails = {
+                    message: messageString,
+                    type: typeof error,
+                    details: "Non-Error object thrown",
+                };
+            }
+
             this.redisHealthCache = this.createServiceCache(
                 ServiceStatus.Down,
                 DEFAULT_SERVICE_CACHE_MS,
                 {
-                    error: (error as Error).message,
+                    error: serializableErrorDetails,
                 },
             );
             return this.redisHealthCache.health;
@@ -570,19 +603,42 @@ export class HealthService {
      * Check MCP service health by performing an end-to-end transport + RPC test
      */
     private async checkMcp(): Promise<ServiceHealth> {
-        const cachedHealth = this.getCachedHealthIfValid(this.mcpHealthCache);
-        if (cachedHealth) {
-            return cachedHealth;
+        const cached = this.getCachedHealthIfValid(this.mcpHealthCache);
+        if (cached) {
+            return cached;
         }
         let transportHealthy = false;
         let builtInHealthy = false;
-        let routineHealthy = false;
         let transportDetails: Record<string, unknown> = {};
         let builtInDetails: Record<string, unknown> = {};
-        let routineDetails: Record<string, unknown> = {};
+
+        // Mock request and response for context
+        const mockReq = {
+            session: {
+                fromSafeOrigin: true,
+                isLoggedIn: true, // Assuming internal calls are implicitly "logged in"
+                // Grant all permissions for internal health check
+                permissions: {
+                    [ApiKeyPermission.ReadPublic]: true,
+                    [ApiKeyPermission.ReadPrivate]: true,
+                    [ApiKeyPermission.WritePrivate]: true,
+                    [ApiKeyPermission.WriteAuth]: true,
+                    [ApiKeyPermission.ReadAuth]: true,
+                },
+                userId: "system-healthcheck",
+                apiToken: undefined,
+                languages: ["en"],
+            },
+            ip: "127.0.0.1",
+            headers: {},
+            body: {},
+            route: { path: "/healthcheck/mcp" },
+            method: "GET",
+        } as unknown as Request;
+        const mockRes = {} as Response;
 
         try {
-            // 1. Check Transport Layer via internal TransportManager (bypass HTTP/runtime permissions)
+            // 1. Check Transport Layer
             const mcpApp = getMcpServer();
             const transportInfo = mcpApp.getTransportManager().getHealthInfo();
             transportHealthy = typeof transportInfo.activeConnections === "number" && transportInfo.activeConnections >= 0;
@@ -590,43 +646,42 @@ export class HealthService {
 
             // 2. Built-in tools via registry
             const toolRegistry = mcpApp.getToolRegistry();
-            const findResult = await toolRegistry.execute(McpToolName.FindResources, { resource_type: "Routine" });
-            builtInHealthy = Array.isArray(findResult.content) && findResult.content.length > 0;
-            builtInDetails = { result: findResult };
+            // Wrap in runWithMcpContext
+            await runWithMcpContext(mockReq, mockRes, async () => {
+                // Use DefineTool for a simple resource type to check basic tool functionality
+                const defineToolResult = await toolRegistry.execute(McpToolName.DefineTool, { toolName: McpToolName.ResourceManage, variant: ResourceSubType.RoutineInformational, op: "find" });
+                builtInHealthy = defineToolResult && typeof defineToolResult.content === "object" && !defineToolResult.isError;
+                builtInDetails = { result: defineToolResult };
+            });
 
-            // 3. Routine execution via registry
-            const runResult = await toolRegistry.execute(McpToolName.RunRoutine, { id: MCP_TEST_ROUTINE_ID, replacement: "healthcheck" });
-            routineHealthy = Array.isArray(runResult.content) && runResult.content.length > 0;
-            routineDetails = { result: runResult };
-        } catch (err) {
-            transportHealthy = false;
-            transportDetails = { error: (err as Error).message };
+        } catch (error) {
+            logger.error("Error during MCP health check:", { trace: "mcp-health-error", error });
+            transportHealthy = false; // Assume all failed if an error occurs during checks
             builtInHealthy = false;
-            builtInDetails = { error: "Registry execution skipped" };
-            routineHealthy = false;
-            routineDetails = { error: "Registry execution skipped" };
+            transportDetails = { error: (error as Error).message };
+            builtInDetails = { error: (error as Error).message };
         }
 
-        // Determine the overall MCP status
-        let overallStatus: ServiceStatus;
-        if (transportHealthy && builtInHealthy && routineHealthy) {
-            overallStatus = ServiceStatus.Operational;
-        } else if (transportHealthy) {
-            overallStatus = ServiceStatus.Degraded;
-        } else {
-            overallStatus = ServiceStatus.Down;
-        }
+        const currentMcpOverallStatus = (transportHealthy && builtInHealthy)
+            ? ServiceStatus.Operational
+            : ServiceStatus.Degraded;
 
-        this.mcpHealthCache = this.createServiceCache(
-            overallStatus === ServiceStatus.Operational ? ServiceStatus.Operational : ServiceStatus.Down,
-            DEFAULT_SERVICE_CACHE_MS,
-            {
+        const healthToCache: ServiceHealth = {
+            status: currentMcpOverallStatus,
+            healthy: currentMcpOverallStatus === ServiceStatus.Operational,
+            lastChecked: Date.now(),
+            details: {
                 transport: { healthy: transportHealthy, ...transportDetails },
                 builtInTools: { healthy: builtInHealthy, ...builtInDetails },
-                routineTools: { healthy: routineHealthy, ...routineDetails },
             },
-        );
-        return this.mcpHealthCache.health;
+        };
+
+        this.mcpHealthCache = {
+            health: healthToCache,
+            expiresAt: Date.now() + MINUTES_1_MS,
+        };
+
+        return healthToCache;
     }
 
     /**
@@ -766,18 +821,9 @@ export class HealthService {
         }
         const now = Date.now();
         try {
-            const redis = await initializeRedis();
-            if (!redis) {
-                this.cronJobsHealthCache = this.createServiceCache(
-                    ServiceStatus.Down,
-                    DEFAULT_SERVICE_CACHE_MS,
-                    { error: "Redis client not initialized" },
-                );
-                return this.cronJobsHealthCache.health;
-            }
-
+            const redis = await CacheService.get().raw();
             // Get all registered cron jobs
-            const jobNames = await redis.sMembers("cron:jobs");
+            const jobNames = await redis.smembers("cron:jobs");
 
             if (!jobNames.length) {
                 this.cronJobsHealthCache = this.createServiceCache(
@@ -1034,56 +1080,119 @@ export class HealthService {
      * Get overall system health status
      */
     public async getHealth(): Promise<SystemHealth> {
+        logger.info("HealthService.getHealth() started");
 
-        // Perform health checks in parallel
-        const results = await Promise.allSettled([
-            this.checkApi(),                   // 0
-            this.checkBus(),                   // 1
-            this.checkCronJobs(),              // 2
-            this.checkDatabase(),              // 3
-            this.checkI18n(),                  // 4
-            this.checkLlmServices(),           // 5
-            this.checkMcp(),                   // 6
-            this.checkMemory(),                // 7
-            this.checkQueues(),                // 8
-            this.checkRedis(),                 // 9
-            this.checkSslCertificate(),        // 10
-            this.checkStripe(),                // 11
-            this.checkSystem(),                // 12
-            this.checkWebSocket(),             // 13
-            this.checkImageStorage(),          // 14
-            this.checkEmbeddingService(),      // 15
-        ]);
+        const serviceChecks = [
+            { name: "API", check: () => this.checkApi() },
+            { name: "Bus", check: () => this.checkBus() },
+            { name: "CronJobs", check: () => this.checkCronJobs() },
+            { name: "Database", check: () => this.checkDatabase() },
+            { name: "i18n", check: () => this.checkI18n() },
+            { name: "LLMServices", check: () => this.checkLlmServices() },
+            { name: "MCP", check: () => this.checkMcp() },
+            { name: "Memory", check: () => this.checkMemory() },
+            { name: "Queues", check: () => this.checkQueues() },
+            { name: "Redis", check: () => this.checkRedis() },
+            { name: "SSLCertificate", check: () => this.checkSslCertificate() },
+            { name: "Stripe", check: () => this.checkStripe() },
+            { name: "System", check: () => this.checkSystem() },
+            { name: "WebSocket", check: () => this.checkWebSocket() },
+            { name: "ImageStorage", check: () => this.checkImageStorage() },
+            { name: "EmbeddingService", check: () => this.checkEmbeddingService() },
+        ];
+
+        const results: { name: string, status: "fulfilled" | "rejected", value?: any, reason?: any }[] = [];
+
+        for (const { name, check } of serviceChecks) {
+            logger.info(`Health check starting for: ${name}`);
+            try {
+                const result = await check();
+                logger.info(`Health check completed for: ${name}`);
+                results.push({ name, status: "fulfilled", value: result });
+            } catch (error) {
+                logger.error(`Health check failed for: ${name}`, { error });
+                results.push({ name, status: "rejected", reason: error });
+            }
+        }
+
+        logger.info("All individual health checks processed.");
 
         // Helper to create a default 'Down' status for failed checks
         function createDownStatus(serviceName: string, error: unknown): ServiceHealth {
+            // Aggressive error detail extraction - simplified for robust JSON serialization
+            let serializableErrorDetails: object;
+            if (error instanceof Error) {
+                serializableErrorDetails = {
+                    message: error.message,
+                    name: error.name,
+                    stack: debug ? error.stack : "Stack trace available in development mode",
+                    type: "ErrorInstance",
+                };
+            } else {
+                let messageString: string;
+                try {
+                    messageString = JSON.stringify(error);
+                } catch (stringifyError) {
+                    messageString = String(error);
+                }
+                serializableErrorDetails = {
+                    message: messageString,
+                    type: typeof error,
+                    details: "Non-Error object thrown",
+                };
+            }
+
             return {
                 healthy: false,
                 status: ServiceStatus.Down,
                 lastChecked: Date.now(),
-                details: { error: `Failed to check ${serviceName}: ${(error instanceof Error) ? error.message : String(error)}` },
+                details: {
+                    checkFailedFor: serviceName,
+                    errorDetails: serializableErrorDetails,
+                },
             };
         }
 
         // Process results, providing defaults for rejected promises
-        const apiHealth = results[0].status === "fulfilled" ? results[0].value : createDownStatus("API", results[0].reason);
-        const busHealth = results[1].status === "fulfilled" ? results[1].value : createDownStatus("Bus", results[1].reason);
-        const cronJobsHealth = results[2].status === "fulfilled" ? results[2].value : createDownStatus("Cron Jobs", results[2].reason);
-        const dbHealth = results[3].status === "fulfilled" ? results[3].value : createDownStatus("Database", results[3].reason);
-        const i18nHealth = results[4].status === "fulfilled" ? results[4].value : createDownStatus("i18n", results[4].reason);
-        const llmHealth = results[5].status === "fulfilled" ? results[5].value : {}; // Handled differently as it's an object
-        if (results[5].status === "rejected") logger.error("LLM health check failed", { trace: "health-llm-fail", error: results[5].reason });
-        const mcpHealth = results[6].status === "fulfilled" ? results[6].value : createDownStatus("MCP", results[6].reason);
-        const memoryHealth = results[7].status === "fulfilled" ? results[7].value : createDownStatus("Memory", results[7].reason);
-        const queueHealths = results[8].status === "fulfilled" ? results[8].value : {}; // Handled differently as it's an object
-        if (results[8].status === "rejected") logger.error("Queue health check failed", { trace: "health-queue-fail", error: results[8].reason });
-        const redisHealth = results[9].status === "fulfilled" ? results[9].value : createDownStatus("Redis", results[9].reason);
-        const sslHealth = results[10].status === "fulfilled" ? results[10].value : createDownStatus("SSL", results[10].reason);
-        const stripeHealth = results[11].status === "fulfilled" ? results[11].value : createDownStatus("Stripe", results[11].reason);
-        const systemHealth = results[12].status === "fulfilled" ? results[12].value : createDownStatus("System", results[12].reason);
-        const websocketHealth = results[13].status === "fulfilled" ? results[13].value : createDownStatus("WebSocket", results[13].reason);
-        const imageStorageHealth = results[14].status === "fulfilled" ? results[14].value : createDownStatus("Image Storage", results[14].reason);
-        const embeddingServiceHealth = results[15].status === "fulfilled" ? results[15].value : createDownStatus("Embedding Service", results[15].reason);
+        // Match these indices to the order in serviceChecks array
+        const apiHealth = results.find(r => r.name === "API")?.status === "fulfilled" ? results.find(r => r.name === "API")!.value : createDownStatus("API", results.find(r => r.name === "API")?.reason);
+        const busHealth = results.find(r => r.name === "Bus")?.status === "fulfilled" ? results.find(r => r.name === "Bus")!.value : createDownStatus("Bus", results.find(r => r.name === "Bus")?.reason);
+        const cronJobsHealth = results.find(r => r.name === "CronJobs")?.status === "fulfilled" ? results.find(r => r.name === "CronJobs")!.value : createDownStatus("Cron Jobs", results.find(r => r.name === "CronJobs")?.reason);
+        const dbHealth = results.find(r => r.name === "Database")?.status === "fulfilled" ? results.find(r => r.name === "Database")!.value : createDownStatus("Database", results.find(r => r.name === "Database")?.reason);
+        const i18nHealth = results.find(r => r.name === "i18n")?.status === "fulfilled" ? results.find(r => r.name === "i18n")!.value : createDownStatus("i18n", results.find(r => r.name === "i18n")?.reason);
+
+        let llmHealth: { [key: string]: ServiceHealth } = {};
+        const llmResult = results.find(r => r.name === "LLMServices");
+        if (llmResult?.status === "fulfilled") {
+            llmHealth = llmResult.value;
+        } else if (llmResult?.status === "rejected") {
+            logger.error("LLM health check failed", { trace: "health-llm-fail", error: llmResult.reason });
+            // llmHealth remains empty or you could add a generic error entry
+        }
+
+        const mcpHealth = results.find(r => r.name === "MCP")?.status === "fulfilled" ? results.find(r => r.name === "MCP")!.value : createDownStatus("MCP", results.find(r => r.name === "MCP")?.reason);
+        const memoryHealth = results.find(r => r.name === "Memory")?.status === "fulfilled" ? results.find(r => r.name === "Memory")!.value : createDownStatus("Memory", results.find(r => r.name === "Memory")?.reason);
+
+        let queueHealths: { [key: string]: ServiceHealth } = {};
+        const queueResult = results.find(r => r.name === "Queues");
+        if (queueResult?.status === "fulfilled") {
+            queueHealths = queueResult.value;
+        } else if (queueResult?.status === "rejected") {
+            const reason = queueResult.reason;
+            const errorDetails = (reason instanceof Error)
+                ? { message: reason.message, name: reason.name, stack: reason.stack, type: "ErrorInstance" }
+                : { /* ... detailed error object construction ... */ };
+            logger.error("Queue health check failed", { trace: "health-queue-fail", error: errorDetails });
+            // queueHealths remains empty or you could add a generic error entry
+        }
+
+        const redisHealth = results.find(r => r.name === "Redis")?.status === "fulfilled" ? results.find(r => r.name === "Redis")!.value : createDownStatus("Redis", results.find(r => r.name === "Redis")?.reason);
+        const sslHealth = results.find(r => r.name === "SSLCertificate")?.status === "fulfilled" ? results.find(r => r.name === "SSLCertificate")!.value : createDownStatus("SSL", results.find(r => r.name === "SSLCertificate")?.reason);
+        const stripeHealth = results.find(r => r.name === "Stripe")?.status === "fulfilled" ? results.find(r => r.name === "Stripe")!.value : createDownStatus("Stripe", results.find(r => r.name === "Stripe")?.reason);
+        const systemHealth = results.find(r => r.name === "System")?.status === "fulfilled" ? results.find(r => r.name === "System")!.value : createDownStatus("System", results.find(r => r.name === "System")?.reason);
+        const websocketHealth = results.find(r => r.name === "WebSocket")?.status === "fulfilled" ? results.find(r => r.name === "WebSocket")!.value : createDownStatus("WebSocket", results.find(r => r.name === "WebSocket")?.reason);
+        const imageStorageHealth = results.find(r => r.name === "ImageStorage")?.status === "fulfilled" ? results.find(r => r.name === "ImageStorage")!.value : createDownStatus("Image Storage", results.find(r => r.name === "ImageStorage")?.reason);
+        const embeddingServiceHealth = results.find(r => r.name === "EmbeddingService")?.status === "fulfilled" ? results.find(r => r.name === "EmbeddingService")!.value : createDownStatus("Embedding Service", results.find(r => r.name === "EmbeddingService")?.reason);
 
 
         // Determine overall status
@@ -1102,11 +1211,15 @@ export class HealthService {
             websocketHealth,
             imageStorageHealth,
             embeddingServiceHealth,
-            ...Object.values(queueHealths),
-            ...Object.values(llmHealth),
-        ];
+            // Spread results from checks that return an object of ServiceHealth
+            ...(Object.values(queueHealths) as ServiceHealth[]),
+            ...(Object.values(llmHealth) as ServiceHealth[]),
+        ].filter(s => s !== undefined && s !== null); // Filter out undefined/null if createDownStatus can return them or if a check isn't found
+
         const overallStatus = allServices.every(s => s?.status === ServiceStatus.Operational) ? ServiceStatus.Operational :
             allServices.some(s => s?.status === ServiceStatus.Down) ? ServiceStatus.Down : ServiceStatus.Degraded;
+
+        logger.info(`HealthService.getHealth() completed. Overall status: ${overallStatus}`);
 
         const health: SystemHealth = {
             status: overallStatus,
@@ -1141,14 +1254,36 @@ export class HealthService {
  */
 export function setupHealthCheck(app: Express): void {
     app.get("/healthcheck", async (_req, res) => {
+        console.log("here 1");
+        const HEALTH_CHECK_TIMEOUT_MS = 30000; // 30 seconds
+
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error("Health check timed out"));
+            }, HEALTH_CHECK_TIMEOUT_MS);
+        });
+
         try {
-            const health = await HealthService.get().getHealth();
+            const health = await Promise.race([
+                HealthService.get().getHealth(),
+                timeoutPromise,
+            ]) as SystemHealth; // Added type assertion after Promise.race
+
             res.status(HttpStatus.Ok).json(health);
         } catch (error) {
+            let errorMessage = "Health check failed";
+            if (error instanceof Error && error.message === "Health check timed out") {
+                errorMessage = "Health check timed out after " + (HEALTH_CHECK_TIMEOUT_MS / SECONDS_1_MS) + " seconds";
+            } else if (error instanceof Error) {
+                errorMessage = `Health check failed: ${error.message}`;
+            }
+            // Log the actual error for server-side diagnostics
+            logger.error(`🚨 ${errorMessage}`, { trace: "healthcheck-error", error });
+
             res.status(HttpStatus.ServiceUnavailable).json({
                 status: ServiceStatus.Down,
                 version: process.env.npm_package_version || "unknown",
-                error: "Health check failed",
+                error: errorMessage, // Send more specific error message
             });
         }
     });
