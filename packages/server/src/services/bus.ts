@@ -28,7 +28,7 @@ export interface BillingEvent extends BaseEvent {
     /** system that emitted it (Stripe, Scheduler, LLM, …) */
     source: CreditSourceSystem;
     /** any additional data you want to inspect later */
-    meta: Record<string, unknown>;
+    meta?: Record<string, unknown>;
 }
 
 export interface BillingNegativeBalanceEvent extends BaseEvent {
@@ -437,16 +437,51 @@ export class RedisStreamBus extends EventBus {
     }
 
     private async ensure() {
-        if (this.client.status === "ready" || this.client.status === "connect" || this.client.status === "connecting" || this.client.status === "reconnecting") return;
-        await this.client.connect();
-        // Idempotent: create stream & consumer-group if they don't exist
-        await this.client.xgroup(
-            "CREATE",
-            this.options.streamName,
-            this.options.groupName,
-            "$", // start ID
-            "MKSTREAM", // create stream if it doesn't exist
-        ).catch(() => { /* already exists */ });
+        // Step 1: Ensure the client is connected or attempting to connect.
+        if (this.client.status !== "ready" &&
+            this.client.status !== "connect" && // 'connect' is when client is connected, before 'ready'
+            this.client.status !== "connecting" &&
+            this.client.status !== "reconnecting") {
+            try {
+                logger.info(`[RedisStreamBus] Attempting client.connect() for stream ${this.options.streamName}. Current status: ${this.client.status}`);
+                await this.client.connect();
+                logger.info(`[RedisStreamBus] Client.connect() successful for stream ${this.options.streamName}. Status: ${this.client.status}`);
+            } catch (connectError) {
+                logger.error(`[RedisStreamBus] Client.connect() failed for stream ${this.options.streamName}.`, {
+                    errorName: (connectError as Error)?.name,
+                    errorMessage: (connectError as Error)?.message,
+                    errorStack: (connectError as Error)?.stack,
+                    errorObj: JSON.stringify(connectError, Object.getOwnPropertyNames(connectError)),
+                });
+                throw connectError;
+            }
+        }
+
+        // Step 2: Always attempt to create stream & consumer-group idempotently,
+        // as client 'ready' status doesn't guarantee these structures exist.
+        try {
+            await this.client.xgroup(
+                "CREATE",
+                this.options.streamName,
+                this.options.groupName,
+                "$",
+                "MKSTREAM",
+            );
+        } catch (xgroupError) {
+            const err = xgroupError as Error;
+            if (err.message && err.message.includes("BUSYGROUP")) {
+                // Consumer group already exists. This is good! Can log if desired, but we'll skip it.
+            } else {
+                logger.error(`[RedisStreamBus] Failed to create consumer group ${this.options.groupName} for stream ${this.options.streamName}. Client status: ${this.client.status}`, {
+                    errorName: err?.name,
+                    errorMessage: err?.message,
+                    errorStack: err?.stack,
+                    errorObj: JSON.stringify(xgroupError, Object.getOwnPropertyNames(xgroupError)),
+                });
+                // If group creation fails for reasons other than BUSYGROUP, this is critical.
+                throw xgroupError;
+            }
+        }
     }
 
     /** fire-and-forget publish */

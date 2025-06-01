@@ -1,4 +1,5 @@
-import { MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@local/shared";
+import { LATEST_CONFIG_VERSION, MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@local/shared";
+import type { Prisma } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -26,7 +27,7 @@ const __typename = "ResourceVersion" as const;
 export const ResourceVersionModel: ResourceVersionModelLogic = ({
     __typename,
     dbTable: "resource_version",
-    dbTranslationTable: "resource_version_translation",
+    dbTranslationTable: "resource_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -77,7 +78,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                     id: BigInt(data.id),
                     publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
                     complexity: preData.complexityMap[data.id] ?? 0,
-                    config: noNull(data.config),
+                    config: (data.config ?? { __version: LATEST_CONFIG_VERSION }) as unknown as Prisma.InputJsonValue,
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
@@ -109,7 +110,7 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
                     complexity: preData.complexityMap[data.id] ?? 0,
-                    config: noNull(data.config),
+                    config: noNull(data.config) as unknown as (Prisma.InputJsonValue | undefined),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
