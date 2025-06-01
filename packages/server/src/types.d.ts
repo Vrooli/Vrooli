@@ -62,6 +62,7 @@ export type SessionData = {
     userId?: string | null;
     /** Users logged in with this session (if isLoggedIn is true) */
     users?: SessionUser[] | null;
+    /** True if the session token has been validated. */
     validToken?: boolean;
 }
 
