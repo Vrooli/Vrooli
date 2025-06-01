@@ -1,7 +1,6 @@
-import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, type ModelType, type ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, ScheduleSortBy, generatePublicId, scheduleValidation, type ModelType, type ScheduleFor } from "@local/shared";
 import { type Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { findFirstRel } from "../../builders/findFirstRel.js";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
@@ -45,6 +44,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: data.timezone,
+                    userId: data.userId ? BigInt(data.userId) : undefined,
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                     // These relations are treated as one-to-one in the API, but not in the database.
@@ -58,13 +58,14 @@ export const ScheduleModel: ScheduleModelLogic = ({
                     startTime: noNull(data.startTime),
                     endTime: noNull(data.endTime),
                     timezone: noNull(data.timezone),
+                    userId: data.userId ? BigInt(data.userId) : undefined,
                     exceptions: await shapeHelper({ relation: "exceptions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleException", parentRelationshipName: "schedule", data, ...rest }),
                     recurrences: await shapeHelper({ relation: "recurrences", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ScheduleRecurrence", parentRelationshipName: "schedule", data, ...rest }),
                 };
             },
         },
         trigger: {
-            afterMutations: ({ createdIds, updatedIds, userData }) => {
+            afterMutations: ({ createdIds: _createdIds, updatedIds: _updatedIds, userData: _userData }) => {
                 // TODO should check both creates and updates if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
         },
@@ -92,25 +93,23 @@ export const ScheduleModel: ScheduleModelLogic = ({
         isPublic: (...rest) => oneIsPublic<ScheduleModelInfo["DbSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType]), ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => {
-            if (!data) return {};
-            // Find owner from the object that has the pull request
-            const [onField, onData] = findFirstRel(data, Object.values(forMapper));
-            if (!onField || !onData) return {};
-            const onType = uppercaseFirstLetter(onField.slice(0, -1)) as ModelType;
-            const canValidate = Array.isArray(onData) && onData.length > 0;
-            if (!canValidate) return {};
-            return ModelMap.get(onType).validate().owner(onData[0], userId);
-        },
+        owner: (data) => ({
+            Team: data?.meetings?.[0]?.team,
+            User: data?.user ?? data?.runs?.[0]?.user,
+        }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
+            user: "User",
             ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType])),
         }),
         visibility: {
             own: function getOwn(data) {
                 return {
                     OR: [
+                        // Direct user ownership
+                        { user: useVisibility("User", "Own", data) },
+                        // Ownership through related objects
                         ...Object.entries(forMapper).map(([key, value]) => ({
                             [value]: { some: useVisibility(key as ModelType, "Own", data) },
                         })),
