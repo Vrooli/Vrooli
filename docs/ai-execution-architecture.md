@@ -855,6 +855,118 @@ This design philosophy - **"coordination through understanding"** rather than "c
 
 **Purpose**: Navigator-agnostic workflow execution with parallel coordination and state management
 
+The `RunStateMachine` is at the heart of Vrooli's ability to execute diverse automation routines. The following diagram visualizes its lifecycle and the various states it transitions through while managing routine execution:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    
+    %% Initialization States
+    Idle --> Initializing : initNewRun() / initExistingRun()
+    Initializing --> LoadingRoutine : Load routine definition
+    LoadingRoutine --> ValidatingConfiguration : Validate run config
+    ValidatingConfiguration --> SelectingNavigator : Choose appropriate navigator
+    SelectingNavigator --> InitializingContext : Setup execution context
+    InitializingContext --> Initialized : All systems ready
+    
+    %% Core Execution States
+    Initialized --> Running : runUntilDone() / runOneIteration()
+    Running --> ExecutingBranches : Process active branches
+    ExecutingBranches --> EvaluatingConditions : Check branch conditions
+    EvaluatingConditions --> HandlingEvents : Process boundary events
+    HandlingEvents --> UpdatingProgress : Update state & metrics
+    UpdatingProgress --> CheckingLimits : Validate resource limits
+    
+    %% Decision Points and Loops
+    CheckingLimits --> LimitsExceeded : Limits reached
+    CheckingLimits --> BranchesCompleted : All branches done
+    CheckingLimits --> HasActiveBranches : Branches remain active
+    CheckingLimits --> AllBranchesWaiting : All branches waiting
+    
+    HasActiveBranches --> ExecutingBranches : Continue execution
+    AllBranchesWaiting --> WaitingForEvents : Enter waiting state
+    
+    %% Event Handling States
+    WaitingForEvents --> ProcessingTimeEvent : Timer triggers
+    WaitingForEvents --> ProcessingMessageEvent : Message received
+    WaitingForEvents --> ProcessingSignalEvent : Signal received
+    WaitingForEvents --> ProcessingErrorEvent : Error boundary triggered
+    
+    ProcessingTimeEvent --> ReactivatingBranches : Resume execution
+    ProcessingMessageEvent --> ReactivatingBranches : Resume execution  
+    ProcessingSignalEvent --> ReactivatingBranches : Resume execution
+    ProcessingErrorEvent --> ErrorRecovery : Handle error
+    
+    ReactivatingBranches --> ExecutingBranches : Continue with active branches
+    
+    %% Error and Recovery States
+    ErrorRecovery --> RetryingExecution : Retry strategy
+    ErrorRecovery --> FallbackStrategy : Use fallback
+    ErrorRecovery --> EscalatingError : Cannot recover
+    
+    RetryingExecution --> ExecutingBranches : Retry successful
+    RetryingExecution --> EscalatingError : Retry failed
+    FallbackStrategy --> ExecutingBranches : Fallback successful  
+    FallbackStrategy --> EscalatingError : Fallback failed
+    
+    %% Terminal States
+    BranchesCompleted --> Completed : Success
+    LimitsExceeded --> LimitsFailed : Resource exhaustion
+    EscalatingError --> Failed : Unrecoverable error
+    
+    %% Pause/Resume States
+    Running --> Pausing : stopRun(PAUSED)
+    ExecutingBranches --> Pausing : External pause request
+    WaitingForEvents --> Pausing : External pause request
+    Pausing --> Paused : Save state & suspend
+    Paused --> Resuming : Resume request
+    Resuming --> Running : Restore state & continue
+    
+    %% Cancellation States  
+    Running --> Cancelling : stopRun(CANCELLED)
+    ExecutingBranches --> Cancelling : External cancel request
+    WaitingForEvents --> Cancelling : External cancel request
+    Paused --> Cancelling : Cancel from pause
+    Cancelling --> Cancelled : Cleanup & terminate
+    
+    %% Navigator Integration States
+    SelectingNavigator --> BpmnNavigator : BPMN workflow
+    SelectingNavigator --> LangchainNavigator : Langchain workflow
+    SelectingNavigator --> TemporalNavigator : Temporal workflow
+    SelectingNavigator --> CustomNavigator : Custom workflow
+    
+    BpmnNavigator --> InitializingContext
+    LangchainNavigator --> InitializingContext
+    TemporalNavigator --> InitializingContext
+    CustomNavigator --> InitializingContext
+    
+    %% Final States
+    Completed --> [*]
+    Failed --> [*]
+    LimitsFailed --> [*]
+    Cancelled --> [*]
+    
+    %% State Annotations
+    state WaitingForEvents {
+        [*] --> EventListener
+        EventListener --> TimerCheck : Check time-based events
+        EventListener --> MessageQueue : Check message events
+        EventListener --> SignalMonitor : Check signal events
+        TimerCheck --> EventListener
+        MessageQueue --> EventListener
+        SignalMonitor --> EventListener
+    }
+    
+    state ExecutingBranches {
+        [*] --> DeterminingConcurrency
+        DeterminingConcurrency --> SequentialExecution : Resource constraints
+        DeterminingConcurrency --> ParallelExecution : Resources available
+        SequentialExecution --> BranchComplete
+        ParallelExecution --> BranchComplete
+        BranchComplete --> [*]
+    }
+```
+
 #### **Plug-and-Play Routine Architecture**
 The RunStateMachine represents Vrooli's core innovation: a **universal workflow execution engine** that's completely agnostic to the underlying automation platform. This creates an unprecedented **universal automation ecosystem**:
 
@@ -3081,10 +3193,9 @@ graph TB
             AuditLogger[AuditLogger<br/>📝 Activity tracking<br/>🔍 Compliance monitoring<br/>📊 Security analytics]
         end
         
-        subgraph "AI-Specific Security"
-            PromptInjectionGuard[Prompt Injection Guard<br/>🛡️ Injection detection<br/>🔍 Pattern analysis<br/>⚡ Real-time blocking]
-            ModelIntegrityValidator[Model Integrity Validator<br/>🔐 Model verification<br/>📊 Checksum validation<br/>🔄 Tampering detection]
-            DataPoisoningDetector[Data Poisoning Detector<br/>🔍 Training data validation<br/>📊 Quality metrics<br/>🚨 Anomaly detection]
+        subgraph "Event-Driven Security"
+            SecurityEvents[Security Events<br/>🛡️ Threat indicators<br/>🔍 Anomaly patterns<br/>⚡ Policy violations]
+            SecurityAgents[Security Agents<br/>🤖 Subscribe to events<br/>📊 Analyze & report<br/>🚨 Trigger responses]
         end
         
         subgraph "Execution Security"
@@ -3103,9 +3214,8 @@ graph TB
     SecurityManager --> AuthenticationService
     SecurityManager --> AuthorizationEngine
     SecurityManager --> AuditLogger
-    SecurityManager --> PromptInjectionGuard
-    SecurityManager --> ModelIntegrityValidator
-    SecurityManager --> DataPoisoningDetector
+    SecurityManager --> SecurityEvents
+    SecurityManager --> SecurityAgents
     SecurityManager --> SandboxManager
     SecurityManager --> CodeValidator
     SecurityManager --> NetworkController
@@ -3121,7 +3231,7 @@ graph TB
     
     class SecurityManager security
     class AuthenticationService,AuthorizationEngine,AuditLogger access
-    class PromptInjectionGuard,ModelIntegrityValidator,DataPoisoningDetector aiSecurity
+    class SecurityEvents,SecurityAgents aiSecurity
     class SandboxManager,CodeValidator,NetworkController execution
     class EncryptionService,PrivacyManager,SecretManager data
 ```
@@ -3221,10 +3331,9 @@ graph TB
             LoadBalancer[LoadBalancer<br/>⚖️ Traffic distribution<br/>📊 Capacity management<br/>🔄 Auto-scaling]
         end
         
-        subgraph "Intelligence Monitoring"
-            QualityTracker[QualityTracker<br/>📊 Output quality<br/>✅ Success rates<br/>📈 Improvement tracking]
-            UsageAnalyzer[UsageAnalyzer<br/>📊 Pattern analysis<br/>🔍 Optimization opportunities<br/>📈 Trend identification]
-            FeedbackCollector[FeedbackCollector<br/>💬 User feedback<br/>⭐ Quality ratings<br/>📊 Sentiment analysis]
+        subgraph "Event-Driven Intelligence Monitoring"
+            MonitoringEvents[Monitoring Events<br/>📊 Quality metrics<br/>📈 Usage patterns<br/>💬 Feedback data]
+            MonitoringAgents[Monitoring Agents<br/>🤖 Subscribe to events<br/>💡 Generate insights<br/>📈 Suggest improvements]
         end
     end
     
@@ -3234,9 +3343,8 @@ graph TB
     MonitoringService --> HealthChecker
     MonitoringService --> CircuitBreaker
     MonitoringService --> LoadBalancer
-    MonitoringService --> QualityTracker
-    MonitoringService --> UsageAnalyzer
-    MonitoringService --> FeedbackCollector
+    MonitoringService --> MonitoringEvents
+    MonitoringService --> MonitoringAgents
     
     classDef monitoring fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef performance fill:#bbdefb,stroke:#1976d2,stroke-width:2px
@@ -3246,7 +3354,7 @@ graph TB
     class MonitoringService monitoring
     class MetricsCollector,AlertManager,DashboardService performance
     class HealthChecker,CircuitBreaker,LoadBalancer health
-    class QualityTracker,UsageAnalyzer,FeedbackCollector intelligence
+    class MonitoringEvents,MonitoringAgents intelligence
 ```
 
 ## Resilience and Error Handling Architecture
@@ -3272,14 +3380,13 @@ graph TB
         
         subgraph "System Recovery"
             StateRecovery[State Recovery<br/>🔄 Checkpoint restoration<br/>📊 Transaction rollback<br/>💾 Data consistency]
-            ServiceRecovery[Service Recovery<br/>🔄 Service restart<br/>📊 Load redistribution<br/>⚖️ Capacity management]
-            DataRecovery[Data Recovery<br/>💾 Backup restoration<br/>🔄 Replication sync<br/>📊 Integrity verification]
+            ServiceRecovery[ServiceRecovery<br/>🔄 Service restart<br/>📊 Load redistribution<br/>⚖️ Capacity management]
+            DataRecovery[DataRecovery<br/>💾 Backup restoration<br/>🔄 Replication sync<br/>📊 Integrity verification]
         end
         
-        subgraph "Learning from Failures"
-            FailureAnalyzer[Failure Analyzer<br/>🔍 Root cause analysis<br/>📊 Pattern identification<br/>🧠 Learning extraction]
-            PreventionEngine[Prevention Engine<br/>🛡️ Proactive measures<br/>📊 Risk prediction<br/>🔄 Policy adaptation]
-            KnowledgeUpdater[Knowledge Updater<br/>🧠 Failure knowledge base<br/>📋 Best practice updates<br/>🔄 Continuous improvement]
+        subgraph "Event-Driven Failure Detection/Adaptation"
+            FailureEvents[Failure Events<br/>🚨 Error reports<br/>📉 Degradation signals<br/>💔 Anomaly detection]
+            ResilienceAgents[Resilience Agents<br/>🤖 Subscribe to events<br/>🔍 Analyze failures<br/>💡 Adapt & recover]
         end
     end
     
@@ -3291,9 +3398,8 @@ graph TB
     ResilienceOrchestrator --> StrategyAdaptation
     ResilienceOrchestrator --> StateRecovery
     ResilienceOrchestrator --> DataRecovery
-    ResilienceOrchestrator --> FailureAnalyzer
-    ResilienceOrchestrator --> PreventionEngine
-    ResilienceOrchestrator --> KnowledgeUpdater
+    ResilienceOrchestrator --> FailureEvents
+    ResilienceOrchestrator --> ResilienceAgents
     
     classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef detection fill:#ffebee,stroke:#c62828,stroke-width:2px
@@ -3305,7 +3411,7 @@ graph TB
     class AnomalyDetector,HealthProbe,CircuitBreaker detection
     class ModelFallback,ContextRecovery,StrategyAdaptation aiRecovery
     class StateRecovery,ServiceRecovery,DataRecovery systemRecovery
-    class FailureAnalyzer,PreventionEngine,KnowledgeUpdater learning
+    class FailureEvents,ResilienceAgents learning
 ```
 
 ### **Error Handling Patterns**
@@ -3556,180 +3662,6 @@ graph TB
     class SwarmDistribution,LeaderElection,WorkloadPartitioning tier1
     class ProcessSharding,StateReplication,NavigatorScaling tier2
     class ExecutorClusters,ModelFarming,ToolOrchestration tier3
-```
-
-### **Caching and Memory Optimization**
-
-#### **Intelligent Caching Architecture**
-
-```mermaid
-graph TB
-    subgraph "Multi-Layer Caching Framework"
-        CacheOrchestrator[Cache Orchestrator<br/>🧠 Central cache coordination<br/>📊 Cache strategy optimization<br/>🔄 Invalidation management]
-        
-        subgraph "Context Caching"
-            SemanticCache[Semantic Cache<br/>🎯 Similarity-based caching<br/>📊 Vector embeddings<br/>⚡ Fast retrieval]
-            HierarchicalCache[Hierarchical Cache<br/>📋 Context inheritance<br/>🔄 Multi-level storage<br/>💾 Memory optimization]
-            TemporalCache[Temporal Cache<br/>⏰ Time-aware caching<br/>📈 Usage prediction<br/>🔄 Lifecycle management]
-        end
-        
-        subgraph "Model Caching"
-            ModelCache[Model Cache<br/>🧠 Pre-loaded models<br/>⚡ Instant availability<br/>💰 Cost reduction]
-            ResponseCache[Response Cache<br/>📊 Output memoization<br/>🎯 Pattern matching<br/>⚡ Response acceleration]
-            EmbeddingCache[Embedding Cache<br/>🎯 Vector storage<br/>📊 Similarity search<br/>💾 Memory optimization]
-        end
-        
-        subgraph "Execution Caching"
-            RoutineCache[Routine Cache<br/>⚙️ Process templates<br/>🔄 Reusable patterns<br/>⚡ Execution acceleration]
-            ResultCache[Result Cache<br/>📊 Computation memoization<br/>🎯 Deterministic outputs<br/>💰 Resource savings]
-            StateCache[State Cache<br/>💾 Checkpoint storage<br/>🔄 Recovery optimization<br/>⚡ Resume acceleration]
-        end
-        
-        subgraph "Cache Intelligence"
-            PredictiveEviction[Predictive Eviction<br/>🔮 Usage prediction<br/>📊 Pattern analysis<br/>🧠 Smart retention]
-            AdaptivePartitioning[Adaptive Partitioning<br/>📊 Dynamic sizing<br/>⚖️ Resource allocation<br/>📈 Performance optimization]
-            ConsistencyManager[Consistency Manager<br/>🔄 Cache coherence<br/>📊 Invalidation strategies<br/>⚡ Update propagation]
-        end
-    end
-    
-    CacheOrchestrator --> SemanticCache
-    CacheOrchestrator --> HierarchicalCache
-    CacheOrchestrator --> TemporalCache
-    CacheOrchestrator --> ModelCache
-    CacheOrchestrator --> ResponseCache
-    CacheOrchestrator --> EmbeddingCache
-    CacheOrchestrator --> RoutineCache
-    CacheOrchestrator --> ResultCache
-    CacheOrchestrator --> StateCache
-    CacheOrchestrator --> PredictiveEviction
-    CacheOrchestrator --> AdaptivePartitioning
-    CacheOrchestrator --> ConsistencyManager
-    
-    classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef contextCache fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef modelCache fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef executionCache fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef intelligence fill:#ffebee,stroke:#c62828,stroke-width:2px
-    
-    class CacheOrchestrator orchestrator
-    class SemanticCache,HierarchicalCache,TemporalCache contextCache
-    class ModelCache,ResponseCache,EmbeddingCache modelCache
-    class RoutineCache,ResultCache,StateCache executionCache
-    class PredictiveEviction,AdaptivePartitioning,ConsistencyManager intelligence
-```
-
-### **Performance Monitoring and Optimization**
-
-#### **Real-time Performance Analytics**
-
-```typescript
-interface PerformanceFramework {
-    // Performance Monitoring
-    collectMetrics(component: SystemComponent): PerformanceMetrics;
-    analyzeBottlenecks(metrics: PerformanceMetrics[]): BottleneckAnalysis;
-    predictPerformance(workload: WorkloadProfile): PerformancePrediction;
-    
-    // Resource Optimization
-    optimizeResourceAllocation(demand: ResourceDemand): OptimizationPlan;
-    rebalanceLoad(clusters: ClusterStatus[]): RebalancingStrategy;
-    scaleCapacity(trend: PerformanceTrend): ScalingDecision;
-    
-    // Cost Optimization
-    analyzeCostEfficiency(usage: ResourceUsage): CostAnalysis;
-    optimizeBudgetAllocation(constraints: BudgetConstraints): AllocationPlan;
-    predictCosts(workload: WorkloadForecast): CostProjection;
-}
-
-interface PerformanceMetrics {
-    // Latency Metrics
-    readonly responseTime: LatencyMetrics;
-    readonly processingTime: ProcessingMetrics;
-    readonly queueTime: QueueMetrics;
-    
-    // Throughput Metrics
-    readonly requestsPerSecond: number;
-    readonly tokensPerSecond: number;
-    readonly routinesCompleted: number;
-    
-    // Resource Metrics
-    readonly cpuUtilization: number;
-    readonly memoryUsage: MemoryMetrics;
-    readonly networkUtilization: NetworkMetrics;
-    readonly storageIops: StorageMetrics;
-    
-    // Quality Metrics
-    readonly outputQuality: QualityScore;
-    readonly errorRate: number;
-    readonly userSatisfaction: SatisfactionScore;
-    
-    // Cost Metrics
-    readonly computeCost: CostMetrics;
-    readonly apiCost: ApiCostMetrics;
-    readonly storrageCost: StorageCostMetrics;
-}
-
-interface OptimizationStrategy {
-    readonly strategyId: string;
-    readonly targetMetrics: PerformanceTarget[];
-    readonly optimizationTechniques: OptimizationTechnique[];
-    readonly expectedImprovement: ImprovementProjection;
-    readonly implementationPlan: ImplementationStep[];
-    
-    apply(system: SystemState): Promise<OptimizationResult>;
-    validate(result: OptimizationResult): ValidationResult;
-    rollback(system: SystemState): Promise<RollbackResult>;
-}
-```
-
-### **Elastic Scaling Policies**
-
-```mermaid
-graph TB
-    subgraph "Elastic Scaling Framework"
-        ScalingPolicyEngine[Scaling Policy Engine<br/>📊 Policy management<br/>🎯 Trigger coordination<br/>⚡ Decision optimization]
-        
-        subgraph "Scaling Triggers"
-            LoadTriggers[Load Triggers<br/>📈 CPU/Memory thresholds<br/>📊 Queue depth<br/>⏱️ Response time]
-            QualityTriggers[Quality Triggers<br/>📉 Quality degradation<br/>🎯 SLA violations<br/>📊 Error rate spikes]
-            CostTriggers[Cost Triggers<br/>💰 Budget thresholds<br/>📊 Cost efficiency<br/>⚖️ ROI optimization]
-            PredictiveTriggers[Predictive Triggers<br/>🔮 Demand forecasting<br/>📈 Pattern recognition<br/>⚡ Proactive scaling]
-        end
-        
-        subgraph "Scaling Actions"
-            HorizontalScaling[Horizontal Scaling<br/>➕ Instance addition<br/>➖ Instance removal<br/>⚖️ Load distribution]
-            VerticalScaling[Vertical Scaling<br/>⬆️ Resource increase<br/>⬇️ Resource decrease<br/>🎯 Right-sizing]
-            QualityScaling[Quality Scaling<br/>📈 Quality enhancement<br/>📉 Quality reduction<br/>⚖️ Trade-off optimization]
-            GeographicScaling[Geographic Scaling<br/>🌐 Region expansion<br/>📍 Edge deployment<br/>⚡ Latency optimization]
-        end
-        
-        subgraph "Scaling Policies"
-            ReactivePolicy[Reactive Policy<br/>📊 Threshold-based<br/>⚡ Immediate response<br/>🎯 Simple rules]
-            PredictivePolicy[Predictive Policy<br/>🔮 ML-based forecasting<br/>⏰ Proactive scaling<br/>📊 Pattern learning]
-            AdaptivePolicy[Adaptive Policy<br/>🧠 Self-learning<br/>🔄 Continuous optimization<br/>📈 Performance feedback]
-        end
-    end
-    
-    ScalingPolicyEngine --> LoadTriggers
-    ScalingPolicyEngine --> QualityTriggers
-    ScalingPolicyEngine --> CostTriggers
-    ScalingPolicyEngine --> PredictiveTriggers
-    ScalingPolicyEngine --> HorizontalScaling
-    ScalingPolicyEngine --> VerticalScaling
-    ScalingPolicyEngine --> QualityScaling
-    ScalingPolicyEngine --> GeographicScaling
-    ScalingPolicyEngine --> ReactivePolicy
-    ScalingPolicyEngine --> PredictivePolicy
-    ScalingPolicyEngine --> AdaptivePolicy
-    
-    classDef engine fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef triggers fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef actions fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef policies fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class ScalingPolicyEngine engine
-    class LoadTriggers,QualityTriggers,CostTriggers,PredictiveTriggers triggers
-    class HorizontalScaling,VerticalScaling,QualityScaling,GeographicScaling actions
-    class ReactivePolicy,PredictivePolicy,AdaptivePolicy policies
 ```
 
 ## Implementation Roadmap
