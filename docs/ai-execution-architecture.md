@@ -205,7 +205,7 @@ graph LR
 ```mermaid
 graph TD
     subgraph "Tier 1: Coordination Intelligence"
-        T1[SwarmOrchestrator<br/>🎯 Strategic coordination<br/>👥 Team assembly<br/>📋 Goal decomposition]
+        T1[SwarmOrchestrator<br/>🎯 Prompt-based metacognition<br/>👥 Dynamic team coordination<br/>📋 Natural language planning]
     end
     
     subgraph "Tier 2: Process Intelligence - RunStateMachine"  
@@ -250,55 +250,467 @@ graph TD
 
 ### Tier 1: Coordination Intelligence
 
-**Purpose**: Strategic coordination of swarms and high-level goal management
+**Purpose**: Dynamic swarm coordination through AI metacognition and prompt-based reasoning
+
+Unlike traditional multi-agent systems with rigid coordination services, Vrooli's Tier 1 leverages **AI metacognition** - the ability for agents to reason about their own thinking and coordinate dynamically through natural language understanding. This creates an infinitely flexible coordination layer that evolves with AI capabilities.
 
 ```mermaid
 graph TB
-    subgraph "Coordination Intelligence"
-        SwarmOrchestrator[SwarmOrchestrator<br/>🎯 Central coordinator]
+    subgraph "Tier 1: Prompt-Based Coordination Intelligence"
+        SwarmOrchestrator[SwarmOrchestrator<br/>🎯 Swarm lifecycle management<br/>📋 State persistence<br/>🔄 Event routing]
         
-        subgraph "Core Services"
-            TeamManager[TeamManager<br/>👥 Team composition<br/>🔄 Role assignment<br/>📊 Performance tracking]
-            GoalDecomposer[GoalDecomposer<br/>🎯 Objective breakdown<br/>📋 Task prioritization<br/>🔗 Dependency mapping]
-            ResourceAllocator[ResourceAllocator<br/>💰 Budget management<br/>⏱️ Time allocation<br/>🤖 Agent assignment]
+        subgraph "Metacognitive Framework"
+            PromptEngine[Prompt Engine<br/>🧠 Role-aware system prompts<br/>📊 Dynamic context injection<br/>🎯 Goal framing]
+            
+            MCPTools[MCP Tool Suite<br/>🔧 update_swarm_shared_state<br/>📋 manage_subtasks<br/>👥 delegate_roles<br/>📢 subscribe_to_events]
+            
+            SwarmContext[Swarm Context<br/>📊 Current state<br/>🎯 Goals & subtasks<br/>👥 Team structure<br/>📝 Execution history]
         end
         
-        subgraph "Intelligence Services"
-            StrategyEngine[StrategyEngine<br/>🧠 Strategic planning<br/>🔍 Environment analysis<br/>📈 Success prediction]
-            AdaptationManager[AdaptationManager<br/>🔄 Strategy adjustment<br/>📊 Performance feedback<br/>🎯 Goal refinement]
+        subgraph "Dynamic Capabilities (via Prompting)"
+            RecruitmentLogic[Recruitment Logic<br/>🔍 Look for suitable team<br/>👥 Create new team if needed<br/>🎯 Domain expertise matching]
+            
+            TaskDecomposition[Task Decomposition<br/>📋 Break down complex goals<br/>🔗 Identify dependencies<br/>⏱️ Estimate effort]
+            
+            ResourceAllocation[Resource Allocation<br/>💰 Track credit usage<br/>⏱️ Monitor time limits<br/>🎯 Optimize allocation]
+            
+            EventCoordination[Event Coordination<br/>📢 Route events to specialists<br/>🔔 Subscribe to topics<br/>🔄 Handle async callbacks]
         end
         
-        subgraph "Communication Hub"
-            CollaborationEngine[CollaborationEngine<br/>💬 Multi-agent coordination<br/>🤝 Consensus building<br/>📢 Information sharing]
-            ContextManager[ContextManager<br/>📋 Shared knowledge<br/>🧠 Memory management<br/>🔗 Cross-swarm learning]
+        subgraph "Team Organization (MOISE+)"
+            TeamConfig[Team Config<br/>🏗️ Organizational structure<br/>👥 Role definitions<br/>🔗 Authority relations<br/>📋 Norms & obligations]
         end
     end
     
-    SwarmOrchestrator --> TeamManager
-    SwarmOrchestrator --> GoalDecomposer
-    SwarmOrchestrator --> ResourceAllocator
-    SwarmOrchestrator --> StrategyEngine
-    SwarmOrchestrator --> AdaptationManager
-    SwarmOrchestrator --> CollaborationEngine
-    SwarmOrchestrator --> ContextManager
+    %% Connections
+    SwarmOrchestrator --> PromptEngine
+    SwarmOrchestrator --> SwarmContext
+    PromptEngine --> MCPTools
+    MCPTools --> SwarmContext
+    
+    %% Dynamic capabilities emerge from prompting
+    PromptEngine -.->|"Enables reasoning about"| RecruitmentLogic
+    PromptEngine -.->|"Enables reasoning about"| TaskDecomposition
+    PromptEngine -.->|"Enables reasoning about"| ResourceAllocation
+    PromptEngine -.->|"Enables reasoning about"| EventCoordination
+    
+    TeamConfig --> SwarmContext
+    TeamConfig -.->|"Informs role behavior"| PromptEngine
     
     classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef core fill:#bbdefb,stroke:#1976d2,stroke-width:2px
-    classDef intelligence fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    classDef communication fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef framework fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef dynamic fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5
+    classDef team fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     
     class SwarmOrchestrator orchestrator
-    class TeamManager,GoalDecomposer,ResourceAllocator core
-    class StrategyEngine,AdaptationManager intelligence
-    class CollaborationEngine,ContextManager communication
+    class PromptEngine,MCPTools,SwarmContext framework
+    class RecruitmentLogic,TaskDecomposition,ResourceAllocation,EventCoordination dynamic
+    class TeamConfig team
 ```
 
-**Key Responsibilities**:
-- **Strategic Planning**: Break down complex objectives into manageable tasks
-- **Team Assembly**: Recruit and coordinate specialized agents for specific goals
-- **Resource Management**: Allocate credits, time, and capabilities optimally
-- **Adaptation**: Adjust strategies based on performance and environmental changes
-- **Knowledge Synthesis**: Share learnings across swarms and maintain organizational memory
+#### **The Metacognitive Advantage**
+
+Traditional multi-agent systems hard-code coordination logic into separate services. Vrooli takes a radically different approach: **coordination emerges from AI reasoning**. Here's how:
+
+**1. Dynamic Role Understanding**
+```typescript
+// Instead of hard-coded role behaviors, agents understand their role through prompting
+const systemPrompt = `
+You are the {{ROLE}} of an autonomous agent swarm.
+GOAL: {{GOAL}}
+
+{{ROLE_SPECIFIC_INSTRUCTIONS}}
+`;
+
+// Leaders get recruitment instructions
+if (role === "leader") {
+    instructions = RECRUITMENT_RULE_PROMPT; // Multi-step team building
+}
+```
+
+**2. Flexible Coordination Patterns**
+Agents can invent new coordination strategies on the fly:
+- **Hierarchical**: Leader delegates to specialists
+- **Peer-to-peer**: Agents collaborate directly via events
+- **Emergent**: Patterns evolve based on task success
+- **Hybrid**: Mix strategies as needed
+
+**3. Tool-Mediated Actions**
+Instead of API calls to coordination services, agents use MCP tools that feel natural:
+```typescript
+// Agent naturally expresses coordination intent
+await update_swarm_shared_state({
+    subtasks: [
+        { id: "T1", description: "Analyze market trends", status: "todo" },
+        { id: "T2", description: "Generate report", status: "todo", depends_on: ["T1"] }
+    ],
+    subtaskLeaders: { "T1": "analyst_bot_123" }
+});
+```
+
+#### **Implementation Architecture**
+
+```mermaid
+graph TB
+    subgraph "Coordination Implementation"
+        subgraph "Core Components"
+            SwarmStateMachine[SwarmStateMachine<br/>📊 Lifecycle management<br/>🔄 Event processing<br/>⏸️ Pause/resume control]
+            
+            CompletionService[CompletionService<br/>🧠 Response generation<br/>👥 Multi-bot coordination<br/>💬 Context building]
+            
+            PromptTemplate[Prompt Templates<br/>📄 prompt.txt<br/>🎭 Role-specific variants<br/>🔄 Hot-reloadable]
+        end
+        
+        subgraph "State Management"
+            ConversationState[ConversationState<br/>💬 Chat metadata<br/>👥 Participants<br/>🔧 Available tools]
+            
+            ChatConfig[ChatConfig<br/>🎯 Goal & subtasks<br/>👥 Team assignments<br/>📊 Resource limits<br/>📝 Execution records]
+            
+            TeamConfig[TeamConfig<br/>🏗️ MOISE+ structure<br/>👥 Role definitions<br/>📋 Team knowledge]
+        end
+        
+        subgraph "Event System"
+            EventBus[Event Bus<br/>📢 Pub/sub messaging<br/>🔄 Topic routing<br/>⏱️ Async handling]
+            
+            EventTypes[Event Types<br/>🚀 swarm_started<br/>💬 external_message<br/>🔧 tool_approval<br/>📊 subtask_update]
+        end
+        
+        subgraph "Dynamic Enhancement"
+            PromptInjection[Context Injection<br/>📊 Current state<br/>⏰ Timestamps<br/>🔧 Tool schemas<br/>📈 Performance metrics]
+            
+            BestPractices[Best Practices<br/>📚 Shared routines<br/>🎯 Success patterns<br/>🔄 Team learnings]
+            
+            RLOptimization[RL Optimization<br/>📊 Outcome tracking<br/>🎯 Strategy scoring<br/>🔄 Policy updates]
+        end
+    end
+    
+    %% Main flow
+    SwarmStateMachine --> CompletionService
+    CompletionService --> PromptTemplate
+    PromptTemplate --> PromptInjection
+    
+    %% State connections
+    ConversationState --> CompletionService
+    ChatConfig --> ConversationState
+    TeamConfig --> ConversationState
+    
+    %% Event flow
+    EventBus --> SwarmStateMachine
+    SwarmStateMachine --> EventTypes
+    
+    %% Enhancement flow
+    BestPractices --> PromptInjection
+    RLOptimization --> BestPractices
+    ChatConfig -.->|"Records outcomes"| RLOptimization
+    
+    classDef core fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef state fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef event fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef enhance fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class SwarmStateMachine,CompletionService,PromptTemplate core
+    class ConversationState,ChatConfig,TeamConfig state
+    class EventBus,EventTypes event
+    class PromptInjection,BestPractices,RLOptimization enhance
+```
+
+#### **Key Design Principles**
+
+**1. Prompt as Configuration**
+The system prompt IS the coordination logic. Changes to coordination behavior are as simple as updating prompts:
+```typescript
+// Easy to experiment with new coordination strategies
+const promptVariants = {
+    "hierarchical": "You must route all decisions through the team leader...",
+    "autonomous": "You have full autonomy to complete your assigned subtasks...",
+    "collaborative": "Seek consensus with team members before major decisions..."
+};
+```
+
+**2. State as Context**
+All coordination state lives in the conversation context, making it naturally accessible to LLM reasoning:
+```typescript
+interface SwarmState {
+    goal: string;                    // What we're trying to achieve
+    subtasks: SwarmSubTask[];        // Broken down work items  
+    subtaskLeaders: Record<string, string>;  // Who owns what
+    blackboard: BlackboardItem[];    // Shared working memory
+    resources: SwarmResource[];      // Created artifacts
+    records: ToolCallRecord[];       // Audit trail
+}
+```
+
+**3. Events as Natural Communication**
+Agents communicate through an event system that maps to natural concepts:
+- `swarm/user` - "The user said something"
+- `swarm/subtask` - "A subtask was updated"  
+- `swarm/role/analyst` - "Message for analysts"
+
+**4. Tools as Capabilities**
+MCP tools provide structured ways to modify swarm state while maintaining consistency:
+- `update_swarm_shared_state` - Modify any aspect of shared state
+- `find_resources` - Search for existing routines/artifacts
+- `start_routine` - Execute reusable workflows
+- `subscribe_to_events` - Dynamically adjust event routing
+
+#### **Dynamic Upgradeability**
+
+This architecture is designed for continuous improvement:
+
+**1. Prompt Evolution**
+- A/B test different prompt strategies
+- Learn from successful swarm patterns
+- Incorporate new coordination research
+
+**2. Tool Expansion**
+- Add new MCP tools as needs emerge
+- No code changes required in core engine
+- Backwards compatible with existing swarms
+
+**3. Reinforcement Learning**
+```mermaid
+graph LR
+    subgraph "RL Loop"
+        Execute[Execute Strategy] --> Measure[Measure Outcomes]
+        Measure --> Score[Score Performance]
+        Score --> Update[Update Best Practices]
+        Update --> Generate[Generate New Prompts]
+        Generate --> Execute
+    end
+    
+    classDef rl fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    class Execute,Measure,Score,Update,Generate rl
+```
+
+The system tracks:
+- Task completion rates by strategy
+- Credit efficiency per approach  
+- Time to completion metrics
+- User satisfaction scores
+
+This data feeds back into prompt templates and best practice recommendations.
+
+#### **MOISE+ Organizational Modeling**
+
+Teams can define rich organizational structures using MOISE+ notation:
+
+```moise
+structure DataAnalysisTeam {
+    group ResearchGroup {
+        role leader cardinality 1..1
+        role data_analyst cardinality 2..4  
+        role ml_engineer cardinality 1..2
+        role reporter cardinality 1..1
+        
+        link leader > data_analyst
+        link leader > ml_engineer
+        link data_analyst > reporter
+    }
+}
+
+functional DataAnalysisScheme {
+    mission m1 "Analyze customer data" {
+        goal g1 "Extract insights"
+        goal g2 "Build predictive model"
+        goal g3 "Generate report"
+    }
+    
+    goal g1 { plan: analyze_trends, identify_patterns }
+    goal g2 { plan: prepare_data, train_model, validate }
+    goal g3 { plan: summarize_findings, create_visuals }
+}
+
+normative DataAnalysisNorms {
+    norm n1: leader obliged g1
+    norm n2: data_analyst permitted g1  
+    norm n3: ml_engineer obliged g2
+    norm n4: reporter obliged g3
+}
+```
+
+This structure informs agent behavior through the prompt, creating sophisticated coordination without hard-coding.
+
+#### **Code Component Integration**
+
+The actual implementation consists of several key classes that work together to create the coordination intelligence:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API as API/WebSocket
+    participant SSM as SwarmStateMachine
+    participant CS as CompletionService
+    participant RE as ReasoningEngine
+    participant TR as ToolRunner
+    participant Store as StateStore
+    participant Bus as EventBus
+
+    User->>API: Send message/command
+    API->>SSM: handleEvent(SwarmEvent)
+    SSM->>SSM: Queue event & check state
+    
+    Note over SSM: Event Processing Loop
+    SSM->>CS: handleInternalEvent(event)
+    CS->>Store: getConversationState()
+    CS->>CS: attachTeamConfig()
+    CS->>CS: _buildSystemMessage(goal, bot, config)
+    
+    Note over CS: Multi-Bot Response Generation
+    CS->>RE: runLoop(message, systemPrompt, tools, bot)
+    
+    loop For each reasoning iteration
+        RE->>RE: Check limits & build context
+        RE->>RE: Stream LLM response
+        
+        alt Tool Call Requested
+            RE->>TR: run(toolName, args)
+            TR->>Store: Update swarm state
+            TR-->>RE: Tool result
+        end
+    end
+    
+    RE-->>CS: Final message & stats
+    CS->>Store: Save messages & update state
+    CS->>Bus: Emit credit events
+    CS-->>SSM: Completion
+    
+    SSM->>SSM: Check queue & schedule next
+    SSM-->>API: Updates via WebSocket
+    API-->>User: Stream responses
+```
+
+**Key Components:**
+
+1. **SwarmStateMachine**: Manages the swarm lifecycle and event processing
+   - Maintains event queue for sequential processing
+   - Handles pause/resume/stop operations
+   - Manages tool approval/rejection flows
+   - Implements configurable delays between processing cycles
+
+2. **CompletionService**: High-level coordination of AI responses
+   - Builds role-specific system prompts
+   - Selects appropriate responders via AgentGraph
+   - Manages conversation and team configuration
+   - Tracks resource usage and enforces limits
+
+3. **ReasoningEngine**: Low-level execution of AI reasoning loops
+   - Streams LLM responses with proper context
+   - Executes tool calls (immediate or deferred)
+   - Manages abort signals for cancellation
+   - Tracks credits and tool call counts
+
+4. **ToolRunner**: Executes MCP and custom tools
+   - Routes tool calls to appropriate handlers
+   - Manages sandboxed execution environments
+   - Returns structured results with cost tracking
+
+5. **State Management**: Multi-layer caching system
+   - L1: Local LRU cache for hot conversations
+   - L2: Redis for distributed state sharing
+   - L3: PostgreSQL for persistent storage
+   - Write-behind pattern with debouncing
+
+**Event-Driven Coordination Flow:**
+
+```typescript
+// 1. User message triggers swarm processing
+await swarmStateMachine.start(conversationId, goal, user);
+
+// 2. System builds metacognitive context
+const systemMessage = await completion.generateSystemMessageForBot(
+    goal, 
+    bot, 
+    conversationConfig,
+    teamConfig // MOISE+ structure
+);
+
+// 3. Agents reason about coordination
+const response = await reasoningEngine.runLoop({
+    startMessage: { id: messageId },
+    systemMessageContent: systemMessage, // Includes role instructions
+    availableTools: mcpTools,           // update_swarm_shared_state, etc.
+    bot: responder,
+    // ... limits and context
+});
+
+// 4. Tool calls modify swarm state
+await update_swarm_shared_state({
+    subtasks: [/* new subtasks */],
+    eventSubscriptions: {
+        "swarm/role/monitor": ["monitor_bot_456"]
+    }
+});
+
+// 5. Events propagate to subscribed agents
+BusService.publish({
+    type: "swarm/role/monitor",
+    payload: { anomaly: "resource_spike" }
+});
+```
+
+**Dynamic Behavior Examples:**
+
+```typescript
+// Leader recognizes need for expertise
+if (goal.includes("complex") || estimatedHours > 2) {
+    // Prompt includes RECRUITMENT_RULE_PROMPT
+    // Agent will naturally create team-building subtasks
+}
+
+// Specialist subscribes to relevant events
+await update_swarm_shared_state({
+    eventSubscriptions: {
+        ...current,
+        "swarm/ext/github": ["devops_bot_789"],
+        "swarm/subtask": ["coordinator_bot_123"]
+    }
+});
+
+// Role-based tool access (future enhancement)
+const toolsForRole = {
+    "leader": ["*"], // All tools
+    "analyst": ["find_resources", "start_routine"],
+    "monitor": ["subscribe_to_events", "read_blackboard"]
+};
+```
+
+This implementation achieves true metacognitive coordination - agents understand their purpose and coordinate naturally through language, while the underlying infrastructure ensures reliability, state consistency, and resource management.
+
+#### **Why Prompt-Based Metacognition Wins**
+
+The prompt-based approach to coordination intelligence offers several decisive advantages over traditional hard-coded multi-agent systems:
+
+**1. 🚀 Infinite Flexibility**
+- No need to anticipate every coordination pattern
+- Agents can invent new strategies on demand
+- Adapts to novel situations without code changes
+
+**2. 🧠 Leverages AI Evolution**
+- As LLMs improve, coordination improves automatically
+- Benefits from advances in reasoning capabilities
+- No architectural changes needed for new AI models
+
+**3. 📚 Natural Knowledge Transfer**
+- Best practices shared through prompt libraries
+- Success patterns expressed in natural language
+- Easy for humans to understand and modify
+
+**4. 🔧 Simplified Architecture**
+- Fewer moving parts = higher reliability
+- Single prompt update vs. multiple service changes
+- Easier to debug natural language than distributed systems
+
+**5. 🎯 Domain Adaptability**
+- Same infrastructure works for any domain
+- Teams customize through MOISE+ models and prompts
+- No domain-specific code required
+
+**6. 📈 Continuous Improvement Path**
+- RL can optimize prompts based on outcomes
+- A/B testing coordination strategies is trivial
+- Community can share successful patterns
+
+This design philosophy - **"coordination through understanding"** rather than "coordination through programming" - represents a fundamental shift in how we build multi-agent systems. It's not just more elegant; it's more capable, more adaptable, and more aligned with how intelligence actually works.
 
 ### Tier 2: Process Intelligence - RunStateMachine
 
@@ -431,6 +843,610 @@ This architecture makes Vrooli the **universal execution layer** for automation 
 
 > **Implementation Guide**: For detailed implementation steps and migration from the current architecture, see the [RunStateMachine Implementation Guide](./run-state-machine-migration-guide.md).
 
+### Tier 3: Execution Intelligence
+
+**Purpose**: Strategy-aware step execution with adaptive optimization and comprehensive tool integration
+
+#### **The Unified Execution Paradigm**
+
+Tier 3 represents the culmination of Vrooli's execution intelligence - where individual routine steps are executed with **strategy-aware adaptation** that evolves based on routine characteristics, usage patterns, and performance metrics. Unlike traditional workflow engines that execute steps uniformly, Vrooli's UnifiedExecutor applies different **execution strategies** dynamically:
+
+- **Conversational Strategy**: Natural language processing for creative and exploratory tasks
+- **Reasoning Strategy**: Structured analytical frameworks for complex decision-making  
+- **Deterministic Strategy**: Reliable automation for proven, repeatable processes
+
+This creates a **strategy evolution pipeline** where routines naturally progress from human-like flexibility to machine-like reliability as patterns emerge and best practices crystallize.
+
+```mermaid
+graph TB
+    subgraph "Tier 3: Execution Intelligence - UnifiedExecutor"
+        UnifiedExecutor[UnifiedExecutor<br/>🎯 Central execution coordinator<br/>🤖 Strategy-aware processing<br/>📊 Performance optimization]
+        
+        subgraph "Strategy Framework"
+            StrategySelector[StrategySelector<br/>🧠 Context-aware selection<br/>📊 Performance-based routing<br/>🔄 Dynamic adaptation]
+            
+            ConversationalStrategy[ConversationalStrategy<br/>💬 Natural language processing<br/>🤔 Creative problem-solving<br/>🔄 Human-like reasoning]
+            
+            ReasoningStrategy[ReasoningStrategy<br/>🧠 Structured analysis<br/>📊 Data-driven decisions<br/>🎯 Logic frameworks]
+            
+            DeterministicStrategy[DeterministicStrategy<br/>⚙️ Reliable automation<br/>📋 Validated workflows<br/>💰 Optimized execution]
+        end
+        
+        subgraph "Execution Infrastructure"
+            ToolOrchestrator[ToolOrchestrator<br/>🔧 MCP tool coordination<br/>🌐 API integration<br/>📊 Rate limit management]
+            
+            IOProcessor[IOProcessor<br/>📋 Input/output handling<br/>🔄 Data transformation<br/>✅ Schema validation]
+            
+            ResourceManager[ResourceManager<br/>💰 Credit tracking<br/>⏱️ Time management<br/>📊 Resource optimization]
+            
+            ValidationEngine[ValidationEngine<br/>✅ Output quality control<br/>🛡️ Security validation<br/>📊 Consistency checks]
+        end
+        
+        subgraph "Context & State Management"
+            ExecutionContext[ExecutionContext<br/>📋 Runtime environment<br/>🔗 Variable management<br/>🔒 Permission control]
+            
+            StateSynchronizer[StateSynchronizer<br/>🔄 Cross-tier sync<br/>💾 State persistence<br/>📊 Consistency management]
+            
+            ContextInheritance[ContextInheritance<br/>⬇️ Hierarchical propagation<br/>📊 Scope management<br/>🔒 Access control]
+        end
+        
+        subgraph "Learning & Adaptation"
+            PerformanceTracker[PerformanceTracker<br/>📊 Execution metrics<br/>⏱️ Latency tracking<br/>🎯 Success rates]
+            
+            StrategyEvolver[StrategyEvolver<br/>🔄 Pattern recognition<br/>📈 Performance optimization<br/>🧠 Strategy migration]
+            
+            KnowledgeExtractor[KnowledgeExtractor<br/>🧠 Best practice mining<br/>📋 Pattern codification<br/>🔄 Improvement suggestions]
+        end
+    end
+    
+    %% Core execution flow
+    UnifiedExecutor --> StrategySelector
+    StrategySelector --> ConversationalStrategy
+    StrategySelector --> ReasoningStrategy
+    StrategySelector --> DeterministicStrategy
+    
+    %% Infrastructure integration
+    UnifiedExecutor --> ToolOrchestrator
+    UnifiedExecutor --> IOProcessor
+    UnifiedExecutor --> ResourceManager
+    UnifiedExecutor --> ValidationEngine
+    
+    %% Context management
+    UnifiedExecutor --> ExecutionContext
+    UnifiedExecutor --> StateSynchronizer
+    UnifiedExecutor --> ContextInheritance
+    
+    %% Learning loop
+    UnifiedExecutor --> PerformanceTracker
+    PerformanceTracker --> StrategyEvolver
+    StrategyEvolver --> KnowledgeExtractor
+    KnowledgeExtractor -.->|"Informs"| StrategySelector
+    
+    classDef executor fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef strategy fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef infrastructure fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef learning fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class UnifiedExecutor executor
+    class StrategySelector,ConversationalStrategy,ReasoningStrategy,DeterministicStrategy strategy
+    class ToolOrchestrator,IOProcessor,ResourceManager,ValidationEngine infrastructure
+    class ExecutionContext,StateSynchronizer,ContextInheritance context
+    class PerformanceTracker,StrategyEvolver,KnowledgeExtractor learning
+```
+
+#### **Three-Strategy Execution Framework**
+
+The heart of Tier 3's intelligence lies in its **adaptive strategy selection**. Each execution strategy serves different purposes and evolves based on routine maturity:
+
+**1. Conversational Strategy**
+```mermaid
+graph TB
+    subgraph "Conversational Strategy - Human-like Flexibility"
+        ConvEngine[Conversational Engine<br/>💬 Natural language understanding<br/>🤔 Creative problem-solving<br/>🔄 Adaptive responses]
+        
+        subgraph "Natural Language Processing"
+            PromptEngineer[Prompt Engineer<br/>📝 Context-aware prompting<br/>🎯 Goal-oriented instructions<br/>📊 Dynamic template selection]
+            
+            ResponseInterpreter[Response Interpreter<br/>🧠 Intent extraction<br/>📊 Sentiment analysis<br/>🔄 Contextual understanding]
+            
+            CreativityEngine[Creativity Engine<br/>💡 Novel solution generation<br/>🎨 Creative constraints<br/>🔄 Iterative refinement]
+        end
+        
+        subgraph "Adaptive Reasoning"
+            SituationalAwareness[Situational Awareness<br/>📊 Context assessment<br/>🎯 Goal alignment<br/>🔄 Dynamic adjustment]
+            
+            ExploratoryThinking[Exploratory Thinking<br/>🔍 Hypothesis generation<br/>🧪 Experimental approaches<br/>📊 Result evaluation]
+            
+            EdgeCaseHandling[Edge Case Handling<br/>🚨 Unusual situation detection<br/>🔄 Graceful adaptation<br/>🧠 Learning integration]
+        end
+        
+        subgraph "Human-AI Collaboration"
+            HumanInTheLoop[Human-in-the-Loop<br/>👤 Human oversight<br/>🤝 Collaborative decision-making<br/>📊 Feedback integration]
+            
+            UncertaintyHandling[Uncertainty Handling<br/>❓ Ambiguity resolution<br/>🤔 Clarification requests<br/>📊 Confidence scoring]
+            
+            LearningCapture[Learning Capture<br/>📚 Pattern documentation<br/>🔄 Experience integration<br/>🧠 Knowledge building]
+        end
+    end
+    
+    ConvEngine --> PromptEngineer
+    ConvEngine --> ResponseInterpreter
+    ConvEngine --> CreativityEngine
+    ConvEngine --> SituationalAwareness
+    ConvEngine --> ExploratoryThinking
+    ConvEngine --> EdgeCaseHandling
+    ConvEngine --> HumanInTheLoop
+    ConvEngine --> UncertaintyHandling
+    ConvEngine --> LearningCapture
+    
+    classDef engine fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    classDef nlp fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef reasoning fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef collaboration fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class ConvEngine engine
+    class PromptEngineer,ResponseInterpreter,CreativityEngine nlp
+    class SituationalAwareness,ExploratoryThinking,EdgeCaseHandling reasoning
+    class HumanInTheLoop,UncertaintyHandling,LearningCapture collaboration
+```
+
+**2. Reasoning Strategy**
+```mermaid
+graph TB
+    subgraph "Reasoning Strategy - Structured Intelligence"
+        ReasoningEngine[Reasoning Engine<br/>🧠 Logical framework coordination<br/>📊 Data-driven analysis<br/>🎯 Systematic problem-solving]
+        
+        subgraph "Analytical Frameworks"
+            LogicalStructures[Logical Structures<br/>🔗 Premise-conclusion chains<br/>⚖️ Logical validation<br/>📊 Inference rules]
+            
+            DataAnalysis[Data Analysis<br/>📊 Statistical reasoning<br/>📈 Trend identification<br/>🎯 Evidence evaluation]
+            
+            DecisionTrees[Decision Trees<br/>🌳 Systematic branching<br/>📊 Outcome probability<br/>🎯 Optimal path selection]
+        end
+        
+        subgraph "Knowledge Integration"
+            FactRetrieval[Fact Retrieval<br/>📚 Knowledge base access<br/>🔍 Semantic search<br/>📊 Relevance ranking]
+            
+            ConceptMapping[Concept Mapping<br/>🔗 Relationship identification<br/>🧠 Conceptual frameworks<br/>📊 Dependency analysis]
+            
+            EvidenceSynthesis[Evidence Synthesis<br/>⚖️ Multi-source integration<br/>📊 Conflict resolution<br/>🎯 Coherent conclusions]
+        end
+        
+        subgraph "Quality Assurance"
+            LogicValidation[Logic Validation<br/>✅ Consistency checking<br/>🔍 Fallacy detection<br/>📊 Reasoning quality]
+            
+            BiasDetection[Bias Detection<br/>⚖️ Cognitive bias identification<br/>📊 Fairness analysis<br/>🔄 Correction mechanisms]
+            
+            ConfidenceScoring[Confidence Scoring<br/>📊 Certainty quantification<br/>🎯 Reliability assessment<br/>📈 Accuracy prediction]
+        end
+    end
+    
+    ReasoningEngine --> LogicalStructures
+    ReasoningEngine --> DataAnalysis
+    ReasoningEngine --> DecisionTrees
+    ReasoningEngine --> FactRetrieval
+    ReasoningEngine --> ConceptMapping
+    ReasoningEngine --> EvidenceSynthesis
+    ReasoningEngine --> LogicValidation
+    ReasoningEngine --> BiasDetection
+    ReasoningEngine --> ConfidenceScoring
+    
+    classDef engine fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef analytical fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef knowledge fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef quality fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class ReasoningEngine engine
+    class LogicalStructures,DataAnalysis,DecisionTrees analytical
+    class FactRetrieval,ConceptMapping,EvidenceSynthesis knowledge
+    class LogicValidation,BiasDetection,ConfidenceScoring quality
+```
+
+**3. Deterministic Strategy**
+```mermaid
+graph TB
+    subgraph "Deterministic Strategy - Reliable Automation"
+        DeterministicEngine[Deterministic Engine<br/>⚙️ Workflow automation coordinator<br/>📋 Process optimization<br/>💰 Resource efficiency]
+        
+        subgraph "Process Automation"
+            WorkflowExecution[Workflow Execution<br/>📋 Step-by-step processing<br/>🔄 State machine logic<br/>⚡ Parallel optimization]
+            
+            APIIntegration[API Integration<br/>🌐 External service calls<br/>📊 Rate limit management<br/>🔄 Retry mechanisms]
+            
+            DataTransformation[Data Transformation<br/>🔄 Format conversion<br/>📊 Schema validation<br/>✅ Quality assurance]
+        end
+        
+        subgraph "Optimization & Efficiency"
+            CacheManagement[Cache Management<br/>💾 Result memoization<br/>⚡ Performance optimization<br/>📊 Hit rate tracking]
+            
+            BatchProcessing[Batch Processing<br/>📦 Request batching<br/>⚡ Throughput optimization<br/>💰 Cost reduction]
+            
+            ResourceOptimization[Resource Optimization<br/>💰 Credit efficiency<br/>⏱️ Time optimization<br/>📊 Load balancing]
+        end
+        
+        subgraph "Reliability & Monitoring"
+            ErrorHandling[Error Handling<br/>🚨 Exception management<br/>🔄 Graceful degradation<br/>📊 Recovery strategies]
+            
+            HealthMonitoring[Health Monitoring<br/>💓 Service health checks<br/>📊 Performance metrics<br/>🚨 Alert management]
+            
+            QualityAssurance[Quality Assurance<br/>✅ Output validation<br/>📊 Consistency checks<br/>🎯 SLA compliance]
+        end
+    end
+    
+    DeterministicEngine --> WorkflowExecution
+    DeterministicEngine --> APIIntegration
+    DeterministicEngine --> DataTransformation
+    DeterministicEngine --> CacheManagement
+    DeterministicEngine --> BatchProcessing
+    DeterministicEngine --> ResourceOptimization
+    DeterministicEngine --> ErrorHandling
+    DeterministicEngine --> HealthMonitoring
+    DeterministicEngine --> QualityAssurance
+    
+    classDef engine fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef automation fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef optimization fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef reliability fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class DeterministicEngine engine
+    class WorkflowExecution,APIIntegration,DataTransformation automation
+    class CacheManagement,BatchProcessing,ResourceOptimization optimization
+    class ErrorHandling,HealthMonitoring,QualityAssurance reliability
+```
+
+#### **Strategy Selection Intelligence**
+
+The **StrategySelector** represents one of Vrooli's key innovations - **dynamic strategy selection** based on multiple contextual factors:
+
+```typescript
+interface StrategySelectionFramework {
+    // Context Analysis
+    analyzeExecutionContext(context: ExecutionContext): ContextAnalysis;
+    assessRoutineMaturity(routineId: string): MaturityAssessment;
+    evaluateComplexity(step: RoutineStep): ComplexityScore;
+    
+    // Strategy Selection
+    selectOptimalStrategy(analysis: ContextAnalysis): StrategySelection;
+    adaptStrategyToContext(strategy: ExecutionStrategy, context: ExecutionContext): AdaptedStrategy;
+    
+    // Performance Learning
+    trackStrategyPerformance(execution: ExecutionResult): void;
+    identifyEvolutionOpportunities(routineId: string): EvolutionOpportunity[];
+    
+    // Strategy Evolution
+    migrateToHigherStrategy(routine: Routine, analysis: PerformanceAnalysis): MigrationPlan;
+    validateMigrationReadiness(routine: Routine, targetStrategy: ExecutionStrategy): ReadinessAssessment;
+}
+
+interface ContextAnalysis {
+    readonly routineCharacteristics: RoutineCharacteristics;
+    readonly dataAvailability: DataAvailability;
+    readonly userPreferences: UserPreferences;
+    readonly performanceRequirements: PerformanceRequirements;
+    readonly resourceConstraints: ResourceConstraints;
+    readonly riskTolerance: RiskTolerance;
+}
+
+interface StrategySelection {
+    readonly selectedStrategy: ExecutionStrategy;
+    readonly confidence: number;
+    readonly alternativeStrategies: AlternativeStrategy[];
+    readonly reasoning: SelectionReasoning;
+    readonly expectedPerformance: PerformanceProjection;
+    readonly fallbackPlan: FallbackStrategy;
+}
+```
+
+#### **Tool Integration Architecture**
+
+Tier 3's **ToolOrchestrator** provides comprehensive integration with external systems through multiple protocols:
+
+```mermaid
+graph TB
+    subgraph "Tool Integration Framework"
+        ToolOrchestrator[ToolOrchestrator<br/>🔧 Central tool coordination<br/>📊 Protocol management<br/>⚡ Performance optimization]
+        
+        subgraph "Protocol Support"
+            MCPTools[MCP Tools<br/>🤖 Model Context Protocol<br/>🔧 Native AI tool integration<br/>📊 Context-aware execution]
+            
+            RESTAPIs[REST APIs<br/>🌐 HTTP/HTTPS integration<br/>📊 Standard web services<br/>🔄 Request/response handling]
+            
+            GraphQLAPIs[GraphQL APIs<br/>🔗 Flexible data queries<br/>📊 Efficient data fetching<br/>🎯 Precise data selection]
+            
+            WebSockets[WebSockets<br/>⚡ Real-time communication<br/>🔄 Bidirectional streaming<br/>📊 Event-driven updates]
+        end
+        
+        subgraph "Integration Management"
+            ProtocolRouter[Protocol Router<br/>🎯 Request routing<br/>📊 Protocol selection<br/>⚡ Load balancing]
+            
+            AuthenticationManager[Authentication Manager<br/>🔐 Credential management<br/>🎫 Token handling<br/>🔄 Session management]
+            
+            RateLimitManager[Rate Limit Manager<br/>⏱️ Request throttling<br/>📊 Quota management<br/>🔄 Backoff strategies]
+        end
+        
+        subgraph "Quality & Reliability"
+            ResponseValidator[Response Validator<br/>✅ Schema validation<br/>📊 Data quality checks<br/>🛡️ Security scanning]
+            
+            ErrorHandler[Error Handler<br/>🚨 Exception management<br/>🔄 Retry mechanisms<br/>📊 Fallback strategies]
+            
+            CacheManager[Cache Manager<br/>💾 Response caching<br/>⚡ Performance optimization<br/>📊 Cache invalidation]
+        end
+        
+        subgraph "Monitoring & Analytics"
+            PerformanceMonitor[Performance Monitor<br/>⏱️ Latency tracking<br/>📊 Success rates<br/>💰 Cost analysis]
+            
+            UsageAnalytics[Usage Analytics<br/>📊 Tool usage patterns<br/>🎯 Optimization insights<br/>📈 Trend analysis]
+            
+            SecurityAuditor[Security Auditor<br/>🛡️ Security monitoring<br/>📊 Threat detection<br/>📝 Compliance tracking]
+        end
+    end
+    
+    ToolOrchestrator --> MCPTools
+    ToolOrchestrator --> RESTAPIs
+    ToolOrchestrator --> GraphQLAPIs
+    ToolOrchestrator --> WebSockets
+    ToolOrchestrator --> ProtocolRouter
+    ToolOrchestrator --> AuthenticationManager
+    ToolOrchestrator --> RateLimitManager
+    ToolOrchestrator --> ResponseValidator
+    ToolOrchestrator --> ErrorHandler
+    ToolOrchestrator --> CacheManager
+    ToolOrchestrator --> PerformanceMonitor
+    ToolOrchestrator --> UsageAnalytics
+    ToolOrchestrator --> SecurityAuditor
+    
+    classDef orchestrator fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef protocols fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef management fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef quality fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef monitoring fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class ToolOrchestrator orchestrator
+    class MCPTools,RESTAPIs,GraphQLAPIs,WebSockets protocols
+    class ProtocolRouter,AuthenticationManager,RateLimitManager management
+    class ResponseValidator,ErrorHandler,CacheManager quality
+    class PerformanceMonitor,UsageAnalytics,SecurityAuditor monitoring
+```
+
+#### **Execution Context Management**
+
+The **ExecutionContext** provides rich environmental context for step execution:
+
+```typescript
+interface ExecutionContext {
+    // Hierarchical Context
+    readonly systemContext: SystemContext;           // Global capabilities and constraints
+    readonly teamContext?: TeamContext;              // Team-specific knowledge and goals
+    readonly swarmContext?: SwarmContext;            // Current swarm state and objectives  
+    readonly agentContext?: AgentContext;            // Agent persona and capabilities
+    readonly routineContext: RoutineContext;         // Routine-specific variables and state
+    
+    // Runtime Environment
+    readonly variables: ContextVariables;            // Available variables and their values
+    readonly permissions: Permission[];              // Execution permissions and constraints
+    readonly resourceLimits: ResourceLimits;         // Credit, time, and computational limits
+    readonly qualityRequirements: QualityRequirements; // Output quality and validation rules
+    
+    // Tool Integration
+    readonly availableTools: ToolDefinition[];       // Accessible tools and APIs
+    readonly authenticationCredentials: Credentials; // API keys and authentication tokens
+    readonly integrationConfigs: IntegrationConfig[]; // Third-party service configurations
+    
+    // Learning Context
+    readonly executionHistory: ExecutionHistory;     // Previous execution patterns and results
+    readonly performanceMetrics: PerformanceMetrics; // Historical performance data
+    readonly userFeedback: FeedbackHistory;          // User satisfaction and improvement suggestions
+    
+    // State Management
+    inheritFromParent(parentContext: ExecutionContext): ExecutionContext;
+    createChildContext(overrides: ContextOverrides): ExecutionContext;
+    updateVariable(key: string, value: unknown): ExecutionContext;
+    validatePermissions(action: ExecutionAction): PermissionResult;
+}
+
+interface ContextVariables {
+    readonly inputData: Record<string, unknown>;     // Step input parameters
+    readonly intermediateResults: Record<string, unknown>; // Results from previous steps
+    readonly sharedState: Record<string, unknown>;   // State shared across routine execution
+    readonly temporaryCache: Record<string, unknown>; // Temporary data for current step
+    
+    get(key: string, defaultValue?: unknown): unknown;
+    set(key: string, value: unknown): void;
+    has(key: string): boolean;
+    merge(other: ContextVariables): ContextVariables;
+}
+```
+
+#### **Resource Management and Optimization**
+
+The **ResourceManager** ensures efficient utilization of computational resources:
+
+```mermaid
+graph TB
+    subgraph "Resource Management Framework"
+        ResourceManager[ResourceManager<br/>💰 Central resource coordination<br/>📊 Optimization strategies<br/>🎯 Efficiency maximization]
+        
+        subgraph "Credit Management"
+            CreditTracker[Credit Tracker<br/>💰 Usage monitoring<br/>📊 Balance management<br/>⚠️ Limit enforcement]
+            
+            CostEstimator[Cost Estimator<br/>📊 Execution cost prediction<br/>🎯 Budget optimization<br/>💡 Alternative suggestions]
+            
+            CreditOptimizer[Credit Optimizer<br/>💰 Efficient resource usage<br/>📊 Cost-benefit analysis<br/>🔄 Dynamic adjustment]
+        end
+        
+        subgraph "Time Management"
+            TimeTracker[Time Tracker<br/>⏱️ Execution time monitoring<br/>📊 Performance analysis<br/>🎯 Bottleneck identification]
+            
+            TimeoutManager[Timeout Manager<br/>⏰ Execution time limits<br/>🚨 Timeout handling<br/>🔄 Recovery strategies]
+            
+            SchedulingOptimizer[Scheduling Optimizer<br/>📅 Optimal task scheduling<br/>⚖️ Load balancing<br/>⚡ Priority management]
+        end
+        
+        subgraph "Computational Resources"
+            CPUManager[CPU Manager<br/>⚡ Processing allocation<br/>📊 Usage optimization<br/>🔄 Load distribution]
+            
+            MemoryManager[Memory Manager<br/>💾 Memory allocation<br/>📊 Usage tracking<br/>🗑️ Garbage collection]
+            
+            ConcurrencyController[Concurrency Controller<br/>🔄 Parallel execution<br/>⚖️ Resource sharing<br/>📊 Synchronization]
+        end
+        
+        subgraph "Quality vs Resource Trade-offs"
+            QualityOptimizer[Quality Optimizer<br/>⚖️ Quality-cost balance<br/>📊 Performance tuning<br/>🎯 SLA compliance]
+            
+            AdaptiveScaling[Adaptive Scaling<br/>📈 Dynamic resource scaling<br/>📊 Demand prediction<br/>💰 Cost optimization]
+            
+            FallbackManager[Fallback Manager<br/>🔄 Resource-constrained alternatives<br/>📊 Graceful degradation<br/>🎯 Essential functionality]
+        end
+    end
+    
+    ResourceManager --> CreditTracker
+    ResourceManager --> CostEstimator
+    ResourceManager --> CreditOptimizer
+    ResourceManager --> TimeTracker
+    ResourceManager --> TimeoutManager
+    ResourceManager --> SchedulingOptimizer
+    ResourceManager --> CPUManager
+    ResourceManager --> MemoryManager
+    ResourceManager --> ConcurrencyController
+    ResourceManager --> QualityOptimizer
+    ResourceManager --> AdaptiveScaling
+    ResourceManager --> FallbackManager
+    
+    classDef manager fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef credit fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef time fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef compute fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef tradeoffs fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class ResourceManager manager
+    class CreditTracker,CostEstimator,CreditOptimizer credit
+    class TimeTracker,TimeoutManager,SchedulingOptimizer time
+    class CPUManager,MemoryManager,ConcurrencyController compute
+    class QualityOptimizer,AdaptiveScaling,FallbackManager tradeoffs
+```
+
+#### **Learning and Evolution Framework**
+
+The **StrategyEvolver** enables continuous improvement of execution strategies:
+
+```typescript
+interface LearningFramework {
+    // Performance Analysis
+    analyzeExecutionPatterns(routineId: string, timeRange: TimeRange): PatternAnalysis;
+    identifyOptimizationOpportunities(metrics: PerformanceMetrics[]): OptimizationOpportunity[];
+    assessStrategyEffectiveness(strategy: ExecutionStrategy, context: ExecutionContext): EffectivenessScore;
+    
+    // Strategy Evolution
+    identifyEvolutionCandidates(criteria: EvolutionCriteria): EvolutionCandidate[];
+    planStrategyMigration(routine: Routine, targetStrategy: ExecutionStrategy): MigrationPlan;
+    validateEvolutionReadiness(routine: Routine, targetStrategy: ExecutionStrategy): ReadinessAssessment;
+    
+    // Knowledge Extraction
+    extractBestPractices(successfulExecutions: ExecutionResult[]): BestPractice[];
+    identifyCommonPatterns(routines: Routine[]): ExecutionPattern[];
+    generateImprovementSuggestions(analysis: PerformanceAnalysis): ImprovementSuggestion[];
+    
+    // Continuous Learning
+    updatePerformanceModels(feedback: ExecutionFeedback[]): ModelUpdate;
+    adaptToNewRequirements(requirements: RequirementChange[]): AdaptationPlan;
+    shareKnowledgeAcrossRoutines(knowledge: ExtractedKnowledge): SharingResult;
+}
+
+interface EvolutionOpportunity {
+    readonly routineId: string;
+    readonly currentStrategy: ExecutionStrategy;
+    readonly recommendedStrategy: ExecutionStrategy;
+    readonly expectedImprovement: ImprovementProjection;
+    readonly migrationComplexity: ComplexityScore;
+    readonly riskAssessment: RiskProfile;
+    readonly implementationSteps: MigrationStep[];
+}
+```
+
+#### **Integration with Tier 1 and Tier 2**
+
+Tier 3 integrates seamlessly with the upper tiers through well-defined interfaces:
+
+```mermaid
+sequenceDiagram
+    participant T1 as Tier 1: SwarmOrchestrator
+    participant T2 as Tier 2: RunStateMachine  
+    participant T3 as Tier 3: UnifiedExecutor
+    participant Tools as External Tools/APIs
+    
+    Note over T1,Tools: Cross-Tier Execution Flow
+    
+    T1->>T2: SwarmExecutionRequest<br/>(goal, team, context)
+    T2->>T2: Navigate workflow<br/>& manage state
+    T2->>T3: StepExecutionRequest<br/>(step, strategy, context)
+    
+    T3->>T3: Select optimal strategy<br/>based on context
+    T3->>T3: Prepare execution environment<br/>& validate permissions
+    
+    alt Conversational Strategy
+        T3->>T3: Apply natural language processing
+        T3->>Tools: MCP tool calls with context
+    else Reasoning Strategy  
+        T3->>T3: Apply structured analysis framework
+        T3->>Tools: Data-driven API calls
+    else Deterministic Strategy
+        T3->>T3: Execute optimized workflow
+        T3->>Tools: Cached/batched API calls
+    end
+    
+    Tools-->>T3: Results & status
+    T3->>T3: Validate output quality<br/>& update performance metrics
+    T3-->>T2: StepExecutionResult<br/>(output, metrics, state)
+    
+    T2->>T2: Update workflow state<br/>& plan next steps
+    T2-->>T1: RoutineExecutionResult<br/>(status, outputs, metrics)
+    
+    Note over T1,Tools: Learning & Optimization Loop
+    T3->>T3: Analyze performance patterns
+    T3->>T3: Identify evolution opportunities
+    T3->>T3: Update strategy selection models
+```
+
+#### **Key Design Principles**
+
+**1. Strategy-Context Alignment**
+The system automatically selects the most appropriate execution strategy based on:
+- Routine maturity and usage patterns
+- Available data and context richness
+- Performance requirements and constraints  
+- User preferences and risk tolerance
+
+**2. Adaptive Resource Management**
+Resources are dynamically allocated and optimized based on:
+- Real-time demand and capacity
+- Cost-quality trade-off preferences
+- Historical performance patterns
+- Predictive usage models
+
+**3. Continuous Learning and Evolution**
+The system continuously improves through:
+- Performance pattern analysis
+- Best practice extraction
+- Strategy evolution recommendations
+- Cross-routine knowledge sharing
+
+**4. Comprehensive Tool Integration**
+Support for multiple integration protocols ensures:
+- Native AI tool integration via MCP
+- Standard web service compatibility
+- Real-time communication capabilities
+- Secure and reliable API access
+
+**5. Quality-First Execution**
+Every execution includes:
+- Input validation and sanitization
+- Output quality assessment
+- Security and compliance checks
+- Performance monitoring and optimization
+
+This Tier 3 design creates a sophisticated execution layer that not only handles routine steps reliably but also learns and evolves, making Vrooli's automation capabilities progressively more intelligent and effective over time.
+
 ## Data Flow and Interface Architecture
 
 ### **Inter-Tier Communication Model**
@@ -468,27 +1484,43 @@ sequenceDiagram
 #### **Tier 1 → Tier 2 Interface**
 
 ```typescript
-interface ISwarmOrchestrator {
-    executeSwarmObjective(request: SwarmExecutionRequest): Promise<SwarmExecutionResult>;
-    allocateResources(allocation: ResourceAllocation): Promise<void>;
-    updateContext(context: SwarmContext): Promise<void>;
+// The prompt-based approach means Tier 1 doesn't call Tier 2 directly.
+// Instead, agents use MCP tools that may trigger routine execution.
+
+interface SwarmEvent {
+    type: string;
+    conversationId: string;
+    sessionUser: SessionUser;
+    payload?: any;
 }
 
-interface SwarmExecutionRequest {
-    swarmId: string;
-    objective: string;
-    routineId: string;
-    context: SwarmContext;
-    resourceConstraints: ResourceConstraints;
-    participants: AgentAssignment[];
+// Swarm state is managed through conversation configuration
+interface ConversationState {
+    id: string;                           // Chat ID (also Swarm ID)
+    config: ChatConfigObject;             // Contains goal, subtasks, resources, etc.
+    participants: BotParticipant[];       // Swarm members with roles
+    availableTools: Tool[];               // MCP tools available to agents
+    teamConfig?: TeamConfigObject;        // MOISE+ organizational structure
 }
 
-interface SwarmContext {
-    teamGoals: Goal[];
-    sharedKnowledge: KnowledgeBase;
-    resourcePool: ResourcePool;
-    constraints: ExecutionConstraints;
-    emergentPatterns: Pattern[];
+// Agents interact with routines through MCP tools
+interface RoutineToolCall {
+    tool: "start_routine" | "find_resources";
+    arguments: {
+        routineId?: string;
+        searchQuery?: string;
+        inputs?: Record<string, any>;
+        isAsync?: boolean;
+    };
+}
+
+// Natural language coordination through prompts
+interface SystemPromptContext {
+    role: string;                         // leader, analyst, etc.
+    goal: string;                         // Current swarm objective
+    swarmState: SwarmStateSnapshot;       // Current state for reasoning
+    toolSchemas: Tool[];                  // Available MCP tools
+    teamStructure?: string;               // MOISE+ model if available
 }
 ```
 
