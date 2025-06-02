@@ -365,49 +365,27 @@ This ensures that complex multi-level routines can share data appropriately whil
 
 ```mermaid
 graph TD
-    subgraph "Tier 1: Coordination Intelligence"
-        T1[SwarmOrchestrator<br/>🎯 Prompt-based metacognition<br/>👥 Dynamic team coordination<br/>📋 Natural language planning]
+    subgraph SecurityBoundary ["Security Guard-Rails"]
+        subgraph Tier1 [Tier 1: Coordination Intelligence]
+            T1[SwarmOrchestrator<br/>🎯 Prompt-based metacognition<br/>👥 Dynamic team coordination<br/>📋 Natural language planning]
+        end
+        subgraph Tier2 [Tier 2: Process Intelligence]
+            T2[RunStateMachine<br/>📊 Universal workflow orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
+        end
+        subgraph Tier3 [Tier 3: Execution Intelligence]
+            T3[UnifiedExecutor<br/>🤖 Strategy-aware execution<br/>🔧 Tool integration<br/>💰 Resource management]
+        end
+        T1 --> T2 --> T3
     end
-    
-    subgraph "Tier 2: Process Intelligence - RunStateMachine"  
-        T2[RunStateMachine<br/>📊 Universal workflow orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
-    end
-    
-    subgraph "Tier 3: Execution Intelligence"
-        T3[UnifiedExecutor<br/>🤖 Strategy-aware execution<br/>🔧 Tool integration<br/>💰 Resource management]
-    end
-    
-    subgraph "Cross-Cutting Concerns"
-        CC1[SecurityManager<br/>🔒 Sandboxed execution<br/>🛡️ Permission control]
-        CC2[MonitoringService<br/>📊 Performance tracking<br/>🚨 Error detection]
-        CC3[ImprovementEngine<br/>🔄 Pattern analysis<br/>📈 Routine optimization]
-    end
-    
-    T1 --> T2
-    T2 --> T3
-    
-    CC1 -.->|"Secures"| T1
-    CC1 -.->|"Secures"| T2  
-    CC1 -.->|"Secures"| T3
-    
-    CC2 -.->|"Monitors"| T1
-    CC2 -.->|"Monitors"| T2
-    CC2 -.->|"Monitors"| T3
-    
-    CC3 -.->|"Improves"| T1
-    CC3 -.->|"Improves"| T2
-    CC3 -.->|"Improves"| T3
-    
-    classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    classDef tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-    classDef crosscut fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class T1 tier1
-    class T2 tier2
-    class T3 tier3
-    class CC1,CC2,CC3 crosscut
+    style SecurityBoundary stroke:#c62828,stroke-width:3px,stroke-dasharray:5 5
+    style Tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    style Tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
+    style Tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
 ```
+
+All runtime calls—whether in Tier 1, Tier 2, or Tier 3—are enveloped by a global security boundary that enforces resource limits (credits, time, memory) defined via swarm- team- or user-level configuration. These guard rails ensure that swarms - including the routines they run and child swarms they spawn - never exceed the total allotted budget under any circumstances.
+
+Additional security measures such as threat monitoring, auditing, compliance checks, etc. are set up based on the team's configuration by assigning bots to listen to events. See the [Event-Driven Architecture](#event-driven-architecture) section for more details.
 
 ### Tier 1: Coordination Intelligence
 
@@ -1152,7 +1130,7 @@ The heart of Tier 3's intelligence lies in its **adaptive strategy selection**. 
 **1. Conversational Strategy**
 ```mermaid
 graph TB
-    subgraph "Conversational Strategy - Human-like Flexibility"
+    subgraph "Conversational Strategy Examples"
         ConvEngine[Conversational Engine<br/>💬 Natural language understanding<br/>🤔 Creative problem-solving<br/>🔄 Adaptive responses]
         
         subgraph "Natural Language Processing"
@@ -1204,7 +1182,7 @@ graph TB
 **2. Reasoning Strategy**
 ```mermaid
 graph TB
-    subgraph "Reasoning Strategy - Structured Intelligence"
+    subgraph "Reasoning Strategy Examples"
         ReasoningEngine[Reasoning Engine<br/>🧠 Logical framework coordination<br/>📊 Data-driven analysis<br/>🎯 Systematic problem-solving]
         
         subgraph "Analytical Frameworks"
@@ -1256,7 +1234,7 @@ graph TB
 **3. Deterministic Strategy**
 ```mermaid
 graph TB
-    subgraph "Deterministic Strategy - Reliable Automation"
+    subgraph "Deterministic Strategy Examples"
         DeterministicEngine[Deterministic Engine<br/>⚙️ Workflow automation coordinator<br/>📋 Process optimization<br/>💰 Resource efficiency]
         
         subgraph "Process Automation"
@@ -1305,46 +1283,22 @@ graph TB
     class ErrorHandling,HealthMonitoring,QualityAssurance reliability
 ```
 
-#### **Strategy Selection Intelligence**
+#### Strategy Selection Intelligence  — How a step decides *how* to run
 
-The **StrategySelector** represents one of Vrooli's key innovations - **dynamic strategy selection** based on multiple contextual factors:
+Vrooli resolves a step's execution strategy through a **two-layer rule set**:
 
-```typescript
-interface StrategySelectionFramework {
-    // Context Analysis
-    analyzeExecutionContext(context: ExecutionContext): ContextAnalysis;
-    assessRoutineMaturity(routineId: string): MaturityAssessment;
-    evaluateComplexity(step: RoutineStep): ComplexityScore;
-    
-    // Strategy Selection
-    selectOptimalStrategy(analysis: ContextAnalysis): StrategySelection;
-    adaptStrategyToContext(strategy: ExecutionStrategy, context: ExecutionContext): AdaptedStrategy;
-    
-    // Performance Learning
-    trackStrategyPerformance(execution: ExecutionResult): void;
-    identifyEvolutionOpportunities(routineId: string): EvolutionOpportunity[];
-    
-    // Strategy Evolution
-    migrateToHigherStrategy(routine: Routine, analysis: PerformanceAnalysis): MigrationPlan;
-    validateMigrationReadiness(routine: Routine, targetStrategy: ExecutionStrategy): ReadinessAssessment;
-}
+| Resolution layer | Rule | Notes |
+|------------------|------|-------|
+| **1. Declarative default** | Each Routine (and every nested Sub-routine) carries a `strategy` field in its manifest. Accepted values: `"conversational"`, `"reasoning"`, `"deterministic"`. Child routines always override the parent's setting, so a deterministic parent can embed a conversational brainstorming step without friction. | Think of this as the *author's intent* – predictable and easy to audit. |
+| **2. Adaptive override** | At execution-time the `StrategySelector` may substitute a different strategy **only** when:<br/>• the declared strategy violates a hard policy (e.g. `"conversational"` forbidden in HIPAA context)<br/>• live telemetry shows another strategy is **≥ 15 % cheaper or faster** *and* still passes quality/SLA gates. | All substitutions are logged; the ImprovementEngine feeds results back to routine authors. |
 
-interface ContextAnalysis {
-    readonly routineCharacteristics: RoutineCharacteristics;
-    readonly dataAvailability: DataAvailability;
-    readonly userPreferences: UserPreferences;
-    readonly performanceRequirements: PerformanceRequirements;
-    readonly resourceConstraints: ResourceConstraints;
-    readonly riskTolerance: RiskTolerance;
-}
-
-interface StrategySelection {
-    readonly selectedStrategy: ExecutionStrategy;
-    readonly confidence: number;
-    readonly alternativeStrategies: AlternativeStrategy[];
-    readonly reasoning: SelectionReasoning;
-    readonly expectedPerformance: PerformanceProjection;
-    readonly fallbackPlan: FallbackStrategy;
+```ts
+// Manifest snippet
+type RoutineConfig = {
+  id: string
+  name: string
+  strategy?: "conversational" | "reasoning" | "deterministic"  // default: "conversational"
+  ...
 }
 ```
 
@@ -1753,7 +1707,7 @@ This architecture provides a **unified tool execution layer** that serves both e
 
 #### **Execution Context Management**
 
-The **ExecutionContext** provides rich environmental context for step execution:
+The **ExecutionContext** provides essential runtime environment for step execution, focusing on immediate operational needs rather than long-term optimization:
 
 ```typescript
 interface ExecutionContext {
@@ -1775,11 +1729,6 @@ interface ExecutionContext {
     readonly authenticationCredentials: Credentials; // API keys and authentication tokens
     readonly integrationConfigs: IntegrationConfig[]; // Third-party service configurations
     
-    // Learning Context
-    readonly executionHistory: ExecutionHistory;     // Previous execution patterns and results
-    readonly performanceMetrics: PerformanceMetrics; // Historical performance data
-    readonly userFeedback: FeedbackHistory;          // User satisfaction and improvement suggestions
-    
     // State Management
     inheritFromParent(parentContext: ExecutionContext): ExecutionContext;
     createChildContext(overrides: ContextOverrides): ExecutionContext;
@@ -1800,29 +1749,25 @@ interface ContextVariables {
 }
 ```
 
-#### **Resource Management and Optimization**
+**Context Inheritance**: The system maintains a clear hierarchical flow where each level inherits appropriate context from its parent while maintaining security boundaries. Performance tracking, learning, and optimization are handled by specialized agents that subscribe to execution events rather than being embedded in the execution context itself.
 
-The **ResourceManager** ensures efficient utilization of computational resources:
+#### **Runtime Resource Accounting**
+
+The **ResourceManager** ensures accurate tracking and enforcement of computational resources during execution:
 
 ```mermaid
 graph TB
-    subgraph "Resource Management Framework"
-        ResourceManager[ResourceManager<br/>💰 Central resource coordination<br/>📊 Optimization strategies<br/>🎯 Efficiency maximization]
+    subgraph "Runtime Resource Accounting Framework"
+        ResourceManager[ResourceManager<br/>💰 Central resource coordination<br/>📊 Usage tracking<br/>🚫 Limit enforcement]
         
         subgraph "Credit Management"
             CreditTracker[Credit Tracker<br/>💰 Usage monitoring<br/>📊 Balance management<br/>⚠️ Limit enforcement]
-            
-            CostEstimator[Cost Estimator<br/>📊 Execution cost prediction<br/>🎯 Budget optimization<br/>💡 Alternative suggestions]
-            
-            CreditOptimizer[Credit Optimizer<br/>💰 Efficient resource usage<br/>📊 Cost-benefit analysis<br/>🔄 Dynamic adjustment]
         end
         
         subgraph "Time Management"
             TimeTracker[Time Tracker<br/>⏱️ Execution time monitoring<br/>📊 Performance analysis<br/>🎯 Bottleneck identification]
             
             TimeoutManager[Timeout Manager<br/>⏰ Execution time limits<br/>🚨 Timeout handling<br/>🔄 Recovery strategies]
-            
-            SchedulingOptimizer[Scheduling Optimizer<br/>📅 Optimal task scheduling<br/>⚖️ Load balancing<br/>⚡ Priority management]
         end
         
         subgraph "Computational Resources"
@@ -1832,79 +1777,31 @@ graph TB
             
             ConcurrencyController[Concurrency Controller<br/>🔄 Parallel execution<br/>⚖️ Resource sharing<br/>📊 Synchronization]
         end
-        
-        subgraph "Quality vs Resource Trade-offs"
-            QualityOptimizer[Quality Optimizer<br/>⚖️ Quality-cost balance<br/>📊 Performance tuning<br/>🎯 SLA compliance]
-            
-            AdaptiveScaling[Adaptive Scaling<br/>📈 Dynamic resource scaling<br/>📊 Demand prediction<br/>💰 Cost optimization]
-            
-            FallbackManager[Fallback Manager<br/>🔄 Resource-constrained alternatives<br/>📊 Graceful degradation<br/>🎯 Essential functionality]
-        end
     end
     
     ResourceManager --> CreditTracker
-    ResourceManager --> CostEstimator
-    ResourceManager --> CreditOptimizer
     ResourceManager --> TimeTracker
     ResourceManager --> TimeoutManager
-    ResourceManager --> SchedulingOptimizer
     ResourceManager --> CPUManager
     ResourceManager --> MemoryManager
     ResourceManager --> ConcurrencyController
-    ResourceManager --> QualityOptimizer
-    ResourceManager --> AdaptiveScaling
-    ResourceManager --> FallbackManager
     
     classDef manager fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
     classDef credit fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef time fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     classDef compute fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef tradeoffs fill:#ffebee,stroke:#c62828,stroke-width:2px
     
     class ResourceManager manager
-    class CreditTracker,CostEstimator,CreditOptimizer credit
-    class TimeTracker,TimeoutManager,SchedulingOptimizer time
+    class CreditTracker credit
+    class TimeTracker,TimeoutManager time
     class CPUManager,MemoryManager,ConcurrencyController compute
-    class QualityOptimizer,AdaptiveScaling,FallbackManager tradeoffs
 ```
 
-#### **Learning and Evolution Framework**
+The ResourceManager focuses on immediate operational concerns: tracking resource consumption, enforcing hard limits, and ensuring execution stays within allocated bounds. Strategic cost tuning can be handled by optimiser agents that subscribe to `swarm/perf.*` events.
 
-The **StrategyEvolver** enables continuous improvement of execution strategies:
+#### **Learning and Optimization**
 
-```typescript
-interface LearningFramework {
-    // Performance Analysis
-    analyzeExecutionPatterns(routineId: string, timeRange: TimeRange): PatternAnalysis;
-    identifyOptimizationOpportunities(metrics: PerformanceMetrics[]): OptimizationOpportunity[];
-    assessStrategyEffectiveness(strategy: ExecutionStrategy, context: ExecutionContext): EffectivenessScore;
-    
-    // Strategy Evolution
-    identifyEvolutionCandidates(criteria: EvolutionCriteria): EvolutionCandidate[];
-    planStrategyMigration(routine: Routine, targetStrategy: ExecutionStrategy): MigrationPlan;
-    validateEvolutionReadiness(routine: Routine, targetStrategy: ExecutionStrategy): ReadinessAssessment;
-    
-    // Knowledge Extraction
-    extractBestPractices(successfulExecutions: ExecutionResult[]): BestPractice[];
-    identifyCommonPatterns(routines: Routine[]): ExecutionPattern[];
-    generateImprovementSuggestions(analysis: PerformanceAnalysis): ImprovementSuggestion[];
-    
-    // Continuous Learning
-    updatePerformanceModels(feedback: ExecutionFeedback[]): ModelUpdate;
-    adaptToNewRequirements(requirements: RequirementChange[]): AdaptationPlan;
-    shareKnowledgeAcrossRoutines(knowledge: ExtractedKnowledge): SharingResult;
-}
-
-interface EvolutionOpportunity {
-    readonly routineId: string;
-    readonly currentStrategy: ExecutionStrategy;
-    readonly recommendedStrategy: ExecutionStrategy;
-    readonly expectedImprovement: ImprovementProjection;
-    readonly migrationComplexity: ComplexityScore;
-    readonly riskAssessment: RiskProfile;
-    readonly implementationSteps: MigrationStep[];
-}
-```
+Learning and optimization are handled by specialized agents that subscribe to execution events rather than being embedded in Tier 3. Performance tracking, strategy evolution, and routine optimization occur through the event-driven architecture where specialized bots analyze execution patterns and suggest improvements through routine manifest patches.
 
 #### **Integration with Tier 1 and Tier 2**
 
@@ -1938,7 +1835,7 @@ sequenceDiagram
     end
     
     Tools-->>T3: Results & status
-    T3->>T3: Validate output quality<br/>& update performance metrics
+    T3->>T3: Validate output quality<br/>& emit performance events
     T3-->>T2: StepExecutionResult<br/>(output, metrics, state)
     
     T2->>T2: Update workflow state<br/>& plan next steps
@@ -2127,15 +2024,18 @@ graph TB
         MonitoringSub[Monitoring Subscribers<br/>📊 Performance tracking<br/>🚨 Alert generation]
         ImprovementSub[Improvement Subscribers<br/>🔍 Pattern detection<br/>📈 Optimization triggers]
         SecuritySub[Security Subscribers<br/>🔒 Audit logging<br/>🚨 Threat detection]
+        OptimizationBots[Optimization Bots<br/>🤖 Listen to swarm/perf.* events<br/>📋 Publish routine-manifest patches<br/>🔄 Strategy evolution]
     end
     
     T1Events --> EventBus
     T2Events --> EventBus
     T3Events --> EventBus
     
+    
     EventBus --> MonitoringSub
     EventBus --> ImprovementSub
     EventBus --> SecuritySub
+    EventBus --> OptimizationBots
     
     classDef eventBus fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef producers fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
@@ -2143,7 +2043,7 @@ graph TB
     
     class EventBus eventBus
     class T1Events,T2Events,T3Events producers
-    class MonitoringSub,ImprovementSub,SecuritySub consumers
+    class MonitoringSub,ImprovementSub,SecuritySub,OptimizationBots consumers
 ```
 
 ### **Same-Server Affinity for Cache Efficiency**
@@ -2422,50 +2322,229 @@ graph TB
 
 ### **AI Model Management**
 
+### **Service Availability Architecture**
+
 ```mermaid
 graph TB
-    subgraph "AI Model Management Framework"
-        ModelOrchestrator[Model Orchestrator<br/>🧠 Central AI coordination<br/>📊 Model lifecycle management<br/>🔄 Load balancing]
+    subgraph "AI Service Management Framework"
+        ServiceRegistry[AIServiceRegistry<br/>🎯 Service state management<br/>📊 Availability tracking<br/>🔄 Fallback coordination]
         
-        subgraph "Model Registry"
-            ModelVersioning[Model Versioning<br/>📚 Version control<br/>🔄 Rollback support<br/>📊 A/B testing]
-            CapabilityRegistry[Capability Registry<br/>📋 Model capabilities<br/>⚡ Performance metrics<br/>💰 Cost profiles]
-            CompatibilityMatrix[Compatibility Matrix<br/>🔗 Navigator compatibility<br/>🎯 Strategy alignment<br/>📊 Optimization rules]
+        subgraph "Service Registry"
+            ServiceStates[Service States<br/>✅ Active services<br/>⏸️ Cooldown tracking<br/>❌ Disabled services]
+            ServiceInstances[Service Instances<br/>🤖 OpenAI Service<br/>🧠 Anthropic Service<br/>🌟 Mistral Service]
+            FallbackChains[Fallback Chains<br/>🔄 Model alternatives<br/>📊 Cost equivalence<br/>⚡ Seamless switching]
         end
         
-        subgraph "Runtime Management"
-            ModelRouter[Model Router<br/>🎯 Request routing<br/>⚖️ Load balancing<br/>📊 Performance optimization]
-            ContextManager[Context Manager<br/>📋 Context window management<br/>🔗 Context splitting/merging<br/>💾 Context caching]
-            FallbackManager[Fallback Manager<br/>🔄 Model fallbacks<br/>⚡ Circuit breakers<br/>📊 Quality thresholds]
+        subgraph "Request Routing"
+            FallbackRouter[FallbackRouter<br/>🎯 Model selection<br/>🔄 Retry orchestration<br/>📊 Token budgeting]
+            StreamProcessor[Stream Processor<br/>🌊 Event streaming<br/>💬 Message chunks<br/>🔧 Tool calls]
+            CostCalculator[Cost Calculator<br/>💰 Credit management<br/>📊 Token estimation<br/>⚖️ Budget enforcement]
         end
         
-        subgraph "Optimization Services"
-            PromptOptimizer[Prompt Optimizer<br/>📝 Prompt engineering<br/>🎯 Template management<br/>📊 Performance tracking]
-            CostOptimizer[Cost Optimizer<br/>💰 Token optimization<br/>⏱️ Latency balancing<br/>📊 Budget management]
-            QualityManager[Quality Manager<br/>✅ Output validation<br/>🎯 Consistency checks<br/>📊 Hallucination detection]
+        subgraph "Service Capabilities"
+            ModelInfo[Model Information<br/>💰 Input/output costs<br/>📏 Context windows<br/>🎯 Feature support]
+            TokenEstimator[Token Estimator<br/>📊 Tiktoken encoding<br/>🔢 Usage prediction<br/>💰 Cost projection]
+            SafetyChecker[Safety Checker<br/>🛡️ Content moderation<br/>✅ Input validation<br/>🚫 Harmful content blocking]
         end
     end
     
-    ModelOrchestrator --> ModelVersioning
-    ModelOrchestrator --> CapabilityRegistry
-    ModelOrchestrator --> CompatibilityMatrix
-    ModelOrchestrator --> ModelRouter
-    ModelOrchestrator --> ContextManager
-    ModelOrchestrator --> FallbackManager
-    ModelOrchestrator --> PromptOptimizer
-    ModelOrchestrator --> CostOptimizer
-    ModelOrchestrator --> QualityManager
+    ServiceRegistry --> ServiceStates
+    ServiceRegistry --> ServiceInstances
+    ServiceRegistry --> FallbackChains
     
-    classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef registry fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef runtime fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef optimization fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    FallbackRouter --> ServiceRegistry
+    FallbackRouter --> StreamProcessor
+    FallbackRouter --> CostCalculator
     
-    class ModelOrchestrator orchestrator
-    class ModelVersioning,CapabilityRegistry,CompatibilityMatrix registry
-    class ModelRouter,ContextManager,FallbackManager runtime
-    class PromptOptimizer,CostOptimizer,QualityManager optimization
+    ServiceInstances --> ModelInfo
+    ServiceInstances --> TokenEstimator
+    ServiceInstances --> SafetyChecker
+    
+    classDef registry fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef routing fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef capabilities fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    
+    class ServiceRegistry,ServiceStates,ServiceInstances,FallbackChains registry
+    class FallbackRouter,StreamProcessor,CostCalculator routing
+    class ModelInfo,TokenEstimator,SafetyChecker capabilities
 ```
+
+### **Service Availability Management**
+
+The AI model management system uses a **service availability pattern** that ensures reliable access to language models through health monitoring, automatic fallbacks, and intelligent routing:
+
+#### **Service State Management**
+
+```typescript
+enum AIServiceState {
+    /** Service is healthy and accepting requests */
+    Active = "Active",
+    /** Service is temporarily unavailable (rate limited, etc.) */
+    Cooldown = "Cooldown",
+    /** Service is permanently disabled (auth failure, etc.) */
+    Disabled = "Disabled"
+}
+
+// Service registry tracks health of each provider
+class AIServiceRegistry {
+    private serviceStates: Map<string, { 
+        state: AIServiceState; 
+        cooldownUntil?: Date 
+    }>;
+    
+    // Get best available service for a model
+    getBestService(model: string): LlmServiceId | null;
+    
+    // Update service state based on errors
+    updateServiceState(serviceId: string, errorType: AIServiceErrorType): void;
+}
+```
+
+#### **Intelligent Fallback System**
+
+```mermaid
+graph LR
+    subgraph "Fallback Chain Example"
+        Request[Request: GPT-4o] --> Check1{OpenAI<br/>Active?}
+        Check1 -->|Yes| Use1[Use OpenAI<br/>GPT-4o]
+        Check1 -->|No| Check2{Anthropic<br/>Active?}
+        Check2 -->|Yes| Use2[Use Anthropic<br/>Claude 3.5 Sonnet]
+        Check2 -->|No| Check3{Mistral<br/>Active?}
+        Check3 -->|Yes| Use3[Use Mistral<br/>Nemo]
+        Check3 -->|No| Error[No services<br/>available]
+    end
+    
+    classDef active fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    classDef fallback fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class Use1 active
+    class Use2,Use3 fallback
+    class Error error
+```
+
+The fallback system ensures continuous availability by:
+- **Cost-Equivalent Alternatives**: Each model has pre-configured fallbacks with similar capabilities and costs
+- **Automatic Switching**: When a service fails, requests automatically route to the next available option
+- **Performance Tracking**: Success rates inform future routing decisions
+
+### **Model Cost and Capability Management**
+
+```typescript
+interface ModelInfo {
+    /** Display name for users */
+    name: TranslationKeyService;
+    /** Cost in cents per 1M tokens */
+    inputCost: number;
+    outputCost: number;
+    /** Model constraints */
+    contextWindow: number;
+    maxOutputTokens: number;
+    /** Supported features */
+    features: {
+        [ModelFeature.FunctionCalling]?: ModelFeatureInfo;
+        [ModelFeature.Vision]?: ModelFeatureInfo;
+        [ModelFeature.CodeInterpreter]?: ModelFeatureInfo;
+    };
+    /** Advanced capabilities */
+    supportsReasoning?: boolean;
+}
+
+// Example: OpenAI GPT-4o configuration
+[OpenAIModel.Gpt4o]: {
+    enabled: true,
+    name: "GPT_4o_Name",
+    inputCost: 250,        // $2.50 per 1M tokens
+    outputCost: 1000,      // $10.00 per 1M tokens
+    contextWindow: 128000, // 128K tokens
+    maxOutputTokens: 4096, // 4K tokens
+    features: {
+        [ModelFeature.FunctionCalling]: { type: "generic" },
+        [ModelFeature.Vision]: { type: "vision" },
+    }
+}
+```
+
+### **Request Routing and Token Budgeting**
+
+The `FallbackRouter` orchestrates the entire request lifecycle:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Router as FallbackRouter
+    participant Registry as AIServiceRegistry
+    participant Service as AIService
+    participant Safety as Safety Check
+
+    User->>Router: stream(model, input, maxCredits)
+    Router->>Registry: getBestService(model)
+    Registry-->>Router: serviceId (with fallbacks)
+    
+    Router->>Service: estimateTokens(input)
+    Service-->>Router: inputTokens
+    
+    Router->>Router: Calculate maxOutputTokens<br/>based on credits & costs
+    
+    Router->>Service: generateContext(messages)
+    Service-->>Router: contextMessages
+    
+    Router->>Safety: safeInputCheck(context)
+    Safety-->>Router: { cost, isSafe }
+    
+    alt Content is safe
+        Router->>Service: generateResponseStreaming(opts)
+        loop For each chunk
+            Service-->>Router: StreamEvent
+            Router-->>User: RouterEvent (with responseId)
+        end
+    else Content unsafe
+        Router-->>User: Error: Unsafe content
+    end
+    
+    Router->>Registry: updateServiceState(serviceId, errorType)
+```
+
+### **Key Design Principles**
+
+**1. Service Health as First-Class Concern**
+- Continuous monitoring of service availability
+- Automatic cooldown periods for rate-limited services
+- Permanent disabling for authentication failures
+
+**2. Cost-Aware Token Management**
+```typescript
+// Calculate maximum output tokens within budget
+const maxTokens = service.getMaxOutputTokensRestrained({
+    model: requestedModel,
+    maxCredits: userCredits,
+    inputTokens: estimatedInputTokens
+});
+```
+
+**3. Streaming-First Architecture**
+- All responses use async generators for real-time streaming
+- Supports text chunks, function calls, and reasoning traces
+- Cost tracking happens incrementally during streaming
+
+**4. Provider Abstraction**
+```typescript
+abstract class AIService<ModelType> {
+    // Standardized interface for all providers
+    abstract estimateTokens(params: EstimateTokensParams): EstimateTokensResult;
+    abstract generateResponseStreaming(opts: ResponseStreamOptions): AsyncGenerator<ServiceStreamEvent>;
+    abstract getMaxOutputTokens(model?: string): number;
+    abstract getResponseCost(params: GetResponseCostParams): number;
+    abstract safeInputCheck(input: string): Promise<GetOutputTokenLimitResult>;
+}
+```
+
+**5. Graceful Degradation**
+- Retry failed requests up to 3 times
+- Fall back to alternative models when primary is unavailable
+- Maintain service quality while optimizing for availability
+
+This architecture ensures that Vrooli can reliably access AI capabilities across multiple providers while managing costs, handling failures gracefully, and providing a consistent interface for the rest of the system.
 
 ### **Context and Memory Architecture**
 
@@ -2528,6 +2607,8 @@ graph TB
     class ExecutionContext execution
     class ContextInheritance,ContextMerging,ContextCompression services
 ```
+
+TODO: Docs above are mostly complete. Docs below are not. Some may be removed, some improved, and some used to update the docs above.
 
 ### **AI Safety and Reliability**
 
@@ -3574,6 +3655,20 @@ packages/
 - **Cost Efficiency**: 60% reduction in operational costs
 - **Knowledge Growth**: 10x increase in organizational automation capabilities
 - **Adoption**: 90% of teams actively using swarm-based automation
+
+## Future Expansion Roadmap — Cryptography-Powered Autonomy at Planet Scale
+
+| Phase                                 | New Capabilities                                                                                                               | Cryptographic / Decentralized Primitives                                                                                                                                                                                                                | Hard Gates & Milestones                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **1. Bootstrapping (`v0 → v1`)**      | Thin-slice automation for one team; deterministic routines dominate.                                                           | • **Code-signing + Web-of-Trust**: every routine image signed by its author swarms; execution engine rejects unsigned code.                                                                                                                             | 95 % routine success at < \$0.01/run; full audit log hashed to an append-only Merkle chain.               |
+| **2. Resource Pooling & Campaigning** | Any user can pledge **resource-tokens** (credits, CPU, IP) to a shared swarm that tackles a goal.                              | • ERC-20/6645-style **tokenization** of credits & work-shares.<br>• **Escrow smart contracts** with automatic slashing / refund logic.<br>• **Price-feed oracles** pin token ↔ fiat rates.                                                              | On-chain ledger live; “bug-bounty swarm” pays out autonomously.                                           |
+| **3. Idea Mining & Local Swarms**     | Wearable or desktop “shadow swarms” mine personal knowledge to surface monetizable ideas and auction them.                     | • **Encrypted local notebooks**; ZK-proofs that PII never leaves device.<br>• **Proof-of-Human (PoH)** stamp so only real people earn royalties.<br>• **Royalty-splitting contracts** issue streaming payments when an idea is sold or reused.          | First \$10 k in on-chain royalties paid without human escrow.                                             |
+| **4. Cross-Org Federations**          | Swarms handshake across company boundaries to run supply-chain or back-office flows.                                           | • **DIDs & verifiable credentials** for each agent.<br>• **Inter-org SLA contracts** with time-locked dispute-resolution.<br>• **Commit-Reveal oracles** to prevent info leakage in competitive bids.                                                   | SLA breach automatically triggers on-chain penalty; zero downtime during fail-over.                       |
+| **5. Policy-Aware Governance**        | Machine-readable policy DSL; “Governance Bots” propose patches.                                                                | • **Liquid-Democracy smart contracts**: token-weighted or delegated voting on policy PRs.<br>• **Snapshot + IPFS** storage for immutable proposal histories.                                                                                            | 10 000 votes cast with <1 h finality; emergency “eStop” multisig spans 5 jurisdictions.                   |
+| **6. Sector Automation**              | Domain-specific knowledge graphs & simulators plug in; entire industries (logistics, insurance, clinical trials) run on-chain. | • **Domain oracles** stream real-world KPIs (CO₂ levels, claim events).<br>• **Reg-compliance proofs**: auditable hashes of every decision.<br>• **Cross-chain bridges** for asset settlement.                                                          | Regulator sandbox cert passed; 99.999 % SLA on critical workflows.                                        |
+| **7. Macroeconomic Orchestration**    | Inter-sector swarms coordinate production, capital and compute.                                                                | • **Autonomous market-matching AMMs** clear resource prices.<br>• **Reputation mining** (web-of-trust graph persists across chains).<br>• **Nation-state veto hooks** limited to hashed constitutional constraints, enforced by cryptoeconomic staking. | Economic telemetry bus open-sourced; systemic-risk monitor triggers first federated circuit-breaker test. |
+
+> **End-State Vision:** A permission-less, cryptographically-verifiable swarm mesh where **no single person, company, or government** can halt progress—only the collective, via delegated/liquid democracy, can tune guard-rails. Agents exchange signed intents, settle obligations through smart contracts, and reference external truth via oracles, making the entire digital economy programmable yet censorship-resistant.
 
 ## Conclusion
 
