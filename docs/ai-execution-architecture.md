@@ -15,7 +15,10 @@ This creates a path to **top-down automation of knowledge work** - starting with
 
 ### **Terminology Definitions**
 
-- **Routine**: A reusable, versioned workflow that combines AI reasoning, API calls, code execution, and human oversight to accomplish specific tasks. Routines are the atomic units of automation in Vrooli.
+- **Routine**: A reusable, versioned workflow that combines AI reasoning, API calls, code execution, and human oversight to accomplish specific tasks. Routines are the atomic units of automation in Vrooli. 
+
+    *Note: Routines are always private by default, and can only be shared with other swarms you create unless you explicitly share them with the public.*
+    
 - **Workflow**: The execution instance of a routine - the actual running process with specific inputs, context, and state.
 - **Navigator**: A pluggable component that translates between Vrooli's universal execution model and platform-specific workflow formats (BPMN, Langchain, etc.).
 - **Strategy**: The execution approach applied to a routine step (Conversational, Reasoning, or Deterministic), selected based on routine characteristics and context.
@@ -197,6 +200,164 @@ graph LR
     class B,B1,B2,B3 reason
     class C,C1,C2,C3 determ
 ```
+
+#### **The Evolution Mechanism: Top-Down Decomposition**
+
+The key insight driving this evolution is **top-down decomposition enabled by recursive routine composition**. Here's how it works:
+
+**1. Conversational Phase - Natural Language Exploration**
+```mermaid
+graph TB
+    subgraph "Conversational: 'Analyze Market Trends'"
+        Conv[🗣️ Conversational Strategy<br/>Agent receives natural language goal<br/>'Analyze market trends for Q4']
+        
+        ConvSteps[Agent reasoning:<br/>💭 'I need to gather data...'<br/>💭 'Then analyze patterns...'<br/>💭 'Finally create insights...']
+        
+        ConvExec[Execution:<br/>🔄 Dynamic conversation<br/>🤔 Real-time decisions<br/>📝 Learning from feedback]
+    end
+    
+    Conv --> ConvSteps --> ConvExec
+    
+    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    class Conv,ConvSteps,ConvExec conv
+```
+
+**2. Reasoning Phase - Pattern Recognition**
+```mermaid
+graph TB
+    subgraph "Reasoning: Structured Framework Emerges"
+        Reason[🧠 Reasoning Strategy<br/>Patterns identified from conversational executions<br/>Structured approach developed]
+        
+        ReasonSteps[Logical framework:<br/>📊 1. Data Collection Phase<br/>📈 2. Pattern Analysis Phase<br/>📋 3. Insight Generation Phase]
+        
+        ReasonExec[Execution:<br/>🎯 Systematic approach<br/>📊 Data-driven decisions<br/>⚖️ Structured validation]
+    end
+    
+    Reason --> ReasonSteps --> ReasonExec
+    
+    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    class Reason,ReasonSteps,ReasonExec reason
+```
+
+**3. Deterministic Phase - Automation Crystallization**
+```mermaid
+graph TB
+    subgraph "Deterministic: Automated Multi-Step Routine"
+        Determ[⚙️ Deterministic Strategy<br/>Best practices proven and codified<br/>Reliable automation workflow]
+        
+        DetermSteps[Multi-step routine:<br/>🌐 Step 1: Web Search APIs<br/>📊 Step 2: Data Processing Code<br/>📋 Step 3: Report Generation]
+        
+        DetermExec[Execution:<br/>🔄 Fully automated<br/>✅ Strict validation<br/>💰 Cost optimized]
+    end
+    
+    Determ --> DetermSteps --> DetermExec
+    
+    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    class Determ,DetermSteps,DetermExec determ
+```
+
+#### **Recursive Routine Composition: The Foundation of Evolution**
+
+The evolution from conversational to deterministic strategies is enabled by Vrooli's **recursive routine composition** capability:
+
+```mermaid
+graph TB
+    subgraph "Multi-Step Routine: 'Market Analysis Example'"
+        MSR[📋 Market Analysis<br/>Multi-Step Routine<br/>Strategy: Deterministic]
+        
+        subgraph "Sub-Routines (can be any strategy)"
+            SR1[🌐 Data Collection<br/>Multi-Step Routine<br/>Strategy: Reasoning]
+            SR2[📊 Pattern Analysis<br/>Single-Step: Code<br/>Strategy: Deterministic]  
+            SR3[📝 Report Generation<br/>Multi-Step Routine<br/>Strategy: Conversational]
+        end
+        
+        subgraph "Sub-Sub-Routines"
+            SSR1[🔍 Web Search<br/>Single-Step: Web<br/>Strategy: Deterministic]
+            SSR2[📱 API Calls<br/>Single-Step: API<br/>Strategy: Deterministic]
+            SSR3[💭 Creative Writing<br/>Single-Step: Generate<br/>Strategy: Conversational]
+        end
+    end
+    
+    MSR --> SR1
+    MSR --> SR2
+    MSR --> SR3
+    
+    SR1 --> SSR1
+    SR1 --> SSR2
+    SR3 --> SSR3
+    
+    classDef multi fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef single fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:1px,stroke-dasharray: 5 5
+    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px,stroke-dasharray: 5 5
+    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:1px,stroke-dasharray: 5 5
+    
+    class MSR,SR1,SR3 multi
+    class SR2,SSR1,SSR2,SSR3 single
+    class MSR,SSR1,SSR2 determ
+    class SR1 reason
+    class SR3,SSR3 conv
+```
+
+**Key Evolution Insights:**
+
+1. **Gradual Refinement**: Routines don't evolve all at once - individual sub-routines can be at different strategy levels
+2. **Strategic Mixing**: A deterministic parent routine can contain conversational sub-routines for creative tasks
+3. **Context Preservation**: Each sub-routine maintains its own execution context while contributing to the parent's goals
+4. **Learning Propagation**: Insights from sub-routine execution inform parent routine optimization
+
+#### **The Decomposition Process**
+
+```mermaid
+sequenceDiagram
+    participant User as User/Swarm
+    participant RSM as RunStateMachine
+    participant ConvStrat as Conversational Strategy
+    participant ReasonStrat as Reasoning Strategy
+    participant DetermStrat as Deterministic Strategy
+    participant SubExec as Sub-routine Executor
+
+    Note over User,SubExec: Evolution Through Decomposition
+
+    User->>RSM: "Create marketing campaign"
+    RSM->>ConvStrat: Initial execution (no patterns exist)
+    ConvStrat->>ConvStrat: Natural language reasoning
+    ConvStrat->>ConvStrat: Identify: research, content, distribution
+    ConvStrat-->>RSM: Success + learned patterns
+
+    Note over RSM: After multiple executions, patterns emerge
+
+    User->>RSM: "Create marketing campaign" (later)
+    RSM->>ReasonStrat: Structured execution (patterns identified)
+    ReasonStrat->>SubExec: Sub-routine: "Market Research"
+    ReasonStrat->>SubExec: Sub-routine: "Content Creation"
+    ReasonStrat->>SubExec: Sub-routine: "Distribution Planning"
+    SubExec-->>ReasonStrat: All sub-results
+    ReasonStrat-->>RSM: Coordinated campaign
+
+    Note over RSM: After many successful executions
+
+    User->>RSM: "Create marketing campaign" (much later)
+    RSM->>DetermStrat: Automated execution (best practices proven)
+    DetermStrat->>SubExec: Deterministic: API-driven research
+    DetermStrat->>SubExec: Deterministic: Template-based content
+    DetermStrat->>SubExec: Reasoning: Strategic distribution
+    SubExec-->>DetermStrat: Optimized results
+    DetermStrat-->>RSM: Fully automated campaign
+```
+
+This recursive composition and gradual evolution is what enables Vrooli's **compound knowledge effect** - every routine becomes a building block for more sophisticated automation, creating an exponential growth in capability over time.
+
+#### **Context Inheritance and Data Flow**
+
+Each routine execution creates its own **context object** that stores inputs and outputs. When routines contain sub-routines:
+
+- **Context Inheritance**: Sub-routines inherit appropriate context from their parent
+- **Selective Output**: Sub-routines specify which outputs to pass to the parent routine  
+- **Sensitivity Levels**: Inputs and outputs have sensitivity classifications (public, internal, confidential, secret, PII) that influence data handling and security
+- **Hierarchical Scoping**: Parents only receive outputs they're authorized for, maintaining security boundaries
+
+This ensures that complex multi-level routines can share data appropriately while maintaining security and only keeping track of relevant information at each level.
 
 ## Three-Tier Architecture
 
@@ -818,13 +979,62 @@ interface IRoutineStepNavigator {
 - **Platform Migration**: Easily move routines between platforms as needs evolve
 - **Ecosystem Network Effects**: Every new navigator benefits all existing routines
 
+#### **Single-Step vs Multi-Step Routine Architecture**
+
+The RunStateMachine orchestrates two fundamental types of routines, each serving different purposes in the automation ecosystem:
+
+```mermaid
+graph TB
+    subgraph "Routine Execution Architecture"
+        RSM[RunStateMachine<br/>🎯 Universal routine orchestrator<br/>📊 Context management<br/>⚡ Strategy selection]
+        
+        subgraph "Multi-Step Routines"
+            MSR[Multi-Step Routine<br/>📋 BPMN/Workflow graphs<br/>🔄 Orchestration logic<br/>🌿 Parallel execution]
+            
+            MSRExamples[Examples:<br/>📊 Business processes<br/>🔄 Complex workflows<br/>🎯 Strategic operations]
+        end
+        
+        subgraph "Single-Step Routines"
+            SSR[Single-Step Routine<br/>⚙️ Atomic actions<br/>🔧 Direct execution<br/>✅ Immediate results]
+            
+            SSRTypes[Action Types:<br/>🌐 Web Search<br/>📱 API Calls<br/>💻 Code Execution<br/>🤖 AI Generation<br/>📝 Data Processing<br/>🔧 Internal Actions]
+        end
+        
+        subgraph "Recursive Composition"
+            RC[Any routine can contain<br/>other routines as subroutines<br/>🔄 Unlimited nesting<br/>📊 Context inheritance]
+        end
+    end
+    
+    RSM --> MSR
+    RSM --> SSR
+    MSR -.->|"Can contain"| MSR
+    MSR -.->|"Can contain"| SSR
+    SSR -.->|"Used within"| MSR
+    
+    RC -.->|"Enables"| MSR
+    RC -.->|"Enables"| SSR
+    
+    classDef rsm fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef multi fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef single fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef composition fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class RSM rsm
+    class MSR,MSRExamples multi
+    class SSR,SSRTypes single
+    class RC composition
+```
+
 #### **Key Responsibilities**
 
 - **Universal Execution**: Execute workflows from any supported platform using the same engine
+- **Recursive Composition**: Support unlimited nesting of multi-step and single-step routines  
+- **Context Management**: Maintain hierarchical execution contexts with proper data flow
+- **Sensitivity Handling**: Enforce data sensitivity rules throughout execution
 - **Parallel Coordination**: Manage complex branching and synchronization across workflow types
 - **State Management**: Maintain execution state with recovery and audit capabilities across platforms
 - **Intelligent Navigation**: Optimize execution paths while preserving platform-specific semantics
-- **Context Inheritance**: Seamlessly flow execution context between swarms and routine steps
+- **Strategy Evolution**: Enable gradual transformation from conversational to deterministic execution
 - **Resource Management**: Track credits, time, and computational resources across execution tiers
 
 #### **Current & Planned Navigator Support**
@@ -1140,74 +1350,406 @@ interface StrategySelection {
 
 #### **Tool Integration Architecture**
 
-Tier 3's **ToolOrchestrator** provides comprehensive integration with external systems through multiple protocols:
+Tier 3's **ToolOrchestrator** provides a unified tool execution system built around the **Model Context Protocol (MCP)** that serves both external AI agents and internal swarms through a centralized tool registry.
 
 ```mermaid
 graph TB
-    subgraph "Tool Integration Framework"
-        ToolOrchestrator[ToolOrchestrator<br/>🔧 Central tool coordination<br/>📊 Protocol management<br/>⚡ Performance optimization]
+    subgraph "MCP Server Architecture"
+        McpServerApp[McpServerApp<br/>🎯 Central MCP coordination<br/>🔌 Multi-mode connectivity<br/>🔐 Authentication & authorization]
         
-        subgraph "Protocol Support"
-            MCPTools[MCP Tools<br/>🤖 Model Context Protocol<br/>🔧 Native AI tool integration<br/>📊 Context-aware execution]
+        subgraph "Connection Modes"
+            SSEMode[SSE Mode<br/>🌐 Server-Sent Events<br/>🔄 Remote agent access<br/>📊 WebSocket-like communication]
             
-            RESTAPIs[REST APIs<br/>🌐 HTTP/HTTPS integration<br/>📊 Standard web services<br/>🔄 Request/response handling]
-            
-            GraphQLAPIs[GraphQL APIs<br/>🔗 Flexible data queries<br/>📊 Efficient data fetching<br/>🎯 Precise data selection]
-            
-            WebSockets[WebSockets<br/>⚡ Real-time communication<br/>🔄 Bidirectional streaming<br/>📊 Event-driven updates]
+            STDIOMode[STDIO Mode<br/>💻 Standard I/O<br/>📱 Local agent access<br/>⚡ Direct process communication]
         end
         
-        subgraph "Integration Management"
-            ProtocolRouter[Protocol Router<br/>🎯 Request routing<br/>📊 Protocol selection<br/>⚡ Load balancing]
+        subgraph "Tool Registry System"
+            ToolRegistry[ToolRegistry<br/>📋 Central tool coordination<br/>🔄 Built-in & dynamic tools<br/>⚡ Execution routing]
             
-            AuthenticationManager[Authentication Manager<br/>🔐 Credential management<br/>🎫 Token handling<br/>🔄 Session management]
+            BuiltInTools[BuiltInTools<br/>🛠️ Core MCP tools<br/>📊 Resource management<br/>🔧 System operations]
             
-            RateLimitManager[Rate Limit Manager<br/>⏱️ Request throttling<br/>📊 Quota management<br/>🔄 Backoff strategies]
-        end
-        
-        subgraph "Quality & Reliability"
-            ResponseValidator[Response Validator<br/>✅ Schema validation<br/>📊 Data quality checks<br/>🛡️ Security scanning]
+            SwarmTools[SwarmTools<br/>🐝 Swarm-specific tools<br/>👥 Team coordination<br/>📊 State management]
             
-            ErrorHandler[Error Handler<br/>🚨 Exception management<br/>🔄 Retry mechanisms<br/>📊 Fallback strategies]
-            
-            CacheManager[Cache Manager<br/>💾 Response caching<br/>⚡ Performance optimization<br/>📊 Cache invalidation]
-        end
-        
-        subgraph "Monitoring & Analytics"
-            PerformanceMonitor[Performance Monitor<br/>⏱️ Latency tracking<br/>📊 Success rates<br/>💰 Cost analysis]
-            
-            UsageAnalytics[Usage Analytics<br/>📊 Tool usage patterns<br/>🎯 Optimization insights<br/>📈 Trend analysis]
-            
-            SecurityAuditor[Security Auditor<br/>🛡️ Security monitoring<br/>📊 Threat detection<br/>📝 Compliance tracking]
+            DynamicServers[Dynamic Tool Servers<br/>🔄 Routine-specific servers<br/>🎯 Single-tool instances<br/>⚡ On-demand creation]
         end
     end
     
-    ToolOrchestrator --> MCPTools
-    ToolOrchestrator --> RESTAPIs
-    ToolOrchestrator --> GraphQLAPIs
-    ToolOrchestrator --> WebSockets
-    ToolOrchestrator --> ProtocolRouter
-    ToolOrchestrator --> AuthenticationManager
-    ToolOrchestrator --> RateLimitManager
-    ToolOrchestrator --> ResponseValidator
-    ToolOrchestrator --> ErrorHandler
-    ToolOrchestrator --> CacheManager
-    ToolOrchestrator --> PerformanceMonitor
-    ToolOrchestrator --> UsageAnalytics
-    ToolOrchestrator --> SecurityAuditor
+    subgraph "Tool Execution Pipeline"
+        RequestRouter[Request Router<br/>🎯 Tool selection<br/>📊 Load balancing<br/>🔐 Permission validation]
+        
+        ApprovalSystem[Approval System<br/>👤 User intervention<br/>⏱️ Scheduled execution<br/>🚨 Timeout handling]
+        
+        ExecutionEngine[Execution Engine<br/>⚡ Sync/async execution<br/>📊 Resource tracking<br/>🔄 Error handling]
+        
+        ResponseHandler[Response Handler<br/>📤 Result formatting<br/>📊 Status reporting<br/>🔄 Event broadcasting]
+    end
     
-    classDef orchestrator fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-    classDef protocols fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef management fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef quality fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef monitoring fill:#ffebee,stroke:#c62828,stroke-width:2px
+    McpServerApp --> SSEMode
+    McpServerApp --> STDIOMode
+    McpServerApp --> ToolRegistry
     
-    class ToolOrchestrator orchestrator
-    class MCPTools,RESTAPIs,GraphQLAPIs,WebSockets protocols
-    class ProtocolRouter,AuthenticationManager,RateLimitManager management
-    class ResponseValidator,ErrorHandler,CacheManager quality
-    class PerformanceMonitor,UsageAnalytics,SecurityAuditor monitoring
+    ToolRegistry --> BuiltInTools
+    ToolRegistry --> SwarmTools
+    ToolRegistry --> DynamicServers
+    
+    ToolRegistry --> RequestRouter
+    RequestRouter --> ApprovalSystem
+    ApprovalSystem --> ExecutionEngine
+    ExecutionEngine --> ResponseHandler
+    
+    classDef server fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef connection fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef registry fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef execution fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class McpServerApp server
+    class SSEMode,STDIOMode connection
+    class ToolRegistry,BuiltInTools,SwarmTools,DynamicServers registry
+    class RequestRouter,ApprovalSystem,ExecutionEngine,ResponseHandler execution
 ```
+
+#### **Core Tool Architecture**
+
+The system provides **six core tools** that enable comprehensive automation and coordination:
+
+**1. Built-In System Tools**
+```mermaid
+graph TB
+    subgraph "Built-In Tools (BuiltInTools class)"
+        DefineTool[define_tool<br/>📋 Schema compression layer<br/>🎯 Dynamic tool definitions<br/>⚡ Context optimization]
+        
+        ResourceManage[resource_manage<br/>🗃️ CRUD operations<br/>📊 Universal resource access<br/>🔍 Find, Add, Update, Delete]
+        
+        SendMessage[send_message<br/>💬 Team communication<br/>🎯 Multi-recipient support<br/>📢 Event-driven messaging]
+        
+        RunRoutine[run_routine<br/>⚙️ Routine execution<br/>🔄 Sync/async modes<br/>📊 Resource allocation]
+    end
+    
+    subgraph "DefineTool Schema Generation"
+        ResourceVariants[Resource Variants<br/>📝 Note, Project, Standard<br/>🔄 Routine, API, Code<br/>📊 Dynamic sub-types]
+        
+        OperationSchemas[Operation Schemas<br/>🔍 Find filters<br/>➕ Add attributes<br/>🔄 Update attributes<br/>🗑️ Delete operations]
+        
+        CompressionBenefit[Compression Benefit<br/>📉 Reduced context size<br/>⚡ Faster tool discovery<br/>🎯 Precise parameter schemas]
+    end
+    
+    DefineTool --> ResourceVariants
+    ResourceVariants --> OperationSchemas
+    OperationSchemas --> CompressionBenefit
+    
+    classDef tools fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef schema fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class DefineTool,ResourceManage,SendMessage,RunRoutine tools
+    class ResourceVariants,OperationSchemas,CompressionBenefit schema
+```
+
+**2. Swarm-Specific Tools**
+```mermaid
+graph TB
+    subgraph "Swarm Tools (SwarmTools class)"
+        SpawnSwarm[spawn_swarm<br/>🐝 Child swarm creation<br/>💰 Resource allocation<br/>👥 Team inheritance]
+        
+        UpdateState[update_swarm_shared_state<br/>📊 State synchronization<br/>📋 Subtask management<br/>🗃️ Blackboard operations]
+        
+        EndSwarm[end_swarm<br/>🏁 Swarm termination<br/>📊 Final state capture<br/>🔐 Authorization checks]
+    end
+    
+    subgraph "Spawn Swarm Modes"
+        SimpleSpawn[Simple Spawn<br/>🎯 Leader + goal<br/>⚡ Quick deployment<br/>🔄 Resource inheritance]
+        
+        TeamSpawn[Team Spawn<br/>👥 Predefined team<br/>🏗️ Structured approach<br/>📊 Role-based allocation]
+    end
+    
+    subgraph "State Management Operations"
+        SubtaskOps[Subtask Operations<br/>➕ Add/update tasks<br/>🗑️ Remove tasks<br/>👤 Assign leaders]
+        
+        BlackboardOps[Blackboard Operations<br/>📝 Set key-value pairs<br/>🗑️ Delete entries<br/>🔄 Shared scratchpad]
+        
+        TeamConfigOps[Team Config Operations<br/>🏗️ MOISE+ updates<br/>👥 Role modifications<br/>📋 Structure changes]
+    end
+    
+    SpawnSwarm --> SimpleSpawn
+    SpawnSwarm --> TeamSpawn
+    
+    UpdateState --> SubtaskOps
+    UpdateState --> BlackboardOps
+    UpdateState --> TeamConfigOps
+    
+    classDef swarmTools fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef spawn fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef state fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    
+    class SpawnSwarm,UpdateState,EndSwarm swarmTools
+    class SimpleSpawn,TeamSpawn spawn
+    class SubtaskOps,BlackboardOps,TeamConfigOps state
+```
+
+#### **Single-Step Routine Execution Engine**
+
+When agents call `run_routine`, they trigger either **multi-step routines** (orchestrated by Tier 2's RunStateMachine) or **single-step routines** (executed directly by Tier 3). Single-step routines handle the actual actions that interact with external systems:
+
+```mermaid
+graph TB
+    subgraph "Single-Step Routine Execution Framework"
+        RunRoutineCall[run_routine Tool Call<br/>🔧 MCP tool invocation<br/>📊 Routine type detection<br/>🎯 Strategy selection]
+        
+        subgraph "Execution Dispatch"
+            RoutineTypeDetector[Routine Type Detector<br/>🔍 Single vs Multi-step<br/>📊 Action classification<br/>🎯 Executor selection]
+            
+            SingleStepExecutor[Single-Step Executor<br/>⚙️ Direct action execution<br/>🔧 Sandbox coordination<br/>📊 Resource tracking]
+            
+            MultiStepBridge[Multi-Step Bridge<br/>🔄 Tier 2 delegation<br/>📊 Context forwarding<br/>🎯 Result aggregation]
+        end
+        
+        subgraph "Single-Step Action Types"
+            WebSearch[Web Search<br/>🌐 Search engine queries<br/>📊 Result processing<br/>🔄 Rate limiting]
+            
+            APICall[API Call<br/>📱 External API requests<br/>🔒 Authentication handling<br/>⏱️ Timeout management]
+            
+            CodeExecution[Code Execution<br/>💻 Sandboxed code runner<br/>🔒 Security isolation<br/>📊 Resource limits]
+            
+            AIGeneration[AI Generation<br/>🤖 LLM interactions<br/>🎯 Prompt engineering<br/>📊 Response processing]
+            
+            DataProcessing[Data Processing<br/>📝 Format conversion<br/>✅ Schema validation<br/>🔄 Transformation logic]
+            
+            InternalAction[Internal Action<br/>🔧 Vrooli operations<br/>📊 Resource CRUD<br/>🎯 State management]
+        end
+        
+        subgraph "Execution Infrastructure"
+            SandboxManager[Sandbox Manager<br/>📦 Isolated environments<br/>🔒 Security boundaries<br/>⏱️ Resource enforcement]
+            
+            TimeoutController[Timeout Controller<br/>⏰ Execution limits<br/>🚨 Abort mechanisms<br/>🔄 Graceful termination]
+            
+            RetryHandler[Retry Handler<br/>🔄 Failure recovery<br/>📊 Backoff strategies<br/>📈 Success tracking]
+        end
+    end
+    
+    RunRoutineCall --> RoutineTypeDetector
+    RoutineTypeDetector --> SingleStepExecutor
+    RoutineTypeDetector --> MultiStepBridge
+    
+    SingleStepExecutor --> WebSearch
+    SingleStepExecutor --> APICall
+    SingleStepExecutor --> CodeExecution
+    SingleStepExecutor --> AIGeneration
+    SingleStepExecutor --> DataProcessing
+    SingleStepExecutor --> InternalAction
+    
+    SingleStepExecutor --> SandboxManager
+    SingleStepExecutor --> TimeoutController
+    SingleStepExecutor --> RetryHandler
+    
+    classDef dispatch fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef executor fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef actions fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef infrastructure fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class RunRoutineCall,RoutineTypeDetector dispatch
+    class SingleStepExecutor,MultiStepBridge executor
+    class WebSearch,APICall,CodeExecution,AIGeneration,DataProcessing,InternalAction actions
+    class SandboxManager,TimeoutController,RetryHandler infrastructure
+```
+
+#### **Single-Step Execution Implementation Details**
+
+The single-step execution engine provides specialized handling for different action types:
+
+- **Code Execution**: Runs in isolated child processes with strict resource limits, timeout enforcement, and security sandboxing to prevent malicious code execution.
+
+- **API Calls**: Include comprehensive timeout/abort systems, rate limiting, credential management, and circuit breaker patterns for resilient external service integration.
+
+- **Web Search**: Implements query optimization, provider selection, content extraction, and quality filtering to deliver relevant, safe search results.
+
+- **Data Processing**: Provides format conversion, schema validation, and transformation logic with sensitivity-aware handling for different data types.
+
+- **AI Generation**: Manages LLM interactions with prompt engineering, response processing, and quality assessment for consistent AI-generated content.
+
+- **Internal Actions**: Handles Vrooli-specific operations like resource CRUD, state management, and system integrations with appropriate authorization.
+
+Each execution type supports both **synchronous** and **asynchronous** operation modes, with the approval system allowing user intervention for sensitive operations through configurable policies in the chat/swarm configuration.
+
+#### **Tool Approval and Scheduling System**
+
+A sophisticated **approval and scheduling system** allows for user oversight and controlled execution:
+
+```mermaid
+graph TB
+    subgraph "Tool Approval Architecture"
+        ChatConfig[ChatConfig<br/>📋 Per-swarm configuration<br/>⚙️ Approval policies<br/>⏱️ Scheduling rules]
+        
+        subgraph "Approval Policies"
+            RequiresApproval[Requires Approval<br/>🔧 Specific tools<br/>🌐 All tools<br/>❌ No approval needed]
+            
+            ApprovalTimeout[Approval Timeout<br/>⏱️ Configurable duration<br/>🚨 Auto-reject option<br/>👤 User-specific approval]
+            
+            ToolSpecificDelays[Tool-Specific Delays<br/>⏱️ Custom per-tool delays<br/>📊 Risk-based timing<br/>💰 Cost consideration]
+        end
+        
+        subgraph "Execution Modes"
+            SynchronousExec[Synchronous Execution<br/>⚡ Immediate execution<br/>🔄 Blocking operation<br/>📊 Direct response]
+            
+            AsynchronousExec[Asynchronous Execution<br/>📅 Scheduled execution<br/>🔄 Non-blocking operation<br/>📢 Event notification]
+            
+            PendingApproval[Pending Approval<br/>⏸️ User intervention required<br/>📊 Status tracking<br/>⏱️ Timeout monitoring]
+        end
+        
+        subgraph "Pending Tool Call Management"
+            PendingStore[Pending Store<br/>💾 Persistent storage<br/>📊 Status tracking<br/>🔄 Retry logic]
+            
+            StatusTracking[Status Tracking<br/>📊 PENDING_APPROVAL<br/>✅ APPROVED_READY<br/>❌ REJECTED_BY_USER<br/>⏱️ REJECTED_BY_TIMEOUT]
+            
+            ResourceTracking[Resource Tracking<br/>💰 Cost estimation<br/>⏱️ Execution time<br/>📊 Attempt counting]
+        end
+    end
+    
+    ChatConfig --> RequiresApproval
+    ChatConfig --> ApprovalTimeout
+    ChatConfig --> ToolSpecificDelays
+    
+    RequiresApproval --> SynchronousExec
+    RequiresApproval --> AsynchronousExec
+    RequiresApproval --> PendingApproval
+    
+    PendingApproval --> PendingStore
+    PendingStore --> StatusTracking
+    StatusTracking --> ResourceTracking
+    
+    classDef config fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef policy fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef execution fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef management fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class ChatConfig config
+    class RequiresApproval,ApprovalTimeout,ToolSpecificDelays policy
+    class SynchronousExec,AsynchronousExec,PendingApproval execution
+    class PendingStore,StatusTracking,ResourceTracking management
+```
+
+#### **Dynamic Tool Server Architecture**
+
+For routine execution, the system creates **dynamic, single-tool MCP servers**:
+
+```typescript
+interface DynamicToolServer {
+    // Server Creation
+    createRoutineServer(routineId: string): Promise<McpServer | null>;
+    cacheServerInstance(toolId: string, server: McpServer): void;
+    
+    // Tool-Specific Capabilities
+    exposeRoutineAsTools(routine: Routine): ToolDefinition[];
+    handleRoutineExecution(routineId: string, args: RoutineArgs): Promise<RoutineResult>;
+    
+    // Resource Management
+    inheritParentResources(parentSwarmId: string): ResourceAllocation;
+    trackResourceUsage(toolId: string, usage: ResourceUsage): void;
+    
+    // Authorization
+    validateToolAccess(toolId: string, requestor: Agent): AuthorizationResult;
+    enforceResourceLimits(toolId: string, request: ToolRequest): LimitResult;
+}
+
+interface ToolApprovalConfig {
+    // Policy Configuration
+    requiresApprovalTools: string[] | "all" | "none";
+    approvalTimeoutMs: number;
+    autoRejectOnTimeout: boolean;
+    
+    // Scheduling Configuration
+    defaultDelayMs: number;
+    toolSpecificDelays: Record<string, number>;
+    
+    // Execution Tracking
+    pendingToolCalls: PendingToolCallEntry[];
+    executionHistory: ToolExecutionRecord[];
+}
+```
+
+#### **Tool Execution Flow**
+
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent/Swarm
+    participant MCP as MCP Server
+    participant Registry as Tool Registry
+    participant Approval as Approval System
+    participant Tools as Tool Implementation
+    participant Store as State Store
+
+    Note over Agent,Store: Tool Discovery & Execution Flow
+    
+    Agent->>MCP: ListTools request
+    MCP->>Registry: Get available tools
+    Registry->>Registry: Check permissions & context
+    Registry-->>MCP: Tool definitions
+    MCP-->>Agent: Tools list (compressed via define_tool)
+    
+    Agent->>MCP: CallTool request (e.g., resource_manage)
+    MCP->>Registry: Route tool call
+    Registry->>Approval: Check approval requirements
+    
+    alt Tool requires approval
+        Approval->>Store: Create pending tool call
+        Approval-->>Agent: Approval required response
+        
+        Note over Store: User approval process
+        Store->>Approval: Approval decision
+        Approval->>Tools: Execute approved tool
+    else Tool execution allowed
+        Approval->>Tools: Execute tool directly
+    end
+    
+    Tools->>Tools: Perform operation
+    Tools->>Store: Update resource/state
+    Tools-->>Registry: Execution result
+    Registry-->>MCP: Tool response
+    MCP-->>Agent: Final result
+    
+    Note over Agent,Store: Resource tracking & limits enforced throughout
+```
+
+#### **Key Integration Features**
+
+**1. Schema Compression via `define_tool`**
+```typescript
+// Instead of loading all resource schemas into context
+const compressedContext = await defineTool({
+    toolName: "resource_manage",
+    variant: "Note", 
+    op: "add"
+});
+// Returns precise schema for Note creation only
+```
+
+**2. Resource Allocation in Swarm Spawning**
+```typescript
+const childSwarm = await spawnSwarm({
+    kind: "simple",
+    swarmLeader: "analyst_bot",
+    goal: "Analyze Q4 data",
+    // Inherits portion of parent's resource allocation
+    resourceAllocation: {
+        maxCredits: parentAllocation.maxCredits * 0.3,
+        maxDuration: parentAllocation.maxDuration * 0.5
+    }
+});
+```
+
+**3. Approval-Gated Execution**
+```typescript
+const chatConfig = {
+    scheduling: {
+        requiresApprovalTools: ["run_routine", "resource_manage"],
+        approvalTimeoutMs: 600000, // 10 minutes
+        toolSpecificDelays: {
+            "run_routine": 5000, // 5 second delay
+            "send_message": 0   // Immediate
+        }
+    }
+};
+```
+
+This architecture provides a **unified tool execution layer** that serves both external AI agents (via MCP) and internal swarms, with comprehensive approval controls, resource management, and dynamic tool generation capabilities.
 
 #### **Execution Context Management**
 
@@ -1410,42 +1952,39 @@ sequenceDiagram
 
 #### **Key Design Principles**
 
-**1. Strategy-Context Alignment**
-The system automatically selects the most appropriate execution strategy based on:
-- Routine maturity and usage patterns
-- Available data and context richness
-- Performance requirements and constraints  
-- User preferences and risk tolerance
+**1. MCP-First Architecture**
+The system uses Model Context Protocol as the universal interface for tool integration:
+- **External AI agents** connect via MCP to access Vrooli's tool ecosystem
+- **Internal swarms** use the same MCP tools for consistency and reliability
+- **Dynamic tool servers** provide routine-specific MCP endpoints
 
-**2. Adaptive Resource Management**
-Resources are dynamically allocated and optimized based on:
-- Real-time demand and capacity
-- Cost-quality trade-off preferences
-- Historical performance patterns
-- Predictive usage models
+**2. Tool Approval as First-Class Citizen**
+User oversight is built into the core architecture:
+- **Configurable approval policies** per swarm and tool type
+- **Scheduled execution** with user-defined delays
+- **Resource-aware gating** based on cost and complexity
 
-**3. Continuous Learning and Evolution**
-The system continuously improves through:
-- Performance pattern analysis
-- Best practice extraction
-- Strategy evolution recommendations
-- Cross-routine knowledge sharing
+**3. Schema Compression for Efficiency**
+The `define_tool` mechanism reduces context overhead:
+- **On-demand schema generation** for specific resource types and operations
+- **Precise parameter definitions** instead of comprehensive tool schemas
+- **Dynamic adaptation** based on current execution context
 
-**4. Comprehensive Tool Integration**
-Support for multiple integration protocols ensures:
-- Native AI tool integration via MCP
-- Standard web service compatibility
-- Real-time communication capabilities
-- Secure and reliable API access
+**4. Resource Inheritance in Swarm Spawning**
+Child swarms inherit controlled portions of parent resources:
+- **Configurable allocation ratios** for credits, time, and computational resources
+- **Hierarchical limit enforcement** prevents resource exhaustion
+- **Graceful degradation** when limits are approached
 
-**5. Quality-First Execution**
-Every execution includes:
-- Input validation and sanitization
-- Output quality assessment
-- Security and compliance checks
-- Performance monitoring and optimization
+**5. Unified Tool Execution Layer**
+All tools, whether built-in or dynamic, follow consistent patterns:
+- **Common authentication and authorization** across all tool types
+- **Standardized error handling** and response formatting
+- **Comprehensive logging and audit trails** for all tool executions
 
-This Tier 3 design creates a sophisticated execution layer that not only handles routine steps reliably but also learns and evolves, making Vrooli's automation capabilities progressively more intelligent and effective over time.
+This MCP-based tool integration architecture provides the foundation for Vrooli's unified automation ecosystem, enabling seamless collaboration between AI agents, swarms, and external systems while maintaining strict resource control and user oversight.
+
+**Now please remind me to explain how the actual tool use like web search, calling APIs, etc. works, and I'll provide the details for the next update!**
 
 ## Data Flow and Interface Architecture
 
