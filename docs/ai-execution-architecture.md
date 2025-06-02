@@ -1029,8 +1029,6 @@ graph TB
 
 This architecture makes Vrooli the **universal execution layer** for automation - like how Kubernetes became the universal orchestration layer for containers, Vrooli becomes the universal orchestration layer for intelligent workflows.
 
-> **Implementation Guide**: For detailed implementation steps and migration from the current architecture, see the [RunStateMachine Implementation Guide](./run-state-machine-migration-guide.md).
-
 ### Tier 3: Execution Intelligence
 
 **Purpose**: Strategy-aware step execution with adaptive optimization and comprehensive tool integration
@@ -1515,45 +1513,59 @@ The single-step execution engine provides specialized handling for different act
 
 - **Web Search**: Implements query optimization, provider selection, content extraction, and quality filtering to deliver relevant, safe search results.
 
-- **Data Processing**: Provides format conversion, schema validation, and transformation logic with sensitivity-aware handling for different data types.
+- **Data Processing**: Provides format conversion, schema validation, and 
+transformation logic with sensitivity-aware handling for different data types.
 
-- **AI Generation**: Manages LLM interactions with prompt engineering, response processing, and quality assessment for consistent AI-generated content.
+- **AI Generation**: Manages LLM interactions with prompt engineering, response 
+processing, and quality assessment for consistent AI-generated content.
 
-- **Internal Actions**: Handles Vrooli-specific operations like resource CRUD, state management, and system integrations with appropriate authorization.
+- **Internal Actions**: Handles Vrooli-specific operations like resource CRUD, state 
+management, and system integrations with appropriate authorization.
 
-Each execution type supports both **synchronous** and **asynchronous** operation modes, with the approval system allowing user intervention for sensitive operations through configurable policies in the chat/swarm configuration.
+Each execution type supports both **synchronous** and **asynchronous** operation 
+modes, with the approval system allowing user intervention for sensitive operations 
+through configurable policies in the chat/swarm configuration.
 
-#### **Tool Approval and Scheduling System**
-
-A sophisticated **approval and scheduling system** allows for user oversight and controlled execution:
+A sophisticated **approval and scheduling system** allows for user oversight and 
+controlled execution:
 
 ```mermaid
 graph TB
     subgraph "Tool Approval Architecture"
-        ChatConfig[ChatConfig<br/>📋 Per-swarm configuration<br/>⚙️ Approval policies<br/>⏱️ Scheduling rules]
+        ChatConfig[ChatConfig<br/>📋 Per-swarm configuration<br/>⚙️ Approval 
+        policies<br/>⏱️ Scheduling rules]
         
         subgraph "Approval Policies"
-            RequiresApproval[Requires Approval<br/>🔧 Specific tools<br/>🌐 All tools<br/>❌ No approval needed]
+            RequiresApproval[Requires Approval<br/>🔧 Specific tools<br/>🌐 All 
+            tools<br/>❌ No approval needed]
             
-            ApprovalTimeout[Approval Timeout<br/>⏱️ Configurable duration<br/>🚨 Auto-reject option<br/>👤 User-specific approval]
+            ApprovalTimeout[Approval Timeout<br/>⏱️ Configurable duration<br/>🚨 
+            Auto-reject option<br/>👤 User-specific approval]
             
-            ToolSpecificDelays[Tool-Specific Delays<br/>⏱️ Custom per-tool delays<br/>📊 Risk-based timing<br/>💰 Cost consideration]
+            ToolSpecificDelays[Tool-Specific Delays<br/>⏱️ Custom per-tool delays<br/
+            >📊 Risk-based timing<br/>💰 Cost consideration]
         end
         
         subgraph "Execution Modes"
-            SynchronousExec[Synchronous Execution<br/>⚡ Immediate execution<br/>🔄 Blocking operation<br/>📊 Direct response]
+            SynchronousExec[Synchronous Execution<br/>⚡ Immediate execution<br/>🔄 
+            Blocking operation<br/>📊 Direct response]
             
-            AsynchronousExec[Asynchronous Execution<br/>📅 Scheduled execution<br/>🔄 Non-blocking operation<br/>📢 Event notification]
+            AsynchronousExec[Asynchronous Execution<br/>📅 Scheduled execution<br/
+            >🔄 Non-blocking operation<br/>📢 Event notification]
             
-            PendingApproval[Pending Approval<br/>⏸️ User intervention required<br/>📊 Status tracking<br/>⏱️ Timeout monitoring]
+            PendingApproval[Pending Approval<br/>⏸️ User intervention required<br/
+            >📊 Status tracking<br/>⏱️ Timeout monitoring]
         end
         
         subgraph "Pending Tool Call Management"
-            PendingStore[Pending Store<br/>💾 Persistent storage<br/>📊 Status tracking<br/>🔄 Retry logic]
+            PendingStore[Pending Store<br/>💾 Persistent storage<br/>📊 Status 
+            tracking<br/>🔄 Retry logic]
             
-            StatusTracking[Status Tracking<br/>📊 PENDING_APPROVAL<br/>✅ APPROVED_READY<br/>❌ REJECTED_BY_USER<br/>⏱️ REJECTED_BY_TIMEOUT]
+            StatusTracking[Status Tracking<br/>📊 PENDING_APPROVAL<br/>✅ 
+            APPROVED_READY<br/>❌ REJECTED_BY_USER<br/>⏱️ REJECTED_BY_TIMEOUT]
             
-            ResourceTracking[Resource Tracking<br/>💰 Cost estimation<br/>⏱️ Execution time<br/>📊 Attempt counting]
+            ResourceTracking[Resource Tracking<br/>💰 Cost estimation<br/>⏱️ 
+            Execution time<br/>📊 Attempt counting]
         end
     end
     
@@ -2018,64 +2030,399 @@ graph TB
         T1Events[Tier 1 Events<br/>📋 Goal changes<br/>👥 Team updates<br/>💰 Resource allocation]
         T2Events[Tier 2 Events<br/>🔄 State transitions<br/>🌿 Branch completion<br/>⚠️ Execution errors]
         T3Events[Tier 3 Events<br/>✅ Step completion<br/>📊 Strategy changes<br/>🔧 Tool usage]
+        SystemEvents[System Events<br/>🔐 Security incidents<br/>📊 Performance metrics<br/>⚠️ Error conditions]
     end
     
     subgraph "Event Consumers"
-        MonitoringSub[Monitoring Subscribers<br/>📊 Performance tracking<br/>🚨 Alert generation]
-        ImprovementSub[Improvement Subscribers<br/>🔍 Pattern detection<br/>📈 Optimization triggers]
-        SecuritySub[Security Subscribers<br/>🔒 Audit logging<br/>🚨 Threat detection]
-        OptimizationBots[Optimization Bots<br/>🤖 Listen to swarm/perf.* events<br/>📋 Publish routine-manifest patches<br/>🔄 Strategy evolution]
+        MonitoringBots[Monitoring Bots<br/>📊 Performance tracking<br/>🚨 Alert generation<br/>📈 Trend analysis]
+        SecurityBots[Security Bots<br/>🔒 Threat detection<br/>🚨 Incident response<br/>📊 Audit logging]
+        OptimizationBots[Optimization Bots<br/>🔄 Pattern recognition<br/>📋 Routine improvements<br/>🎯 Strategy evolution]
+        QualityBots[Quality Bots<br/>✅ Output validation<br/>🔍 Bias detection<br/>📊 Quality metrics]
     end
     
     T1Events --> EventBus
     T2Events --> EventBus
     T3Events --> EventBus
+    SystemEvents --> EventBus
     
-    
-    EventBus --> MonitoringSub
-    EventBus --> ImprovementSub
-    EventBus --> SecuritySub
+    EventBus --> MonitoringBots
+    EventBus --> SecurityBots
     EventBus --> OptimizationBots
+    EventBus --> QualityBots
     
     classDef eventBus fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef producers fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
     classDef consumers fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     
     class EventBus eventBus
-    class T1Events,T2Events,T3Events producers
-    class MonitoringSub,ImprovementSub,SecuritySub,OptimizationBots consumers
+    class T1Events,T2Events,T3Events,SystemEvents producers
+    class MonitoringBots,SecurityBots,OptimizationBots,QualityBots consumers
 ```
 
-### **Same-Server Affinity for Cache Efficiency**
+### **Event-Driven Intelligence Architecture**
 
-Swarm and routine-related events prioritize **same-server affinity** to maximize cache efficiency and performance. This design decision is driven by the multi-layer caching system used for swarm and routine execution state.
+Vrooli's event-driven architecture represents a fundamental shift from hard-coded intelligence to **emergent, customizable capabilities**. Rather than building safety, security, performance monitoring, and optimization directly into the system, these capabilities emerge from **specialized agents and routines** that teams deploy and configure according to their specific needs.
 
-**Key Benefits of Same-Server Processing:**
+#### **The Customizable Intelligence Philosophy**
 
-1. **Cache Efficiency**: Swarms and routines maintain state in a 3-tier cache (L1 LRU → L2 Redis → L3 Database). Processing on the same server avoids cache duplication and reduces latency.
+**Traditional Approach Problems:**
+- Hard-coded safety rules that don't adapt to domain-specific requirements
+- Centralized performance monitoring that can't understand specialized workflows
+- Rigid security policies that don't evolve with emerging threats
+- One-size-fits-all optimization that misses domain-specific opportunities
 
-2. **Reduced Network Overhead**: Same-server processing eliminates inter-server communication for cache synchronization, reducing network traffic and improving response times.
+**Vrooli's Event-Driven Solution:**
+- **🎯 Team Autonomy**: Each team deploys specialized intelligence agents for their domain
+- **🔄 Continuous Evolution**: Intelligence capabilities improve through agent refinement and learning
+- **📊 Comprehensive Coverage**: Multiple specialized agents provide redundant, overlapping monitoring
+- **⚡ Real-Time Responsiveness**: Agents respond to events as they occur, enabling immediate action
+- **🔒 Security Through Diversity**: Distributed monitoring reduces single points of failure
 
-3. **Consistency Guarantees**: Processing swarm events on the same server that holds the cached state reduces race conditions and ensures stronger consistency for multi-turn conversations.
+#### **Event Consumer Types and Capabilities**
 
-4. **Resource Optimization**: Memory and CPU resources are used more efficiently when related processing occurs on the same server, reducing overall infrastructure costs.
+**1. 🔒 Security Bots - Adaptive Threat Intelligence**
 
-### **Event Types and Routing**
+Security capabilities are provided by specialized agents that can be customized for different threat models:
 
-**Conversation Events:**
-- `conversation.message.created`: New chat message requiring swarm processing
-- `conversation.tool.result`: Tool execution results requiring state updates
-- `conversation.scheduled.tick`: Scheduled processing events
+```typescript
+// Healthcare Security Bot Example
+const hipaaSecurityBot = {
+    subscriptions: [
+        "data/access/medical/*",     // Medical data access patterns
+        "ai/generation/medical/*",   // Medical AI outputs
+        "audit/hipaa/*"             // HIPAA-specific events
+    ],
+    
+    capabilities: {
+        phiDetection: "detect_protected_health_info",
+        complianceCheck: "hipaa_compliance_validation", 
+        auditTrail: "medical_audit_logging"
+    },
+    
+    policies: ["zero_phi_exposure", "medical_device_compliance"],
+    
+    responses: [
+        { threat: "phi_exposure", action: "immediate_quarantine" },
+        { threat: "compliance_violation", action: "halt_and_notify" },
+        { threat: "suspicious_access", action: "enhanced_monitoring" }
+    ]
+};
 
-**Swarm Events:**
-- `swarm.subtask.created/updated/completed`: Subtask lifecycle events
-- `swarm.resource.created/updated`: Resource management events
-- `swarm.leader.changed`: Leadership transitions
+// Financial Security Bot Example  
+const financeSecurityBot = {
+    subscriptions: [
+        "transaction/*",            // All financial transactions
+        "market/data/access/*",     // Market data access
+        "trading/algorithm/*"       // Algorithmic trading
+    ],
+    
+    capabilities: {
+        fraudDetection: "financial_fraud_patterns",
+        marketManipulation: "trading_pattern_analysis",
+        regulatoryCompliance: "sox_finra_validation"
+    },
+    
+    responses: [
+        { threat: "fraud_pattern", action: "freeze_account" },
+        { threat: "market_manipulation", action: "report_to_sec" },
+        { threat: "wash_trading", action: "immediate_investigation" }
+    ]
+};
+```
 
-**Routine Events:**
-- `routine.execution.started/completed/failed`: Routine lifecycle events
-- `routine.step.completed`: Individual step completion
-- `routine.strategy.evolved`: Strategy optimization events
+**2. 📊 Quality Bots - Domain-Specific Quality Assurance**
+
+Quality monitoring adapts to the specific quality requirements of different domains:
+
+```typescript
+// Medical AI Quality Bot
+const medicalQualityBot = {
+    subscriptions: [
+        "ai/diagnosis/*",           // AI diagnostic outputs
+        "ai/treatment/*",           // Treatment recommendations  
+        "ai/medical_writing/*"      // Medical content generation
+    ],
+    
+    qualityChecks: {
+        medicalAccuracy: "validate_against_medical_knowledge_base",
+        biasDetection: "check_demographic_bias_in_diagnoses", 
+        hallucinationCheck: "verify_medical_facts_and_citations",
+        ethicalCompliance: "medical_ethics_validation"
+    },
+    
+    qualityThresholds: {
+        accuracyMinimum: 0.95,      // 95% accuracy required for medical AI
+        biasToleranceMaximum: 0.05, // Very low bias tolerance
+        hallucinationRate: 0.01     // Extremely low hallucination tolerance
+    }
+};
+
+// Creative Content Quality Bot
+const creativeQualityBot = {
+    subscriptions: [
+        "ai/creative_writing/*",    // Creative content generation
+        "ai/marketing/*",           // Marketing content
+        "ai/social_media/*"         // Social media posts
+    ],
+    
+    qualityChecks: {
+        creativityScore: "assess_originality_and_creativity",
+        brandAlignment: "check_brand_voice_consistency",
+        audienceAppeal: "predict_audience_engagement",
+        toxicityCheck: "content_toxicity_detection"
+    },
+    
+    qualityThresholds: {
+        creativityMinimum: 0.7,     // High creativity expected
+        brandAlignmentMinimum: 0.8, // Strong brand consistency
+        toxicityMaximum: 0.1        // Low toxicity tolerance
+    }
+};
+```
+
+**3. ⚡ Optimization Bots - Continuous Performance Enhancement**
+
+Optimization agents identify and implement improvements specific to team workflows:
+
+```typescript
+// Routine Optimization Bot
+const routineOptimizerBot = {
+    subscriptions: [
+        "routine/execution/completed/*", // All routine completions
+        "swarm/perf/latency/*",         // Performance metrics
+        "swarm/perf/cost/*",            // Cost efficiency data
+        "strategy/evolution/*"           // Strategy changes
+    ],
+    
+    analysisCapabilities: {
+        bottleneckIdentification: "identify_performance_bottlenecks",
+        costOptimization: "analyze_cost_efficiency_patterns",
+        strategyEvolution: "recommend_strategy_upgrades",
+        routineComposition: "suggest_routine_combinations"
+    },
+    
+    optimizationActions: [
+        { trigger: "high_latency_pattern", action: "suggest_caching_strategy" },
+        { trigger: "cost_inefficiency", action: "recommend_cheaper_models" },
+        { trigger: "repetitive_tasks", action: "create_reusable_subroutine" },
+        { trigger: "manual_steps", action: "suggest_automation_upgrade" }
+    ]
+};
+
+// Resource Usage Optimizer Bot
+const resourceOptimizerBot = {
+    subscriptions: [
+        "resource/usage/*",          // Resource consumption
+        "swarm/scaling/*",           // Scaling events
+        "performance/bottleneck/*"   // Performance issues
+    ],
+    
+    optimizationStrategies: {
+        creditOptimization: "minimize_ai_model_costs",
+        timeOptimization: "reduce_execution_latency", 
+        parallelization: "identify_parallelization_opportunities",
+        caching: "optimize_caching_strategies"
+    }
+};
+```
+
+**4. 📈 Monitoring Bots - Intelligent Observability**
+
+Monitoring agents provide domain-aware observability that understands the specific metrics that matter to each team:
+
+```typescript
+// Business Process Monitor Bot
+const businessProcessMonitor = {
+    subscriptions: [
+        "business/process/*",        // Business process events
+        "customer/journey/*",        // Customer interaction events
+        "conversion/*"               // Conversion events
+    ],
+    
+    businessMetrics: {
+        processEfficiency: "measure_end_to_end_process_time",
+        customerSatisfaction: "track_customer_satisfaction_scores",
+        conversionOptimization: "analyze_conversion_funnel_performance",
+        slaCompliance: "monitor_service_level_agreements"
+    },
+    
+    insights: [
+        "identify_process_bottlenecks",
+        "predict_customer_churn_risk", 
+        "recommend_process_improvements",
+        "alert_on_sla_violations"
+    ]
+};
+
+// Technical Performance Monitor Bot
+const techPerformanceMonitor = {
+    subscriptions: [
+        "system/performance/*",      // System performance metrics
+        "api/response_time/*",       // API performance
+        "database/query/*",          // Database performance
+        "cache/hit_rate/*"          // Cache efficiency
+    ],
+    
+    technicalMetrics: {
+        systemHealth: "overall_system_health_score",
+        performanceRegression: "detect_performance_degradation",
+        resourceUtilization: "optimize_resource_allocation",
+        errorRateTracking: "monitor_error_rates_and_patterns"
+    }
+};
+```
+
+#### **Agent Collaboration and Evolution**
+
+**1. Cross-Agent Learning**
+Agents can learn from each other's insights and adapt their behavior:
+
+```typescript
+// Agents share insights through the event bus
+await publishEvent({
+    type: "agent/insight/bias_pattern_detected",
+    payload: {
+        pattern: "gender_bias_in_hiring_recommendations",
+        confidence: 0.87,
+        recommendedMitigation: "add_demographic_blind_review_step",
+        affectedDomains: ["hr", "recruiting", "talent_management"]
+    }
+});
+
+// Other agents can subscribe to insights and adapt
+const adaptiveQualityBot = {
+    subscriptions: ["agent/insight/*"],
+    
+    onInsight: async (insight) => {
+        if (insight.type === "bias_pattern_detected") {
+            await this.updateQualityChecks({
+                biasPatterns: [...this.biasPatterns, insight.pattern],
+                mitigationStrategies: [...this.mitigations, insight.recommendedMitigation]
+            });
+        }
+    }
+};
+```
+
+**2. Dynamic Agent Deployment**
+Teams can deploy new specialized agents as their needs evolve:
+
+```typescript
+// Deploying a specialized compliance agent for a new regulatory requirement
+await spawnSwarm({
+    goal: "Monitor GDPR compliance for EU customer data",
+    agents: [
+        {
+            type: "gdpr_compliance_monitor",
+            config: {
+                subscriptions: ["data/eu_customer/*", "ai/personal_data/*"],
+                complianceRules: "gdpr_article_6_lawful_basis",
+                alertThresholds: "zero_tolerance_for_violations"
+            }
+        }
+    ],
+    schedule: "continuous_monitoring"
+});
+
+// Deploying performance optimization agents for a new product launch
+await spawnSwarm({
+    goal: "Optimize performance for Black Friday traffic surge", 
+    agents: [
+        { type: "load_balancer_optimizer", config: trafficConfig },
+        { type: "cache_efficiency_monitor", config: cacheConfig },
+        { type: "cost_optimizer", config: budgetConfig }
+    ],
+    duration: "november_1_to_december_1"
+});
+```
+
+**3. Agent Marketplace and Knowledge Sharing**
+Successful agent configurations can be shared across teams and organizations:
+
+```typescript
+// Publishing a successful agent configuration
+await publishAgentPattern({
+    name: "healthcare_hipaa_compliance_agent",
+    domain: "healthcare",
+    useCase: "hipaa_compliance_monitoring",
+    
+    configuration: {
+        subscriptions: ["data/medical/*", "ai/health/*"],
+        compliance: ["hipaa", "hitech"],
+        qualityThresholds: { phi_exposure_tolerance: 0.0 }
+    },
+    
+    successMetrics: {
+        complianceRate: 0.999,
+        falsePositiveRate: 0.02,
+        responseTime: "< 100ms"
+    },
+    
+    testimonials: [
+        "Reduced compliance violations by 95%",
+        "Automated 80% of compliance checks",
+        "Saved 40 hours/week of manual auditing"
+    ]
+});
+
+// Other healthcare teams can easily deploy this proven configuration
+const deployedAgent = await deployAgentFromMarketplace({
+    patternId: "healthcare_hipaa_compliance_agent",
+    customizations: {
+        alertChannels: ["slack://our-compliance-channel"],
+        auditingIntegration: "our_audit_system_api"
+    }
+});
+```
+
+#### **Team Evolution Through Agent Intelligence**
+
+**Progressive Sophistication:**
+1. **Basic Monitoring**: Teams start with simple monitoring agents
+2. **Pattern Recognition**: Agents begin identifying patterns in team workflows
+3. **Predictive Intelligence**: Agents start predicting issues before they occur
+4. **Autonomous Optimization**: Agents automatically implement approved optimizations
+5. **Strategic Insights**: Agents provide strategic recommendations for business growth
+
+**Example Evolution Path:**
+```typescript
+// Month 1: Basic monitoring
+const basicMonitor = createAgent({
+    goal: "Monitor routine execution success rates",
+    subscriptions: ["routine/completed/*"],
+    analysis: "simple_success_rate_calculation"
+});
+
+// Month 3: Pattern recognition
+const patternAnalyzer = createAgent({
+    goal: "Identify patterns in routine failures",
+    subscriptions: ["routine/completed/*", "routine/failed/*"],
+    analysis: "failure_pattern_analysis",
+    insights: ["common_failure_causes", "performance_bottlenecks"]
+});
+
+// Month 6: Predictive intelligence
+const predictiveOptimizer = createAgent({
+    goal: "Predict and prevent routine failures",
+    subscriptions: ["routine/*", "system/performance/*", "resource/usage/*"],
+    analysis: "predictive_failure_analysis",
+    actions: ["preventive_scaling", "proactive_optimization"]
+});
+
+// Month 12: Autonomous optimization
+const autonomousImprover = createAgent({
+    goal: "Continuously improve routine performance",
+    subscriptions: ["*"], // Monitor everything
+    capabilities: [
+        "autonomous_routine_optimization",
+        "strategic_workflow_improvements", 
+        "business_impact_analysis"
+    ],
+    authority: "implement_approved_optimizations"
+});
+```
+
+This event-driven intelligence architecture ensures that Vrooli becomes more intelligent and capable over time, not through system updates, but through the **collective intelligence of specialized agents** that teams deploy, refine, and share with each other.
 
 ## State Management and Consistency
 
@@ -2608,138 +2955,116 @@ graph TB
     class ContextInheritance,ContextMerging,ContextCompression services
 ```
 
-TODO: Docs above are mostly complete. Docs below are not. Some may be removed, some improved, and some used to update the docs above.
+### **Knowledge Base**
+
+Vrooli's knowledge base is the foundation for intelligent operations, providing a centralized and efficiently searchable repository for all system resources. Unlike systems with disparate data stores, Vrooli leverages a unified approach:
+
+- **Unified Relational Storage**: All resources—including routines, notes, teams, projects, standards, and more—are stored within a **PostgreSQL relational database**. This provides a structured, reliable, and ACID-compliant foundation for all data.
+- **Integrated Vector Embeddings**: The PostgreSQL database is enhanced with the **pgvector extension**, allowing for efficient storage and similarity search of vector embeddings directly alongside the relational data.
+- **Automated Embedding Generation**: When any embeddable resource (e.g., a routine's description, a note's content) is created or updated, an `embeddingExpiredAt` flag is set for that record. Embeddings are generated through a dual mechanism:
+    - A **periodic cron job** regularly scans for records with the `embeddingExpiredAt` flag and processes them in batches.
+    - A **BullMQ task queue** is also triggered upon creation/update. This queue worker may process the embedding generation more immediately.
+    - Once an embedding is successfully generated and stored, the `embeddingExpiredAt` flag is cleared by whichever process completes the task first.
+- **Flexible Search Capabilities**:
+    - **Direct Search**: Swarms can perform direct keyword and semantic searches using the `find` operation of the `resource_manage` tool, which can construct SQL queries leveraging pgvector for similarity matching.
+    - **Routine-Powered Search**: For more complex or nuanced search requirements, swarms can invoke specialized search routines. These routines can implement sophisticated logic, combine multiple search criteria, perform multi-step retrieval, or integrate with external knowledge sources before returning results.
+
+This architecture ensures that all system knowledge is consistently managed, easily accessible, and efficiently searchable, forming a critical component of the AI's ability to learn, reason, and act.
+
+```mermaid
+graph TB
+    subgraph "Knowledge Management System"
+        PostgreSQL["🐘 PostgreSQL Database\n(with pgvector extension)\nStores all resources: routines, notes, teams, projects, etc."]
+        
+        subgraph "Embedding Generation Pipeline"
+            ResourceCRUD["🔄 Resource Create/Update\n(e.g., new routine, updated note)"] --sets flag--> EmbeddingFlag["🚩 embeddingExpiredAt flag"]
+            CronJob["🕰️ Periodic Cron Job\nScans for flagged records"] --reads flag--> EmbeddingFlag
+            BullMQ["🐂 BullMQ Task Queue\nImmediate task triggered"] --reads flag--> EmbeddingFlag
+            EmbeddingService["🤖 Embedding Generation Service\n(Calculates & stores embeddings)"]
+            CronJob --> EmbeddingService
+            BullMQ --> EmbeddingService
+            EmbeddingService --clears flag--> EmbeddingFlag
+            EmbeddingService --> PostgreSQL
+        end
+
+        subgraph "Search & Retrieval"
+            Swarm["🐝 Swarm"]
+            ManageResourceTool["🛠️ resource_manage tool\n(find operation)"]
+            SearchRoutine["⚙️ Specialized Search Routine\n(complex logic)"]
+            
+            Swarm --> ManageResourceTool
+            Swarm --> SearchRoutine
+            
+            ManageResourceTool --direct query (SQL + pgvector)--> PostgreSQL
+            SearchRoutine --advanced queries/logic--> PostgreSQL
+            SearchRoutine --may use--> ManageResourceTool
+            
+            PostgreSQL --> ManageResourceTool
+            PostgreSQL --> SearchRoutine
+        end
+    end
+
+    classDef database fill:#cde4ff,stroke:#5a89c4,stroke-width:2px
+    classDef pipeline fill:#d5f5e3,stroke:#58b27c,stroke-width:2px
+    classDef search fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+    classDef component fill:#f8cecc,stroke:#b85450,stroke-width:2px
+
+    class PostgreSQL database
+    class ResourceCRUD,EmbeddingFlag,CronJob,BullMQ,EmbeddingService pipeline
+    class Swarm,ManageResourceTool,SearchRoutine search
+```
 
 ### **AI Safety and Reliability**
 
 ```mermaid
 graph TB
-    subgraph "AI Safety Framework"
-        SafetyOrchestrator[Safety Orchestrator<br/>🛡️ Central safety coordination<br/>🚨 Threat detection<br/>📊 Risk assessment]
+    subgraph "Core Safety Framework"
+        SafetyManager[Safety Manager<br/>🛡️ Central safety coordination<br/>📊 Policy enforcement<br/>🔄 Event integration]
         
-        subgraph "Input Security"
-            PromptValidator[Prompt Validator<br/>🔍 Injection detection<br/>🛡️ Content filtering<br/>📊 Risk scoring]
-            InputSanitizer[Input Sanitizer<br/>🧹 Data cleaning<br/>🔒 Format validation<br/>⚡ Preprocessing]
-            ContextValidator[Context Validator<br/>📋 Context integrity<br/>🔒 Access control<br/>📊 Scope validation]
-        end
-        
-        subgraph "Output Security"
-            HallucinationDetector[Hallucination Detector<br/>🎯 Fact checking<br/>📊 Confidence scoring<br/>🔍 Consistency analysis]
-            OutputValidator[Output Validator<br/>✅ Schema validation<br/>🛡️ Content filtering<br/>📊 Quality metrics]
-            BiasDetector[Bias Detector<br/>⚖️ Fairness analysis<br/>🔍 Bias identification<br/>📊 Diversity metrics]
-        end
-        
-        subgraph "Behavioral Controls"
-            BehaviorMonitor[Behavior Monitor<br/>👁️ Action tracking<br/>🚨 Anomaly detection<br/>📊 Pattern analysis]
-            SafetyLimits[Safety Limits<br/>🚫 Hard boundaries<br/>⏱️ Rate limiting<br/>💰 Cost controls]
+        subgraph "Essential Safety Infrastructure"
+            InputValidation[Input Validation<br/>🔒 Basic format validation<br/>⚡ Schema enforcement<br/>📊 Size/rate limits]
+            OutputValidation[Output Validation<br/>✅ Basic schema validation<br/>🔒 Format compliance<br/>📊 Size constraints]
+            SafetyLimits[Safety Limits<br/>🚫 Hard resource boundaries<br/>⏱️ Rate limiting<br/>💰 Cost controls]
             EmergencyStop[Emergency Stop<br/>🛑 Immediate shutdown<br/>🔄 Safe rollback<br/>📊 Incident logging]
         end
-    end
-    
-    SafetyOrchestrator --> PromptValidator
-    SafetyOrchestrator --> InputSanitizer
-    SafetyOrchestrator --> ContextValidator
-    SafetyOrchestrator --> HallucinationDetector
-    SafetyOrchestrator --> OutputValidator
-    SafetyOrchestrator --> BiasDetector
-    SafetyOrchestrator --> BehaviorMonitor
-    SafetyOrchestrator --> SafetyLimits
-    SafetyOrchestrator --> EmergencyStop
-    
-    classDef orchestrator fill:#ffebee,stroke:#c62828,stroke-width:3px
-    classDef input fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef output fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef behavioral fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    
-    class SafetyOrchestrator orchestrator
-    class PromptValidator,InputSanitizer,ContextValidator input
-    class HallucinationDetector,OutputValidator,BiasDetector output
-    class BehaviorMonitor,SafetyLimits,EmergencyStop behavioral
-```
-
-### **Knowledge Base and Learning Architecture**
-
-```mermaid
-graph TB
-    subgraph "Knowledge Management System"
-        KnowledgeOrchestrator[Knowledge Orchestrator<br/>🧠 Central knowledge coordination<br/>🔄 Learning coordination<br/>📊 Knowledge synthesis]
         
-        subgraph "Knowledge Storage"
-            VectorDatabase[Vector Database<br/>🎯 Semantic search<br/>📊 Similarity matching<br/>⚡ Fast retrieval]
-            GraphDatabase[Graph Database<br/>🔗 Relationship mapping<br/>🧠 Concept networks<br/>📊 Inference support]
-            TemporalStore[Temporal Store<br/>⏰ Time-series data<br/>📈 Trend analysis<br/>🔄 Historical context]
-        end
-        
-        subgraph "Learning Services"
-            PatternExtractor[Pattern Extractor<br/>🔍 Usage pattern mining<br/>📊 Success correlation<br/>🎯 Optimization hints]
-            KnowledgeDistiller[Knowledge Distiller<br/>🧪 Best practice extraction<br/>📋 Rule generation<br/>🔄 Generalization]
-            ConceptEvolver[Concept Evolver<br/>🧬 Knowledge evolution<br/>🔄 Concept refinement<br/>📊 Adaptation tracking]
-        end
-        
-        subgraph "Retrieval Services"
-            SemanticRetriever[Semantic Retriever<br/>🎯 Context-aware search<br/>📊 Relevance ranking<br/>⚡ Real-time results]
-            ContextualRanker[Contextual Ranker<br/>⚖️ Priority weighting<br/>📊 Relevance scoring<br/>🎯 Personalization]
-            KnowledgeFusion[Knowledge Fusion<br/>🔄 Multi-source integration<br/>⚖️ Conflict resolution<br/>📊 Synthesis]
+        subgraph "Event-Driven Safety Intelligence"
+            SafetyEvents[Safety Events<br/>📊 Input/output patterns<br/>🚨 Policy violations<br/>⚠️ Risk indicators]
+            SafetyAgents[Safety Agents<br/>🤖 Subscribe to safety events<br/>📊 Report findings<br/>⚡ Trigger responses]
         end
     end
     
-    KnowledgeOrchestrator --> VectorDatabase
-    KnowledgeOrchestrator --> GraphDatabase
-    KnowledgeOrchestrator --> TemporalStore
-    KnowledgeOrchestrator --> PatternExtractor
-    KnowledgeOrchestrator --> KnowledgeDistiller
-    KnowledgeOrchestrator --> ConceptEvolver
-    KnowledgeOrchestrator --> SemanticRetriever
-    KnowledgeOrchestrator --> ContextualRanker
-    KnowledgeOrchestrator --> KnowledgeFusion
+    SafetyManager --> InputValidation
+    SafetyManager --> OutputValidation
+    SafetyManager --> SafetyLimits
+    SafetyManager --> EmergencyStop
+    SafetyManager --> SafetyEvents
+    SafetyManager --> SafetyAgents
     
-    classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef storage fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef learning fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef retrieval fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef manager fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef events fill:#ffebee,stroke:#c62828,stroke-width:2px
     
-    class KnowledgeOrchestrator orchestrator
-    class VectorDatabase,GraphDatabase,TemporalStore storage
-    class PatternExtractor,KnowledgeDistiller,ConceptEvolver learning
-    class SemanticRetriever,ContextualRanker,KnowledgeFusion retrieval
+    class SafetyManager manager
+    class InputValidation,OutputValidation,SafetyLimits,EmergencyStop infrastructure
+    class SafetyEvents,SafetyAgents events
 ```
 
-### **AI Strategy Evolution Framework**
+**Core Security Components:**
 
-#### **Strategy Selection and Adaptation**
+- **Authentication Service**: Verifies user and agent identities using robust mechanisms, including multi-factor authentication and secure token management.
+- **Authorization Engine**: Enforces access control policies based on roles and permissions, ensuring that users and agents can only access resources and perform actions they are authorized for.
+- **Audit Logger**: Tracks all significant activities within the system, providing a comprehensive audit trail for compliance monitoring and security analytics.
+- **Sandbox Manager**: Isolates the execution of routines and code, enforcing resource limits and restricting privileges to prevent malicious or runaway processes.
+- **Code Validator**: Performs static analysis and risk assessment on code submitted for execution within routines, aiming to detect malware or unsafe practices.
+- **Network Controller**: Manages network traffic, enforcing isolation between components and encrypting data in transit to prevent unauthorized access and eavesdropping.
+- **Encryption Service**: Protects data at rest and in transit using strong encryption algorithms and secure key management practices.
+- **Privacy Manager**: Implements features for data anonymization and PII protection, supporting compliance with regulations like GDPR.
+- **Secret Manager**: Securely stores and manages sensitive information such as API keys and credentials, with features for rotation and access logging.
 
-```typescript
-interface AIStrategyEvolutionFramework {
-    // Strategy Performance Tracking
-    trackExecution(execution: ExecutionResult): void;
-    analyzePerformance(routineId: string, timeRange: TimeRange): PerformanceAnalysis;
-    
-    // Strategy Evolution
-    evolveStrategy(routine: Routine, analysis: PerformanceAnalysis): EvolutionRecommendation;
-    testStrategyVariant(variant: StrategyVariant): ABTestResult;
-    
-    // Adaptive Selection
-    selectOptimalStrategy(context: ExecutionContext): StrategySelection;
-    adaptToContext(strategy: Strategy, context: ExecutionContext): AdaptedStrategy;
-}
+**Event-Driven Safety Intelligence:**
 
-interface PerformanceAnalysis {
-    successRate: number;
-    averageExecutionTime: number;
-    resourceEfficiency: number;
-    qualityMetrics: QualityMetrics;
-    userSatisfaction: number;
-    costEffectiveness: number;
-}
-
-interface EvolutionRecommendation {
-    currentStrategy: ExecutionStrategy;
-    recommendedStrategy: ExecutionStrategy;
-    migrationPath: MigrationStep[];
-    expectedImprovement: PerformanceGain;
-    riskAssessment: RiskProfile;
-}
-```
+Advanced safety capabilities like **prompt injection detection**, **hallucination checking**, **bias detection**, and **behavioral monitoring** are provided by specialized **safety agents**. These agents subscribe to `SafetyEvents` (e.g., input/output patterns, policy violations, risk indicators) via the `SafetyAgentAPI`. They analyze these events, report findings, and can trigger responses or escalate issues. This approach allows security measures to be highly adaptable and evolve as new threats emerge. See the [Event-Driven Intelligence Architecture](#event-driven-intelligence-architecture) section for more details on how event-driven agents are deployed and configured.
 
 ## Cross-Cutting Architectural Concerns
 
@@ -2773,12 +3098,6 @@ graph TB
             PrivacyManager[PrivacyManager<br/>🔒 Data anonymization<br/>👤 PII protection<br/>📋 GDPR compliance]
             SecretManager[SecretManager<br/>🔑 API key storage<br/>🔐 Credential rotation<br/>🛡️ Access logging]
         end
-        
-        subgraph "Threat Intelligence"
-            ThreatDetector[Threat Detector<br/>🚨 Advanced threat detection<br/>🤖 AI-powered analysis<br/>📊 Behavioral analytics]
-            IncidentResponse[Incident Response<br/>🚨 Automated response<br/>🔄 Recovery procedures<br/>📊 Forensic analysis]
-            SecurityOrchestration[Security Orchestration<br/>🎯 Coordinated defense<br/>🔄 Playbook automation<br/>📊 Response optimization]
-        end
     end
     
     SecurityManager --> AuthenticationService
@@ -2793,26 +3112,21 @@ graph TB
     SecurityManager --> EncryptionService
     SecurityManager --> PrivacyManager
     SecurityManager --> SecretManager
-    SecurityManager --> ThreatDetector
-    SecurityManager --> IncidentResponse
-    SecurityManager --> SecurityOrchestration
     
     classDef security fill:#ffebee,stroke:#c62828,stroke-width:3px
     classDef access fill:#fce4ec,stroke:#ad1457,stroke-width:2px
     classDef aiSecurity fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef execution fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef data fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef threat fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     
     class SecurityManager security
     class AuthenticationService,AuthorizationEngine,AuditLogger access
     class PromptInjectionGuard,ModelIntegrityValidator,DataPoisoningDetector aiSecurity
     class SandboxManager,CodeValidator,NetworkController execution
     class EncryptionService,PrivacyManager,SecretManager data
-    class ThreatDetector,IncidentResponse,SecurityOrchestration threat
 ```
 
-#### **AI Security Threat Model**
+#### **Security Threat Model**
 
 ```mermaid
 graph TB
@@ -2853,39 +3167,40 @@ graph TB
     class ResourceExhaustion,PrivilegeEscalation,LateralMovement systemThreats
 ```
 
-#### **Defense in Depth Strategy**
+Understanding the AI-specific threat landscape is crucial for building a resilient system. Vrooli acknowledges these threats and employs a combination of built-in safeguards and an event-driven architecture for adaptive defense.
 
-```typescript
-interface AISecurityFramework {
-    // Preventive Controls
-    preventPromptInjection(input: string, context: SecurityContext): ValidationResult;
-    validateModelIntegrity(modelId: string): IntegrityResult;
-    sanitizeTrainingData(data: TrainingData[]): SanitizedData[];
-    
-    // Detective Controls
-    detectAnomalousRequests(request: ExecutionRequest): AnomalyScore;
-    monitorModelBehavior(modelId: string, timeRange: TimeRange): BehaviorAnalysis;
-    analyzeOutputPatterns(outputs: ModelOutput[]): PatternAnalysis;
-    
-    // Responsive Controls
-    quarantineThreats(threatId: string): QuarantineResult;
-    isolateCompromisedComponents(componentId: string): IsolationResult;
-    initiateIncidentResponse(incident: SecurityIncident): ResponsePlan;
-    
-    // Adaptive Controls
-    updateThreatModels(intelligence: ThreatIntelligence): ModelUpdate;
-    adaptDefenses(attackPattern: AttackPattern): DefenseAdaptation;
-    evolveSecurityPolicies(analysis: SecurityAnalysis): PolicyEvolution;
-}
+**Detailed Threat Explanations and Mitigation Approaches:**
 
-interface SecurityContext {
-    agentIdentity: AgentIdentity;
-    permissionLevel: PermissionLevel;
-    dataClassification: DataClassification;
-    threatLevel: ThreatLevel;
-    executionEnvironment: EnvironmentContext;
-}
-```
+-   **Input Threats:** These threats involve manipulating the data or prompts fed into AI models.
+    -   **Prompt Injection**: Attackers craft inputs that trick the AI into ignoring its original instructions or performing unintended actions (e.g., revealing sensitive information, executing malicious code). Vrooli mitigates this through input sanitization, strict output parsing, and by encouraging routines that clearly define expected interaction patterns, making deviations easier to detect.
+    -   **Data Poisoning**: Malicious actors may attempt to corrupt the training data of models (if applicable to future fine-tuning efforts within Vrooli) or manipulate data sources used by routines, leading to biased or incorrect AI behavior. Mitigation involves careful data sourcing, anomaly detection in data inputs, and routines designed for cross-verification.
+    -   **Context Contamination**: If not handled carefully, information from one interaction or user could leak into another's context, leading to privacy breaches or incorrect AI responses. Vrooli enforces strict context isolation between swarms, agents, and routine executions.
+
+-   **Model Threats:** These target the AI models themselves.
+    -   **Model Theft**: Unauthorized extraction of the AI model's architecture or parameters (weights). While Vrooli primarily uses third-party models, any custom models or significant fine-tuning would require access controls and infrastructure security.
+    -   **Model Inversion**: Inferring sensitive training data by querying the model. This is more relevant for models trained on private data. For Vrooli, this means ensuring that routines handling sensitive data do not inadvertently create query patterns that could leak information.
+    -   **Adversarial Attacks**: Crafting subtle, often imperceptible, changes to input data that cause the model to misclassify or behave erratically. Defenses include input validation and the potential for specialized routines to detect and filter such inputs, though this is an ongoing research area.
+
+-   **Output Threats:** These relate to the potential harm caused by the AI's generated content or actions.
+    -   **Hallucination Exploits**: AI models can generate convincing but false or nonsensical information. Routines can be designed to cross-reference information, use multiple sources, or involve human review for critical outputs.
+    -   **Bias Amplification**: AI models can inherit and even amplify biases present in their training data, leading to unfair or discriminatory outcomes. Mitigation involves selecting models with known bias mitigation efforts, careful prompt engineering, and event-driven agents that monitor outputs for biased patterns.
+    -   **Information Leakage**: AI might inadvertently reveal sensitive data from its context or training. This is addressed through context isolation, data minimization principles in routine design, and output filtering.
+
+-   **System Threats:** These exploit the platform hosting the AI.
+    -   **Resource Exhaustion**: Malicious or poorly designed routines/agents could consume excessive computational resources (credits, CPU, memory), leading to denial of service. Vrooli implements strict resource quotas at user, team, and swarm levels, with monitoring and automated cutoffs.
+    -   **Privilege Escalation**: An attacker gaining unauthorized higher-level access by exploiting vulnerabilities in an agent or routine. This is mitigated by sandboxed execution, principle of least privilege for tools and routines, and regular security audits.
+    -   **Lateral Movement**: An attacker, having compromised one part of the system (e.g., a single agent), attempts to access other parts. Strong isolation between swarms and granular permissions for routines help prevent this.
+
+**The Role of Swarms in Evolving Defenses:**
+
+A significant challenge in AI security is that many threats are novel and constantly evolving. Fixed defenses can quickly become outdated. Vrooli's architecture is designed to address this through its recursive self-improvement capabilities:
+
+-   **Learning Best Practices**: Swarms, through their interactions and by observing the outcomes of various security-related events, can learn which strategies and routine configurations are most effective at mitigating specific threats.
+-   **Event-Driven Agents for Security**: Teams can deploy specialized security agents that subscribe to system events (e.g., `audit/tool_call_denied`, `security/anomalous_input_pattern`). These agents can analyze patterns, identify potential threats, and even propose or enact countermeasures.
+-   **Sharing Security Routines**: As swarms develop effective security routines (e.g., an advanced prompt injection detection routine, a bias-checking routine for generated content), these can be shared across the Vrooli ecosystem. This allows the collective intelligence of all swarms to contribute to the platform's overall security posture.
+-   **Unsolved Threats as Challenges**: Many AI security threats are active areas of research. Vrooli aims to be a platform where swarms can contribute to solving these challenges, for example, by developing routines that test for new vulnerabilities or create novel defense mechanisms.
+
+By combining foundational security measures with an adaptive, event-driven approach powered by collaborative swarm intelligence, Vrooli aims to create a security posture that can evolve and improve over time.
 
 ### Monitoring and Observability
 
@@ -2932,53 +3247,6 @@ graph TB
     class MetricsCollector,AlertManager,DashboardService performance
     class HealthChecker,CircuitBreaker,LoadBalancer health
     class QualityTracker,UsageAnalyzer,FeedbackCollector intelligence
-```
-
-### Improvement Engine
-
-```mermaid
-graph TB
-    subgraph "Continuous Improvement Framework"
-        ImprovementEngine[ImprovementEngine<br/>🔄 Central improvement coordinator]
-        
-        subgraph "Analysis Services"
-            PatternAnalyzer[PatternAnalyzer<br/>🔍 Usage pattern detection<br/>📊 Performance analysis<br/>📈 Trend identification]
-            BottleneckDetector[BottleneckDetector<br/>🚧 Performance bottlenecks<br/>⏱️ Resource constraints<br/>🎯 Optimization targets]
-            SuccessPredictor[SuccessPredictor<br/>🎯 Outcome prediction<br/>📊 Success probability<br/>🔍 Risk assessment]
-        end
-        
-        subgraph "Optimization Services"
-            RoutineOptimizer[RoutineOptimizer<br/>⚙️ Process improvement<br/>🔄 Strategy evolution<br/>📊 A/B testing]
-            ResourceOptimizer[ResourceOptimizer<br/>💰 Cost optimization<br/>⏱️ Time efficiency<br/>🔄 Load balancing]
-            QualityImprover[QualityImprover<br/>✅ Output enhancement<br/>🎯 Accuracy improvement<br/>📊 Consistency optimization]
-        end
-        
-        subgraph "Evolution Services"
-            VersionManager[VersionManager<br/>📚 Routine versioning<br/>🔄 Migration paths<br/>📊 Rollback capabilities]
-            KnowledgeExtractor[KnowledgeExtractor<br/>🧠 Best practice extraction<br/>📋 Pattern codification<br/>🔄 Knowledge sharing]
-            InnovationEngine[InnovationEngine<br/>💡 New routine generation<br/>🔄 Creative combinations<br/>🎯 Gap identification]
-        end
-    end
-    
-    ImprovementEngine --> PatternAnalyzer
-    ImprovementEngine --> BottleneckDetector
-    ImprovementEngine --> SuccessPredictor
-    ImprovementEngine --> RoutineOptimizer
-    ImprovementEngine --> ResourceOptimizer
-    ImprovementEngine --> QualityImprover
-    ImprovementEngine --> VersionManager
-    ImprovementEngine --> KnowledgeExtractor
-    ImprovementEngine --> InnovationEngine
-    
-    classDef improvement fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    classDef analysis fill:#e1bee7,stroke:#8e24aa,stroke-width:2px
-    classDef optimization fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    classDef evolution fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class ImprovementEngine improvement
-    class PatternAnalyzer,BottleneckDetector,SuccessPredictor analysis
-    class RoutineOptimizer,ResourceOptimizer,QualityImprover optimization
-    class VersionManager,KnowledgeExtractor,InnovationEngine evolution
 ```
 
 ## Resilience and Error Handling Architecture
@@ -3661,10 +3929,10 @@ packages/
 | Phase                                 | New Capabilities                                                                                                               | Cryptographic / Decentralized Primitives                                                                                                                                                                                                                | Hard Gates & Milestones                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | **1. Bootstrapping (`v0 → v1`)**      | Thin-slice automation for one team; deterministic routines dominate.                                                           | • **Code-signing + Web-of-Trust**: every routine image signed by its author swarms; execution engine rejects unsigned code.                                                                                                                             | 95 % routine success at < \$0.01/run; full audit log hashed to an append-only Merkle chain.               |
-| **2. Resource Pooling & Campaigning** | Any user can pledge **resource-tokens** (credits, CPU, IP) to a shared swarm that tackles a goal.                              | • ERC-20/6645-style **tokenization** of credits & work-shares.<br>• **Escrow smart contracts** with automatic slashing / refund logic.<br>• **Price-feed oracles** pin token ↔ fiat rates.                                                              | On-chain ledger live; “bug-bounty swarm” pays out autonomously.                                           |
-| **3. Idea Mining & Local Swarms**     | Wearable or desktop “shadow swarms” mine personal knowledge to surface monetizable ideas and auction them.                     | • **Encrypted local notebooks**; ZK-proofs that PII never leaves device.<br>• **Proof-of-Human (PoH)** stamp so only real people earn royalties.<br>• **Royalty-splitting contracts** issue streaming payments when an idea is sold or reused.          | First \$10 k in on-chain royalties paid without human escrow.                                             |
+| **2. Resource Pooling & Campaigning** | Any user can pledge **resource-tokens** (credits, CPU, IP) to a shared swarm that tackles a goal.                              | • ERC-20/6645-style **tokenization** of credits & work-shares.<br>• **Escrow smart contracts** with automatic slashing / refund logic.<br>• **Price-feed oracles** pin token ↔ fiat rates.                                                              | On-chain ledger live; "bug-bounty swarm" pays out autonomously.                                           |
+| **3. Idea Mining & Local Swarms**     | Wearable or desktop "shadow swarms" mine personal knowledge to surface monetizable ideas and auction them.                     | • **Encrypted local notebooks**; ZK-proofs that PII never leaves device.<br>• **Proof-of-Human (PoH)** stamp so only real people earn royalties.<br>• **Royalty-splitting contracts** issue streaming payments when an idea is sold or reused.          | First \$10 k in on-chain royalties paid without human escrow.                                             |
 | **4. Cross-Org Federations**          | Swarms handshake across company boundaries to run supply-chain or back-office flows.                                           | • **DIDs & verifiable credentials** for each agent.<br>• **Inter-org SLA contracts** with time-locked dispute-resolution.<br>• **Commit-Reveal oracles** to prevent info leakage in competitive bids.                                                   | SLA breach automatically triggers on-chain penalty; zero downtime during fail-over.                       |
-| **5. Policy-Aware Governance**        | Machine-readable policy DSL; “Governance Bots” propose patches.                                                                | • **Liquid-Democracy smart contracts**: token-weighted or delegated voting on policy PRs.<br>• **Snapshot + IPFS** storage for immutable proposal histories.                                                                                            | 10 000 votes cast with <1 h finality; emergency “eStop” multisig spans 5 jurisdictions.                   |
+| **5. Policy-Aware Governance**        | Machine-readable policy DSL; "Governance Bots" propose patches.                                                                | • **Liquid-Democracy smart contracts**: token-weighted or delegated voting on policy PRs.<br>• **Snapshot + IPFS** storage for immutable proposal histories.                                                                                            | 10 000 votes cast with <1 h finality; emergency "eStop" multisig spans 5 jurisdictions.                   |
 | **6. Sector Automation**              | Domain-specific knowledge graphs & simulators plug in; entire industries (logistics, insurance, clinical trials) run on-chain. | • **Domain oracles** stream real-world KPIs (CO₂ levels, claim events).<br>• **Reg-compliance proofs**: auditable hashes of every decision.<br>• **Cross-chain bridges** for asset settlement.                                                          | Regulator sandbox cert passed; 99.999 % SLA on critical workflows.                                        |
 | **7. Macroeconomic Orchestration**    | Inter-sector swarms coordinate production, capital and compute.                                                                | • **Autonomous market-matching AMMs** clear resource prices.<br>• **Reputation mining** (web-of-trust graph persists across chains).<br>• **Nation-state veto hooks** limited to hashed constitutional constraints, enforced by cryptoeconomic staking. | Economic telemetry bus open-sourced; systemic-risk monitor triggers first federated circuit-breaker test. |
 
@@ -3683,3 +3951,4 @@ This architecture creates a foundation for recursive self-improvement by:
 The result is not just another automation platform, but a **compound intelligence system** where capabilities grow exponentially as agents and swarms learn from each other, build better tools, and create more sophisticated routines.
 
 This architecture makes Vrooli's vision of "orchestrating AI agents for complex tasks" not just achievable, but inevitable - creating a path to truly autonomous, self-improving artificial intelligence that enhances human capabilities rather than replacing them. 
+
