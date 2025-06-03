@@ -216,6 +216,9 @@ if is_yes "$API_GENERATE"; then
 
     script_location="${HERE}/../packages/shared/src/__tools/api/buildOpenAPISchema.ts"
     run_step "Generating OpenAPI schema" "NODE_OPTIONS=\"--max-old-space-size=4096\" npx vite-node ${script_location}"
+
+    script_location="${HERE}/../packages/server/src/__tools/ai/generateToolSchemas.ts"
+    run_step "Generating MCP schemas" "NODE_OPTIONS=\"--max-old-space-size=4096\" npx vite-node ${script_location}"
 fi
 
 # Build React app

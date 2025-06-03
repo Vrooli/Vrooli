@@ -7,11 +7,11 @@ start_time=$(date +%s)
 if [ "${NODE_ENV}" = "development" ]; then
     # Convert shared packages to typescript. In production, this should already be done
     "${HERE}/shared.sh"
-    # Perform pre-develop steps
+    # Build server
     cd ${PROJECT_DIR}/packages/server
-    yarn build && yarn pre-develop
+    yarn build
     if [ $? -ne 0 ]; then
-        error "Failed pre-develop steps. Could be db migration issue. Keeping container running for debug..."
+        error "Failed to build server. Keeping container running for debug..."
         tail -f /dev/null
     fi
 else
