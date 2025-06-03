@@ -19,7 +19,7 @@ This creates a path to **top-down automation of knowledge work** - starting with
 
     *Note: Routines are always private by default, and can only be shared with other swarms you create unless you explicitly share them with the public.*
     
-- **Workflow**: The execution instance of a routine - the actual running process with specific inputs, context, and state.
+- **Run**: The execution instance of a routine - the actual running process with specific inputs, context, and state.
 - **Navigator**: A pluggable component that translates between Vrooli's universal execution model and platform-specific workflow formats (BPMN, Langchain, etc.).
 - **Strategy**: The execution approach applied to a routine step (Conversational, Reasoning, or Deterministic), selected based on routine characteristics and context.
 - **Context**: The execution environment containing variables, state, permissions, and shared knowledge available to agents during routine execution.
@@ -370,7 +370,7 @@ graph TD
             T1[SwarmStateMachine<br/>🎯 Prompt-based metacognition<br/>👥 Dynamic team coordination<br/>📋 Natural language planning]
         end
         subgraph Tier2 [Tier 2: Process Intelligence]
-            T2[RunStateMachine<br/>📊 Universal workflow orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
+            T2[RunStateMachine<br/>📊 Universal routine orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
         end
         subgraph Tier3 [Tier 3: Execution Intelligence]
             T3[UnifiedExecutor<br/>🤖 Strategy-aware execution<br/>🔧 Tool integration<br/>💰 Resource management]
@@ -1160,7 +1160,7 @@ This design philosophy - **"coordination through understanding"** rather than "c
 
 ### Tier 2: Process Intelligence - RunStateMachine
 
-**Purpose**: Navigator-agnostic workflow execution with parallel coordination and state management
+**Purpose**: Navigator-agnostic routine execution with parallel coordination and state management
 
 The `RunStateMachine` is at the heart of Vrooli's ability to execute diverse automation routines. The following diagram visualizes its lifecycle and the various states it transitions through while managing routine execution:
 
@@ -1275,7 +1275,7 @@ stateDiagram-v2
 ```
 
 #### **Plug-and-Play Routine Architecture**
-The RunStateMachine represents Vrooli's core innovation: a **universal workflow execution engine** that's completely agnostic to the underlying automation platform. This creates an unprecedented **universal automation ecosystem**:
+The RunStateMachine represents Vrooli's core innovation: a **universal routine execution engine** that's completely agnostic to the underlying automation platform. This creates an unprecedented **universal automation ecosystem**:
 
 - **BPMN 2.0** support out of the box for enterprise-grade process modeling
 - Designed for **interoperability** with other workflow standards:
@@ -1290,7 +1290,7 @@ This means swarms from different platforms can share and execute each other's ro
 ```mermaid
 graph TB
     subgraph "Process Intelligence - RunStateMachine"
-        RunStateMachine[RunStateMachine<br/>📊 Universal workflow orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
+        RunStateMachine[RunStateMachine<br/>📊 Universal routine orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
         
         subgraph "Navigator Registry - Plug & Play"
             NavigatorFactory[NavigatorFactory<br/>🏭 Navigator selection<br/>🔌 Pluggable architecture]
@@ -1304,7 +1304,7 @@ graph TB
         subgraph "Execution Management"
             BranchController[BranchController<br/>🌿 Concurrent execution<br/>🔀 Synchronization<br/>📊 Load balancing]
             StateManager[StateManager<br/>💾 Persistence<br/>🔄 Recovery<br/>📄 Audit trails]
-            ProcessManager[ProcessManager<br/>🔄 Workflow navigation<br/>📍 State tracking<br/>⚡ Parallel coordination]
+            ProcessManager[ProcessManager<br/>🔄 Routine navigation<br/>📍 State tracking<br/>⚡ Parallel coordination]
         end
         
         subgraph "Intelligence Layer"
@@ -1424,11 +1424,11 @@ graph TB
 
 #### **Key Responsibilities**
 
-- **Universal Execution**: Execute workflows from any supported platform using the same engine
+- **Universal Execution**: Execute routines from any supported platform using the same engine
 - **Recursive Composition**: Support unlimited nesting of multi-step and single-step routines  
 - **Context Management**: Maintain hierarchical execution contexts with proper data flow
 - **Sensitivity Handling**: Enforce data sensitivity rules throughout execution
-- **Parallel Coordination**: Manage complex branching and synchronization across workflow types
+- **Parallel Coordination**: Manage complex branching and synchronization across routine types
 - **State Management**: Maintain execution state with recovery and audit capabilities across platforms
 - **Intelligent Navigation**: Optimize execution paths while preserving platform-specific semantics
 - **Strategy Evolution**: Enable gradual transformation from conversational to deterministic execution
@@ -1464,241 +1464,343 @@ This creates a **strategy evolution pipeline** where routines naturally progress
 
 ```mermaid
 graph TB
-    subgraph "Tier 3: Execution Intelligence - UnifiedExecutor"
-        UnifiedExecutor[UnifiedExecutor<br/>🎯 Central execution coordinator<br/>🤖 Strategy-aware processing<br/>📊 Performance optimization]
-        
+    subgraph "Tier 3: Execution Intelligence – UnifiedExecutor"
+        UnifiedExecutor[UnifiedExecutor<br/>🎯 Central execution coordinator<br/>🤖 Strategy-aware processing]
+
+        %% ─────────── Strategy framework ───────────
         subgraph "Strategy Framework"
-            StrategySelector[StrategySelector<br/>🧠 Context-aware selection<br/>📊 Performance-based routing<br/>🔄 Dynamic adaptation]
-            
-            ConversationalStrategy[ConversationalStrategy<br/>💬 Natural language processing<br/>🤔 Creative problem-solving<br/>🔄 Human-like reasoning]
-            
-            ReasoningStrategy[ReasoningStrategy<br/>🧠 Structured analysis<br/>📊 Data-driven decisions<br/>🎯 Logic frameworks]
-            
-            DeterministicStrategy[DeterministicStrategy<br/>⚙️ Reliable automation<br/>📋 Validated workflows<br/>💰 Optimized execution]
+            StrategySelector[StrategySelector<br/>🧠 Context-aware selection]
+            ConversationalStrategy[ConversationalStrategy<br/>💬 Natural-language tasks]
+            ReasoningStrategy[ReasoningStrategy<br/>🧠 Structured analysis]
+            DeterministicStrategy[DeterministicStrategy<br/>⚙️ Reliable automation]
         end
-        
+
+        %% ─────────── Execution infra ───────────
         subgraph "Execution Infrastructure"
-            ToolOrchestrator[ToolOrchestrator<br/>🔧 MCP tool coordination<br/>🌐 API integration<br/>📊 Rate limit management]
-            
-            IOProcessor[IOProcessor<br/>📋 Input/output handling<br/>🔄 Data transformation<br/>✅ Schema validation]
-            
-            ResourceManager[ResourceManager<br/>💰 Credit tracking<br/>⏱️ Time management<br/>📊 Resource optimization]
-            
-            ValidationEngine[ValidationEngine<br/>✅ Output quality control<br/>🛡️ Security validation<br/>📊 Consistency checks]
+            ToolOrchestrator[ToolOrchestrator<br/>🔧 MCP tool coordination]
+            IOProcessor[IOProcessor<br/>📋 I/O handling & validation]
+            ResourceManager[ResourceManager<br/>💰 Credit & time limits]
+            ValidationEngine[ValidationEngine<br/>✅ Output QA & security]
         end
-        
+
+        %% ─────────── Context & state ───────────
         subgraph "Context & State Management"
-            ExecutionContext[ExecutionContext<br/>📋 Runtime environment<br/>🔗 Variable management<br/>🔒 Permission control]
-            
-            StateSynchronizer[StateSynchronizer<br/>🔄 Cross-tier sync<br/>💾 State persistence<br/>📊 Consistency management]
-            
-            ContextInheritance[ContextInheritance<br/>⬇️ Hierarchical propagation<br/>📊 Scope management<br/>🔒 Access control]
+            ExecutionContext[ExecutionContext<br/>📋 Runtime environment]
+            StateSynchronizer[StateSynchronizer<br/>🔄 Cross-tier sync]
+            ContextInheritance[ContextInheritance<br/>⬇️ Hierarchical propagation]
         end
-        
-        subgraph "Learning & Adaptation"
-            PerformanceTracker[PerformanceTracker<br/>📊 Execution metrics<br/>⏱️ Latency tracking<br/>🎯 Success rates]
-            
-            StrategyEvolver[StrategyEvolver<br/>🔄 Pattern recognition<br/>📈 Performance optimization<br/>🧠 Strategy migration]
-            
-            KnowledgeExtractor[KnowledgeExtractor<br/>🧠 Best practice mining<br/>📋 Pattern codification<br/>🔄 Improvement suggestions]
+
+        %% ─────────── Telemetry only (no learning here) ───────────
+        subgraph "Telemetry Emitter (stateless)"
+            TelemetryShim[Telemetry Shim<br/>📊 Publishes perf.* / biz.* / safety.* events]
         end
     end
-    
-    %% Core execution flow
+
+    %% Core flow
     UnifiedExecutor --> StrategySelector
     StrategySelector --> ConversationalStrategy
     StrategySelector --> ReasoningStrategy
     StrategySelector --> DeterministicStrategy
-    
-    %% Infrastructure integration
+
     UnifiedExecutor --> ToolOrchestrator
     UnifiedExecutor --> IOProcessor
     UnifiedExecutor --> ResourceManager
     UnifiedExecutor --> ValidationEngine
-    
-    %% Context management
+
     UnifiedExecutor --> ExecutionContext
     UnifiedExecutor --> StateSynchronizer
     UnifiedExecutor --> ContextInheritance
-    
-    %% Learning loop
-    UnifiedExecutor --> PerformanceTracker
-    PerformanceTracker --> StrategyEvolver
-    StrategyEvolver --> KnowledgeExtractor
-    KnowledgeExtractor -.->|"Informs"| StrategySelector
-    
+
+    %% Telemetry
+    UnifiedExecutor --> TelemetryShim
+
     classDef executor fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
     classDef strategy fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef infrastructure fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef infra fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef learning fill:#ffebee,stroke:#c62828,stroke-width:2px
-    
+    classDef telem fill:#ffebee,stroke:#c62828,stroke-width:2px
+
     class UnifiedExecutor executor
     class StrategySelector,ConversationalStrategy,ReasoningStrategy,DeterministicStrategy strategy
-    class ToolOrchestrator,IOProcessor,ResourceManager,ValidationEngine infrastructure
+    class ToolOrchestrator,IOProcessor,ResourceManager,ValidationEngine infra
     class ExecutionContext,StateSynchronizer,ContextInheritance context
-    class PerformanceTracker,StrategyEvolver,KnowledgeExtractor learning
+    class TelemetryShim telem
+```
+
+**Here's how the UnifiedExecutor works in detail:**
+
+```mermaid
+sequenceDiagram
+    actor T2 as RunStateMachine  ▸  Tier 2  
+    participant UE as UnifiedExecutor  ▸  Tier 3  
+    participant SS as StrategySelector  
+    participant RM as ResourceManager  
+    participant IP as IOProcessor  
+    participant STRAT as Selected Strategy <br/>(Conv / Reason / Determin.)  
+    participant TO as ToolOrchestrator  
+    participant VE as ValidationEngine  
+    participant TS as TelemetryShim
+
+    %% ───────────── Invocation ─────────────
+    T2->>UE: StepExecutionRequest(step, ctx, limits)
+
+    %% ───────────── Preparation ────────────
+    UE->>SS: chooseStrategy(ctx.manifest, usageHints)
+    SS-->>UE: strategyType
+
+    UE->>RM: reserveBudget(limits)
+    RM-->>UE: ok
+    alt budgetExceeded
+        UE-->>T2: LimitExceededError
+        TS-->>TS: emit perf.limit_exceeded
+    else
+        UE->>IP: buildInputPayload(ctx)
+        IP-->>UE: preparedInputs
+
+        %% ───────────── Execution ──────────────
+        UE->>STRAT: executeStep(preparedInputs, ctx, tools)
+
+        %% -- inside the strategy loop (may call tools 0–N times)
+        loop each toolCall
+            STRAT->>TO: runTool(name, args)
+            TO->>RM: checkQuota(costEstimate)
+            RM-->>TO: ok
+            alt quotaOk
+                TO-->>STRAT: toolResult
+                TS-->>TS: emit perf.tool_call
+            else quotaExceeded
+                STRAT-->>UE: ResourceError
+                TS-->>TS: emit perf.quota_abort
+                UE-->>T2: ResourceError
+            end
+        end
+        STRAT-->>UE: rawOutput
+
+        %% ───────────── Post-processing ─────────
+        UE->>VE: validate(rawOutput, schema)
+        VE-->>UE: validatedOutput
+        alt validationFails
+            UE-->>T2: ValidationError
+            TS-->>TS: emit safety.validation_fail
+        else
+            UE->>RM: finalizeUsage()
+            RM-->>UE: usageReport
+
+            %% ───────────── Completion ─────────────
+            UE-->>T2: StepExecutionResult(validatedOutput, usageReport)
+            TS-->>TS: emit perf.step_completed
+        end
+    end
 ```
 
 #### **Three-Strategy Execution Framework**
 
-The heart of Tier 3's intelligence lies in its **adaptive strategy selection**. Each execution strategy serves different purposes and evolves based on routine maturity:
+##### **1. Conversational Strategy**
 
-**1. Conversational Strategy**
-```mermaid
-graph TB
-    subgraph "Conversational Strategy Examples"
-        ConvEngine[Conversational Engine<br/>💬 Natural language understanding<br/>🤔 Creative problem-solving<br/>🔄 Adaptive responses]
-        
-        subgraph "Natural Language Processing"
-            PromptEngineer[Prompt Engineer<br/>📝 Context-aware prompting<br/>🎯 Goal-oriented instructions<br/>📊 Dynamic template selection]
-            
-            ResponseInterpreter[Response Interpreter<br/>🧠 Intent extraction<br/>📊 Sentiment analysis<br/>🔄 Contextual understanding]
-            
-            CreativityEngine[Creativity Engine<br/>💡 Novel solution generation<br/>🎨 Creative constraints<br/>🔄 Iterative refinement]
-        end
-        
-        subgraph "Adaptive Reasoning"
-            SituationalAwareness[Situational Awareness<br/>📊 Context assessment<br/>🎯 Goal alignment<br/>🔄 Dynamic adjustment]
-            
-            ExploratoryThinking[Exploratory Thinking<br/>🔍 Hypothesis generation<br/>🧪 Experimental approaches<br/>📊 Result evaluation]
-            
-            EdgeCaseHandling[Edge Case Handling<br/>🚨 Unusual situation detection<br/>🔄 Graceful adaptation<br/>🧠 Learning integration]
-        end
-        
-        subgraph "Human-AI Collaboration"
-            HumanInTheLoop[Human-in-the-Loop<br/>👤 Human oversight<br/>🤝 Collaborative decision-making<br/>📊 Feedback integration]
-            
-            UncertaintyHandling[Uncertainty Handling<br/>❓ Ambiguity resolution<br/>🤔 Clarification requests<br/>📊 Confidence scoring]
-            
-            LearningCapture[Learning Capture<br/>📚 Pattern documentation<br/>🔄 Experience integration<br/>🧠 Knowledge building]
-        end
-    end
-    
-    ConvEngine --> PromptEngineer
-    ConvEngine --> ResponseInterpreter
-    ConvEngine --> CreativityEngine
-    ConvEngine --> SituationalAwareness
-    ConvEngine --> ExploratoryThinking
-    ConvEngine --> EdgeCaseHandling
-    ConvEngine --> HumanInTheLoop
-    ConvEngine --> UncertaintyHandling
-    ConvEngine --> LearningCapture
-    
-    classDef engine fill:#fff3e0,stroke:#f57c00,stroke-width:3px
-    classDef nlp fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef reasoning fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef collaboration fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class ConvEngine engine
-    class PromptEngineer,ResponseInterpreter,CreativityEngine nlp
-    class SituationalAwareness,ExploratoryThinking,EdgeCaseHandling reasoning
-    class HumanInTheLoop,UncertaintyHandling,LearningCapture collaboration
-```
+**Purpose**:
 
-**2. Reasoning Strategy**
-```mermaid
-graph TB
-    subgraph "Reasoning Strategy Examples"
-        ReasoningEngine[Reasoning Engine<br/>🧠 Logical framework coordination<br/>📊 Data-driven analysis<br/>🎯 Systematic problem-solving]
-        
-        subgraph "Analytical Frameworks"
-            LogicalStructures[Logical Structures<br/>🔗 Premise-conclusion chains<br/>⚖️ Logical validation<br/>📊 Inference rules]
-            
-            DataAnalysis[Data Analysis<br/>📊 Statistical reasoning<br/>📈 Trend identification<br/>🎯 Evidence evaluation]
-            
-            DecisionTrees[Decision Trees<br/>🌳 Systematic branching<br/>📊 Outcome probability<br/>🎯 Optimal path selection]
-        end
-        
-        subgraph "Knowledge Integration"
-            FactRetrieval[Fact Retrieval<br/>📚 Knowledge base access<br/>🔍 Semantic search<br/>📊 Relevance ranking]
-            
-            ConceptMapping[Concept Mapping<br/>🔗 Relationship identification<br/>🧠 Conceptual frameworks<br/>📊 Dependency analysis]
-            
-            EvidenceSynthesis[Evidence Synthesis<br/>⚖️ Multi-source integration<br/>📊 Conflict resolution<br/>🎯 Coherent conclusions]
-        end
-        
-        subgraph "Quality Assurance"
-            LogicValidation[Logic Validation<br/>✅ Consistency checking<br/>🔍 Fallacy detection<br/>📊 Reasoning quality]
-            
-            BiasDetection[Bias Detection<br/>⚖️ Cognitive bias identification<br/>📊 Fairness analysis<br/>🔄 Correction mechanisms]
-            
-            ConfidenceScoring[Confidence Scoring<br/>📊 Certainty quantification<br/>🎯 Reliability assessment<br/>📈 Accuracy prediction]
-        end
-    end
-    
-    ReasoningEngine --> LogicalStructures
-    ReasoningEngine --> DataAnalysis
-    ReasoningEngine --> DecisionTrees
-    ReasoningEngine --> FactRetrieval
-    ReasoningEngine --> ConceptMapping
-    ReasoningEngine --> EvidenceSynthesis
-    ReasoningEngine --> LogicValidation
-    ReasoningEngine --> BiasDetection
-    ReasoningEngine --> ConfidenceScoring
-    
-    classDef engine fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef analytical fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef knowledge fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef quality fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class ReasoningEngine engine
-    class LogicalStructures,DataAnalysis,DecisionTrees analytical
-    class FactRetrieval,ConceptMapping,EvidenceSynthesis knowledge
-    class LogicValidation,BiasDetection,ConfidenceScoring quality
-```
+* Handle open-ended tasks via natural-language reasoning and creative problem-solving.
+* Useful when the goal or approach isn’t fully defined yet, and human-like flexibility is required.
 
-**3. Deterministic Strategy**
-```mermaid
-graph TB
-    subgraph "Deterministic Strategy Examples"
-        DeterministicEngine[Deterministic Engine<br/>⚙️ Workflow automation coordinator<br/>📋 Process optimization<br/>💰 Resource efficiency]
-        
-        subgraph "Process Automation"
-            WorkflowExecution[Workflow Execution<br/>📋 Step-by-step processing<br/>🔄 State machine logic<br/>⚡ Parallel optimization]
-            
-            APIIntegration[API Integration<br/>🌐 External service calls<br/>📊 Rate limit management<br/>🔄 Retry mechanisms]
-            
-            DataTransformation[Data Transformation<br/>🔄 Format conversion<br/>📊 Schema validation<br/>✅ Quality assurance]
-        end
-        
-        subgraph "Optimization & Efficiency"
-            CacheManagement[Cache Management<br/>💾 Result memoization<br/>⚡ Performance optimization<br/>📊 Hit rate tracking]
-            
-            BatchProcessing[Batch Processing<br/>📦 Request batching<br/>⚡ Throughput optimization<br/>💰 Cost reduction]
-            
-            ResourceOptimization[Resource Optimization<br/>💰 Credit efficiency<br/>⏱️ Time optimization<br/>📊 Load balancing]
-        end
-        
-        subgraph "Reliability & Monitoring"
-            ErrorHandling[Error Handling<br/>🚨 Exception management<br/>🔄 Graceful degradation<br/>📊 Recovery strategies]
-            
-            HealthMonitoring[Health Monitoring<br/>💓 Service health checks<br/>📊 Performance metrics<br/>🚨 Alert management]
-            
-            QualityAssurance[Quality Assurance<br/>✅ Output validation<br/>📊 Consistency checks<br/>🎯 SLA compliance]
-        end
-    end
-    
-    DeterministicEngine --> WorkflowExecution
-    DeterministicEngine --> APIIntegration
-    DeterministicEngine --> DataTransformation
-    DeterministicEngine --> CacheManagement
-    DeterministicEngine --> BatchProcessing
-    DeterministicEngine --> ResourceOptimization
-    DeterministicEngine --> ErrorHandling
-    DeterministicEngine --> HealthMonitoring
-    DeterministicEngine --> QualityAssurance
-    
-    classDef engine fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-    classDef automation fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef optimization fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef reliability fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class DeterministicEngine engine
-    class WorkflowExecution,APIIntegration,DataTransformation automation
-    class CacheManagement,BatchProcessing,ResourceOptimization optimization
-    class ErrorHandling,HealthMonitoring,QualityAssurance reliability
-```
+**Key Characteristics**:
+
+* Adaptive, exploratory, and tolerant of ambiguity.
+* Often involves human feedback loops.
+* Outputs can be fuzzy and require further refinement.
+
+**Illustrative Capabilities**:
+
+* **Natural Language Processing**
+
+  * **Prompt Engineering**
+
+    * Context-aware prompt templates
+    * Goal framing via dynamic template selection
+    * Role-specific instructions
+  * **Response Interpretation**
+
+    * Intent extraction from model output
+    * Sentiment and tone analysis
+    * Tracking conversational context
+  * **Creativity Engine**
+
+    * Generating novel suggestions or brainstorming ideas
+    * Applying “creative constraints” for specific scenarios
+    * Iterative refinement based on partial feedback
+
+* **Adaptive Reasoning**
+
+  * **Situational Awareness**
+
+    * Assessing the broader context and constraints
+    * Aligning sub-goals with overall objectives
+    * Dynamically adjusting lines of inquiry
+  * **Exploratory Thinking**
+
+    * Hypothesis generation (e.g., “What if we try X?”)
+    * Experimental approaches to uncover insights
+    * Evaluating intermediate findings for next steps
+  * **Edge-Case Handling**
+
+    * Spotting unusual or unexpected scenarios early
+    * Graceful fallbacks when instructions conflict
+    * Integrating newly learned patterns on the fly
+
+* **Human-AI Collaboration**
+
+  * **Human-in-the-Loop**
+
+    * Prompting for clarification when ambiguous
+    * Soliciting feedback on intermediate ideas
+    * Guided oversight for high-risk decisions
+  * **Uncertainty Handling**
+
+    * Quantifying confidence scores for generated text
+    * Asking clarifying questions to reduce ambiguity
+    * Incorporating human decisions when model confidence is low
+  * **Learning Capture**
+
+    * Documenting patterns that emerge from back-and-forth
+    * Building a simple working memory of past interactions
+    * Flagging novel insights for later codification
+
+##### **2. Reasoning Strategy**
+
+**Purpose**:
+
+* Apply structured, logic-driven frameworks to tasks once basic conversational patterns are known.
+* Good for multi-step decision trees, data-driven analysis, and evidence-based conclusions.
+
+**Key Characteristics**:
+
+* Emphasizes consistency, traceability, and justifiable outputs.
+* Often involves deterministic sub-routines or scripts combined with LLM assistance.
+* Balances human interpretability with partial automation.
+
+**Illustrative Capabilities**:
+
+* **Analytical Frameworks**
+
+  * **Logical Structures**
+
+    * Premise-conclusion chains (if-then reasoning)
+    * Formal logic validation to catch contradictions
+    * Inference rules for systematic deduction
+  * **Data Analysis**
+
+    * Statistical reasoning (e.g., mean, variance, trends)
+    * Trend identification from datasets or text corpora
+    * Evidence evaluation (“Which data supports X?”)
+  * **Decision Trees**
+
+    * Building branching logic for complex choices
+    * Calculating outcome probabilities where possible
+    * Selecting optimized paths based on defined criteria
+
+* **Knowledge Integration**
+
+  * **Fact Retrieval**
+
+    * Querying an internal knowledge base or vector store
+    * Semantic search to rank relevant documents
+    * Ensuring relevant facts are surfaced before analysis
+  * **Concept Mapping**
+
+    * Identifying relationships between entities or ideas
+    * Diagramming conceptual dependencies (e.g., cause/effect)
+    * Highlighting gaps in available knowledge
+  * **Evidence Synthesis**
+
+    * Merging information from multiple sources
+    * Resolving conflicting data points through comparison
+    * Producing coherent, consolidated conclusions
+
+* **Quality Assurance**
+
+  * **Logic Validation**
+
+    * Automated consistency checks on conclusions
+    * Detecting fallacies or flawed inference steps
+    * Ensuring each step follows established rules
+  * **Bias Detection**
+
+    * Scanning reasoning for potential cognitive biases
+    * Measuring fairness with basic heuristics
+    * Triggering corrective routines when bias is found
+  * **Confidence Scoring**
+
+    * Assigning confidence levels to each sub-conclusion
+    * Quantifying uncertainty numerically (e.g., 0–1 scale)
+    * Driving conditional flows based on confidence thresholds
+
+##### **3. Deterministic Strategy**
+
+**Purpose**:
+
+* Execute fully codified, repeatable processes once best practices are established.
+* Ideal for high-volume, low-ambiguity tasks where reliability and cost-efficiency are paramount.
+
+**Key Characteristics**:
+
+* Strict validation, idempotency, and monitoring.
+* Minimal to zero human intervention.
+* Optimized for throughput, resource usage, and error-resilience.
+
+**Illustrative Capabilities**:
+
+* **Process Automation**
+
+  * **Routine Execution**
+
+    * Step-by-step procedural workflows (e.g., ETL pipelines)
+    * State-machine logic for branching and parallelism
+    * Built-in synchronization points to avoid race conditions
+  * **API Integration**
+
+    * REST/GraphQL calls to external services
+    * Authentication management (tokens, retries)
+    * Rate-limit handling and back-off strategies
+  * **Data Transformation**
+
+    * Schema validation (JSON ⇄ CSV, internal object mappings)
+    * Format conversions (e.g., currency, date/time normalization)
+    * Bulk data processing with error-tolerant mechanisms
+
+* **Optimization & Efficiency**
+
+  * **Cache Management**
+
+    * Result memoization to skip redundant work
+    * Local or distributed caching layers (TTL, invalidation)
+    * Cache hit-rate tracking for performance tuning
+  * **Batch Processing**
+
+    * Grouping many small operations into bulk requests
+    * Reducing API call overhead by aggregating inputs
+    * Throughput optimization via parallel batching
+  * **Resource Optimization**
+
+    * Credit-cost analysis to choose cheaper model/API variants
+    * Time-based scheduling to exploit off-peak pricing
+    * Load balancing across parallel workers
+
+* **Reliability & Monitoring**
+
+  * **Error Handling**
+
+    * Granular exception management with retries & fallback
+    * Graceful degradation paths when dependencies fail
+    * Automated “circuit breaker” to halt repeated failures
+  * **Health Monitoring**
+
+    * Service-level checks (availability, latency, error rate)
+    * Alerts on SLA violations (e.g., > 99.9 % uptime)
+    * Proactive remediation (auto-restart failing components)
+  * **Quality Assurance**
+
+    * Strict output validation against predefined schemas
+    * Consistency checks to enforce data invariants
+    * SLA compliance gates (e.g., “no processing beyond 5 min”)
 
 #### Strategy Selection Intelligence  — How a step decides *how* to run
 
@@ -1707,7 +1809,7 @@ Vrooli resolves a step's execution strategy through a **two-layer rule set**:
 | Resolution layer | Rule | Notes |
 |------------------|------|-------|
 | **1. Declarative default** | Each Routine (and every nested Sub-routine) carries a `strategy` field in its manifest. Accepted values: `"conversational"`, `"reasoning"`, `"deterministic"`. Child routines always override the parent's setting, so a deterministic parent can embed a conversational brainstorming step without friction. | Think of this as the *author's intent* – predictable and easy to audit. |
-| **2. Adaptive override** | At execution-time the `StrategySelector` may substitute a different strategy **only** when:<br/>• the declared strategy violates a hard policy (e.g. `"conversational"` forbidden in HIPAA context)<br/>• live telemetry shows another strategy is **≥ 15 % cheaper or faster** *and* still passes quality/SLA gates. | All substitutions are logged; the ImprovementEngine feeds results back to routine authors. |
+| **2. Adaptive override** | At execution-time the `StrategySelector` may substitute a different strategy **only** when:<br/>• the declared strategy violates a hard policy (e.g. `"conversational"` forbidden in HIPAA context) | All substitutions are logged; the ImprovementEngine feeds results back to routine authors. |
 
 ```ts
 // Manifest snippet
@@ -2248,7 +2350,7 @@ sequenceDiagram
     Note over T1,Tools: Cross-Tier Execution Flow
     
     T1->>T2: SwarmExecutionRequest<br/>(goal, team, context)
-    T2->>T2: Navigate workflow<br/>& manage state
+    T2->>T2: Navigate routine<br/>& manage state
     T2->>T3: StepExecutionRequest<br/>(step, strategy, context)
     
     T3->>T3: Select optimal strategy<br/>based on context
@@ -2261,7 +2363,7 @@ sequenceDiagram
         T3->>T3: Apply structured analysis framework
         T3->>Tools: Data-driven API calls
     else Deterministic Strategy
-        T3->>T3: Execute optimized workflow
+        T3->>T3: Execute optimized routine
         T3->>Tools: Cached/batched API calls
     end
     
@@ -2269,7 +2371,7 @@ sequenceDiagram
     T3->>T3: Validate output quality<br/>& emit performance events
     T3-->>T2: StepExecutionResult<br/>(output, metrics, state)
     
-    T2->>T2: Update workflow state<br/>& plan next steps
+    T2->>T2: Update routine state<br/>& plan next steps
     T2-->>T1: RoutineExecutionResult<br/>(status, outputs, metrics)
     
     Note over T1,Tools: Learning & Optimization Loop
@@ -2452,7 +2554,7 @@ graph TB
         SystemEvents[System Events<br/>🔐 Security incidents<br/>📊 Performance metrics<br/>⚠️ Error conditions]
     end
     
-    subgraph "Event Consumers"
+    subgraph "Event Consumers (Examples)"
         MonitoringBots[Monitoring Bots<br/>📊 Performance tracking<br/>🚨 Alert generation<br/>📈 Trend analysis]
         SecurityBots[Security Bots<br/>🔒 Threat detection<br/>🚨 Incident response<br/>📊 Audit logging]
         OptimizationBots[Optimization Bots<br/>🔄 Pattern recognition<br/>📋 Routine improvements<br/>🎯 Strategy evolution]
@@ -2496,6 +2598,49 @@ Vrooli's event-driven architecture represents a fundamental shift from hard-code
 - **📊 Comprehensive Coverage**: Multiple specialized agents provide redundant, overlapping monitoring
 - **⚡ Real-Time Responsiveness**: Agents respond to events as they occur, enabling immediate action
 - **🔒 Security Through Diversity**: Distributed monitoring reduces single points of failure
+
+#### *Fire-and-Forget* vs. *Barrier* Events
+
+| Event class                                                                                 | Delivery guarantee                                                                                            | Typical emitters                               | Consumption style             |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------- |
+| **Telemetry**<br>(`swarm/perf.*`, `routine/execution.*`, `resource/usage.*`)                | At-most-once. No ack needed.                                                                                  | Tier-2 RunStateMachine, Tier-3 ResourceManager | Dashboards, optimisation bots |
+| **Business / domain**<br>(`customer.*`, `transaction.*`)                                    | At-least-once (retry) but **no barrier**                                                                      | Code inside routines                           | Line-of-business bots         |
+| **Safety-critical**<br>(`safety/pre_action`, `safety/post_action`, `safety/emergency_stop`) | **Barrier handshake**:<br>• quorum ≥ 1 OK response<br>• timeout default 2 s<br>• any `ALARM` ⇒ action aborted | Guard-Rails in Tier-2 & Tier-3                 | Safety agents only            |
+
+Here's what the barrier handshake looks like:
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GR as Guard-Rails
+    participant BUS as EventBus
+    participant SA1 as SafetyAgent-1
+    participant SA2 as SafetyAgent-2
+    participant SRC as Caller (T3 or T2)
+
+    GR->>BUS: emit safety/pre_action cid=abc
+    par fan-out
+        BUS-->>SA1: event abc
+        BUS-->>SA2: event abc
+    end
+    par agent-responses
+        SA1-->>BUS: safety/resp/abc status=OK
+        SA2-->>BUS: safety/resp/abc status=ALARM reason="bias"
+    end
+    GR->>BUS: awaitBarrier(abc, timeout=2 s)
+    alt any ALARM or timeout
+        GR-->>SRC: SafetyError ⇒ emergencyStop()
+    else all OK
+        GR-->>SRC: proceed()
+    end
+```
+
+**Where barrier events occur:**
+
+| Layer                         | When `safety/pre_action` is emitted                                                          | When `safety/post_action` is emitted                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **Tier-3 UnifiedExecutor**    | • Step manifest sets `requiresSafetyBarrier: true` *or* input sensitivity ≥ config.threshold | After `validateOutput` if output sensitivity ≥ config.threshold |
+| **Tier-2 RunStateMachine**    | Before launching a sub-routine whose manifest is tagged `high_risk`                          | —                                                               |
+| **Guard-Rails.emergencyStop** | —                                                                                            | Emits `safety/emergency_stop` (notification only; no barrier)   |
 
 #### **Event Consumer Types and Capabilities**
 
@@ -2601,7 +2746,7 @@ const creativeQualityBot = {
 
 **3. ⚡ Optimization Bots - Continuous Performance Enhancement**
 
-Optimization agents identify and implement improvements specific to team workflows:
+Optimization agents identify and implement improvements specific to team routines:
 
 ```typescript
 // Routine Optimization Bot
@@ -2798,7 +2943,7 @@ const deployedAgent = await deployAgentFromMarketplace({
 
 **Progressive Sophistication:**
 1. **Basic Monitoring**: Teams start with simple monitoring agents
-2. **Pattern Recognition**: Agents begin identifying patterns in team workflows
+2. **Pattern Recognition**: Agents begin identifying patterns in team routines
 3. **Predictive Intelligence**: Agents start predicting issues before they occur
 4. **Autonomous Optimization**: Agents automatically implement approved optimizations
 5. **Strategic Insights**: Agents provide strategic recommendations for business growth
@@ -2834,14 +2979,14 @@ const autonomousImprover = createAgent({
     subscriptions: ["*"], // Monitor everything
     capabilities: [
         "autonomous_routine_optimization",
-        "strategic_workflow_improvements", 
+        "strategic_routine_improvements", 
         "business_impact_analysis"
     ],
     authority: "implement_approved_optimizations"
 });
 ```
 
-This event-driven intelligence architecture ensures that Vrooli becomes more intelligent and capable over time, not through system updates, but through the **collective intelligence of specialized agents** that teams deploy, refine, and share with each other.
+> This event-driven intelligence architecture ensures that Vrooli becomes more intelligent and capable over time, not through system updates, but through the **collective intelligence of specialized agents** that teams deploy, refine, and share with each other.
 
 ## State Management and Consistency
 
@@ -3433,57 +3578,43 @@ graph TB
     class Swarm,ManageResourceTool,SearchRoutine search
 ```
 
-### **AI Safety and Reliability**
+### **Safety and Reliability**
+
+> **Safety Guard-Rails:**
+> The platform injects a thin, synchronous *Guard-Rail Layer* in front of every model call and tool invocation.
+> *Non-negotiable tasks (schema/size validation, hard resource limits, emergency kill)* run here in < 10 ms.
+> Anything that needs deeper reasoning (*prompt injection, hallucination, bias, policy drift*) is surfaced as a `safety.*` event and picked up by *Safety Agents* on the event bus. 
+> See the [Event-Driven Intelligence Architecture](#event-driven-intelligence-architecture) section for more details on how event-driven agents are deployed and configured.
 
 ```mermaid
 graph TB
-    subgraph "Core Safety Framework"
-        SafetyManager[Safety Manager<br/>🛡️ Central safety coordination<br/>📊 Policy enforcement<br/>🔄 Event integration]
-        
-        subgraph "Essential Safety Infrastructure"
-            InputValidation[Input Validation<br/>🔒 Basic format validation<br/>⚡ Schema enforcement<br/>📊 Size/rate limits]
-            OutputValidation[Output Validation<br/>✅ Basic schema validation<br/>🔒 Format compliance<br/>📊 Size constraints]
-            SafetyLimits[Safety Limits<br/>🚫 Hard resource boundaries<br/>⏱️ Rate limiting<br/>💰 Cost controls]
-            EmergencyStop[Emergency Stop<br/>🛑 Immediate shutdown<br/>🔄 Safe rollback<br/>📊 Incident logging]
-        end
-        
-        subgraph "Event-Driven Safety Intelligence"
-            SafetyEvents[Safety Events<br/>📊 Input/output patterns<br/>🚨 Policy violations<br/>⚠️ Risk indicators]
-            SafetyAgents[Safety Agents<br/>🤖 Subscribe to safety events<br/>📊 Report findings<br/>⚡ Trigger responses]
-        end
-    end
-    
-    SafetyManager --> InputValidation
-    SafetyManager --> OutputValidation
-    SafetyManager --> SafetyLimits
-    SafetyManager --> EmergencyStop
-    SafetyManager --> SafetyEvents
-    SafetyManager --> SafetyAgents
-    
-    classDef manager fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef events fill:#ffebee,stroke:#c62828,stroke-width:2px
-    
-    class SafetyManager manager
-    class InputValidation,OutputValidation,SafetyLimits,EmergencyStop infrastructure
-    class SafetyEvents,SafetyAgents events
+  subgraph "Inline Guard-Rail Layer"
+    Guard[Safety Guard-Rails<br/>⚡ Sync checks, <10 ms]:::guard
+    InputVal[Input Validation]:::infra
+    OutputVal[Output Validation]:::infra
+    Limits[Safety Limits]:::infra
+    EStop[Emergency Stop<br/>🛑 emits safety/emergency_stop]:::infra
+  end
+  subgraph "Event-Driven Safety"
+    SafetyEvents["safety.* events"]:::events
+    Agents[Safety Agents<br/>subscribe/analyse/respond]:::agents
+  end
+  Guard --> InputVal & OutputVal & Limits & EStop
+  Guard -- emits --> SafetyEvents
+  SafetyEvents --> Agents
+classDef guard fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+classDef infra fill:#f3e5f5,stroke:#7b1fa2
+classDef events fill:#ffebee,stroke:#c62828
+classDef agents fill:#e8f5e8,stroke:#2e7d32
 ```
 
-**Core Security Components:**
+| Safety task                                            | Concrete hook / class                                                                                                                                                                                                                                      | Responsibility                                                                                                | Verification path                                                                                                     |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Input validation** (schema/size/sensitivity)         | `guardrails.validateInput(payload, context)` <br>called: ① once in **RunStateMachine** right before it forwards a step to Tier-3, ② again inside **UnifiedExecutor** right before strategy execution.                                                      | ① stops malformed tool args early (cheap).<br>② catches step-level problems introduced by T2 transformations. | Unit tests on `guardrails` + integration test that malformed payload in a BPMN node aborts before hitting model call. |
+| **Output validation**                                  | `guardrails.validateOutput(result, schema)` in **UnifiedExecutor** *after* strategy returns but *before* response bubbles up to T2.                                                                                                                        | Enforces format contracts & redacts high-sensitivity fields that upper tiers should never receive.            | Golden-file tests on step outputs; failing output raises `SafetyError`.                                               |
+| **Hard resource limits** (credits, wall-clock, memory) | *Three layers* <br>• **ResourceManager** (Tier-3) – per-step metering, kills runaway code.<br>• **RunLimitsManager** (Tier-2) – aggregates per-run, enforces ChatConfig limits.<br>• **SwarmStateMachine** – tracks totals for whole swarm & child swarms. | Each layer *only reads* limits set in `ChatConfig.resourceLimits`; only T1 can shrink them.                   | Assertions in RM and RL fire `LimitExceededError` → triggers emergencyStop flow.                                      |
+| **Emergency stop**                                     | `guardrails.emergencyStop(reason)` – wrapper that<br>1) calls `SwarmStateMachine.stop(SafetyReason)` synchronously<br>2) publishes `safety/emergency_stop` event for Safety Agents.                                                                        | Guarantees single code path; nobody else is allowed to call `stop()` for safety reasons.                      | E2E test: inject huge payload ⇒ expect `STOPPED` state + event within one tick.                                       |
 
-- **Authentication Service**: Verifies user and agent identities using robust mechanisms, including multi-factor authentication and secure token management.
-- **Authorization Engine**: Enforces access control policies based on roles and permissions, ensuring that users and agents can only access resources and perform actions they are authorized for.
-- **Audit Logger**: Tracks all significant activities within the system, providing a comprehensive audit trail for compliance monitoring and security analytics.
-- **Sandbox Manager**: Isolates the execution of routines and code, enforcing resource limits and restricting privileges to prevent malicious or runaway processes.
-- **Code Validator**: Performs static analysis and risk assessment on code submitted for execution within routines, aiming to detect malware or unsafe practices.
-- **Network Controller**: Manages network traffic, enforcing isolation between components and encrypting data in transit to prevent unauthorized access and eavesdropping.
-- **Encryption Service**: Protects data at rest and in transit using strong encryption algorithms and secure key management practices.
-- **Privacy Manager**: Implements features for data anonymization and PII protection, supporting compliance with regulations like GDPR.
-- **Secret Manager**: Securely stores and manages sensitive information such as API keys and credentials, with features for rotation and access logging.
-
-**Event-Driven Safety Intelligence:**
-
-Advanced safety capabilities like **prompt injection detection**, **hallucination checking**, **bias detection**, and **behavioral monitoring** are provided by specialized **safety agents**. These agents subscribe to `SafetyEvents` (e.g., input/output patterns, policy violations, risk indicators) via the `SafetyAgentAPI`. They analyze these events, report findings, and can trigger responses or escalate issues. This approach allows security measures to be highly adaptable and evolve as new threats emerge. See the [Event-Driven Intelligence Architecture](#event-driven-intelligence-architecture) section for more details on how event-driven agents are deployed and configured.
 
 ## Cross-Cutting Architectural Concerns
 
@@ -3621,48 +3752,40 @@ By combining foundational security measures with an adaptive, event-driven appro
 
 ### Monitoring and Observability
 
-```mermaid
+> **Two lenses, one philosophy:**
+> 1. Live stream: a < 5 ms Telemetry Shim publishes `perf.* / health.* / biz.*` events; Monitoring-Agents subscribe and act.
+> 2. Local hindsight: each chat/swarm keeps a rolling `ToolCallRecord[]` (last k entries). Agents can reason over their own past calls without hitting the bus or a database.
+
+ ```mermaid
 graph TB
-    subgraph "Monitoring Framework"
-        MonitoringService[MonitoringService<br/>📊 Central monitoring coordinator]
-        
-        subgraph "Performance Monitoring"
-            MetricsCollector[MetricsCollector<br/>📊 Performance metrics<br/>⏱️ Response times<br/>💰 Resource usage]
-            AlertManager[AlertManager<br/>🚨 Threshold monitoring<br/>📢 Notification service<br/>🔄 Escalation policies]
-            DashboardService[DashboardService<br/>📈 Real-time visualization<br/>📊 Custom dashboards<br/>🔍 Drill-down analysis]
-        end
-        
-        subgraph "Health Monitoring"
-            HealthChecker[HealthChecker<br/>💓 Service health<br/>🔍 Dependency checks<br/>🚨 Failure detection]
-            CircuitBreaker[CircuitBreaker<br/>⚡ Failure isolation<br/>🔄 Auto-recovery<br/>📊 Fallback strategies]
-            LoadBalancer[LoadBalancer<br/>⚖️ Traffic distribution<br/>📊 Capacity management<br/>🔄 Auto-scaling]
-        end
-        
-        subgraph "Event-Driven Intelligence Monitoring"
-            MonitoringEvents[Monitoring Events<br/>📊 Quality metrics<br/>📈 Usage patterns<br/>💬 Feedback data]
-            MonitoringAgents[Monitoring Agents<br/>🤖 Subscribe to events<br/>💡 Generate insights<br/>📈 Suggest improvements]
-        end
-    end
-    
-    MonitoringService --> MetricsCollector
-    MonitoringService --> AlertManager
-    MonitoringService --> DashboardService
-    MonitoringService --> HealthChecker
-    MonitoringService --> CircuitBreaker
-    MonitoringService --> LoadBalancer
-    MonitoringService --> MonitoringEvents
-    MonitoringService --> MonitoringAgents
-    
-    classDef monitoring fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef performance fill:#bbdefb,stroke:#1976d2,stroke-width:2px
-    classDef health fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    classDef intelligence fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class MonitoringService monitoring
-    class MetricsCollector,AlertManager,DashboardService performance
-    class HealthChecker,CircuitBreaker,LoadBalancer health
-    class MonitoringEvents,MonitoringAgents intelligence
-```
+  subgraph "Inline Layers"
+    Shim[Telemetry Shim<br/>⚡ ≤5 ms]:::shim
+    History[ToolCallRecord<br/>📜 local history]:::hist
+  end
+  subgraph "Event Bus"
+    Telemetry["perf.*  health.*  biz.*"]:::events
+  end
+  subgraph "Monitoring Agents (Examples)"
+    DashBot[Dash Bot<br/>📈 dashboards]:::agent
+    SLOBot[SLO Bot<br/>🚨 alert/scale]:::agent
+    TrendBot[Trend Bot<br/>📊 pattern mining]:::agent
+  end
+  Shim -- publish --> Telemetry
+  Telemetry --> DashBot & SLOBot & TrendBot
+  History -. in-context .-> AgentsInChat[(Any agent<br/>in the chat)]
+classDef shim fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+classDef hist fill:#f3e5f5,stroke:#7b1fa2
+classDef events fill:#ffebee,stroke:#c62828
+classDef agent fill:#e8f5e8,stroke:#2e7d32
+ ```
+
+ #### Event taxonomy
+
+| Channel / store                                                | Guarantee                | Who writes                   | Typical consumer                         |
+| -------------------------------------------------------------- | ------------------------ | ---------------------------- | ---------------------------------------- |
+| `perf.*`, `health.*`, `biz.*` (event bus)             | At-most-once (telemetry) | Telemetry Shim in every tier | Monitoring-Agents, dashboards            |
+| `slo/pre_action`, `slo/post_action` (event bus, barrier) | Quorum-handshake (≤ 2 s) | Guard-Rail Layer             | SLO-Agents (can veto)                    |
+| `toolCallHistory` (local field)                              | Always-present snapshot  | ToolOrchestrator (Tier-3)    | Any in-chat agent doing RCA, self-tuning |
 
 ## Resilience and Error Handling Architecture
 
@@ -3978,7 +4101,7 @@ graph TB
 
 **Deliverables**:
 - **Tier 3**: Basic UnifiedExecutor with ConversationalStrategy
-- **Tier 2**: Simple WorkflowEngine with linear process execution
+- **Tier 2**: Simple RoutineEngine with linear process execution
 - **Tier 1**: Basic SwarmStateMachine with manual team assembly
 - **Security**: Basic authentication and authorization
 - **Monitoring**: Essential health checks and logging
@@ -4082,20 +4205,20 @@ packages/
 │
 ├── process/                               # Tier 2: Process Intelligence (RunStateMachine)
 │   ├── stateMachine/
-│   │   ├── runStateMachine.ts            # Universal workflow orchestrator
+│   │   ├── runStateMachine.ts            # Universal routine orchestrator
 │   │   ├── branchController.ts           # Concurrent execution & synchronization
 │   │   ├── stateManager.ts               # State persistence & recovery
-│   │   └── processManager.ts             # Workflow navigation & tracking
+│   │   └── processManager.ts             # Routine navigation & tracking
 │   │
 │   ├── navigation/                        # Navigator Registry - Plug & Play
 │   │   ├── navigatorFactory.ts           # Navigator selection & registry
 │   │   ├── interfaces.ts                 # IRoutineStepNavigator interface
-│   │   └── navigators/                   # Pluggable workflow navigators
+│   │   └── navigators/                   # Pluggable routine navigators
 │   │       ├── bpmnNavigator.ts          # BPMN 2.0 support
 │   │       ├── langchainNavigator.ts     # Langchain/LangGraph support
-│   │       ├── temporalNavigator.ts      # Temporal workflow support
+│   │       ├── temporalNavigator.ts      # Temporal routine support
 │   │       ├── airflowNavigator.ts       # Apache Airflow DAG support
-│   │       └── n8nNavigator.ts           # n8n workflow support
+│   │       └── n8nNavigator.ts           # n8n routine support
 │   │
 │   ├── intelligence/
 │   │   ├── pathSelectionHandler.ts       # Decision making & path optimization
